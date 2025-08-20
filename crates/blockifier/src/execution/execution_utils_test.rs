@@ -37,7 +37,7 @@ fn test_zero_inputs() {
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
-    let opcodes = count_blake_opcode(0, 0);
+    let opcodes = count_blake_opcode(&FeltSizeCount { small: 0, large: 0 });
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
