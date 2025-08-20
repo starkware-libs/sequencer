@@ -9,7 +9,7 @@ env:
 
 jobs:
   define_branches:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
       branches: ${{ steps.branches.outputs.branches }}
     steps:
@@ -18,7 +18,7 @@ jobs:
         run: echo 'branches=["main", "main-v0.14.0"]' >> "$GITHUB_OUTPUT"
 
   codecov:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     needs: define_branches
     strategy:
       matrix:
@@ -40,7 +40,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -59,7 +59,7 @@ jobs:
           verbose: true
 
   feature_combos:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     needs: define_branches
     strategy:
       matrix:
@@ -74,7 +74,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
@@ -91,7 +91,7 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     needs: define_branches
     strategy:
       matrix:
