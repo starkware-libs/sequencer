@@ -9,6 +9,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -135,4 +136,50 @@ fn test_create_bytecode_segment_felt_sizes(
 ) {
     let result = NestedFeltCounts::new(&bytecode_segment_lengths, &bytecode);
     assert_eq!(result, expected_structure);
+}
+
+/// Creates a vector of `Felt` items, respecting the `FeltSizeCount` threshold.
+fn generate_felt_items(n_small: usize, n_large: usize) -> Vec<Felt> {
+    let small_felt = Felt::from((1u64 << 63) - 1);
+    let large_felt = Felt::from(1u64 << 63);
+
+    // Sanity check: threshold is respected.
+    assert!(small_felt < FeltSizeCount::SMALL_THRESHOLD);
+    assert!(large_felt >= FeltSizeCount::SMALL_THRESHOLD);
+
+    let mut items = vec![small_felt; n_small];
+    items.extend(vec![large_felt; n_large]);
+
+    items
+}
+
+#[rstest]
+#[case::empty(0, 0)]
+#[case::small_and_large(2, 3)]
+fn felt_size_count_from_felt_slice(#[case] expected_small: usize, #[case] expected_large: usize) {
+    let items = generate_felt_items(expected_small, expected_large);
+
+    // Convert the Felt slice to a FeltSizeCount:
+    let count = FeltSizeCount::from(&items[..]);
+
+    assert_eq!(count.small, expected_small);
+    assert_eq!(count.large, expected_large);
+}
+
+#[rstest]
+#[case::empty(0, 0)]
+#[case::small_and_large(2, 3)]
+fn felt_size_count_from_biguintashex_slice(
+    #[case] expected_small: usize,
+    #[case] expected_large: usize,
+) {
+    let felt_items = generate_felt_items(expected_small, expected_large);
+    let biguint_items =
+        felt_items.iter().map(|x| BigUintAsHex::from(x.to_biguint())).collect::<Vec<_>>();
+
+    // Convert the BigUintAsHex slice to a FeltSizeCount:
+    let count = FeltSizeCount::from(&biguint_items[..]);
+
+    assert_eq!(count.small, expected_small);
+    assert_eq!(count.large, expected_large);
 }
