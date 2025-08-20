@@ -2062,6 +2062,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_storage",
  "starknet_api",
+ "tokio",
  "tracing",
 ]
 

@@ -15,4 +15,5 @@ testing = []
 apollo_metrics.workspace = true
 apollo_storage.workspace = true
 starknet_api.workspace = true
+tokio.workspace = true
 tracing.workspace = true
