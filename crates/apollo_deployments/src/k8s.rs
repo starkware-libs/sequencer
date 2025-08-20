@@ -3,7 +3,6 @@ use serde::{Serialize, Serializer};
 
 use crate::deployment::P2PCommunicationType;
 use crate::deployment_definitions::Environment;
-
 // Controls whether external P2P communication is enabled.
 const INTERNAL_ONLY_P2P_COMMUNICATION: bool = true;
 

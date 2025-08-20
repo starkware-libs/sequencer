@@ -6,12 +6,10 @@ use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, Serializ
 use apollo_config::{ParamPath, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use serde_json::{Map, Value};
 use tracing::error;
 use validator::ValidationError;
 
-use crate::config::component_config::ComponentConfig;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{
     SequencerNodeConfig,
@@ -121,20 +119,6 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
     }
 }
 
-pub struct BaseAppConfigOverride {
-    component_config: ComponentConfig,
-    monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
-}
-
-impl BaseAppConfigOverride {
-    pub fn new(
-        component_config: ComponentConfig,
-        monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
-    ) -> Self {
-        Self { component_config, monitoring_endpoint_config }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
@@ -171,12 +155,6 @@ impl DeploymentBaseAppConfig {
         F: Fn(&mut ConfigPointersMap),
     {
         modify_config_pointers_fn(&mut self.config_pointers_map);
-    }
-
-    pub fn override_base_app_config(&mut self, base_app_config_override: BaseAppConfigOverride) {
-        self.config.components = base_app_config_override.component_config;
-        self.config.monitoring_endpoint_config =
-            base_app_config_override.monitoring_endpoint_config;
     }
 
     pub fn as_value(&self) -> Value {

@@ -20,6 +20,9 @@
             "pattern": "^(?i)(statefulset|deployment)$",
             "errorMessage": "Invalid value, must be 'statefulset' or 'deployment'"
           },
+          "update_strategy_type": {
+            "type": "string"
+          },
           "ingress": {
             "anyOf": [
               { "type": "null" },
@@ -100,6 +103,7 @@
           "name",
           "config_paths",
           "controller",
+          "update_strategy_type",
           "ingress",
           "replicas",
           "autoscale",

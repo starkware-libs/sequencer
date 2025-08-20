@@ -51,8 +51,12 @@ impl L1Provider {
         height: BlockNumber,
         state: SessionState,
     ) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
-        debug!("Starting block at height: {height}");
+        info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
         Ok(())
@@ -79,6 +83,10 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
 
         match self.state {
@@ -110,6 +118,10 @@ impl L1Provider {
         tx_hash: TransactionHash,
         height: BlockNumber,
     ) -> L1ProviderResult<ValidationStatus> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
         match self.state {
             ProviderState::Validate => {
@@ -131,6 +143,10 @@ impl L1Provider {
         rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         if self.is_historical_height(height) {
             debug!(
                 "Skipping commit block for historical height: {}, current height is higher: {}",

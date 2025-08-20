@@ -16,6 +16,7 @@ alloy.workspace = true
 anyhow.workspace = true
 apollo_batcher.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
+apollo_compile_to_casm.workspace = true
 apollo_config.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true

@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use strum_macros::AsRefStr;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Semaphore;
 use tokio::task;
@@ -20,6 +21,7 @@ use crate::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    PrioritizedRequest,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -35,10 +37,11 @@ use crate::tests::{
 
 type TestResult = ClientResult<()>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 enum ConcurrentComponentRequest {
     PerformAction(TestSemaphore),
 }
+impl PrioritizedRequest for ConcurrentComponentRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 enum ConcurrentComponentResponse {
@@ -131,7 +134,7 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
         component,
         rx_a,
         max_concurrency,
-        TEST_LOCAL_SERVER_METRICS,
+        &TEST_LOCAL_SERVER_METRICS,
     );
     task::spawn(async move {
         let _ = concurrent_local_server.start().await;

@@ -46,6 +46,8 @@ use crate::utils::{
     StreamSender,
 };
 
+// Minimal wait time that avoids an immediate timeout.
+const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
     pub batcher_timeout: Duration,
@@ -82,7 +84,10 @@ pub(crate) enum BuildProposalError {
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("Proposal interrupted.")]
     Interrupted,
-    #[error("Writing blob to Aerospike failed. {0}")]
+    // TODO(shahak): Add the CENDE_FAILURE warn logs into the error and erase them.
+    #[error(
+        "Writing blob to Aerospike failed. {0}. For more info search CENDE_FAILURE in the logs"
+    )]
     CendeWriteError(String),
     #[error("Failed to convert transactions: {0}")]
     TransactionConverterError(#[from] TransactionConverterError),
@@ -135,7 +140,6 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.unix_now();
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
-        args.deps.eth_to_strk_oracle_client.clone(),
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
@@ -249,7 +253,7 @@ async fn get_proposal_content(
                 let remaining = (batcher_deadline - clock.now())
                     .to_std()
                     .unwrap_or_default()
-                    .max(Duration::from_millis(1)); // Ensure we wait at least 1 ms to avoid immediate timeout. 
+                    .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout. 
                 match tokio::time::timeout(remaining, cende_write_success).await {
                     Err(_) => {
                         return Err(BuildProposalError::CendeWriteError(

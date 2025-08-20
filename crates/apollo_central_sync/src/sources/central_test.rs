@@ -27,7 +27,7 @@ use lru::LruCache;
 use mockall::predicate;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -48,11 +48,8 @@ async fn last_block_number() {
 
     // We need to perform all the mocks before moving the mock into central_source.
     const EXPECTED_LAST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
-    mock.expect_latest_block().times(1).returning(|| {
-        Ok(Some(Block::PostV0_13_1(BlockPostV0_13_1 {
-            block_number: EXPECTED_LAST_BLOCK_NUMBER,
-            ..Default::default()
-        })))
+    mock.expect_latest_block_number_and_hash().times(1).returning(|| {
+        Ok(Some(BlockHashAndNumber { number: EXPECTED_LAST_BLOCK_NUMBER, ..Default::default() }))
     });
 
     let ((reader, _), _temp_dir) = get_test_storage();

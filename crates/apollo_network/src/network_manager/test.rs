@@ -13,6 +13,7 @@ use futures::future::FutureExt;
 use futures::stream::Stream;
 use futures::{pin_mut, Future, SinkExt, StreamExt};
 use lazy_static::lazy_static;
+use libp2p::core::transport::PortUse;
 use libp2p::core::ConnectedPoint;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::ConnectionId;
@@ -407,6 +408,7 @@ fn get_test_connection_established_event(mock_peer_id: PeerId) -> Event {
         endpoint: ConnectedPoint::Dialer {
             address: Multiaddr::empty(),
             role_override: libp2p::core::Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         num_established: std::num::NonZeroU32::new(1).unwrap(),
         concurrent_dial_errors: None,

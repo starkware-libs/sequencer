@@ -76,9 +76,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageWriteResponse,
     SyscallBaseResult,
     SyscallExecutorBaseError,
-    SyscallRequest,
     SyscallSelector,
-    SyscallUsageMap,
     TryExtractRevert,
 };
 use crate::state::errors::StateError;
@@ -256,9 +254,6 @@ const_felt_error!(
 pub struct SyscallHintProcessor<'a> {
     pub base: Box<SyscallHandlerBase<'a>>,
 
-    // VM-specific fields.
-    pub syscalls_usage: SyscallUsageMap,
-
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
     pub syscall_ptr: Relocatable,
@@ -288,7 +283,6 @@ impl<'a> SyscallHintProcessor<'a> {
     ) -> Self {
         SyscallHintProcessor {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscalls_usage: SyscallUsageMap::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
             hints,
@@ -354,14 +348,7 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
-    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self
-            .syscalls_usage
-            .get_mut(selector)
-            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
-        syscall_usage.linear_factor += n;
-    }
-
+    #[allow(clippy::result_large_err)]
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -506,9 +493,8 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.secp256k1_hint_processor.points.len() + self.secp256r1_hint_processor.points.len()
     }
 
-    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
-        syscall_usage.call_count += n;
+    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
+        self.base.increment_syscall_count_by(*selector, count);
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
@@ -570,13 +556,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<DeployResponse, Self::Error> {
-        // Increment the Deploy syscall's linear cost counter by the number of elements in the
-        // constructor calldata.
-        syscall_handler.increment_linear_factor_by(
-            &SyscallSelector::Deploy,
-            request.get_linear_factor_length(),
-        );
-
         let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
             request.class_hash,
             request.contract_address_salt,
@@ -675,13 +654,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
-        // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
-        // calldata.
-        syscall_handler.increment_linear_factor_by(
-            &SyscallSelector::MetaTxV0,
-            request.get_linear_factor_length(),
-        );
-
         let storage_address = request.contract_address;
         let selector = request.entry_point_selector;
 

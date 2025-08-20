@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -233,7 +231,7 @@ impl TransactionConverterTrait for TransactionConverter {
                     contract_class: self.get_executable(tx.class_hash).await?,
                     sierra_program_length: sierra.sierra_program.len(),
                     abi_length: sierra.abi.len(),
-                    sierra_version: SierraVersion::from_str(&sierra.contract_class_version)?,
+                    sierra_version: SierraVersion::extract_from_program(&sierra.sierra_program)?,
                 };
 
                 Ok(AccountTransaction::Declare(executable_transaction::DeclareTransaction {

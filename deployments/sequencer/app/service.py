@@ -70,7 +70,7 @@ class ServiceApp(Construct):
             "service",
             metadata=k8s.ObjectMeta(
                 labels=self.labels,
-                annotations=self._get_service_anotations(),
+                annotations=self._get_service_annotations(),
             ),
             spec=k8s.ServiceSpec(
                 type=self._get_service_type(),
@@ -144,6 +144,9 @@ class ServiceApp(Construct):
             spec=k8s.DeploymentSpec(
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
+                strategy=self._get_deployment_update_strategy(
+                    type=self.service_topology.update_strategy_type
+                ),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
@@ -167,11 +170,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -190,6 +209,9 @@ class ServiceApp(Construct):
                 service_name=f"{self.node.id}-service",
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
+                update_strategy=self._get_statefulset_update_strategy(
+                    type=self.service_topology.update_strategy_type
+                ),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
@@ -213,11 +235,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -358,7 +396,7 @@ class ServiceApp(Construct):
             for attr in self._get_ports_subset_keys_from_config()
         ]
 
-    def _get_service_anotations(self) -> typing.Dict[str, str]:
+    def _get_service_annotations(self) -> typing.Dict[str, str]:
         annotations = {}
         if self.service_topology.k8s_service_config is None:
             return annotations
@@ -366,7 +404,12 @@ class ServiceApp(Construct):
             self.service_topology.k8s_service_config.get("internal") is True
             and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
         ):
-            annotations.update({"cloud.google.com/load-balancer-type": "Internal"})
+            annotations.update(
+                {
+                    "cloud.google.com/load-balancer-type": "Internal",
+                    "networking.gke.io/internal-load-balancer-allow-global-access": "true",
+                }
+            )
         if self.service_topology.k8s_service_config.get("external_dns_name"):
             annotations.update(
                 {
@@ -392,16 +435,18 @@ class ServiceApp(Construct):
 
     def _get_http_probe(
         self,
-        period_seconds: int = const.PROBE_PERIOD_SECONDS,
-        failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
-        timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
-        path: str = const.PROBE_MONITORING_ALIVE_PATH,
+        success_threshold: int,
+        failure_threshold: int,
+        period_seconds: int,
+        timeout_seconds: int,
+        path: str,
     ) -> k8s.Probe:
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
                 path=path,
                 port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
             ),
+            success_threshold=success_threshold,
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
             timeout_seconds=timeout_seconds,
@@ -637,21 +682,102 @@ class ServiceApp(Construct):
             ]
         return None
 
+    def _get_pod_affinity_term(self, topology_key: str) -> k8s.PodAffinityTerm:
+        match_labels = {"service": Names.to_label_value(self, include_hash=False)}
+        return k8s.PodAffinityTerm(
+            label_selector=k8s.LabelSelector(
+                match_labels=match_labels,
+            ),
+            topology_key=topology_key,
+            namespace_selector={},
+        )
+
+    def _get_weighted_pod_affinity_term(
+        self, topology_key: str, weight: int
+    ) -> k8s.WeightedPodAffinityTerm:
+        return k8s.WeightedPodAffinityTerm(
+            weight=weight, pod_affinity_term=self._get_pod_affinity_term(topology_key=topology_key)
+        )
+
     def _get_affinity(self) -> k8s.Affinity:
         if self.service_topology.anti_affinity:
             return k8s.Affinity(
                 pod_anti_affinity=k8s.PodAntiAffinity(
-                    required_during_scheduling_ignored_during_execution=[
-                        k8s.PodAffinityTerm(
-                            label_selector=k8s.LabelSelector(
-                                match_labels={
-                                    "service": Names.to_label_value(self, include_hash=False)
-                                },
-                            ),
-                            topology_key="kubernetes.io/hostname",
-                            namespace_selector={},
+                    preferred_during_scheduling_ignored_during_execution=[
+                        self._get_weighted_pod_affinity_term(
+                            topology_key=const.AFFINITY_ZONE_TOPOLOGY["key"],
+                            weight=const.AFFINITY_ZONE_TOPOLOGY["weight"],
+                        ),
+                        self._get_weighted_pod_affinity_term(
+                            topology_key=const.AFFINITY_HOSTNAME_TOPOLOGY["key"],
+                            weight=const.AFFINITY_HOSTNAME_TOPOLOGY["weight"],
                         ),
                     ],
                 ),
             )
         return None
+
+    def _get_deployment_rolling_update(
+        self, max_surge: str, max_unavailable: str
+    ) -> k8s.RollingUpdateDeployment:
+        return k8s.RollingUpdateDeployment(
+            max_surge=k8s.IntOrString.from_string(max_surge),
+            max_unavailable=k8s.IntOrString.from_string(max_unavailable),
+        )
+
+    def _get_statefulset_rolling_update(
+        self,
+        max_unavailable: str,
+        partition: int,
+    ) -> k8s.RollingUpdateStatefulSetStrategy:
+        return k8s.RollingUpdateStatefulSetStrategy(
+            max_unavailable=k8s.IntOrString.from_string(max_unavailable),
+            partition=partition,
+        )
+
+    def _get_deployment_update_strategy(self, type: str) -> k8s.DeploymentStrategy:
+        assert type in [
+            "Recreate",
+            "RollingUpdate",
+        ], f"Deployment strategy type must be one of 'Recreate' or 'RollingUpdate', got {type}."
+
+        max_surge = const.DEFAULT_ROLLING_UPDATE_MAX_SURGE
+        max_unavailable = const.DEFAULT_ROLLING_UPDATE_MAX_UNAVAILABLE
+
+        return k8s.DeploymentStrategy(
+            type=type,
+            rolling_update=(
+                self._get_deployment_rolling_update(
+                    max_surge=max_surge, max_unavailable=max_unavailable
+                )
+                if type == "RollingUpdate"
+                else None
+            ),
+        )
+
+    def _get_statefulset_update_strategy(self, type: str) -> k8s.StatefulSetUpdateStrategy:
+        assert type in [
+            "OnDelete",
+            "RollingUpdate",
+            "Recreate",
+        ], f"StatefulSet strategy type must be one of 'OnDelete', 'Recreate' or 'RollingUpdate', got {type}."
+
+        max_unavailable = const.DEFAULT_ROLLING_UPDATE_MAX_UNAVAILABLE
+        partition = const.DEFAULT_ROLLING_UPDATE_PARTITION
+
+        if type == "Recreate":
+            type = "RollingUpdate"
+            max_unavailable = const.RECREATE_ROLLING_UPDATE_MAX_UNAVAILABLE
+        return k8s.StatefulSetUpdateStrategy(
+            type=type,
+            rolling_update=(
+                (
+                    self._get_statefulset_rolling_update(
+                        max_unavailable=max_unavailable,
+                        partition=partition,
+                    )
+                )
+                if type == "RollingUpdate"
+                else None
+            ),
+        )

@@ -7,7 +7,7 @@ use apollo_l1_endpoint_monitor_types::{
 };
 use async_trait::async_trait;
 use starknet_api::block::BlockHashAndNumber;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tracing::{error, info};
 use url::Url;
 
@@ -20,7 +20,7 @@ pub type MonitoredEthereumBaseLayer = MonitoredBaseLayer<EthereumBaseLayerContra
 // largely immutable API.
 pub struct MonitoredBaseLayer<B: BaseLayerContract + Send + Sync> {
     pub monitor: SharedL1EndpointMonitorClient,
-    current_node_url: Mutex<Url>,
+    current_node_url: RwLock<Url>,
     base_layer: Mutex<B>,
 }
 
@@ -33,7 +33,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
         MonitoredBaseLayer {
             base_layer: Mutex::new(base_layer),
             monitor: l1_endpoint_monitor_client,
-            current_node_url: Mutex::new(initial_node_url),
+            current_node_url: RwLock::new(initial_node_url),
         }
     }
 
@@ -50,11 +50,11 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
     async fn ensure_operational(&self) -> Result<(), MonitoredBaseLayerError<B>> {
         let active_l1_endpoint = self.monitor.get_active_l1_endpoint().await;
         match active_l1_endpoint {
-            Ok(new_node_url) if new_node_url != *self.current_node_url.lock().await => {
+            Ok(new_node_url) if new_node_url != *self.current_node_url.read().await => {
                 info!(
                     "L1 endpoint {} is no longer operational, switching to new operational L1 \
                      endpoint: {}",
-                    self.current_node_url.lock().await,
+                    self.current_node_url.read().await,
                     &new_node_url
                 );
 
@@ -64,7 +64,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
                     .await
                     .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))?;
 
-                *self.current_node_url.lock().await = new_node_url;
+                *self.current_node_url.write().await = new_node_url;
             }
             Ok(_) => (), // Noop; the current node URL is still operational.
             Err(L1EndpointMonitorClientError::L1EndpointMonitorError(err)) => Err(err)?,

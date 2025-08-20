@@ -60,6 +60,17 @@ define_metrics!(
         MetricCounter { STATE_SYNC_REMOTE_MSGS_RECEIVED, "state_sync_remote_msgs_received", "Counter of messages received by state sync remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, "state_sync_remote_valid_msgs_received", "Counter of valid messages received by state sync remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_MSGS_PROCESSED, "state_sync_remote_msgs_processed", "Counter of messages processed by state sync remote server", init = 0 },
+        // Remote server gauges
+        MetricGauge { BATCHER_REMOTE_NUMBER_OF_CONNECTIONS, "batcher_remote_number_of_connections", "Number of connections to batcher remote server" },
+        MetricGauge { CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS, "class_manager_remote_number_of_connections", "Number of connections to class manager remote server" },
+        MetricGauge { GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS, "gateway_remote_number_of_connections", "Number of connections to gateway remote server" },
+        MetricGauge { L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS, "l1_endpoint_monitor_remote_number_of_connections", "Number of connections to L1 endpoint monitor remote server" },
+        MetricGauge { L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, "l1_provider_remote_number_of_connections", "Number of connections to L1 provider remote server" },
+        MetricGauge { L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, "l1_gas_price_provider_remote_number_of_connections", "Number of connections to L1 gas price provider remote server" },
+        MetricGauge { MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS, "mempool_remote_number_of_connections", "Number of connections to mempool remote server" },
+        MetricGauge { MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS, "mempool_p2p_propagator_remote_number_of_connections", "Number of connections to mempool p2p remote server" },
+        MetricGauge { SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS, "sierra_compiler_remote_number_of_connections", "Number of connections to sierra compiler remote server" },
+        MetricGauge { STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS, "state_sync_remote_number_of_connections", "Number of connections to state sync remote server" },
         // Local server queue depths
         MetricGauge { BATCHER_LOCAL_QUEUE_DEPTH, "batcher_local_queue_depth", "The depth of the batcher's local message queue" },
         MetricGauge { CLASS_MANAGER_LOCAL_QUEUE_DEPTH, "class_manager_local_queue_depth", "The depth of the class manager's local message queue" },
@@ -84,6 +95,30 @@ define_metrics!(
         MetricHistogram { SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS, "sierra_compiler_remote_client_send_attempts", "Required number of remote connection attempts made by a sierra compiler remote client"},
         MetricHistogram { SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, "signature_manager_remote_client_send_attempts", "Required number of remote connection attempts made by a signature manager remote client"},
         MetricHistogram { STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, "state_sync_remote_client_send_attempts", "Required number of remote connection attempts made by a state sync remote client"},
+        // Local server histograms
+        // TODO(Tsabary): should be labelled according to request type. This will probably require moving these definitions to the component definitions.
+        MetricHistogram { BATCHER_PROCESSING_TIMES, "batcher_processing_times", "Request processing times of the batcher"},
+        MetricHistogram { CLASS_MANAGER_PROCESSING_TIMES, "class_manager_processing_times", "Request processing times of the class manager"},
+        MetricHistogram { GATEWAY_PROCESSING_TIMES, "gateway_processing_times", "Request processing times of the gateway"},
+        MetricHistogram { L1_ENDPOINT_MONITOR_PROCESSING_TIMES, "l1_endpoint_monitor_processing_times", "Request processing times of the L1 endpoint monitor"},
+        MetricHistogram { L1_PROVIDER_PROCESSING_TIMES, "l1_provider_processing_times", "Request processing times of the L1 provider"},
+        MetricHistogram { L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES, "l1_gas_price_provider_processing_times", "Request processing times of the L1 gas price provider"},
+        MetricHistogram { MEMPOOL_PROCESSING_TIMES, "mempool_processing_times", "Request processing times of the mempool"},
+        MetricHistogram { MEMPOOL_P2P_PROCESSING_TIMES, "mempool_p2p_propagator_processing_times", "Request processing times of the mempool p2p"},
+        MetricHistogram { SIERRA_COMPILER_PROCESSING_TIMES, "sierra_compiler_processing_times", "Request processing times of the sierra compiler"},
+        MetricHistogram { STATE_SYNC_PROCESSING_TIMES, "state_sync_processing_times", "Request processing times of the state sync"},
+
+        MetricHistogram { BATCHER_QUEUEING_TIMES, "batcher_queueing_times", "Request queueing times of the batcher"},
+        MetricHistogram { CLASS_MANAGER_QUEUEING_TIMES, "class_manager_queueing_times", "Request queueing times of the class manager"},
+        MetricHistogram { GATEWAY_QUEUEING_TIMES, "gateway_queueing_times", "Request queueing times of the gateway"},
+        MetricHistogram { L1_ENDPOINT_MONITOR_QUEUEING_TIMES, "l1_endpoint_monitor_queueing_times", "Request queueing times of the L1 endpoint monitor"},
+        MetricHistogram { L1_PROVIDER_QUEUEING_TIMES, "l1_provider_queueing_times", "Request queueing times of the L1 provider"},
+        MetricHistogram { L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES, "l1_gas_price_provider_queueing_times", "Request queueing times of the L1 gas price provider"},
+        MetricHistogram { MEMPOOL_QUEUEING_TIMES, "mempool_queueing_times", "Request queueing times of the mempool"},
+        MetricHistogram { MEMPOOL_P2P_QUEUEING_TIMES, "mempool_p2p_propagator_queueing_times", "Request queueing times of the mempool p2p"},
+        MetricHistogram { SIERRA_COMPILER_QUEUEING_TIMES, "sierra_compiler_queueing_times", "Request queueing times of the sierra compiler"},
+        MetricHistogram { STATE_SYNC_QUEUEING_TIMES, "state_sync_queueing_times", "Request queueing times of the state sync"},
+
     },
 );
 
@@ -113,6 +148,9 @@ pub struct LocalServerMetrics {
     received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
     queue_depth: &'static MetricGauge,
+    // TODO(Tsabary): should be labelled according to request type.
+    processing_times: &'static MetricHistogram,
+    queueing_times: &'static MetricHistogram,
 }
 
 impl LocalServerMetrics {
@@ -120,14 +158,18 @@ impl LocalServerMetrics {
         received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
         queue_depth: &'static MetricGauge,
+        processing_times: &'static MetricHistogram,
+        queueing_times: &'static MetricHistogram,
     ) -> Self {
-        Self { received_msgs, processed_msgs, queue_depth }
+        Self { received_msgs, processed_msgs, queue_depth, processing_times, queueing_times }
     }
 
     pub fn register(&self) {
         self.received_msgs.register();
         self.processed_msgs.register();
         self.queue_depth.register();
+        self.processing_times.register();
+        self.queueing_times.register();
     }
 
     pub fn increment_received(&self) {
@@ -162,6 +204,15 @@ impl LocalServerMetrics {
             .parse_numeric_metric::<usize>(metrics_as_string)
             .expect("queue_depth metrics should be available")
     }
+
+    // TODO(Tsabary): add the getter fns for tests.
+    pub fn record_processing_time(&self, value: u128) {
+        self.processing_times.record_lossy(value);
+    }
+
+    pub fn record_queueing_time(&self, value: u128) {
+        self.queueing_times.record_lossy(value);
+    }
 }
 
 /// A struct to contain all metrics for a remote server.
@@ -169,6 +220,7 @@ pub struct RemoteServerMetrics {
     total_received_msgs: &'static MetricCounter,
     valid_received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
+    _number_of_connections: &'static MetricGauge,
 }
 
 impl RemoteServerMetrics {
@@ -176,8 +228,14 @@ impl RemoteServerMetrics {
         total_received_msgs: &'static MetricCounter,
         valid_received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
+        number_of_connections: &'static MetricGauge,
     ) -> Self {
-        Self { total_received_msgs, valid_received_msgs, processed_msgs }
+        Self {
+            total_received_msgs,
+            valid_received_msgs,
+            processed_msgs,
+            _number_of_connections: number_of_connections,
+        }
     }
 
     pub fn register(&self) {

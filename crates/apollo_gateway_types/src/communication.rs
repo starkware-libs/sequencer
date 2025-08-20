@@ -1,14 +1,19 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+};
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::GatewayError;
@@ -30,12 +35,18 @@ pub trait GatewayClient: Send + Sync {
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput>;
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(GatewayRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum GatewayRequest {
     AddTransaction(GatewayInput),
 }
-
 impl_debug_for_infra_requests_and_responses!(GatewayRequest);
+impl_labeled_request!(GatewayRequest, GatewayRequestLabelValue);
+impl PrioritizedRequest for GatewayRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum GatewayResponse {

@@ -1,11 +1,13 @@
 // TODO(shahak): add flow test
 
+use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
 use assert_matches::assert_matches;
 use futures::{FutureExt, Stream, StreamExt};
+use libp2p::core::transport::PortUse;
 use libp2p::core::{ConnectedPoint, Endpoint};
 use libp2p::multihash::Multihash;
 use libp2p::swarm::behaviour::ConnectionEstablished;
@@ -21,7 +23,6 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use rstest::rstest;
 use tokio::time::timeout;
-use void::Void;
 
 use super::BootstrappingBehaviour;
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
@@ -45,7 +46,7 @@ const LOCAL_PEER_ID_INDEX: u8 = 0;
 impl Unpin for BootstrappingBehaviour {}
 
 impl Stream for BootstrappingBehaviour {
-    type Item = ToSwarm<ToOtherBehaviourEvent, Void>;
+    type Item = ToSwarm<ToOtherBehaviourEvent, Infallible>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::into_inner(self).poll(cx) {
@@ -178,6 +179,7 @@ fn accept_dial_attempt(
         endpoint: &ConnectedPoint::Dialer {
             address: Multiaddr::empty(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         failed_addresses: &[],
         other_established,
@@ -208,8 +210,10 @@ fn close_connection(
         endpoint: &ConnectedPoint::Dialer {
             address: peer_address.clone(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         remaining_established,
+        cause: None,
     }));
 }
 
