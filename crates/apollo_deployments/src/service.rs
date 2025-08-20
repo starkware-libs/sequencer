@@ -9,7 +9,7 @@ use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::config_utils::config_to_preset;
+use apollo_node::config::config_utils::{config_to_preset, prune_by_is_none};
 use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
@@ -388,8 +388,9 @@ impl NodeType {
             let wrapper =
                 ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
             let flattened = config_to_preset(&json!(wrapper.dump()));
+            let pruned = prune_by_is_none(flattened);
             let file_path = node_service.get_service_file_path();
-            writer(&flattened, &file_path);
+            writer(&pruned, &file_path);
         }
     }
 
