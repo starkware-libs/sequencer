@@ -186,7 +186,8 @@ impl NodeSetup {
         self.batcher_index
     }
 
-    pub fn get_state_sync_index(&self) -> usize {
+    pub fn get_state_sync_identifier(&self) -> usize {
+        // TODO(Nadin): Change return type to service name.
         self.state_sync_index
     }
 
@@ -437,7 +438,7 @@ impl IntegrationTestManager {
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
                      {} executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_state_sync_index(),
+                    running_node_setup.get_state_sync_identifier(),
                 )),
             );
 
@@ -711,7 +712,7 @@ impl IntegrationTestManager {
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
             let batcher_identifier = node_setup.get_batcher_identifier();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
-            let state_sync_index = node_setup.get_state_sync_index();
+            let state_sync_index = node_setup.get_state_sync_identifier();
             await_block(
                 batcher_monitoring_client,
                 batcher_identifier,
