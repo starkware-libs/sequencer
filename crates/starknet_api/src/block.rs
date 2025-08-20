@@ -91,6 +91,7 @@ macro_rules! starknet_version_enum {
 }
 
 starknet_version_enum! {
+    (PreV0_9_1, 0, 0, 0), // Blocks pre V0.9.1 had no starknet version field
     (V0_9_1, 0, 9, 1),
     (V0_10_0, 0, 10, 0),
     (V0_10_1, 0, 10, 1),
