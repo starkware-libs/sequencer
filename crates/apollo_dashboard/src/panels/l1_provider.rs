@@ -22,68 +22,68 @@ use apollo_l1_provider::metrics::{
 use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
 fn get_panel_local_msgs_received() -> Panel {
-    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
+    Panel::from_counter(&L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_local_msgs_processed() -> Panel {
-    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
+    Panel::from_counter(&L1_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_remote_msgs_received() -> Panel {
-    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
+    Panel::from_counter(&L1_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
+    Panel::from_counter(&L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_remote_msgs_processed() -> Panel {
-    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+    Panel::from_counter(&L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::from_gauge(&L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+    Panel::from_hist(&L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_processing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
-        L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+        &L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
 fn get_queueing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
-        L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+        &L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
 fn get_local_client_response_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
-        L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        &L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
 fn get_remote_client_response_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
-        L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
 fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
-        L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+        &L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
-    Panel::from_counter(L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
-    Panel::from_counter(L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
-    Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
 }
 fn get_panel_remote_number_of_connections() -> Panel {
-    Panel::from_gauge(L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
+    Panel::from_gauge(&L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 
 // TODO(noamsp): rename to l1_event_row

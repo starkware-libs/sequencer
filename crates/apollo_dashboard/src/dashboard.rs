@@ -83,7 +83,7 @@ impl Panel {
         Self { name, description, exprs, panel_type }
     }
 
-    pub(crate) fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
+    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -92,7 +92,7 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
+    pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -101,7 +101,7 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
+    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -172,14 +172,14 @@ impl Panel {
 }
 
 pub(crate) fn create_request_type_labeled_hist_panels(
-    metric: LabeledMetricHistogram,
+    metric: &LabeledMetricHistogram,
     panel_type: PanelType,
 ) -> Vec<Panel> {
     metric
         .get_flat_label_values()
         .into_iter()
         .map(|request_label| {
-            Panel::from_request_type_labeled_hist(&metric, panel_type, request_label)
+            Panel::from_request_type_labeled_hist(metric, panel_type, request_label)
         })
         .collect()
 }
