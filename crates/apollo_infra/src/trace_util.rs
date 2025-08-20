@@ -25,12 +25,12 @@ pub async fn configure_tracing() {
             // Create formatter for stdout (info, warn, debug, trace)
             let stdout_fmt = fmt::layer()
                 .compact()
-                .with_timer(UtcTime::new(time_format))
-                .with_target(false) // No module name.
-                // Instead, file name and line number.
+                .with_timer(UtcTime::new(time_format.clone()))
+                .with_target(false)
                 .with_file(true)
                 .with_line_number(true)
                 .with_ansi(false)
+                .with_level(true) // Ensure level is always shown prominently for GCP logging
                 .with_writer(io::stdout);
 
             // Create formatter for stderr (error only)
@@ -41,6 +41,7 @@ pub async fn configure_tracing() {
                 .with_file(true)
                 .with_line_number(true)
                 .with_ansi(false)
+                .with_level(true) // Ensure level is always shown prominently for GCP logging
                 .with_writer(io::stderr);
 
             // Create filter for stdout (excludes ERROR level)
