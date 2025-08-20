@@ -20,6 +20,7 @@ env:
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
+  dockerfile_base_path: ./deployments/images/sequencer
 
 permissions:
   contents: read
@@ -62,13 +63,69 @@ jobs:
           echo "Captured output: $should_run"
           echo "should_run=$should_run" >> $GITHUB_OUTPUT
 
-  system_test_hybrid:
+  build_docker_images:
     needs: check-system-test-trigger
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
-    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - svc: sequencer
+            dockerfile: Dockerfile
+          - svc: dummy_recorder
+            dockerfile: dummy_recorder.Dockerfile
+          - svc: dummy_eth_to_strk_oracle
+            dockerfile: dummy_eth_to_strk_oracle.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3.11.1
+        with:
+          install: true
+
+      - name: Create output directory
+        run: mkdir -p ./out
+
+      - name: Build ${{ matrix.svc }} image and export as Docker tar
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: ${{ env.dockerfile_base_path }}/${{ matrix.dockerfile }}
+          tags: ${{ matrix.svc }}:local
+          push: false
+          load: false
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+          outputs: type=docker,dest=./out/${{ matrix.svc }}-local.tar
+
+      - name: Upload ${{ matrix.svc }} image tar as artifact
+        uses: namespace-actions/upload-artifact@v1.0.1
+        with:
+          name: image-${{ matrix.svc }}-local
+          path: ./out/${{ matrix.svc }}-local.tar
+          compression-level: 0
+          retention-days: 1
+
+  system_test_hybrid:
+    needs:
+      - check-system-test-trigger
+      - build_docker_images
+    if: needs.check-system-test-trigger.outputs.should_run == 'true'
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download all docker image artifacts
+        uses: namespace-actions/download-artifact@v1.0.0
+        with:
+          pattern: image-*-local
+          merge-multiple: true
+          path: ./images
+
+      - name: List downloaded tars
+        run: ls -lh ./images
 
       - name: Create k3d cluster (Local k8s)
         uses: AbsaOSS/k3d-action@v2
@@ -144,31 +201,40 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build sequencer docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deployments/images/sequencer/Dockerfile
-          tags: sequencer:local
-          load: true
-          push: false
-          build-args: |
-            BUILD_MODE=debug
+      # - name: Build sequencer docker image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: deployments/images/sequencer/Dockerfile
+      #     tags: sequencer:local
+      #     load: true
+      #     push: false
+      #     build-args: |
+      #       BUILD_MODE=debug
 
-      - name: Import sequencer image into k3d
-        run: k3d image import sequencer:local -c ${{ env.cluster_name }}
+      - name: Import sequencer image
+        run: k3d image import ./images/sequencer-local.tar -c ${{ env.cluster_name }}
 
-      - name: Build dummy recorder docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deployments/images/sequencer/dummy_recorder.Dockerfile
-          tags: recorder:local
-          load: true
-          push: false
+      - name: Import dummy_recorder image
+        run: k3d image import ./images/dummy_recorder-local.tar -c ${{ env.cluster_name }}
 
-      - name: Import dummy recorder image into k3d
-        run: k3d image import recorder:local -c ${{ env.cluster_name }}
+      - name: Import dummy_eth_to_strk_oracle image
+        run: k3d image import ./images/dummy_eth_to_strk_oracle-local.tar -c ${{ env.cluster_name }}
+
+      # - name: Import sequencer image into k3d
+      #   run: k3d image import "./images/sequencer" -c ${{ env.cluster_name }}
+
+      # - name: Build dummy recorder docker image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: deployments/images/sequencer/dummy_recorder.Dockerfile
+      #     tags: recorder:local
+      #     load: true
+      #     push: false
+
+      # - name: Import dummy recorder image into k3d
+      #   run: k3d image import recorder:local -c ${{ env.cluster_name }}
 
       - name: Deploy Dummy Recorder
         env:
@@ -178,7 +244,7 @@ jobs:
           echo "Deploying Dummy Recorder..."
           pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image recorder:local"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image dummy_recorder:local"
           kubectl create namespace ${{ env.dummy_recorder_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Recorder to become ready..."
@@ -188,17 +254,17 @@ jobs:
 
           echo "🚀 Dummy Recorder deployed successfully."
 
-      - name: Build dummy Eth2Strk oracle docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile
-          tags: eth_to_strk:local
-          load: true
-          push: false
+      # - name: Build dummy Eth2Strk oracle docker image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: .
+      #     file: deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile
+      #     tags: eth_to_strk:local
+      #     load: true
+      #     push: false
 
-      - name: Import eth_to_strk image into k3d
-        run: k3d image import eth_to_strk:local -c ${{ env.cluster_name }}
+      # - name: Import eth_to_strk image into k3d
+      #   run: k3d image import eth_to_strk:local -c ${{ env.cluster_name }}
 
       - name: Deploy Eth2Strk Oracle
         env:
@@ -208,7 +274,7 @@ jobs:
           echo "Deploying Dummy Eth2Strk Oracle..."
           pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image eth_to_strk:local"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image dummy_eth_to_strk_oracle:local"
           kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
