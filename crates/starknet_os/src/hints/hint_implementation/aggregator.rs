@@ -2,6 +2,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, DataAvailability};
@@ -97,8 +98,9 @@ pub(crate) fn get_chain_id_from_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let chain_id: Felt = hint_processor.input.chain_id;
-    insert_value_into_ap(vm, chain_id)?;
+    let chain_id = &hint_processor.input.os_chain_info.chain_id;
+    let chain_id_as_felt = ascii_as_felt(&chain_id.to_string())?;
+    insert_value_into_ap(vm, chain_id_as_felt)?;
     Ok(())
 }
 
@@ -106,7 +108,7 @@ pub(crate) fn get_fee_token_address_from_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let fee_token_address: Felt = hint_processor.input.fee_token_address;
+    let fee_token_address: Felt = hint_processor.input.os_chain_info.strk_fee_token_address.into();
     insert_value_into_ap(vm, fee_token_address)?;
     Ok(())
 }
@@ -115,7 +117,7 @@ pub(crate) fn get_public_key_x_from_aggregator_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_key_x: Felt = hint_processor.input.public_key_x;
+    let public_key_x: Felt = hint_processor.input.os_chain_info.public_key_x;
     insert_value_into_ap(vm, public_key_x)?;
     Ok(())
 }
@@ -124,7 +126,7 @@ pub(crate) fn get_public_key_y_from_aggregator_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_key_y: Felt = hint_processor.input.public_key_y;
+    let public_key_y: Felt = hint_processor.input.os_chain_info.public_key_y;
     insert_value_into_ap(vm, public_key_y)?;
     Ok(())
 }

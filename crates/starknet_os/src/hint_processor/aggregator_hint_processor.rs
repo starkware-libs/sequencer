@@ -30,6 +30,7 @@ use crate::hint_processor::test_hint::test_aggregator_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintArgs, HintEnum};
+use crate::io::os_input::OsChainInfo;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
 #[derive(Deserialize, Debug, Clone)]
@@ -38,16 +39,13 @@ pub enum DataAvailability {
     CallData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Debug)]
 pub struct AggregatorInput {
     pub bootloader_output: Vec<Felt>,
     pub full_output: bool,
     pub da: DataAvailability,
     pub debug_mode: bool,
-    pub fee_token_address: Felt,
-    pub chain_id: Felt,
-    pub public_key_x: Felt,
-    pub public_key_y: Felt,
+    pub os_chain_info: OsChainInfo,
 }
 
 impl AggregatorInput {
