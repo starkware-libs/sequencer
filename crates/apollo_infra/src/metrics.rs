@@ -123,19 +123,22 @@ pub struct RemoteClientMetrics {
     /// Histogram to track the number of send attempts to a remote server.
     attempts: &'static MetricHistogram,
     response_times: &'static LabeledMetricHistogram,
+    communication_failure_times: &'static LabeledMetricHistogram,
 }
 
 impl RemoteClientMetrics {
     pub const fn new(
         attempts: &'static MetricHistogram,
         response_times: &'static LabeledMetricHistogram,
+        communication_failure_times: &'static LabeledMetricHistogram,
     ) -> Self {
-        Self { attempts, response_times }
+        Self { attempts, response_times, communication_failure_times }
     }
 
     pub fn register(&self) {
         self.attempts.register();
         self.response_times.register();
+        self.communication_failure_times.register();
     }
 
     pub fn record_attempt(&self, value: usize) {
@@ -144,6 +147,11 @@ impl RemoteClientMetrics {
 
     pub fn record_response_time(&self, duration_secs: f64, request_label: &'static str) {
         self.response_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
+    }
+
+    pub fn record_communication_failure(&self, duration_secs: f64, request_label: &'static str) {
+        self.communication_failure_times
+            .record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
 }
 

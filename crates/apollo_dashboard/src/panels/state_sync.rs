@@ -19,6 +19,7 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
     STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
+    STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     STATE_SYNC_PROCESSED_TRANSACTIONS,
     STATE_SYNC_REVERTED_TRANSACTIONS,
@@ -72,6 +73,12 @@ fn get_local_client_response_times_panels() -> Vec<Panel> {
 fn get_remote_client_response_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
@@ -140,6 +147,7 @@ pub(crate) fn get_state_sync_infra_row() -> Row {
         .chain(get_queueing_times_panels())
         .chain(get_local_client_response_times_panels())
         .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
         .collect::<Vec<_>>(),
     )
 }
