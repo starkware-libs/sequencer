@@ -101,7 +101,7 @@ define_metrics!(
 /// Metrics of a local client.
 #[derive(Clone)]
 pub struct LocalClientMetrics {
-    response_times: &'static LabeledMetricHistogram,
+    pub response_times: &'static LabeledMetricHistogram,
 }
 
 impl LocalClientMetrics {
@@ -121,9 +121,9 @@ impl LocalClientMetrics {
 #[derive(Clone)]
 pub struct RemoteClientMetrics {
     /// Histogram to track the number of send attempts to a remote server.
-    attempts: &'static MetricHistogram,
-    response_times: &'static LabeledMetricHistogram,
-    communication_failure_times: &'static LabeledMetricHistogram,
+    pub attempts: &'static MetricHistogram,
+    pub response_times: &'static LabeledMetricHistogram,
+    pub communication_failure_times: &'static LabeledMetricHistogram,
 }
 
 impl RemoteClientMetrics {
@@ -157,11 +157,11 @@ impl RemoteClientMetrics {
 
 /// A struct to contain all metrics for a local server.
 pub struct LocalServerMetrics {
-    received_msgs: &'static MetricCounter,
-    processed_msgs: &'static MetricCounter,
-    queue_depth: &'static MetricGauge,
-    processing_times: &'static LabeledMetricHistogram,
-    queueing_times: &'static LabeledMetricHistogram,
+    pub received_msgs: &'static MetricCounter,
+    pub processed_msgs: &'static MetricCounter,
+    pub queue_depth: &'static MetricGauge,
+    pub processing_times: &'static LabeledMetricHistogram,
+    pub queueing_times: &'static LabeledMetricHistogram,
 }
 
 impl LocalServerMetrics {
@@ -228,9 +228,9 @@ impl LocalServerMetrics {
 
 /// A struct to contain all metrics for a remote server.
 pub struct RemoteServerMetrics {
-    total_received_msgs: &'static MetricCounter,
-    valid_received_msgs: &'static MetricCounter,
-    processed_msgs: &'static MetricCounter,
+    pub total_received_msgs: &'static MetricCounter,
+    pub valid_received_msgs: &'static MetricCounter,
+    pub processed_msgs: &'static MetricCounter,
     pub number_of_connections: &'static MetricGauge,
 }
 
