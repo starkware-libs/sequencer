@@ -15,6 +15,7 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
+    builtins_to_gas,
     get_particia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
@@ -239,9 +240,9 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        builtin_weights.calc_proving_gas_from_builtin_counter(&max_capacity_builtin_counters);
+        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.0);
 
-    let block_max_capacity = BouncerWeights {
+    let block_max_capacity = BouncerWeights { 
         l1_gas: 20,
         message_segment_length: 20,
         n_events: 20,

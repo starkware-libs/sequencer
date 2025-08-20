@@ -12,7 +12,7 @@ use blockifier::blockifier::config::{
     NativeClassesWhitelist,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
-use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
+use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights, CasmHashComputationData};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
@@ -174,21 +174,21 @@ fn hash_map_into_bouncer_weights(
 fn hash_map_into_builtin_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BuiltinWeights> {
-    let pedersen = data.remove(Builtin::Pedersen.name()).expect("pedersen must be present");
-    let range_check = data.remove(Builtin::RangeCheck.name()).expect("range_check must be present");
-    let bitwise = data.remove(Builtin::Bitwise.name()).expect("bitwise must be present");
-    let ecdsa = data.remove(Builtin::Ecdsa.name()).expect("ecdsa must be present");
-    let keccak = data.remove(Builtin::Keccak.name()).expect("keccak must be present");
-    let add_mod = data.remove(Builtin::AddMod.name()).expect("add_mod must be present");
-    let mul_mod = data.remove(Builtin::MulMod.name()).expect("mul_mod must be present");
-    let ec_op = data.remove(Builtin::EcOp.name()).expect("ec_op must be present");
+    let pedersen = data.remove(Builtin::Pedersen.name()).expect("pedersen must be present") as u64;
+    let range_check = data.remove(Builtin::RangeCheck.name()).expect("range_check must be present") as u64;
+    let bitwise = data.remove(Builtin::Bitwise.name()).expect("bitwise must be present") as u64;
+    let ecdsa = data.remove(Builtin::Ecdsa.name()).expect("ecdsa must be present") as u64;
+    let keccak = data.remove(Builtin::Keccak.name()).expect("keccak must be present") as u64;
+    let add_mod = data.remove(Builtin::AddMod.name()).expect("add_mod must be present") as u64;
+    let mul_mod = data.remove(Builtin::MulMod.name()).expect("mul_mod must be present") as u64;
+    let ecop = data.remove(Builtin::EcOp.name()).expect("ec_op must be present") as u64;
     let range_check96 =
-        data.remove(Builtin::RangeCheck96.name()).expect("range_check96 must be present");
-    let poseidon = data.remove(Builtin::Poseidon.name()).expect("poseidon must be present");
+        data.remove(Builtin::RangeCheck96.name()).expect("range_check96 must be present") as u64;
+    let poseidon = data.remove(Builtin::Poseidon.name()).expect("poseidon must be present") as u64;
 
     assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
 
-    Ok(BuiltinWeights {
+    Ok(BuiltinWeights(BuiltinGasCosts {
         pedersen,
         range_check,
         bitwise,
@@ -196,10 +196,10 @@ fn hash_map_into_builtin_weights(
         keccak,
         add_mod,
         mul_mod,
-        ec_op,
+        ecop,
         range_check96,
         poseidon,
-    })
+    }))
 }
 
 #[derive(Debug, Default, FromPyObject)]
