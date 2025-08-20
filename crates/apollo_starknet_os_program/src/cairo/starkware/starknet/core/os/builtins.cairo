@@ -18,7 +18,7 @@ struct SelectableBuiltins {
     range_check: felt,
     ecdsa: felt,
     bitwise: BitwiseBuiltin*,
-    ec_op: felt,
+    ec_op: EcOpBuiltin*,
     poseidon: PoseidonBuiltin*,
     segment_arena: SegmentArenaBuiltin*,
     range_check96: felt*,
