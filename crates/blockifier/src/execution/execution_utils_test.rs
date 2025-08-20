@@ -4,7 +4,6 @@ use pretty_assertions::assert_eq;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::FeltSizeCount;
-use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
     compute_blake_hash_steps,
@@ -31,7 +30,7 @@ fn test_u32_constants() {
 #[test]
 fn test_zero_inputs() {
     // logic was written.
-    let steps = compute_blake_hash_steps(0, 0);
+    let steps = compute_blake_hash_steps(&FeltSizeCount { large: 0, small: 0 });
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
