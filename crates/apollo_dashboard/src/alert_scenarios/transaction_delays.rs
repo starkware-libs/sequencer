@@ -1,5 +1,8 @@
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
+use apollo_mempool_p2p::metrics::{
+    MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_NO_PEERS_SUBSCRIBED_ERRORS,
+};
 
 use crate::alerts::{
     Alert,
@@ -41,6 +44,44 @@ pub(crate) fn get_mempool_p2p_peer_down_vec() -> Vec<Alert> {
     vec![
         get_mempool_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
         get_mempool_p2p_peer_down(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
+/// Triggers if the number of no peers subscribed errors exceeds 5 in a 2-minute window.
+fn get_mempool_p2p_no_peers_subscribed_errors(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "mempool_p2p_no_peers_subscribed_errors",
+        "Mempool p2p no peers subscribed errors",
+        AlertGroup::Mempool,
+        format!(
+            "increase({}[2m])",
+            MEMPOOL_P2P_NUM_NO_PEERS_SUBSCRIBED_ERRORS.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 5.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_mempool_p2p_no_peers_subscribed_errors_vec() -> Vec<Alert> {
+    vec![
+        get_mempool_p2p_no_peers_subscribed_errors(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_mempool_p2p_no_peers_subscribed_errors(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
         ),
