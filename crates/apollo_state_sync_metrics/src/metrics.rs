@@ -8,6 +8,7 @@ use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageTxn;
 use starknet_api::block::BlockNumber;
+use tracing::debug;
 
 define_metrics!(
     StateSync => {
@@ -69,12 +70,29 @@ pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) 
 fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
     let block_marker = txn.get_body_marker().expect("Should have a body marker");
 
-    for current_block_number in 0..block_marker.0 {
-        let current_block_tx_count = txn
-            .get_block_transactions_count(BlockNumber(current_block_number))
-            .expect("Should have block transactions count")
-            .expect("Missing block body with block number smaller than body marker");
-        STATE_SYNC_PROCESSED_TRANSACTIONS
-            .increment(current_block_tx_count.try_into().expect("Failed to convert usize to u64"));
+    debug!("Starting to count all transactions in the storage");
+    // Early return if no blocks to process
+    if block_marker.0 == 0 {
+        return;
     }
+
+    let mut total_transactions = 0;
+
+    // Process all blocks efficiently
+    for block_number in 0..block_marker.0 {
+        if let Ok(Some(transaction_hashes)) =
+            txn.get_block_transaction_hashes(BlockNumber(block_number))
+        {
+            total_transactions += transaction_hashes.len();
+        }
+    }
+
+    debug!(
+        "Finished counting all transactions in the storage. Incrementing {} metric with value: \
+         {total_transactions}",
+        STATE_SYNC_PROCESSED_TRANSACTIONS.get_name(),
+    );
+    // Set the metric once with the total count
+    STATE_SYNC_PROCESSED_TRANSACTIONS
+        .increment(total_transactions.try_into().expect("Failed to convert usize to u64"));
 }
