@@ -62,15 +62,10 @@ struct TreeRegressionOutput {
 }
 
 #[derive(Deserialize)]
-struct StorageObject {
-    storage: Value,
-}
-
-#[derive(Deserialize)]
 struct CommitterRegressionOutput {
     contract_storage_root_hash: Value,
     compiled_class_root_hash: Value,
-    storage: StorageObject,
+    storage: Value,
 }
 
 struct TreeRegressionInput {
@@ -146,7 +141,7 @@ pub async fn test_single_committer_flow(input: String, output_path: String) -> R
     let CommitterRegressionOutput {
         contract_storage_root_hash,
         compiled_class_root_hash,
-        storage: StorageObject { storage: Value::Object(storage_changes) },
+        storage: Value::Object(storage_changes),
     } = serde_json::from_str(&std::fs::read_to_string(output_path).unwrap()).unwrap()
     else {
         panic!("Expected the storage to be an object.");

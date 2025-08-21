@@ -45,7 +45,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::OsExecutionContracts;
@@ -122,7 +122,7 @@ pub(crate) fn create_committer_state_diff(state_diff: CommitmentStateDiff) -> St
 
 /// Commits the state diff, saves the new commitments and returns the computed roots.
 pub(crate) async fn commit_state_diff(
-    commitments: &mut BorrowedMapStorage<'_>,
+    commitments: &mut MapStorage,
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
@@ -130,7 +130,7 @@ pub(crate) async fn commit_state_diff(
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
-        commit_block(input, commitments.storage).await.expect("Failed to commit the given block.");
+        commit_block(input, commitments).await.expect("Failed to commit the given block.");
     filled_forest.write_to_storage(commitments);
     CommitmentOutput {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
@@ -173,7 +173,7 @@ pub(crate) struct CommitmentInfos {
 pub(crate) fn create_cached_state_input_and_commitment_infos(
     previous_commitment: &CommitmentOutput,
     new_commitment: &CommitmentOutput,
-    commitments: &mut BorrowedMapStorage<'_>,
+    commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
 ) -> (CachedStateInput, CommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
@@ -243,7 +243,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
         storage.insert(address, previous_storage_leaves);
     }
     // Note: The generic type `<CompiledClassHash>` here is arbitrary.
-    let commitments = filter_inner_nodes_from_commitments::<CompiledClassHash>(commitments.storage);
+    let commitments = filter_inner_nodes_from_commitments::<CompiledClassHash>(commitments);
     let contracts_trie_commitment_info = CommitmentInfo {
         previous_root: previous_commitment.contracts_trie_root_hash,
         updated_root: new_commitment.contracts_trie_root_hash,
@@ -289,7 +289,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
     contract_addresses: I,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
-    commitments: &BorrowedMapStorage<'_>,
+    commitments: &MapStorage,
 ) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
     let mut contract_leaf_indices: Vec<NodeIndex> =
         contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();
