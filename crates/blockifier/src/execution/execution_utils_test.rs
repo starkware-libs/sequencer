@@ -23,8 +23,8 @@ fn test_u32_constants() {
     let big_u32s = encode_felts_to_u32s(vec![big_felt]);
 
     // Blake estimation constants should match the actual encoding.
-    assert_eq!(small_u32s.len(), blake_encoding::N_U32S_SMALL_FELT);
-    assert_eq!(big_u32s.len(), blake_encoding::N_U32S_BIG_FELT);
+    assert_eq!(small_u32s.len(), blake_encoding::U32_WORDS_PER_SMALL_FELT);
+    assert_eq!(big_u32s.len(), blake_encoding::U32_WORDS_PER_LARGE_FELT);
 }
 
 /// Test the edge case of hashing an empty array of felt values.
