@@ -2089,6 +2089,7 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "starknet_api",
+ "tokio",
  "tracing",
 ]
 
