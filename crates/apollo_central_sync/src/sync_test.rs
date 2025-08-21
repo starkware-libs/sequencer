@@ -26,7 +26,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateDiff};
-use starknet_api::{contract_address, felt, storage_key};
+use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::sources::base_layer::MockBaseLayerSourceTrait;
@@ -57,9 +57,9 @@ fn state_sorted() {
     let storage_key_0 = storage_key!("0x0");
     let storage_key_1 = storage_key!("0x1");
     let declare_class_0 =
-        (ClassHash(hash0), (CompiledClassHash::default(), SierraContractClass::default()));
+        (ClassHash(hash0), (compiled_class_hash!(1_u8), SierraContractClass::default()));
     let declare_class_1 =
-        (ClassHash(hash1), (CompiledClassHash::default(), SierraContractClass::default()));
+        (ClassHash(hash1), (compiled_class_hash!(2_u8), SierraContractClass::default()));
     let deprecated_declared_0 = (ClassHash(hash0), DeprecatedContractClass::default());
     let deprecated_declared_1 = (ClassHash(hash1), DeprecatedContractClass::default());
     let nonce_0 = (contract_address_0, Nonce(hash0));
