@@ -15,9 +15,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM base AS builder
 WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json
+RUN cargo chef cook --recipe-path recipe.json --bin dummy_recorder -p apollo_integration_tests
 COPY . .
-RUN cargo build
+RUN cargo build --bin dummy_recorder -p apollo_integration_tests
 
 FROM ubuntu:24.04 AS final_stage
 
