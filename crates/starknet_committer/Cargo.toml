@@ -6,6 +6,9 @@ repository.workspace = true
 license.workspace = true
 description = "Computes and manages Starknet state."
 
+[features]
+testing = ["starknet_patricia/testing"]
+
 [dependencies]
 ethnum.workspace = true
 hex.workspace = true
@@ -19,7 +22,6 @@ starknet_api.workspace = true
 starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
 strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
