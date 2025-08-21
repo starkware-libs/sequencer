@@ -44,8 +44,6 @@ starknet_committer.workspace = true
 starknet_os = { workspace = true, features = ["deserialize", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing-subscriber.workspace = true
