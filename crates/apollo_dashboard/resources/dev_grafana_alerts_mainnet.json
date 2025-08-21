@@ -652,7 +652,7 @@
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
-      "expr": "increase(native_compilation_error[1h])",
+      "expr": "increase(native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -673,7 +673,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p4"
     },
     {
       "name": "batched_transactions_stuck",
