@@ -13,7 +13,6 @@ use crate::execution::contract_class::{
     NestedFeltCounts,
 };
 use crate::execution::execution_utils::{
-    blake_estimation,
     count_blake_opcode,
     estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
     poseidon_hash_many_cost,
@@ -173,7 +172,7 @@ pub trait EstimateCasmHashResources {
 
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+struct CasmV1HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {
@@ -190,7 +189,28 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 }
 
-pub struct CasmV2HashResourceEstimate {}
+pub struct CasmV2HashResourceEstimate;
+
+impl CasmV2HashResourceEstimate {
+    // Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
+    // These values are based on empirical measurement by running
+    // `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
+    // Per-felt step cost (measured).
+    pub const STEPS_BIG_FELT: usize = 45;
+    pub const STEPS_SMALL_FELT: usize = 15;
+
+    // One-time overhead.
+    // Overhead when input fills a full Blake message (16 u32s).
+    pub const BASE_STEPS_FULL_MSG: usize = 217;
+    // Overhead when input results in a partial message (remainder < 16 u32s).
+    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
+    // Extra steps per 2-u32 remainder in partial messages.
+    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+    // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
+    pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+    // Empty input steps.
+    pub const STEPS_EMPTY_INPUT: usize = 170;
+}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {
@@ -218,7 +238,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             // case.
             _ => HashMap::from([(
                 BuiltinName::range_check,
-                felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+                felt_size_groups.n_felts() + CasmV2HashResourceEstimate::BASE_RANGE_CHECK_NON_EMPTY,
             )]),
         };
 
