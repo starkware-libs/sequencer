@@ -6,7 +6,7 @@ on:
       liveness_test_duration_sec:
         description: Time in seconds to keep the liveness test running.
         required: false
-        default: 30
+        default: 10
         type: number
 
   pull_request:
@@ -37,6 +37,7 @@ jobs:
       should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
     steps:
       - uses: actions/checkout@v4
+        if: github.event_name != 'workflow_dispatch'
         with:
           fetch-depth: 0
 
@@ -145,7 +146,7 @@ jobs:
           EOF
 
       - name: Create k3d cluster (Local k8s)
-        uses: AbsaOSS/k3d-action@v2
+        uses: AbsaOSS/k3d-action@v2.4.0
         with:
           # Assumption: only one PR can run per machine at a time.
           cluster-name: ${{ env.cluster_name }}
