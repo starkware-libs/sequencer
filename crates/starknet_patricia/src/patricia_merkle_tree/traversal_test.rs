@@ -1,11 +1,24 @@
+use std::collections::HashMap;
+
 use ethnum::U256;
+use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::internal_test_utils::small_tree_index_to_full;
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
-use crate::patricia_merkle_tree::traversal::SubTree;
+use crate::patricia_merkle_tree::external_test_utils::{create_binary_entry, create_edge_entry};
+use crate::patricia_merkle_tree::internal_test_utils::{small_tree_index_to_full, MockLeaf};
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePath,
+    EdgePathLength,
+    PathToBottom,
+    Preimage,
+    PreimageMap,
+};
+use crate::patricia_merkle_tree::traversal::{fetch_witnesses_inner, SubTree};
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 
 /// case::single_right_child
@@ -197,4 +210,227 @@ fn create_previously_empty_leaf_indices<'a>(
     subtree_leaf_indices: &'a [NodeIndex],
 ) -> Vec<&'a NodeIndex> {
     tree_leaf_indices.iter().filter(|idx| !subtree_leaf_indices.contains(idx)).collect()
+}
+
+#[rstest]
+// This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
+// For convenience, the leaves values are their NodeIndices.
+/// SubTree structure:
+/// ```text
+///           92
+///       /        \
+///     38          54
+///    /  \       /    \
+///   17  21     25    29
+///  / \  / \   /  \   / \
+/// 8  9 10 11 12  13 14  15
+/// ```
+///
+/// Modified leaves indices: `[13]`  
+/// Expected witnesses hashes: `[29, 38]`
+#[case::binary_tree_one_leaf(HashMap::from([
+        create_binary_entry(8, 9),
+        create_binary_entry(10, 11),
+        create_binary_entry(12, 13),
+        create_binary_entry(14, 15),
+        create_binary_entry(17, 21),
+        create_binary_entry(25, 29),
+        create_binary_entry(38, 54)
+    ]),
+    HashOutput(Felt::from(92_u128)),
+    vec![NodeIndex::from(13)],
+    SubTreeHeight::new(3),
+    PreimageMap::from([
+        (HashOutput(Felt::from(29)),
+            Preimage::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(14)),
+                right_hash: HashOutput(Felt::from(15))
+            })),
+        (HashOutput(Felt::from(38)),
+            Preimage::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(17)),
+                right_hash: HashOutput(Felt::from(21))
+            })),
+    ]),
+)]
+/// Modified leaves indices: `[13, 14]`
+/// Expected witnesses hashes: `[38]`
+#[case::binary_tree_two_siblings(HashMap::from([
+        create_binary_entry(8, 9),
+        create_binary_entry(10, 11),
+        create_binary_entry(12, 13),
+        create_binary_entry(14, 15),
+        create_binary_entry(17, 21),
+        create_binary_entry(25, 29),
+        create_binary_entry(38, 54)
+    ]),
+    HashOutput(Felt::from(92_u128)),
+    vec![NodeIndex::from(13), NodeIndex::from(14)],
+    SubTreeHeight::new(3),
+    PreimageMap::from([
+        (HashOutput(Felt::from(38)),
+            Preimage::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(17)),
+                right_hash: HashOutput(Felt::from(21))
+            })),
+    ]),
+)]
+/// Modified leaves indices: `[11, 14]`
+/// Expected witnesses hashes: `[17, 25]`
+#[case::binary_tree_two_leaves(HashMap::from([
+        create_binary_entry(8, 9),
+        create_binary_entry(10, 11),
+        create_binary_entry(12, 13),
+        create_binary_entry(14, 15),
+        create_binary_entry(17, 21),
+        create_binary_entry(25, 29),
+        create_binary_entry(38, 54)
+    ]),
+    HashOutput(Felt::from(92_u128)),
+    vec![NodeIndex::from(11), NodeIndex::from(14)],
+    SubTreeHeight::new(3),
+    PreimageMap::from([
+        (HashOutput(Felt::from(17)),
+            Preimage::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(8)),
+                right_hash: HashOutput(Felt::from(9)),
+            })),
+        (HashOutput(Felt::from(25)),
+            Preimage::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(12)),
+                right_hash: HashOutput(Felt::from(13)),
+            })),
+    ]),
+)]
+/// Modified leaves indices: `[8, 11, 12, 14]`
+/// Expected witnesses hashes: `[]`
+#[case::binary_many_leaves(HashMap::from([
+        create_binary_entry(8, 9),
+        create_binary_entry(10, 11),
+        create_binary_entry(12, 13),
+        create_binary_entry(14, 15),
+        create_binary_entry(17, 21),
+        create_binary_entry(25, 29),
+        create_binary_entry(38, 54)
+    ]),
+    HashOutput(Felt::from(92_u128)),
+    vec![NodeIndex::from(8), NodeIndex::from(11), NodeIndex::from(12), NodeIndex::from(14)],
+    SubTreeHeight::new(3),
+    PreimageMap::new(),
+)]
+/// SubTree structure:
+/// ```text
+///          62
+///        /    \
+///      18      44
+///     /      /    \
+///    17     15    29
+///   / \      \    / \
+///  8   9     13  14  15
+/// ```
+/// Modified leaves indices: `[13]`
+/// Expected witnesses hashes: `[29, 18]`
+#[case::edge_one_leaf_edge(HashMap::from([
+        create_binary_entry(8, 9),
+        create_binary_entry(14, 15),
+        create_binary_entry(15, 29),
+        create_binary_entry(18, 44),
+        create_edge_entry(17, 0, 1),
+        create_edge_entry(13, 1, 1),
+    ]),
+    HashOutput(Felt::from(62_u128)),
+    vec![NodeIndex::from(13)],
+    SubTreeHeight::new(3),
+    PreimageMap::from([
+        (HashOutput(Felt::from(29)),
+        Preimage::Binary(BinaryData {
+            left_hash: HashOutput(Felt::from(14)),
+            right_hash: HashOutput(Felt::from(15)),
+        })),
+        (HashOutput(Felt::from(18)),
+        Preimage::Edge(EdgeData {
+            bottom_hash: HashOutput(Felt::from(17)),
+            path_to_bottom: PathToBottom::new(EdgePath(U256::ZERO),
+            EdgePathLength::new(1).unwrap())
+            .unwrap()
+        })),
+    ]),
+)]
+/// Modified leaves indices: `[14]`
+/// Expected witnesses hashes: `[15, 18]`
+#[case::edge_one_leaf_binary(HashMap::from([
+        create_binary_entry(8, 9),
+        create_binary_entry(14, 15),
+        create_binary_entry(15, 29),
+        create_binary_entry(18, 44),
+        create_edge_entry(17, 0, 1),
+        create_edge_entry(13, 1, 1),
+    ]),
+    HashOutput(Felt::from(62_u128)),
+    vec![NodeIndex::from(14)],
+    SubTreeHeight::new(3),
+    HashMap::from([
+        (HashOutput(Felt::from(15)),
+        Preimage::Edge(EdgeData {
+            bottom_hash: HashOutput(Felt::from(13)),
+            path_to_bottom: PathToBottom::new(EdgePath(U256::ONE),
+            EdgePathLength::new(1).unwrap())
+            .unwrap()
+        })),
+        (HashOutput(Felt::from(18)),
+        Preimage::Edge(EdgeData {
+            bottom_hash: HashOutput(Felt::from(17)),
+            path_to_bottom: PathToBottom::new(EdgePath(U256::ZERO),
+            EdgePathLength::new(1).unwrap())
+            .unwrap()
+        })),
+    ]),
+)]
+/// SubTree structure:
+/// ```text
+///         54
+///        /  \
+///      10    44
+///     /     /   \
+///    *     15    29
+///   /        \   / \
+///  8         13 14  15
+/// ```
+/// Modified leaves indices: `[8]`
+/// Expected witnesses hashes: `[44]`
+#[case::long_edge_one_leaf_edge(HashMap::from([
+        create_binary_entry(14, 15),
+        create_binary_entry(15, 29),
+        create_binary_entry(10, 44),
+        create_edge_entry(8, 0, 2),
+        create_edge_entry(13, 1, 1),
+    ]),
+    HashOutput(Felt::from(54_u128)),
+    vec![NodeIndex::from(8)],
+    SubTreeHeight::new(3),
+        PreimageMap::from([
+        (HashOutput(Felt::from(44)),
+        Preimage::Binary(BinaryData {
+            left_hash: HashOutput(Felt::from(15)),
+            right_hash: HashOutput(Felt::from(29)),
+        })),
+    ]),
+)]
+fn test_fetch_witnesses_inner(
+    #[case] storage: MapStorage,
+    #[case] root_hash: HashOutput,
+    #[case] leaf_indices: Vec<NodeIndex>,
+    #[case] height: SubTreeHeight,
+    #[case] expected_witnesses: PreimageMap,
+) {
+    let mut leaf_indices =
+        leaf_indices.iter().map(|idx| small_tree_index_to_full(idx.0, height)).collect::<Vec<_>>();
+    let main_subtree = SubTree {
+        sorted_leaf_indices: SortedLeafIndices::new(&mut leaf_indices),
+        root_index: small_tree_index_to_full(U256::ONE, height),
+        root_hash,
+    };
+    let mut witnesses = HashMap::new();
+    fetch_witnesses_inner::<MockLeaf>(&storage, vec![main_subtree], &mut witnesses).unwrap();
+    assert_eq!(witnesses, expected_witnesses);
 }
