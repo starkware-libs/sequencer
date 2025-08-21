@@ -6,7 +6,7 @@ on:
       liveness_test_duration_sec:
         description: Time in seconds to keep the liveness test running.
         required: false
-        default: 10
+        default: 30
         type: number
 
   pull_request:
@@ -34,7 +34,7 @@ jobs:
   check-system-test-trigger:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
-      should_run: ${{ steps.system_check.outputs.should_run }}
+      should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,14 +42,17 @@ jobs:
 
       - uses: actions/setup-python@v5
         id: setup-pypy
+        if: github.event_name != 'workflow_dispatch'
         with:
           python-version: "pypy3.9"
           cache: "pip"
 
       - run: pip install -r scripts/requirements.txt
+        if: github.event_name != 'workflow_dispatch'
 
       - name: Check for system-test-triggering changes
         id: system_check
+        if: github.event_name != 'workflow_dispatch'
         run: |
           echo "Checking if any system-test-triggering crates were modified..."
           OUTPUT_FILE=$(mktemp)
@@ -346,7 +349,7 @@ jobs:
       - name: Test sequencer is alive
         env:
           initial_delay_sec: 10
-          check_interval_sec: 5
+          check_interval_sec: 2
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
           # TODO(Nadin): Calculate config_dir dynamically in liveness_check.py based on deployment_config_path
