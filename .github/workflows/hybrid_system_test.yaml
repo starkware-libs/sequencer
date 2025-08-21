@@ -6,7 +6,7 @@ on:
       liveness_test_duration_sec:
         description: Time in seconds to keep the liveness test running.
         required: false
-        default: 10
+        default: 30
         type: number
 
   pull_request:
@@ -51,6 +51,12 @@ jobs:
       - name: Check for system-test-triggering changes
         id: system_check
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch, skipping change check."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           echo "Checking if any system-test-triggering crates were modified..."
           OUTPUT_FILE=$(mktemp)
 
@@ -346,7 +352,7 @@ jobs:
       - name: Test sequencer is alive
         env:
           initial_delay_sec: 10
-          check_interval_sec: 5
+          check_interval_sec: 2
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
           # TODO(Nadin): Calculate config_dir dynamically in liveness_check.py based on deployment_config_path
