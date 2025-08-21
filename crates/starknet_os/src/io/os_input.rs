@@ -13,7 +13,10 @@ use starknet_api::state::{ContractClassComponentHashes, StorageKey};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Pedersen, StarkHash};
 use tracing::level_filters::LevelFilter;
+
+use crate::io::os_output::STARKNET_OS_CONFIG_HASH_VERSION;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -78,6 +81,16 @@ impl Default for OsChainInfo {
             chain_id: ChainId::Other("0x0".to_string()),
             strk_fee_token_address: ContractAddress::default(),
         }
+    }
+}
+
+impl OsChainInfo {
+    /// Computes the OS config hash for the given chain info.
+    pub fn compute_os_config_hash(&self) -> Felt {
+        let initial_hash = Pedersen::hash(&Felt::ZERO, &STARKNET_OS_CONFIG_HASH_VERSION);
+        let chain_id_hash = Pedersen::hash(&initial_hash, &(&self.chain_id).try_into().unwrap());
+        let hash_without_length = Pedersen::hash(&chain_id_hash, &self.strk_fee_token_address);
+        Pedersen::hash(&hash_without_length, &Felt::THREE)
     }
 }
 

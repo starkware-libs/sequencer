@@ -79,6 +79,7 @@ pub(crate) struct OsTestExpectedValues {
     // TODO(Dori): Change type to PreviousBlockNumber once it exists.
     pub(crate) previous_block_number: Option<BlockNumber>,
     pub(crate) new_block_number: BlockNumber,
+    pub(crate) config_hash: Felt,
 }
 
 pub(crate) struct OsTestOutput {
@@ -124,6 +125,12 @@ impl OsTestOutput {
         assert_eq!(
             self.os_output.os_output.common_os_output.new_block_number,
             self.expected_values.new_block_number
+        );
+
+        // Config hash.
+        assert_eq!(
+            self.os_output.os_output.common_os_output.starknet_os_config_hash,
+            self.expected_values.config_hash,
         );
     }
 
@@ -275,6 +282,24 @@ impl<S: FlowTestState> TestManager<S> {
             divide_vec_into_n_parts(self.per_block_transactions.pop().unwrap(), n_blocks);
     }
 
+    /// Verifies all [ChainInfo]s are identical in the given block contexts, and returns an
+    /// [OsChainInfo].
+    fn verify_chain_infos_and_get_one(block_contexts: &Vec<BlockContext>) -> OsChainInfo {
+        let mut chain_info_iter = block_contexts.iter().map(|ctx| ctx.chain_info());
+        let first_chain_info =
+            chain_info_iter.next().expect("At least one block context is required.");
+        for chain_info in chain_info_iter {
+            assert_eq!(
+                first_chain_info, chain_info,
+                "All block contexts must have the same chain info."
+            );
+        }
+        OsChainInfo {
+            chain_id: first_chain_info.chain_id.clone(),
+            strk_fee_token_address: first_chain_info.fee_token_addresses.strk_fee_token_address,
+        }
+    }
+
     // Private method which executes the flow test.
     async fn execute_flow_test(mut self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
@@ -293,6 +318,7 @@ impl<S: FlowTestState> TestManager<S> {
         let previous_block_number =
             block_contexts.first().unwrap().block_info().block_number.prev();
         let new_block_number = block_contexts.last().unwrap().block_info().block_number;
+        let chain_info = Self::verify_chain_infos_and_get_one(&block_contexts);
         let mut alias_keys = HashSet::new();
         for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
@@ -373,10 +399,7 @@ impl<S: FlowTestState> TestManager<S> {
                 .into_iter()
                 .collect(),
         };
-        let chain_info = OsChainInfo {
-            chain_id: CHAIN_ID_FOR_TESTS.clone(),
-            strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
-        };
+        let expected_config_hash = chain_info.compute_os_config_hash();
         let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
@@ -396,6 +419,7 @@ impl<S: FlowTestState> TestManager<S> {
                 new_global_root: expected_new_global_root,
                 previous_block_number,
                 new_block_number,
+                config_hash: expected_config_hash,
             },
         }
     }
@@ -410,7 +434,11 @@ pub fn block_context_for_flow_tests(block_number: BlockNumber) -> BlockContext {
     };
     BlockContext::new(
         BlockInfo { block_number, ..BlockInfo::create_for_testing() },
-        ChainInfo { fee_token_addresses, ..Default::default() },
+        ChainInfo {
+            fee_token_addresses,
+            chain_id: CHAIN_ID_FOR_TESTS.clone(),
+            ..Default::default()
+        },
         VersionedConstants::create_for_testing(),
         BouncerConfig::max(),
     )
