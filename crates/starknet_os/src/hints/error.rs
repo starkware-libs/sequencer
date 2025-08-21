@@ -18,6 +18,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{
     EdgePathError,
     PathToBottomError,
+    PreimageError,
 };
 use starknet_types_core::felt::Felt;
 
@@ -104,6 +105,8 @@ pub enum OsHintError {
     PathToBottom(#[from] PathToBottomError),
     #[error(transparent)]
     Patricia(#[from] PatriciaError),
+    #[error(transparent)]
+    Preimage(#[from] PreimageError),
     #[error(transparent)]
     Runner(#[from] RunnerError),
     #[error("{error:?} for json value {value}.")]
