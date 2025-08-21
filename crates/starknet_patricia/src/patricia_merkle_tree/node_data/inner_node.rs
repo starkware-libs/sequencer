@@ -200,7 +200,7 @@ impl PathToBottom {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Preimage {
     Binary(BinaryData),
     Edge(EdgeData),
