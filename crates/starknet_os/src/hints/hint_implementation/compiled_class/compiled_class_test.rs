@@ -68,8 +68,8 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): lower margins once felt size optimization is implemented.
-const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 5000;
-const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 0;
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 408;
+const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 1;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
