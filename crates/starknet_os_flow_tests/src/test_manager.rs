@@ -31,6 +31,7 @@ use starknet_os::io::os_input::{
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -71,9 +72,15 @@ pub(crate) struct TestManager<S: FlowTestState> {
     per_block_transactions: Vec<Vec<BlockifierTransaction>>,
 }
 
+pub(crate) struct OsTestExpectedValues {
+    pub(crate) previous_global_root: HashOutput,
+    pub(crate) new_global_root: HashOutput,
+}
+
 pub(crate) struct OsTestOutput {
     pub(crate) os_output: StarknetOsRunnerOutput,
     pub(crate) decompressed_state_diff: StateMaps,
+    pub(crate) expected_values: OsTestExpectedValues,
 }
 
 impl OsTestOutput {
@@ -92,6 +99,18 @@ impl OsTestOutput {
 
     fn perform_global_validations(&self) {
         // TODO(Dori): Implement global validations for the OS test output.
+
+        // TODO(Dori): Implement builtin validations.
+
+        // Validate state roots.
+        assert_eq!(
+            self.os_output.os_output.common_os_output.initial_root,
+            self.expected_values.previous_global_root.0
+        );
+        assert_eq!(
+            self.os_output.os_output.common_os_output.final_root,
+            self.expected_values.new_global_root.0
+        );
     }
 
     fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
@@ -255,6 +274,7 @@ impl<S: FlowTestState> TestManager<S> {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let expected_previous_global_root = previous_commitment.global_root();
         let mut alias_keys = HashSet::new();
         for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
@@ -318,6 +338,7 @@ impl<S: FlowTestState> TestManager<S> {
             cached_state_inputs.push(cached_state_input);
             previous_commitment = new_commitment;
         }
+        let expected_new_global_root = previous_commitment.global_root();
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
             cached_state_inputs,
@@ -349,7 +370,14 @@ impl<S: FlowTestState> TestManager<S> {
         let decompressed_state_diff =
             decompress(&compressed_state_diff, &state, *ALIAS_CONTRACT_ADDRESS, alias_keys);
 
-        OsTestOutput { os_output, decompressed_state_diff }
+        OsTestOutput {
+            os_output,
+            decompressed_state_diff,
+            expected_values: OsTestExpectedValues {
+                previous_global_root: expected_previous_global_root,
+                new_global_root: expected_new_global_root,
+            },
+        }
     }
 }
 

@@ -21,6 +21,7 @@ use starknet_api::core::{
     ClassHash,
     CompiledClassHash as StarknetAPICompiledClassHash,
     ContractAddress,
+    GLOBAL_STATE_VERSION,
 };
 use starknet_api::declare_tx_args;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
@@ -47,6 +48,7 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
@@ -60,6 +62,21 @@ pub(crate) struct ExecutionOutput<S: FlowTestState> {
 pub(crate) struct CommitmentOutput {
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
+}
+
+impl CommitmentOutput {
+    pub(crate) fn global_root(&self) -> HashOutput {
+        if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+            && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+        {
+            return HashOutput(Felt::ZERO);
+        }
+        HashOutput(Poseidon::hash_array(&[
+            GLOBAL_STATE_VERSION,
+            self.contracts_trie_root_hash.0,
+            self.classes_trie_root_hash.0,
+        ]))
+    }
 }
 
 /// Executes the given transactions on the given state and block context with default execution
