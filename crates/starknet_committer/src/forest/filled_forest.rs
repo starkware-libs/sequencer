@@ -6,7 +6,7 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -32,9 +32,11 @@ pub struct FilledForest {
 }
 
 impl FilledForest {
-    pub fn write_to_storage(&self, storage: &mut impl Storage) {
+    /// Writes the node serialization of the filled trees to storage. Returns the number of new
+    /// objects written to storage.
+    pub fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
         // Serialize all trees to one hash map.
-        let new_db_objects = self
+        let new_db_objects: DbHashMap = self
             .storage_tries
             .values()
             .flat_map(|tree| tree.serialize().into_iter())
@@ -42,8 +44,12 @@ impl FilledForest {
             .chain(self.classes_trie.serialize())
             .collect();
 
-        // Store the new hash map
-        storage.mset(new_db_objects).expect("Write to storage failed");
+        // Store the new hash map.
+        let n_new_facts = new_db_objects.len();
+        storage
+            .mset(new_db_objects)
+            .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
+        n_new_facts
     }
 
     pub fn get_contract_root_hash(&self) -> HashOutput {

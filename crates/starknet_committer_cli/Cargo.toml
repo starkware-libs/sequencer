@@ -1,0 +1,23 @@
+[package]
+name = "starknet_committer_cli"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "CLI for the committer storage benchmark."
+
+[lints]
+workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["cargo", "derive"] }
+csv.workspace = true
+rand.workspace = true
+starknet_committer = { workspace = true, features = ["testing"] }
+# TODO(Tzahi): Remove once tracing is moved to a common location.
+starknet_committer_and_os_cli.workspace = true
+starknet_patricia.workspace = true
+starknet_patricia_storage.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
