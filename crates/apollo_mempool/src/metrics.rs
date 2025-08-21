@@ -74,6 +74,7 @@ pub(crate) enum DropReason {
     FailedAddTxChecks,
     Expired,
     Rejected,
+    Evicted,
 }
 
 pub(crate) struct MempoolMetricHandle {
@@ -121,6 +122,13 @@ pub(crate) fn metric_count_rejected_txs(n_txs: usize) {
     MEMPOOL_TRANSACTIONS_DROPPED.increment(
         n_txs.try_into().expect("The number of rejected_txs should fit u64"),
         &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())],
+    );
+}
+
+pub(crate) fn metric_count_evicted_txs(n_txs: usize) {
+    MEMPOOL_TRANSACTIONS_DROPPED.increment(
+        n_txs.try_into().expect("The number of evicted_txs should fit u64"),
+        &[(LABEL_NAME_DROP_REASON, DropReason::Evicted.into())],
     );
 }
 
