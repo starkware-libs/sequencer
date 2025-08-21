@@ -27,6 +27,10 @@ use crate::metrics::OsMetrics;
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
 const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
+// Hex of 'STARKNET_STATE_V0'.
+pub const GLOBAL_STATE_VERSION: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f53544154455f5630");
+
 #[derive(Debug, thiserror::Error)]
 pub enum OsOutputError {
     #[error("Missing expected field: {0}.")]
