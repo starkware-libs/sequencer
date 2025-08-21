@@ -75,6 +75,9 @@ pub(crate) struct TestManager<S: FlowTestState> {
 pub(crate) struct OsTestExpectedValues {
     pub(crate) previous_global_root: HashOutput,
     pub(crate) new_global_root: HashOutput,
+    // TODO(Dori): Change type to PreviousBlockNumber once it exists.
+    pub(crate) previous_block_number: Option<BlockNumber>,
+    pub(crate) new_block_number: BlockNumber,
 }
 
 pub(crate) struct OsTestOutput {
@@ -110,6 +113,16 @@ impl OsTestOutput {
         assert_eq!(
             self.os_output.os_output.common_os_output.final_root,
             self.expected_values.new_global_root.0
+        );
+
+        // Block numbers.
+        assert_eq!(
+            Some(self.os_output.os_output.common_os_output.prev_block_number),
+            self.expected_values.previous_block_number
+        );
+        assert_eq!(
+            self.os_output.os_output.common_os_output.new_block_number,
+            self.expected_values.new_block_number
         );
     }
 
@@ -275,6 +288,9 @@ impl<S: FlowTestState> TestManager<S> {
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
         let expected_previous_global_root = previous_commitment.global_root();
+        let previous_block_number =
+            block_contexts.first().unwrap().block_info().block_number.prev();
+        let new_block_number = block_contexts.last().unwrap().block_info().block_number;
         let mut alias_keys = HashSet::new();
         for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
@@ -376,6 +392,8 @@ impl<S: FlowTestState> TestManager<S> {
             expected_values: OsTestExpectedValues {
                 previous_global_root: expected_previous_global_root,
                 new_global_root: expected_new_global_root,
+                previous_block_number,
+                new_block_number,
             },
         }
     }
