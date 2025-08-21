@@ -2,7 +2,9 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.common.ec import StarkCurve
 from starkware.cairo.common.ec_point import EcPoint
+from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.serialize import serialize_word
@@ -122,6 +124,7 @@ func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output
         state_updates_start=state_updates_start,
         state_updates_end=state_updates_ptr,
         compress_state_updates=compress_state_updates,
+        public_key=public_key,
     );
 
     if (use_kzg_da != FALSE) {
@@ -231,7 +234,10 @@ func serialize_os_kzg_commitment_info{output_ptr: felt*}(
 
 // Returns the final data-availability to output.
 func process_data_availability{range_check_ptr}(
-    state_updates_start: felt*, state_updates_end: felt*, compress_state_updates: felt
+    state_updates_start: felt*,
+    state_updates_end: felt*,
+    compress_state_updates: felt,
+    public_key: EcPoint*,
 ) -> (da_start: felt*, da_end: felt*) {
     if (compress_state_updates == 0) {
         return (da_start=state_updates_start, da_end=state_updates_end);
@@ -252,6 +258,16 @@ func process_data_availability{range_check_ptr}(
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);
     }
+    if (public_key.x == 0) {
+        return (da_start=compressed_start, da_end=compressed_dst);
+    }
+    local symmetric_key: felt;
+    local sn_private_key_1: felt;
+    %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst) %}
+    assert_le_felt(sn_private_key_1, StarkCurve.ORDER);
+    assert_not_zero(sn_private_key_1);
+
+    // TODO(Einat): encrypt the data with the symmetric key.
     return (da_start=compressed_start, da_end=compressed_dst);
 }
 
