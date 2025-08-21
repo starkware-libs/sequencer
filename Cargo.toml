@@ -81,6 +81,7 @@ members = [
   "crates/starknet_api",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
+  "crates/starknet_committer_cli",
   "crates/starknet_os",
   "crates/starknet_os_flow_tests",
   "crates/starknet_patricia",
@@ -201,6 +202,7 @@ clap = "4.5.4"
 colored = "3"
 const_format = "0.2.30"
 criterion = "0.5.1"
+csv = "1.3.1"
 dashmap = "6.1.0"
 deadqueue = "0.2.4"
 defaultmap = "0.5.0"
@@ -311,6 +313,7 @@ starknet-types-core = "0.1.8"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
+starknet_committer_cli.path = "crates/starknet_committer_cli"
 starknet_os.path = "crates/starknet_os"
 starknet_os_flow_tests.path = "crates/starknet_os_flow_tests"
 starknet_patricia.path = "crates/starknet_patricia"
