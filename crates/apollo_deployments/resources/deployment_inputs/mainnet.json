@@ -1,5 +1,5 @@
 {
-  "node_ids": [0, 1, 2],
+  "node_ids": [0, 1, 2, 3],
   "num_validators": 3,
   "http_server_ingress_alternative_name": "alpha-mainnet.starknet.io",
   "ingress_domain": "starknet.io",
