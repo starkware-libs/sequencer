@@ -52,6 +52,7 @@ use crate::execution::casm_hash_estimation::{
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
+    blake_encoding,
     blake_execution_resources_estimation_to_gas,
     poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
@@ -84,6 +85,13 @@ impl FeltSizeCount {
 
     pub(crate) fn n_felts(&self) -> usize {
         self.small + self.large
+    }
+
+    /// Returns the total number of `u32` words required to encode all felts
+    /// according to encode_felts_to_u32s func.
+    pub(crate) fn encoded_u32_len(&self) -> usize {
+        self.large * blake_encoding::U32_WORDS_PER_LARGE_FELT
+            + self.small * blake_encoding::U32_WORDS_PER_SMALL_FELT
     }
 
     /// Creates a `FeltSizeCount` by counting how many items in the slice are "small" or "large".
