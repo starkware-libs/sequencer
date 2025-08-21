@@ -13,7 +13,10 @@ use starknet_api::state::{ContractClassComponentHashes, StorageKey};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Pedersen, StarkHash};
 use tracing::level_filters::LevelFilter;
+
+use crate::io::os_output::STARKNET_OS_CONFIG_HASH_VERSION;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -81,6 +84,19 @@ impl Default for OsChainInfo {
     }
 }
 
+impl OsChainInfo {
+    /// Computes the OS config hash for the given chain info.
+    pub fn compute_os_config_hash(&self) -> Result<Felt, OsInputError> {
+        Ok(Pedersen::hash_array(&[
+            STARKNET_OS_CONFIG_HASH_VERSION,
+            (&self.chain_id)
+                .try_into()
+                .map_err(|_| OsInputError::InvalidChainId(self.chain_id.clone()))?,
+            self.strk_fee_token_address.into(),
+        ]))
+    }
+}
+
 /// All input needed to initialize the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -139,6 +155,8 @@ pub struct CachedStateInput {
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsInputError {
+    #[error("Invalid chain ID (cannot convert to Felt): {0:?}")]
+    InvalidChainId(ChainId),
     #[error("Invalid length of state readers: {0}. Should match size of block inputs: {1}")]
     InvalidLengthOfStateReaders(usize, usize),
 }
