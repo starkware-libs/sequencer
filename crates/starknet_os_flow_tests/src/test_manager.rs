@@ -31,7 +31,6 @@ use starknet_os::io::os_input::{
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -227,13 +226,12 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     // Private method which executes the flow test.
-    async fn execute_flow_test(mut self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
+    async fn execute_flow_test(self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let mut cached_state_inputs = vec![];
         let mut state = self.initial_state.updatable_state;
-        let mut map_storage =
-            BorrowedMapStorage { storage: &mut self.initial_state.commitment_storage };
+        let mut map_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
         // Commitment output is updated after each block.
         let mut previous_commitment = CommitmentOutput {
