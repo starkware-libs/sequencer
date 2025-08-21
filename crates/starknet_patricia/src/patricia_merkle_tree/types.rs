@@ -240,7 +240,7 @@ impl<'a> SortedLeafIndices<'a> {
         self.0
     }
 
-    pub(crate) fn contains(&self, value: &NodeIndex) -> bool {
+    pub fn contains(&self, value: &NodeIndex) -> bool {
         self.0.contains(value)
     }
 
