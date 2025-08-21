@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use blockifier::execution::contract_class::{
-    estimate_casm_blake_hash_computation_resources,
-    estimate_casm_poseidon_hash_computation_resources,
-    NestedFeltCounts,
+use blockifier::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
 };
+use blockifier::execution::contract_class::NestedFeltCounts;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -67,8 +68,8 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): lower margins once felt size optimization is implemented.
-const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 555000;
-const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 8;
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 5000;
+const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 0;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -168,18 +169,21 @@ impl HashVersionTestSpec for HashVersion {
     }
     fn estimate_execution_resources(
         &self,
-        bytecode_segment_lengths: &NestedFeltCounts,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
     ) -> ExecutionResources {
-        match self {
-            HashVersion::V1 => {
-                estimate_casm_poseidon_hash_computation_resources(bytecode_segment_lengths)
-            }
-            HashVersion::V2 => {
-                estimate_casm_blake_hash_computation_resources(bytecode_segment_lengths)
-                    .resources()
-                    .clone()
-            }
-        }
+        let resources = match self {
+            HashVersion::V1 => CasmV1HashResourceEstimate::new(HashVersion::V1)
+                .estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    &Default::default(),
+                ),
+            HashVersion::V2 => CasmV2HashResourceEstimate::new(HashVersion::V2)
+                .estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    &Default::default(),
+                ),
+        };
+        resources.resources().clone()
     }
 }
 
@@ -330,11 +334,17 @@ fn test_compiled_class_hash(
 fn test_compiled_class_hash_resources_estimation(
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
 ) {
+    use blockifier::execution::contract_class::RunnableCompiledClass;
+
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let mut contract_class = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),
+    };
+    let runnable_contract_class = match feature_contract.get_runnable_class() {
+        RunnableCompiledClass::V1(runnable_contract_class) => runnable_contract_class,
+        _ => panic!("Expected RunnableCompiledClass::V1"),
     };
 
     // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
@@ -345,11 +355,8 @@ fn test_compiled_class_hash_resources_estimation(
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
     // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation =
-        hash_version.estimate_execution_resources(&NestedFeltCounts::new(
-            &contract_class.get_bytecode_segment_lengths(),
-            &contract_class.bytecode,
-        ));
+    let mut execution_resources_estimation = hash_version
+        .estimate_execution_resources(&runnable_contract_class.bytecode_segment_felt_sizes());
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
     let allowed_margin = hash_version.allowed_margin_n_steps();
