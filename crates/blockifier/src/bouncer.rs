@@ -626,7 +626,7 @@ fn proving_gas_from_builtins_and_sierra_gas(
 }
 
 /// Generic function to convert VM resources to gas with configurable builtin gas calculation
-fn vm_resources_to_gas<F>(
+fn vm_resources_to_gas_inner<F>(
     resources: &ExecutionResources,
     versioned_constants: &VersionedConstants,
     builtin_gas_calculator: F,
@@ -644,23 +644,13 @@ where
         .checked_add_panic_on_overflow(builtins_gas_cost)
 }
 
-/// Converts vm resources to proving gas using the builtin weights.
-fn vm_resources_to_proving_gas(
+pub fn vm_resources_to_gas(
     resources: &ExecutionResources,
-    builtin_weights: &BuiltinWeights,
+    builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
-        builtins_to_gas(builtin_counters, &builtin_weights.weights)
-    })
-}
-
-pub fn vm_resources_to_sierra_gas(
-    resources: &ExecutionResources,
-    versioned_constants: &VersionedConstants,
-) -> GasAmount {
-    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
-        builtins_to_gas(builtin_counters, &versioned_constants.os_constants.gas_costs.builtins)
+    vm_resources_to_gas_inner(resources, versioned_constants, |builtin_counters| {
+        builtins_to_gas(builtin_counters, builtin_gas_cost)
     })
 }
 
@@ -702,6 +692,20 @@ pub fn builtins_to_gas(
     GasAmount(builtin_gas)
 }
 
+fn add_casm_hash_computation_gas_cost(
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExecutionResources>,
+    gas_without_casm_hash_computation: GasAmount,
+    builtin_gas_cost: &BuiltinGasCosts,
+    versioned_constants: &VersionedConstants,
+) -> (GasAmount, CasmHashComputationData) {
+    let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
+        class_hash_to_casm_hash_computation_resources,
+        gas_without_casm_hash_computation,
+        |resources| vm_resources_to_gas(resources, builtin_gas_cost, versioned_constants),
+    );
+    (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
+}
+
 // TODO(Noa):Fix.
 #[allow(clippy::too_many_arguments)]
 pub fn get_tx_weights<S: StateReader>(
@@ -727,7 +731,9 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
 
     // Sierra gas computation.
-    let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
+    let builtin_gas_cost = versioned_constants.os_constants.gas_costs.builtins;
+    let vm_resources_sierra_gas =
+        vm_resources_to_gas(&vm_resources, &builtin_gas_cost, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
     let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
@@ -745,12 +751,14 @@ pub fn get_tx_weights<S: StateReader>(
     // Each contract is migrated only once, and this migration resources is not part of the CASM
     // hash computation, which is performed every time a contract is loaded.
     sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
-    let casm_hash_computation_data_sierra_gas = CasmHashComputationData::from_resources(
-        &class_hash_to_casm_hash_computation_resources,
-        sierra_gas_without_casm_hash_computation,
-        |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
-    );
-    let total_sierra_gas = casm_hash_computation_data_sierra_gas.total_gas();
+
+    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            sierra_gas_without_casm_hash_computation,
+            &builtin_gas_cost,
+            versioned_constants,
+        );
 
     // Proving gas computation.
     let mut builtin_counters_without_casm_hash_computation =
@@ -768,6 +776,7 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &migration_poseidon_builtin_counter,
     );
+
     let builtin_proving_weights = &bouncer_config.builtin_weights;
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         &builtin_counters_without_casm_hash_computation,
@@ -776,15 +785,14 @@ pub fn get_tx_weights<S: StateReader>(
         versioned_constants,
     );
 
-    // Use the shared pattern to create proving gas data
-    let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
-        &class_hash_to_casm_hash_computation_resources,
-        proving_gas_without_casm_hash_computation,
-        |resources| {
-            vm_resources_to_proving_gas(resources, builtin_proving_weights, versioned_constants)
-        },
-    );
-    let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
+    // Use the shared pattern to create proving gas data. DELETE the comment???
+    let (total_proving_gas, casm_hash_computation_data_proving_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            proving_gas_without_casm_hash_computation,
+            &builtin_proving_weights.weights,
+            versioned_constants,
+        );
 
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
