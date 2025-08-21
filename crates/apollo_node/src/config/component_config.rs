@@ -112,8 +112,11 @@ impl ComponentConfig {
 }
 
 #[cfg(any(feature = "testing", test))]
-pub fn set_urls_to_localhost(component_configs: &mut [ComponentConfig]) {
-    for component_config in component_configs.iter_mut() {
+pub fn set_urls_to_localhost<'a, I>(component_configs: I)
+where
+    I: IntoIterator<Item = &'a mut ComponentConfig>,
+{
+    for component_config in component_configs {
         component_config.set_urls_to_localhost();
     }
 }

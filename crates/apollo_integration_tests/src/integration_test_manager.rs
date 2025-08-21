@@ -925,11 +925,11 @@ async fn get_sequencer_setup_configs(
     // Create nodes.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
-        let batcher_index = node_component_config.get_batcher_index();
-        let http_server_index = node_component_config.get_http_server_index();
-        let state_sync_index = node_component_config.get_state_sync_index();
-        let class_manager_index = node_component_config.get_class_manager_index();
-        let consensus_manager_index = node_component_config.get_consensus_manager_index();
+        let batcher_index = node_component_config.get_batcher_service();
+        let http_server_index = node_component_config.get_http_server_service();
+        let state_sync_index = node_component_config.get_state_sync_service();
+        let class_manager_index = node_component_config.get_class_manager_service();
+        let consensus_manager_index = node_component_config.get_consensus_manager_service();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);

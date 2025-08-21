@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use apollo_deployments::service::NodeService;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 
@@ -25,13 +26,13 @@ impl StorageExecutablePaths {
     pub fn new(
         db_base: &Path,
         node_index: usize,
-        batcher_index: usize,
-        state_sync_index: usize,
-        class_manager_index: usize,
+        batcher_service: NodeService,
+        state_sync_service: NodeService,
+        class_manager_service: NodeService,
     ) -> Self {
-        let batcher_node_index = NodeExecutionId::new(node_index, batcher_index);
-        let state_sync_node_index = NodeExecutionId::new(node_index, state_sync_index);
-        let class_manager_node_index = NodeExecutionId::new(node_index, class_manager_index);
+        let batcher_node_index = NodeExecutionId::new(node_index, batcher_service);
+        let state_sync_node_index = NodeExecutionId::new(node_index, state_sync_service);
+        let class_manager_node_index = NodeExecutionId::new(node_index, class_manager_service);
 
         let batcher_path = batcher_node_index.build_path(db_base);
         let state_sync_path = state_sync_node_index.build_path(db_base);
@@ -96,9 +97,9 @@ impl CustomPaths {
 
 pub fn get_integration_test_storage(
     node_index: usize,
-    batcher_index: usize,
-    state_sync_index: usize,
-    class_manager_index: usize,
+    batcher_service: NodeService,
+    state_sync_service: NodeService,
+    class_manager_service: NodeService,
     custom_paths: Option<CustomPaths>,
     accounts: Vec<AccountTransactionGenerator>,
     chain_info: &ChainInfo,
@@ -108,9 +109,9 @@ pub fn get_integration_test_storage(
             StorageExecutablePaths::new(
                 db_base,
                 node_index,
-                batcher_index,
-                state_sync_index,
-                class_manager_index,
+                batcher_service,
+                state_sync_service,
+                class_manager_service,
             )
         })
     });
@@ -124,9 +125,9 @@ pub fn get_integration_test_storage(
             let custom_storage_exec_paths = StorageExecutablePaths::new(
                 prefix,
                 node_index,
-                batcher_index,
-                state_sync_index,
-                class_manager_index,
+                batcher_service,
+                state_sync_service,
+                class_manager_service,
             );
             storage_config.batcher_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_batcher_exec_path().join(BATCHER_DB_PATH_SUFFIX);
