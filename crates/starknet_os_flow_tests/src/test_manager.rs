@@ -78,7 +78,24 @@ pub(crate) struct OsTestOutput {
 }
 
 impl OsTestOutput {
-    pub(crate) fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
+    pub(crate) fn perform_validations(
+        &self,
+        perform_global_validations: bool,
+        partial_state_diff: Option<&StateMaps>,
+    ) {
+        if perform_global_validations {
+            self.perform_global_validations();
+        }
+        if let Some(partial_state_diff) = partial_state_diff {
+            self.assert_contains_state_diff(partial_state_diff);
+        }
+    }
+
+    fn perform_global_validations(&self) {
+        // TODO(Dori): Implement global validations for the OS test output.
+    }
+
+    fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
         assert!(hashmap_contains_other(
             &self.decompressed_state_diff.class_hashes,
             &partial_state_diff.class_hashes
