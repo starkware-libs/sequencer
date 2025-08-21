@@ -6,7 +6,7 @@ use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::StorageTxn;
+use apollo_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
 
 define_metrics!(
@@ -38,7 +38,7 @@ define_metrics!(
     },
 );
 
-pub fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
+pub async fn register_metrics(storage_reader: StorageReader) {
     STATE_SYNC_HEADER_MARKER.register();
     STATE_SYNC_BODY_MARKER.register();
     STATE_SYNC_STATE_MARKER.register();
@@ -48,8 +48,12 @@ pub fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
     CENTRAL_SYNC_FORKS_FROM_FEEDER.register();
-    update_marker_metrics(txn);
-    reconstruct_processed_transactions_metric(txn);
+    let _ = tokio::task::spawn_blocking(move || {
+        let txn = storage_reader.begin_ro_txn().unwrap();
+        update_marker_metrics(&txn);
+        reconstruct_processed_transactions_metric(&txn);
+    })
+    .await;
 }
 
 pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
