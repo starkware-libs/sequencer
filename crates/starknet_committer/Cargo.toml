@@ -19,7 +19,6 @@ starknet_api.workspace = true
 starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
 strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
