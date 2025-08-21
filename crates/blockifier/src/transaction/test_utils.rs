@@ -175,7 +175,7 @@ pub fn create_init_data_for_compiled_class_hash_migration_test(
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
-    let contract_instances = [(account, 1), (erc20, 1), (test_contract, 1)];
+    let contract_instances = [(erc20, 1), (account, 1), (test_contract, 1)];
     let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
