@@ -17,6 +17,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+#[cfg(any(test, feature = "testing"))]
 use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -189,8 +190,8 @@ fn generate_os_output(
     })
 }
 
-/// Runs the OS the same way as `run_os`. Returns also the transactions trace which are needed for
-/// some tests.
+/// Runs the OS the same way as `run_os`. Returns also the transactions trace which are needed
+/// for some tests.
 #[cfg(any(test, feature = "testing"))]
 pub fn run_os_for_testing<S: StateReader>(
     layout: LayoutName,
@@ -236,6 +237,7 @@ pub fn run_os_stateless(
     run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
 }
 
+#[cfg(any(test, feature = "testing"))]
 pub fn run_os_stateless_for_testing(
     layout: LayoutName,
     os_hints: OsHints,
