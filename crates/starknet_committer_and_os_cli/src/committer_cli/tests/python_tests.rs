@@ -152,13 +152,12 @@ impl PythonTestRunner for CommitterPythonTestRunner {
             }
             Self::ComputeHashSingleTree => {
                 // 1. Get and deserialize input.
-                let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
+                let TreeFlowInput { leaf_modifications, storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
-                let storage = BorrowedMapStorage { storage: &mut storage };
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
-                    storage,
+                    &storage,
                     root_hash,
                     OriginalSkeletonStorageTrieConfig::new(false),
                 )

@@ -4,7 +4,7 @@ use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use serde_json::json;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -47,7 +47,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
-    storage: &BorrowedMapStorage<'_>,
+    storage: &MapStorage,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> FilledTreeImpl<L>
@@ -90,7 +90,7 @@ where
 
 pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
     leaf_modifications: LeafModifications<L>,
-    storage: BorrowedMapStorage<'_>,
+    storage: &MapStorage,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> String {
@@ -101,7 +101,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
         .collect::<LeafModifications<L>>();
 
     let filled_tree =
-        tree_computation_flow::<L, TH>(leaf_modifications, &storage, root_hash, config).await;
+        tree_computation_flow::<L, TH>(leaf_modifications, storage, root_hash, config).await;
 
     let hash_result = filled_tree.get_root_hash();
 

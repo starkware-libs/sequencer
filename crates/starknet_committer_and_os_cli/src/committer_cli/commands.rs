@@ -33,9 +33,9 @@ pub async fn parse_and_commit(
     commit(input, output_path, storage).await;
 }
 
-pub async fn commit(input: InputImpl, output_path: String, mut storage: MapStorage) {
+pub async fn commit(input: InputImpl, output_path: String, storage: MapStorage) {
     let serialized_filled_forest = SerializedForest(
-        commit_block(input, &mut storage).await.expect("Failed to commit the given block."),
+        commit_block(input, &storage).await.expect("Failed to commit the given block."),
     );
     // Create an empty storage for the new facts.
     let mut empty_storage = HashMap::new();
