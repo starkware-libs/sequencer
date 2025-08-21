@@ -1,5 +1,7 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use std::time::Duration;
+
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
@@ -72,6 +74,19 @@ impl MixedBehaviour {
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /");
         let kademlia_config = kad::Config::new(protocol_name);
+        let gossipsub_config = gossipsub::ConfigBuilder::default()
+            .max_transmit_size(1 << 34)
+            .flood_publish(false)
+            // .max_messages_per_rpc(Some(1))
+            .gossip_factor(0.0)
+            .gossip_lazy(0)
+            .gossip_retransimission(0)
+            .history_length(5)
+            .history_gossip(0)
+            .heartbeat_interval(Duration::from_millis(700))
+            .idontwant_on_publish(true)
+            .build()
+            .expect("Failed to build gossipsub config");
         Self {
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
@@ -112,11 +127,7 @@ impl MixedBehaviour {
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
             gossipsub: gossipsub::Behaviour::new(
                 gossipsub::MessageAuthenticity::Signed(keypair),
-                gossipsub::ConfigBuilder::default()
-                    // TODO(shahak): try to reduce this bound.
-                    .max_transmit_size(1 << 34)
-                    .build()
-                    .expect("Failed to build gossipsub config"),
+                gossipsub_config,
             )
             .unwrap_or_else(|err_string| {
                 panic!(
