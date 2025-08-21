@@ -11,8 +11,6 @@ pub struct BorrowedStorage<'a, S: Storage> {
     pub storage: &'a mut S,
 }
 
-pub type BorrowedMapStorage<'a> = BorrowedStorage<'a, MapStorage>;
-
 impl Storage for MapStorage {
     fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue> {
         self.insert(key, value)
@@ -32,27 +30,5 @@ impl Storage for MapStorage {
 
     fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>> {
         keys.iter().map(|key| self.get(key)).collect()
-    }
-}
-
-impl<S: Storage> Storage for BorrowedStorage<'_, S> {
-    fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue> {
-        self.storage.set(key, value)
-    }
-
-    fn mset(&mut self, key_to_value: MapStorage) {
-        self.storage.mset(key_to_value);
-    }
-
-    fn delete(&mut self, key: &DbKey) -> Option<DbValue> {
-        self.storage.delete(key)
-    }
-
-    fn get(&self, key: &DbKey) -> Option<&DbValue> {
-        self.storage.get(key)
-    }
-
-    fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>> {
-        self.storage.mget(keys)
     }
 }
