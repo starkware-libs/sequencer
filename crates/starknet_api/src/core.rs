@@ -80,6 +80,16 @@ impl std::fmt::Display for ChainId {
     }
 }
 
+impl TryFrom<&ChainId> for Felt {
+    type Error = StarknetApiError;
+
+    fn try_from(chain_id: &ChainId) -> Result<Self, Self::Error> {
+        Self::from_hex(chain_id.as_hex().as_str()).map_err(|_| Self::Error::OutOfRange {
+            string: format!("Failed to convert chain id {chain_id} to felt."),
+        })
+    }
+}
+
 impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
