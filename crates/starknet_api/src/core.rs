@@ -305,6 +305,10 @@ pub struct EntryPointSelector(pub StarkHash);
 )]
 pub struct GlobalRoot(pub StarkHash);
 
+// Hex of 'STARKNET_STATE_V0'.
+pub const GLOBAL_STATE_VERSION: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f53544154455f5630");
+
 /// The commitment on the transactions in a [Block](`crate::block::Block`).
 #[derive(
     Debug,

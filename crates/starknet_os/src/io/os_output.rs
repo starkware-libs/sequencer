@@ -27,6 +27,7 @@ use crate::metrics::OsMetrics;
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
 const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
+
 #[derive(Debug, thiserror::Error)]
 pub enum OsOutputError {
     #[error("Missing expected field: {0}.")]
