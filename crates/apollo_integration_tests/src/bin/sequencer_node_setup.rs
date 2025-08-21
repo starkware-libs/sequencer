@@ -5,7 +5,6 @@ use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::storage::CustomPaths;
 use clap::Parser;
-use tokio::fs::create_dir_all;
 use tracing::info;
 
 #[tokio::main]
@@ -24,7 +23,7 @@ async fn main() {
         args.data_prefix_path.map(PathBuf::from),
     );
 
-    let test_manager = IntegrationTestManager::new(
+    IntegrationTestManager::new(
         args.n_consolidated,
         args.n_distributed,
         Some(custom_paths),
@@ -32,16 +31,6 @@ async fn main() {
         TestIdentifier::PositiveFlowIntegrationTest,
     )
     .await;
-
-    // TODO(Tsabary/Nadin): rename dir from "ports" to "config".
-    // TODO(Tsabary/Nadin): avoid the hard-coded file names, e.g., "node_"
-    let simulator_config_file = format!("{}/simulator_ports", args.output_base_dir);
-    info!("Generate simulator ports json files under {:?}", simulator_config_file);
-    create_dir_all(&simulator_config_file).await.unwrap();
-    for (node_index, node_setup) in test_manager.get_idle_nodes().iter() {
-        let path = format!("{}/node_{}", simulator_config_file, node_index);
-        node_setup.generate_simulator_ports_json(&path);
-    }
 
     info!("Node setup completed");
 }
