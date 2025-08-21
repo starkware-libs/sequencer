@@ -15,6 +15,7 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
+    builtins_to_gas,
     get_particia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
@@ -239,7 +240,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        builtin_weights.calc_proving_gas_from_builtin_counter(&max_capacity_builtin_counters);
+        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.weights);
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
@@ -593,7 +594,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
                 .get_builtin_gas_cost(name)
                 .unwrap();
 
-            let stwo_total = stwo_gas.checked_mul(*count).map(u64_from_usize).expect("overflow");
+            let stwo_total = stwo_gas.checked_mul(u64_from_usize(*count)).expect("overflow");
             let stone_total = u64_from_usize(*count).checked_mul(stone_gas).expect("overflow");
 
             // This assumes that the Stone gas is always less than or equal to Stwo gas.

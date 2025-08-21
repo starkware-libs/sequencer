@@ -13,7 +13,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     TransactionExecutorResult,
 };
-use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
@@ -320,89 +320,50 @@ impl TxWeights {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-// TODO(Meshi): Consider code sharing with the BuiltinGasCosts struct.
 pub struct BuiltinWeights {
-    pub pedersen: usize,
-    pub range_check: usize,
-    pub ecdsa: usize,
-    pub bitwise: usize,
-    pub poseidon: usize,
-    pub keccak: usize,
-    pub ec_op: usize,
-    pub mul_mod: usize,
-    pub add_mod: usize,
-    pub range_check96: usize,
+    pub weights: BuiltinGasCosts,
 }
 
 impl BuiltinWeights {
     pub fn empty() -> Self {
         Self {
-            pedersen: 0,
-            range_check: 0,
-            ecdsa: 0,
-            bitwise: 0,
-            poseidon: 0,
-            keccak: 0,
-            ec_op: 0,
-            mul_mod: 0,
-            add_mod: 0,
-            range_check96: 0,
+            weights: BuiltinGasCosts {
+                pedersen: 0,
+                range_check: 0,
+                ecdsa: 0,
+                bitwise: 0,
+                poseidon: 0,
+                keccak: 0,
+                ecop: 0,
+                mul_mod: 0,
+                add_mod: 0,
+                range_check96: 0,
+            },
         }
     }
 
-    // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
-    pub fn calc_proving_gas_from_builtin_counter(
-        &self,
-        builtin_counters: &BuiltinCounterMap,
-    ) -> GasAmount {
-        let builtin_gas =
-            builtin_counters.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
-                let builtin_weight = self.builtin_weight(name);
-                builtin_weight
-                    .checked_mul(count)
-                    .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
-                             Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
-                             {accumulated_gas}"
-                        )
-                    })
-            });
-
-        GasAmount(u64_from_usize(builtin_gas))
-    }
-
-    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> usize {
-        match builtin_name {
-            BuiltinName::pedersen => self.pedersen,
-            BuiltinName::range_check => self.range_check,
-            BuiltinName::ecdsa => self.ecdsa,
-            BuiltinName::bitwise => self.bitwise,
-            BuiltinName::poseidon => self.poseidon,
-            BuiltinName::keccak => self.keccak,
-            BuiltinName::ec_op => self.ec_op,
-            BuiltinName::mul_mod => self.mul_mod,
-            BuiltinName::add_mod => self.add_mod,
-            BuiltinName::range_check96 => self.range_check96,
-            _ => panic!("Builtin name {builtin_name} is not supported in the bouncer weights."),
-        }
+    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> u64 {
+        self.weights
+            .get_builtin_gas_cost(builtin_name)
+            .expect("Builtin name {builtin_name} is not supported in the bouncer weights.")
     }
 }
 
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            pedersen: 4769,
-            range_check: 70,
-            ecdsa: 1666666,
-            ec_op: 714875,
-            bitwise: 583,
-            keccak: 510707,
-            poseidon: 10000,
-            add_mod: 312,
-            mul_mod: 604,
-            range_check96: 56,
+            weights: BuiltinGasCosts {
+                pedersen: 4769,
+                range_check: 70,
+                ecdsa: 1666666,
+                ecop: 714875,
+                bitwise: 583,
+                keccak: 510707,
+                poseidon: 10000,
+                add_mod: 312,
+                mul_mod: 604,
+                range_check96: 56,
+            },
         }
     }
 }
@@ -410,62 +371,62 @@ impl Default for BuiltinWeights {
 impl SerializeConfig for BuiltinWeights {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from([ser_param(
-            "pedersen",
-            &self.pedersen,
+            "weights.pedersen",
+            &self.weights.pedersen,
             "Pedersen gas weight.",
             ParamPrivacyInput::Public,
         )]);
         dump.append(&mut BTreeMap::from([ser_param(
-            "range_check",
-            &self.range_check,
+            "weights.range_check",
+            &self.weights.range_check,
             "Range_check gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "range_check96",
-            &self.range_check96,
+            "weights.range_check96",
+            &self.weights.range_check96,
             "range_check96 gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "poseidon",
-            &self.poseidon,
+            "weights.poseidon",
+            &self.weights.poseidon,
             "Poseidon gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "ecdsa",
-            &self.ecdsa,
+            "weights.ecdsa",
+            &self.weights.ecdsa,
             "Ecdsa gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "ec_op",
-            &self.ec_op,
+            "weights.ecop",
+            &self.weights.ecop,
             "Ec_op gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "add_mod",
-            &self.add_mod,
+            "weights.add_mod",
+            &self.weights.add_mod,
             "Add_mod gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "mul_mod",
-            &self.mul_mod,
+            "weights.mul_mod",
+            &self.weights.mul_mod,
             "Mul_mod gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "keccak",
-            &self.keccak,
+            "weights.keccak",
+            &self.weights.keccak,
             "Keccak gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "bitwise",
-            &self.bitwise,
+            "weights.bitwise",
+            &self.weights.bitwise,
             "Bitwise gas weight.",
             ParamPrivacyInput::Public,
         )]));
@@ -657,8 +618,7 @@ fn proving_gas_from_builtins_and_sierra_gas(
     builtin_weights: &BuiltinWeights,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_proving_gas =
-        builtin_weights.calc_proving_gas_from_builtin_counter(builtin_counters);
+    let builtins_proving_gas = builtins_to_gas(builtin_counters, &builtin_weights.weights);
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, builtin_counters);
 
@@ -691,7 +651,7 @@ fn vm_resources_to_proving_gas(
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
-        builtin_weights.calc_proving_gas_from_builtin_counter(builtin_counters)
+        builtins_to_gas(builtin_counters, &builtin_weights.weights)
     })
 }
 
@@ -700,7 +660,7 @@ pub fn vm_resources_to_sierra_gas(
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
-        builtins_to_sierra_gas(builtin_counters, versioned_constants)
+        builtins_to_gas(builtin_counters, &versioned_constants.os_constants.gas_costs.builtins)
     })
 }
 
@@ -710,7 +670,8 @@ pub fn sierra_gas_to_steps_gas(
     versioned_constants: &VersionedConstants,
     builtin_counters: &BuiltinCounterMap,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_sierra_gas(builtin_counters, versioned_constants);
+    let builtins_gas_cost =
+        builtins_to_gas(builtin_counters, &versioned_constants.os_constants.gas_costs.builtins);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         log::debug!(
@@ -721,30 +682,24 @@ pub fn sierra_gas_to_steps_gas(
     })
 }
 
-pub fn builtins_to_sierra_gas(
+pub fn builtins_to_gas(
     builtin_counters: &BuiltinCounterMap,
-    versioned_constants: &VersionedConstants,
+    builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
+    let builtin_gas = builtin_counters.iter().fold(0u64, |accumulated_gas, (name, &count)| {
+        let builtin_weight = builtin_gas_costs.get_builtin_gas_cost(name).unwrap();
+        builtin_weight
+            .checked_mul(u64_from_usize(count))
+            .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+            .unwrap_or_else(|| {
+                panic!(
+                    "Overflow while converting builtin counters to gas.\nBuiltin: {name}, Weight: \
+                     {builtin_weight}, Count: {count}, Accumulated gas: {accumulated_gas}"
+                )
+            })
+    });
 
-    let total_gas = builtin_counters
-        .iter()
-        .try_fold(0u64, |accumulated_gas, (&builtin, &count)| {
-            let builtin_gas_cost = gas_costs
-                .get_builtin_gas_cost(&builtin)
-                .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
-            let builtin_counters_u64 = u64_from_usize(count);
-            let builtin_total_cost = builtin_counters_u64.checked_mul(builtin_gas_cost)?;
-            accumulated_gas.checked_add(builtin_total_cost)
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "Overflow occurred while converting built-in resources to gas. Builtins: \
-                 {builtin_counters:?}"
-            )
-        });
-
-    GasAmount(total_gas)
+    GasAmount(builtin_gas)
 }
 
 // TODO(Noa):Fix.
