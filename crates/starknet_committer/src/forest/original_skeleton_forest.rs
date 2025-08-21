@@ -36,7 +36,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     pub(crate) fn create(
-        storage: impl Storage,
+        storage: &impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
         storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -49,20 +49,20 @@ impl<'a> OriginalSkeletonForest<'a> {
     {
         let (contracts_trie, original_contracts_trie_leaves) = Self::create_contracts_trie(
             contracts_trie_root_hash,
-            &storage,
+            storage,
             forest_sorted_indices.contracts_trie_sorted_indices,
         )?;
         let storage_tries = Self::create_storage_tries(
             storage_updates,
             &original_contracts_trie_leaves,
-            &storage,
+            storage,
             config,
             &forest_sorted_indices.storage_tries_sorted_indices,
         )?;
         let classes_trie = Self::create_classes_trie(
             classes_updates,
             classes_trie_root_hash,
-            &storage,
+            storage,
             config,
             forest_sorted_indices.classes_trie_sorted_indices,
         )?;
