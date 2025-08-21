@@ -838,8 +838,9 @@ impl NetworkManager {
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
             .with_tokio()
             // TODO(AndrewL): .with_quic()
-            .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-            .expect("Error building TCP transport")
+            .with_quic()
+            // .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+            // .expect("Error building TCP transport")
             .with_dns()
             .expect("Error building DNS transport")
             .with_behaviour(|key| {
