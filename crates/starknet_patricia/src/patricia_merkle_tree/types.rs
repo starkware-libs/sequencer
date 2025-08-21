@@ -240,7 +240,8 @@ impl<'a> SortedLeafIndices<'a> {
         self.0
     }
 
-    pub(crate) fn contains(&self, value: &NodeIndex) -> bool {
+    // TODO(Nimrod): Consider implementing a binary search for contains.
+    pub fn contains(&self, value: &NodeIndex) -> bool {
         self.0.contains(value)
     }
 
