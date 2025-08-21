@@ -1,6 +1,7 @@
 use blake2s::encode_felts_to_u32s;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::casm_hash_estimation::{
@@ -43,8 +44,8 @@ fn test_zero_inputs() {
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
-    let resources =
-        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
+    let resources = CasmV2HashResourceEstimate::new(HashVersion::V2)
+        .estimated_resources_of_hash_function(&FeltSizeCount::default());
     let expected = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
     assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
