@@ -4,9 +4,9 @@ use pretty_assertions::assert_eq;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::FeltSizeCount;
-use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
+    blake_encoding,
     count_blake_opcode,
     encode_and_blake_hash_resources,
     estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
@@ -23,8 +23,8 @@ fn test_u32_constants() {
     let big_u32s = encode_felts_to_u32s(vec![big_felt]);
 
     // Blake estimation constants should match the actual encoding.
-    assert_eq!(small_u32s.len(), N_U32S_SMALL_FELT);
-    assert_eq!(big_u32s.len(), N_U32S_BIG_FELT);
+    assert_eq!(small_u32s.len(), blake_encoding::N_U32S_SMALL_FELT);
+    assert_eq!(big_u32s.len(), blake_encoding::N_U32S_BIG_FELT);
 }
 
 /// Test the edge case of hashing an empty array of felt values.
@@ -36,7 +36,7 @@ fn test_zero_inputs() {
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
-    let opcodes = count_blake_opcode(0, 0);
+    let opcodes = count_blake_opcode(&FeltSizeCount::default());
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
