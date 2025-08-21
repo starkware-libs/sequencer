@@ -58,6 +58,13 @@ impl EstimatedExecutionResources {
         }
     }
 
+    pub fn mut_resources(&mut self) -> &mut ExecutionResources {
+        match self {
+            EstimatedExecutionResources::V1Hash { resources } => resources,
+            EstimatedExecutionResources::V2Hash { resources, .. } => resources,
+        }
+    }
+
     /// Returns the Blake opcode count.
     ///
     /// This is only defined for the V2 (Blake) variant.
@@ -150,12 +157,21 @@ impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
 ///
 /// This provides resource estimates rather than exact values.
 pub trait EstimateCasmHashResources {
+    fn new(hash_version: HashVersion) -> Self;
     /// Specifies the hash function variant that the estimate is for.
     fn hash_version(&self) -> HashVersion;
+
+    fn leaf_cost(&self, felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources;
+
+    fn node_cost(
+        &self,
+        bytecode_segment_felt_sizes: &[NestedFeltCounts],
+    ) -> EstimatedExecutionResources;
 
     /// Estimates the Cairo execution resources used when applying the hash function during CASM
     /// hashing.
     fn estimated_resources_of_hash_function(
+        &self,
         _felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources;
 
@@ -163,11 +179,43 @@ pub trait EstimateCasmHashResources {
     /// Starknet OS.
     fn estimated_resources_of_compiled_class_hash(
         &mut self,
-        _bytecode_segment_felt_sizes: &NestedFeltCounts,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
         _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
         // TODO(AvivG): Implement.
-        EstimatedExecutionResources::new(self.hash_version())
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: cairo_functions_step_estimation::BASE_COMPILED_CLASS_HASH,
+                ..Default::default()
+            },
+            self.hash_version(),
+        ));
+
+        resources += &self.cost_of_bytecode_hash_node(bytecode_segment_felt_sizes);
+
+        resources
+    }
+
+    fn cost_of_bytecode_hash_node(
+        &self,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_NODE,
+                ..Default::default()
+            },
+            self.hash_version(),
+        ));
+
+        // Add leaf vs node cost
+        resources += &match bytecode_segment_felt_sizes {
+            // Single-segment contract (e.g., older Sierra contracts).
+            NestedFeltCounts::Leaf(_, felt_size_groups) => self.leaf_cost(felt_size_groups),
+            NestedFeltCounts::Node(segments) => self.node_cost(segments),
+        };
+
+        resources
     }
 }
 
@@ -176,11 +224,16 @@ pub trait EstimateCasmHashResources {
 struct CasmV1HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
+    fn new(_hash_version: HashVersion) -> Self {
+        CasmV1HashResourceEstimate {}
+    }
+
     fn hash_version(&self) -> HashVersion {
         HashVersion::V1
     }
 
     fn estimated_resources_of_hash_function(
+        &self,
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
         EstimatedExecutionResources::V1Hash {
@@ -188,11 +241,55 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
             resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
         }
     }
+
+    fn leaf_cost(&self, felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
+        // The entire contract is a single segment (old Sierra contracts).
+        let mut resources = self.estimated_resources_of_hash_function(felt_size_groups);
+        resources += &ExecutionResources {
+            n_steps: 464,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
+        };
+
+        resources
+    }
+
+    fn node_cost(
+        &self,
+        bytecode_segment_felt_sizes: &[NestedFeltCounts],
+    ) -> EstimatedExecutionResources {
+        // The contract code is segmented by its functions.
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: 482,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
+            },
+            self.hash_version(),
+        ));
+        let base_segment_cost = ExecutionResources {
+            n_steps: 25,
+            n_memory_holes: 1,
+            builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
+        };
+        for segment in bytecode_segment_felt_sizes {
+            let NestedFeltCounts::Leaf(length, _) = segment else {
+                panic!("Estimating hash cost is only supported for segmentation depth at most 1.");
+            };
+            resources += &poseidon_hash_many_cost(*length);
+            resources += &base_segment_cost;
+        }
+        resources
+    }
 }
 
 pub struct CasmV2HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
+    fn new(_hash_version: HashVersion) -> Self {
+        CasmV2HashResourceEstimate {}
+    }
+
     fn hash_version(&self) -> HashVersion {
         HashVersion::V2
     }
@@ -208,6 +305,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     /// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported
     ///   via `ExecutionResources`.
     fn estimated_resources_of_hash_function(
+        &self,
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
         let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
@@ -228,6 +326,59 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             resources,
             blake_count: count_blake_opcode(felt_size_groups),
         }
+    }
+
+    fn leaf_cost(&self, felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_NODE_LEAF,
+                ..Default::default()
+            },
+            self.hash_version(),
+        ));
+        resources += &self.estimated_resources_of_hash_function(felt_size_groups);
+
+        resources
+    }
+
+    fn node_cost(
+        &self,
+        bytecode_segment_felt_sizes: &[NestedFeltCounts],
+    ) -> EstimatedExecutionResources {
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_NODE_NODE,
+                ..Default::default()
+            },
+            self.hash_version(),
+        ));
+
+        let bytecode_hash_internal_node_overhead = ExecutionResources {
+            n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_INTERNAL_NODE,
+            ..Default::default()
+        };
+
+        // For each segment, hash its felts.
+        for seg in bytecode_segment_felt_sizes {
+            match seg {
+                NestedFeltCounts::Leaf(_, felt_size_groups) => {
+                    resources += &bytecode_hash_internal_node_overhead;
+                    resources += &self.estimated_resources_of_hash_function(felt_size_groups);
+                }
+                _ => {
+                    panic!("Estimating hash cost only supports at most one level of segmentation.")
+                }
+            }
+        }
+
+        // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
+        // and one segment length (“small” felt) per segment.
+        resources += &self.estimated_resources_of_hash_function(&FeltSizeCount {
+            large: bytecode_segment_felt_sizes.len(),
+            small: bytecode_segment_felt_sizes.len(),
+        });
+
+        resources
     }
 }
 
@@ -261,7 +412,7 @@ mod cairo_functions_step_estimation {
     const HASH_INIT: usize = ALLOC_LOCAL + CREATE_HASH_STATE + RETURN; // not sure, should be 6.
 
     // Base steps.
-    const BASE_COMPILED_CLASS_HASH: usize = CALL_COMPILED_CLASS_HASH
+    pub(crate) const BASE_COMPILED_CLASS_HASH: usize = CALL_COMPILED_CLASS_HASH
         + ALLOC_LOCAL
         + ASSERT
         + RETURN
@@ -271,12 +422,12 @@ mod cairo_functions_step_estimation {
         + CALL_BYTECODE_HASH_NODE
         + CALL_HASH_FINALIZE;
 
-    const BASE_BYTECODE_HASH_NODE: usize = ALLOC_LOCAL + IF + RETURN;
-    const BASE_BYTECODE_HASH_NODE_LEAF: usize = BASE_BYTECODE_HASH_NODE;
-    const BASE_BYTECODE_HASH_NODE_NODE: usize =
+    pub(crate) const BASE_BYTECODE_HASH_NODE: usize = ALLOC_LOCAL + IF + RETURN;
+    pub(crate) const BASE_BYTECODE_HASH_NODE_LEAF: usize = BASE_BYTECODE_HASH_NODE;
+    pub(crate) const BASE_BYTECODE_HASH_NODE_NODE: usize =
         BASE_BYTECODE_HASH_NODE + HASH_INIT + CALL_BYTECODE_HASH_INTERNAL_NODE + CALL_HASH_FINALIZE;
     // Assuming 1 segmantation layer (inner node is a leaf).
-    const BASE_BYTECODE_HASH_INTERNAL_NODE: usize = IF * 2
+    pub(crate) const BASE_BYTECODE_HASH_INTERNAL_NODE: usize = IF * 2
         + ALLOC_LOCAL
         + LET
         + RETURN

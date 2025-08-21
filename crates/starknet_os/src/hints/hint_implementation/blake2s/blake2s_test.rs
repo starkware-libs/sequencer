@@ -11,6 +11,7 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_types_core::felt::Felt;
 
 use crate::test_utils::cairo_runner::{
@@ -43,8 +44,8 @@ fn data_to_felt_count(data: &[Felt]) -> FeltSizeCount {
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
     let felt_size_groups = data_to_felt_count(data);
-    let estimated =
-        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&felt_size_groups);
+    let estimated = CasmV2HashResourceEstimate::new(HashVersion::V2)
+        .estimated_resources_of_hash_function(&felt_size_groups);
 
     let mut resources = estimated.resources().clone();
     resources.n_steps -= 1;
