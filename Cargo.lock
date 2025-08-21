@@ -11943,6 +11943,7 @@ version = "0.0.0"
 dependencies = [
  "hex",
  "pretty_assertions",
+ "rand 0.8.5",
  "rstest",
  "serde_json",
  "starknet-types-core",
