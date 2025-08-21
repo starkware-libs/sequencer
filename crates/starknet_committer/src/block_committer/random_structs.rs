@@ -6,7 +6,13 @@ use rand::prelude::IteratorRandom;
 use rand::Rng;
 use rand_distr::num_traits::ToPrimitive;
 use rand_distr::{Distribution, Geometric};
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PATRICIA_KEY_UPPER_BOUND};
+use starknet_api::core::{
+    ClassHash,
+    ContractAddress,
+    Nonce,
+    PatriciaKey,
+    PATRICIA_KEY_UPPER_BOUND,
+};
 use starknet_patricia::felt::u256_from_felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
@@ -181,14 +187,20 @@ random_filled_node!(StarknetStorageValue);
 random_filled_node!(CompiledClassHash);
 random_filled_node!(ContractState);
 
+impl RandomValue for PatriciaKey {
+    fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
+        let upper_bound = u256_from_felt(&Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND));
+        let max_patricia_key = match max {
+            None => upper_bound,
+            Some(caller_max) => min(upper_bound, caller_max),
+        };
+        PatriciaKey::try_from(Felt::random(rng, Some(max_patricia_key))).unwrap()
+    }
+}
+
 impl RandomValue for ContractAddress {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
-        let address_max = u256_from_felt(&Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND));
-        let max = match max {
-            None => address_max,
-            Some(caller_max) => min(address_max, caller_max),
-        };
-        ContractAddress::try_from(Felt::random(rng, Some(max))).unwrap()
+        ContractAddress(PatriciaKey::random(rng, max))
     }
 }
 
