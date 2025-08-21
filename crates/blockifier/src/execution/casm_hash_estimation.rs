@@ -181,7 +181,6 @@ pub trait EstimateCasmHashResources {
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
-        // TODO(AvivG): Implement.
         let mut resources = EstimatedExecutionResources::from((
             ExecutionResources {
                 n_steps: cairo_functions_step_estimation::BASE_COMPILED_CLASS_HASH,
@@ -190,12 +189,12 @@ pub trait EstimateCasmHashResources {
             self.hash_version(),
         ));
 
-        resources += &self.cost_of_bytecode_hash_node(bytecode_segment_felt_sizes);
+        resources += &self.estimated_resources_of_bytecode_hash_node(bytecode_segment_felt_sizes);
 
         resources
     }
 
-    fn cost_of_bytecode_hash_node(
+    fn estimated_resources_of_bytecode_hash_node(
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
     ) -> EstimatedExecutionResources {
@@ -218,9 +217,7 @@ pub trait EstimateCasmHashResources {
     }
 }
 
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+pub struct CasmV1HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn new(_hash_version: HashVersion) -> Self {
@@ -282,7 +279,7 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 }
 
-pub struct CasmV2HashResourceEstimate {}
+pub struct CasmV2HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn new(_hash_version: HashVersion) -> Self {
@@ -412,10 +409,11 @@ mod cairo_functions_step_estimation {
 
     // Base steps.
     pub(crate) const BASE_COMPILED_CLASS_HASH: usize = CALL_COMPILED_CLASS_HASH
+        + HASH_INIT
         + ALLOC_LOCAL
         + ASSERT
         + RETURN
-        + CREATE_HASH_STATE
+        // + CREATE_HASH_STATE
         + HASH_UPDATE_SINGLE * 2
         + CALL_HASH_ENTRY_POINTS * 3
         + CALL_BYTECODE_HASH_NODE
