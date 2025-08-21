@@ -219,9 +219,7 @@ pub trait EstimateCasmHashResources {
     }
 }
 
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+pub struct CasmV1HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn new(_hash_version: HashVersion) -> Self {
@@ -283,7 +281,7 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 }
 
-pub struct CasmV2HashResourceEstimate {}
+pub struct CasmV2HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn new(_hash_version: HashVersion) -> Self {
