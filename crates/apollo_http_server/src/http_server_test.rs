@@ -193,15 +193,19 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         }),
     ));
 
+    let expected_internal_err = GatewayClientError::ClientError(ClientError::UnexpectedResponse(
+        "mock response".to_string(),
+    ));
+
     // Set the failed Gateway ClientError response.
-    let expected_gateway_client_err_str =
-        serde_json::to_string(&StarknetError::internal("Internal error")).unwrap();
+    let expected_gateway_client_err_str = serde_json::to_string(
+        &StarknetError::internal_with_logging("mock", expected_internal_err.clone()),
+    )
+    .unwrap();
 
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
         // The error code needs to be mapped to a INTERNAL_SERVER_ERROR response (status code 500).
-        GatewayClientError::ClientError(ClientError::UnexpectedResponse(
-            "mock response".to_string(),
-        )),
+        expected_internal_err,
     ));
 
     let http_client = add_tx_http_client(mock_gateway_client, 5 + index).await;
