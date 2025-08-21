@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
@@ -10,7 +12,12 @@ use thiserror::Error;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
-use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    NodeData,
+    PathToBottom,
+    Preimage,
+    PreimageMap,
+};
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
@@ -138,4 +145,107 @@ pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
         subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
     }
     Ok(subtrees_roots)
+}
+
+#[allow(dead_code)]
+/// Returns the Patricia witnesses (`PreimageMap`) of the given tree according to the root hash.
+/// Fetches only inner nodes.
+/// If `should_fetch_leaves` is true, it also fetches the modified leaves in a separate map.
+pub fn fetch_witnesses<L: Leaf>(
+    storage: &impl Storage,
+    root_hash: HashOutput,
+    leaf_indices: &[NodeIndex],
+    should_fetch_leaves: bool,
+) -> TraversalResult<(PreimageMap, HashMap<NodeIndex, L>)> {
+    let mut witnesses = PreimageMap::new();
+    let mut fetched_leaves = HashMap::new();
+
+    if leaf_indices.is_empty() {
+        return Ok((witnesses, fetched_leaves));
+    }
+
+    let mut leaf_indices = leaf_indices.to_vec();
+    let main_subtree = SubTree {
+        sorted_leaf_indices: SortedLeafIndices::new(&mut leaf_indices),
+        root_index: NodeIndex::ROOT,
+        root_hash,
+    };
+
+    fetch_witnesses_inner::<L>(
+        storage,
+        vec![main_subtree],
+        &mut witnesses,
+        should_fetch_leaves,
+        &mut fetched_leaves,
+    )?;
+    Ok((witnesses, fetched_leaves))
+}
+
+#[allow(dead_code)]
+/// Fetches the Patricia witnesses, required to make a commitment.
+/// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
+/// unmodified inner nodes, and the parents of the modified nodes, if the sibling is unmodified.
+/// If `should_fetch_leaves` is true, it also fetches the modified leaves in a separate map.
+fn fetch_witnesses_inner<'a, L: Leaf>(
+    storage: &impl Storage,
+    subtrees: Vec<SubTree<'a>>,
+    witnesses: &mut PreimageMap,
+    should_fetch_leaves: bool,
+    fetched_leaves: &mut HashMap<NodeIndex, L>,
+) -> TraversalResult<()> {
+    if subtrees.is_empty() {
+        return Ok(());
+    }
+
+    let mut next_subtrees = Vec::new();
+    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
+    for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
+        match filled_root.data {
+            // Binary node.
+            NodeData::Binary(binary_data) => {
+                // Add the node if its subtree is unmodified, or if it's a parent of a single
+                // modified leaf.
+                if subtree.is_unmodified() {
+                    witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data));
+                    continue;
+                } else if subtree.get_height() == SubTreeHeight::new(1)
+                    && subtree.sorted_leaf_indices.len() == 1
+                {
+                    witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
+                }
+                let (left_subtree, right_subtree) =
+                    subtree.get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
+                next_subtrees.push(left_subtree);
+                next_subtrees.push(right_subtree);
+            }
+            // Edge node.
+            NodeData::Edge(edge_data) => {
+                if subtree.is_unmodified() {
+                    witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
+                    continue;
+                }
+                // Parse bottom.
+                let (bottom_subtree, _) =
+                    subtree.get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_hash);
+                next_subtrees.push(bottom_subtree);
+            }
+            // Leaf node.
+            NodeData::Leaf(leaf_data) => {
+                // Fetch the leaf if it's modified and should be fetched.
+                if !subtree.is_unmodified() && should_fetch_leaves {
+                    fetched_leaves.insert(
+                        *subtree.sorted_leaf_indices.first().expect("Expected exactly one leaf."),
+                        leaf_data,
+                    );
+                }
+            }
+        }
+    }
+    fetch_witnesses_inner::<L>(
+        storage,
+        next_subtrees,
+        witnesses,
+        should_fetch_leaves,
+        fetched_leaves,
+    )
 }
