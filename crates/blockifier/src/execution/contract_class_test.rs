@@ -183,3 +183,18 @@ fn felt_size_count_from_biguintashex_slice(
     assert_eq!(count.small, expected_small);
     assert_eq!(count.large, expected_large);
 }
+
+#[rstest]
+#[case::boundary_small_felt(&[Felt::from((1u64 << 63) - 1)])]
+#[case::boundary_at_2_63(&[Felt::from(1u64 << 63)])]
+#[case::very_large_felt(&[Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
+#[case::mixed_small_large(&[Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
+#[case::many_large(&[Felt::from(1u64 << 63); 100])]
+fn test_encoded_u32_len(#[case] test_data: &[Felt]) {
+    use blake2s::encode_felts_to_u32s;
+
+    let estimated_u32_len = FeltSizeCount::from(test_data).encoded_u32_len();
+    let actual_u32_len = encode_felts_to_u32s(test_data.to_vec()).len();
+
+    assert_eq!(actual_u32_len, estimated_u32_len);
+}

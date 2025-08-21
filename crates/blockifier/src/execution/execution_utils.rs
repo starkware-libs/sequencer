@@ -374,7 +374,7 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
 }
 
 // Constants that define how felts are encoded into u32s for BLAKE hashing.
-mod blake_encoding {
+pub(crate) mod blake_encoding {
     /// Number of u32s in a Blake input message.
     pub const N_U32S_MESSAGE: usize = 16;
 
@@ -402,18 +402,6 @@ mod blake_estimation {
     pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
     // Empty input steps.
     pub const STEPS_EMPTY_INPUT: usize = 170;
-}
-
-/// Calculates the total number of u32s required to encode the given number of big and small felts.
-/// Big felts encode to 8 u32s each, small felts encode to 2 u32s each.
-fn total_u32s_from_felts(n_big_felts: usize, n_small_felts: usize) -> usize {
-    let big_u32s = n_big_felts
-        .checked_mul(blake_encoding::N_U32S_BIG_FELT)
-        .expect("Overflow computing big felts u32s");
-    let small_u32s = n_small_felts
-        .checked_mul(blake_encoding::N_U32S_SMALL_FELT)
-        .expect("Overflow computing small felts u32s");
-    big_u32s.checked_add(small_u32s).expect("Overflow computing total u32s")
 }
 
 fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
@@ -444,7 +432,7 @@ fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
 fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
     felt_size_groups: &FeltSizeCount,
 ) -> usize {
-    let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
+    let total_u32s = felt_size_groups.encoded_u32_len();
     if total_u32s == 0 {
         // The empty input case is a special case.
         return blake_estimation::STEPS_EMPTY_INPUT;
@@ -460,7 +448,7 @@ fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
 /// Each BLAKE opcode processes 16 u32s (partial messages are padded).
 fn count_blake_opcode(felt_size_groups: &FeltSizeCount) -> usize {
     // Count the total number of u32s to be hashed.
-    let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
+    let total_u32s = felt_size_groups.encoded_u32_len();
     total_u32s.div_ceil(blake_encoding::N_U32S_MESSAGE)
 }
 
