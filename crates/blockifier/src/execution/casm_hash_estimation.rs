@@ -192,23 +192,25 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 pub struct CasmV2HashResourceEstimate;
 
 impl CasmV2HashResourceEstimate {
-    // Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
-    // These values are based on empirical measurement by running
-    // `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
-    // Per-felt step cost (measured).
-    pub const STEPS_BIG_FELT: usize = 45;
-    pub const STEPS_SMALL_FELT: usize = 15;
+    // Constants used for estimating the VM execution resources of BLAKE hashing in the Starknet OS.
+    // Values were obtained empirically by running
+    // `encode_felt252_data_and_calc_blake_hash` on various combinations of large and small felts.
 
-    // One-time overhead.
-    // Overhead when input fills a full Blake message (16 u32s).
+    // Per-felt contribution.
+    pub const STEPS_PER_LARGE_FELT: usize = 45;
+    pub const STEPS_PER_SMALL_FELT: usize = 15;
+
+    // One-time overheads for `encode_felt252_data_and_calc_blake_hash` execution.
+    // Applied when the input fills an exact Blake message (16-u32).
     pub const BASE_STEPS_FULL_MSG: usize = 217;
-    // Overhead when input results in a partial message (remainder < 16 u32s).
+    // Applied when the input leaves a remainder (< 16 u32s).
     pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
-    // Extra steps per 2-u32 remainder in partial messages.
+    // Extra steps added per 2-u32 remainder in partial messages.
     pub const STEPS_PER_2_U32_REMINDER: usize = 3;
-    // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
+    // Additional `range_check` instances required when the input is non-empty.
     pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
-    // Empty input steps.
+
+    // Applied when the input is completely empty.
     pub const STEPS_EMPTY_INPUT: usize = 170;
 }
 

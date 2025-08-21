@@ -409,10 +409,10 @@ fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
 
 fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
     let big_steps = n_big_felts
-        .checked_mul(CasmV2HashResourceEstimate::STEPS_BIG_FELT)
+        .checked_mul(CasmV2HashResourceEstimate::STEPS_PER_LARGE_FELT)
         .expect("Overflow computing big felt steps");
     let small_steps = n_small_felts
-        .checked_mul(CasmV2HashResourceEstimate::STEPS_SMALL_FELT)
+        .checked_mul(CasmV2HashResourceEstimate::STEPS_PER_SMALL_FELT)
         .expect("Overflow computing small felt steps");
     big_steps.checked_add(small_steps).expect("Overflow computing total felt steps")
 }
