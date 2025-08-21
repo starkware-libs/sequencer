@@ -2,12 +2,10 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
+use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
@@ -16,6 +14,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
     OriginalSkeletonTreeResult,
 };
+use crate::patricia_merkle_tree::traversal::calculate_subtrees_roots;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTree};
 
 #[cfg(test)]
@@ -48,7 +47,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         let should_fetch_modified_leaves =
             config.compare_modified_leaves() || previous_leaves.is_some();
         let mut next_subtrees = Vec::new();
-        let filled_roots = Self::calculate_subtrees_roots::<L>(&subtrees, storage)?;
+        let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
@@ -129,32 +128,6 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             }
         }
         self.fetch_nodes::<L>(next_subtrees, storage, leaf_modifications, config, previous_leaves)
-    }
-
-    // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
-    fn calculate_subtrees_roots<L: Leaf>(
-        subtrees: &[SubTree<'a>],
-        storage: &impl Storage,
-    ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
-        let mut subtrees_roots = vec![];
-        let db_keys: Vec<DbKey> = subtrees
-            .iter()
-            .map(|subtree| {
-                create_db_key(
-                    subtree.get_root_prefix::<L>().into(),
-                    &subtree.root_hash.0.to_bytes_be(),
-                )
-            })
-            .collect();
-
-        let db_vals = storage.mget(&db_keys);
-        for ((subtree, optional_val), db_key) in
-            subtrees.iter().zip(db_vals.iter()).zip(db_keys.into_iter())
-        {
-            let val = optional_val.ok_or(StorageError::MissingKey(db_key))?;
-            subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
-        }
-        Ok(subtrees_roots)
     }
 
     pub(crate) fn create_impl<L: Leaf>(
