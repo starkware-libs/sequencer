@@ -195,7 +195,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
 
     // Set the failed Gateway ClientError response.
     let expected_gateway_client_err_str =
-        serde_json::to_string(&StarknetError::internal("Internal error")).unwrap();
+        serde_json::to_string(&StarknetError::internal()).unwrap();
 
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
         // The error code needs to be mapped to a INTERNAL_SERVER_ERROR response (status code 500).
