@@ -4,7 +4,7 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
-use crate::committer_cli::commands::parse_and_commit;
+use crate::committer_cli::commands::{parse_and_commit, run_storage_benchmark};
 use crate::committer_cli::tests::python_tests::CommitterPythonTestRunner;
 use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
@@ -22,6 +22,8 @@ enum Command {
         io_args: IoArgs,
     },
     PythonTest(PythonTestArg),
+    /// Run the committer on random data with owned storage.
+    StorageBenchmark,
 }
 
 pub async fn run_committer_cli(
@@ -36,6 +38,9 @@ pub async fn run_committer_cli(
 
         Command::PythonTest(python_test_arg) => {
             run_python_test::<CommitterPythonTestRunner>(python_test_arg).await;
+        }
+        Command::StorageBenchmark => {
+            run_storage_benchmark().await;
         }
     }
 }
