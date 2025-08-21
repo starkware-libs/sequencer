@@ -36,6 +36,7 @@ use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     block_context,
     calculate_class_info_for_testing,
+    create_init_data_for_compiled_class_hash_migration_test,
     create_test_init_data,
     emit_n_events_tx,
     l1_resource_bounds,
@@ -395,6 +396,111 @@ fn test_execute_txs_bouncing(#[case] concurrency_enabled: bool, #[case] external
     // End test by calling pool.join(), if pool is used.
     if let Some(pool) = tx_executor.worker_pool {
         Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+    }
+}
+
+/// Tests compiled class hash migration behavior.
+/// Verifies that contracts declared with an old compiled class hash version
+/// are migrated to the new version **only** when migration is enabled and the
+/// Cairo version supports it (i.e., not Cairo0).
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
+#[case(CairoVersion::Cairo0)]
+#[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+fn test_compiled_class_hash_migration(
+    mut block_context: BlockContext,
+    #[values(true, false)] declare_with_casm_hash_v1: bool,
+    #[values(true, false)] enable_casm_hash_migration: bool,
+    #[case] cairo_version: CairoVersion,
+) {
+    // Configure migration flag.
+    block_context.versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
+
+    // Prepare initial state depending on whether classes were declared with old hash versions.
+    let TestInitData { state, account_address, contract_address, nonce_manager: _ } =
+        if declare_with_casm_hash_v1 {
+            create_init_data_for_compiled_class_hash_migration_test(
+                &block_context.chain_info,
+                cairo_version,
+            )
+        } else {
+            create_test_init_data(&block_context.chain_info, cairo_version)
+        };
+
+    // Build and execute a simple invoke transaction calling `return_result(3)`.
+    let mut tx_executor =
+        TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
+    let calldata = create_calldata(
+        contract_address,
+        "return_result",
+        &[
+            felt!(3_u32), // result to return.
+        ],
+    );
+    let invoke_tx = executable_invoke_tx(invoke_tx_args! {
+        sender_address: account_address,
+        calldata,
+        version: TransactionVersion::THREE,
+    });
+    let tx = AccountTransaction::new_for_sequencing(invoke_tx).into();
+    let tx_exexution_result = tx_executor.execute_txs(&[tx], None);
+    // Check that the transaction was executed successfully.
+    assert!(
+        tx_exexution_result.len() == 1,
+        "Expected 1 transaction execution result, got {}",
+        tx_exexution_result.len()
+    );
+    assert!(
+        tx_exexution_result[0].is_ok(),
+        "Transaction execution failed: {:#?}",
+        tx_exexution_result[0]
+    );
+    let tx_execution_info = &tx_exexution_result[0].as_ref().unwrap().0;
+    assert!(
+        !tx_execution_info.is_reverted(),
+        "Transaction reverted: {:#?}",
+        tx_execution_info.revert_error
+    );
+    let mut block_execution_summary = tx_executor.finalize().unwrap();
+
+    // Migration should occur only if:
+    //   1. Migration is enabled,
+    //   2. Classes were declared with old hash versions,
+    //   3. Cairo version is not Cairo0 (since migration doesn’t apply there).
+    let should_migrate =
+        enable_casm_hash_migration && declare_with_casm_hash_v1 && !cairo_version.is_cairo0();
+    if should_migrate {
+        // Build expected migrated hashes for both account and test contract.
+        let account = FeatureContract::AccountWithoutValidations(cairo_version);
+        let test_contract = FeatureContract::TestContract(cairo_version);
+        let mut expected_compiled_class_hashes_for_migration = vec![
+            (
+                account.get_compiled_class_hash(&HashVersion::V2),
+                account.get_compiled_class_hash(&HashVersion::V1),
+            ),
+            (
+                test_contract.get_compiled_class_hash(&HashVersion::V2),
+                test_contract.get_compiled_class_hash(&HashVersion::V1),
+            ),
+        ];
+
+        block_execution_summary.compiled_class_hashes_for_migration.sort();
+        expected_compiled_class_hashes_for_migration.sort();
+
+        assert_eq!(
+            block_execution_summary.compiled_class_hashes_for_migration,
+            expected_compiled_class_hashes_for_migration
+        );
+    } else {
+        // No migration should happen.
+        assert!(
+            block_execution_summary.compiled_class_hashes_for_migration.is_empty(),
+            "Migration shouldn't occur with: enable_migration: {enable_casm_hash_migration}, \
+             classess_declared_with_old_hash_version: {declare_with_casm_hash_v1}, cairo_zero: \
+             {cairo_version:?} but this is not the case. The compiled class hashes for migration \
+             are: {:#?}",
+            block_execution_summary.compiled_class_hashes_for_migration
+        );
     }
 }
 
