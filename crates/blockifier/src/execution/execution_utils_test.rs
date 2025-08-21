@@ -44,12 +44,3 @@ fn test_zero_inputs() {
     assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }
-
-// TODO(AvivG): Add tests for:
-// - `compute_blake_hash_steps` simple cases (felts input).
-// - `count_blake_opcode` simple cases (felts input).
-// - `cost_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input) (including partial
-//   remainder).
-// - `cost_of_encode_felt252_data_and_calc_blake_hash` compare against actual execution resources
-//   from running a Cairo entry point (computing blake).
-// - base steps costs - compare against actual execution resources by running on an empty input.
