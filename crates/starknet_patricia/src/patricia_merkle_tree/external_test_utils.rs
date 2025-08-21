@@ -123,7 +123,7 @@ fn create_inner_node_patricia_key(val: u128) -> DbKey {
     create_db_key(PatriciaPrefix::InnerNode.into(), &U256::from(val).to_be_bytes())
 }
 
-fn create_leaf_patricia_key<L: Leaf>(val: u128) -> DbKey {
+pub fn create_leaf_patricia_key<L: Leaf>(val: u128) -> DbKey {
     create_db_key(L::get_static_prefix(), &U256::from(val).to_be_bytes())
 }
 

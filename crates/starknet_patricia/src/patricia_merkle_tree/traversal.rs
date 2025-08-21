@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
@@ -10,7 +12,12 @@ use thiserror::Error;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
-use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
+use crate::patricia_merkle_tree::node_data::inner_node::{
+    NodeData,
+    PathToBottom,
+    Preimage,
+    PreimageMap,
+};
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
@@ -138,4 +145,88 @@ pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
         subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
     }
     Ok(subtrees_roots)
+}
+
+#[allow(dead_code)]
+/// Returns the Patricia inner nodes (`PreimageMap`) in the paths to the given `leaf_indices` in the
+/// given tree according to the `root_hash`.
+/// If `leaves` is not `None`, it also fetches the modified leaves.
+pub fn fetch_patricia_paths<L: Leaf>(
+    storage: &impl Storage,
+    root_hash: HashOutput,
+    leaf_indices: &mut [NodeIndex],
+    leaves: Option<&mut HashMap<NodeIndex, L>>,
+) -> TraversalResult<PreimageMap> {
+    let mut witnesses = PreimageMap::new();
+
+    if leaf_indices.is_empty() {
+        return Ok(witnesses);
+    }
+
+    let main_subtree = SubTree {
+        sorted_leaf_indices: SortedLeafIndices::new(leaf_indices),
+        root_index: NodeIndex::ROOT,
+        root_hash,
+    };
+
+    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves)?;
+    Ok(witnesses)
+}
+
+#[allow(dead_code)]
+/// Fetches the inner nodes, required to `patricia_update`.
+/// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
+/// inner nodes in their paths.
+/// If `leaves` is not `None`, it also fetches the modified leaves.
+fn fetch_patricia_paths_inner<'a, L: Leaf>(
+    storage: &impl Storage,
+    subtrees: Vec<SubTree<'a>>,
+    witnesses: &mut PreimageMap,
+    mut leaves: Option<&mut HashMap<NodeIndex, L>>,
+) -> TraversalResult<()> {
+    if subtrees.is_empty() {
+        return Ok(());
+    }
+    let mut next_subtrees = Vec::new();
+    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
+    for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
+        // Always insert root.
+        // No need to insert an unmodified node (which is not the root), because its parent is
+        // inserted, and contains the preimage.
+        if subtree.root_index != NodeIndex::ROOT && subtree.is_unmodified() {
+            continue;
+        }
+        match filled_root.data {
+            // Binary node.
+            NodeData::Binary(binary_data) => {
+                witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
+                let (left_subtree, right_subtree) =
+                    subtree.get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
+                next_subtrees.push(left_subtree);
+                next_subtrees.push(right_subtree);
+            }
+            // Edge node.
+            NodeData::Edge(edge_data) => {
+                witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
+                // Parse bottom.
+                let (bottom_subtree, previously_empty_leaves_indices) =
+                    subtree.get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_hash);
+                if let Some(ref mut leaves_map) = leaves {
+                    // Insert previously empty leaves as empty leaves.
+                    for index in previously_empty_leaves_indices {
+                        leaves_map.insert(*index, L::default());
+                    }
+                }
+                next_subtrees.push(bottom_subtree);
+            }
+            // Leaf node.
+            NodeData::Leaf(leaf_data) => {
+                // Fetch the leaf if it's modified and should be fetched.
+                if let Some(ref mut leaves_map) = leaves {
+                    leaves_map.insert(subtree.root_index, leaf_data);
+                }
+            }
+        }
+    }
+    fetch_patricia_paths_inner::<L>(storage, next_subtrees, witnesses, leaves)
 }
