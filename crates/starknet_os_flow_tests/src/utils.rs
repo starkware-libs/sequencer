@@ -15,6 +15,7 @@ use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMap
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::contracts::FeatureContract;
+use num_traits::identities::Zero;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
@@ -41,12 +42,14 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
+use starknet_os::io::os_output::GLOBAL_STATE_VERSION;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
 use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
@@ -60,6 +63,19 @@ pub(crate) struct ExecutionOutput<S: FlowTestState> {
 pub(crate) struct CommitmentOutput {
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
+}
+
+impl CommitmentOutput {
+    pub(crate) fn global_root(&self) -> HashOutput {
+        if self.contracts_trie_root_hash.0.is_zero() && self.classes_trie_root_hash.0.is_zero() {
+            return HashOutput(Felt::ZERO);
+        }
+        HashOutput(Poseidon::hash_array(&[
+            GLOBAL_STATE_VERSION,
+            self.contracts_trie_root_hash.0,
+            self.classes_trie_root_hash.0,
+        ]))
+    }
 }
 
 /// Executes the given transactions on the given state and block context with default execution
