@@ -179,7 +179,7 @@ pub trait EstimateCasmHashResources {
     fn estimated_resources_of_compiled_class_hash(
         &mut self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
-        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
         let mut resources = EstimatedExecutionResources::from((
             ExecutionResources {
@@ -190,6 +190,20 @@ pub trait EstimateCasmHashResources {
         ));
 
         resources += &self.estimated_resources_of_bytecode_hash_node(bytecode_segment_felt_sizes);
+        resources +=
+            &self.estimated_resources_of_hash_entry_points(&entry_points_by_type.l1_handler);
+        resources += &self.estimated_resources_of_hash_entry_points(&entry_points_by_type.external);
+        resources +=
+            &self.estimated_resources_of_hash_entry_points(&entry_points_by_type.constructor);
+
+        // Compute cost of `hash_finalize`: hash over (hash_entrypoints1, len_entrypoints1,
+        // hash_ep2, len_ep2, hash_ep3, len_ep3, hash_bytecode, len_bytecode)
+        let hash_finalize_data_len = 3;
+        let hash_finalize_resources = self.estimated_resources_of_hash_function(&FeltSizeCount {
+            large: hash_finalize_data_len,
+            small: hash_finalize_data_len,
+        });
+        resources += &hash_finalize_resources;
 
         resources
     }
@@ -209,9 +223,68 @@ pub trait EstimateCasmHashResources {
         // Add leaf vs node cost
         resources += &match bytecode_segment_felt_sizes {
             // Single-segment contract (e.g., older Sierra contracts).
-            NestedFeltCounts::Leaf(_, felt_size_groups) => self.leaf_cost(felt_size_groups),
+            NestedFeltCounts::Leaf(_, felt_size_groups) => {
+                self.estimated_resources_of_hash_function(felt_size_groups)
+            }
             NestedFeltCounts::Node(segments) => self.node_cost(segments),
         };
+
+        resources
+    }
+
+    fn estimated_resources_of_hash_entry_points(
+        &self,
+        entry_points: &[EntryPointV1],
+    ) -> EstimatedExecutionResources {
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: cairo_functions_step_estimation::BASE_HASH_ENTRY_POINTS,
+                ..Default::default()
+            },
+            self.hash_version(),
+        ));
+
+        for entry_point in entry_points {
+            resources += &self.estimated_resources_of_hash_entry_points_inner(entry_point);
+        }
+
+        // Computes cost of `hash_finalize`: a hash over (selector1, offset1, selector2, offset2,
+        // ...). Each entry point has a selector (big felt) and an offset (small felt).
+        resources += &self.estimated_resources_of_hash_function(&FeltSizeCount {
+            large: entry_points.len() + entry_points.len(),
+            small: entry_points.len(),
+        });
+
+        resources
+    }
+
+    fn estimated_resources_of_hash_entry_points_inner(
+        &self,
+        entry_point: &EntryPointV1,
+    ) -> EstimatedExecutionResources {
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: cairo_functions_step_estimation::BASE_HASH_ENTRY_POINTS_INNER,
+                ..Default::default()
+            },
+            self.hash_version(),
+        ));
+
+        // compute cost of `hash_update_with_nested_hash`
+        let base_resources_of_hash_update_with_nested_hash = ExecutionResources {
+            n_steps: cairo_functions_step_estimation::BASE_HASH_UPDATE_NESTED_HASH,
+            ..Default::default()
+        };
+        resources += &base_resources_of_hash_update_with_nested_hash;
+
+        // Builtin list contain both small and big felts—we treat all as big for simplicity.
+        let resources_of_hash_update_with_nested_hash =
+            &self.estimated_resources_of_hash_function(&FeltSizeCount {
+                large: entry_point.builtins.len(),
+                small: 0,
+            });
+
+        resources += resources_of_hash_update_with_nested_hash;
 
         resources
     }
@@ -432,9 +505,9 @@ mod cairo_functions_step_estimation {
         + HASH_UPDATE_SINGLE * 2
         + CALL_BYTECODE_HASH_INTERNAL_NODE;
     const BASE_HASH_FINALIZE: usize = 0; // need ?
-    const BASE_HASH_ENTRY_POINTS: usize =
+    pub(crate) const BASE_HASH_ENTRY_POINTS: usize =
         CALL_HASH_ENTRY_POINTS_INNER + CALL_HASH_FINALIZE + HASH_UPDATE_SINGLE + RETURN;
-    const BASE_HASH_ENTRY_POINTS_INNER: usize =
+    pub(crate) const BASE_HASH_ENTRY_POINTS_INNER: usize =
         HASH_UPDATE_SINGLE * 2 + CALL_HASH_UPDATE_WITH_NESTED_HASH + CALL_HASH_ENTRY_POINTS_INNER;
-    const BASE_HASH_UPDATE_NESTED_HASH: usize = CALL_HASH_UPDATE_SINGLE + RETURN;
+    pub(crate) const BASE_HASH_UPDATE_NESTED_HASH: usize = CALL_HASH_UPDATE_SINGLE + RETURN;
 }
