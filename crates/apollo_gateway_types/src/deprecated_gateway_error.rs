@@ -2,6 +2,8 @@
 use enum_iterator::Sequence;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
+use starknet_api::transaction::fields::TransactionSignature;
+use tracing::error;
 
 /// Error codes returned by the starknet gateway.
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
@@ -67,8 +69,21 @@ pub struct StarknetError {
 }
 
 impl StarknetError {
-    pub fn internal(message: &str) -> Self {
-        Self { code: Self::internal_error_code(), message: message.to_string() }
+    pub fn internal_with_logging(log_message: &str, err: impl std::error::Error) -> Self {
+        error!("Internal error: {log_message}: {err}.");
+        Self { code: Self::internal_error_code(), message: "Internal error".to_string() }
+    }
+
+    pub fn internal_with_signature_logging(
+        log_message: &str,
+        err: impl std::error::Error,
+        tx_signature: &TransactionSignature,
+    ) -> Self {
+        error!("Internal error: {log_message}: {err}. Transaction signature: {tx_signature:?}");
+        Self {
+            code: Self::internal_error_code(),
+            message: format!("Transaction signature: {tx_signature:?}"),
+        }
     }
 
     pub fn is_internal(&self) -> bool {
