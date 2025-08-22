@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_patricia_storage::map_storage::MapStorage;
 
 pub struct SerializedForest(pub FilledForest);
 
 #[derive(Debug, Serialize)]
 #[allow(dead_code)]
-pub struct Output<'a> {
+pub struct Output {
     // New fact storage.
-    storage: BorrowedMapStorage<'a>,
+    storage: MapStorage,
     // TODO(Amos, 1/8/2024): Rename to `contracts_trie_root_hash` & `classes_trie_root_hash`.
     // New contract storage root.
     pub contract_storage_root_hash: String,
@@ -17,7 +19,9 @@ pub struct Output<'a> {
 }
 
 impl SerializedForest {
-    pub fn forest_to_output<'a>(&self, mut storage: BorrowedMapStorage<'a>) -> Output<'a> {
+    pub fn forest_to_output(&self) -> Output {
+        // Create an empty storage for the new facts.
+        let mut storage = HashMap::new();
         self.0.write_to_storage(&mut storage);
         let contract_storage_root_hash = self.0.get_contract_root_hash().0;
         let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
