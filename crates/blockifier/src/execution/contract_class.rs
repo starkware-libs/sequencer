@@ -41,13 +41,9 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
-use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_gas;
-use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -56,10 +52,7 @@ use crate::execution::casm_hash_estimation::{
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
-use crate::execution::execution_utils::{
-    blake_execution_resources_estimation_to_gas,
-    sn_api_to_cairo_vm_program,
-};
+use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
