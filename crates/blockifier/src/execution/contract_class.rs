@@ -41,7 +41,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_sierra_gas;
+use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
@@ -464,10 +464,11 @@ impl CompiledClassV1 {
             blake_weight,
         );
 
+        let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
         let poseidon_hash_resources =
             estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes);
         let poseidon_hash_gas =
-            vm_resources_to_sierra_gas(&poseidon_hash_resources, versioned_constants);
+            vm_resources_to_gas(&poseidon_hash_resources, &builtin_gas_costs, versioned_constants);
 
         (
             blake_hash_gas.checked_add_panic_on_overflow(poseidon_hash_gas),
