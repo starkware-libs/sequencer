@@ -68,21 +68,13 @@ impl<S: ClassStorage> ClassManager<S> {
             })?;
 
         self.validate_class_length(&raw_executable_class)?;
-<<<<<<< HEAD
-
+        Self::validate_class_version(&sierra_class)?;
         self.classes.set_class(
             class_hash,
             class,
             executable_class_hash_v2,
             raw_executable_class,
         )?;
-||||||| 38f03e1d0
-
-        self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
-=======
-        Self::validate_class_version(&sierra_class)?;
-        self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
->>>>>>> origin/main-v0.14.0
 
         let class_hashes = ClassHashes { class_hash, executable_class_hash_v2 };
         Ok(class_hashes)

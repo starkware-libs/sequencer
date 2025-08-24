@@ -102,14 +102,9 @@ impl Service {
         let resources = node_service.get_resources(&environment);
         let replicas = node_service.get_replicas(&environment);
         let anti_affinity = node_service.get_anti_affinity(&environment);
-<<<<<<< HEAD
         let ports = node_service.get_service_port_mapping();
-||||||| 38f03e1d0
-        let ports = node_service.get_ports();
-=======
         let ports = node_service.get_service_port_mapping();
         let update_strategy = node_service.get_update_strategy();
->>>>>>> origin/main-v0.14.0
         Self {
             node_service,
             config_paths,
@@ -259,20 +254,12 @@ impl NodeService {
         self.as_inner().get_components_in_service()
     }
 
-<<<<<<< HEAD
-    pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_service_port_mapping()
-||||||| 38f03e1d0
-    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_ports()
-=======
     pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
         self.as_inner().get_service_port_mapping()
     }
 
     pub fn get_update_strategy(&self) -> UpdateStrategy {
         self.as_inner().get_update_strategy()
->>>>>>> origin/main-v0.14.0
     }
 }
 
@@ -321,21 +308,6 @@ pub(crate) trait ServiceNameInner: Display {
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
 
-<<<<<<< HEAD
-    fn get_service_ports(&self) -> BTreeSet<ServicePort>;
-
-    fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        let mut ports = BTreeMap::new();
-
-        for service_port in self.get_service_ports() {
-            let port = service_port.get_port();
-            ports.insert(service_port, port);
-        }
-        ports
-    }
-||||||| 38f03e1d0
-    fn get_ports(&self) -> BTreeMap<ServicePort, u16>;
-=======
     fn get_service_ports(&self) -> BTreeSet<ServicePort>;
 
     fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
@@ -364,7 +336,6 @@ pub(crate) trait ServiceNameInner: Display {
         }
         ports
     }
->>>>>>> origin/main-v0.14.0
 
     // Kubernetes service name as defined by CDK8s.
     fn k8s_service_name(&self) -> String {

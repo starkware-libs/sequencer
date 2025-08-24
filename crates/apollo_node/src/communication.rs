@@ -3,29 +3,13 @@ use apollo_class_manager_types::ClassManagerRequestWrapper;
 use apollo_compile_to_casm_types::SierraCompilerRequestWrapper;
 use apollo_gateway_types::communication::GatewayRequestWrapper;
 use apollo_infra::component_definitions::ComponentCommunication;
-<<<<<<< HEAD
-use apollo_l1_endpoint_monitor::communication::L1EndpointMonitorRequestAndResponseSender;
-use apollo_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
-use apollo_l1_provider::communication::L1ProviderRequestAndResponseSender;
-use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
-use apollo_mempool_types::communication::MempoolRequestAndResponseSender;
-use apollo_signature_manager_types::SignatureManagerRequestAndResponseSender;
-use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
-||||||| 38f03e1d0
-use apollo_l1_endpoint_monitor::communication::L1EndpointMonitorRequestAndResponseSender;
-use apollo_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
-use apollo_l1_provider::communication::L1ProviderRequestAndResponseSender;
-use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
-use apollo_mempool_types::communication::MempoolRequestAndResponseSender;
-use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
-=======
 use apollo_l1_endpoint_monitor::communication::L1EndpointMonitorRequestWrapper;
 use apollo_l1_gas_price::communication::L1GasPriceRequestWrapper;
 use apollo_l1_provider::communication::L1ProviderRequestWrapper;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestWrapper;
 use apollo_mempool_types::communication::MempoolRequestWrapper;
+use apollo_signature_manager_types::SignatureManagerRequestWrapper;
 use apollo_state_sync_types::communication::StateSyncRequestWrapper;
->>>>>>> origin/main-v0.14.0
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 
@@ -33,32 +17,6 @@ use crate::config::component_execution_config::ExpectedComponentConfig;
 use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeCommunication {
-<<<<<<< HEAD
-    batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
-    class_manager_channel: ComponentCommunication<ClassManagerRequestAndResponseSender>,
-    gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
-    l1_endpoint_monitor_channel: ComponentCommunication<L1EndpointMonitorRequestAndResponseSender>,
-    l1_provider_channel: ComponentCommunication<L1ProviderRequestAndResponseSender>,
-    l1_gas_price_channel: ComponentCommunication<L1GasPriceRequestAndResponseSender>,
-    mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
-    mempool_p2p_propagator_channel:
-        ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
-    sierra_compiler_channel: ComponentCommunication<SierraCompilerRequestAndResponseSender>,
-    signature_manager_channel: ComponentCommunication<SignatureManagerRequestAndResponseSender>,
-    state_sync_channel: ComponentCommunication<StateSyncRequestAndResponseSender>,
-||||||| 38f03e1d0
-    batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
-    class_manager_channel: ComponentCommunication<ClassManagerRequestAndResponseSender>,
-    gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
-    l1_endpoint_monitor_channel: ComponentCommunication<L1EndpointMonitorRequestAndResponseSender>,
-    l1_provider_channel: ComponentCommunication<L1ProviderRequestAndResponseSender>,
-    l1_gas_price_channel: ComponentCommunication<L1GasPriceRequestAndResponseSender>,
-    mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
-    mempool_p2p_propagator_channel:
-        ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
-    sierra_compiler_channel: ComponentCommunication<SierraCompilerRequestAndResponseSender>,
-    state_sync_channel: ComponentCommunication<StateSyncRequestAndResponseSender>,
-=======
     batcher_channel: ComponentCommunication<BatcherRequestWrapper>,
     class_manager_channel: ComponentCommunication<ClassManagerRequestWrapper>,
     gateway_channel: ComponentCommunication<GatewayRequestWrapper>,
@@ -68,8 +26,8 @@ pub struct SequencerNodeCommunication {
     mempool_channel: ComponentCommunication<MempoolRequestWrapper>,
     mempool_p2p_propagator_channel: ComponentCommunication<MempoolP2pPropagatorRequestWrapper>,
     sierra_compiler_channel: ComponentCommunication<SierraCompilerRequestWrapper>,
+    signature_manager_channel: ComponentCommunication<SignatureManagerRequestWrapper>,
     state_sync_channel: ComponentCommunication<StateSyncRequestWrapper>,
->>>>>>> origin/main-v0.14.0
 }
 
 impl SequencerNodeCommunication {
@@ -145,25 +103,15 @@ impl SequencerNodeCommunication {
         self.sierra_compiler_channel.take_rx()
     }
 
-<<<<<<< HEAD
-    pub fn take_signature_manager_tx(
-        &mut self,
-    ) -> Sender<SignatureManagerRequestAndResponseSender> {
+    pub fn take_signature_manager_tx(&mut self) -> Sender<SignatureManagerRequestWrapper> {
         self.signature_manager_channel.take_tx()
     }
 
-    pub fn take_signature_manager_rx(
-        &mut self,
-    ) -> Receiver<SignatureManagerRequestAndResponseSender> {
+    pub fn take_signature_manager_rx(&mut self) -> Receiver<SignatureManagerRequestWrapper> {
         self.signature_manager_channel.take_rx()
     }
 
-    pub fn take_state_sync_tx(&mut self) -> Sender<StateSyncRequestAndResponseSender> {
-||||||| 38f03e1d0
-    pub fn take_state_sync_tx(&mut self) -> Sender<StateSyncRequestAndResponseSender> {
-=======
     pub fn take_state_sync_tx(&mut self) -> Sender<StateSyncRequestWrapper> {
->>>>>>> origin/main-v0.14.0
         self.state_sync_channel.take_tx()
     }
 
@@ -330,20 +278,16 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
-<<<<<<< HEAD
-    let (tx_signature_manager, rx_signature_manager) =
-        channel::<SignatureManagerRequestAndResponseSender>(
-            config.components.state_sync.local_server_config.channel_capacity,
-        );
+    let (tx_signature_manager, rx_signature_manager) = channel::<SignatureManagerRequestWrapper>(
+        config
+            .components
+            .signature_manager
+            .local_server_config
+            .as_ref()
+            .expect("Signature manager local server config should be available.")
+            .inbound_requests_channel_capacity,
+    );
 
-    let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestAndResponseSender>(
-        config.components.state_sync.local_server_config.channel_capacity,
-    );
-||||||| 38f03e1d0
-    let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestAndResponseSender>(
-        config.components.state_sync.local_server_config.channel_capacity,
-    );
-=======
     let (tx_state_sync, rx_state_sync) =
         match config.components.state_sync.execution_mode.is_running_locally() {
             true => {
@@ -360,7 +304,6 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             }
             false => (None, None),
         };
->>>>>>> origin/main-v0.14.0
 
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
@@ -381,16 +324,10 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             tx_sierra_compiler,
             rx_sierra_compiler,
         ),
-<<<<<<< HEAD
         signature_manager_channel: ComponentCommunication::new(
             Some(tx_signature_manager),
             Some(rx_signature_manager),
         ),
-        state_sync_channel: ComponentCommunication::new(Some(tx_state_sync), Some(rx_state_sync)),
-||||||| 38f03e1d0
-        state_sync_channel: ComponentCommunication::new(Some(tx_state_sync), Some(rx_state_sync)),
-=======
         state_sync_channel: ComponentCommunication::new(tx_state_sync, rx_state_sync),
->>>>>>> origin/main-v0.14.0
     }
 }
