@@ -21,12 +21,15 @@ pub async fn configure_tracing() {
             let timer = UtcTime::new(time_format);
 
             let fmt_layer = fmt::layer()
-                .compact()
+                .json()
                 .with_timer(timer)
                 .with_target(false) // No module name.
                 // Instead, file name and line number.
                 .with_file(true)
-                .with_line_number(true);
+                .with_line_number(true)
+                .with_current_span(true)
+                .flatten_event(true)
+                .with_ansi(false);
 
             let level_filter_layer = EnvFilter::builder()
                 .with_default_directive(DEFAULT_LEVEL.into())
@@ -50,6 +53,8 @@ pub async fn configure_tracing() {
             // of init.
             tracing_subscriber::registry().with(fmt_layer).with(level_filter_layer).init();
             tracing::info!("Tracing has been successfully initialized.");
+            tracing::warn!("this is a warning message");
+            tracing::error!("this is an error message");
         })
         .await;
 }
