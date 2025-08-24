@@ -11,6 +11,15 @@
         "extra_params": {}
       },
       {
+        "title": "difference_between_the_consensus_block_number_and_the_sync_block_number",
+        "description": "difference between the consensus block number and the sync block number",
+        "type": "timeseries",
+        "exprs": [
+          "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "consensus_round",
         "description": "The round of the state machine",
         "type": "timeseries",
