@@ -1049,6 +1049,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_config_manager"
+version = "0.15.0-rc.3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "apollo_config_manager_types"
 version = "0.15.0-rc.3"
 dependencies = [
