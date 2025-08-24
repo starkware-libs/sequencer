@@ -15,6 +15,7 @@ members = [
   "crates/apollo_compile_to_native",
   "crates/apollo_compile_to_native_types",
   "crates/apollo_config",
+  "crates/apollo_config_manager",
   "crates/apollo_config_manager_types",
   "crates/apollo_consensus",
   "crates/apollo_consensus_manager",
