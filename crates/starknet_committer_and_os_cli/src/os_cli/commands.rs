@@ -17,14 +17,8 @@ use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
-<<<<<<< HEAD
 use starknet_os::runner::{run_aggregator, run_os_stateless, run_os_stateless_for_testing};
-||||||| 38f03e1d0
-use starknet_os::runner::{run_aggregator, run_os_stateless};
-=======
-use starknet_os::runner::{run_aggregator, run_os_stateless};
 use starknet_types_core::felt::Felt;
->>>>>>> origin/main-v0.14.0
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -107,7 +101,6 @@ pub(crate) fn parse_and_run_os(
     validate_os_input(&os_hints.os_input);
 
     info!("Running OS...");
-<<<<<<< HEAD
     let (runner_output, txs_trace) = if include_txs_trace {
         let (output, traces) = run_os_stateless_for_testing(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
@@ -118,32 +111,19 @@ pub(crate) fn parse_and_run_os(
         (output, None)
     };
 
-    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } = runner_output;
-||||||| 38f03e1d0
-    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
-        run_os_stateless(layout, os_hints)
-            .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
-=======
     let StarknetOsRunnerOutput {
         raw_os_output, cairo_pie, da_segment, metrics, unused_hints, ..
-    } = run_os_stateless(layout, os_hints)
-        .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
->>>>>>> origin/main-v0.14.0
+    } = runner_output;
 
     info!("Finished running OS. Serializing OS output...");
     serialize_runner_output(
-<<<<<<< HEAD
-        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints, txs_trace },
-||||||| 38f03e1d0
-        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints },
-=======
         &OsCliOutput {
             additional_data: &cairo_pie.additional_data,
             da_segment,
             metrics: metrics.into(),
             unused_hints,
+            txs_trace,
         },
->>>>>>> origin/main-v0.14.0
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,

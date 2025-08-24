@@ -18,17 +18,11 @@ jobs:
         run: echo 'branches=["main", "main-v0.14.0"]' >> "$GITHUB_OUTPUT"
 
   codecov:
-<<<<<<< HEAD
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     needs: define_branches
     strategy:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
-||||||| 38f03e1d0
-    runs-on: starkware-ubuntu-24.04-large
-=======
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
->>>>>>> origin/main-v0.14.0
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,17 +59,11 @@ jobs:
           verbose: true
 
   feature_combos:
-<<<<<<< HEAD
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     needs: define_branches
     strategy:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
-||||||| 38f03e1d0
-    runs-on: starkware-ubuntu-24.04-large
-=======
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
->>>>>>> origin/main-v0.14.0
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,17 +91,11 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-<<<<<<< HEAD
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     needs: define_branches
     strategy:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
-||||||| 38f03e1d0
-    runs-on: starkware-ubuntu-24.04-large
-=======
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
->>>>>>> origin/main-v0.14.0
     steps:
       - uses: actions/checkout@v4
         with:

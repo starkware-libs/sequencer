@@ -122,10 +122,6 @@ impl<'state> SyscallHandlerBase<'state> {
         }
     }
 
-<<<<<<< HEAD
-||||||| 38f03e1d0
-    #[allow(clippy::result_large_err)]
-=======
     pub fn increment_syscall_count_by(&mut self, selector: SyscallSelector, n: usize) {
         let syscall_usage = self.syscalls_usage.entry(selector).or_default();
         syscall_usage.call_count += n;
@@ -140,7 +136,6 @@ impl<'state> SyscallHandlerBase<'state> {
     }
 
     #[allow(clippy::result_large_err)]
->>>>>>> origin/main-v0.14.0
     pub fn get_block_hash(&mut self, requested_block_number: u64) -> SyscallResult<Felt> {
         // Note: we take the actual block number (and not the rounded one for validate)
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
