@@ -29,7 +29,6 @@ use crate::metrics::{
     metric_set_get_txs_size,
     MempoolMetricHandle,
     MEMPOOL_DELAYED_DECLARES_SIZE,
-    MEMPOOL_EVICTIONS_COUNT,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -736,7 +735,6 @@ impl Mempool {
                     .remove(tx_ref.tx_hash)
                     .expect("Transaction must exist in the pool.");
                 total_space_freed += tx.total_bytes();
-                MEMPOOL_EVICTIONS_COUNT.increment(1);
                 metric_count_evicted_txs(1);
                 if total_space_freed >= required_space {
                     break;

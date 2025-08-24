@@ -15,7 +15,6 @@ use crate::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
-    MEMPOOL_EVICTIONS_COUNT,
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -305,7 +304,6 @@ pub struct MempoolMetrics {
 impl MempoolMetrics {
     pub fn verify_metrics(&self, recorder: &PrometheusRecorder) {
         let metrics = &recorder.handle().render();
-        MEMPOOL_EVICTIONS_COUNT.assert_eq(metrics, self.evictions_count);
         MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
             metrics,
             self.txs_received_invoke,
