@@ -89,17 +89,17 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus.future_height_limit": {
+  "consensus.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus.future_height_round_limit": {
+  "consensus.future_msg_limit.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus.future_round_limit": {
+  "consensus.future_msg_limit.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "privacy": "Public",
     "value": 10

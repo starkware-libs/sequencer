@@ -16,7 +16,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
-use crate::config::TimeoutsConfig;
+use crate::config::{FutureMsgLimitsConfig, TimeoutsConfig};
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
 use crate::types::ValidatorId;
 use crate::votes_threshold::QuorumType;
@@ -36,9 +36,11 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
-const FUTURE_HEIGHT_LIMIT: u32 = 10;
-const FUTURE_ROUND_LIMIT: u32 = 10;
-const FUTURE_HEIGHT_ROUND_LIMIT: u32 = 1;
+const FUTURE_MSG_LIMIT: FutureMsgLimitsConfig = FutureMsgLimitsConfig {
+    future_height_limit: 10,
+    future_round_limit: 10,
+    future_height_round_limit: 1,
+};
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<Vote>, msg: Vote) {
     let broadcasted_message_metadata =
@@ -118,9 +120,7 @@ async fn manager_multiple_heights_unordered() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        FUTURE_HEIGHT_LIMIT,
-        FUTURE_ROUND_LIMIT,
-        FUTURE_HEIGHT_ROUND_LIMIT,
+        FUTURE_MSG_LIMIT,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -196,9 +196,7 @@ async fn run_consensus_sync() {
         timeouts: TIMEOUTS.clone(),
         sync_retry_interval: SYNC_RETRY_INTERVAL,
         quorum_type: QuorumType::Byzantine,
-        future_height_limit: FUTURE_HEIGHT_LIMIT,
-        future_round_limit: FUTURE_ROUND_LIMIT,
-        future_height_round_limit: FUTURE_HEIGHT_ROUND_LIMIT,
+        future_msg_limit: FUTURE_MSG_LIMIT,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -260,9 +258,7 @@ async fn test_timeouts() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        FUTURE_HEIGHT_LIMIT,
-        FUTURE_ROUND_LIMIT,
-        FUTURE_HEIGHT_ROUND_LIMIT,
+        FUTURE_MSG_LIMIT,
     );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
@@ -324,9 +320,7 @@ async fn timely_message_handling() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        FUTURE_HEIGHT_LIMIT,
-        FUTURE_ROUND_LIMIT,
-        FUTURE_HEIGHT_ROUND_LIMIT,
+        FUTURE_MSG_LIMIT,
     );
     let res = manager
         .run_height(
@@ -412,9 +406,11 @@ async fn future_height_limit_caching_and_dropping() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        LOW_HEIGHT_LIMIT,
-        LOW_ROUND_LIMIT,
-        LOW_HEIGHT_ROUND_LIMIT,
+        FutureMsgLimitsConfig {
+            future_height_limit: LOW_HEIGHT_LIMIT,
+            future_round_limit: LOW_ROUND_LIMIT,
+            future_height_round_limit: LOW_HEIGHT_ROUND_LIMIT,
+        },
     );
     let mut subscriber_channels = subscriber_channels.into();
 
@@ -543,9 +539,11 @@ async fn current_height_round_limit_caching_and_dropping() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        HEIGHT_LIMIT,
-        LOW_ROUND_LIMIT,
-        HEIGHT_ROUND_LIMIT,
+        FutureMsgLimitsConfig {
+            future_height_limit: HEIGHT_LIMIT,
+            future_round_limit: LOW_ROUND_LIMIT,
+            future_height_round_limit: HEIGHT_ROUND_LIMIT,
+        },
     );
     let mut subscriber_channels = subscriber_channels.into();
 
