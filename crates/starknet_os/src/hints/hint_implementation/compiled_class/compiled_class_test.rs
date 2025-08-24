@@ -5,7 +5,7 @@ use blockifier::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
 };
-use blockifier::execution::contract_class::NestedFeltCounts;
+use blockifier::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -96,6 +96,7 @@ trait HashVersionTestSpec {
     fn estimate_execution_resources(
         &self,
         bytecode_segment_lengths: &NestedFeltCounts,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources;
 }
 
@@ -170,17 +171,18 @@ impl HashVersionTestSpec for HashVersion {
     fn estimate_execution_resources(
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources {
         let resources = match self {
             HashVersion::V1 => CasmV1HashResourceEstimate::new(HashVersion::V1)
                 .estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
-                    &Default::default(),
+                    entry_points_by_type,
                 ),
             HashVersion::V2 => CasmV2HashResourceEstimate::new(HashVersion::V2)
                 .estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
-                    &Default::default(),
+                    entry_points_by_type,
                 ),
         };
         resources.resources().clone()
@@ -348,15 +350,17 @@ fn test_compiled_class_hash_resources_estimation(
     };
 
     // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
-    contract_class.entry_points_by_type = Default::default();
+    // contract_class.entry_points_by_type = Default::default();
 
     // Run the compiled class hash entry point with full contract loading.
     let (mut actual_execution_resources, _hash_computed_by_cairo) =
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
     // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation = hash_version
-        .estimate_execution_resources(&runnable_contract_class.bytecode_segment_felt_sizes());
+    let mut execution_resources_estimation = hash_version.estimate_execution_resources(
+        &runnable_contract_class.bytecode_segment_felt_sizes(),
+        &contract_class.entry_points_by_type.into(),
+    );
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
     println!("actual_execution_resources: {:?}", actual_execution_resources);
