@@ -1,10 +1,15 @@
 use std::cmp::min;
+use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
 };
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -14,6 +19,41 @@ use crate::hints::vars::{Const, Ids, Scope};
 
 const MAX_PAGE_SIZE: usize = 3800;
 pub(crate) const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
+
+pub(crate) fn load_public_keys_into_memory(
+    vm: &mut VirtualMachine,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+    public_keys: Option<Vec<Felt>>,
+) -> OsHintResult {
+    let public_keys_segment = vm.add_memory_segment();
+    insert_value_from_var_name(
+        Ids::PublicKeysStart.into(),
+        public_keys_segment,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    match public_keys {
+        Some(public_keys) => {
+            let public_keys_data: Vec<MaybeRelocatable> =
+                public_keys.iter().map(|key| key.into()).collect();
+            vm.load_data(public_keys_segment, &public_keys_data)?;
+
+            insert_value_from_var_name(
+                Ids::NKeys.into(),
+                public_keys_data.len(),
+                vm,
+                ids_data,
+                ap_tracking,
+            )?;
+        }
+        None => {
+            insert_value_from_var_name(Ids::NKeys.into(), 0_usize, vm, ids_data, ap_tracking)?;
+        }
+    }
+    Ok(())
+}
 
 pub(crate) fn set_tree_structure<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
