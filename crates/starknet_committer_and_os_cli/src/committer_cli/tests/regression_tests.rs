@@ -10,11 +10,13 @@ use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieC
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use tempfile::NamedTempFile;
 
-use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::committer_cli::commands::commit;
 use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
-use crate::committer_cli::tests::utils::parse_from_python::TreeFlowInput;
+use crate::committer_cli::tests::parse_from_python::{
+    parse_input_single_storage_tree_flow_test,
+    TreeFlowInput,
+};
 
 // TODO(Aner, 20/06/2024): these tests needs to be fixed to be run correctly in the CI:
 // 1. Fix the test to measure cpu_time and not wall_time.
