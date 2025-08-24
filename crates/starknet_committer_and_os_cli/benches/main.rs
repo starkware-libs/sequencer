@@ -16,7 +16,7 @@ use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieC
 use starknet_committer_and_os_cli::committer_cli::commands::commit;
 use starknet_committer_and_os_cli::committer_cli::parse_input::cast::CommitterInputImpl;
 use starknet_committer_and_os_cli::committer_cli::parse_input::read::parse_input;
-use starknet_committer_and_os_cli::committer_cli::tests::utils::parse_from_python::TreeFlowInput;
+use starknet_committer_and_os_cli::committer_cli::tests::parse_from_python::TreeFlowInput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::tree_computation_flow;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
