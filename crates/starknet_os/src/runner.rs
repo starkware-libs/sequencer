@@ -14,14 +14,9 @@ use cairo_vm::vm::runners::cairo_pie::{
     OutputBuiltinAdditionalData,
 };
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-<<<<<<< HEAD
 use starknet_api::core::CompiledClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
 #[cfg(feature = "include_program_output")]
-||||||| 38f03e1d0
-#[cfg(feature = "include_program_output")]
-=======
->>>>>>> origin/main-v0.14.0
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -31,20 +26,16 @@ use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-<<<<<<< HEAD
+use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
 use crate::io::os_input::{
     CachedStateInput,
     OsBlockInput,
     OsHints,
+    OsHints,
     OsHintsConfig,
     StarknetOsInput,
+    StarknetOsInput,
 };
-||||||| 38f03e1d0
-use crate::io::os_input::{OsHints, StarknetOsInput};
-=======
-use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
-use crate::io::os_input::{OsHints, StarknetOsInput};
->>>>>>> origin/main-v0.14.0
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
 use crate::vm_utils::vm_error_with_code_snippet;
@@ -126,7 +117,6 @@ pub fn run_os<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-<<<<<<< HEAD
     let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
         layout,
         os_hints_config,
@@ -150,11 +140,8 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
 ) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>), StarknetOsError> {
-||||||| 38f03e1d0
-=======
     let is_onchain_kzg_da = !os_hints_config.full_output && os_hints_config.use_kzg_da;
 
->>>>>>> origin/main-v0.14.0
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -169,7 +156,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     // Run the OS program.
     let runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
 
-<<<<<<< HEAD
     Ok((runner_output, snos_hint_processor))
 }
 
@@ -177,8 +163,6 @@ fn generate_os_output(
     mut runner_output: RunnerReturnObject,
     mut snos_hint_processor: SnosHintProcessor<'_, impl StateReader>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-||||||| 38f03e1d0
-=======
     // Extract the output attributes.
     let BuiltinAdditionalData::Output(OutputBuiltinAdditionalData {
         attributes: output_attributes,
@@ -204,7 +188,6 @@ fn generate_os_output(
         );
     }
 
->>>>>>> origin/main-v0.14.0
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]
         os_output: {

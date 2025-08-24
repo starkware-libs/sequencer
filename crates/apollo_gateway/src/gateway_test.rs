@@ -388,23 +388,9 @@ async fn test_add_tx_positive(
 // metadata.
 #[rstest]
 #[tokio::test]
-<<<<<<< HEAD
-#[ignore]
-async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) {
-    let mut declare_tx =
-        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx.compiled_class_hash = compiled_class_hash!(1_u8);
-    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
-||||||| 38f03e1d0
-#[ignore]
-async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) {
-    let mut declare_tx =
-        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx.compiled_class_hash = CompiledClassHash::default();
-    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
-=======
 async fn test_compiled_class_hash_mismatch(mut mock_dependencies: MockDependencies) {
-    let declare_tx = declare_tx();
+    let mut declare_tx = declare_tx();
+    declare_tx.compiled_class_hash = compiled_class_hash!(1_u8);
     let declare_tx_inner = assert_matches!(declare_tx.clone(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
 
     let other_compiled_class_hash = CompiledClassHash::default();
@@ -418,10 +404,9 @@ async fn test_compiled_class_hash_mismatch(mut mock_dependencies: MockDependenci
         .return_once(move |_| {
             Ok(ClassHashes {
                 class_hash: declare_tx_inner.contract_class.calculate_class_hash(),
-                executable_class_hash: other_compiled_class_hash,
+                executable_class_hash_v2: other_compiled_class_hash,
             })
         });
->>>>>>> origin/main-v0.14.0
 
     let gateway = mock_dependencies.gateway();
 

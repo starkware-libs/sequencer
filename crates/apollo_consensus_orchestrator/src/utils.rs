@@ -177,26 +177,8 @@ pub(crate) async fn retrospective_block_hash(
     match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-<<<<<<< HEAD
-            let block_hash = state_sync_client.get_block_hash(block_number).await?;
-            Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
-||||||| 38f03e1d0
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await
-                .map_err(StateSyncError::ClientError)?
-                .ok_or(StateSyncError::NotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
-=======
             let block_hash = state_sync_client.get_block_hash(block_number).await?;
             Some(BlockHashAndNumber { number: block_number, hash: block_hash })
->>>>>>> origin/main-v0.14.0
         }
         None => {
             info!(
