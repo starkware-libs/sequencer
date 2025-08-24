@@ -37,7 +37,11 @@ define_metrics!(
     },
 );
 
+<<<<<<< HEAD
 pub const _MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+=======
+pub const MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+>>>>>>> 78117f681 (apollo_dashboard: use metrics structs to construct infra rows)
     LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
