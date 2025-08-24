@@ -1,3 +1,18 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    L1_PROVIDER_LOCAL_MSGS_PROCESSED,
+    L1_PROVIDER_LOCAL_MSGS_RECEIVED,
+    L1_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    L1_PROVIDER_REMOTE_MSGS_PROCESSED,
+    L1_PROVIDER_REMOTE_MSGS_RECEIVED,
+    L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
+    L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_l1_provider_types::L1_PROVIDER_REQUEST_LABELS;
 use apollo_metrics::define_metrics;
 
@@ -46,3 +61,25 @@ pub(crate) fn register_scraper_metrics() {
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.register();
     L1_MESSAGE_SCRAPER_REORG_DETECTED.register();
 }
+
+pub(crate) const _L1_PROVIDER_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(&L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &L1_PROVIDER_LOCAL_MSGS_RECEIVED,
+        &L1_PROVIDER_LOCAL_MSGS_PROCESSED,
+        &L1_PROVIDER_LOCAL_QUEUE_DEPTH,
+        &L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+        &L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &L1_PROVIDER_REMOTE_MSGS_RECEIVED,
+        &L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+        &L1_PROVIDER_REMOTE_MSGS_PROCESSED,
+        &L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};

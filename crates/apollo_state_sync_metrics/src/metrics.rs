@@ -1,3 +1,18 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    STATE_SYNC_LOCAL_MSGS_PROCESSED,
+    STATE_SYNC_LOCAL_MSGS_RECEIVED,
+    STATE_SYNC_LOCAL_QUEUE_DEPTH,
+    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
+    STATE_SYNC_REMOTE_MSGS_PROCESSED,
+    STATE_SYNC_REMOTE_MSGS_RECEIVED,
+    STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
+    STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_metrics::define_metrics;
 use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
 use apollo_storage::body::BodyStorageReader;
@@ -39,6 +54,28 @@ define_metrics!(
         LabeledMetricHistogram { STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "state_sync_labeled_remote_client_communication_failure_times_secs", "Request communication failure times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
     },
 );
+
+pub(crate) const _STATE_SYNC_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(&STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &STATE_SYNC_LOCAL_MSGS_RECEIVED,
+        &STATE_SYNC_LOCAL_MSGS_PROCESSED,
+        &STATE_SYNC_LOCAL_QUEUE_DEPTH,
+        &STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
+        &STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &STATE_SYNC_REMOTE_MSGS_RECEIVED,
+        &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
+        &STATE_SYNC_REMOTE_MSGS_PROCESSED,
+        &STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};
 
 pub async fn register_metrics(storage_reader: StorageReader) {
     STATE_SYNC_HEADER_MARKER.register();

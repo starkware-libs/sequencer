@@ -1,3 +1,18 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    GATEWAY_LOCAL_MSGS_PROCESSED,
+    GATEWAY_LOCAL_MSGS_RECEIVED,
+    GATEWAY_LOCAL_QUEUE_DEPTH,
+    GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
+    GATEWAY_REMOTE_MSGS_PROCESSED,
+    GATEWAY_REMOTE_MSGS_RECEIVED,
+    GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
+    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+};
 #[cfg(test)]
 use apollo_metrics::metrics::LabeledMetricCounter;
 use apollo_metrics::{define_metrics, generate_permutation_labels};
@@ -126,3 +141,25 @@ pub(crate) fn register_metrics() {
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
 }
+
+pub(crate) const _GATEWAY_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(&GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &GATEWAY_LOCAL_MSGS_RECEIVED,
+        &GATEWAY_LOCAL_MSGS_PROCESSED,
+        &GATEWAY_LOCAL_QUEUE_DEPTH,
+        &GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+        &GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &GATEWAY_REMOTE_MSGS_RECEIVED,
+        &GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+        &GATEWAY_REMOTE_MSGS_PROCESSED,
+        &GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};
