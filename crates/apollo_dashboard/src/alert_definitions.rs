@@ -18,7 +18,10 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
 };
-use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT;
+use apollo_l1_provider::metrics::{
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_REORG_DETECTED,
+};
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
@@ -333,10 +336,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         "l1_message_scraper_reorg_detected",
         "L1 message scraper reorg detected",
         AlertGroup::L1Messages,
-        format!(
-            "increase({}[1m])",
-            L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
-        ),
+        format!("increase({}[1m])", L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
