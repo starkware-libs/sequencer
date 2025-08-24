@@ -2,6 +2,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, DataAvailability};
@@ -111,20 +112,32 @@ pub(crate) fn get_fee_token_address_from_input(
     Ok(())
 }
 
-pub(crate) fn get_public_key_x_from_aggregator_input(
+pub(crate) fn get_public_keys_from_aggregator_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_key_x: Felt = hint_processor.input.public_key_x;
-    insert_value_into_ap(vm, public_key_x)?;
-    Ok(())
-}
+    let public_keys = hint_processor.input.public_keys.clone().unwrap_or_default();
+    let public_keys_segment = vm.add_temporary_segment();
 
-pub(crate) fn get_public_key_y_from_aggregator_input(
-    hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let public_key_y: Felt = hint_processor.input.public_key_y;
-    insert_value_into_ap(vm, public_key_y)?;
+    insert_value_from_var_name(
+        Ids::PublicKeysStart.into(),
+        public_keys_segment,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let public_keys_data: Vec<MaybeRelocatable> =
+        public_keys.into_iter().map(|key| key.into()).collect();
+    vm.load_data(public_keys_segment, &public_keys_data)?;
+
+    insert_value_from_var_name(
+        Ids::NKeys.into(),
+        public_keys_data.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
     Ok(())
 }

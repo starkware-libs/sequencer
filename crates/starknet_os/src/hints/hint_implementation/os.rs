@@ -151,18 +151,31 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn get_public_key_x<S: StateReader>(
+pub(crate) fn get_public_keys<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_key_x = hint_processor.os_hints_config.public_key_x;
-    Ok(insert_value_into_ap(vm, public_key_x)?)
-}
+    let public_keys = hint_processor.os_hints_config.public_keys.clone().unwrap_or_default();
+    let public_keys_segment = vm.add_temporary_segment();
 
-pub(crate) fn get_public_key_y<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let public_key_y = hint_processor.os_hints_config.public_key_y;
-    Ok(insert_value_into_ap(vm, public_key_y)?)
+    insert_value_from_var_name(
+        Ids::PublicKeysStart.into(),
+        public_keys_segment,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let public_keys_data: Vec<MaybeRelocatable> =
+        public_keys.into_iter().map(|key| key.into()).collect();
+    vm.load_data(public_keys_segment, &public_keys_data)?;
+
+    insert_value_from_var_name(
+        Ids::NKeys.into(),
+        public_keys_data.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }

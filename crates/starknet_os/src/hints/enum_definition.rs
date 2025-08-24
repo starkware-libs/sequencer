@@ -19,8 +19,7 @@ use crate::hints::hint_implementation::aggregator::{
     get_fee_token_address_from_input,
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
-    get_public_key_x_from_aggregator_input,
-    get_public_key_y_from_aggregator_input,
+    get_public_keys_from_aggregator_input,
     get_use_kzg_da_from_input,
     set_state_update_pointers_to_none,
     write_da_segment,
@@ -140,8 +139,7 @@ use crate::hints::hint_implementation::os::{
     create_block_additional_hints,
     get_n_blocks,
     get_n_class_hashes_to_migrate,
-    get_public_key_x,
-    get_public_key_y,
+    get_public_keys,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -595,7 +593,7 @@ vm_enter_scope(dict(
     (
         SegmentsAddTemp,
         segments_add_temp,
-        indoc! {r#"memory[fp + 7] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        indoc! {r#"memory[fp + 8] = to_felt_or_relocatable(segments.add_temp_segment())"#
         }
     ),
     (
@@ -1093,7 +1091,7 @@ define_hint_enum!(
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 21] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
+        indoc! {r#"memory[fp + 23] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
     not os_hints_config.full_output
 ))"#}
     ),
@@ -1622,7 +1620,7 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 22] = to_felt_or_relocatable(os_hints_config.full_output)"#}
+        indoc! {r#"memory[fp + 24] = to_felt_or_relocatable(os_hints_config.full_output)"#}
     ),
     (
         ConfigureKzgManager,
@@ -1853,14 +1851,9 @@ block_input = next(block_input_iterator)
 )"#}
     ),
     (
-        GetPublicKeyX,
-        get_public_key_x,
-        r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_x)"#
-    ),
-    (
-        GetPublicKeyY,
-        get_public_key_y,
-        r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_y)"#
+        GetPublicKeys,
+        get_public_keys,
+        r#"fill_public_keys_array(os_hints["public_keys"], public_keys_start, n_keys)"#
     ),
 );
 
@@ -1939,14 +1932,9 @@ if da_path is not None:
         r#"memory[ap] = to_felt_or_relocatable(program_input["fee_token_address"])"#
     ),
     (
-        GetPublicKeyXFromAggregatorInput,
-        get_public_key_x_from_aggregator_input,
-        r#"memory[ap] = to_felt_or_relocatable(program_input["public_key_x"])"#
-    ),
-    (
-        GetPublicKeyYFromAggregatorInput,
-        get_public_key_y_from_aggregator_input,
-        r#"memory[ap] = to_felt_or_relocatable(program_input["public_key_y"])"#
+        GetPublicKeysFromAggregatorInput,
+        get_public_keys_from_aggregator_input,
+        r#"fill_public_keys_array(program_input["public_keys"], public_keys_start, n_keys)"#
     ),
 );
 
