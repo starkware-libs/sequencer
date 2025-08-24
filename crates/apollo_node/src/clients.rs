@@ -114,7 +114,11 @@ use apollo_mempool_types::communication::{
     RemoteMempoolClient,
     SharedMempoolClient,
 };
-<<<<<<< HEAD
+use apollo_signature_manager::metrics::{
+    SIGNATURE_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    SIGNATURE_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    SIGNATURE_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_signature_manager_types::{
     LocalSignatureManagerClient,
     RemoteSignatureManagerClient,
@@ -122,14 +126,11 @@ use apollo_signature_manager_types::{
     SignatureManagerRequest,
     SignatureManagerResponse,
 };
-||||||| 38f03e1d0
-=======
 use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
->>>>>>> origin/main-v0.14.0
 use apollo_state_sync_types::communication::{
     LocalStateSyncClient,
     RemoteStateSyncClient,
@@ -162,6 +163,8 @@ const MEMPOOL_P2P_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const SIERRA_COMPILER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
+const SIGNATURE_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
+    LocalClientMetrics::new(&SIGNATURE_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const STATE_SYNC_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 
@@ -211,6 +214,11 @@ const SIERRA_COMPILER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientM
     &SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
     &SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     &SIERRA_COMPILER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+);
+const SIGNATURE_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &SIGNATURE_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    &SIGNATURE_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
 const STATE_SYNC_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
     &STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
@@ -580,9 +588,6 @@ pub fn create_node_clients(
         &SIERRA_COMPILER_REMOTE_CLIENT_METRICS
     );
 
-<<<<<<< HEAD
-    let signature_manager_remote_metrics =
-        RemoteClientMetrics::new(&SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let signature_manager_client = create_client!(
         &config.components.signature_manager.execution_mode,
         LocalSignatureManagerClient,
@@ -591,16 +596,10 @@ pub fn create_node_clients(
         &config.components.signature_manager.remote_client_config,
         &config.components.signature_manager.url,
         config.components.signature_manager.port,
-        signature_manager_remote_metrics
+        &SIGNATURE_MANAGER_LOCAL_CLIENT_METRICS,
+        &SIGNATURE_MANAGER_REMOTE_CLIENT_METRICS
     );
 
-    let state_sync_remote_metrics =
-        RemoteClientMetrics::new(&STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS);
-||||||| 38f03e1d0
-    let state_sync_remote_metrics =
-        RemoteClientMetrics::new(&STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS);
-=======
->>>>>>> origin/main-v0.14.0
     let state_sync_client = create_client!(
         &config.components.state_sync.execution_mode,
         LocalStateSyncClient,
