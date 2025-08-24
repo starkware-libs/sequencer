@@ -213,7 +213,6 @@ impl TransactionManager {
     pub fn clear_old_tx_from_consumed_queue(&mut self, unix_now: u64) {
         let cutoff =
             unix_now.saturating_sub(self.config.l1_handler_consumption_timelock_seconds.as_secs());
-
         let still_timelocked = self.consumed_queue.split_off(&BlockTimestamp(cutoff));
         let passed_timelock = std::mem::replace(&mut self.consumed_queue, still_timelocked);
 
