@@ -38,6 +38,15 @@
         "extra_params": {}
       },
       {
+        "title": "consensus_sync_block_number_diff",
+        "description": "The difference between the consensus block number and the sync block number",
+        "type": "timeseries",
+        "exprs": [
+          "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "consensus_max_cached_block_number",
         "description": "How many blocks after current are cached",
         "type": "timeseries",
