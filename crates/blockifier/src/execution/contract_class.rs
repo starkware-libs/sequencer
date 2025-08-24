@@ -49,6 +49,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
     EstimatedExecutionResources,
@@ -56,9 +57,7 @@ use crate::execution::casm_hash_estimation::{
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
-    blake_encoding,
     blake_execution_resources_estimation_to_gas,
-    poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
 };
 #[cfg(feature = "cairo_native")]
@@ -573,25 +572,32 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for CompiledClassV1 {
 /// Also, this function is not backward compatible.
 pub fn estimate_casm_poseidon_hash_computation_resources(
     bytecode_segment_lengths: &NestedFeltCounts,
-) -> ExecutionResources {
+) -> EstimatedExecutionResources {
+    let mut resources = EstimatedExecutionResources::new(HashVersion::V1);
+
     // The constants in this function were computed by running the Casm code on a few values
     // of `bytecode_segment_lengths`.
     match bytecode_segment_lengths {
         NestedFeltCounts::Leaf(length, _) => {
             // The entire contract is a single segment (old Sierra contracts).
-            &ExecutionResources {
+            let base_resources = ExecutionResources {
                 n_steps: 464,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
-            } + &poseidon_hash_many_cost(*length)
+            };
+            resources += &base_resources;
+            resources += &CasmV1HashResourceEstimate::new(HashVersion::V1)
+                .estimated_resources_of_hash_function(&FeltSizeCount { large: *length, small: 0 });
         }
+
         NestedFeltCounts::Node(segments) => {
             // The contract code is segmented by its functions.
-            let mut execution_resources = ExecutionResources {
+            let base_resources = ExecutionResources {
                 n_steps: 482,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
             };
+            resources += &base_resources;
             let base_segment_cost = ExecutionResources {
                 n_steps: 25,
                 n_memory_holes: 1,
@@ -603,12 +609,17 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
                         "Estimating hash cost is only supported for segmentation depth at most 1."
                     );
                 };
-                execution_resources += &poseidon_hash_many_cost(*length);
-                execution_resources += &base_segment_cost;
+                resources += &CasmV1HashResourceEstimate::new(HashVersion::V1)
+                    .estimated_resources_of_hash_function(&FeltSizeCount {
+                        large: *length,
+                        small: 0,
+                    });
+                resources += &base_segment_cost;
             }
-            execution_resources
         }
     }
+
+    resources
 }
 
 /// Cost to hash a single flat segment of `len` felts.

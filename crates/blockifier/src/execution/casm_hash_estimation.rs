@@ -12,7 +12,6 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -273,13 +272,21 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
         EstimatedExecutionResources::V1Hash { resources }
     }
 
+    /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        EstimatedExecutionResources::V1Hash {
-            // TODO(AvivG): Consider inlining `poseidon_hash_many_cost` logic here.
-            resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
-        }
+        let data_length = felt_size_groups.n_felts();
+        let poseidon_hash_many_cost = ExecutionResources {
+            n_steps: (data_length / 10) * 55
+                + ((data_length % 10) / 2) * 18
+                + (data_length % 2) * 3
+                + 21,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
+        };
+
+        EstimatedExecutionResources::V1Hash { resources: poseidon_hash_many_cost }
     }
 
     fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
@@ -310,7 +317,8 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
             let NestedFeltCounts::Leaf(length, _) = segment else {
                 panic!("Estimating hash cost is only supported for segmentation depth at most 1.");
             };
-            resources += &poseidon_hash_many_cost(*length);
+            resources += &self
+                .estimated_resources_of_hash_function(&FeltSizeCount { large: *length, small: 0 });
             resources += &base_segment_cost;
         }
         resources
