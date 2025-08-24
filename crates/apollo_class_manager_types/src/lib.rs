@@ -163,7 +163,8 @@ impl PrioritizedRequest for ClassManagerRequest {
 
             ClassManagerRequest::AddClass(_)
             | ClassManagerRequest::AddClassAndExecutableUnsafe(_, _, _, _)
-            | ClassManagerRequest::AddDeprecatedClass(_, _) => RequestPriority::Normal,
+            | ClassManagerRequest::AddDeprecatedClass(_, _)
+            | ClassManagerRequest::GetExecutableClassHashV2(_) => RequestPriority::Normal,
         }
     }
 }

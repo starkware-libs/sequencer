@@ -106,7 +106,8 @@ async fn scraper_end_to_end() {
     };
     let first_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: expected_executable_l1_handler_0.clone(),
-        timestamp: l1_handler_timestamps[0],
+        block_timestamp: l1_handler_timestamps[0],
+        scrape_timestamp: l1_handler_timestamps[0].0,
     };
 
     let expected_l1_handler_1 = L1HandlerTransaction {
@@ -125,7 +126,8 @@ async fn scraper_end_to_end() {
     };
     let second_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: expected_executable_l1_handler_1,
-        timestamp: l1_handler_timestamps[1],
+        block_timestamp: l1_handler_timestamps[1],
+        scrape_timestamp: l1_handler_timestamps[1].0,
     };
 
     let expected_cancel_message = Event::TransactionCancellationStarted {

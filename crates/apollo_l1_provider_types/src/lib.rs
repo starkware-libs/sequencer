@@ -311,15 +311,9 @@ impl Display for Event {
                      cancellation_request_block_timestamp={cancellation_request_timestamp})"
                 )
             }
-<<<<<<< HEAD
-            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({data})"),
-||||||| 38f03e1d0
-            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
-=======
             Event::TransactionConsumed { tx_hash, timestamp } => {
-                write!(f, "TransactionConsumed(tx_hash={}, block_timestamp={})", tx_hash, timestamp)
+                write!(f, "TransactionConsumed(tx_hash={tx_hash}, block_timestamp={timestamp})")
             }
->>>>>>> origin/main-v0.14.0
         }
     }
 }

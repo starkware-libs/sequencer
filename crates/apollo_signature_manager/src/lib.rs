@@ -1,4 +1,5 @@
 pub mod communication;
+pub mod metrics;
 pub mod signature_manager;
 
 use std::ops::Deref;
