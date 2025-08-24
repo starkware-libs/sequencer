@@ -39,6 +39,8 @@ fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
     Panel::from_hist(&MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::TimeSeries)
 }
 
+// Infra panels
+
 fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(&MEMPOOL_P2P_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }

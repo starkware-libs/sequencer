@@ -21,6 +21,18 @@ use apollo_l1_provider::metrics::{
 
 use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
+fn get_panel_l1_message_scraper_success_count() -> Panel {
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
+}
+fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
+}
+fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
+}
+
+// Infra panels
+
 fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(&L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
@@ -73,15 +85,6 @@ fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
     )
 }
 
-fn get_panel_l1_message_scraper_success_count() -> Panel {
-    Panel::from_counter(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
-}
-fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
-    Panel::from_counter(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
-}
-fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
-    Panel::from_counter(&L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
-}
 fn get_panel_remote_number_of_connections() -> Panel {
     Panel::from_gauge(&L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
