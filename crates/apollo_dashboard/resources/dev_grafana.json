@@ -443,10 +443,10 @@
       },
       {
         "title": "http_server_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the HTTP Server during the last 20 minutes",
+        "description": "The rate of transactions received by the HTTP Server during the last minute",
         "type": "timeseries",
         "exprs": [
-          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
+          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
         ],
         "extra_params": {}
       },
