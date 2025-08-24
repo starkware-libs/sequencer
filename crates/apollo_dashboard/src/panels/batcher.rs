@@ -40,6 +40,27 @@ fn get_panel_batched_transactions() -> Panel {
 fn get_panel_last_batched_block() -> Panel {
     Panel::from_gauge(&LAST_BATCHED_BLOCK, PanelType::Stat)
 }
+fn get_panel_rejection_ratio() -> Panel {
+    Panel::ratio_time_series(
+        "rejection_ratio",
+        "Ratio of rejected transactions out of all processed, over the last 5 minutes",
+        &REJECTED_TRANSACTIONS,
+        &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
+        "5m",
+    )
+}
+fn get_panel_reverted_transaction_ratio() -> Panel {
+    Panel::ratio_time_series(
+        "reverted_transactions_ratio",
+        "Ratio of reverted transactions out of all processed, over the last 5 minutes",
+        &REVERTED_TRANSACTIONS,
+        &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
+        "5m",
+    )
+}
+
+// Infra panels
+
 fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(&BATCHER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
@@ -88,25 +109,6 @@ fn get_remote_client_response_times_panels() -> Vec<Panel> {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_rejection_ratio() -> Panel {
-    Panel::ratio_time_series(
-        "rejection_ratio",
-        "Ratio of rejected transactions out of all processed, over the last 5 minutes",
-        &REJECTED_TRANSACTIONS,
-        &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
-        "5m",
-    )
-}
-fn get_panel_reverted_transaction_ratio() -> Panel {
-    Panel::ratio_time_series(
-        "reverted_transactions_ratio",
-        "Ratio of reverted transactions out of all processed, over the last 5 minutes",
-        &REVERTED_TRANSACTIONS,
-        &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
-        "5m",
-    )
-}
-
 fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         &BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,

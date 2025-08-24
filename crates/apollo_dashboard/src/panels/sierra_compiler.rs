@@ -19,6 +19,12 @@ use apollo_infra::metrics::{
 
 use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
+fn get_panel_compilation_duration() -> Panel {
+    Panel::from_hist(&COMPILATION_DURATION, PanelType::TimeSeries)
+}
+
+// Infra panels
+
 fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(&SIERRA_COMPILER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
@@ -73,10 +79,6 @@ fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
         &SIERRA_COMPILER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
         PanelType::TimeSeries,
     )
-}
-
-fn get_panel_compilation_duration() -> Panel {
-    Panel::from_hist(&COMPILATION_DURATION, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_sierra_compiler_infra_row() -> Row {
