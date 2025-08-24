@@ -32,9 +32,9 @@ fn get_panel_added_transactions_deprecated_error() -> Panel {
 fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
         "http_server_transactions_received_rate (TPS)",
-        "The rate of transactions received by the HTTP Server during the last 20 minutes",
+        "The rate of transactions received by the HTTP Server during the last minute",
         vec![format!(
-            "sum(rate({}[20m])) or vector(0)",
+            "sum(rate({}[1m])) or vector(0)",
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         )],
         PanelType::TimeSeries,
