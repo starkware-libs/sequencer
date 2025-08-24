@@ -703,6 +703,15 @@
           "l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "l1_message_scraper_seconds_since_last_successful_scrape",
+        "description": "Number of seconds since the last successful scrape of the L1 message scraper",
+        "type": "timeseries",
+        "exprs": [
+          "l1_message_scraper_seconds_since_last_successful_scrape{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
       }
     ],
     "L1 Gas Price": [
