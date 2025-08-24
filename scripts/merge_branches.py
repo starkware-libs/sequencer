@@ -85,7 +85,9 @@ def current_git_conflictstyle() -> Optional[str]:
         return None
 
 
-def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_dst: bool):
+def merge_branches(
+    src_branch: str, dst_branch: Optional[str], auto_delete_from_dst: bool
+):
     """
     Merge source branch into destination branch.
     If no destination branch is passed, the destination branch is taken from state on repo.
@@ -113,7 +115,7 @@ def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_
 
     run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
 
-    included_types_as_conflicts = ["UU", "AA"]
+    included_types_as_conflicts = ["UU", "AA", "DU"]
     if auto_delete_from_dst:
         included_types_as_conflicts.append("UD")
 
@@ -123,7 +125,9 @@ def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_
 
     run_command(find_conflicts_cmd)
 
-    conflicts = [line.strip() for line in open(conflicts_file).readlines() if line.strip() != ""]
+    conflicts = [
+        line.strip() for line in open(conflicts_file).readlines() if line.strip() != ""
+    ]
     conflict_line = " ".join(conflicts)
     run_command(f"git add {conflict_line}", allow_error=True)
     print("Committing conflicts...")
@@ -139,7 +143,9 @@ def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_
 
     print("Pushing...")
     run_command(f"git push --set-upstream origin {merge_branch}")
-    (merge_base,) = run_command(f"git merge-base origin/{src_branch} origin/{dst_branch}")
+    (merge_base,) = run_command(
+        f"git merge-base origin/{src_branch} origin/{dst_branch}"
+    )
 
     print("Creating PR...")
     run_command(
@@ -152,7 +158,9 @@ def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_
         comment_file_path = "/tmp/comment.XXXXXX"
         with open(comment_file_path, "w") as comment_file:
             for conflict in conflicts:
-                (filename_hash,) = run_command(f"echo -n {conflict} | sha256sum | cut -d' ' -f1")
+                (filename_hash,) = run_command(
+                    f"echo -n {conflict} | sha256sum | cut -d' ' -f1"
+                )
                 comment_file.write(
                     f"[Src]({compare}/{merge_base}..{src_branch}#diff-{filename_hash}) "
                     f"[Dst]({compare}/{merge_base}..{dst_branch}#diff-{filename_hash}) "
@@ -166,7 +174,9 @@ def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Merge a branch into another branch.")
-    parser.add_argument("--src", type=str, help="The source branch to merge.", required=True)
+    parser.add_argument(
+        "--src", type=str, help="The source branch to merge.", required=True
+    )
     parser.add_argument(
         "--dst",
         type=str,
@@ -185,5 +195,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     merge_branches(
-        src_branch=args.src, dst_branch=args.dst, auto_delete_from_dst=args.auto_delete_from_dst
+        src_branch=args.src,
+        dst_branch=args.dst,
+        auto_delete_from_dst=args.auto_delete_from_dst,
     )

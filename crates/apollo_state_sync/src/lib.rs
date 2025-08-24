@@ -86,9 +86,6 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetBlockHash(block_number) => {
                 StateSyncResponse::GetBlockHash(self.get_block_hash(block_number).await)
             }
-            StateSyncRequest::GetBlockHash(block_number) => {
-                StateSyncResponse::GetBlockHash(self.get_block_hash(block_number))
-            }
             StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
                 self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
             ),
@@ -121,55 +118,24 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 }
 
 impl StateSync {
-<<<<<<< HEAD
-    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-
-        let block_header = txn
-            .get_block_header(block_number)?
-            .ok_or(StateSyncError::BlockNotFound(block_number))?;
-        let block_transactions_with_hash = txn
-            .get_block_transactions_with_hash(block_number)?
-            .ok_or(StateSyncError::BlockNotFound(block_number))?;
-        let thin_state_diff =
-            txn.get_state_diff(block_number)?.ok_or(StateSyncError::BlockNotFound(block_number))?;
-||||||| 38f03e1d0
-    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        let block_header = txn.get_block_header(block_number)?;
-        let Some(block_transactions_with_hash) =
-            txn.get_block_transactions_with_hash(block_number)?
-        else {
-            return Ok(None);
-        };
-        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-            return Ok(None);
-        };
-        let Some(block_header) = block_header else {
-            return Ok(None);
-        };
-=======
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let storage_reader = self.storage_reader.clone();
         tokio::task::spawn_blocking(move || {
             let txn = storage_reader.begin_ro_txn()?;
->>>>>>> origin/main-v0.14.0
 
-            let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
-            let Some(block_header) = txn.get_block_header(block_number)? else {
-                return block_not_found_err;
-            };
-            let Some(block_transactions_with_hash) =
-                txn.get_block_transactions_with_hash(block_number)?
-            else {
-                return block_not_found_err;
-            };
-            let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-                return block_not_found_err;
-            };
+            let block_header = txn
+                .get_block_header(block_number)?
+                .ok_or(StateSyncError::BlockNotFound(block_number))?;
+            let block_transactions_with_hash = txn
+                .get_block_transactions_with_hash(block_number)?
+                .ok_or(StateSyncError::BlockNotFound(block_number))?;
+            let thin_state_diff = txn
+                .get_state_diff(block_number)?
+                .ok_or(StateSyncError::BlockNotFound(block_number))?;
 
             let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
             let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
+
             for (tx, tx_hash) in block_transactions_with_hash {
                 match tx {
                     Transaction::L1Handler(_) => l1_transaction_hashes.push(tx_hash),
@@ -177,29 +143,6 @@ impl StateSync {
                 }
             }
 
-<<<<<<< HEAD
-        Ok(SyncBlock {
-            state_diff: thin_state_diff,
-            block_header_without_hash: block_header.block_header_without_hash,
-            account_transaction_hashes,
-            l1_transaction_hashes,
-        })
-    }
-
-    fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        let block_header = txn
-            .get_block_header(block_number)?
-            .ok_or(StateSyncError::BlockNotFound(block_number))?;
-        Ok(block_header.block_hash)
-||||||| 38f03e1d0
-        Ok(Some(SyncBlock {
-            state_diff: thin_state_diff,
-            block_header_without_hash: block_header.block_header_without_hash,
-            account_transaction_hashes,
-            l1_transaction_hashes,
-        }))
-=======
             Ok(SyncBlock {
                 state_diff: thin_state_diff,
                 block_header_without_hash: block_header.block_header_without_hash,
@@ -208,7 +151,6 @@ impl StateSync {
             })
         })
         .await?
->>>>>>> origin/main-v0.14.0
     }
 
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
