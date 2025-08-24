@@ -86,13 +86,7 @@ members = [
 ]
 
 [workspace.package]
-<<<<<<< HEAD
-version = "0.0.0"
-||||||| 38f03e1d0
-version = "0.15.0-rc.2"
-=======
 version = "0.15.0-rc.3"
->>>>>>> origin/main-v0.14.0
 edition = "2021"
 repository = "https://github.com/starkware-libs/sequencer/"
 license = "Apache-2.0"
@@ -106,28 +100,12 @@ apollo_batcher_types.path = "crates/apollo_batcher_types"
 apollo_central_sync.path = "crates/apollo_central_sync"
 apollo_class_manager.path = "crates/apollo_class_manager"
 apollo_class_manager_types.path = "crates/apollo_class_manager_types"
-<<<<<<< HEAD
-apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.0.0" }
-||||||| 38f03e1d0
-apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.15.0-rc.2" }
-=======
 apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
-<<<<<<< HEAD
-apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.0.0" }
-apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.0.0" }
-apollo_config = { path = "crates/apollo_config", version = "0.0.0" }
-||||||| 38f03e1d0
-apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.15.0-rc.2" }
-apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.15.0-rc.2" }
-apollo_config = { path = "crates/apollo_config", version = "0.15.0-rc.2" }
-=======
 apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.15.0-rc.3" }
 apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.15.0-rc.3" }
 apollo_config = { path = "crates/apollo_config", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 apollo_consensus.path = "crates/apollo_consensus"
 apollo_consensus_manager.path = "crates/apollo_consensus_manager"
 apollo_consensus_orchestrator.path = "crates/apollo_consensus_orchestrator"
@@ -137,13 +115,7 @@ apollo_gateway.path = "crates/apollo_gateway"
 apollo_gateway_types.path = "crates/apollo_gateway_types"
 apollo_http_server.path = "crates/apollo_http_server"
 apollo_infra.path = "crates/apollo_infra"
-<<<<<<< HEAD
-apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.0.0" }
-||||||| 38f03e1d0
-apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.15.0-rc.2" }
-=======
 apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 apollo_integration_tests.path = "crates/apollo_integration_tests"
 apollo_l1_endpoint_monitor.path = "crates/apollo_l1_endpoint_monitor"
 apollo_l1_endpoint_monitor_types.path = "crates/apollo_l1_endpoint_monitor_types"
@@ -155,25 +127,13 @@ apollo_mempool.path = "crates/apollo_mempool"
 apollo_mempool_p2p.path = "crates/apollo_mempool_p2p"
 apollo_mempool_p2p_types.path = "crates/apollo_mempool_p2p_types"
 apollo_mempool_types.path = "crates/apollo_mempool_types"
-<<<<<<< HEAD
-apollo_metrics = { path = "crates/apollo_metrics", version = "0.0.0" }
-||||||| 38f03e1d0
-apollo_metrics = { path = "crates/apollo_metrics", version = "0.15.0-rc.2" }
-=======
 apollo_metrics = { path = "crates/apollo_metrics", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 apollo_monitoring_endpoint.path = "crates/apollo_monitoring_endpoint"
 apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_node.path = "crates/apollo_node"
 apollo_p2p_sync.path = "crates/apollo_p2p_sync"
-<<<<<<< HEAD
-apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
-||||||| 38f03e1d0
-apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.15.0-rc.2" }
-=======
 apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
@@ -183,13 +143,7 @@ apollo_signature_manager.path = "crates/apollo_signature_manager"
 apollo_signature_manager_types.path = "crates/apollo_signature_manager_types"
 apollo_staking.path = "crates/apollo_staking"
 apollo_starknet_client.path = "crates/apollo_starknet_client"
-<<<<<<< HEAD
-apollo_starknet_os_program = { path = "crates/apollo_starknet_os_program", version = "0.0.0" }
-||||||| 38f03e1d0
-apollo_starknet_os_program = { path = "crates/apollo_starknet_os_program", version = "0.15.0-rc.2" }
-=======
 apollo_starknet_os_program = { path = "crates/apollo_starknet_os_program", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 apollo_state_reader.path = "crates/apollo_state_reader"
 apollo_state_sync.path = "crates/apollo_state_sync"
 apollo_state_sync_metrics.path = "crates/apollo_state_sync_metrics"
@@ -216,24 +170,10 @@ bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
 blake2 = "0.10.6"
-<<<<<<< HEAD
-blake2s = { path = "crates/blake2s", version = "0.0.0" }
-blockifier = { path = "crates/blockifier", version = "0.0.0" }
-||||||| 38f03e1d0
-blake2s.path = "crates/blake2s"
-blockifier = { path = "crates/blockifier", version = "0.15.0-rc.2" }
-=======
-blake2s.path = "crates/blake2s"
+blake2s = { path = "crates/blake2s", version = "0.15.0-rc.3" }
 blockifier = { path = "crates/blockifier", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 blockifier_reexecution.path = "crates/blockifier_reexecution"
-<<<<<<< HEAD
-blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
-||||||| 38f03e1d0
-blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.15.0-rc.2" }
-=======
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 byteorder = "1.4.3"
 bytes = "1"
 c-kzg = "1.0.3"
@@ -357,13 +297,7 @@ socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.8"
-<<<<<<< HEAD
-starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
-||||||| 38f03e1d0
-starknet_api = { path = "crates/starknet_api", version = "0.15.0-rc.2" }
-=======
 starknet_api = { path = "crates/starknet_api", version = "0.15.0-rc.3" }
->>>>>>> origin/main-v0.14.0
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_os.path = "crates/starknet_os"

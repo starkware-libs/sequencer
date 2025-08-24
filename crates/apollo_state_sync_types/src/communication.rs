@@ -30,7 +30,6 @@ use crate::state_sync_types::{StateSyncResult, SyncBlock};
 #[async_trait]
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
-<<<<<<< HEAD
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
     /// the sync hasn't downloaded it yet.
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock>;
@@ -39,22 +38,6 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
     /// the sync hasn't downloaded it yet.
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash>;
-||||||| 38f03e1d0
-    /// Returns None if the block doesn't exist or the sync hasn't downloaded it yet.
-    async fn get_block(
-        &self,
-        block_number: BlockNumber,
-    ) -> StateSyncClientResult<Option<SyncBlock>>;
-=======
-    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
-    async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock>;
-
-    /// Request for a block hash at a specific height.
-    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
-    async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash>;
->>>>>>> origin/main-v0.14.0
 
     /// Notify the sync that a new block has been created within the node so that other peers can
     /// learn about it through sync.
