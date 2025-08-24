@@ -55,7 +55,7 @@ define_metrics!(
     },
 );
 
-pub(crate) const _STATE_SYNC_INFRA_METRICS: InfraMetrics = InfraMetrics {
+pub const STATE_SYNC_INFRA_METRICS: InfraMetrics = InfraMetrics {
     local_client_metrics: LocalClientMetrics::new(&STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     remote_client_metrics: RemoteClientMetrics::new(
         &STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,

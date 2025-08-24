@@ -37,7 +37,7 @@ define_metrics!(
     },
 );
 
-pub(crate) const _MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics {
+pub const MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics {
     local_client_metrics: LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     remote_client_metrics: RemoteClientMetrics::new(
         &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,

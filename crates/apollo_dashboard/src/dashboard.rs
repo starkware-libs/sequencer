@@ -235,14 +235,14 @@ impl Serialize for Row {
     }
 }
 
-fn _get_local_client_panels(local_client_metrics: &LocalClientMetrics) -> Vec<Panel> {
+pub(crate) fn get_local_client_panels(local_client_metrics: &LocalClientMetrics) -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         local_client_metrics.get_response_time_metric(),
         PanelType::TimeSeries,
     )
 }
 
-fn _get_remote_client_panels(remote_client_metrics: &RemoteClientMetrics) -> Vec<Panel> {
+pub(crate) fn get_remote_client_panels(remote_client_metrics: &RemoteClientMetrics) -> Vec<Panel> {
     let attempts_panel =
         Panel::from_hist(remote_client_metrics.get_attempts_metric(), PanelType::TimeSeries);
     let response_times_panels = create_request_type_labeled_hist_panels(
@@ -260,7 +260,7 @@ fn _get_remote_client_panels(remote_client_metrics: &RemoteClientMetrics) -> Vec
         .collect()
 }
 
-fn _get_local_server_panels(local_server_metrics: &LocalServerMetrics) -> Vec<Panel> {
+pub(crate) fn get_local_server_panels(local_server_metrics: &LocalServerMetrics) -> Vec<Panel> {
     let received_msgs_panel =
         Panel::from_counter(local_server_metrics.get_received_metric(), PanelType::TimeSeries);
     let processed_msgs_panel =
@@ -282,7 +282,7 @@ fn _get_local_server_panels(local_server_metrics: &LocalServerMetrics) -> Vec<Pa
         .collect()
 }
 
-fn _get_remote_server_panels(remote_server_metrics: &RemoteServerMetrics) -> Vec<Panel> {
+pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetrics) -> Vec<Panel> {
     let total_received_msgs_panel = Panel::from_counter(
         remote_server_metrics.get_total_received_metric(),
         PanelType::TimeSeries,
@@ -307,14 +307,14 @@ fn _get_remote_server_panels(remote_server_metrics: &RemoteServerMetrics) -> Vec
     .collect()
 }
 
-fn _get_component_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
+pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
     Row::new(
         row_name,
         vec![
-            _get_local_client_panels(&metrics.local_client_metrics),
-            _get_remote_client_panels(&metrics.remote_client_metrics),
-            _get_local_server_panels(&metrics.local_server_metrics),
-            _get_remote_server_panels(&metrics.remote_server_metrics),
+            get_local_client_panels(&metrics.local_client_metrics),
+            get_remote_client_panels(&metrics.remote_client_metrics),
+            get_local_server_panels(&metrics.local_server_metrics),
+            get_remote_server_panels(&metrics.remote_server_metrics),
         ]
         .into_iter()
         .flatten()

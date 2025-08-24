@@ -107,7 +107,7 @@ define_metrics!(
     },
 );
 
-pub(crate) const _L1_ENDPOINT_MONITOR_INFRA_METRICS: InfraMetrics = InfraMetrics {
+pub const L1_ENDPOINT_MONITOR_INFRA_METRICS: InfraMetrics = InfraMetrics {
     local_client_metrics: LocalClientMetrics::new(&L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS),
     remote_client_metrics: RemoteClientMetrics::new(
         &L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,

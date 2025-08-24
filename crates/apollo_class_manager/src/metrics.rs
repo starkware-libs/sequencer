@@ -123,7 +123,7 @@ pub(crate) fn register_metrics() {
     CLASS_SIZES.register();
 }
 
-pub(crate) const _CLASS_MANAGER_INFRA_METRICS: InfraMetrics = InfraMetrics {
+pub const CLASS_MANAGER_INFRA_METRICS: InfraMetrics = InfraMetrics {
     local_client_metrics: LocalClientMetrics::new(&CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     remote_client_metrics: RemoteClientMetrics::new(
         &CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,

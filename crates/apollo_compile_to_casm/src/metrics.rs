@@ -33,7 +33,7 @@ pub(crate) fn register_metrics() {
     COMPILATION_DURATION.register();
 }
 
-pub(crate) const _SIERRA_COMPILER_INFRA_METRICS: InfraMetrics = InfraMetrics {
+pub const SIERRA_COMPILER_INFRA_METRICS: InfraMetrics = InfraMetrics {
     local_client_metrics: LocalClientMetrics::new(
         &SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     ),

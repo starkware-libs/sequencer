@@ -142,7 +142,7 @@ pub(crate) fn register_metrics() {
     GATEWAY_VALIDATE_TX_LATENCY.register();
 }
 
-pub(crate) const _GATEWAY_INFRA_METRICS: InfraMetrics = InfraMetrics {
+pub const GATEWAY_INFRA_METRICS: InfraMetrics = InfraMetrics {
     local_client_metrics: LocalClientMetrics::new(&GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     remote_client_metrics: RemoteClientMetrics::new(
         &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
