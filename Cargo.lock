@@ -1049,6 +1049,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_config_manager_types"
+version = "0.15.0-rc.3"
+dependencies = [
+ "apollo_infra",
+ "async-trait",
+ "mockall",
+ "serde",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
+
+[[package]]
 name = "apollo_consensus"
 version = "0.15.0-rc.3"
 dependencies = [
