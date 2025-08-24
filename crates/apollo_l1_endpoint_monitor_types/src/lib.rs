@@ -2,6 +2,21 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
+    L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
+    L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH,
+    L1_ENDPOINT_MONITOR_REMOTE_MSGS_PROCESSED,
+    L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
+    L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS,
+    L1_ENDPOINT_MONITOR_REMOTE_VALID_MSGS_RECEIVED,
+    L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,
+};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_metrics::{define_metrics, generate_permutation_labels};
@@ -90,4 +105,26 @@ define_metrics!(
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_remote_response_times_secs", "Request remote response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "l1_endpoint_monitor_remote_client_communication_failure_times_secs", "Request remote client communication failure times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
     },
+);
+
+pub const _L1_ENDPOINT_MONITOR_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+    LocalClientMetrics::new(&L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS),
+    RemoteClientMetrics::new(
+        &L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,
+        &L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS,
+        &L1_ENDPOINT_MONITOR_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    LocalServerMetrics::new(
+        &L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
+        &L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
+        &L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH,
+        &L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS,
+        &L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS,
+    ),
+    RemoteServerMetrics::new(
+        &L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
+        &L1_ENDPOINT_MONITOR_REMOTE_VALID_MSGS_RECEIVED,
+        &L1_ENDPOINT_MONITOR_REMOTE_MSGS_PROCESSED,
+        &L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
 );

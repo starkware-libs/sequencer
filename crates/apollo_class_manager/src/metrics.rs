@@ -1,4 +1,19 @@
 use apollo_compile_to_casm_types::SerializedClass;
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+    CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+    CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
+    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::VariantNames;
 
@@ -107,3 +122,25 @@ pub(crate) fn register_metrics() {
     N_CLASSES.register();
     CLASS_SIZES.register();
 }
+
+pub const _CLASS_MANAGER_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+    LocalClientMetrics::new(&CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    RemoteClientMetrics::new(
+        &CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    LocalServerMetrics::new(
+        &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+        &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+        &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+        &CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+        &CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    RemoteServerMetrics::new(
+        &CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+        &CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+        &CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+        &CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+);
