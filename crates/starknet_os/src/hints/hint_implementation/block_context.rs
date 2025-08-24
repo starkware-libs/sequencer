@@ -22,6 +22,15 @@ pub(crate) fn block_number<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_number.0))?)
 }
 
+pub(crate) fn print_steps<S: StateReader>(
+    _: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    println!("steps: {:?}", vm.get_current_step());
+    Ok(())
+}
+
+
 pub(crate) fn block_timestamp<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,

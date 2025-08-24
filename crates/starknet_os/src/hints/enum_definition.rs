@@ -31,6 +31,7 @@ use crate::hints::hint_implementation::blake2s::implementation::{
 };
 use crate::hints::hint_implementation::block_context::{
     block_number,
+    print_steps,
     block_timestamp,
     chain_id,
     fee_token_address,
@@ -1070,6 +1071,7 @@ define_hint_enum!(
         block_number,
         "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_number)"
     ),
+    (PrintSteps, print_steps, "print steps"),
     (
         BlockTimestamp,
         block_timestamp,
