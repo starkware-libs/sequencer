@@ -78,7 +78,7 @@ struct OsCarriedOutputs {
 }
 
 func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*}(
-    os_output: OsOutput*, replace_keys_with_aliases: felt, public_key: EcPoint*
+    os_output: OsOutput*, replace_keys_with_aliases: felt, public_keys_start: felt*, n_keys: felt
 ) {
     alloc_locals;
 
