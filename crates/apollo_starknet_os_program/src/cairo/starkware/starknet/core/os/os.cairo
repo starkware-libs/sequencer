@@ -44,7 +44,7 @@ from starkware.starknet.core.os.execution.execute_syscalls import execute_syscal
 from starkware.starknet.core.os.execution.execute_transactions import execute_transactions
 from starkware.starknet.core.os.os_config.os_config import (
     get_starknet_os_config_hash,
-    get_public_key_hash,
+    get_public_keys_hash,
     StarknetOsConfig,
 )
 from starkware.starknet.core.os.output import (
@@ -116,12 +116,15 @@ func main{
         n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
         deprecated_compiled_class_facts=deprecated_compiled_class_facts,
     );
-    tempvar public_key = new EcPoint(
-        x=nondet %{ os_input.public_key_x %}, y=nondet %{ os_input.public_key_y %}
-    );
+
+    local public_keys_start: felt*;
+    local n_keys: felt;
+    %{ fill_public_keys_array(os_hints['public_keys'], public_keys_start, n_keys) %}
     let hash_ptr = pedersen_ptr;
     with hash_ptr {
-        let (public_key_hash) = get_public_key_hash(public_key=public_key);
+        let (public_keys_hash) = get_public_keys_hash(
+            public_keys_start=public_keys_start, n_keys=n_keys
+        );
     }
     let pedersen_ptr = hash_ptr;
     with txs_range_check_ptr {
@@ -129,7 +132,7 @@ func main{
             n_blocks=n_blocks,
             os_output_per_block_dst=os_outputs,
             compiled_class_facts_bundle=compiled_class_facts_bundle,
-            public_key_hash=public_key_hash,
+            public_keys_hash=public_keys_hash,
         );
     }
 
@@ -171,7 +174,10 @@ func main{
     // Currently, the block hash is not enforced by the OS.
     // TODO(Yoni, 1/1/2026): compute the block hash.
     serialize_os_output(
-        os_output=final_os_output, replace_keys_with_aliases=TRUE, public_key=public_key
+        os_output=final_os_output,
+        replace_keys_with_aliases=TRUE,
+        public_keys_start=public_keys_start,
+        n_keys=n_keys,
     );
 
     // The following code deals with the problem that untrusted code (contract code) could
@@ -240,7 +246,7 @@ func execute_blocks{
     n_blocks: felt,
     os_output_per_block_dst: OsOutput*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
-    public_key_hash: felt,
+    public_keys_hash: felt,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -284,7 +290,7 @@ func execute_blocks{
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
         compiled_class_facts_bundle=compiled_class_facts_bundle,
-        public_key_hash=public_key_hash,
+        public_keys_hash=public_keys_hash,
     );
 
     // Pre-process block.
@@ -367,7 +373,7 @@ func execute_blocks{
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
         compiled_class_facts_bundle=compiled_class_facts_bundle,
-        public_key_hash=public_key_hash,
+        public_keys_hash=public_keys_hash,
     );
 }
 
