@@ -146,9 +146,47 @@ pub enum OsStateDiff {
     PartialCommitment(PartialCommitmentOsStateDiff),
 }
 
+pub(crate) type KzgCommitment = (Felt, Felt);
+pub(crate) type PointEvaluation = (Felt, Felt);
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug, PartialEq)]
+pub(crate) struct OsKzgCommitmentInfo {
+    z: Felt,
+    n_blobs: usize,
+    commitments: Vec<KzgCommitment>,
+    evals: Vec<PointEvaluation>,
+}
+
+impl TryFromOutputIter for OsKzgCommitmentInfo {
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
+        output_iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
+        let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
+
+        let mut commitments = Vec::with_capacity(n_blobs);
+        for i in 0..n_blobs {
+            // Each commitment is two felts.
+            let low = wrap_missing(output_iter.next(), &format!("kzg_commitment_low_{i}"))?;
+            let high = wrap_missing(output_iter.next(), &format!("kzg_commitment_high_{i}"))?;
+            commitments.push((low, high));
+        }
+
+        let mut evals = Vec::with_capacity(n_blobs);
+        for i in 0..n_blobs {
+            // Each evaluation is two felts.
+            let low = wrap_missing(output_iter.next(), &format!("point_evaluation_low_{i}"))?;
+            let high = wrap_missing(output_iter.next(), &format!("point_evaluation_high_{i}"))?;
+            evals.push((low, high));
+        }
+        Ok(Self { z: kzg_z, n_blobs, commitments, evals })
+    }
+}
+
 struct OutputIterParsedData {
     common_os_output: CommonOsOutput,
-    kzg_commitment_info: Option<Vec<Felt>>,
+    kzg_commitment_info: Option<OsKzgCommitmentInfo>,
     full_output: bool,
 }
 
@@ -170,11 +208,7 @@ impl TryFromOutputIter for OutputIterParsedData {
         let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
 
         let kzg_commitment_info = if use_kzg_da {
-            // Read KZG data into a vec.
-            let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
-            let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
-            let commitments = output_iter.take(2 * 2 * n_blobs);
-            Some([kzg_z, n_blobs.into()].into_iter().chain(commitments).collect::<Vec<_>>())
+            Some(OsKzgCommitmentInfo::try_from_output_iter(output_iter)?)
         } else {
             None
         };
