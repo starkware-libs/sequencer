@@ -70,7 +70,7 @@ enum TransactionStatus {
 
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum DropReason {
+pub enum DropReason {
     FailedAddTxChecks,
     Expired,
     Rejected,
