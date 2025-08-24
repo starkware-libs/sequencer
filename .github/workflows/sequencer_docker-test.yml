@@ -26,21 +26,25 @@ jobs:
   check-docker-test-trigger:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
-      should_run: ${{ steps.docker_check.outputs.should_run }}
+      should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.docker_check.outputs.should_run }}
     steps:
       - uses: actions/checkout@v4
+        if: github.event_name != 'workflow_dispatch'
         with:
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
+        if: github.event_name != 'workflow_dispatch'
         id: setup-pypy
         with:
           python-version: "pypy3.9"
           cache: "pip"
 
       - run: pip install -r scripts/requirements.txt
+        if: github.event_name != 'workflow_dispatch'
 
       - name: Check for docker-test-triggering changes
+        if: github.event_name != 'workflow_dispatch'
         id: docker_check
         run: |
           echo "Checking if any docker-test-triggering crates were modified"
@@ -58,7 +62,7 @@ jobs:
   sequencer_docker_compose_test:
     needs: check-docker-test-trigger
     if: needs.check-docker-test-trigger.outputs.should_run == 'true'
-    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64-local-builder
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     env:
       MONITORING_ENABLED: false
       SIMULATOR_RUN_FOREVER: false
@@ -69,11 +73,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure Docker to use Namespace buildx
-        uses: namespacelabs/nscloud-setup-buildx-action@v0
-
       - name: Run docker compose
-        run: ./deployments/monitoring/deploy_local_stack.sh up -d --build
+        run: ./deployments/monitoring/deploy_local_stack.sh --parallel 1 up -d --build --yes
         env:
           COMPOSE_BAKE: true
 
