@@ -800,11 +800,7 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
             instruction_locations,
         )?;
 
-        let entry_points_by_type = EntryPointsByType {
-            constructor: convert_entry_points_v1(&class.entry_points_by_type.constructor),
-            external: convert_entry_points_v1(&class.entry_points_by_type.external),
-            l1_handler: convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
-        };
+        let entry_points_by_type = class.entry_points_by_type.into();
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
@@ -869,6 +865,16 @@ pub struct EntryPointsByType<EP: HasSelector> {
     pub constructor: Vec<EP>,
     pub external: Vec<EP>,
     pub l1_handler: Vec<EP>,
+}
+
+impl From<CasmContractEntryPoints> for EntryPointsByType<EntryPointV1> {
+    fn from(entry_points_by_type: CasmContractEntryPoints) -> Self {
+        EntryPointsByType {
+            constructor: convert_entry_points_v1(&entry_points_by_type.constructor),
+            external: convert_entry_points_v1(&entry_points_by_type.external),
+            l1_handler: convert_entry_points_v1(&entry_points_by_type.l1_handler),
+        }
+    }
 }
 
 impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
