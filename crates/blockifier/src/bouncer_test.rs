@@ -328,11 +328,26 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
         ..BouncerWeights::empty()
     };
 
-    assert_matches!(result, Err(
-        TransactionExecutorError::TransactionExecutionError(
-            TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
-        )
-    )  if *max_capacity == bouncer_config.block_max_capacity && *tx_size == expected_weights);
+    // assert_matches!(result, Err(
+    //     TransactionExecutorError::TransactionExecutionError(
+    //         TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
+    //     )
+    // )  if *max_capacity == bouncer_config.block_max_capacity && *tx_size == expected_weights);
+
+    let err = result.expect_err("expected Err, got Ok");
+    let tx_err = match err {
+        TransactionExecutorError::TransactionExecutionError(inner) => inner,
+        other => panic!("expected TransactionExecutionError, got {other:?}"),
+    };
+    let (max_capacity, tx_size) = match tx_err {
+        TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size } => {
+            (max_capacity, tx_size)
+        }
+        other => panic!("expected TransactionTooLarge, got {other:?}"),
+    };
+
+    assert_eq!(*max_capacity, bouncer_config.block_max_capacity);
+    assert_eq!(*tx_size, expected_weights);
 }
 
 #[rstest]
