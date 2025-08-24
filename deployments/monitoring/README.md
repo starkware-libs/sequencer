@@ -2,7 +2,9 @@
 
 ### Requirements:
 - Python3
-- docker >= 27.3.1 - (installation guide https://docs.docker.com/engine/install/ubuntu/)
+- docker >= 27.3.1
+    - installation guide: https://docs.docker.com/engine/install/ubuntu/
+    - Do **not** choose the `Docker Desktop` installation option but rather the `apt` one.
 
 ### Setup:
 ```bash
@@ -35,11 +37,14 @@ Once the node starts emitting logs, one can ctrl+c to move the run to the backgr
 After Grafana starts running, it can be viewed by accessing http://localhost:3000 in a web browser.
 
 ## Troubleshooting
-If encountering `Failed to deploy the monitoring stack locally`, verify the docker version is adequate:
-```
-docker --version
-docker compose --version
-```
+- If encountering `Failed to deploy the monitoring stack locally`, verify the docker version is adequate:
+    ```
+    docker --version
+    docker compose --version
+    ```
+- If you encouter failures due to `memory allocation failed`:
+    - Increase your swap size if it's very small (<8GB)
+    - If you installed `Docker Desktop` it limits the amount of memeory avaialble to docker. Prefer installing docker using `apt` as mentioned above. As a workaround you can go into `Docker Desktop` settings -> `Resources` -> `Advanced` and increase the memory and swap limits.
 
 ## Shutdown & Cleanup:
 ```bash
@@ -52,3 +57,4 @@ After making changes, update dev_grafana.json by running:
 ```bash
 cargo run --bin sequencer_dashboard_generator
 ```
+
