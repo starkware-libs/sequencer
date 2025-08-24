@@ -150,7 +150,7 @@ const GET_COMPILED_CLASS_BY_CLASS_HASH_URL: &str =
 const GET_STATE_UPDATE_URL: &str = "feeder_gateway/get_state_update";
 const BLOCK_NUMBER_QUERY: &str = "blockNumber";
 const HEADER_ONLY_QUERY: &str = "headerOnly";
-const FEE_MARKET_INFO_QUERY: &str = "withFeeMarketInfo";
+// const FEE_MARKET_INFO_QUERY: &str = "withFeeMarketInfo";
 const LATEST_BLOCK_NUMBER: &str = "latest";
 const CLASS_HASH_QUERY: &str = "classHash";
 const PENDING_BLOCK_ID: &str = "pending";
@@ -234,21 +234,8 @@ impl StarknetFeederGatewayClient {
         if only_header {
             get_block_url.query_pairs_mut().append_pair(HEADER_ONLY_QUERY, "true");
         }
-        let old_get_block_url = get_block_url.clone();
-        // For version >= 0.14.0
-        get_block_url.query_pairs_mut().append_pair(FEE_MARKET_INFO_QUERY, "true");
-
-        let mut response = self.request_with_retry_url(get_block_url).await;
-        // TODO(Ayelet): Temporary fallback for backward compatibility. Remove once the version
-        // update to 0.14.0 is complete.
-        if let Err(ReaderClientError::ClientError(ClientError::StarknetError(StarknetError {
-            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-            ..
-        }))) = response
-        {
-            response = self.request_with_retry_url(old_get_block_url).await;
-        }
-        response
+        // TODO(MatanL/Tsabary/Dan/Sahahk): make sure this is NOT in production code.
+        self.request_with_retry_url(get_block_url).await
     }
 
     async fn request_block(
