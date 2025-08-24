@@ -1,12 +1,15 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.ec_point import EcPoint
-from starkware.cairo.common.hash_state import hash_finalize, hash_init, hash_update_single
+from starkware.cairo.common.hash_state import (
+    hash_finalize,
+    hash_init,
+    hash_update,
+    hash_update_single,
+)
 from starkware.cairo.common.registers import get_fp_and_pc
 
 const STARKNET_OS_CONFIG_VERSION = 'StarknetOsConfig3';
-// TODO(Einat): update default value and comments when modifying to handle multiple public keys.
-// The pedersen hash of data =[0, 0].
-const DEFAULT_PUBLIC_KEY_HASH = 0x5d2a2613bcb66b00b159c4ac69e0ed00633e8ca159bf54fe13d356828d2cc13;
+
+const DEFAULT_PUBLIC_KEYS_HASH = 0;
 
 struct StarknetOsConfig {
     // The identifier of the chain.
@@ -14,9 +17,9 @@ struct StarknetOsConfig {
     chain_id: felt,
     // The (L2) address of the fee token contract.
     fee_token_address: felt,
-    // The hash of the public key used to decrypt the state diff.
-    // The default key is the elliptic-curve point (x = 0, y = 0), as used in Starknet environments.
-    public_key_hash: felt,
+    // The hash of the public keys used to encrypt the state diff.
+    // The default hash is 0, as used in Starknet environments.
+    public_keys_hash: felt,
 }
 
 // Calculates the hash of StarkNet OS config.
@@ -33,9 +36,9 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     let (hash_state_ptr) = hash_update_single(
         hash_state_ptr=hash_state_ptr, item=starknet_os_config.fee_token_address
     );
-    if (starknet_os_config.public_key_hash != DEFAULT_PUBLIC_KEY_HASH) {
+    if (starknet_os_config.public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH) {
         let (hash_state_ptr) = hash_update_single(
-            hash_state_ptr=hash_state_ptr, item=starknet_os_config.public_key_hash
+            hash_state_ptr=hash_state_ptr, item=starknet_os_config.public_keys_hash
         );
     } else {
         // align the stack.
@@ -47,10 +50,16 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     return (starknet_os_config_hash=starknet_os_config_hash);
 }
 
-func get_public_key_hash{hash_ptr: HashBuiltin*}(public_key: EcPoint*) -> (public_key_hash: felt) {
+func get_public_keys_hash{hash_ptr: HashBuiltin*}(public_keys_start: felt*, n_keys: felt) -> (
+    public_keys_hash: felt
+) {
+    if (n_keys == 0) {
+        return (public_keys_hash=0);
+    }
     let (hash_state_ptr) = hash_init();
-    let (hash_state_ptr) = hash_update_single(hash_state_ptr=hash_state_ptr, item=public_key.x);
-    let (hash_state_ptr) = hash_update_single(hash_state_ptr=hash_state_ptr, item=public_key.y);
-    let (public_key_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
-    return (public_key_hash=public_key_hash);
+    let (hash_state_ptr) = hash_update(
+        hash_state_ptr=hash_state_ptr, data_ptr=public_keys_start, data_length=n_keys
+    );
+    let (public_keys_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
+    return (public_keys_hash=public_keys_hash);
 }
