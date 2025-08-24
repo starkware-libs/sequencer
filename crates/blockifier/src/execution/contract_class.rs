@@ -94,15 +94,15 @@ impl FeltSizeCount {
     /// Returns the total number of `u32` words required to encode all felts
     /// according to encode_felts_to_u32s func.
     pub(crate) fn encoded_u32_len(&self) -> usize {
-        self.large * blake_encoding::U32_WORDS_PER_LARGE_FELT
-            + self.small * blake_encoding::U32_WORDS_PER_SMALL_FELT
+        self.large * CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT
+            + self.small * CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT
     }
 
     /// Returns the number of BLAKE opcodes required to hash the felts.
     /// Each BLAKE opcode processes one message block of [`U32_WORDS_PER_MESSAGE`] `u32`s
     /// (partial messages are padded).
     pub(crate) fn blake_opcode_count(&self) -> usize {
-        self.encoded_u32_len().div_ceil(blake_encoding::U32_WORDS_PER_MESSAGE)
+        self.encoded_u32_len().div_ceil(CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE)
     }
 
     /// Creates a `FeltSizeCount` by counting how many items in the slice are "small" or "large".
