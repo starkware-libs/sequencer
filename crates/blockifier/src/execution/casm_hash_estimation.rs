@@ -6,6 +6,8 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::execution_resources::GasAmount;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::bouncer::{vm_resources_to_proving_gas, vm_resources_to_sierra_gas, BuiltinWeights};
 use crate::execution::contract_class::{
     EntryPointV1,
     EntryPointsByType,
@@ -70,11 +72,7 @@ impl EstimatedExecutionResources {
         }
     }
 
-    pub fn to_sierra_gas<F>(
-        &self,
-        resources_to_gas_fn: F,
-        blake_opcode_gas: Option<usize>,
-    ) -> GasAmount
+    pub fn to_gas<F>(&self, resources_to_gas_fn: F, blake_opcode_gas: Option<usize>) -> GasAmount
     where
         F: Fn(&ExecutionResources) -> GasAmount,
     {
@@ -91,6 +89,31 @@ impl EstimatedExecutionResources {
                 resources_gas.checked_add_panic_on_overflow(blake_gas)
             }
         }
+    }
+
+    pub fn to_sierra_gas(
+        &self,
+        versioned_constants: &VersionedConstants,
+        blake_opcode_gas: Option<usize>,
+    ) -> GasAmount {
+        self.to_gas(
+            |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
+            blake_opcode_gas,
+        )
+    }
+
+    pub fn to_proving_gas(
+        &self,
+        builtin_weights: &BuiltinWeights,
+        versioned_constants: &VersionedConstants,
+        blake_opcode_gas: Option<usize>,
+    ) -> GasAmount {
+        self.to_gas(
+            |resources| {
+                vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants)
+            },
+            blake_opcode_gas,
+        )
     }
 }
 

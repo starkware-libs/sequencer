@@ -263,9 +263,12 @@ impl RunnableCompiledClass {
         }
     }
 
-    pub fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
+    pub fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
         match self {
-            Self::V0(class) => class.estimate_casm_hash_computation_resources(),
+            Self::V0(class) => EstimatedExecutionResources::from((
+                class.estimate_casm_hash_computation_resources(),
+                HashVersion::V2,
+            )),
             Self::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
             Self::V1Native(class) => class.casm().estimate_casm_hash_computation_resources(),
@@ -275,23 +278,17 @@ impl RunnableCompiledClass {
     /// Estimate the VM gas required to migrate a CompiledClassHash from Poseidon hashing to Blake.
     pub fn estimate_compiled_class_hash_migration_resources(
         &self,
-        versioned_constants: &VersionedConstants,
-        blake_weight: usize,
-    ) -> (GasAmount, BuiltinCounterMap) {
+    ) -> EstimatedExecutionResources {
         match self {
             Self::V0(_) => panic!(
                 "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
                  counted for migration."
             ),
-            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(
-                versioned_constants,
-                blake_weight,
-            ),
+            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(),
             #[cfg(feature = "cairo_native")]
-            Self::V1Native(class) => class.casm().estimate_compiled_class_hash_migration_resources(
-                versioned_constants,
-                blake_weight,
-            ),
+            Self::V1Native(class) => {
+                class.casm().estimate_compiled_class_hash_migration_resources()
+            }
         }
     }
 
@@ -473,8 +470,11 @@ impl CompiledClassV1 {
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
-    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes)
+    fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
+        CasmV2HashResourceEstimate::new(HashVersion::V2).estimated_resources_of_compiled_class_hash(
+            &self.bytecode_segment_felt_sizes,
+            &self.entry_points_by_type,
+        )
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
@@ -488,28 +488,26 @@ impl CompiledClassV1 {
     /// Returns:
     /// - Total gas amount.
     /// - The builtins used in the Poseidon hash.
-    fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-        blake_weight: usize,
-    ) -> (GasAmount, BuiltinCounterMap) {
-        let blake_hash_resources =
-            estimate_casm_blake_hash_computation_resources(&self.bytecode_segment_felt_sizes);
-        let blake_hash_gas = blake_execution_resources_estimation_to_gas(
-            blake_hash_resources,
-            versioned_constants,
-            blake_weight,
-        );
+    fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
+        let blake_hash_resources = CasmV2HashResourceEstimate::new(HashVersion::V2)
+            .estimated_resources_of_compiled_class_hash(
+                &self.bytecode_segment_felt_sizes,
+                &self.entry_points_by_type,
+            );
 
-        let poseidon_hash_resources =
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes);
-        let poseidon_hash_gas =
-            vm_resources_to_sierra_gas(&poseidon_hash_resources, versioned_constants);
+        let poseidon_hash_resources = CasmV1HashResourceEstimate::new(HashVersion::V1)
+            .estimated_resources_of_compiled_class_hash(
+                &self.bytecode_segment_felt_sizes,
+                &self.entry_points_by_type,
+            );
 
-        (
-            blake_hash_gas.checked_add_panic_on_overflow(poseidon_hash_gas),
-            poseidon_hash_resources.builtin_instance_counter.clone(),
-        )
+        let migration_resources = EstimatedExecutionResources::V2Hash {
+            // Can't use `+` operator here because the resources are different types.
+            resources: blake_hash_resources.resources() + poseidon_hash_resources.resources(),
+            blake_count: blake_hash_resources.blake_count(),
+        };
+
+        migration_resources
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
