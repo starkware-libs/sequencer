@@ -348,28 +348,7 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
-<<<<<<< HEAD
-    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self
-            .syscalls_usage
-            .get_mut(selector)
-            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
-        syscall_usage.linear_factor += n;
-    }
-
-||||||| 38f03e1d0
-    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self
-            .syscalls_usage
-            .get_mut(selector)
-            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
-        syscall_usage.linear_factor += n;
-    }
-
     #[allow(clippy::result_large_err)]
-=======
-    #[allow(clippy::result_large_err)]
->>>>>>> origin/main-v0.14.0
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,

@@ -158,6 +158,11 @@ use apollo_signature_manager::communication::{
     LocalSignatureManagerServer,
     RemoteSignatureManagerServer,
 };
+use apollo_signature_manager::metrics::{
+    SIGNATURE_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+    SIGNATURE_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    SIGNATURE_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
+};
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use apollo_state_sync_metrics::metrics::{
@@ -629,17 +634,25 @@ fn create_local_servers(
         config.components.state_sync.max_concurrency
     );
 
-    let signature_manager_metrics = LocalServerMetrics::new(
+    const SIGNATURE_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &SIGNATURE_MANAGER_LOCAL_MSGS_RECEIVED,
         &SIGNATURE_MANAGER_LOCAL_MSGS_PROCESSED,
         &SIGNATURE_MANAGER_LOCAL_QUEUE_DEPTH,
+        &SIGNATURE_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+        &SIGNATURE_MANAGER_LABELED_QUEUEING_TIMES_SECS,
     );
     let signature_manager_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.signature_manager.execution_mode,
         &mut components.signature_manager,
+        &config
+            .components
+            .signature_manager
+            .local_server_config
+            .as_ref()
+            .expect("Signature manager local server config should be available."),
         communication.take_signature_manager_rx(),
-        signature_manager_metrics,
+        &SIGNATURE_MANAGER_METRICS,
         config.components.signature_manager.max_concurrency
     );
 
@@ -830,6 +843,7 @@ pub fn create_remote_servers(
         &SIGNATURE_MANAGER_REMOTE_MSGS_RECEIVED,
         &SIGNATURE_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
         &SIGNATURE_MANAGER_REMOTE_MSGS_PROCESSED,
+        &SIGNATURE_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
     );
     let signature_manager_server = create_remote_server!(
         &config.components.signature_manager.execution_mode,

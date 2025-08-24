@@ -14,14 +14,8 @@ use cairo_vm::vm::runners::cairo_pie::{
     OutputBuiltinAdditionalData,
 };
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-<<<<<<< HEAD
 use starknet_api::core::CompiledClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
-#[cfg(feature = "include_program_output")]
-||||||| 38f03e1d0
-#[cfg(feature = "include_program_output")]
-=======
->>>>>>> origin/main-v0.14.0
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -31,7 +25,7 @@ use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-<<<<<<< HEAD
+use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
 use crate::io::os_input::{
     CachedStateInput,
     OsBlockInput,
@@ -39,12 +33,6 @@ use crate::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-||||||| 38f03e1d0
-use crate::io::os_input::{OsHints, StarknetOsInput};
-=======
-use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
-use crate::io::os_input::{OsHints, StarknetOsInput};
->>>>>>> origin/main-v0.14.0
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
 use crate::vm_utils::vm_error_with_code_snippet;
@@ -126,8 +114,7 @@ pub fn run_os<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-<<<<<<< HEAD
-    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
+    let (runner_output, snos_hint_processor, is_onchain_kzg_da) = create_hint_processor_and_run_os(
         layout,
         os_hints_config,
         &os_block_inputs,
@@ -137,7 +124,7 @@ pub fn run_os<S: StateReader>(
         state_readers,
     )?;
 
-    generate_os_output(runner_output, snos_hint_processor)
+    generate_os_output(runner_output, snos_hint_processor, is_onchain_kzg_da)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -149,16 +136,13 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
-) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>), StarknetOsError> {
-||||||| 38f03e1d0
-=======
+) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>, bool), StarknetOsError> {
     let is_onchain_kzg_da = !os_hints_config.full_output && os_hints_config.use_kzg_da;
 
->>>>>>> origin/main-v0.14.0
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
-        os_hints_config,
+        os_hints_config, // moved here
         os_block_inputs.iter().collect(),
         cached_state_inputs,
         deprecated_compiled_classes,
@@ -169,17 +153,14 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     // Run the OS program.
     let runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
 
-<<<<<<< HEAD
-    Ok((runner_output, snos_hint_processor))
+    Ok((runner_output, snos_hint_processor, is_onchain_kzg_da))
 }
 
 fn generate_os_output(
     mut runner_output: RunnerReturnObject,
     mut snos_hint_processor: SnosHintProcessor<'_, impl StateReader>,
+    is_onchain_kzg_da: bool,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-||||||| 38f03e1d0
-=======
-    // Extract the output attributes.
     let BuiltinAdditionalData::Output(OutputBuiltinAdditionalData {
         attributes: output_attributes,
         ..
@@ -194,23 +175,19 @@ fn generate_os_output(
     };
 
     if is_onchain_kzg_da {
-        // Sanity check.
         assert!(output_attributes.is_empty(), "No attributes should be added in KZG mode.");
     } else {
-        // The data-availability should be part of the output.
         assert!(
             output_attributes.contains_key(OUTPUT_ATTRIBUTE_FACT_TOPOLOGY),
             "{OUTPUT_ATTRIBUTE_FACT_TOPOLOGY:?} is missing.",
         );
     }
 
->>>>>>> origin/main-v0.14.0
+    // Existing HEAD return body stays as-is
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]
         os_output: {
             use crate::io::os_output_types::TryFromOutputIter;
-            // Prepare and check expected output.
-            // TODO(Rotem): Check if we can remove the clone here.
             let os_raw_output = runner_output.raw_output.clone();
             let os_output = crate::io::os_output::OsOutput::try_from_output_iter(
                 &mut os_raw_output.into_iter(),
@@ -247,22 +224,23 @@ pub fn run_os_for_testing<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
-    let (mut runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
-        layout,
-        os_hints_config,
-        &os_block_inputs,
-        cached_state_inputs,
-        deprecated_compiled_classes,
-        compiled_classes,
-        state_readers,
-    )?;
+    let (mut runner_output, snos_hint_processor, is_onchain_kzg_da) =
+        create_hint_processor_and_run_os(
+            layout,
+            os_hints_config,
+            &os_block_inputs,
+            cached_state_inputs,
+            deprecated_compiled_classes,
+            compiled_classes,
+            state_readers,
+        )?;
 
     crate::test_utils::validations::validate_builtins(&mut runner_output.cairo_runner);
 
     let txs_trace: Vec<OsTransactionTrace> =
         snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
 
-    Ok((generate_os_output(runner_output, snos_hint_processor)?, txs_trace))
+    Ok((generate_os_output(runner_output, snos_hint_processor, is_onchain_kzg_da)?, txs_trace))
 }
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was

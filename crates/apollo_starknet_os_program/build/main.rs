@@ -9,13 +9,6 @@ mod dump_source;
 #[tokio::main]
 async fn main() {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set."));
-<<<<<<< HEAD
-||||||| 38f03e1d0
-
-    #[cfg(feature = "dump_source_files")]
-=======
-
->>>>>>> origin/main-v0.14.0
     dump_source::dump_source_files(&out_dir.join("cairo_files_map.json"));
 
     let mut task_set = tokio::task::JoinSet::new();

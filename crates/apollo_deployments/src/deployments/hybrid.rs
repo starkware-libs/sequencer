@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -47,7 +47,7 @@ use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInne
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::{determine_port_numbers, get_validator_id};
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
 pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
@@ -95,26 +95,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
             }
         };
 
-<<<<<<< HEAD
-        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
-        let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
-        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::L1.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::L1.component_config_pair(ports[4]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
-        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[8]);
-||||||| 38f03e1d0
-        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
-        let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
-        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::L1.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::L1.component_config_pair(ports[4]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
-=======
         let batcher = HybridNodeServiceName::Core
             .component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager = HybridNodeServiceName::Core
@@ -125,13 +105,16 @@ impl GetComponentConfigs for HybridNodeServiceName {
             .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
         let l1_provider = HybridNodeServiceName::L1
             .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let l1_endpoint_monitor = HybridNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
         let mempool = HybridNodeServiceName::Mempool
             .component_config_pair(service_ports[&InfraServicePort::Mempool]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler
             .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
+        let signature_manager = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
         let state_sync = HybridNodeServiceName::Core
             .component_config_pair(service_ports[&InfraServicePort::StateSync]);
->>>>>>> origin/main-v0.14.0
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -140,6 +123,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
+                    l1_endpoint_monitor.remote(),
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
@@ -354,7 +338,6 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-<<<<<<< HEAD
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
         let mut service_ports = BTreeSet::new();
 
@@ -373,7 +356,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-                            | InfraServicePort::StateSync => {
+                            | InfraServicePort::StateSync
+                            | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Gateway
@@ -381,7 +365,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
                             | InfraServicePort::SierraCompiler => {}
                         },
                     }
@@ -527,177 +510,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             }
         }
         service_ports
-||||||| 38f03e1d0
-    // TODO(Nadin): Implement this method to return the actual ports used by the service.
-    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
-=======
-    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
-        let mut service_ports = BTreeSet::new();
-        match self {
-            HybridNodeServiceName::Core => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::ConsensusP2P => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::StateSync => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Gateway
-                            | InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            HybridNodeServiceName::HttpServer => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::HttpServer => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::ConsensusP2P
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            HybridNodeServiceName::Gateway => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2P
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Gateway => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            HybridNodeServiceName::L1 => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2P
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            HybridNodeServiceName::Mempool => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2P
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::Mempool => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::Gateway
-                            | InfraServicePort::SierraCompiler => {}
-                        },
-                    }
-                }
-            }
-            HybridNodeServiceName::SierraCompiler => {
-                for service_port in ServicePort::iter() {
-                    match service_port {
-                        ServicePort::BusinessLogic(bl_port) => match bl_port {
-                            BusinessLogicServicePort::MonitoringEndpoint => {
-                                service_ports.insert(service_port);
-                            }
-                            BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusP2P
-                            | BusinessLogicServicePort::MempoolP2p => {}
-                        },
-                        ServicePort::Infra(infra_port) => match infra_port {
-                            InfraServicePort::SierraCompiler => {
-                                service_ports.insert(service_port);
-                            }
-                            InfraServicePort::Batcher
-                            | InfraServicePort::ClassManager
-                            | InfraServicePort::L1EndpointMonitor
-                            | InfraServicePort::L1GasPriceProvider
-                            | InfraServicePort::L1Provider
-                            | InfraServicePort::StateSync
-                            | InfraServicePort::Mempool
-                            | InfraServicePort::Gateway => {}
-                        },
-                    }
-                }
-            }
-        }
-        service_ports
->>>>>>> origin/main-v0.14.0
     }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
@@ -935,6 +747,7 @@ fn get_core_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
@@ -946,6 +759,7 @@ fn get_core_component_config(
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.l1_provider = l1_provider_remote_config;
+    config.l1_endpoint_monitor = l1_endpoint_monitor_remote_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;

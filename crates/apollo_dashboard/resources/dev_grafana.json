@@ -3520,6 +3520,16 @@
         "extra_params": {}
       },
       {
+        "title": "class_manager_labeled_processing_times_secs get_executable_class_hash_v2",
+        "description": "Request processing times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "class_manager_labeled_processing_times_secs get_sierra",
         "description": "Request processing times of the class manager, per label (secs): get_sierra",
         "type": "timeseries",
@@ -3566,6 +3576,16 @@
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs get_executable_class_hash_v2",
+        "description": "Request queueing times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
         ],
         "extra_params": {}
       },
@@ -3620,6 +3640,16 @@
         "extra_params": {}
       },
       {
+        "title": "class_manager_labeled_local_response_times_secs get_executable_class_hash_v2",
+        "description": "Request local response times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "class_manager_labeled_local_response_times_secs get_sierra",
         "description": "Request local response times of the class manager, per label (secs): get_sierra",
         "type": "timeseries",
@@ -3670,6 +3700,16 @@
         "extra_params": {}
       },
       {
+        "title": "class_manager_labeled_remote_response_times_secs get_executable_class_hash_v2",
+        "description": "Request remote response times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "class_manager_labeled_remote_response_times_secs get_sierra",
         "description": "Request remote response times of the class manager, per label (secs): get_sierra",
         "type": "timeseries",
@@ -3716,6 +3756,16 @@
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_executable_class_hash_v2",
+        "description": "Request communication failure times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
         ],
         "extra_params": {}
       },

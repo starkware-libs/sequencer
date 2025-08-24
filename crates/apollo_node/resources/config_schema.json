@@ -79,15 +79,15 @@
     "privacy": "Public",
     "value": 583
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.ecop": {
-    "description": "Ec_op gas weight.",
-    "privacy": "Public",
-    "value": 714875
-  },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.ecdsa": {
     "description": "Ecdsa gas weight.",
     "privacy": "Public",
     "value": 1666666
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.ecop": {
+    "description": "Ec_op gas weight.",
+    "privacy": "Public",
+    "value": 714875
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.keccak": {
     "description": "Keccak gas weight.",
@@ -1204,40 +1204,75 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.signature_manager.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.signature_manager.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.signature_manager.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
+  },
+  "components.signature_manager.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.signature_manager.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.signature_manager.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.signature_manager.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.signature_manager.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
   },
+  "components.signature_manager.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "components.signature_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
   },
-  "components.signature_manager.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.signature_manager.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.signature_manager.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.signature_manager.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.signature_manager.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
   },
   "components.signature_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.signature_manager.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1
   },
   "components.signature_manager.url": {
     "description": "URL of the remote component server.",
