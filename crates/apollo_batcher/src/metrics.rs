@@ -1,4 +1,19 @@
 use apollo_batcher_types::communication::BATCHER_REQUEST_LABELS;
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    BATCHER_LOCAL_MSGS_PROCESSED,
+    BATCHER_LOCAL_MSGS_RECEIVED,
+    BATCHER_LOCAL_QUEUE_DEPTH,
+    BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    BATCHER_REMOTE_MSGS_PROCESSED,
+    BATCHER_REMOTE_MSGS_RECEIVED,
+    BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
+    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_metrics::define_metrics;
 use blockifier::metrics::{
     CALLS_RUNNING_NATIVE,
@@ -109,3 +124,25 @@ impl Drop for ProposalMetricsHandle {
         }
     }
 }
+
+pub const _BATCHER_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(&BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &BATCHER_LOCAL_MSGS_RECEIVED,
+        &BATCHER_LOCAL_MSGS_PROCESSED,
+        &BATCHER_LOCAL_QUEUE_DEPTH,
+        &BATCHER_LABELED_PROCESSING_TIMES_SECS,
+        &BATCHER_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &BATCHER_REMOTE_MSGS_RECEIVED,
+        &BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+        &BATCHER_REMOTE_MSGS_PROCESSED,
+        &BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};

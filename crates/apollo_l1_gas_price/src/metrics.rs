@@ -1,3 +1,18 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
+    L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
+    L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
+    L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
+    L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
+    L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_l1_gas_price_types::L1_GAS_PRICE_REQUEST_LABELS;
 use apollo_metrics::define_metrics;
 
@@ -66,3 +81,25 @@ pub(crate) fn register_eth_to_strk_metrics() {
     ETH_TO_STRK_SUCCESS_COUNT.register();
     ETH_TO_STRK_RATE.register();
 }
+
+pub(crate) const _L1_GAS_PRICE_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(&L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
+        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
+        &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
+        &L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+        &L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
+        &L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+        &L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
+        &L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};

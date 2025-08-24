@@ -1,3 +1,18 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
+    MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
+    MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_mempool_p2p_types::communication::MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS;
 use apollo_metrics::define_metrics;
 
@@ -21,3 +36,25 @@ define_metrics!(
         LabeledMetricHistogram { MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "mempool_p2p_labeled_remote_client_communication_failure_times_secs", "Request communication failure times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
     },
 );
+
+pub(crate) const _MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
+        &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
+        &MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+        &MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
+        &MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
+        &MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
+        &MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
+        &MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};

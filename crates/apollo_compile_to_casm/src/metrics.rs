@@ -1,4 +1,19 @@
 use apollo_compile_to_casm_types::SIERRA_COMPILER_REQUEST_LABELS;
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
+    SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
+    SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+    SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
+    SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
+    SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS,
+    SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_metrics::define_metrics;
 
 define_metrics!(
@@ -17,3 +32,27 @@ define_metrics!(
 pub(crate) fn register_metrics() {
     COMPILATION_DURATION.register();
 }
+
+pub(crate) const _SIERRA_COMPILER_INFRA_METRICS: InfraMetrics = InfraMetrics {
+    local_client_metrics: LocalClientMetrics::new(
+        &SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    ),
+    remote_client_metrics: RemoteClientMetrics::new(
+        &SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &SIERRA_COMPILER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    local_server_metrics: LocalServerMetrics::new(
+        &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
+        &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
+        &SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+        &SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
+        &SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    remote_server_metrics: RemoteServerMetrics::new(
+        &SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
+        &SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
+        &SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
+        &SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+};
