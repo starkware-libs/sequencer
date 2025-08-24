@@ -341,6 +341,9 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
+        // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
+        pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+
         let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
         let builtin_instance_counter = match felt_size_groups.n_felts() {
             // The empty case does not use builtins at all.
