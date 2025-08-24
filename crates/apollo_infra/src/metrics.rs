@@ -115,6 +115,10 @@ impl LocalClientMetrics {
     pub fn record_response_time(&self, duration_secs: f64, request_label: &'static str) {
         self.response_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
+
+    pub fn get_response_time_metric(&self) -> &'static LabeledMetricHistogram {
+        self.response_times
+    }
 }
 
 /// Metrics of a remote client.
@@ -152,6 +156,18 @@ impl RemoteClientMetrics {
     pub fn record_communication_failure(&self, duration_secs: f64, request_label: &'static str) {
         self.communication_failure_times
             .record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
+    }
+
+    pub fn get_attempts_metric(&self) -> &'static MetricHistogram {
+        self.attempts
+    }
+
+    pub fn get_response_time_metric(&self) -> &'static LabeledMetricHistogram {
+        self.response_times
+    }
+
+    pub fn get_communication_failure_time_metric(&self) -> &'static LabeledMetricHistogram {
+        self.communication_failure_times
     }
 }
 
@@ -224,6 +240,26 @@ impl LocalServerMetrics {
     pub fn record_queueing_time(&self, duration_secs: f64, request_label: &'static str) {
         self.queueing_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
+
+    pub fn get_processing_time_metric(&self) -> &'static LabeledMetricHistogram {
+        self.processing_times
+    }
+
+    pub fn get_queueing_time_metric(&self) -> &'static LabeledMetricHistogram {
+        self.queueing_times
+    }
+
+    pub fn get_received_metric(&self) -> &'static MetricCounter {
+        self.received_msgs
+    }
+
+    pub fn get_processed_metric(&self) -> &'static MetricCounter {
+        self.processed_msgs
+    }
+
+    pub fn get_queue_depth_metric(&self) -> &'static MetricGauge {
+        self.queue_depth
+    }
 }
 
 /// A struct to contain all metrics for a remote server.
@@ -231,7 +267,7 @@ pub struct RemoteServerMetrics {
     total_received_msgs: &'static MetricCounter,
     valid_received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
-    pub number_of_connections: &'static MetricGauge,
+    number_of_connections: &'static MetricGauge,
 }
 
 impl RemoteServerMetrics {
@@ -297,5 +333,21 @@ impl RemoteServerMetrics {
         self.number_of_connections
             .parse_numeric_metric::<usize>(metrics_as_string)
             .expect("number_of_connections metrics should be available")
+    }
+
+    pub fn get_total_received_metric(&self) -> &'static MetricCounter {
+        self.total_received_msgs
+    }
+
+    pub fn get_valid_received_metric(&self) -> &'static MetricCounter {
+        self.valid_received_msgs
+    }
+
+    pub fn get_processed_metric(&self) -> &'static MetricCounter {
+        self.processed_msgs
+    }
+
+    pub fn get_number_of_connections_metric(&self) -> &'static MetricGauge {
+        self.number_of_connections
     }
 }
