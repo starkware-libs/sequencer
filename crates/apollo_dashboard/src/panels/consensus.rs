@@ -50,6 +50,18 @@ use crate::dashboard::{Panel, PanelType, Row};
 fn get_panel_consensus_block_number() -> Panel {
     Panel::from_gauge(&CONSENSUS_BLOCK_NUMBER, PanelType::TimeSeries)
 }
+fn get_panel_consensus_block_number_diff_between_nodes() -> Panel {
+    Panel::new(
+        "block_number_diff_between_nodes",
+        "Block number diff between nodes",
+        vec![format!(
+            "(max({}) - min({}))",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
 fn get_panel_consensus_round() -> Panel {
     Panel::from_gauge(&CONSENSUS_ROUND, PanelType::TimeSeries)
 }
@@ -193,6 +205,7 @@ pub(crate) fn get_consensus_row() -> Row {
         "Consensus",
         vec![
             get_panel_consensus_block_number(),
+            get_panel_consensus_block_number_diff_between_nodes(),
             get_panel_consensus_round(),
             get_panel_consensus_round_avg(),
             get_panel_consensus_round_above_zero(),

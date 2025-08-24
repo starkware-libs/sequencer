@@ -11,6 +11,15 @@
         "extra_params": {}
       },
       {
+        "title": "block_number_diff_between_nodes",
+        "description": "Block number diff between nodes",
+        "type": "timeseries",
+        "exprs": [
+          "(max(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - min(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}))"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "consensus_round",
         "description": "The round of the state machine",
         "type": "timeseries",
