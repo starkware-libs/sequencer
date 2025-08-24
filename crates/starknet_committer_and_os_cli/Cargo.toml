@@ -45,8 +45,6 @@ starknet_committer.workspace = true
 starknet_os = { workspace = true, features = ["deserialize", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing-subscriber.workspace = true
@@ -60,4 +58,4 @@ path = "benches/main.rs"
 # Optional dependencies required for tests and the testing feature.
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
 [package.metadata.cargo-machete]
-ignored = ["hex", "strum_macros"]
+ignored = ["hex"]

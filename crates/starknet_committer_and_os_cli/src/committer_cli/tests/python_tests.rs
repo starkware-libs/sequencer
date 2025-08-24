@@ -9,6 +9,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -34,12 +35,13 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 use tracing::{debug, error, info, warn};
 
-use super::utils::parse_from_python::TreeFlowInput;
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
 use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
-use crate::committer_cli::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
-use crate::committer_cli::tests::utils::random_structs::DummyRandomValue;
+use crate::committer_cli::tests::parse_from_python::{
+    parse_input_single_storage_tree_flow_test,
+    TreeFlowInput,
+};
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 
 pub type CommitterPythonTestError = PythonTestError<CommitterSpecificTestError>;
