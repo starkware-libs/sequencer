@@ -20,7 +20,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.apollo-alpha-test-2.sw-dev.io",
+        "external_dns_name": "sequencer-core-service.apollo-mainnet-test-2.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
@@ -38,9 +38,10 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-2"
+        "gcsm_key": "apollo-mainnet-test-2"
       },
       "anti_affinity": true,
+<<<<<<< HEAD
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
@@ -48,6 +49,18 @@
         "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Batcher": 55000,
+        "ClassManager": 55001,
+        "StateSync": 55009,
+        "ConsensusP2P": 53080,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "HttpServer",
@@ -65,7 +78,7 @@
       "ingress": {
         "domain": "sw-dev.io",
         "alternative_names": [
-          "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io"
+          "sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io"
         ],
         "internal": false,
         "rules": [
@@ -92,13 +105,23 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-2"
+        "gcsm_key": "apollo-mainnet-test-2"
       },
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "HttpServer": 8080,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "Gateway",
@@ -130,13 +153,23 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-2"
+        "gcsm_key": "apollo-mainnet-test-2"
       },
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Gateway": 55002,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "L1",
@@ -161,7 +194,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": "apollo-l1-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -173,8 +206,9 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-2"
+        "gcsm_key": "apollo-mainnet-test-2"
       },
+<<<<<<< HEAD
       "anti_affinity": false,
       "ports": {
         "L1EndpointMonitor": 55005,
@@ -182,6 +216,19 @@
         "L1Provider": 55004,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "anti_affinity": false,
+      "ports": {}
+=======
+      "anti_affinity": true,
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "Mempool",
@@ -200,13 +247,13 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.apollo-alpha-test-2.sw-dev.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-mainnet-test-2.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -218,13 +265,23 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-2"
+        "gcsm_key": "apollo-mainnet-test-2"
       },
       "anti_affinity": true,
+<<<<<<< HEAD
       "ports": {
         "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "Mempool": 55006,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "SierraCompiler",
@@ -256,13 +313,23 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-2"
+        "gcsm_key": "apollo-mainnet-test-2"
       },
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "SierraCompiler": 55007,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     }
   ]
 }

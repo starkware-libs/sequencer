@@ -34,7 +34,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
 
     steps:
       - name: Checkout repository

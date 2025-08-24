@@ -12,6 +12,7 @@ use crate::state_reader::utils::{get_block_numbers_for_reexecution, reexecute_bl
 #[case::v_0_13_3(1000000)]
 #[case::v_0_13_4(1257000)]
 #[case::v_0_13_5(1300000)]
+#[case::v_0_13_6(1743490)]
 #[case::first_v_0_13_5_rpc_v8(1400000)]
 #[case::second_v_0_13_5_rpc_v8(1450000)]
 #[case::invoke_with_replace_class_syscall(780008)]

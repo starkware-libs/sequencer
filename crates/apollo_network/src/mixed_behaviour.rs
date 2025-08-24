@@ -1,11 +1,14 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use std::convert::Infallible;
+
+use libp2p::connection_limits::ConnectionLimits;
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
-use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
+use libp2p::{connection_limits, gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
 use starknet_api::core::ChainId;
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
@@ -18,6 +21,7 @@ use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
+    pub limits: connection_limits::Behaviour,
     pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
@@ -68,12 +72,28 @@ impl MixedBehaviour {
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
+<<<<<<< HEAD
         let mut kademlia_config = kad::Config::default();
         kademlia_config.set_protocol_names(vec![
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
+||||||| 38f03e1d0
+        let mut kademlia_config = kad::Config::default();
+        kademlia_config.set_protocol_names(vec![
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
+        ]);
+=======
+        let protocol_name =
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
+                .expect("Failed to create StreamProtocol from a string that starts with /");
+        let kademlia_config = kad::Config::new(protocol_name);
+        let connection_limits = ConnectionLimits::default().with_max_established_per_peer(Some(1));
+
+>>>>>>> origin/main-v0.14.0
         Self {
+            limits: connection_limits::Behaviour::new(connection_limits),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {
@@ -125,5 +145,11 @@ impl MixedBehaviour {
                 )
             }),
         }
+    }
+}
+
+impl From<Infallible> for Event {
+    fn from(infallible: Infallible) -> Self {
+        match infallible {}
     }
 }

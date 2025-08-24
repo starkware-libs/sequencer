@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
@@ -10,12 +10,23 @@ use tracing::error;
 use validator::{Validate, ValidationError};
 
 use crate::config::config_utils::create_validation_error;
+use crate::config::definitions::ConfigExpectation::{self, Redundant, Required};
+use crate::config::definitions::ConfigPresence::{self, Absent, Present};
 
 const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 const DEFAULT_INVALID_PORT: u16 = 0;
 
-pub const MAX_CONCURRENCY: usize = 8;
+// TODO(Tsabary): create custom configs per service, considering the required throughput and spike
+// tolerance.
+
+// TODO(Tsabary): rename this constant and config field to better reflect its purpose.
+
+pub const MAX_CONCURRENCY: usize = 128;
+
+pub trait ExpectedComponentConfig {
+    fn is_running_locally(&self) -> bool;
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
@@ -25,10 +36,31 @@ pub enum ReactiveComponentExecutionMode {
     LocalExecutionWithRemoteDisabled,
 }
 
+impl ExpectedComponentConfig for ReactiveComponentExecutionMode {
+    fn is_running_locally(&self) -> bool {
+        match self {
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                false
+            }
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActiveComponentExecutionMode {
     Disabled,
     Enabled,
+}
+
+impl ExpectedComponentConfig for ActiveComponentExecutionMode {
+    fn is_running_locally(&self) -> bool {
+        match self {
+            ActiveComponentExecutionMode::Disabled => false,
+            ActiveComponentExecutionMode::Enabled => true,
+        }
+    }
 }
 
 /// Reactive component configuration.
@@ -36,8 +68,8 @@ pub enum ActiveComponentExecutionMode {
 #[validate(schema(function = "validate_reactive_component_execution_config"))]
 pub struct ReactiveComponentExecutionConfig {
     pub execution_mode: ReactiveComponentExecutionMode,
-    pub local_server_config: LocalServerConfig,
-    pub remote_client_config: RemoteClientConfig,
+    pub local_server_config: Option<LocalServerConfig>,
+    pub remote_client_config: Option<RemoteClientConfig>,
     #[validate(custom = "validate_max_concurrency")]
     pub max_concurrency: usize,
     pub url: String,
@@ -81,8 +113,8 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
         ]);
         vec![
             members,
-            prepend_sub_config_name(self.local_server_config.dump(), "local_server_config"),
-            prepend_sub_config_name(self.remote_client_config.dump(), "remote_client_config"),
+            ser_optional_sub_config(&self.local_server_config, "local_server_config"),
+            ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
         ]
         .into_iter()
         .flatten()
@@ -100,8 +132,8 @@ impl ReactiveComponentExecutionConfig {
     pub fn disabled() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
+            local_server_config: None,
+            remote_client_config: None,
             max_concurrency: MAX_CONCURRENCY,
             url: DEFAULT_URL.to_string(),
             ip: DEFAULT_IP,
@@ -112,9 +144,9 @@ impl ReactiveComponentExecutionConfig {
     pub fn remote(url: String, ip: IpAddr, port: u16) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Remote,
-            local_server_config: LocalServerConfig::default(),
+            local_server_config: None,
             max_concurrency: MAX_CONCURRENCY,
-            remote_client_config: RemoteClientConfig::default(),
+            remote_client_config: Some(RemoteClientConfig::default()),
             url,
             ip,
             port,
@@ -124,8 +156,8 @@ impl ReactiveComponentExecutionConfig {
     pub fn local_with_remote_enabled(url: String, ip: IpAddr, port: u16) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
+            local_server_config: Some(LocalServerConfig::default()),
+            remote_client_config: None,
             max_concurrency: MAX_CONCURRENCY,
             url,
             ip,
@@ -136,8 +168,8 @@ impl ReactiveComponentExecutionConfig {
     pub fn local_with_remote_disabled() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
+            local_server_config: Some(LocalServerConfig::default()),
+            remote_client_config: None,
             max_concurrency: MAX_CONCURRENCY,
             url: DEFAULT_URL.to_string(),
             ip: DEFAULT_IP,
@@ -151,6 +183,12 @@ impl ReactiveComponentExecutionConfig {
     #[cfg(any(feature = "testing", test))]
     pub fn set_url_to_localhost(&mut self) {
         self.url = Ipv4Addr::LOCALHOST.to_string();
+    }
+}
+
+impl ExpectedComponentConfig for ReactiveComponentExecutionConfig {
+    fn is_running_locally(&self) -> bool {
+        self.execution_mode.is_running_locally()
     }
 }
 
@@ -175,6 +213,12 @@ impl SerializeConfig for ActiveComponentExecutionConfig {
 impl Default for ActiveComponentExecutionConfig {
     fn default() -> Self {
         ActiveComponentExecutionConfig::enabled()
+    }
+}
+
+impl ExpectedComponentConfig for ActiveComponentExecutionConfig {
+    fn is_running_locally(&self) -> bool {
+        self.execution_mode.is_running_locally()
     }
 }
 
@@ -219,9 +263,45 @@ fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationErro
     }
 }
 
+fn check_presence(
+    field: &str,
+    presence: ConfigPresence,
+    config_expectation: ConfigExpectation,
+    execution_mode: &ReactiveComponentExecutionMode,
+) -> Result<(), ValidationError> {
+    match (presence, config_expectation) {
+        (Absent, Required) => Err(create_validation_error(
+            format!("{field} config is required when execution mode is {execution_mode:?}."),
+            "Missing expected server config.",
+            "Ensure the server config is set.",
+        )),
+        (Present, Redundant) => Err(create_validation_error(
+            format!("{field} config should not be set when execution mode is {execution_mode:?}."),
+            "Unexpected server config.",
+            "Ensure the server config is not set.",
+        )),
+        _ => Ok(()),
+    }
+}
+
 fn validate_reactive_component_execution_config(
     component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
+    // Validate the execution mode matches presence/absence of local and remote server configs.
+    let has_local: ConfigPresence = (&component_config.local_server_config).into();
+    let has_remote: ConfigPresence = (&component_config.remote_client_config).into();
+
+    // Which local/remote server configs are required or redundent for each execution mode.
+    let (local_req, remote_req) = match &component_config.execution_mode {
+        ReactiveComponentExecutionMode::Disabled => (Redundant, Redundant),
+        ReactiveComponentExecutionMode::Remote => (Redundant, Required),
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => (Required, Redundant),
+    };
+    check_presence("local server", has_local, local_req, &component_config.execution_mode)?;
+    check_presence("remote client", has_remote, remote_req, &component_config.execution_mode)?;
+
+    // Validate the execution mode matches socket validity.
     match (&component_config.execution_mode, component_config.is_valid_socket()) {
         (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
         (ReactiveComponentExecutionMode::Remote, true)

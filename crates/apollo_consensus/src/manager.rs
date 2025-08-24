@@ -191,6 +191,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        info!("Running consensus for height {}.", height);
         let res = self
             .run_height_inner(
                 context,
@@ -236,6 +237,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.report_max_cached_block_number_metric(height);
         if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
@@ -247,7 +249,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
             height, is_observer, validators,
         );
-        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
         let mut shc = SingleHeightConsensus::new(
             height,
@@ -451,7 +452,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
         match message.height.cmp(&height.0) {
             std::cmp::Ordering::Greater => {
-                debug!("Cache message for a future height. {:?}", message);
+                trace!("Cache message for a future height. {:?}", message);
                 self.future_votes.entry(message.height).or_default().push(message);
                 Ok(ShcReturn::Tasks(Vec::new()))
             }

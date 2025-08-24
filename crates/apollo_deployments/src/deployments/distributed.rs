@@ -30,6 +30,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::update_strategy::UpdateStrategy;
 use crate::utils::determine_port_numbers;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
@@ -65,8 +66,28 @@ impl From<DistributedNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
-        let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
+        match ports {
+            Some(ports) => {
+                let determined_ports = determine_port_numbers(
+                    Some(ports),
+                    DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
+                    BASE_PORT,
+                );
+                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                // Extract the service ports for all inner services of the distributed node.
+                for inner_service_name in DistributedNodeServiceName::iter() {
+                    let inner_service_port = inner_service_name.get_infra_service_port_mapping();
+                    service_ports.extend(inner_service_port);
+                }
+            }
+        };
 
+<<<<<<< HEAD
         let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
         let class_manager =
             DistributedNodeServiceName::ClassManager.component_config_pair(ports[1]);
@@ -80,6 +101,38 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
         let signature_manager =
             DistributedNodeServiceName::ConsensusManager.component_config_pair(ports[9]);
+||||||| 38f03e1d0
+        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
+        let class_manager =
+            DistributedNodeServiceName::ClassManager.component_config_pair(ports[1]);
+        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(ports[2]);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1.component_config_pair(ports[3]);
+        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(ports[4]);
+        let l1_endpoint_monitor = DistributedNodeServiceName::L1.component_config_pair(ports[5]);
+        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(ports[6]);
+        let sierra_compiler =
+            DistributedNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
+        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
+=======
+        let batcher = DistributedNodeServiceName::Batcher
+            .component_config_pair(service_ports[&InfraServicePort::Batcher]);
+        let class_manager = DistributedNodeServiceName::ClassManager
+            .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let gateway = DistributedNodeServiceName::Gateway
+            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_endpoint_monitor = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let mempool = DistributedNodeServiceName::Mempool
+            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+            .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
+        let state_sync = DistributedNodeServiceName::StateSync
+            .component_config_pair(service_ports[&InfraServicePort::StateSync]);
+>>>>>>> origin/main-v0.14.0
 
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in DistributedNodeServiceName::iter() {
@@ -182,8 +235,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::L1 => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                DistributedNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
+                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
                 DistributedNodeServiceName::SierraCompiler => {
                     Some(Toleration::ApolloGeneralService)
                 }
@@ -276,6 +329,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+<<<<<<< HEAD
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
         let mut service_ports = BTreeSet::new();
 
@@ -560,6 +614,259 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
 
         service_ports
+||||||| 38f03e1d0
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        BTreeMap::new()
+=======
+    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
+        let mut service_ports = BTreeSet::new();
+
+        match self {
+            DistributedNodeServiceName::Batcher => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Batcher => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::StateSync
+                            | InfraServicePort::SierraCompiler => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::ClassManager => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::ClassManager => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::StateSync
+                            | InfraServicePort::SierraCompiler => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::ConsensusManager => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::HttpServer => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
+
+            DistributedNodeServiceName::Gateway => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Gateway => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::L1 => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::Mempool => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Mempool => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::SierraCompiler => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::SierraCompiler => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::StateSync => {}
+                        },
+                    }
+                }
+            }
+            DistributedNodeServiceName::StateSync => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::ConsensusP2P
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::StateSync => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler => {}
+                        },
+                    }
+                }
+            }
+        }
+
+        service_ports
+>>>>>>> origin/main-v0.14.0
     }
 
     // TODO(Tsabary): verify that each service runs the components it should.
@@ -644,8 +951,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::HttpServer => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::General
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -819,6 +1126,20 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
         components
     }
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            DistributedNodeServiceName::Batcher => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::ClassManager => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::ConsensusManager => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::Mempool => UpdateStrategy::Recreate,
+            DistributedNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
+            DistributedNodeServiceName::StateSync => UpdateStrategy::Recreate,
+        }
+    }
 }
 
 impl DistributedNodeServiceName {
@@ -844,8 +1165,11 @@ impl DistributedNodeServiceName {
         );
         match self {
             DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
-                base.remote_client_config.idle_connections =
-                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
             }
             DistributedNodeServiceName::Batcher
             | DistributedNodeServiceName::ClassManager

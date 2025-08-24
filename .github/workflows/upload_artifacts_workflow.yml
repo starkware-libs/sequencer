@@ -17,22 +17,22 @@ on:
     paths:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
-      - '.github/workflows/blockifier_ci.yml'
-      - '.github/workflows/upload_artifacts_workflow.yml'
-      - 'build_native_in_docker.sh'
-      - 'docker-ci/images/sequencer-ci.Dockerfile'
-      - 'scripts/build_native_blockifier.sh'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
-      - 'crates/blockifier/**'
-      - 'crates/native_blockifier/**'
-      - 'crates/apollo_state_reader/**'
-      - 'crates/apollo_storage/**'
-      - 'crates/starknet_api/**'
-      - 'crates/apollo_sierra_multicompile/**'
-      - 'rust-toolchain.toml'
+      - ".github/workflows/blockifier_ci.yml"
+      - ".github/workflows/upload_artifacts_workflow.yml"
+      - "build_native_in_docker.sh"
+      - "docker-ci/images/sequencer-ci.Dockerfile"
+      - "scripts/build_native_blockifier.sh"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/blockifier/**"
+      - "crates/native_blockifier/**"
+      - "crates/apollo_state_reader/**"
+      - "crates/apollo_storage/**"
+      - "crates/starknet_api/**"
+      - "crates/apollo_sierra_multicompile/**"
+      - "rust-toolchain.toml"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -48,7 +48,7 @@ env:
 
 jobs:
   native-blockifier-artifacts-push:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
 
@@ -69,7 +69,7 @@ jobs:
       # Set environment variables.
       - name: Set environment variable
         env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "WORKFLOW_LINK=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
@@ -81,7 +81,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
+          comment-author: "github-actions[bot]"
           body-includes: Artifacts upload workflows
 
       - name: Create comment

@@ -51,8 +51,12 @@ impl L1Provider {
         height: BlockNumber,
         state: SessionState,
     ) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
-        debug!("Starting block at height: {height}");
+        info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
         Ok(())
@@ -79,6 +83,10 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
 
         match self.state {
@@ -110,6 +118,10 @@ impl L1Provider {
         tx_hash: TransactionHash,
         height: BlockNumber,
     ) -> L1ProviderResult<ValidationStatus> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
         match self.state {
             ProviderState::Validate => {
@@ -131,6 +143,11 @@ impl L1Provider {
         rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
+        info!("Committing block to L1 provider at height {}.", height);
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         if self.is_historical_height(height) {
             debug!(
                 "Skipping commit block for historical height: {}, current height is higher: {}",
@@ -162,9 +179,14 @@ impl L1Provider {
 
         for event in events {
             match event {
-                Event::L1HandlerTransaction { l1_handler_tx, timestamp } => {
+                Event::L1HandlerTransaction {
+                    l1_handler_tx,
+                    block_timestamp,
+                    scrape_timestamp,
+                } => {
                     let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx, timestamp);
+                    let successfully_inserted =
+                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
                     if !successfully_inserted {
                         debug!(
                             "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
@@ -450,6 +472,7 @@ impl L1ProviderBuilder {
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,
                 self.config.l1_handler_cancellation_timelock_seconds,
+                self.config.l1_handler_consumption_timelock_seconds,
             ),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,

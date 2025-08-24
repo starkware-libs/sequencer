@@ -5,8 +5,13 @@ use std::sync::Arc;
 
 use apollo_compile_to_casm_types::SierraCompilerError;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    PrioritizedRequest,
+    RequestPriority,
+    RequestWrapper,
+};
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(feature = "testing")]
@@ -16,7 +21,8 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
@@ -27,8 +33,7 @@ pub type RemoteClassManagerClient =
     RemoteComponentClient<ClassManagerRequest, ClassManagerResponse>;
 
 pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
-pub type ClassManagerRequestAndResponseSender =
-    ComponentRequestAndResponseSender<ClassManagerRequest, ClassManagerResponse>;
+pub type ClassManagerRequestWrapper = RequestWrapper<ClassManagerRequest, ClassManagerResponse>;
 
 // TODO(Elin): export.
 pub type ClassId = ClassHash;
@@ -109,6 +114,8 @@ pub enum ClassManagerError {
         contract_class_object_size: usize,
         max_contract_class_object_size: usize,
     },
+    #[error("Unsupported contract class version: {0}.")]
+    UnsupportedContractClassVersion(String),
 }
 
 impl<E: Error> From<CachedClassStorageError<E>> for ClassManagerError {
@@ -131,7 +138,12 @@ pub enum ClassManagerClientError {
     ClassManagerError(#[from] ClassManagerError),
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ClassManagerRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum ClassManagerRequest {
     AddClass(Class),
     AddClassAndExecutableUnsafe(ClassId, Class, ExecutableClassHash, ExecutableClass),
@@ -141,6 +153,20 @@ pub enum ClassManagerRequest {
     GetExecutableClassHashV2(ClassId),
 }
 impl_debug_for_infra_requests_and_responses!(ClassManagerRequest);
+impl_labeled_request!(ClassManagerRequest, ClassManagerRequestLabelValue);
+impl PrioritizedRequest for ClassManagerRequest {
+    fn priority(&self) -> RequestPriority {
+        match self {
+            ClassManagerRequest::GetExecutable(_) | ClassManagerRequest::GetSierra(_) => {
+                RequestPriority::High
+            }
+
+            ClassManagerRequest::AddClass(_)
+            | ClassManagerRequest::AddClassAndExecutableUnsafe(_, _, _, _)
+            | ClassManagerRequest::AddDeprecatedClass(_, _) => RequestPriority::Normal,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ClassManagerResponse {

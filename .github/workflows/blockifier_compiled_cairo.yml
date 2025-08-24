@@ -7,11 +7,11 @@ on:
       - reopened
       - synchronize
     paths:
-      - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/apollo_compile_to_casm/src/constants.rs' # Contains the Cairo1 compiler version.
-      - 'crates/apollo_infra_utils/src/cairo0_compiler.rs' # Contains the Cairo0 compiler version.
-      - 'crates/blockifier_test_utils/**'
-      - 'scripts/dependencies.sh'
+      - ".github/workflows/blockifier_compiled_cairo.yml"
+      - "crates/apollo_compile_to_casm/src/constants.rs" # Contains the Cairo1 compiler version.
+      - "crates/apollo_infra_utils/src/cairo0_compiler.rs" # Contains the Cairo0 compiler version.
+      - "crates/blockifier_test_utils/**"
+      - "scripts/dependencies.sh"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   verify_cairo_file_dependencies:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -38,8 +38,8 @@ jobs:
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
-          python-version: 'pypy3.9'
-          cache: 'pip'
+          python-version: "pypy3.9"
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -47,5 +47,4 @@ jobs:
       - run: pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
 
       - name: Verify cairo contract recompilation (both cairo versions).
-        run:
-          cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
+        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
