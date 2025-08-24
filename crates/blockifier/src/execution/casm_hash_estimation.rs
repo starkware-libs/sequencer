@@ -251,6 +251,7 @@ pub trait EstimateCasmHashResources {
 
         // Computes cost of `hash_finalize`: a hash over (selector1, offset1, selector2, offset2,
         // ...). Each entry point has a selector (big felt) and an offset (small felt).
+        // somethis with builtins make the large *2. 
         resources += &self.estimated_resources_of_hash_function(&FeltSizeCount {
             large: entry_points.len() + entry_points.len(),
             small: entry_points.len(),
@@ -273,7 +274,7 @@ pub trait EstimateCasmHashResources {
 
         // compute cost of `hash_update_with_nested_hash`
         let base_resources_of_hash_update_with_nested_hash = ExecutionResources {
-            n_steps: cairo_functions_step_estimation::BASE_HASH_UPDATE_NESTED_HASH,
+            n_steps: cairo_functions_step_estimation::BASE_HASH_UPDATE_WITH_NESTED_HASH,
             ..Default::default()
         };
         resources += &base_resources_of_hash_update_with_nested_hash;
@@ -424,7 +425,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
         ));
 
         let bytecode_hash_internal_node_overhead = ExecutionResources {
-            n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_INTERNAL_NODE,
+            n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF,
             ..Default::default()
         };
 
@@ -455,17 +456,17 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
 mod cairo_functions_step_estimation {
     // Call functions steps.
     const CALL_COMPILED_CLASS_HASH: usize = 10;
-    const CALL_BYTECODE_HASH_NODE: usize = 3;
-    const CALL_BYTECODE_HASH_INTERNAL_NODE: usize = 3;
+    const CALL_BYTECODE_HASH_NODE: usize = 4;
+    const CALL_BYTECODE_HASH_INTERNAL_NODE: usize = 6;
     const CALL_HASH_FINALIZE: usize = 2;
     // Q(AvivG): if return val is none - does it still take 1 step? no --> 2
     // Q(AvivG): if arg is pointer - does it take 1 step or number of elements? if more than 1 -->
     // change
-    const CALL_HASH_ENTRY_POINTS: usize = 2;
-    const CALL_HASH_ENTRY_POINTS_INNER: usize = 2;
+    const CALL_HASH_ENTRY_POINTS: usize = 5;
+    const CALL_HASH_ENTRY_POINTS_INNER: usize = 5;
 
     const CALL_HASH_UPDATE_SINGLE: usize = 2;
-    const CALL_HASH_UPDATE_WITH_NESTED_HASH: usize = 2;
+    const CALL_HASH_UPDATE_WITH_NESTED_HASH: usize = 5;
 
     // Cairo commands steps.
     const ALLOC_LOCAL: usize = 1;
@@ -479,7 +480,7 @@ mod cairo_functions_step_estimation {
     // Fixed function total steps.
     const HASH_UPDATE_SINGLE: usize =
         CALL_HASH_UPDATE_SINGLE + ASSERT + LET + RETURN + CREATE_HASH_STATE;
-    const HASH_INIT: usize = ALLOC_LOCAL + CREATE_HASH_STATE + RETURN; // not sure, should be 6.
+    const HASH_INIT: usize = ALLOC_LOCAL + CREATE_HASH_STATE + RETURN + 2; // not sure, should be 6.
 
     // Base steps.
     pub(crate) const BASE_COMPILED_CLASS_HASH: usize = CALL_COMPILED_CLASS_HASH
@@ -498,17 +499,22 @@ mod cairo_functions_step_estimation {
     pub(crate) const BASE_BYTECODE_HASH_NODE_NODE: usize =
         BASE_BYTECODE_HASH_NODE + HASH_INIT + CALL_BYTECODE_HASH_INTERNAL_NODE + CALL_HASH_FINALIZE;
     // Assuming 1 segmantation layer (inner node is a leaf).
-    pub(crate) const BASE_BYTECODE_HASH_INTERNAL_NODE: usize = IF * 2
-        + ALLOC_LOCAL
-        + LET
-        + RETURN
-        + TEMPVAR * 2
-        + HASH_UPDATE_SINGLE * 2
-        + CALL_BYTECODE_HASH_INTERNAL_NODE;
+    pub(crate) const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF: usize =
+        BASE_BYTECODE_HASH_INTERNAL_NODE_EMPTY
+            + ALLOC_LOCAL
+            + IF
+            + LET
+            + TEMPVAR * 2
+            + HASH_UPDATE_SINGLE * 2
+            + RETURN
+            + CALL_BYTECODE_HASH_INTERNAL_NODE;
+    // spik those becasue this is only  if not loaded which is anyway cheaper
+    // + ASSERT *3;
+    pub(crate) const BASE_BYTECODE_HASH_INTERNAL_NODE_EMPTY: usize = IF + RETURN;
     const BASE_HASH_FINALIZE: usize = 0; // need ?
     pub(crate) const BASE_HASH_ENTRY_POINTS: usize =
-        CALL_HASH_ENTRY_POINTS_INNER + CALL_HASH_FINALIZE + HASH_UPDATE_SINGLE + RETURN;
+        HASH_INIT + CALL_HASH_ENTRY_POINTS_INNER + CALL_HASH_FINALIZE + HASH_UPDATE_SINGLE + RETURN;
     pub(crate) const BASE_HASH_ENTRY_POINTS_INNER: usize =
-        HASH_UPDATE_SINGLE * 2 + CALL_HASH_UPDATE_WITH_NESTED_HASH + CALL_HASH_ENTRY_POINTS_INNER;
-    pub(crate) const BASE_HASH_UPDATE_NESTED_HASH: usize = CALL_HASH_UPDATE_SINGLE + RETURN;
+        IF + HASH_UPDATE_SINGLE * 2 + CALL_HASH_UPDATE_WITH_NESTED_HASH + CALL_HASH_ENTRY_POINTS_INNER;
+    pub(crate) const BASE_HASH_UPDATE_WITH_NESTED_HASH: usize = CALL_HASH_UPDATE_SINGLE + RETURN;
 }
