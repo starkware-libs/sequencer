@@ -360,33 +360,3 @@ pub fn write_maybe_relocatable<T: Into<MaybeRelocatable>>(
     *ptr = (*ptr + 1)?;
     Ok(())
 }
-
-/// Converts the execution resources and blake opcode count to L2 gas.
-///
-/// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
-/// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
-/// and its cost is identical across provers (see `bouncer.get_tx_weights`).
-// TODO(AvivG): Move inside blake estimation struct.
-pub fn blake_execution_resources_estimation_to_gas(
-    resources: EstimatedExecutionResources,
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
-    // TODO(AvivG): Remove this once gas computation is separated from resource estimation.
-    assert!(
-        resources
-            .resources()
-            .builtin_instance_counter
-            .keys()
-            .all(|&k| k == BuiltinName::range_check),
-        "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
-         assumption that builtin costs are identical between provers.",
-        resources.resources().builtin_instance_counter.keys().collect::<Vec<_>>()
-    );
-
-    let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
-    resources.to_sierra_gas(
-        |resources| vm_resources_to_gas(resources, &builtin_gas_costs, versioned_constants),
-        Some(blake_opcode_gas),
-    )
-}
