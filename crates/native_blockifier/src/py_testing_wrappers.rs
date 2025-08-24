@@ -1,8 +1,4 @@
-use blockifier::execution::contract_class::{
-    estimate_casm_poseidon_hash_computation_resources,
-    FeltSizeCount,
-    NestedFeltCounts,
-};
+use blockifier::execution::contract_class::{FeltSizeCount, NestedFeltCounts};
 use blockifier::transaction::errors::{TransactionExecutionError, TransactionFeeError};
 use pyo3::{pyfunction, PyResult};
 
@@ -17,6 +13,7 @@ pub fn raise_error_for_testing() -> NativeBlockifierResult<()> {
     .into())
 }
 
+// TODO(AvivG): Python PR, change of function name...
 /// Wrapper for [estimate_casm_poseidon_hash_computation_resources] that can be used for testing.
 /// Takes a leaf.
 #[pyfunction]
@@ -24,9 +21,13 @@ pub fn estimate_casm_hash_computation_resources_for_testing_single(
     bytecode_segment_lengths: usize,
 ) -> PyResult<PyExecutionResources> {
     let node = NestedFeltCounts::Leaf(bytecode_segment_lengths, FeltSizeCount::default());
-    Ok(estimate_casm_poseidon_hash_computation_resources(&node).into())
+    // TODO(AvivG): Should be V2.
+    Ok(CasmV1HashResourceEstimate::new(HashVersion::V1)
+        .estimated_resources_of_bytecode_hash_node(&node)
+        .into())
 }
 
+// TODO(AvivG): Python PR, change of function name...
 /// Wrapper for [estimate_casm_poseidon_hash_computation_resources] that can be used for testing.
 /// Takes a node of leaves.
 #[pyfunction]
@@ -39,5 +40,8 @@ pub fn estimate_casm_hash_computation_resources_for_testing_list(
             .map(|length| NestedFeltCounts::Leaf(length, FeltSizeCount::default()))
             .collect(),
     );
-    Ok(estimate_casm_poseidon_hash_computation_resources(&node).into())
+    // TODO(AvivG): Should be V2.
+    Ok(CasmV1HashResourceEstimate::new(HashVersion::V1)
+        .estimated_resources_of_bytecode_hash_node(&node)
+        .into())
 }
