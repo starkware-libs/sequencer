@@ -29,6 +29,7 @@ use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
@@ -48,6 +49,7 @@ pub struct L1Scraper<B: BaseLayerContract> {
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
     pub clock: Arc<dyn Clock>,
+    last_successful_scrape_timestamp: Option<u64>,
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
@@ -65,6 +67,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
             clock: Arc::new(DefaultClock),
+            last_successful_scrape_timestamp: None,
         })
     }
 
@@ -87,6 +90,11 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let (latest_l1_block, events) = self.fetch_events().await?;
         trace!("scraped up to {latest_l1_block:?}");
         info_every_n_sec!(1, "scraped up to {latest_l1_block:?}");
+        if let Some(last_successful_scrape_timestamp) = self.last_successful_scrape_timestamp {
+            L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE
+                .set_lossy(self.clock.unix_now() - last_successful_scrape_timestamp);
+        }
+        self.last_successful_scrape_timestamp = Some(self.clock.unix_now());
 
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no net).
