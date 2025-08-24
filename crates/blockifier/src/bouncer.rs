@@ -615,10 +615,10 @@ fn memory_holes_to_gas(
 fn proving_gas_from_builtins_and_sierra_gas(
     builtin_counters: &BuiltinCounterMap,
     sierra_gas: GasAmount,
-    builtin_weights: &BuiltinWeights,
+    builtin_gas_costs: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_proving_gas = builtins_to_gas(builtin_counters, &builtin_weights.weights);
+    let builtins_proving_gas = builtins_to_gas(builtin_counters, builtin_gas_costs);
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, builtin_counters, versioned_constants);
 
@@ -715,14 +715,25 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Patricia update + transaction resources.
     let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
-    let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
+    let vm_resources_without_tx_vm_resources =
+        &patrticia_update_resources + &tx_resources.computation.os_vm_resources;
 
     // Sierra gas computation.
     let builtin_gas_cost = versioned_constants.os_constants.gas_costs.builtins;
-    let vm_resources_sierra_gas =
-        vm_resources_to_gas(&vm_resources, &builtin_gas_cost, versioned_constants);
+    let vm_resources_without_tx_vm_resources_sierra_gas = vm_resources_to_gas(
+        &vm_resources_without_tx_vm_resources,
+        &builtin_gas_cost,
+        versioned_constants,
+    );
+    let tx_vm_resources_sierra_gas = vm_resources_to_gas(
+        &tx_resources.computation.tx_vm_resources,
+        &builtin_gas_cost,
+        versioned_constants,
+    );
+    let vm_resources_sierra_gas = vm_resources_without_tx_vm_resources_sierra_gas
+        .checked_add_panic_on_overflow(tx_vm_resources_sierra_gas);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
+    let (class_hashes_to_migrate, sierra_migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
             get_migration_data(
                 state_reader,
@@ -733,11 +744,11 @@ pub fn get_tx_weights<S: StateReader>(
         } else {
             (HashMap::new(), GasAmount::ZERO, HashMap::new())
         };
-    let sierra_gas_without_casm_hash_computation =
-        sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
+    let sierra_gas = sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
     // Each contract is migrated only once, and this migration resources is not part of the CASM
     // hash computation, which is performed every time a contract is loaded.
-    sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
+    let sierra_gas_without_casm_hash_computation =
+        sierra_gas.checked_add_panic_on_overflow(sierra_migration_gas);
 
     let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
         add_casm_hash_computation_gas_cost(
@@ -748,35 +759,38 @@ pub fn get_tx_weights<S: StateReader>(
         );
 
     // Proving gas computation.
-    let mut builtin_counters_without_casm_hash_computation =
-        patrticia_update_resources.prover_builtins();
-    add_maps(&mut builtin_counters_without_casm_hash_computation, tx_builtin_counters);
-    // The transaction builtin counters does not include the transaction overhead ('additional')
-    // resources.
-    add_maps(
-        &mut builtin_counters_without_casm_hash_computation,
-        &tx_resources.computation.os_vm_resources.prover_builtins(),
-    );
-    // Migration occurs once per contract, and thus is not treated as part of the CASM hash
-    // computation.
-    add_maps(
-        &mut builtin_counters_without_casm_hash_computation,
-        &migration_poseidon_builtin_counter,
-    );
+    let builtin_proving_weights = &bouncer_config.builtin_weights.weights;
 
-    let builtin_proving_weights = &bouncer_config.builtin_weights;
-    let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
-        &builtin_counters_without_casm_hash_computation,
-        sierra_gas_without_casm_hash_computation,
+    let vm_resources_without_tx_vm_resources_proving_gas = vm_resources_to_gas(
+        &vm_resources_without_tx_vm_resources,
         builtin_proving_weights,
         versioned_constants,
     );
+
+    let tx_vm_resources_proving_gas = proving_gas_from_builtins_and_sierra_gas(
+        tx_builtin_counters,
+        tx_vm_resources_sierra_gas,
+        builtin_proving_weights,
+        versioned_constants,
+    );
+
+    let proving_migration_gas = proving_gas_from_builtins_and_sierra_gas(
+        &migration_poseidon_builtin_counter,
+        sierra_migration_gas,
+        builtin_proving_weights,
+        versioned_constants,
+    );
+
+    let proving_gas_without_casm_hash_computation =
+        vm_resources_without_tx_vm_resources_proving_gas
+            .checked_add_panic_on_overflow(tx_vm_resources_proving_gas)
+            .checked_add_panic_on_overflow(proving_migration_gas);
 
     let (total_proving_gas, casm_hash_computation_data_proving_gas) =
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
             proving_gas_without_casm_hash_computation,
-            &builtin_proving_weights.weights,
+            builtin_proving_weights,
             versioned_constants,
         );
 
