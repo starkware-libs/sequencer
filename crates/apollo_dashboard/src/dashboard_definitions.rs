@@ -15,6 +15,7 @@ use crate::panels::state_sync::{
     get_state_sync_p2p_row,
     get_state_sync_row,
 };
+use crate::panels::storage::get_storage_row;
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
@@ -38,6 +39,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_compile_to_casm_row(),
             get_consensus_p2p_row(),
             get_state_sync_p2p_row(),
+            get_storage_row(),
             get_mempool_p2p_row(),
             get_batcher_infra_row(),
             get_state_sync_infra_row(),

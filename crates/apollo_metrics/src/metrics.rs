@@ -46,6 +46,7 @@ pub enum MetricScope {
     MempoolP2p,
     CompileToCasm,
     StateSync,
+    Storage,
 }
 
 pub struct MetricCounter {
