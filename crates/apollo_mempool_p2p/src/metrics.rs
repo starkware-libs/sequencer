@@ -37,7 +37,7 @@ define_metrics!(
     },
 );
 
-pub const _MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+pub const MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
     LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,

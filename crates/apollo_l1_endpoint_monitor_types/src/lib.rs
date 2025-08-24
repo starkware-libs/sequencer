@@ -107,7 +107,7 @@ define_metrics!(
     },
 );
 
-pub const _L1_ENDPOINT_MONITOR_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+pub const L1_ENDPOINT_MONITOR_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
     LocalClientMetrics::new(&L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,

@@ -1197,6 +1197,7 @@ dependencies = [
  "apollo_http_server",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
  "apollo_l1_provider",
  "apollo_mempool",
