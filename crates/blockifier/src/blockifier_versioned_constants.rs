@@ -13,6 +13,7 @@ use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::define_versioned_constants;
@@ -22,8 +23,12 @@ use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Ti
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
+use crate::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
+    EstimateCasmHashResources,
+};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::execution_utils::poseidon_hash_many_cost;
+use crate::execution::contract_class::FeltSizeCount;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
 use crate::fee::resources::StarknetResources;
 use crate::transaction::objects::ExecutionResourcesTraits;
@@ -693,7 +698,13 @@ impl OsResources {
             return empty_resources;
         }
         &(&self.compute_os_kzg_commitment_info * data_segment_length)
-            + &poseidon_hash_many_cost(data_segment_length)
+            + &CasmV1HashResourceEstimate::new(HashVersion::V1)
+                .estimated_resources_of_hash_function(&FeltSizeCount {
+                    large: data_segment_length,
+                    small: 0,
+                })
+                .resources()
+                .clone()
     }
 }
 
