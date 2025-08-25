@@ -10,5 +10,6 @@ workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_infra.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true

@@ -1053,6 +1053,7 @@ name = "apollo_config_manager"
 version = "0.15.0-rc.3"
 dependencies = [
  "apollo_config",
+ "apollo_infra",
  "serde",
  "validator",
 ]
