@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use starknet_api::core::CompiledClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -16,7 +17,7 @@ use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 mod common;
 
 const DEFAULT_TIP: u64 = 1_u64;
-const CUSTOM_INVOKE_TX_COUNT: usize = 5;
+const CUSTOM_INVOKE_TX_COUNT: usize = 6;
 
 /// Test a wide range of different kinds of invoke transactions.
 #[tokio::test]
@@ -48,6 +49,7 @@ fn create_cairo_1_syscall_test_txs(
 ) -> Vec<RpcTransaction> {
     let account_tx_generator = tx_generator.account_with_id_mut(CAIRO1_ACCOUNT_ID);
     let mut txs = vec![];
+    txs.push(generate_empty_contract_declare_tx(account_tx_generator));
     txs.extend(generate_custom_library_call_invoke_txs(account_tx_generator));
     txs.extend(generate_custom_not_nested_invoke_txs(account_tx_generator));
 
@@ -108,4 +110,17 @@ fn generate_custom_library_call_invoke_txs(
             )
         })
         .collect()
+}
+
+pub fn generate_empty_contract_declare_tx(
+    account_tx_generator: &mut AccountTransactionGenerator,
+) -> RpcTransaction {
+    let empty_contract = FeatureContract::Empty(account_tx_generator.account.cairo_version());
+    // Hard coded class hash for empty contract. See example in https://github.com/starkware-libs/sequencer/blob/main-v0.14.0/crates/mempool_test_utils/src/starknet_api_test_utils.rs#L92
+    // TODO(Itamar): Move compiled hash to the blockifier constants file as optional trait for
+    // FeatureContract.
+    let empty_compiled_class_hash =
+        CompiledClassHash(felt!("0xe8aa4f63c1a98869479422e42d2a3e55a5ad661345af8be141f4c1eb"));
+
+    account_tx_generator.generate_declare_tx(empty_compiled_class_hash, empty_contract.get_sierra())
 }
