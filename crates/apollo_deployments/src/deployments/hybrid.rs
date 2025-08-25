@@ -45,7 +45,7 @@ use crate::k8s::{
 };
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
-use crate::utils::{determine_port_numbers, get_validator_id};
+use crate::utils::determine_port_numbers;
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
@@ -828,7 +828,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
     inputs
         .node_ids
         .iter()
-        .map(|&i| {
+        .map(|&(i, ref validator_id)| {
             let k8s_service_config_params = if inputs.requires_k8s_service_config_params {
                 Some(K8sServiceConfigParams::new(
                     inputs.node_namespace_format.format(&[&i]),
@@ -840,6 +840,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
             };
             hybrid_deployment(
                 i,
+                validator_id.to_string(),
                 inputs.p2p_communication_type,
                 inputs.deployment_environment.clone(),
                 &Template::new(INSTANCE_NAME_FORMAT),
@@ -867,6 +868,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,
+    validator_id: String,
     p2p_communication_type: P2PCommunicationType,
     environment: Environment,
     instance_name_format: &Template,
@@ -886,6 +888,7 @@ pub(crate) fn hybrid_deployment(
             deployment_config_override,
             create_hybrid_instance_config_override(
                 id,
+                validator_id,
                 node_namespace_format,
                 p2p_communication_type,
                 ingress_domain,
@@ -901,6 +904,7 @@ pub(crate) fn hybrid_deployment(
 
 pub(crate) fn create_hybrid_instance_config_override(
     node_id: usize,
+    validator_id: String,
     node_namespace_format: &Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
@@ -990,6 +994,6 @@ pub(crate) fn create_hybrid_instance_config_override(
             consensus_advertised_multiaddr,
         ),
         NetworkConfigOverride::new(mempool_bootstrap_peer_multiaddr, mempool_advertised_multiaddr),
-        get_validator_id(node_id),
+        validator_id,
     )
 }
