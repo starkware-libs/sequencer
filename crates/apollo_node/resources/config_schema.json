@@ -1480,7 +1480,7 @@
     "value": true
   },
   "l1_gas_price_config.startup_num_blocks_multiplier": {
-    "description": "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape.",
+    "description": "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape",
     "privacy": "Public",
     "value": 2
   },

@@ -60,7 +60,11 @@ impl L1GasPriceProvider {
 
     pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
         info!("Initializing L1GasPriceProvider with config: {:?}", self.config);
-        self.price_samples_by_block = Some(RingBuffer::new(self.config.storage_limit));
+        let storage_limit_u64 =
+            self.config.storage_num_blocks_multiplier * self.config.number_of_blocks_for_mean;
+        let storage_limit =
+            storage_limit_u64.try_into().expect("storage_limit is too large to fit into a usize");
+        self.price_samples_by_block = Some(RingBuffer::new(storage_limit));
         Ok(())
     }
 

@@ -24,7 +24,6 @@ pub struct L1GasPriceConfig {
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
     pub lag_margin_seconds: u64,
-    pub storage_limit: usize,
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
     pub starting_block: Option<u64>,
@@ -36,21 +35,21 @@ pub struct L1GasPriceConfig {
     // How many sets of config.num_blocks_for_mean blocks to go back
     // on the chain when starting to scrape.
     pub startup_num_blocks_multiplier: u64,
+    pub storage_num_blocks_multiplier: u64,
 }
 
 impl Default for L1GasPriceConfig {
     fn default() -> Self {
-        const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
         Self {
-            number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
+            number_of_blocks_for_mean: 300,
             lag_margin_seconds: 60,
-            storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
             starting_block: None,
             chain_id: ChainId::Other("0x0".to_string()),
             finality: 0,
             polling_interval: Duration::from_secs(1),
             startup_num_blocks_multiplier: 2,
+            storage_num_blocks_multiplier: 10,
         }
     }
 }
@@ -69,12 +68,6 @@ impl SerializeConfig for L1GasPriceConfig {
                 &self.lag_margin_seconds,
                 "Difference between the time of the block from L1 used to calculate the gas price \
                  and the time of the L2 block this price is used in",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "storage_limit",
-                &self.storage_limit,
-                "Maximum number of L1 blocks to keep cached",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -105,7 +98,13 @@ impl SerializeConfig for L1GasPriceConfig {
             ser_param(
                 "startup_num_blocks_multiplier",
                 &self.startup_num_blocks_multiplier,
-                "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape.",
+                "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "storage_num_blocks_multiplier",
+                &self.storage_num_blocks_multiplier,
+                "How many sets of config.num_blocks_for_mean blocks can we store in cache",
                 ParamPrivacyInput::Public,
             ),
         ]);
