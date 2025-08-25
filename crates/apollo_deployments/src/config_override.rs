@@ -168,7 +168,7 @@ impl DeploymentConfigOverride {
 pub struct NetworkConfigOverride {
     // Bootstrap peer address.
     #[serde(rename = "bootstrap_peer_multiaddr")]
-    bootstrap_peer_multiaddr: String,
+    bootstrap_peer_multiaddrs: Vec<String>,
     #[serde(rename = "bootstrap_peer_multiaddr.#is_none")]
     bootstrap_peer_multiaddr_is_none: bool,
 
@@ -181,20 +181,20 @@ pub struct NetworkConfigOverride {
 
 impl NetworkConfigOverride {
     pub fn new(
-        bootstrap_peer_multiaddr: Option<String>,
+        bootstrap_peer_multiaddrs: Option<Vec<String>>,
         advertised_multiaddr: Option<String>,
     ) -> Self {
-        let (bootstrap_peer_multiaddr, bootstrap_peer_multiaddr_is_none) =
-            match bootstrap_peer_multiaddr {
-                Some(addr) => (addr, false),
-                None => ("".to_string(), true),
+        let (bootstrap_peer_multiaddrs, bootstrap_peer_multiaddr_is_none) =
+            match bootstrap_peer_multiaddrs {
+                Some(addrs) => (addrs, false),
+                None => (vec!["".to_string()], true),
             };
         let (advertised_multiaddr, advertised_multiaddr_is_none) = match advertised_multiaddr {
             Some(addr) => (addr, false),
             None => ("".to_string(), true),
         };
         Self {
-            bootstrap_peer_multiaddr,
+            bootstrap_peer_multiaddrs,
             bootstrap_peer_multiaddr_is_none,
             advertised_multiaddr,
             advertised_multiaddr_is_none,

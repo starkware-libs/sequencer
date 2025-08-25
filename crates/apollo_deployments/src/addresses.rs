@@ -9,8 +9,6 @@
 
 // When setting the secret keys, please note these are all with capital case hex chars.
 
-// TODO(Tsabary): sort the bootstrap peer id issues.
-
 pub(crate) const PEER_IDS: [&str; 40] = [
     "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
     "12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe",

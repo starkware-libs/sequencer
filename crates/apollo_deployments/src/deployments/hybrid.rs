@@ -28,6 +28,7 @@ use crate::deployment_definitions::{
     DeploymentInputs,
     Environment,
     InfraServicePort,
+    NodeAndValidatorId,
     ServicePort,
 };
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
@@ -831,7 +832,7 @@ pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deploy
 
 fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
     inputs
-        .node_ids
+        .node_and_validator_ids
         .iter()
         .map(|&(i, ref validator_id)| {
             let k8s_service_config_params = if inputs.requires_k8s_service_config_params {
@@ -845,6 +846,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
             };
             hybrid_deployment(
                 i,
+                inputs.node_and_validator_ids.clone(),
                 validator_id.to_string(),
                 inputs.p2p_communication_type,
                 inputs.deployment_environment.clone(),
@@ -873,6 +875,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,
+    node_and_validator_ids: Vec<NodeAndValidatorId>,
     validator_id: String,
     p2p_communication_type: P2PCommunicationType,
     environment: Environment,
@@ -893,6 +896,7 @@ pub(crate) fn hybrid_deployment(
             deployment_config_override,
             create_hybrid_instance_config_override(
                 id,
+                node_and_validator_ids,
                 validator_id,
                 node_namespace_format,
                 p2p_communication_type,
@@ -907,8 +911,9 @@ pub(crate) fn hybrid_deployment(
     )
 }
 
-pub(crate) fn create_hybrid_instance_config_override(
+fn create_hybrid_instance_config_override(
     node_id: usize,
+    node_and_validator_ids: Vec<NodeAndValidatorId>,
     validator_id: String,
     node_namespace_format: &Template,
     p2p_communication_type: P2PCommunicationType,
@@ -919,8 +924,6 @@ pub(crate) fn create_hybrid_instance_config_override(
     const CORE_SERVICE_PORT: u16 = 53080;
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
-    let bootstrap_node_id = 0;
-    let bootstrap_peer_id = get_peer_id(bootstrap_node_id);
     let node_peer_id = get_peer_id(node_id);
 
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
@@ -932,33 +935,34 @@ pub(crate) fn create_hybrid_instance_config_override(
                 &node_namespace_format.format(&[&node_id]),
                 &sanitized_domain,
             );
-            Some(get_p2p_address(&domain, port, peer_id))
+            get_p2p_address(&domain, port, peer_id)
         };
 
-    let (consensus_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr) = match node_id {
-        0 => {
-            // First node does not have a bootstrap peer.
-            (None, None)
-        }
-        _ => {
-            // Other nodes have the first node as a bootstrap peer.
-            (
-                build_peer_address(
-                    HybridNodeServiceName::Core,
-                    CORE_SERVICE_PORT,
-                    bootstrap_node_id,
-                    &bootstrap_peer_id,
-                ),
-                build_peer_address(
-                    HybridNodeServiceName::Mempool,
-                    MEMPOOL_SERVICE_PORT,
-                    bootstrap_node_id,
-                    &bootstrap_peer_id,
-                ),
-            )
-        }
-    };
+    // TODO(Tsabary): this can be moved to the deployment override module, which removed the need to
+    // re-compute this per node. Not urgent.
+    // List all nodes as respective bootstrap peers.
+    let mut consensus_bootstrap_peer_multiaddrs = vec![];
+    let mut mempool_bootstrap_peer_multiaddrs = vec![];
 
+    for (node_id_iter, _) in node_and_validator_ids.iter() {
+        let consensus_bootstrap_peer_multiaddr = build_peer_address(
+            HybridNodeServiceName::Core,
+            CORE_SERVICE_PORT,
+            *node_id_iter,
+            &get_peer_id(*node_id_iter),
+        );
+        consensus_bootstrap_peer_multiaddrs.push(consensus_bootstrap_peer_multiaddr);
+
+        let mempool_bootstrap_peer_multiaddr = build_peer_address(
+            HybridNodeServiceName::Mempool,
+            MEMPOOL_SERVICE_PORT,
+            *node_id_iter,
+            &get_peer_id(*node_id_iter),
+        );
+        mempool_bootstrap_peer_multiaddrs.push(mempool_bootstrap_peer_multiaddr);
+    }
+
+    // Set advertised addresses based on the P2P communication type.
     let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
         match p2p_communication_type {
             P2PCommunicationType::Internal =>
@@ -970,28 +974,31 @@ pub(crate) fn create_hybrid_instance_config_override(
             // Advertised addresses for external communication.
             {
                 (
-                    build_peer_address(
+                    Some(build_peer_address(
                         HybridNodeServiceName::Core,
                         CORE_SERVICE_PORT,
                         node_id,
                         &node_peer_id,
-                    ),
-                    build_peer_address(
+                    )),
+                    Some(build_peer_address(
                         HybridNodeServiceName::Mempool,
                         MEMPOOL_SERVICE_PORT,
                         node_id,
                         &node_peer_id,
-                    ),
+                    )),
                 )
             }
         };
 
     InstanceConfigOverride::new(
         NetworkConfigOverride::new(
-            consensus_bootstrap_peer_multiaddr,
+            Some(consensus_bootstrap_peer_multiaddrs),
             consensus_advertised_multiaddr,
         ),
-        NetworkConfigOverride::new(mempool_bootstrap_peer_multiaddr, mempool_advertised_multiaddr),
+        NetworkConfigOverride::new(
+            Some(mempool_bootstrap_peer_multiaddrs),
+            mempool_advertised_multiaddr,
+        ),
         validator_id,
     )
 }

@@ -66,9 +66,11 @@ const TESTNET_DEPLOYMENT_INPUTS_PATH: &str =
 const STRESS_TEST_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/stress_test.json";
 
+pub(crate) type NodeAndValidatorId = (usize, String);
+
 #[derive(Debug, Deserialize)]
 pub struct DeploymentInputs {
-    pub node_ids: Vec<(usize, String)>,
+    pub node_and_validator_ids: Vec<NodeAndValidatorId>,
     pub num_validators: usize,
     pub http_server_ingress_alternative_name: String,
     pub ingress_domain: String,
@@ -95,7 +97,7 @@ impl DeploymentInputs {
         let deployment_inputs: Self =
             from_str(&data).expect("Should be able to parse deployment input JSON");
 
-        for (node_id, _) in &deployment_inputs.node_ids {
+        for (node_id, _) in &deployment_inputs.node_and_validator_ids {
             assert!(
                 *node_id < PEER_IDS.len(),
                 "Node node_id {node_id} exceeds the number of nodes {}",

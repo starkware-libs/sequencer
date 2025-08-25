@@ -63,7 +63,7 @@ impl MixedBehaviour {
     pub fn new(
         keypair: Keypair,
         // TODO(AndrewL): consider making this non optional
-        bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
+        bootstrap_peer_multiaddrs: Option<Vec<Multiaddr>>,
         streamed_bytes_config: sqmr::Config,
         chain_id: ChainId,
         node_version: Option<String>,
@@ -81,7 +81,7 @@ impl MixedBehaviour {
         Self {
             limits: connection_limits::Behaviour::new(connection_limits),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
-            discovery: bootstrap_peers_multiaddrs
+            discovery: bootstrap_peer_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(
                         local_peer_id,
