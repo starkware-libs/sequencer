@@ -278,15 +278,23 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
-    let (tx_signature_manager, rx_signature_manager) = channel::<SignatureManagerRequestWrapper>(
-        config
-            .components
-            .signature_manager
-            .local_server_config
-            .as_ref()
-            .expect("Signature manager local server config should be available.")
-            .inbound_requests_channel_capacity,
-    );
+    let (tx_signature_manager, rx_signature_manager) =
+        match config.components.signature_manager.execution_mode.is_running_locally() {
+            true => {
+                let (tx_signature_manager, rx_signature_manager) =
+                    channel::<SignatureManagerRequestWrapper>(
+                        config
+                            .components
+                            .signature_manager
+                            .local_server_config
+                            .as_ref()
+                            .expect("Signature manager local server config should be available.")
+                            .inbound_requests_channel_capacity,
+                    );
+                (Some(tx_signature_manager), Some(rx_signature_manager))
+            }
+            false => (None, None),
+        };
 
     let (tx_state_sync, rx_state_sync) =
         match config.components.state_sync.execution_mode.is_running_locally() {
@@ -325,8 +333,8 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             rx_sierra_compiler,
         ),
         signature_manager_channel: ComponentCommunication::new(
-            Some(tx_signature_manager),
-            Some(rx_signature_manager),
+            tx_signature_manager,
+            rx_signature_manager,
         ),
         state_sync_channel: ComponentCommunication::new(tx_state_sync, rx_state_sync),
     }

@@ -127,7 +127,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
-                    signature_manager.remote(),
+                    signature_manager.local(),
                 ),
                 HybridNodeServiceName::HttpServer => {
                     get_http_server_component_config(gateway.remote())
@@ -523,6 +523,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {
                             components.insert(component_config_in_service);
                         }
@@ -561,6 +562,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -586,6 +588,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -611,6 +614,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -636,6 +640,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -661,6 +666,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }

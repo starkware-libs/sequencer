@@ -254,7 +254,6 @@ impl ServicePort {
     }
 }
 
-// TODO(Nadin/ Tsabary): Add SignatureManager to this enum.
 #[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum ComponentConfigInService {
     BaseLayer,
@@ -273,6 +272,7 @@ pub enum ComponentConfigInService {
     MempoolP2p,
     MonitoringEndpoint,
     SierraCompiler,
+    SignatureManager,
     StateSync,
 }
 
@@ -307,6 +307,10 @@ impl ComponentConfigInService {
                 vec!["monitoring_endpoint_config".to_string()]
             }
             ComponentConfigInService::SierraCompiler => vec!["sierra_compiler_config".to_string()],
+            // Signature manager does not have a separate config sub-struct in
+            // `SequencerNodeConfig`. Keep this empty to avoid generating
+            // `signature_manager_config.#is_none` flags.
+            ComponentConfigInService::SignatureManager => vec![],
             ComponentConfigInService::StateSync => vec!["state_sync_config".to_string()],
         }
     }
