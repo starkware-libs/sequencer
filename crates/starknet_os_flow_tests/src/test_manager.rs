@@ -20,7 +20,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     Transaction as StarknetApiTransaction,
 };
-use starknet_api::state::SierraContractClass;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -316,6 +316,20 @@ impl<S: FlowTestState> TestManager<S> {
         first_use_kzg_da
     }
 
+    /// Decompresses the state diff from the OS output using the given OS output, state and alias
+    /// keys.
+    fn get_decompressed_state_diff(
+        os_state_diff: &OsStateDiff,
+        state: &S,
+        alias_keys: HashSet<StorageKey>,
+    ) -> StateMaps {
+        let OsStateDiff::Partial(ref partial_os_state_diff) = os_state_diff else {
+            panic!("Expected a partial state diff in the output because of the OS config.");
+        };
+        let compressed_state_diff = partial_os_state_diff.as_state_maps();
+        decompress(&compressed_state_diff, state, *ALIAS_CONTRACT_ADDRESS, alias_keys)
+    }
+
     // Private method which executes the flow test.
     async fn execute_flow_test(self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
@@ -420,12 +434,8 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
-        let OsStateDiff::Partial(ref partial_os_state_diff) = os_output.os_output.state_diff else {
-            panic!("Expected a partial state diff in the output because of the OS config.");
-        };
-        let compressed_state_diff = partial_os_state_diff.as_state_maps();
         let decompressed_state_diff =
-            decompress(&compressed_state_diff, &state, *ALIAS_CONTRACT_ADDRESS, alias_keys);
+            Self::get_decompressed_state_diff(&os_output.os_output.state_diff, &state, alias_keys);
 
         OsTestOutput {
             os_output,
