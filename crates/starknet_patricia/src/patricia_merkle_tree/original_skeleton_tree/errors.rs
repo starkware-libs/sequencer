@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
+use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use thiserror::Error;
 
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -11,6 +12,8 @@ pub enum OriginalSkeletonTreeError {
         "Failed to deserialize the storage value: {0:?} while building the original skeleton tree."
     )]
     Deserialization(#[from] DeserializationError),
+    #[error(transparent)]
+    PatriciaStorage(#[from] PatriciaStorageError),
     #[error(
         "Unable to read from storage the storage key: {0:?} while building the original skeleton \
          tree."
