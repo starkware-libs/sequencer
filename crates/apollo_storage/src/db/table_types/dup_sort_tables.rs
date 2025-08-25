@@ -394,7 +394,7 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
             },
         )?;
 
-        // This checks the case where the the sub-key is already the last in the sub tree; in this
+        // This checks the case where the sub-key is already the last in the sub tree; in this
         // case, we revert the last put and return an error.
         if let Some(prev) = cursor.prev_dup::<DbKeyType<'_>, DbValueType<'_>>()? {
             if prev.1.starts_with(&T::get_sub_key(key)?) {
