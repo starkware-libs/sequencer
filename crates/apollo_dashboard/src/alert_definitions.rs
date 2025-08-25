@@ -105,8 +105,9 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         AlertGroup::Consensus,
         // Clamp to avoid divide by 0.
         format!(
-            "increase({consensus}[10m]) / clamp_min(increase({sync}[10m]) + \
-             increase({consensus}[10m]), 1)",
+            "(sum(increase({consensus}[10m])) or vector(0)) / \
+             clamp_min((sum(increase({sync}[10m])) or vector(0)) + \
+             (sum(increase({consensus}[10m])) or vector(0)), 1)",
             consensus = CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
             sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
         ),
@@ -127,7 +128,10 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         "consensus_inbound_stream_evicted",
         "Consensus inbound stream evicted",
         AlertGroup::Consensus,
-        format!("increase({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 5.0,
@@ -145,7 +149,10 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         "consensus_votes_num_sent_messages",
         "Consensus votes num sent messages",
         AlertGroup::Consensus,
-        format!("increase({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+        format!(
+            "sum(increase({}[20m])) or vector(0)",
+            CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 20.0,
@@ -164,7 +171,8 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         "Cende write prev height blob latency too high",
         AlertGroup::Consensus,
         format!(
-            "rate({}[20m]) / clamp_min(rate({}[20m]), 0.0000001)",
+            "(sum(rate({}[20m])) or vector(0)) / clamp_min(sum(rate({}[20m])) or vector(0), \
+             0.0000001)",
             CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_sum_with_filter(),
             CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_count_with_filter(),
         ),
@@ -185,7 +193,10 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
         "consensus_l1_gas_price_provider_failure",
         "Consensus L1 gas price provider failure",
         AlertGroup::Consensus,
-        format!("increase({}[1h])", CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 5.0,
@@ -203,7 +214,10 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
         "consensus_l1_gas_price_provider_failure_once",
         "Consensus L1 gas price provider failure once",
         AlertGroup::Consensus,
-        format!("increase({}[1h])", CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -221,7 +235,10 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
         "consensus_proposal_fin_mismatch_once",
         "Consensus proposal fin mismatch occurred",
         AlertGroup::Consensus,
-        format!("increase({}[1h])", CONSENSUS_PROPOSAL_FIN_MISMATCH.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_PROPOSAL_FIN_MISMATCH.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -239,7 +256,10 @@ fn get_consensus_conflicting_votes() -> Alert {
         "consensus_conflicting_votes",
         "Consensus conflicting votes",
         AlertGroup::Consensus,
-        format!("increase({}[20m])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
+        format!(
+            "sum(increase({}[20m])) or vector(0)",
+            CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -258,7 +278,10 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
         "eth_to_strk_error_count",
         "Eth to Strk error count",
         AlertGroup::L1GasPrice,
-        format!("increase({}[1h])", ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 10.0,
@@ -277,7 +300,7 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
         "L1 gas price scraper baselayer error count",
         AlertGroup::L1GasPrice,
         format!(
-            "increase({}[5m])",
+            "sum(increase({}[5m])) or vector(0)",
             L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
         ),
         vec![AlertCondition {
@@ -297,7 +320,10 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         "l1_gas_price_scraper_reorg_detected",
         "L1 gas price scraper reorg detected",
         AlertGroup::L1GasPrice,
-        format!("increase({}[1m])", L1_GAS_PRICE_SCRAPER_REORG_DETECTED.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1m])) or vector(0)",
+            L1_GAS_PRICE_SCRAPER_REORG_DETECTED.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -316,7 +342,7 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
         "L1 message scraper baselayer error count",
         AlertGroup::L1Messages,
         format!(
-            "increase({}[1h])",
+            "sum(increase({}[1h])) or vector(0)",
             L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
         ),
         vec![AlertCondition {
@@ -336,7 +362,10 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         "l1_message_scraper_reorg_detected",
         "L1 message scraper reorg detected",
         AlertGroup::L1Messages,
-        format!("increase({}[1m])", L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1m])) or vector(0)",
+            L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -354,7 +383,10 @@ fn get_native_compilation_error_increase() -> Alert {
         "native_compilation_error",
         "Native compilation alert",
         AlertGroup::Batcher,
-        format!("increase({}[1h])", NATIVE_COMPILATION_ERROR.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            NATIVE_COMPILATION_ERROR.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -376,7 +408,7 @@ fn get_consensus_p2p_disconnections() -> Alert {
         format!(
             // TODO(shahak): find a way to make this depend on num_validators
             // Dividing by two since this counts both disconnections and reconnections
-            "changes({}[1h]) / 2",
+            "(sum(changes({}[1h])) or vector(0)) / 2",
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
         ),
         vec![AlertCondition {
@@ -400,7 +432,7 @@ fn get_mempool_p2p_disconnections() -> Alert {
         format!(
             // TODO(shahak): find a way to make this depend on num_validators
             // Dividing by two since this counts both disconnections and reconnections
-            "changes({}[1h]) / 2",
+            "(sum(changes({}[1h])) or vector(0)) / 2",
             MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
         ),
         vec![AlertCondition {
