@@ -65,6 +65,7 @@ pub fn create_p2p_propagator_and_runner(
             )
             .expect("Failed to register broadcast topic");
     let network_future = network_manager.run().instrument(info_span!("[Mempool network]"));
+    // TODO: why do we have a MempoolP2pPropagator and mempool_p2p_propagator_client too?
     let mempool_p2p_propagator = MempoolP2pPropagator::new(
         broadcast_topic_client.clone(),
         Box::new(transaction_converter),

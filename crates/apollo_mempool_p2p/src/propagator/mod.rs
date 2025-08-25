@@ -63,6 +63,8 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 )
             }
             MempoolP2pPropagatorRequest::BroadcastQueuedTransactions() => {
+                // TODO: Is this info or debug?
+                info!("Received a request to broadcast queued transactions, broadcasting.");
                 MempoolP2pPropagatorResponse::BroadcastQueuedTransactions(
                     self.broadcast_queued_transactions().await,
                 )
@@ -76,12 +78,17 @@ impl MempoolP2pPropagator {
         &mut self,
         transaction: InternalRpcTransaction,
     ) -> MempoolP2pPropagatorResult<()> {
-        info!("Received a new transaction to broadcast to other mempool peers");
-        debug!("broadcasted tx_hash: {:?}", transaction.tx_hash);
+        // TODO: Is this to broadcast or to add ourselves?
+        // TODO: Is this info or debug?
+        info!(
+            "Received a new transaction to broadcast to other mempool peers. tx_hash: {:?}",
+            transaction.tx_hash
+        );
         let transaction =
             match self.transaction_converter.convert_internal_rpc_tx_to_rpc_tx(transaction).await {
                 Ok(transaction) => transaction,
                 Err(err) => {
+                    // TODO: Are errors returned by handle_request auto logged? If not log this.
                     return Err(MempoolP2pPropagatorError::TransactionConversionError(
                         err.to_string(),
                     ));
@@ -100,8 +107,11 @@ impl MempoolP2pPropagator {
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorResult<()> {
-        info!("Continuing propagation of received transaction");
-        debug!("Propagated transaction metadata: {:?}", broadcasted_message_metadata);
+        // TODO: Is this info or debug?
+        info!(
+            "Continuing propagation of received transaction. Transaction metadata: {:?}",
+            broadcasted_message_metadata
+        );
         self.broadcast_topic_client
             .continue_propagation(&broadcasted_message_metadata)
             .await
@@ -120,6 +130,7 @@ impl MempoolP2pPropagator {
             .await
             .or_else(|err| {
                 if !err.is_full() {
+                    // TODO: Is this error logged? If not log it.
                     return Err(MempoolP2pPropagatorError::NetworkSendError);
                 }
                 warn!(
