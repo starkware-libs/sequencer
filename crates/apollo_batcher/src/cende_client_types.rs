@@ -226,7 +226,6 @@ impl
             TransactionExecutionStatus::Succeeded
         };
 
-        // TODO(Arni): I assume this is not the correct way to fill this field.
         let revert_error =
             tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
 

@@ -210,7 +210,6 @@ async fn add_tx_inner(
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
     match add_tx_result {
         Ok(gateway_output) => {
-            // TODO(Arni): Reconsider the tracing level for this log.
             info!(
                 transaction_hash = %gateway_output.transaction_hash(),
                 region = %region,
