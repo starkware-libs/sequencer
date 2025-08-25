@@ -180,7 +180,7 @@ pub(crate) fn register_metrics() {
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();
 }
 
-pub const _MEMPOOL_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+pub const MEMPOOL_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
     LocalClientMetrics::new(&MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,

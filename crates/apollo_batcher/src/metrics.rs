@@ -125,7 +125,7 @@ impl Drop for ProposalMetricsHandle {
     }
 }
 
-pub const _BATCHER_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+pub const BATCHER_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
     LocalClientMetrics::new(&BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
