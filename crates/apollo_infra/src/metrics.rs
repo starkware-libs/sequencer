@@ -351,3 +351,42 @@ impl RemoteServerMetrics {
         self.number_of_connections
     }
 }
+
+pub struct InfraMetrics {
+    local_client_metrics: LocalClientMetrics,
+    remote_client_metrics: RemoteClientMetrics,
+    local_server_metrics: LocalServerMetrics,
+    remote_server_metrics: RemoteServerMetrics,
+}
+
+impl InfraMetrics {
+    pub const fn new(
+        local_client_metrics: LocalClientMetrics,
+        remote_client_metrics: RemoteClientMetrics,
+        local_server_metrics: LocalServerMetrics,
+        remote_server_metrics: RemoteServerMetrics,
+    ) -> Self {
+        Self {
+            local_client_metrics,
+            remote_client_metrics,
+            local_server_metrics,
+            remote_server_metrics,
+        }
+    }
+
+    pub fn get_local_client_metrics(&self) -> &LocalClientMetrics {
+        &self.local_client_metrics
+    }
+
+    pub fn get_remote_client_metrics(&self) -> &RemoteClientMetrics {
+        &self.remote_client_metrics
+    }
+
+    pub fn get_local_server_metrics(&self) -> &LocalServerMetrics {
+        &self.local_server_metrics
+    }
+
+    pub fn get_remote_server_metrics(&self) -> &RemoteServerMetrics {
+        &self.remote_server_metrics
+    }
+}
