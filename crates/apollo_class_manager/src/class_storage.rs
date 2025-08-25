@@ -453,7 +453,7 @@ impl ClassStorage for FsClassStorage {
         &mut self,
         class_id: ClassId,
         class: RawClass,
-        executable_class_hash: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
         executable_class: RawExecutableClass,
     ) -> Result<(), Self::Error> {
         if self.contains_class(class_id)? {
@@ -461,7 +461,7 @@ impl ClassStorage for FsClassStorage {
         }
 
         self.write_class(class_id, class, executable_class)?;
-        self.mark_class_id_as_existent(class_id, executable_class_hash)?;
+        self.mark_class_id_as_existent(class_id, executable_class_hash_v2)?;
 
         Ok(())
     }
