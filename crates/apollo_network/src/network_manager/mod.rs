@@ -954,6 +954,7 @@ pub trait BroadcastTopicClientTrait<T> {
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
     ) -> Result<(), SendError>;
+    /// TODO
     async fn continue_propagation(
         &mut self,
         broadcasted_message_metadata: &BroadcastedMessageMetadata,
