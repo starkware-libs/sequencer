@@ -82,6 +82,7 @@ impl MempoolP2pPropagator {
             match self.transaction_converter.convert_internal_rpc_tx_to_rpc_tx(transaction).await {
                 Ok(transaction) => transaction,
                 Err(err) => {
+                    debug!("Error converting transaction: {:?}", err);
                     return Err(MempoolP2pPropagatorError::TransactionConversionError(
                         err.to_string(),
                     ));
@@ -120,6 +121,7 @@ impl MempoolP2pPropagator {
             .await
             .or_else(|err| {
                 if !err.is_full() {
+                    warn!("Error broadcasting transaction batch: {:?}", err);
                     return Err(MempoolP2pPropagatorError::NetworkSendError);
                 }
                 warn!(
