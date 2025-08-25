@@ -23,6 +23,7 @@ use tracing::{debug, info, instrument, trace};
 use crate::config::MempoolConfig;
 use crate::metrics::{
     metric_count_committed_txs,
+    metric_count_evicted_txs,
     metric_count_expired_txs,
     metric_count_rejected_txs,
     metric_set_get_txs_size,
@@ -736,6 +737,7 @@ impl Mempool {
                     .expect("Transaction must exist in the pool.");
                 total_space_freed += tx.total_bytes();
                 MEMPOOL_EVICTIONS_COUNT.increment(1);
+                metric_count_evicted_txs(1);
                 if total_space_freed >= required_space {
                     break;
                 }
