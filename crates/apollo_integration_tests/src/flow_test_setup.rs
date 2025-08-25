@@ -275,10 +275,7 @@ impl FlowSequencerSetup {
             allow_bootstrap_txs,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
-        node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =
-            num_l1_txs;
-        node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
-            num_l1_txs;
+        node_config.l1_gas_price_config.number_of_blocks_for_mean = num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
         let (clients, servers) = create_node_modules(&node_config).await;

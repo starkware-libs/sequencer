@@ -24,7 +24,7 @@ use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
+use apollo_l1_gas_price::config::L1GasPriceConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
@@ -66,7 +66,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "l1_scraper_config.chain_id",
-                "l1_gas_price_scraper_config.chain_id",
+                "l1_gas_price_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
                 "state_sync_config.storage_config.db_config.chain_id",
                 "state_sync_config.network_config.chain_id",
@@ -197,17 +197,27 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_gas_price_provider_config: Option<L1GasPriceProviderConfig>,
     #[validate]
+<<<<<<< HEAD
     pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
     #[validate]
     pub l1_provider_config: Option<L1ProviderConfig>,
+=======
+    pub l1_gas_price_config: L1GasPriceConfig,
+    #[validate]
+    pub l1_provider_config: L1ProviderConfig,
+>>>>>>> 4219458da (apollo_l1_gas_price: use the shared config in the node)
     #[validate]
     pub l1_scraper_config: Option<L1ScraperConfig>,
     #[validate]
     pub mempool_config: Option<MempoolConfig>,
     #[validate]
+<<<<<<< HEAD
     pub mempool_p2p_config: Option<MempoolP2pConfig>,
     #[validate]
     pub monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
+=======
+    pub mempool_p2p_config: MempoolP2pConfig,
+>>>>>>> 4219458da (apollo_l1_gas_price: use the shared config in the node)
     #[validate]
     pub sierra_compiler_config: Option<SierraCompilationConfig>,
     #[validate]
@@ -220,6 +230,7 @@ impl SerializeConfig for SequencerNodeConfig {
             // Infra related configs.
             prepend_sub_config_name(self.components.dump(), "components"),
             prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
+<<<<<<< HEAD
             // Business-logic component configs.
             ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
             ser_optional_sub_config(&self.batcher_config, "batcher_config"),
@@ -243,6 +254,32 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
             ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
             ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
+=======
+            prepend_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
+            prepend_sub_config_name(self.batcher_config.dump(), "batcher_config"),
+            prepend_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
+            prepend_sub_config_name(
+                self.consensus_manager_config.dump(),
+                "consensus_manager_config",
+            ),
+            prepend_sub_config_name(self.gateway_config.dump(), "gateway_config"),
+            prepend_sub_config_name(self.http_server_config.dump(), "http_server_config"),
+            prepend_sub_config_name(self.compiler_config.dump(), "compiler_config"),
+            prepend_sub_config_name(self.mempool_config.dump(), "mempool_config"),
+            prepend_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
+            prepend_sub_config_name(
+                self.monitoring_endpoint_config.dump(),
+                "monitoring_endpoint_config",
+            ),
+            prepend_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
+            prepend_sub_config_name(
+                self.l1_endpoint_monitor_config.dump(),
+                "l1_endpoint_monitor_config",
+            ),
+            prepend_sub_config_name(self.l1_gas_price_config.dump(), "l1_gas_price_config"),
+            prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
+            prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
+>>>>>>> 4219458da (apollo_l1_gas_price: use the shared config in the node)
         ];
 
         sub_configs.into_iter().flatten().collect()

@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 
-use crate::config::L1GasPriceProviderConfig;
+use crate::config::L1GasPriceConfig;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
@@ -48,13 +48,13 @@ impl<T: Clone> std::ops::Deref for RingBuffer<T> {
 
 #[derive(Clone, Debug)]
 pub struct L1GasPriceProvider {
-    config: L1GasPriceProviderConfig,
+    config: L1GasPriceConfig,
     // If received data before initialization (is None), it means the scraper has restarted.
     price_samples_by_block: Option<RingBuffer<GasPriceData>>,
 }
 
 impl L1GasPriceProvider {
-    pub fn new(config: L1GasPriceProviderConfig) -> Self {
+    pub fn new(config: L1GasPriceConfig) -> Self {
         Self { config, price_samples_by_block: None }
     }
 
