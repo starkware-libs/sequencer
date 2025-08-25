@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
+use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use starknet_types_core::felt::Felt;
@@ -70,6 +70,17 @@ pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
         .iter()
         .flat_map(|x| pad_bytes(x.into_bigint().to_bytes_be(), BYTES_PER_FIELD_ELEMENT))
         .collect())
+}
+
+pub fn deserialize_blob(
+    blob_bytes: &[u8; BYTES_PER_BLOB],
+) -> Result<[Fr; FIELD_ELEMENTS_PER_BLOB], FftError> {
+    Ok(blob_bytes
+        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
+        .map(|slice| Fr::from(BigUint::from_bytes_be(slice)))
+        .collect::<Vec<Fr>>()
+        .try_into()
+        .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB"))
 }
 
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
