@@ -508,6 +508,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::StateSync => {
@@ -530,7 +531,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::HttpServer => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -555,7 +557,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Gateway => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::Gateway
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::Gateway
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -587,6 +590,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -608,6 +612,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::General
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -630,7 +635,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::SierraCompiler => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::SierraCompiler => {
                             components.insert(component_config_in_service);

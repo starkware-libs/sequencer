@@ -20,6 +20,7 @@ use apollo_config::dumping::{
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_config_manager::config::ConfigManagerConfig;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
@@ -180,6 +181,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub components: ComponentConfig,
     #[validate]
+    pub config_manager_config: Option<ConfigManagerConfig>,
+    #[validate]
     pub monitoring_config: MonitoringConfig,
     // Business-logic component configs.
     #[validate]
@@ -221,6 +224,7 @@ impl SerializeConfig for SequencerNodeConfig {
         let sub_configs = vec![
             // Infra related configs.
             prepend_sub_config_name(self.components.dump(), "components"),
+            ser_optional_sub_config(&self.config_manager_config, "config_manager_config"),
             prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
             // Business-logic component configs.
             ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
@@ -256,6 +260,7 @@ impl Default for SequencerNodeConfig {
         Self {
             // Infra related configs.
             components: ComponentConfig::default(),
+            config_manager_config: Some(ConfigManagerConfig::default()),
             monitoring_config: MonitoringConfig::default(),
             // Business-logic component configs.
             base_layer_config: Some(EthereumBaseLayerConfig::default()),
