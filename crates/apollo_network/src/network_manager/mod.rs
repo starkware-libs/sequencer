@@ -204,7 +204,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub fn register_broadcast_topic<T>(
         &mut self,
         topic: Topic,
-        buffer_size: usize,
+        sending_buffer_size: usize,
+        receiving_buffer_size: usize,
     ) -> Result<BroadcastTopicChannels<T>, SubscriptionError>
     where
         T: TryFrom<Bytes> + 'static,
@@ -215,9 +216,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         let topic_hash = topic.hash();
 
         let (messages_to_broadcast_sender, messages_to_broadcast_receiver) =
-            futures::channel::mpsc::channel(buffer_size);
+            futures::channel::mpsc::channel(sending_buffer_size);
         let (broadcasted_messages_sender, broadcasted_messages_receiver) =
-            futures::channel::mpsc::channel(buffer_size);
+            futures::channel::mpsc::channel(receiving_buffer_size);
 
         let insert_result = self
             .messages_to_broadcast_receivers
