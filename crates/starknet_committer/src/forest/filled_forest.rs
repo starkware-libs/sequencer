@@ -43,7 +43,7 @@ impl FilledForest {
             .collect();
 
         // Store the new hash map
-        storage.mset(new_db_objects);
+        storage.mset(new_db_objects).expect("Write to storage failed");
     }
 
     pub fn get_contract_root_hash(&self) -> HashOutput {

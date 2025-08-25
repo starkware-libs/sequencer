@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::storage_trait::{DbKey, DbValue, Storage};
+use crate::storage_trait::{DbKey, DbValue, PatriciaStorageError, Storage};
 
 pub type MapStorage = HashMap<DbKey, DbValue>;
 
@@ -12,23 +12,24 @@ pub struct BorrowedStorage<'a, S: Storage> {
 }
 
 impl Storage for MapStorage {
-    fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue> {
-        self.insert(key, value)
+    fn set(&mut self, key: DbKey, value: DbValue) -> Result<Option<DbValue>, PatriciaStorageError> {
+        Ok(self.insert(key, value))
     }
 
-    fn mset(&mut self, key_to_value: MapStorage) {
+    fn mset(&mut self, key_to_value: MapStorage) -> Result<(), PatriciaStorageError> {
         self.extend(key_to_value);
+        Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> Option<DbValue> {
-        self.remove(key)
+    fn delete(&mut self, key: &DbKey) -> Result<Option<DbValue>, PatriciaStorageError> {
+        Ok(self.remove(key))
     }
 
-    fn get(&self, key: &DbKey) -> Option<DbValue> {
-        self.get(key).cloned()
+    fn get(&self, key: &DbKey) -> Result<Option<DbValue>, PatriciaStorageError> {
+        Ok(self.get(key).cloned())
     }
 
-    fn mget(&self, keys: &[DbKey]) -> Vec<Option<DbValue>> {
-        keys.iter().map(|key| self.get(key).cloned()).collect()
+    fn mget(&self, keys: &[DbKey]) -> Result<Vec<Option<DbValue>>, PatriciaStorageError> {
+        Ok(keys.iter().map(|key| self.get(key).cloned()).collect())
     }
 }
