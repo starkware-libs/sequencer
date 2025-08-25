@@ -32,9 +32,7 @@ func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*, full_c
 ) {
     alloc_locals;
     assert compiled_class.compiled_class_version = COMPILED_CLASS_VERSION;
-    %{print steps%}
     let hash_state: HashState = hash_init();
-    %{print steps%}
     with hash_state {
         hash_update_single(item=compiled_class.compiled_class_version);
 
@@ -126,9 +124,7 @@ func bytecode_hash_node{range_check_ptr}(
     %{ bytecode_segments = iter(bytecode_segment_structure.segments) %}
 
     // Initialize Blake2s hash state for internal node.
-    %{print steps%}
     let hash_state: HashState = hash_init();
-    %{print steps%}
     with hash_state {
         bytecode_hash_internal_node(
             data_ptr=data_ptr, data_length=data_length, full_contract=full_contract
@@ -225,9 +221,9 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
 func hash_entry_points{hash_state: HashState, range_check_ptr: felt}(
     entry_points: CompiledClassEntryPoint*, n_entry_points: felt
 ) {
-    %{print steps%}
+    // %{print steps%}
     let inner_hash_state = hash_init();
-    %{print steps%}
+    // %{print steps%}
     hash_entry_points_inner{hash_state=inner_hash_state, range_check_ptr=range_check_ptr}(
         entry_points=entry_points, n_entry_points=n_entry_points
     );

@@ -51,8 +51,8 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
-const ALLOWED_MARGIN_N_STEPS: usize = 169;
-const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 4;
+const ALLOWED_MARGIN_N_STEPS: usize = 0;
+const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 0;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -69,7 +69,7 @@ const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): lower margins once felt size optimization is implemented.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 0;
-const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 1;
+const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 0;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -334,14 +334,14 @@ fn test_compiled_class_hash(
 
 /// Test that execution resources estimation for the compiled class hash
 /// matches the actual execution resources when running the entry point.
-#[rstest]
 fn test_compiled_class_hash_resources_estimation(
-    #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+    feature_contract: FeatureContract,
+    hash_version: &HashVersion,
 ) {
     use blockifier::execution::contract_class::RunnableCompiledClass;
 
-    let feature_contract =
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    // let feature_contract =
+    //     FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let mut contract_class = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),
@@ -365,14 +365,15 @@ fn test_compiled_class_hash_resources_estimation(
     );
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
-    println!("actual_execution_resources: {:?}", actual_execution_resources);
-    println!("execution_resources_estimation: {:?}", execution_resources_estimation);
+    // println!("actual_execution_resources: {:?}", actual_execution_resources);
+    // println!("execution_resources_estimation: {:?}", execution_resources_estimation);
     let allowed_margin = hash_version.allowed_margin_n_steps();
-    assert!(
-        margin_n_steps <= allowed_margin,
-        "Estimated n_steps and actual n_steps differ by more than {allowed_margin}.\n Margin N \
-         Steps: {margin_n_steps}"
-    );
+    println!("margin_n_steps: {}", margin_n_steps);
+    // assert!(
+    //     margin_n_steps <= allowed_margin,
+    //     "Estimated n_steps and actual n_steps differ by more than {allowed_margin}.\n Margin N \
+    //      Steps: {margin_n_steps}"
+    // );
     let (builtin_name, allowed_margin_builtin) = hash_version.allowed_margin_builtin();
     let margin_builtin = execution_resources_estimation
         .builtin_instance_counter
@@ -381,6 +382,7 @@ fn test_compiled_class_hash_resources_estimation(
         .abs_diff(
             actual_execution_resources.builtin_instance_counter.remove(&builtin_name).unwrap(),
         );
+    println!("margin builtins:{}: {}", builtin_name, margin_builtin);
     assert!(
         margin_builtin <= allowed_margin_builtin,
         "Estimated {builtin_name} and actual {builtin_name} differ by more than \
@@ -391,4 +393,15 @@ fn test_compiled_class_hash_resources_estimation(
         execution_resources_estimation.builtin_instance_counter,
         actual_execution_resources.filter_unused_builtins().builtin_instance_counter
     );
+}
+
+#[rstest]
+fn test_compiled_class_hash_resources_estimation_for_all_contracts(
+    #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+) {
+    for contract in FeatureContract::all_cairo1_casm_feature_contracts() {
+        println!("Testing contract: {}", contract.get_non_erc20_base_name());
+        test_compiled_class_hash_resources_estimation(contract.clone(), &hash_version);
+    }
+    assert!(false);
 }
