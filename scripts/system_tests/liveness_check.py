@@ -2,9 +2,11 @@ import argparse
 import json
 import numbers
 import os
+import socket
 import subprocess
 import sys
 import time
+from multiprocessing import Process, Queue
 from typing import List, Union
 
 import requests
@@ -52,6 +54,18 @@ def get_monitoring_endpoint_port(
     )
 
 
+def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
+    """Actively wait until a port is open (used to confirm port-forward is ready)."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with socket.create_connection((host, port), timeout=1):
+                return True
+        except OSError:
+            time.sleep(0.5)
+    return False
+
+
 def check_service_alive(
     address: str,
     timeout: int,
@@ -60,41 +74,77 @@ def check_service_alive(
     retry: int = 3,
     retry_delay: int = 1,
 ) -> bool:
-    print("Starting live check test")
     print(f"Initial delay: {initial_delay}s")
-    time.sleep(initial_delay)
 
+    time.sleep(initial_delay)
     start_time = time.time()
-    print(
-        f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}"
-    )
-    print(f"Address: {address}")
-    print(f"Timeout: {timeout}s")
-    print(f"Interval: {interval}s")
-    print(f"Retry: {retry}, Retry delay: {retry_delay}s\n")
 
     while True:
         elapsed = time.time() - start_time
         if elapsed >= timeout:
-            print(f"Successfully ran for {timeout} seconds!")
             return True
 
         for attempt in range(1, retry + 1):
             try:
-                print(f"Calling {address} (attempt {attempt})...")
                 response = requests.get(address)
                 response.raise_for_status()
-                print(response.text)
                 break
-            except requests.RequestException as e:
-                print(f"Attempt {attempt} failed: {e}")
+            except requests.RequestException:
                 if attempt == retry:
-                    print(f"Failed to call {address} after {retry} attempts.")
                     return False
                 time.sleep(retry_delay)
 
-        print(f"Sleeping {interval} seconds before next call.\n")
         time.sleep(interval)
+
+
+def run_service_check(
+    service_name: str,
+    pod_name: str,
+    config_paths: List[str],
+    offset: int,
+    config_dir: str,
+    timeout: int,
+    interval: int,
+    initial_delay: int,
+    process_queue: Queue,
+):
+    try:
+        monitoring_port = get_monitoring_endpoint_port(
+            base_config_dir=config_dir,
+            relative_config_paths=config_paths,
+        )
+        local_port = monitoring_port + offset
+        print(f"[{service_name}] 🚀 Port-forwarding on {local_port} -> {monitoring_port}")
+
+        pf_process = subprocess.Popen(
+            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        try:
+            if not wait_for_port("127.0.0.1", local_port, timeout=15):
+                process_queue.put((service_name, False, "Port-forward did not establish"))
+                return
+
+            address = f"http://localhost:{local_port}/monitoring/alive"
+            success = check_service_alive(
+                address=address,
+                timeout=timeout,
+                interval=interval,
+                initial_delay=initial_delay,
+            )
+            if success:
+                print(f"[{service_name}] ✅ Passed for {timeout}s")
+                process_queue.put((service_name, True, "Health check passed"))
+            else:
+                print(f"[{service_name}] ❌ Failed health check")
+                process_queue.put((service_name, False, "Health check failed"))
+        finally:
+            pf_process.terminate()
+            pf_process.wait()
+    except Exception as e:
+        process_queue.put((service_name, False, str(e)))
 
 
 def main(
@@ -107,12 +157,18 @@ def main(
     print(
         f"Running liveness checks on config_dir: {config_dir} and deployment_config_path: {deployment_config_path}"
     )
-    services = get_services(deployment_config_path=deployment_config_path)
-    print("📱 Finding pods for services...")
-    for i, service_name in enumerate(services):
-        service_label = f"sequencer-{service_name.lower()}"
+    print(f"Timeout: {timeout}s")
+    print(f"Interval: {interval}s")
+    print(f"Initial Delay: {initial_delay}s")
 
-        print(f"📱 Finding {service_name} pod...")
+    print("📱 Finding pods for services...")
+    services = get_services(deployment_config_path=deployment_config_path)
+
+    process_queue = Queue()
+    healthcheck_processes: List[Process] = []
+
+    for offset, service_name in enumerate(services):
+        service_label = f"sequencer-{service_name.lower()}"
         try:
             pod_name = run(
                 [
@@ -126,6 +182,7 @@ def main(
                 ],
                 capture_output=True,
             ).stdout.strip()
+            print(f"Found pod for {service_name}: {pod_name}")
         except subprocess.CalledProcessError:
             print(f"❌ Missing pod for {service_name}. Aborting!")
             sys.exit(1)
@@ -134,57 +191,76 @@ def main(
             print(f"❌ No pod found for {service_name}. Aborting!")
             sys.exit(1)
 
-        print(f"{service_name} pod found - {pod_name}")
-
         config_paths = get_config_paths(
             deployment_config_path=deployment_config_path,
             service_name=service_name,
         )
-        monitoring_port = get_monitoring_endpoint_port(
-            base_config_dir=config_dir,
-            relative_config_paths=config_paths,
-        )
 
-        # Each sequencer is configured to use the same internal port - 8082,
-        # so we offset the local port to avoid conflicts when running multiple sequencers locally.
-        # This ensures unique local ports per instance.
-        local_port = monitoring_port + i
-        print(
-            f"🚀 Starting port-forwarding for {service_name} on local port {local_port}..."
+        process = Process(
+            name=service_name,
+            target=run_service_check,
+            args=(
+                service_name,
+                pod_name,
+                config_paths,
+                offset,
+                config_dir,
+                timeout,
+                interval,
+                initial_delay,
+                process_queue,
+            ),
         )
-        pf_process = subprocess.Popen(
-            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        process.start()
+        healthcheck_processes.append(process)
 
-        time.sleep(3)  # Allow port-forward to establish
+    # --- Wait for all healthcheck processes to finish ---
+    # Each service runs its healthcheck in its own process.
+    # We wait for them to complete, but enforce a timeout to avoid hanging forever.
+    results = []
+    for process in healthcheck_processes:
+        process.join(timeout=timeout + initial_delay + 30)
+        if process.is_alive():
+            # If a process is still running after the timeout, kill it
+            # to prevent CI from running indefinitely.
+            print(f"⚠️ Killing hung process {process.pid}")
+            process.terminate()
+            process.join()
 
-        try:
-            print(f"✅ Running health check for {service_name}...")
-            address = f"http://localhost:{local_port}/monitoring/alive"
-            success = check_service_alive(
-                address=address,
-                timeout=timeout,
-                interval=interval,
-                initial_delay=initial_delay,
-            )
-            if success:
-                print(f"✅ Test passed: {service_name} ran for {timeout} seconds!")
-            else:
-                print(f"❌ Test failed: {service_name} did not run successfully.")
-                pf_process.terminate()
-                pf_process.wait()
-                sys.exit(1)
-        finally:
-            pf_process.terminate()
-            pf_process.wait()
+    # --- Collect results from the worker queue ---
+    # Each worker reports back exactly one tuple: (service_name, ok_bool, message).
+    # We drain everything the workers managed to send.
+    while not process_queue.empty():
+        results.append(process_queue.get())
+
+    # --- Print results summary and decide overall outcome ---
+    print("\n=== RESULTS ===")
+    all_ok = True
+
+    # Track which services produced results vs. those that did not
+    reported_services = [svc for svc, _, _ in results]
+    expected_services = [p.name for p in healthcheck_processes]
+
+    # Print results for all services that reported
+    for svc, ok, msg in results:
+        status = "✅" if ok else "❌"
+        print(f"{status} {svc} - {msg}")
+        if not ok:
+            all_ok = False
+
+    # Any service with no result is considered failed
+    for svc in expected_services:
+        if svc not in reported_services:
+            print(f"❌ {svc} - No result (process killed or crashed)")
+            all_ok = False
+
+    # Fail the CI job if any service failed or failed to report
+    if not all_ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run liveness checks on Kubernetes services."
-    )
+    parser = argparse.ArgumentParser(description="Run liveness checks on Kubernetes services.")
     parser.add_argument(
         "--deployment-config-path",
         type=str,
