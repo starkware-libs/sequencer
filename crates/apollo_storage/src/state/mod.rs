@@ -64,7 +64,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
@@ -446,8 +446,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
         let deprecated_declared_classes_block_table =
             self.open_table(&self.tables.deprecated_declared_classes_block)?;
-
         // Write state.
+        info!("COMMIT_DEBUG: start write_deployed_contracts");
         write_deployed_contracts(
             &thin_state_diff.deployed_contracts,
             &self.txn,
@@ -455,6 +455,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &deployed_contracts_table,
             &nonces_table,
         )?;
+
+        info!("COMMIT_DEBUG: start write_storage_diffs");
         write_storage_diffs(
             &thin_state_diff.storage_diffs,
             &self.txn,
@@ -462,8 +464,10 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &storage_table,
         )?;
         // Must be called after write_deployed_contracts since the nonces are updated there.
+        info!("COMMIT_DEBUG: start write_nonces");
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
 
+        info!("COMMIT_DEBUG: start write_declared_classes & deprecated_declared_classes");
         for (class_hash, _) in &thin_state_diff.declared_classes {
             declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
         }
@@ -481,19 +485,21 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         }
 
         // Write state diff.
+        info!("COMMIT_DEBUG: start write_state_diff");
         let location = self.file_handlers.append_state_diff(&thin_state_diff);
         state_diffs_table.append(&self.txn, &block_number, &location)?;
         file_offset_table.upsert(&self.txn, &OffsetKind::ThinStateDiff, &location.next_offset())?;
 
         update_marker_to_next_block(&self.txn, &markers_table, MarkerKind::State, block_number)?;
 
+        info!("COMMIT_DEBUG: start advance_compiled_class_marker_over_blocks_without_classes");
         advance_compiled_class_marker_over_blocks_without_classes(
             &self.txn,
             &markers_table,
             &state_diffs_table,
             &self.file_handlers,
         )?;
-
+        info!("COMMIT_DEBUG: end storage append_state_diff");
         Ok(self)
     }
 

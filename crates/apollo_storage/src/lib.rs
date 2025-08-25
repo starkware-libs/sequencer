@@ -492,8 +492,12 @@ impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
     #[latency_histogram("storage_commit_latency_seconds", false)]
     pub fn commit(self) -> StorageResult<()> {
+        info!("COMMIT_DEBUG: start storage commit");
         self.file_handlers.flush();
-        Ok(self.txn.commit()?)
+        info!("COMMIT_DEBUG: end storage commit, start db tx commit");
+        self.txn.commit()?;
+        info!("COMMIT_DEBUG: end db tx commit");
+        Ok(())
     }
 }
 
@@ -736,12 +740,19 @@ impl FileHandlers<RW> {
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
         debug!("Flushing the mmap files.");
+        info!("COMMIT_DEBUG: start flush thin_state_diff");
         self.thin_state_diff.flush();
+        info!("COMMIT_DEBUG: start flush contract_class");
         self.contract_class.flush();
+        info!("COMMIT_DEBUG: start flush casm");
         self.casm.flush();
+        info!("COMMIT_DEBUG: start flush deprecated_contract_class");
         self.deprecated_contract_class.flush();
+        info!("COMMIT_DEBUG: start flush transaction_output");
         self.transaction_output.flush();
+        info!("COMMIT_DEBUG: start flush transaction");
         self.transaction.flush();
+        info!("COMMIT_DEBUG: end flush");
     }
 }
 
