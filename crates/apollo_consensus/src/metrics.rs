@@ -5,6 +5,8 @@ use strum_macros::{EnumIter, IntoStaticStr};
 define_metrics!(
     Consensus => {
         MetricGauge { CONSENSUS_BLOCK_NUMBER, "consensus_block_number", "The block number consensus is working to decide" },
+        // Because of the metrics sampling rate, the actual value of the CONSENSUS_ROUND gauge may be higher by up to 2 than the one reported by grafana.
+        // TODO(lev): Find a solution to the problem.
         MetricGauge { CONSENSUS_ROUND, "consensus_round", "The round of the state machine"},
         MetricGauge { CONSENSUS_MAX_CACHED_BLOCK_NUMBER, "consensus_max_cached_block_number", "How many blocks after current are cached"},
         MetricGauge { CONSENSUS_CACHED_VOTES, "consensus_cached_votes", "How many votes are cached when starting to work on a new block number" },
