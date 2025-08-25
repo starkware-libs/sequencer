@@ -8,6 +8,7 @@ use crate::io::os_output::{
     try_into_custom_error,
     wrap_missing,
     wrap_missing_as,
+    OsKzgCommitmentInfo,
     OsOutputError,
 };
 
@@ -276,9 +277,9 @@ impl TryFromOutputIter for PartialOsStateDiff {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 // A commitment to the state diff (with KZG commitment applied) in the full output format.
-pub struct FullCommitmentOsStateDiff(pub(crate) Vec<Felt>);
+pub struct FullCommitmentOsStateDiff(pub(crate) OsKzgCommitmentInfo);
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 // A commitment to the state diff (with KZG commitment applied) in the partial output format.
-pub struct PartialCommitmentOsStateDiff(pub(crate) Vec<Felt>);
+pub struct PartialCommitmentOsStateDiff(pub(crate) OsKzgCommitmentInfo);
