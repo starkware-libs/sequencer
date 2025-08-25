@@ -236,7 +236,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             })
             .collect();
 
-        let db_vals = storage.mget(&db_keys);
+        let db_vals = storage.mget(&db_keys)?;
         for ((subtree, optional_val), db_key) in
             subtrees.iter().zip(db_vals.iter()).zip(db_keys.into_iter())
         {
