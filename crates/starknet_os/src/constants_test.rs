@@ -2,7 +2,7 @@ use apollo_starknet_os_program::OS_PROGRAM;
 use blockifier::abi::constants::{L1_TO_L2_MSG_HEADER_SIZE, L2_TO_L1_MSG_HEADER_SIZE};
 use cairo_vm::types::program::Program;
 use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
-use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
+use starknet_api::core::{GLOBAL_STATE_VERSION, L2_ADDRESS_UPPER_BOUND};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_types_core::felt::Felt;
 
@@ -45,6 +45,17 @@ fn test_contract_class_hash_version() {
             "starkware.starknet.core.os.state.commitment.CONTRACT_CLASS_LEAF_VERSION"
         ),
         Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).unwrap()
+    );
+}
+
+#[test]
+fn test_global_state_version() {
+    assert_eq!(
+        get_from_program(
+            &OS_PROGRAM,
+            "starkware.starknet.core.os.state.commitment.GLOBAL_STATE_VERSION"
+        ),
+        GLOBAL_STATE_VERSION
     );
 }
 
