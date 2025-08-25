@@ -72,7 +72,7 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
     let (response_code, deprecated_gateway_error) = match err {
         GatewayClientError::ClientError(e) => {
             error!("Encountered a ClientError: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, StarknetError::internal("Internal error"))
+            (StatusCode::INTERNAL_SERVER_ERROR, StarknetError::internal())
         }
         GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
             source,
