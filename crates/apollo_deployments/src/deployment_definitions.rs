@@ -256,6 +256,7 @@ pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
     ClassManager,
+    ConfigManager,
     Consensus,
     General, // General configs that are not specific to any service, e.g., pointer targets.
     Gateway,
@@ -278,6 +279,7 @@ impl ComponentConfigInService {
             ComponentConfigInService::BaseLayer => vec!["base_layer_config".to_string()],
             ComponentConfigInService::Batcher => vec!["batcher_config".to_string()],
             ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
+            ComponentConfigInService::ConfigManager => vec!["config_manager_config".to_string()],
             ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
             ComponentConfigInService::General => vec![
                 "revert_config".to_string(),

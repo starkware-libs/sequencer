@@ -13,6 +13,7 @@ use apollo_class_manager::config::{
 };
 use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
+use apollo_config_manager::config::ConfigManagerConfig;
 use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
@@ -276,6 +277,7 @@ pub fn create_node_config(
     let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
     let class_manager_config =
         wrap_if_component_config_expected!(class_manager, class_manager_config);
+    let config_manager_config = ConfigManagerConfig::default();
     let consensus_manager_config =
         wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
     let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
@@ -302,6 +304,7 @@ pub fn create_node_config(
         batcher_config,
         class_manager_config,
         components,
+        config_manager_config: Some(config_manager_config),
         consensus_manager_config,
         gateway_config,
         http_server_config,

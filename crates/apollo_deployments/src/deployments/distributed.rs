@@ -543,6 +543,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -568,6 +569,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -593,6 +595,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -617,7 +620,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::HttpServer => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -642,7 +646,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Gateway => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::Gateway
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::Gateway
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -673,6 +678,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -695,6 +701,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::General
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -717,7 +724,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::SierraCompiler => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::SierraCompiler => {
                             components.insert(component_config_in_service);
@@ -742,7 +750,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::StateSync => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::StateSync => {
                             components.insert(component_config_in_service);
@@ -958,7 +967,6 @@ fn get_l1_component_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
-
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;

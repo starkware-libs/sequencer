@@ -7,6 +7,7 @@
       "config_paths": [
         "app_configs/batcher_config.json",
         "app_configs/class_manager_config.json",
+        "app_configs/config_manager_config.json",
         "app_configs/consensus_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",
@@ -48,6 +49,7 @@
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
+        "app_configs/config_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",
         "app_configs/validate_resource_bounds_config.json",
@@ -85,6 +87,7 @@
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
+        "app_configs/config_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",
         "app_configs/validate_resource_bounds_config.json",
@@ -123,6 +126,7 @@
       "controller": "Deployment",
       "config_paths": [
         "app_configs/base_layer_config.json",
+        "app_configs/config_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",
         "app_configs/validate_resource_bounds_config.json",
@@ -166,6 +170,7 @@
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
+        "app_configs/config_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",
         "app_configs/validate_resource_bounds_config.json",
@@ -204,6 +209,7 @@
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
+        "app_configs/config_manager_config.json",
         "app_configs/revert_config.json",
         "app_configs/versioned_constants_overrides_config.json",
         "app_configs/validate_resource_bounds_config.json",
