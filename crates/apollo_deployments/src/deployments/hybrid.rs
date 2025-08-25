@@ -877,8 +877,10 @@ pub(crate) fn hybrid_deployment(
     http_server_ingress_alternative_name: &str,
     k8s_service_config_params: Option<K8sServiceConfigParams>,
 ) -> Deployment {
+    let node_type = if id < 4 { NodeType::Hybrid } else { NodeType::Consolidated };
+
     Deployment::new(
-        NodeType::Hybrid,
+        node_type,
         environment,
         &instance_name_format.format(&[&id]),
         Some(ExternalSecret::new(secret_name_format.format(&[&id]))),
