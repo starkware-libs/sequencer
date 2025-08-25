@@ -1,0 +1,78 @@
+use std::path::Path;
+
+use libmdbx::{Database as MdbxDb, DatabaseFlags, TableFlags, WriteFlags, WriteMap};
+
+use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+
+pub struct MdbxStorage {
+    db: MdbxDb<WriteMap>,
+}
+
+impl MdbxStorage {
+    pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
+        let db = MdbxDb::<WriteMap>::new()
+            .set_flags(DatabaseFlags {
+                // As DbKeys are hashed, there is no locality of pages in the database almost at
+                // all, so readahead will fill the RAM with garbage.
+                // See https://libmdbx.dqdkfa.ru/group__c__opening.html#gga9138119a904355d245777c4119534061a16a07f878f8053cc79990063ca9510e7
+                no_rdahead: true,
+                // LIFO policy for recycling a Garbage Collection items should be faster when using
+                // disks with write-back cache.
+                liforeclaim: true,
+                ..Default::default()
+            })
+            .open(path)?;
+        let txn = db.begin_rw_txn()?;
+        txn.create_table(None, TableFlags::empty())?;
+        txn.commit()?;
+        Ok(Self { db })
+    }
+}
+
+impl Storage for MdbxStorage {
+    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        let txn = self.db.begin_ro_txn()?;
+        let table = txn.open_table(None)?;
+        Ok(txn.get(&table, &key.0)?.map(DbValue))
+    }
+
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+        let txn = self.db.begin_rw_txn()?;
+        let table = txn.open_table(None)?;
+        let prev_val = txn.get(&table, &key.0)?.map(DbValue);
+        txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
+        txn.commit()?;
+        Ok(prev_val)
+    }
+
+    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        let txn = self.db.begin_ro_txn()?;
+        let table = txn.open_table(None)?;
+        let mut res = Vec::with_capacity(keys.len());
+        for key in keys {
+            res.push(txn.get(&table, &key.0)?.map(DbValue));
+        }
+        Ok(res)
+    }
+
+    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+        let txn = self.db.begin_rw_txn()?;
+        let table = txn.open_table(None)?;
+        for (key, value) in key_to_value {
+            txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
+        }
+        txn.commit()?;
+        Ok(())
+    }
+
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        let txn = self.db.begin_rw_txn()?;
+        let table = txn.open_table(None)?;
+        let prev_val = txn.get(&table, &key.0)?.map(DbValue);
+        if prev_val.is_some() {
+            txn.del(&table, &key.0, None)?;
+        }
+        txn.commit()?;
+        Ok(prev_val)
+    }
+}
