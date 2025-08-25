@@ -614,6 +614,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -639,6 +640,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -664,6 +666,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -689,6 +692,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -714,6 +718,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -739,6 +744,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -764,6 +770,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -789,6 +796,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -797,7 +805,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::General
-                        | ComponentConfigInService::MonitoringEndpoint => {
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::SignatureManager => {
                             components.insert(component_config_in_service);
                         }
                         ComponentConfigInService::BaseLayer
@@ -839,7 +848,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
-                        | ComponentConfigInService::SierraCompiler => {}
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager => {}
                     }
                 }
             }
