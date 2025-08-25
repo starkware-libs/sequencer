@@ -91,12 +91,12 @@ impl Gateway {
     ) -> GatewayResult<GatewayOutput> {
         debug!("Processing tx: {:?}", tx);
 
+        let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
+        metric_counters.count_transaction_received();
+
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             self.check_declare_permissions(declare_tx)?;
         }
-
-        let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
-        metric_counters.count_transaction_received();
 
         let blocking_task =
             ProcessTxBlockingTask::new(self, tx.clone(), tokio::runtime::Handle::current());
