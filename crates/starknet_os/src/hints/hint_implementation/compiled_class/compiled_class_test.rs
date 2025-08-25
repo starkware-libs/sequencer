@@ -172,16 +172,18 @@ impl HashVersionTestSpec for HashVersion {
         bytecode_segment_felt_sizes: &NestedFeltCounts,
     ) -> ExecutionResources {
         let resources = match self {
-            HashVersion::V1 => CasmV1HashResourceEstimate::new(HashVersion::V1)
-                .estimated_resources_of_compiled_class_hash(
+            HashVersion::V1 => {
+                CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     &Default::default(),
-                ),
-            HashVersion::V2 => CasmV2HashResourceEstimate::new(HashVersion::V2)
-                .estimated_resources_of_compiled_class_hash(
+                )
+            }
+            HashVersion::V2 => {
+                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     &Default::default(),
-                ),
+                )
+            }
         };
         resources.resources().clone()
     }

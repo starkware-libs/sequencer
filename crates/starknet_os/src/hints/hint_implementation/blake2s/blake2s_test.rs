@@ -26,8 +26,8 @@ use crate::test_utils::cairo_runner::{
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
     let felt_size_groups = FeltSizeCount::from(data);
-    let estimated = CasmV2HashResourceEstimate::new(HashVersion::V2)
-        .estimated_resources_of_hash_function(&felt_size_groups);
+    let estimated =
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&felt_size_groups);
 
     let mut resources = estimated.resources().clone();
     resources.n_steps -= 1;
