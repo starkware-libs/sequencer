@@ -60,7 +60,7 @@ impl Default for MonitoringGatewayConfig {
             metric_labels: None,
             // A constant value for testing purposes.
             present_full_config_secret: String::from("qwerty"),
-            starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
+            starknet_url: String::from("https://feeder.alpha-mainnet.starknet.io/"),
         }
     }
 }

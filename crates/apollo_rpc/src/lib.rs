@@ -91,7 +91,7 @@ impl Default for RpcConfig {
             max_events_chunk_size: 1000,
             max_events_keys: 100,
             collect_metrics: false,
-            starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
+            starknet_url: String::from("https://feeder.alpha-mainnet.starknet.io/"),
             apollo_gateway_retry_config: RetryConfig {
                 retry_base_millis: 50,
                 retry_max_delay_millis: 1000,

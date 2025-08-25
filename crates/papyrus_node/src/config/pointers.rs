@@ -67,7 +67,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         (
             ser_pointer_target_param(
                 "starknet_url",
-                &"https://alpha-mainnet.starknet.io/".to_string(),
+                &"https://feeder.alpha-mainnet.starknet.io/".to_string(),
                 "The URL of a centralized Starknet gateway.",
             ),
             set_pointing_param_paths(&[

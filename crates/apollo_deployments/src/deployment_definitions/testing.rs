@@ -32,7 +32,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x1002",
         Some(BlockNumber(1)),
         TESTING_NODE_IDS.len(),
-        StateSyncType::P2P,
+        StateSyncType::Central,
     )
 }
 
