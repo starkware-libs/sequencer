@@ -569,6 +569,91 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "components.config_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.config_manager.ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.config_manager.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.config_manager.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.config_manager.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.config_manager.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.config_manager.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
+  },
+  "components.config_manager.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.config_manager.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.config_manager.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.config_manager.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.config_manager.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.config_manager.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.config_manager.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.config_manager.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "components.config_manager.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 150
+  },
+  "components.config_manager.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
+  },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -1273,6 +1358,11 @@
     "description": "URL of the remote component server.",
     "privacy": "Public",
     "value": "localhost"
+  },
+  "config_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "consensus_manager_config.#is_none": {
     "description": "Flag for an optional field.",
