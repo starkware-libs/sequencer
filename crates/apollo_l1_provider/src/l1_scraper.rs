@@ -36,8 +36,9 @@ pub mod l1_scraper_tests;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
+// TODO(guyn): remove L1_BLOCK_TIME in favor of pointer target l1_block_time.
 // Sensible lower bound.
-pub const L1_BLOCK_TIME: u64 = 10;
+const L1_BLOCK_TIME: u64 = 10;
 
 pub struct L1Scraper<B: BaseLayerContract> {
     pub config: L1ScraperConfig,

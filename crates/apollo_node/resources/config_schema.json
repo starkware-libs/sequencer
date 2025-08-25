@@ -1429,6 +1429,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "l1_block_time": {
+    "description": "The time between L1 blocks.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
+  },
   "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": {
     "description": "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the current one is non-operational.",
     "privacy": "Private",
@@ -1448,6 +1453,11 @@
     "description": "Number of blocks to wait for finality in L1",
     "privacy": "Public",
     "value": 0
+  },
+  "l1_gas_price_config.l1_block_time": {
+    "description": "The time between L1 blocks",
+    "pointer_target": "l1_block_time",
+    "privacy": "Public"
   },
   "l1_gas_price_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
