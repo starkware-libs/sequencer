@@ -4,8 +4,13 @@ use std::result;
 
 use apollo_central_sync::sources::central::CentralSourceConfig;
 use apollo_central_sync::SyncConfig;
-use apollo_config::dumping::{prepend_sub_config_name, ser_optional_sub_config, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
@@ -33,12 +38,20 @@ pub struct StateSyncConfig {
     pub revert_config: RevertConfig,
     #[validate]
     pub rpc_config: RpcConfig,
+    // TODO(noamsp): Remove this after fixing the replay procedure.
+    // This is a temporary solution by disabling the replay procedure in production and enabling it
+    // in integration tests.
+    pub should_replay_processed_txs_metric: bool,
 }
 
 impl SerializeConfig for StateSyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-
+        let mut config = BTreeMap::from_iter([ser_param(
+            "should_replay_processed_txs_metric",
+            &self.should_replay_processed_txs_metric,
+            "Whether to replay processed transactions.",
+            ParamPrivacyInput::Public,
+        )]);
         config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         config.extend(ser_optional_sub_config(&self.network_config, "network_config"));
         config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
@@ -82,6 +95,7 @@ impl Default for StateSyncConfig {
             network_config: Some(NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() }),
             revert_config: RevertConfig::default(),
             rpc_config: RpcConfig::default(),
+            should_replay_processed_txs_metric: false,
         }
     }
 }
