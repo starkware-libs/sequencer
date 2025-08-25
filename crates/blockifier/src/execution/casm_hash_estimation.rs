@@ -156,9 +156,14 @@ impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
 ///
 /// This provides resource estimates rather than exact values.
 pub trait EstimateCasmHashResources {
-    fn new(hash_version: HashVersion) -> Self;
+    fn new() -> Self;
     /// Specifies the hash function variant that the estimate is for.
     fn hash_version(&self) -> HashVersion;
+
+    fn estimated_resources_from_execution_resources(
+        &self,
+        resources: ExecutionResources,
+    ) -> EstimatedExecutionResources;
 
     fn leaf_cost(&self, felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources;
 
@@ -181,13 +186,10 @@ pub trait EstimateCasmHashResources {
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
-        let mut resources = EstimatedExecutionResources::from((
-            ExecutionResources {
-                n_steps: cairo_functions_step_estimation::BASE_COMPILED_CLASS_HASH,
-                ..Default::default()
-            },
-            self.hash_version(),
-        ));
+        let mut resources = self.estimated_resources_from_execution_resources(ExecutionResources {
+            n_steps: cairo_functions_step_estimation::BASE_COMPILED_CLASS_HASH,
+            ..Default::default()
+        });
 
         resources += &self.estimated_resources_of_bytecode_hash_node(bytecode_segment_felt_sizes);
         resources +=
@@ -212,13 +214,10 @@ pub trait EstimateCasmHashResources {
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
     ) -> EstimatedExecutionResources {
-        let mut resources = EstimatedExecutionResources::from((
-            ExecutionResources {
-                n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_NODE,
-                ..Default::default()
-            },
-            self.hash_version(),
-        ));
+        let mut resources = self.estimated_resources_from_execution_resources(ExecutionResources {
+            n_steps: cairo_functions_step_estimation::BASE_BYTECODE_HASH_NODE,
+            ..Default::default()
+        });
 
         // Add leaf vs node cost
         resources += &match bytecode_segment_felt_sizes {
@@ -236,13 +235,10 @@ pub trait EstimateCasmHashResources {
         &self,
         entry_points: &[EntryPointV1],
     ) -> EstimatedExecutionResources {
-        let mut resources = EstimatedExecutionResources::from((
-            ExecutionResources {
-                n_steps: cairo_functions_step_estimation::BASE_HASH_ENTRY_POINTS,
-                ..Default::default()
-            },
-            self.hash_version(),
-        ));
+        let mut resources = self.estimated_resources_from_execution_resources(ExecutionResources {
+            n_steps: cairo_functions_step_estimation::BASE_HASH_ENTRY_POINTS,
+            ..Default::default()
+        });
 
         for entry_point in entry_points {
             resources += &self.estimated_resources_of_hash_entry_points_inner(entry_point);
@@ -250,7 +246,7 @@ pub trait EstimateCasmHashResources {
 
         // Computes cost of `hash_finalize`: a hash over (selector1, offset1, selector2, offset2,
         // ...). Each entry point has a selector (big felt) and an offset (small felt).
-        // somethis with builtins make the large *2. 
+        // somethis with builtins make the large *2.
         resources += &self.estimated_resources_of_hash_function(&FeltSizeCount {
             large: entry_points.len() + entry_points.len(),
             small: entry_points.len(),
@@ -263,13 +259,10 @@ pub trait EstimateCasmHashResources {
         &self,
         entry_point: &EntryPointV1,
     ) -> EstimatedExecutionResources {
-        let mut resources = EstimatedExecutionResources::from((
-            ExecutionResources {
-                n_steps: cairo_functions_step_estimation::BASE_HASH_ENTRY_POINTS_INNER,
-                ..Default::default()
-            },
-            self.hash_version(),
-        ));
+        let mut resources = self.estimated_resources_from_execution_resources(ExecutionResources {
+            n_steps: cairo_functions_step_estimation::BASE_HASH_ENTRY_POINTS_INNER,
+            ..Default::default()
+        });
 
         // compute cost of `hash_update_with_nested_hash`
         let base_resources_of_hash_update_with_nested_hash = ExecutionResources {
@@ -294,8 +287,15 @@ pub trait EstimateCasmHashResources {
 pub struct CasmV1HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
-    fn new(_hash_version: HashVersion) -> Self {
+    fn new() -> Self {
         CasmV1HashResourceEstimate {}
+    }
+
+    fn estimated_resources_from_execution_resources(
+        &self,
+        resources: ExecutionResources,
+    ) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V1Hash { resources }
     }
 
     fn hash_version(&self) -> HashVersion {
@@ -329,14 +329,11 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
         bytecode_segment_felt_sizes: &[NestedFeltCounts],
     ) -> EstimatedExecutionResources {
         // The contract code is segmented by its functions.
-        let mut resources = EstimatedExecutionResources::from((
-            ExecutionResources {
-                n_steps: 482,
-                n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
-            },
-            self.hash_version(),
-        ));
+        let mut resources = self.estimated_resources_from_execution_resources(ExecutionResources {
+            n_steps: 482,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
+        });
         let base_segment_cost = ExecutionResources {
             n_steps: 25,
             n_memory_holes: 1,
@@ -356,8 +353,15 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 pub struct CasmV2HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
-    fn new(_hash_version: HashVersion) -> Self {
+    fn new() -> Self {
         CasmV2HashResourceEstimate {}
+    }
+
+    fn estimated_resources_from_execution_resources(
+        &self,
+        resources: ExecutionResources,
+    ) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V2Hash { resources, blake_count: 0 }
     }
 
     fn hash_version(&self) -> HashVersion {
@@ -513,7 +517,9 @@ mod cairo_functions_step_estimation {
     const BASE_HASH_FINALIZE: usize = 0; // need ?
     pub(crate) const BASE_HASH_ENTRY_POINTS: usize =
         HASH_INIT + CALL_HASH_ENTRY_POINTS_INNER + CALL_HASH_FINALIZE + HASH_UPDATE_SINGLE + RETURN;
-    pub(crate) const BASE_HASH_ENTRY_POINTS_INNER: usize =
-        IF + HASH_UPDATE_SINGLE * 2 + CALL_HASH_UPDATE_WITH_NESTED_HASH + CALL_HASH_ENTRY_POINTS_INNER;
+    pub(crate) const BASE_HASH_ENTRY_POINTS_INNER: usize = IF
+        + HASH_UPDATE_SINGLE * 2
+        + CALL_HASH_UPDATE_WITH_NESTED_HASH
+        + CALL_HASH_ENTRY_POINTS_INNER;
     pub(crate) const BASE_HASH_UPDATE_WITH_NESTED_HASH: usize = CALL_HASH_UPDATE_SINGLE + RETURN;
 }
