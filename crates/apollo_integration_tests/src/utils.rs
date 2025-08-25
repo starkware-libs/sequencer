@@ -695,6 +695,7 @@ pub fn create_state_sync_configs(
                 port: rpc_ports.remove(0),
                 ..Default::default()
             },
+            should_replay_processed_txs_metric: true,
             ..Default::default()
         })
         .collect()

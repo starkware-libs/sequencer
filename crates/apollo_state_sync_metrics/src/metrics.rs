@@ -27,7 +27,7 @@ define_metrics!(
         MetricGauge { STATE_SYNC_COMPILED_CLASS_MARKER, "apollo_state_sync_compiled_class_marker", "The first block number for which the state sync component does not have all of the corresponding compiled classes" },
         MetricGauge { STATE_SYNC_CLASS_MANAGER_MARKER, "apollo_state_sync_class_manager_marker", "The first block number for which the state sync component does not guarantee all of the corresponding classes are stored in the class manager component" },
         MetricGauge { STATE_SYNC_HEADER_LATENCY_SEC, "apollo_state_sync_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time the state sync component stores the header" },
-        MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component", init = 0 },
+        MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component since its last restart", init = 0 },
         MetricCounter { STATE_SYNC_REVERTED_TRANSACTIONS, "apollo_state_sync_reverted_transactions", "The number of transactions reverted by the state sync component", init = 0 },
     },
     Infra => {
@@ -38,7 +38,10 @@ define_metrics!(
     },
 );
 
-pub async fn register_metrics(storage_reader: StorageReader) {
+pub async fn register_metrics(
+    should_replay_processed_txs_metric: bool,
+    storage_reader: StorageReader,
+) {
     STATE_SYNC_HEADER_MARKER.register();
     STATE_SYNC_BODY_MARKER.register();
     STATE_SYNC_STATE_MARKER.register();
@@ -48,12 +51,16 @@ pub async fn register_metrics(storage_reader: StorageReader) {
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
     CENTRAL_SYNC_FORKS_FROM_FEEDER.register();
-    let _ = tokio::task::spawn_blocking(move || {
-        let txn = storage_reader.begin_ro_txn().unwrap();
-        update_marker_metrics(&txn);
-        reconstruct_processed_transactions_metric(&txn);
-    })
-    .await;
+    let txn = storage_reader.begin_ro_txn().unwrap();
+    update_marker_metrics(&txn);
+    if should_replay_processed_txs_metric {
+        let storage_reader = storage_reader.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn().unwrap();
+            reconstruct_processed_transactions_metric(&txn);
+        })
+        .await;
+    }
 }
 
 pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
@@ -69,6 +76,8 @@ pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) 
         .set_lossy(txn.get_compiled_class_marker().expect("Should have a compiled class marker").0);
 }
 
+// TODO(noamsp): Fix replay procedure by adding the value to the storage, this way we wont need to
+// replay all the transactions.
 fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
     let block_marker = txn.get_body_marker().expect("Should have a body marker");
 
