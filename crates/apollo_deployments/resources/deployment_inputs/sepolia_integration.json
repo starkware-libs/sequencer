@@ -1,5 +1,5 @@
 {
-  "node_ids": [0, 1, 2],
+  "node_ids": [[0, "0x64"], [1,"0x65"], [2,"0x66"]],
   "num_validators": 3,
   "http_server_ingress_alternative_name": "integration-sepolia.starknet.io",
   "ingress_domain": "starknet.io",

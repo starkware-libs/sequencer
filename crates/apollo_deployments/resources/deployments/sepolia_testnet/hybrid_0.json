@@ -7,5 +7,5 @@
   "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": false,
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "",
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": true,
-  "validator_id": "0x64"
+  "validator_id": "0x67"
 }

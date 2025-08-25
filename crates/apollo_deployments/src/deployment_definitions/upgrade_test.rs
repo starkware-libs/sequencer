@@ -7,6 +7,7 @@ use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{CloudK8sEnvironment, Environment, StateSyncType};
 use crate::deployments::hybrid::{hybrid_deployment, INSTANCE_NAME_FORMAT};
 use crate::k8s::K8sServiceConfigParams;
+use crate::utils::get_validator_id;
 
 const NODE_IDS: [usize; 3] = [0, 1, 2];
 const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
@@ -33,6 +34,7 @@ pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
         .map(|i| {
             hybrid_deployment(
                 i,
+                get_validator_id(i),
                 P2P_COMMUNICATION_TYPE,
                 DEPLOYMENT_ENVIRONMENT,
                 &Template::new(INSTANCE_NAME_FORMAT),
