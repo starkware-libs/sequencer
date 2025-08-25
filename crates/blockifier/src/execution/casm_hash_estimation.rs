@@ -187,12 +187,12 @@ pub trait EstimateCasmHashResources {
         resources +=
             &Self::estimated_resources_of_hash_entry_points(&entry_points_by_type.constructor);
 
-        // Compute cost of `hash_finalize`: hash over (hash_entrypoints1, len_entrypoints1,
-        // hash_ep2, len_ep2, hash_ep3, len_ep3, hash_bytecode, len_bytecode)
-        let hash_finalize_data_len = 3;
+        // Compute cost of `hash_finalize`: hash over (compiled_class_version, hash_entrypoints1,
+        // hash_ep2, hash_ep3, hash_bytecode)
+        let hash_finalize_data_len = 5;
         let hash_finalize_resources = Self::estimated_resources_of_hash_function(&FeltSizeCount {
             large: hash_finalize_data_len,
-            small: hash_finalize_data_len,
+            small: 0,
         });
         resources += &hash_finalize_resources;
 
@@ -234,7 +234,7 @@ pub trait EstimateCasmHashResources {
         // Computes cost of `hash_finalize`: a hash over (selector1, offset1, selector2, offset2,
         // ...). Each entry point has a selector (big felt) and an offset (small felt).
         // somethis with builtins make the large *2.
-        resources += &Self::estimated_resources_of_hash_function(&FeltSizeCount {
+        resources += &self.estimated_resources_of_hash_function(&FeltSizeCount {
             large: entry_points.len() + entry_points.len(),
             small: entry_points.len(),
         });
@@ -290,7 +290,7 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
         // The entire contract is a single segment (old Sierra contracts).
         let mut resources = Self::estimated_resources_of_hash_function(felt_size_groups);
         resources += &ExecutionResources {
-            n_steps: 464,
+            n_steps: 0, // 464,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
         };
@@ -301,7 +301,7 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn node_cost(bytecode_segment_felt_sizes: &[NestedFeltCounts]) -> EstimatedExecutionResources {
         // The contract code is segmented by its functions.
         let mut resources = Self::from_resources(ExecutionResources {
-            n_steps: 482,
+            n_steps: 18, // 482,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
         });
@@ -415,37 +415,38 @@ impl Default for CasmV2HashResourceEstimate {
 mod cairo_functions_step_estimation {
     // Call functions steps.
     const CALL_COMPILED_CLASS_HASH: usize = 10;
-    const CALL_BYTECODE_HASH_NODE: usize = 4;
-    const CALL_BYTECODE_HASH_INTERNAL_NODE: usize = 6;
-    const CALL_HASH_FINALIZE: usize = 2;
+    const CALL_BYTECODE_HASH_NODE: usize = 4; //verified
+    const CALL_BYTECODE_HASH_INTERNAL_NODE: usize = 7; //verified
+    const CALL_HASH_FINALIZE: usize = 2; //verified almost - call +return
     // Q(AvivG): if return val is none - does it still take 1 step? no --> 2
     // Q(AvivG): if arg is pointer - does it take 1 step or number of elements? if more than 1 -->
     // change
-    const CALL_HASH_ENTRY_POINTS: usize = 5;
-    const CALL_HASH_ENTRY_POINTS_INNER: usize = 5;
+    const CALL_HASH_ENTRY_POINTS: usize = 4; //usually 3 due to compiler optimizations. //verified
+    const CALL_HASH_ENTRY_POINTS_INNER: usize = 4; //verified
 
     const CALL_HASH_UPDATE_SINGLE: usize = 2;
     const CALL_HASH_UPDATE_WITH_NESTED_HASH: usize = 5;
 
     // Cairo commands steps.
-    const ALLOC_LOCAL: usize = 1;
+    const ALLOC_LOCAL: usize = 1; //verified
     const ASSERT: usize = 2;
     const TEMPVAR: usize = 1;
-    const LET: usize = 1; // not sure
+    const LET: usize = 0; // not sure
     const RETURN: usize = 1; // not sure
     const CREATE_HASH_STATE: usize = 2; // not sure
     const IF: usize = 2;
 
     // Fixed function total steps.
-    const HASH_UPDATE_SINGLE: usize =
-        CALL_HASH_UPDATE_SINGLE + ASSERT + LET + RETURN + CREATE_HASH_STATE;
-    const HASH_INIT: usize = ALLOC_LOCAL + CREATE_HASH_STATE + RETURN + 2; // not sure, should be 6.
+    const HASH_UPDATE_SINGLE: usize = 8; //sometimes 6 with compiler optimizations. //verified
+    // CALL_HASH_UPDATE_SINGLE + ASSERT + LET + RETURN + CREATE_HASH_STATE;
+    const HASH_INIT: usize = 6; // CALL (1) + LET_ALLOC(3) + RETURN CREATE_HASH_STATE (2) ; // verified
 
     // Base steps.
     pub(crate) const BASE_COMPILED_CLASS_HASH: usize = CALL_COMPILED_CLASS_HASH
         + HASH_INIT
         + ALLOC_LOCAL
-        + ASSERT
+        + 2 // assert compiled class version
+        //+ ASSERT
         + RETURN
         // + CREATE_HASH_STATE
         + HASH_UPDATE_SINGLE * 2
@@ -464,7 +465,7 @@ mod cairo_functions_step_estimation {
             + IF
             + LET
             + TEMPVAR * 2
-            + HASH_UPDATE_SINGLE * 2
+            + HASH_UPDATE_SINGLE + 6 // verified: first time is 8 second time is 6
             + RETURN
             + CALL_BYTECODE_HASH_INTERNAL_NODE;
     // spik those becasue this is only  if not loaded which is anyway cheaper
