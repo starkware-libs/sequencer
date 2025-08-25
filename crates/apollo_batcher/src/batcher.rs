@@ -646,12 +646,18 @@ impl Batcher {
         })?;
 
         // Notify the L1 provider of the new block.
+        info!(
+            "COMMIT_DEBUG: Collecting rejected TXs in height {}, set size {}",
+            height,
+            rejected_tx_hashes.len()
+        );
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
             .iter()
             .copied()
             .filter(|tx_hash| consumed_l1_handler_tx_hashes.contains(tx_hash))
             .collect();
 
+        info!("COMMIT_DEBUG: Notifying L1 provider of new block at height {}", height);
         let l1_provider_result = self
             .l1_provider_client
             .commit_block(consumed_l1_handler_tx_hashes, rejected_l1_handler_tx_hashes, height)
@@ -682,6 +688,7 @@ impl Batcher {
             return Err(BatcherError::InternalError);
         }
 
+        info!("COMMIT_DEBUG: Notifying mempool of new block at height {}", height);
         // Notify the mempool of the new block.
         let mempool_result = self
             .mempool_client
@@ -694,6 +701,7 @@ impl Batcher {
         };
 
         STORAGE_HEIGHT.increment(1);
+        info!("COMMIT_DEBUG: Done commit_proposal_and_block {}", height);
         Ok(())
     }
 
@@ -948,7 +956,13 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        let txn = self.begin_rw_txn()?;
+        info!("COMMIT_DEBUG: Got rw txn handler, start writing");
+        let txn = txn.append_state_diff(height, state_diff)?;
+        info!("COMMIT_DEBUG: Finished writing state diff");
+        let res = txn.commit();
+        info!("COMMIT_DEBUG: Finished committing txn");
+        res
     }
 
     // This function will panic if there is a storage failure to revert the block.
