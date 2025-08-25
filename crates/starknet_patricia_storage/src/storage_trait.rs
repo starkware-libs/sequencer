@@ -10,23 +10,29 @@ pub struct DbKey(pub Vec<u8>);
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DbValue(pub Vec<u8>);
 
+/// An error that can occur when interacting with the database.
+#[derive(thiserror::Error, Debug)]
+pub enum PatriciaStorageError {}
+
+pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
+
 pub trait Storage {
     /// Returns value from storage, if it exists.
-    fn get(&self, key: &DbKey) -> Option<DbValue>;
+    fn get(&self, key: &DbKey) -> Result<Option<DbValue>, PatriciaStorageError>;
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
-    fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue>;
+    fn set(&mut self, key: DbKey, value: DbValue) -> Result<Option<DbValue>, PatriciaStorageError>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&self, keys: &[DbKey]) -> Vec<Option<DbValue>>;
+    fn mget(&self, keys: &[DbKey]) -> Result<Vec<Option<DbValue>>, PatriciaStorageError>;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: MapStorage);
+    fn mset(&mut self, key_to_value: MapStorage) -> Result<(), PatriciaStorageError>;
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
-    fn delete(&mut self, key: &DbKey) -> Option<DbValue>;
+    fn delete(&mut self, key: &DbKey) -> Result<Option<DbValue>, PatriciaStorageError>;
 }
 
 #[derive(Debug)]
