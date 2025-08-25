@@ -12355,7 +12355,9 @@ dependencies = [
 name = "starknet_patricia_storage"
 version = "0.0.0"
 dependencies = [
+ "apollo_storage",
  "hex",
+ "libmdbx",
  "lru 0.12.5",
  "rstest",
  "serde",

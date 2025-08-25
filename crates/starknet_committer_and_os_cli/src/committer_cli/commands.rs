@@ -130,7 +130,7 @@ pub async fn run_storage_benchmark() {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut time_measurement = TimeMeasurement::new();
 
-    let mut storage = MapStorage::new();
+    let mut storage = MapStorage::default();
     let mut contracts_trie_root_hash = HashOutput::default();
     let mut classes_trie_root_hash = HashOutput::default();
 
@@ -153,15 +153,9 @@ pub async fn run_storage_benchmark() {
         );
         serialized_filled_forest.0.write_to_storage(&mut storage);
 
-        let n_new_facts = serialized_filled_forest
-            .0
-            .storage_tries
-            .get(&contract_leaf)
-            .unwrap()
-            .tree_map
-            .len();
+        let n_new_facts =
+            serialized_filled_forest.0.storage_tries.get(&contract_leaf).unwrap().tree_map.len();
         time_measurement.stop_measurement(n_new_facts);
-
 
         contracts_trie_root_hash = serialized_filled_forest.0.get_contract_root_hash();
         classes_trie_root_hash = serialized_filled_forest.0.get_compiled_class_root_hash();
