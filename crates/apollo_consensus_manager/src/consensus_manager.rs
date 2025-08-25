@@ -19,7 +19,6 @@ use apollo_consensus_orchestrator::sequencer_consensus_context::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
@@ -161,9 +160,6 @@ impl ConsensusManager {
                 cende_ambassador: Arc::new(CendeAmbassador::new(
                     self.config.cende_config.clone(),
                     Arc::clone(&self.class_manager_client),
-                )),
-                eth_to_strk_oracle_client: Arc::new(EthToStrkOracleClient::new(
-                    self.config.eth_to_strk_oracle_config.clone(),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
                 clock: Arc::new(DefaultClock),

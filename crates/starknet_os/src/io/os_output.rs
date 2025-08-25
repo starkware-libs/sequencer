@@ -6,7 +6,7 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, PreviousBlockNumber};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
@@ -22,11 +22,11 @@ use crate::io::os_output_types::{
 };
 use crate::metrics::OsMetrics;
 
-// Cairo DictAccess types for concrete objects.
-
-const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
+// from_address, to_address, payload_size.
+pub(crate) const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3;
 // from_address, to_address, nonce, selector, payload_size.
-const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
+pub(crate) const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
+
 #[derive(Debug, thiserror::Error)]
 pub enum OsOutputError {
     #[error("Missing expected field: {0}.")]
@@ -101,12 +101,12 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
 pub struct MessageToL2 {
     // The L1 address of the contract sending the message.
-    from_address: EthAddress,
+    pub(crate) from_address: EthAddress,
     // The L2 address of the contract receiving the message.
-    to_address: ContractAddress,
-    nonce: Nonce,
-    selector: EntryPointSelector,
-    payload: L1ToL2Payload,
+    pub(crate) to_address: ContractAddress,
+    pub(crate) nonce: Nonce,
+    pub(crate) selector: EntryPointSelector,
+    pub(crate) payload: L1ToL2Payload,
 }
 
 impl TryFromOutputIter for MessageToL2 {
@@ -154,8 +154,7 @@ impl TryFromOutputIter for OutputIterParsedData {
     ) -> Result<Self, OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
         let final_root = wrap_missing(output_iter.next(), "final_root")?;
-        let prev_block_number =
-            BlockNumber(wrap_missing_as(output_iter.next(), "prev_block_number")?);
+        let prev_block_number = wrap_missing_as(output_iter.next(), "prev_block_number")?;
         let new_block_number =
             BlockNumber(wrap_missing_as(output_iter.next(), "new_block_number")?);
         let prev_block_hash = wrap_missing(output_iter.next(), "prev_block_hash")?;
@@ -229,7 +228,7 @@ pub struct CommonOsOutput {
     // The root after.
     pub final_root: StarkHash,
     // The previous block number.
-    pub prev_block_number: BlockNumber,
+    pub prev_block_number: PreviousBlockNumber,
     // The new block number.
     pub new_block_number: BlockNumber,
     // The previous block hash.
@@ -250,7 +249,7 @@ pub struct CommonOsOutput {
 #[derive(Debug)]
 /// A specific structured os output (with FullOsStateDiff).
 /// The aggregator inputs are expected to be in this format.
-pub struct FullOsOutput {
+pub(crate) struct FullOsOutput {
     pub common_os_output: CommonOsOutput,
     pub state_diff: FullOsStateDiff,
 }
@@ -270,11 +269,11 @@ impl TryFrom<OsOutput> for FullOsOutput {
 }
 
 impl FullOsOutput {
-    pub fn use_kzg_da(&self) -> bool {
+    pub fn _use_kzg_da(&self) -> bool {
         false
     }
 
-    pub fn full_output(&self) -> bool {
+    pub fn _full_output(&self) -> bool {
         true
     }
 }
@@ -287,8 +286,6 @@ pub struct OsOutput {
     pub state_diff: OsStateDiff,
 }
 
-// Tzahi: Remove once used in the aggregator
-#[allow(dead_code)]
 impl TryFromOutputIter for OsOutput {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
@@ -327,7 +324,9 @@ impl OsOutput {
     }
 }
 
+#[derive(Debug)]
 pub struct StarknetOsRunnerOutput {
+    pub raw_os_output: Vec<Felt>,
     #[cfg(feature = "include_program_output")]
     pub os_output: OsOutput,
     pub cairo_pie: CairoPie,
@@ -405,20 +404,15 @@ fn get_raw_output(
         output_base.to_isize().expect("Output segment index unexpectedly exceeds isize::MAX"),
         0,
     ));
-    let range_of_output = vm.get_range(output_address, output_size);
+    let range_of_output = vm
+        .get_continuous_range(output_address, output_size)
+        .map_err(VirtualMachineError::Memory)?;
     range_of_output
-        .iter()
+        .into_iter()
         .map(|x| match x {
-            Some(cow) => match **cow {
-                MaybeRelocatable::Int(val) => Ok(val),
-                MaybeRelocatable::RelocatableValue(val) => {
-                    Err(StarknetOsError::VirtualMachineError(
-                        VirtualMachineError::ExpectedIntAtRange(Box::new(Some(val.into()))),
-                    ))
-                }
-            },
-            None => Err(StarknetOsError::VirtualMachineError(
-                MemoryError::MissingMemoryCells(BuiltinName::output.into()).into(),
+            MaybeRelocatable::Int(val) => Ok(val),
+            MaybeRelocatable::RelocatableValue(val) => Err(StarknetOsError::VirtualMachineError(
+                VirtualMachineError::ExpectedIntAtRange(Box::new(Some(val.into()))),
             )),
         })
         .collect()

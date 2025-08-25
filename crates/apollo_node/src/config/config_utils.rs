@@ -1,17 +1,15 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
+use apollo_config::{ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use serde_json::{Map, Value};
 use tracing::error;
 use validator::ValidationError;
 
-use crate::config::component_config::ComponentConfig;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{
     SequencerNodeConfig,
@@ -99,6 +97,36 @@ pub fn config_to_preset(config_map: &Value) -> Value {
     }
 }
 
+/// Keep "{prefix}.#is_none": true, remove all other "{prefix}.*" keys.
+pub fn prune_by_is_none(mut v: Value) -> Value {
+    let obj: &mut Map<String, Value> =
+        v.as_object_mut().expect("prune_by_is_none: expected a JSON object");
+
+    // Find optional parameter paths which are unset
+    let is_none_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+    let mut unset_optional_param_paths: HashSet<String> = HashSet::new();
+
+    for (k, val) in obj.iter() {
+        if let Some(prefix) = k.strip_suffix(&is_none_suffix) {
+            if val.as_bool() == Some(true) {
+                unset_optional_param_paths.insert(format!("{prefix}{FIELD_SEPARATOR}"));
+            }
+        }
+    }
+
+    // Remove keys that begin with any such prefix, except the "#is_none" flag itself
+    obj.retain(|k, _| {
+        if let Some(p) = unset_optional_param_paths.iter().find(|p| k.starts_with(&***p)) {
+            // keep only the "{prefix}.#is_none" key
+            k == &format!("{p}{IS_NONE_MARK}")
+        } else {
+            true
+        }
+    });
+
+    v
+}
+
 // TODO(Nadin): Consider adding methods to ConfigPointers to encapsulate related functionality.
 fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError> {
     if let Some(preset_map) = preset.as_object() {
@@ -118,20 +146,6 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
             "invalid_preset_format",
             "Preset is not a valid object",
         ))
-    }
-}
-
-pub struct BaseAppConfigOverride {
-    component_config: ComponentConfig,
-    monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
-}
-
-impl BaseAppConfigOverride {
-    pub fn new(
-        component_config: ComponentConfig,
-        monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
-    ) -> Self {
-        Self { component_config, monitoring_endpoint_config }
     }
 }
 
@@ -171,12 +185,6 @@ impl DeploymentBaseAppConfig {
         F: Fn(&mut ConfigPointersMap),
     {
         modify_config_pointers_fn(&mut self.config_pointers_map);
-    }
-
-    pub fn override_base_app_config(&mut self, base_app_config_override: BaseAppConfigOverride) {
-        self.config.components = base_app_config_override.component_config;
-        self.config.monitoring_endpoint_config =
-            base_app_config_override.monitoring_endpoint_config;
     }
 
     pub fn as_value(&self) -> Value {

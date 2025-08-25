@@ -41,9 +41,11 @@
         "gcsm_key": "apollo-sepolia-alpha-0"
       },
       "anti_affinity": true,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
+        "SignatureManager": 55008,
         "StateSync": 55009,
         "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
@@ -95,6 +97,7 @@
         "gcsm_key": "apollo-sepolia-alpha-0"
       },
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
@@ -133,6 +136,7 @@
         "gcsm_key": "apollo-sepolia-alpha-0"
       },
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "Gateway": 55002,
         "MonitoringEndpoint": 8082
@@ -161,21 +165,22 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": "apollo-l1-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
-        },
-        "limits": {
           "cpu": 2,
           "memory": 4
+        },
+        "limits": {
+          "cpu": 3,
+          "memory": 12
         }
       },
       "external_secret": {
         "gcsm_key": "apollo-sepolia-alpha-0"
       },
-      "anti_affinity": false,
+      "anti_affinity": true,
+      "update_strategy_type": "Recreate",
       "ports": {
         "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
@@ -206,21 +211,22 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
-        },
-        "limits": {
           "cpu": 2,
           "memory": 4
+        },
+        "limits": {
+          "cpu": 3,
+          "memory": 12
         }
       },
       "external_secret": {
         "gcsm_key": "apollo-sepolia-alpha-0"
       },
       "anti_affinity": true,
+      "update_strategy_type": "Recreate",
       "ports": {
         "Mempool": 55006,
         "MonitoringEndpoint": 8082
@@ -259,6 +265,7 @@
         "gcsm_key": "apollo-sepolia-alpha-0"
       },
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082

@@ -32,7 +32,8 @@ fn message_to_l2(index: u64) -> Event {
             tx_hash: tx_hash!(index),
             ..Default::default()
         }),
-        timestamp: index.into(),
+        block_timestamp: index.into(),
+        scrape_timestamp: index,
     }
 }
 
@@ -50,9 +51,11 @@ async fn timing_flows() {
 
     let cancellation_timelock = 2;
     let new_message_cooldown = 1;
+    let consumption_timelock = 1;
     let mut l1_provider = L1ProviderBuilder::new(
         L1ProviderConfig {
             l1_handler_cancellation_timelock_seconds: Duration::from_secs(cancellation_timelock),
+            l1_handler_consumption_timelock_seconds: Duration::from_secs(consumption_timelock),
             new_l1_handler_cooldown_seconds: Duration::from_secs(new_message_cooldown),
             ..Default::default()
         },

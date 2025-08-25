@@ -9,7 +9,7 @@ description = "Blake2s hash implementation"
 [dependencies]
 blake2.workspace = true
 digest.workspace = true
-starknet-types-core.workspace = true
+starknet-types-core = { workspace = true, features = ["hash"] }
 
 [dev-dependencies]
 rstest.workspace = true

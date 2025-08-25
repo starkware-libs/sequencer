@@ -1,3 +1,4 @@
+use apollo_mempool_types::mempool_types::MEMPOOL_REQUEST_LABELS;
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
@@ -18,7 +19,40 @@ define_metrics!(
         MetricGauge { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
         MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are being delayed" },
         MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
-        MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (secs) that a transaction spent in the mempool" },
+        MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)" },
+        MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, "mempool_transaction_time_spent_until_committed", "The time (seconds) a transaction spent in the mempool until it was committed" },
+    },
+    Infra => {
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+            "mempool_labeled_processing_times_secs",
+            "Request processing times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+            "mempool_labeled_queueing_times_secs",
+            "Request queueing times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+            "mempool_labeled_local_response_times_secs",
+            "Request local response times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+            "mempool_labeled_remote_response_times_secs",
+            "Request remote response times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+            "mempool_labeled_remote_client_communication_failure_times_secs",
+            "Request communication failure times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
     },
 );
 
@@ -120,4 +154,5 @@ pub(crate) fn register_metrics() {
     MEMPOOL_TOTAL_SIZE_BYTES.register();
     // Register Histograms.
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();
 }

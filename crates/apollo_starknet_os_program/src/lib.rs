@@ -9,6 +9,7 @@ use crate::program_hash::ProgramHashes;
 mod cairo_formatting_test;
 #[cfg(test)]
 mod constants_test;
+pub mod os_code_snippets;
 pub mod program_hash;
 #[cfg(feature = "test_programs")]
 pub mod test_programs;
