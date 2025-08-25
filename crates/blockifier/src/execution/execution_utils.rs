@@ -13,7 +13,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
-use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
@@ -359,18 +359,6 @@ pub fn write_maybe_relocatable<T: Into<MaybeRelocatable>>(
     vm.insert_value(*ptr, value)?;
     *ptr = (*ptr + 1)?;
     Ok(())
-}
-
-/// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
-pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
-    ExecutionResources {
-        n_steps: (data_length / 10) * 55
-            + ((data_length % 10) / 2) * 18
-            + (data_length % 2) * 3
-            + 21,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
-    }
 }
 
 // Constants that define how felts are encoded into u32s for BLAKE hashing.
