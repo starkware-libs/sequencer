@@ -361,18 +361,6 @@ pub fn write_maybe_relocatable<T: Into<MaybeRelocatable>>(
     Ok(())
 }
 
-/// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
-pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
-    ExecutionResources {
-        n_steps: (data_length / 10) * 55
-            + ((data_length % 10) / 2) * 18
-            + (data_length % 2) * 3
-            + 21,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
-    }
-}
-
 // Constants that define how felts are encoded into u32s for BLAKE hashing.
 mod blake_encoding {
     // Number of `u32` words in a single BLAKE input message block.

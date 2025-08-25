@@ -45,6 +45,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
     EstimatedExecutionResources,
@@ -53,7 +54,6 @@ use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAn
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
     blake_execution_resources_estimation_to_gas,
-    poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
 };
 #[cfg(feature = "cairo_native")]
@@ -564,7 +564,11 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
                 n_steps: 464,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
-            } + &poseidon_hash_many_cost(*length)
+            } + &CasmV1HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
+                large: *length,
+                small: 0,
+            })
+            .resources()
         }
         NestedFeltCounts::Node(segments) => {
             // The contract code is segmented by its functions.
@@ -584,7 +588,11 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
                         "Estimating hash cost is only supported for segmentation depth at most 1."
                     );
                 };
-                execution_resources += &poseidon_hash_many_cost(*length);
+                execution_resources +=
+                    &CasmV1HashResourceEstimate::estimated_resources_of_hash_function(
+                        &FeltSizeCount { large: *length, small: 0 },
+                    )
+                    .resources();
                 execution_resources += &base_segment_cost;
             }
             execution_resources
