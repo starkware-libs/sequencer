@@ -369,7 +369,7 @@
     "State Sync": [
       {
         "title": "apollo_state_sync_processed_transactions",
-        "description": "The number of transactions processed by the state sync component",
+        "description": "The number of transactions processed by the state sync component since its last restart",
         "type": "stat",
         "exprs": [
           "apollo_state_sync_processed_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
