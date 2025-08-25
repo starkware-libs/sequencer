@@ -18,6 +18,8 @@ use apollo_infra::metrics::{
 
 use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
+// Infra panels
+
 fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(&CLASS_MANAGER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }

@@ -38,61 +38,6 @@ fn get_panel_gateway_transactions_received_by_type() -> Panel {
     )
 }
 
-fn get_panel_local_msgs_received() -> Panel {
-    Panel::from_counter(&GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
-}
-fn get_panel_local_msgs_processed() -> Panel {
-    Panel::from_counter(&GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
-}
-fn get_panel_remote_msgs_received() -> Panel {
-    Panel::from_counter(&GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
-}
-fn get_panel_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(&GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
-}
-fn get_panel_remote_msgs_processed() -> Panel {
-    Panel::from_counter(&GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
-}
-fn get_panel_remote_number_of_connections() -> Panel {
-    Panel::from_gauge(&GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
-}
-fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(&GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
-}
-fn get_panel_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(&GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
-}
-fn get_local_client_response_times_panels() -> Vec<Panel> {
-    create_request_type_labeled_hist_panels(
-        &GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-        PanelType::TimeSeries,
-    )
-}
-fn get_remote_client_response_times_panels() -> Vec<Panel> {
-    create_request_type_labeled_hist_panels(
-        &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        PanelType::TimeSeries,
-    )
-}
-fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
-    create_request_type_labeled_hist_panels(
-        &GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-        PanelType::TimeSeries,
-    )
-}
-fn get_processing_times_panels() -> Vec<Panel> {
-    create_request_type_labeled_hist_panels(
-        &GATEWAY_LABELED_PROCESSING_TIMES_SECS,
-        PanelType::TimeSeries,
-    )
-}
-fn get_queueing_times_panels() -> Vec<Panel> {
-    create_request_type_labeled_hist_panels(
-        &GATEWAY_LABELED_QUEUEING_TIMES_SECS,
-        PanelType::TimeSeries,
-    )
-}
-
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
     Panel::new(
         GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
@@ -149,6 +94,63 @@ fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
         )],
         PanelType::Stat,
+    )
+}
+
+// Infra panels
+
+fn get_panel_local_msgs_received() -> Panel {
+    Panel::from_counter(&GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+fn get_panel_local_msgs_processed() -> Panel {
+    Panel::from_counter(&GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+fn get_panel_remote_msgs_received() -> Panel {
+    Panel::from_counter(&GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+fn get_panel_remote_valid_msgs_received() -> Panel {
+    Panel::from_counter(&GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+fn get_panel_remote_msgs_processed() -> Panel {
+    Panel::from_counter(&GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+fn get_panel_remote_number_of_connections() -> Panel {
+    Panel::from_gauge(&GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
+}
+fn get_panel_local_queue_depth() -> Panel {
+    Panel::from_gauge(&GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+}
+fn get_panel_remote_client_send_attempts() -> Panel {
+    Panel::from_hist(&GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+}
+fn get_local_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_processing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_queueing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+        PanelType::TimeSeries,
     )
 }
 
