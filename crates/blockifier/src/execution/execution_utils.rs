@@ -7,7 +7,6 @@ use cairo_vm::serde::deserialize_program::{
     Identifier,
     ReferenceManager,
 };
-use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -18,14 +17,10 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,

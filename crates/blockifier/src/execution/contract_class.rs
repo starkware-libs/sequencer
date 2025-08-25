@@ -462,7 +462,7 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
-        CasmV2HashResourceEstimate::new(HashVersion::V2).estimated_resources_of_compiled_class_hash(
+        CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
             &self.bytecode_segment_felt_sizes,
             &self.entry_points_by_type,
         )
@@ -480,14 +480,14 @@ impl CompiledClassV1 {
     /// - Total gas amount.
     /// - The builtins used in the Poseidon hash.
     fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
-        let blake_hash_resources = CasmV2HashResourceEstimate::new(HashVersion::V2)
-            .estimated_resources_of_compiled_class_hash(
+        let blake_hash_resources =
+            CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                 &self.bytecode_segment_felt_sizes,
                 &self.entry_points_by_type,
             );
 
-        let poseidon_hash_resources = CasmV1HashResourceEstimate::new(HashVersion::V1)
-            .estimated_resources_of_compiled_class_hash(
+        let poseidon_hash_resources =
+            CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                 &self.bytecode_segment_felt_sizes,
                 &self.entry_points_by_type,
             );

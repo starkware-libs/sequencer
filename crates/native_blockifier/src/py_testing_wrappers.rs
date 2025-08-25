@@ -22,8 +22,7 @@ pub fn estimate_casm_hash_computation_resources_for_testing_single(
 ) -> PyResult<PyExecutionResources> {
     let node = NestedFeltCounts::Leaf(bytecode_segment_lengths, FeltSizeCount::default());
     // TODO(AvivG): Should be V2.
-    Ok(CasmV1HashResourceEstimate::new(HashVersion::V1)
-        .estimated_resources_of_bytecode_hash_node(&node)
+    Ok(CasmV1HashResourceEstimate::estimated_resources_of_bytecode_hash_node(&node)
         .into())
 }
 
@@ -41,7 +40,6 @@ pub fn estimate_casm_hash_computation_resources_for_testing_list(
             .collect(),
     );
     // TODO(AvivG): Should be V2.
-    Ok(CasmV1HashResourceEstimate::new(HashVersion::V1)
-        .estimated_resources_of_bytecode_hash_node(&node)
+    Ok(CasmV1HashResourceEstimate::estimated_resources_of_bytecode_hash_node(&node)
         .into())
 }

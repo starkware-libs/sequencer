@@ -17,7 +17,6 @@ use crate::blockifier::transaction_executor::{
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
-use crate::execution::execution_utils::blake_execution_resources_estimation_to_gas;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -683,15 +682,16 @@ pub fn builtins_to_gas(
 }
 
 fn add_casm_hash_computation_gas_cost(
-    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExecutionResources>,
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
     gas_without_casm_hash_computation: GasAmount,
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
+    blake_opcode_gas: Option<usize>,
 ) -> (GasAmount, CasmHashComputationData) {
     let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
         class_hash_to_casm_hash_computation_resources,
         gas_without_casm_hash_computation,
-        |resources| vm_resources_to_gas(resources, builtin_gas_cost, versioned_constants),
+        |resources| resources.to_gas(builtin_gas_cost, blake_opcode_gas, versioned_constants),
     );
     (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
 }
@@ -727,13 +727,6 @@ pub fn get_tx_weights<S: StateReader>(
     let sierra_gas = tx_resources.computation.sierra_gas;
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
-    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
-        add_casm_hash_computation_gas_cost(
-            &class_hash_to_casm_hash_computation_resources,
-            sierra_gas_without_casm_hash_computation,
-            &builtin_gas_cost,
-            versioned_constants,
-        );
 
     // Proving gas computation.
     let mut builtin_counters_without_casm_hash_computation =
@@ -752,16 +745,43 @@ pub fn get_tx_weights<S: StateReader>(
         builtin_proving_weights,
         versioned_constants,
     );
+
+    // Migration resources.
+    let (class_hashes_to_migrate, migration_resources) =
+        if versioned_constants.enable_casm_hash_migration {
+            get_migration_data(state_reader, executed_class_hashes)?
+        } else {
+            (HashMap::new(), EstimatedExecutionResources::new(HashVersion::V2))
+        };
+    let blake_opcode_gas = Some(bouncer_config.blake_weight);
+    let migration_sierra_gas =
+        migration_resources.to_gas(&builtin_gas_cost, blake_opcode_gas, versioned_constants);
+
+    let migration_proving_gas = migration_resources.to_gas(
+        &bouncer_config.builtin_weights.weights,
+        blake_opcode_gas,
+        versioned_constants,
+    );
+
     sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_sierra_gas);
+    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            sierra_gas_without_casm_hash_computation,
+            &builtin_gas_cost,
+            versioned_constants,
+            blake_opcode_gas,
+        );
+    // Use the shared pattern to create proving gas data
+    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_proving_gas);
     let (total_proving_gas, casm_hash_computation_data_proving_gas) =
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
             proving_gas_without_casm_hash_computation,
             &builtin_proving_weights.weights,
             versioned_constants,
+            blake_opcode_gas,
         );
-    // Use the shared pattern to create proving gas data
-    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_proving_gas);
 
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
