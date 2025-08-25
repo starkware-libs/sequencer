@@ -24,11 +24,11 @@ impl Storage for MapStorage {
         self.remove(key)
     }
 
-    fn get(&self, key: &DbKey) -> Option<&DbValue> {
-        self.get(key)
+    fn get(&self, key: &DbKey) -> Option<DbValue> {
+        self.get(key).cloned()
     }
 
-    fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>> {
-        keys.iter().map(|key| self.get(key)).collect()
+    fn mget(&self, keys: &[DbKey]) -> Vec<Option<DbValue>> {
+        keys.iter().map(|key| self.get(key).cloned()).collect()
     }
 }
