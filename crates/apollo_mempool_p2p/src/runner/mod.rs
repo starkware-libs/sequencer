@@ -28,7 +28,7 @@ pub struct MempoolP2pRunner {
     broadcasted_topic_server: BroadcastTopicServer<RpcTransactionBatch>,
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     gateway_client: SharedGatewayClient,
-    _mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     transaction_batch_rate_millis: Duration,
 }
 
@@ -46,7 +46,7 @@ impl MempoolP2pRunner {
             broadcasted_topic_server,
             broadcast_topic_client,
             gateway_client,
-            _mempool_p2p_propagator_client: mempool_p2p_propagator_client,
+            mempool_p2p_propagator_client,
             transaction_batch_rate_millis,
         }
     }
@@ -66,7 +66,7 @@ impl ComponentStarter for MempoolP2pRunner {
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
                 }
                 _ = transaction_batch_broadcast_interval.tick() => {
-                    if (self._mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
+                    if (self.mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
                         warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request");
                     };
                 }
