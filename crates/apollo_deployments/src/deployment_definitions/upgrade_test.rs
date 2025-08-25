@@ -34,6 +34,7 @@ pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
         .map(|i| {
             hybrid_deployment(
                 i,
+                vec![(0, "0x64".to_string()), (1, "0x65".to_string()), (2, "0x66".to_string())],
                 get_validator_id(i),
                 P2P_COMMUNICATION_TYPE,
                 DEPLOYMENT_ENVIRONMENT,
