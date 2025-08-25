@@ -1,5 +1,6 @@
 use assert_matches::assert_matches;
 use num_bigint::BigUint;
+use rstest::rstest;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 
@@ -105,13 +106,17 @@ fn test_contract_address_display() {
     );
 }
 
-#[test]
-fn test_ascii_as_felt() {
-    let sn_main_id = ChainId::Mainnet;
-    let sn_main_felt = ascii_as_felt(sn_main_id.to_string().as_str()).unwrap();
+#[rstest]
+#[case::mainnet(ChainId::Mainnet, "0x534e5f4d41494e")]
+#[case::testnet(ChainId::Sepolia, "0x534e5f5345504f4c4941")]
+#[case::integration(ChainId::IntegrationSepolia, "0x534e5f494e544547524154494f4e5f5345504f4c4941")]
+#[case::other(ChainId::Other("HelloWorld".to_string()), "0x48656c6c6f576f726c64")]
+fn test_ascii_as_felt(#[case] chain_id: ChainId, #[case] expected_felt_value: &str) {
+    let chain_id_felt = ascii_as_felt(chain_id.to_string().as_str()).unwrap();
     // This is the result of the Python snippet from the Chain-Id documentation.
-    let expected_sn_main = Felt::from(23448594291968334_u128);
-    assert_eq!(sn_main_felt, expected_sn_main);
+    let expected_felt = Felt::from_hex_unchecked(expected_felt_value);
+    assert_eq!(chain_id_felt, expected_felt);
+    assert_eq!(chain_id_felt, Felt::try_from(&chain_id).unwrap())
 }
 
 #[test]
