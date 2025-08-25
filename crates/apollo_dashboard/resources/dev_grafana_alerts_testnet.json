@@ -1354,7 +1354,7 @@
       "name": "mempool_evictions_count",
       "title": "Mempool evictions count",
       "ruleGroup": "mempool",
-      "expr": "mempool_evictions_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "expr": "mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason=\"evicted\"}",
       "conditions": [
         {
           "evaluator": {
