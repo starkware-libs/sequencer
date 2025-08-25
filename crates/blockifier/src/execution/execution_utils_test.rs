@@ -8,12 +8,7 @@ use crate::execution::casm_hash_estimation::{
     EstimateCasmHashResources,
 };
 use crate::execution::contract_class::FeltSizeCount;
-use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
-use crate::execution::execution_utils::{
-    blake_encoding,
-    count_blake_opcode,
-    estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
-};
+use crate::execution::execution_utils::count_blake_opcode;
 
 #[test]
 fn test_u32_constants() {
@@ -26,8 +21,8 @@ fn test_u32_constants() {
     let big_u32s = encode_felts_to_u32s(vec![big_felt]);
 
     // Blake estimation constants should match the actual encoding.
-    assert_eq!(small_u32s.len(), blake_encoding::U32_WORDS_PER_SMALL_FELT);
-    assert_eq!(big_u32s.len(), blake_encoding::U32_WORDS_PER_LARGE_FELT);
+    assert_eq!(small_u32s.len(), CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT);
+    assert_eq!(big_u32s.len(), CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT);
 }
 
 /// Test the edge case of hashing an empty array of felt values.
@@ -35,8 +30,14 @@ fn test_u32_constants() {
 fn test_zero_inputs() {
     // logic was written.
     let steps =
-        estimate_steps_of_encode_felt252_data_and_calc_blake_hash(&FeltSizeCount::default());
-    assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
+        CasmV2HashResourceEstimate::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+            &FeltSizeCount::default(),
+        );
+    assert_eq!(
+        steps,
+        CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT,
+        "Unexpected base step cost for zero inputs"
+    );
 
     // No opcodes should be emitted.
     let opcodes = count_blake_opcode(&FeltSizeCount::default());
@@ -45,7 +46,10 @@ fn test_zero_inputs() {
     // Should result in base cost only (no opcode cost).
     let resources =
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
-    let expected = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
+    let expected = ExecutionResources {
+        n_steps: CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT,
+        ..Default::default()
+    };
     assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }

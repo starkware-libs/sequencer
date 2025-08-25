@@ -25,7 +25,7 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
+use crate::execution::casm_hash_estimation::{CasmV2HashResourceEstimate, EstimatedExecutionResources};
 use crate::execution::contract_class::{FeltSizeCount, RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
@@ -373,87 +373,16 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
     }
 }
 
-// Constants that define how felts are encoded into u32s for BLAKE hashing.
-mod blake_encoding {
-    // Number of `u32` words in a single BLAKE input message block.
-    pub(crate) const U32_WORDS_PER_MESSAGE: usize = 16;
-    // Number of `u32` words a large felt expands into.
-    pub(crate) const U32_WORDS_PER_LARGE_FELT: usize = 8;
-    // Number of `u32` words a small felt expands into.
-    pub(crate) const U32_WORDS_PER_SMALL_FELT: usize = 2;
-}
-
-// Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
-// These values are based on empirical measurement by running
-// `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
-pub(crate) mod blake_estimation {
-    // Per-felt step cost (measured).
-    pub const STEPS_BIG_FELT: usize = 45;
-    pub const STEPS_SMALL_FELT: usize = 15;
-
-    // One-time overhead.
-    // Overhead when input fills a full Blake message (16 u32s).
-    pub const BASE_STEPS_FULL_MSG: usize = 217;
-    // Overhead when input results in a partial message (remainder < 16 u32s).
-    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
-    // Extra steps per 2-u32 remainder in partial messages.
-    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
-    // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
-    pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
-    // Empty input steps.
-    pub const STEPS_EMPTY_INPUT: usize = 170;
-}
-
 /// Calculates the total number of u32s required to encode the given number of big and small felts.
 /// Big felts encode to 8 u32s each, small felts encode to 2 u32s each.
-fn total_u32s_from_felts(n_big_felts: usize, n_small_felts: usize) -> usize {
+pub(crate) fn total_u32s_from_felts(n_big_felts: usize, n_small_felts: usize) -> usize {
     let big_u32s = n_big_felts
-        .checked_mul(blake_encoding::U32_WORDS_PER_LARGE_FELT)
+        .checked_mul(CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT)
         .expect("Overflow computing big felts u32s");
     let small_u32s = n_small_felts
-        .checked_mul(blake_encoding::U32_WORDS_PER_SMALL_FELT)
+        .checked_mul(CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT)
         .expect("Overflow computing small felts u32s");
     big_u32s.checked_add(small_u32s).expect("Overflow computing total u32s")
-}
-
-fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
-    let rem_u32s = n_u32s % blake_encoding::U32_WORDS_PER_MESSAGE;
-    if rem_u32s == 0 {
-        blake_estimation::BASE_STEPS_FULL_MSG
-    } else {
-        // This computation is based on running blake2s with different inputs.
-        // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
-        blake_estimation::BASE_STEPS_PARTIAL_MSG
-            + (rem_u32s / 2) * blake_estimation::STEPS_PER_2_U32_REMINDER
-    }
-}
-
-fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
-    let big_steps = n_big_felts
-        .checked_mul(blake_estimation::STEPS_BIG_FELT)
-        .expect("Overflow computing big felt steps");
-    let small_steps = n_small_felts
-        .checked_mul(blake_estimation::STEPS_SMALL_FELT)
-        .expect("Overflow computing small felt steps");
-    big_steps.checked_add(small_steps).expect("Overflow computing total felt steps")
-}
-
-/// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
-/// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
-/// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-pub(crate) fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
-    felt_size_groups: &FeltSizeCount,
-) -> usize {
-    let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
-    if total_u32s == 0 {
-        // The empty input case is a special case.
-        return blake_estimation::STEPS_EMPTY_INPUT;
-    }
-
-    let base_steps = base_steps_for_blake_hash(total_u32s);
-    let felt_steps = felts_steps(felt_size_groups.large, felt_size_groups.small);
-
-    base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
 }
 
 /// Returns the number of BLAKE opcodes needed to hash the given felts.
@@ -461,7 +390,7 @@ pub(crate) fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
 pub(crate) fn count_blake_opcode(felt_size_groups: &FeltSizeCount) -> usize {
     // Count the total number of u32s to be hashed.
     let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
-    total_u32s.div_ceil(blake_encoding::U32_WORDS_PER_MESSAGE)
+    total_u32s.div_ceil(CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE)
 }
 
 /// Converts the execution resources and blake opcode count to L2 gas.
