@@ -221,21 +221,14 @@ impl ProcessTxBlockingTask {
                 StarknetError::internal(&e.to_string())
             })?;
 
-        let mut validator = self
+        let validator = self
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
-        let address = executable_tx.contract_address();
-        let nonce = validator.get_nonce(address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", address, e);
-            // TODO(yair): Fix this. Need to map the errors better.
-            StarknetError::internal(&e.to_string())
-        })?;
-
-        self.stateful_tx_validator
-            .run_transaction_validations(
+        let nonce = self
+            .stateful_tx_validator
+            .extract_state_nonce_and_run_validations(
                 &executable_tx,
-                nonce,
                 self.mempool_client,
                 validator,
                 self.runtime,
@@ -246,7 +239,10 @@ impl ProcessTxBlockingTask {
             })?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
+        Ok(AddTransactionArgs {
+            tx: internal_tx,
+            account_state: AccountState { address: executable_tx.contract_address(), nonce },
+        })
     }
 }
 
