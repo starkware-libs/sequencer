@@ -66,8 +66,9 @@ impl ComponentStarter for MempoolP2pRunner {
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
                 }
                 _ = transaction_batch_broadcast_interval.tick() => {
-                    if (self._mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
-                        warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request");
+                    let result = self._mempool_p2p_propagator_client.broadcast_queued_transactions().await;
+                    if result.is_err() {
+                        warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request: {result:?}");
                     };
                 }
                 Some(result) = gateway_futures.next() => {
@@ -80,7 +81,7 @@ impl ComponentStarter for MempoolP2pRunner {
                                 GatewayError::DeprecatedGatewayError{p2p_message_metadata: Some(p2p_message_metadata), ..}
                             ) = gateway_client_error {
                                 warn!(
-                                    "Gateway rejected transaction we received from another peer. Reporting peer."
+                                    "Gateway rejected transaction we received from another peer. Reporting peer: {:?}.", p2p_message_metadata
                                 );
                                 if let Err(e) = self.broadcast_topic_client.report_peer(p2p_message_metadata.clone()).await {
                                     warn!("Failed to report peer: {:?}", e);
@@ -97,9 +98,10 @@ impl ComponentStarter for MempoolP2pRunner {
                 Some((message_result, broadcasted_message_metadata)) = self.broadcasted_topic_server.next() => {
                     match message_result {
                         Ok(message) => {
-                            // TODO(alonl): consider calculating the tx_hash and pringing it instead of the entire tx.
-                            info!("Received transaction from network, forwarding to gateway");
-                            debug!("received transaction: {:?}", message.0);
+                            // TODO(alonl): consider calculating the tx_hash and printing it instead of the entire tx.
+                            // TODO: Should this be info or debug?
+                            info!("Received transaction batch from network, forwarding to gateway");
+                            debug!("received transaction batch: {:?}", message.0);
                             for rpc_tx in message.0 {
                                 gateway_futures.push(self.gateway_client.add_tx(
                                     GatewayInput { rpc_tx, message_metadata: Some(broadcasted_message_metadata.clone()) }
@@ -107,7 +109,7 @@ impl ComponentStarter for MempoolP2pRunner {
                             }
                         }
                         Err(e) => {
-                            warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer", e);
+                            warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer {:?}", e, broadcasted_message_metadata);
                             if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
                                 warn!("Failed to report peer: {:?}", e);
                             }
