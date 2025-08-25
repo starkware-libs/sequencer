@@ -2223,6 +2223,7 @@ dependencies = [
 name = "apollo_time"
 version = "0.15.0-rc.3"
 dependencies = [
+ "async-trait",
  "chrono",
  "mockall",
  "tokio",
