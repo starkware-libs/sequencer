@@ -202,6 +202,10 @@ impl SingleHeightConsensus {
         }
     }
 
+    pub(crate) fn current_round(&self) -> Round {
+        self.state_machine.round()
+    }
+
     #[instrument(skip_all)]
     pub(crate) async fn start<ContextT: ConsensusContext>(
         &mut self,

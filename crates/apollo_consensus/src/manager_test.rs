@@ -36,6 +36,9 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
+const FUTURE_HEIGHT_LIMIT: u32 = 10;
+const FUTURE_ROUND_LIMIT: u32 = 10;
+const FUTURE_HEIGHT_ROUND_LIMIT: u32 = 1;
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<Vote>, msg: Vote) {
     let broadcasted_message_metadata =
@@ -112,6 +115,9 @@ async fn manager_multiple_heights_unordered() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        FUTURE_HEIGHT_LIMIT,
+        FUTURE_ROUND_LIMIT,
+        FUTURE_HEIGHT_ROUND_LIMIT,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -187,6 +193,9 @@ async fn run_consensus_sync() {
         timeouts: TIMEOUTS.clone(),
         sync_retry_interval: SYNC_RETRY_INTERVAL,
         quorum_type: QuorumType::Byzantine,
+        future_height_limit: FUTURE_HEIGHT_LIMIT,
+        future_round_limit: FUTURE_ROUND_LIMIT,
+        future_height_round_limit: FUTURE_HEIGHT_ROUND_LIMIT,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -248,6 +257,9 @@ async fn test_timeouts() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        FUTURE_HEIGHT_LIMIT,
+        FUTURE_ROUND_LIMIT,
+        FUTURE_HEIGHT_ROUND_LIMIT,
     );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
@@ -309,6 +321,9 @@ async fn timely_message_handling() {
         SYNC_RETRY_INTERVAL,
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        FUTURE_HEIGHT_LIMIT,
+        FUTURE_ROUND_LIMIT,
+        FUTURE_HEIGHT_ROUND_LIMIT,
     );
     let res = manager
         .run_height(
@@ -326,3 +341,129 @@ async fn timely_message_handling() {
     proposal_receiver_sender.try_send(mpsc::channel(1).1).unwrap();
     assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
 }
+
+#[tokio::test]
+async fn future_height_limit_caching_and_dropping() {
+    // Use very low limit - only cache 1 height ahead with round 0.
+    const LOW_HEIGHT_LIMIT: u32 = 1;
+    const LOW_ROUND_LIMIT: u32 = 0;
+    const LOW_HEIGHT_ROUND_LIMIT: u32 = 0;
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    // Send proposal and votes for height 2 (should be dropped when processing height 0).
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+
+    // Send proposal and votes for height 1 (should be cached when processing height 0).
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
+
+    // Send proposal and votes for height 0 (current height - needed to reach consensus).
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(0, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ZERO), 0, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ZERO), 0, 0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().returning(|_| false);
+    expect_validate_proposal(&mut context, Felt::ZERO, 1); // Height 0 validation
+    expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
+    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    // Set up coordination to detect when node votes Nil for height 2 (indicating proposal was
+    // dropped, so the node didn't received the proposal and votes Nil).
+    let (height2_nil_vote_trigger, height2_nil_vote_wait) = oneshot::channel();
+    context
+        .expect_broadcast()
+        .withf(move |vote: &Vote| vote.height == 2 && vote.block_hash.is_none())
+        .times(1)
+        .return_once(move |_| {
+            height2_nil_vote_trigger.send(()).unwrap();
+            Ok(())
+        });
+    // Handle all other broadcasts normally.
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+        LOW_HEIGHT_LIMIT,
+        LOW_ROUND_LIMIT,
+        LOW_HEIGHT_ROUND_LIMIT,
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+
+    // Run height 0 - should drop height 2 messages, cache height 1 messages, and reach consensus.
+    let decision = manager
+        .run_height(
+            &mut context,
+            BlockNumber(0),
+            false,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ZERO);
+
+    // Run height 1 - should succeed using cached proposal.
+    let decision = manager
+        .run_height(
+            &mut context,
+            BlockNumber(1),
+            false,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ONE);
+
+    // Run height 2 in background - shouldn't reach consensus because proposal was dropped.
+    let manager_handle = tokio::spawn(async move {
+        manager
+            .run_height(
+                &mut context,
+                BlockNumber(2),
+                false,
+                &mut subscriber_channels,
+                &mut proposal_receiver_receiver,
+            )
+            .await
+    });
+
+    // Race between consensus completing and height2_nil_vote_trigger being fired.
+    tokio::select! {
+        _ = height2_nil_vote_wait => {
+            // SUCCESS: height2_nil_vote_trigger was fired - this means the proposal was dropped as
+            // expected, and the node didn't receive the proposal and votes Nil.
+        }
+        consensus_result = manager_handle => {
+            panic!("FAIL: Node should not reach consensus. {consensus_result:?}");
+        }
+    }
+}
+
+// TODO(Asmaa): Add test for current height future round limit.
