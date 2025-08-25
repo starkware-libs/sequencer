@@ -70,6 +70,8 @@ pub struct OsChainInfo {
     #[cfg_attr(feature = "deserialize", serde(deserialize_with = "deserialize_chain_id_from_hex"))]
     pub(crate) chain_id: ChainId,
     pub(crate) strk_fee_token_address: ContractAddress,
+    pub(crate) public_key_x: Felt,
+    pub(crate) public_key_y: Felt,
 }
 
 impl Default for OsChainInfo {
@@ -77,6 +79,8 @@ impl Default for OsChainInfo {
         OsChainInfo {
             chain_id: ChainId::Other("0x0".to_string()),
             strk_fee_token_address: ContractAddress::default(),
+            public_key_x: Felt::from(0),
+            public_key_y: Felt::from(0),
         }
     }
 }
