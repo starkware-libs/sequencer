@@ -13,8 +13,11 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_storage.workspace = true
 hex.workspace = true
+libmdbx.workspace = true
 lru.workspace = true
+page_size.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
