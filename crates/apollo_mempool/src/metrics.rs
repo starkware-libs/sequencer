@@ -1,3 +1,18 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+    MEMPOOL_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
+    MEMPOOL_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
+    MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_mempool_types::mempool_types::MEMPOOL_REQUEST_LABELS;
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{
@@ -162,3 +177,25 @@ pub(crate) fn register_metrics() {
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();
 }
+
+pub const _MEMPOOL_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+    LocalClientMetrics::new(&MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS),
+    RemoteClientMetrics::new(
+        &MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
+        &MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        &MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    ),
+    LocalServerMetrics::new(
+        &MEMPOOL_LOCAL_MSGS_RECEIVED,
+        &MEMPOOL_LOCAL_MSGS_PROCESSED,
+        &MEMPOOL_LOCAL_QUEUE_DEPTH,
+        &MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+        &MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+    ),
+    RemoteServerMetrics::new(
+        &MEMPOOL_REMOTE_MSGS_RECEIVED,
+        &MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
+        &MEMPOOL_REMOTE_MSGS_PROCESSED,
+        &MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
+    ),
+);
