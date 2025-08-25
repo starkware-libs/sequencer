@@ -303,6 +303,15 @@
     ],
     "Batcher": [
       {
+        "title": "batched_transactions_rate (TPS)",
+        "description": "The rate of transactions batched by the Batcher during the last minute",
+        "type": "timeseries",
+        "exprs": [
+          "min(rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "batcher_proposal_started",
         "description": "Counter of proposals started",
         "type": "stat",
