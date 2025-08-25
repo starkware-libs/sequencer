@@ -5,6 +5,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::{Deserialize, Serialize};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
@@ -15,6 +16,7 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -271,12 +273,12 @@ impl CasmHashComputationData {
     /// Creates CasmHashComputationData by mapping resources to gas using a provided function.
     /// This method encapsulates the pattern used for both Sierra gas and proving gas computation.
     pub fn from_resources<F>(
-        class_hash_to_resources: &HashMap<ClassHash, ExecutionResources>,
+        class_hash_to_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
         gas_without_casm_hash_computation: GasAmount,
         resources_to_gas_fn: F,
     ) -> Self
     where
-        F: Fn(&ExecutionResources) -> GasAmount,
+        F: Fn(&EstimatedExecutionResources) -> GasAmount,
     {
         Self {
             class_hash_to_casm_hash_computation_gas: class_hash_to_resources
@@ -680,15 +682,16 @@ pub fn builtins_to_gas(
 }
 
 fn add_casm_hash_computation_gas_cost(
-    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExecutionResources>,
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
     gas_without_casm_hash_computation: GasAmount,
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
+    blake_opcode_gas: Option<usize>,
 ) -> (GasAmount, CasmHashComputationData) {
     let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
         class_hash_to_casm_hash_computation_resources,
         gas_without_casm_hash_computation,
-        |resources| vm_resources_to_gas(resources, builtin_gas_cost, versioned_constants),
+        |resources| resources.to_gas(builtin_gas_cost, blake_opcode_gas, versioned_constants),
     );
     (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
 }
@@ -722,30 +725,8 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_sierra_gas =
         vm_resources_to_gas(&vm_resources, &builtin_gas_cost, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
-        if versioned_constants.enable_casm_hash_migration {
-            get_migration_data(
-                state_reader,
-                executed_class_hashes,
-                versioned_constants,
-                bouncer_config.blake_weight,
-            )?
-        } else {
-            (HashMap::new(), GasAmount::ZERO, HashMap::new())
-        };
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
-    // Each contract is migrated only once, and this migration resources is not part of the CASM
-    // hash computation, which is performed every time a contract is loaded.
-    sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
-
-    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
-        add_casm_hash_computation_gas_cost(
-            &class_hash_to_casm_hash_computation_resources,
-            sierra_gas_without_casm_hash_computation,
-            &builtin_gas_cost,
-            versioned_constants,
-        );
 
     // Proving gas computation.
     let mut builtin_counters_without_casm_hash_computation =
@@ -757,13 +738,6 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
-    // Migration occurs once per contract, and thus is not treated as part of the CASM hash
-    // computation.
-    add_maps(
-        &mut builtin_counters_without_casm_hash_computation,
-        &migration_poseidon_builtin_counter,
-    );
-
     let builtin_proving_weights = &bouncer_config.builtin_weights;
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         &builtin_counters_without_casm_hash_computation,
@@ -772,12 +746,41 @@ pub fn get_tx_weights<S: StateReader>(
         versioned_constants,
     );
 
+    // Migration resources.
+    let (class_hashes_to_migrate, migration_resources) =
+        if versioned_constants.enable_casm_hash_migration {
+            get_migration_data(state_reader, executed_class_hashes)?
+        } else {
+            (HashMap::new(), EstimatedExecutionResources::new(HashVersion::V2))
+        };
+    let blake_opcode_gas = Some(bouncer_config.blake_weight);
+    let migration_sierra_gas =
+        migration_resources.to_gas(&builtin_gas_cost, blake_opcode_gas, versioned_constants);
+
+    let migration_proving_gas = migration_resources.to_gas(
+        &bouncer_config.builtin_weights.weights,
+        blake_opcode_gas,
+        versioned_constants,
+    );
+
+    sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_sierra_gas);
+    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            sierra_gas_without_casm_hash_computation,
+            &builtin_gas_cost,
+            versioned_constants,
+            blake_opcode_gas,
+        );
+    // Use the shared pattern to create proving gas data
+    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_proving_gas);
     let (total_proving_gas, casm_hash_computation_data_proving_gas) =
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
             proving_gas_without_casm_hash_computation,
             &builtin_proving_weights.weights,
             versioned_constants,
+            blake_opcode_gas,
         );
 
     let bouncer_weights = BouncerWeights {
@@ -803,7 +806,7 @@ pub fn get_tx_weights<S: StateReader>(
 pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-) -> TransactionExecutionResult<HashMap<ClassHash, ExecutionResources>> {
+) -> TransactionExecutionResult<HashMap<ClassHash, EstimatedExecutionResources>> {
     executed_class_hashes
         .iter()
         .map(|class_hash| {
@@ -858,32 +861,25 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
 fn get_migration_data<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-    versioned_constants: &VersionedConstants,
-    blake_weight: usize,
 ) -> TransactionExecutionResult<(
     HashMap<ClassHash, CompiledClassHashV2ToV1>,
-    GasAmount,
-    BuiltinCounterMap,
+    EstimatedExecutionResources,
 )> {
     // TODO(Aviv): Return hash_map<class_hash, compiled_class_hashes_v2_to_v1>.
     executed_class_hashes.iter().try_fold(
-        (HashMap::new(), GasAmount::ZERO, HashMap::new()),
-        |(mut class_hashes_to_migrate, mut gas, mut poseidon_casm_builtins), &class_hash| {
+        (HashMap::new(), EstimatedExecutionResources::new(HashVersion::V2)),
+        |(mut class_hashes_to_migrate, mut migration_resources), &class_hash| {
             if let Some((class_hash, compiled_class_hash_v2_to_v1)) =
                 should_migrate(state_reader, class_hash)?
             {
                 let class = state_reader.get_compiled_class(class_hash)?;
-                let (migration_gas, migration_builtins) = class
-                    .estimate_compiled_class_hash_migration_resources(
-                        versioned_constants,
-                        blake_weight,
-                    );
+                let additional_migration_resources =
+                    class.estimate_compiled_class_hash_migration_resources();
 
                 class_hashes_to_migrate.insert(class_hash, compiled_class_hash_v2_to_v1);
-                gas = gas.checked_add_panic_on_overflow(migration_gas);
-                add_maps(&mut poseidon_casm_builtins, &migration_builtins);
+                migration_resources += &additional_migration_resources;
             }
-            Ok((class_hashes_to_migrate, gas, poseidon_casm_builtins))
+            Ok((class_hashes_to_migrate, migration_resources))
         },
     )
 }

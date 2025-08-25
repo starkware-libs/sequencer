@@ -137,8 +137,8 @@ fn test_zero_inputs() {
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
-    let resources = CasmV2HashResourceEstimate::new(HashVersion::V2)
-        .estimated_resources_of_hash_function(&FeltSizeCount::default());
+    let resources =
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
     let expected = ExecutionResources {
         n_steps: CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT,
         ..Default::default()

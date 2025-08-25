@@ -698,8 +698,7 @@ impl OsResources {
             return empty_resources;
         }
         &(&self.compute_os_kzg_commitment_info * data_segment_length)
-            + &CasmV1HashResourceEstimate::new(HashVersion::V1)
-                .estimated_resources_of_hash_function(&FeltSizeCount {
+            + &CasmV1HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
                     large: data_segment_length,
                     small: 0,
                 })

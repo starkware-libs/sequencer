@@ -41,13 +41,9 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
-use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_gas;
-use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -56,10 +52,7 @@ use crate::execution::casm_hash_estimation::{
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
-use crate::execution::execution_utils::{
-    blake_execution_resources_estimation_to_gas,
-    sn_api_to_cairo_vm_program,
-};
+use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
@@ -263,9 +256,12 @@ impl RunnableCompiledClass {
         }
     }
 
-    pub fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
+    pub fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
         match self {
-            Self::V0(class) => class.estimate_casm_hash_computation_resources(),
+            Self::V0(class) => EstimatedExecutionResources::from((
+                class.estimate_casm_hash_computation_resources(),
+                HashVersion::V2,
+            )),
             Self::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
             Self::V1Native(class) => class.casm().estimate_casm_hash_computation_resources(),
@@ -273,25 +269,17 @@ impl RunnableCompiledClass {
     }
 
     /// Estimate the VM gas required to migrate a CompiledClassHash from Poseidon hashing to Blake.
-    pub fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-        blake_weight: usize,
-    ) -> (GasAmount, BuiltinCounterMap) {
+    pub fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
         match self {
             Self::V0(_) => panic!(
                 "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
                  counted for migration."
             ),
-            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(
-                versioned_constants,
-                blake_weight,
-            ),
+            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(),
             #[cfg(feature = "cairo_native")]
-            Self::V1Native(class) => class.casm().estimate_compiled_class_hash_migration_resources(
-                versioned_constants,
-                blake_weight,
-            ),
+            Self::V1Native(class) => {
+                class.casm().estimate_compiled_class_hash_migration_resources()
+            }
         }
     }
 
@@ -473,8 +461,11 @@ impl CompiledClassV1 {
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
-    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes)
+    fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
+        CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+            &self.bytecode_segment_felt_sizes,
+            &self.entry_points_by_type,
+        )
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
@@ -488,29 +479,26 @@ impl CompiledClassV1 {
     /// Returns:
     /// - Total gas amount.
     /// - The builtins used in the Poseidon hash.
-    fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-        blake_weight: usize,
-    ) -> (GasAmount, BuiltinCounterMap) {
+    fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
         let blake_hash_resources =
-            estimate_casm_blake_hash_computation_resources(&self.bytecode_segment_felt_sizes);
-        let blake_hash_gas = blake_execution_resources_estimation_to_gas(
-            blake_hash_resources,
-            versioned_constants,
-            blake_weight,
-        );
+            CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                &self.bytecode_segment_felt_sizes,
+                &self.entry_points_by_type,
+            );
 
-        let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
         let poseidon_hash_resources =
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes);
-        let poseidon_hash_gas =
-            vm_resources_to_gas(&poseidon_hash_resources, &builtin_gas_costs, versioned_constants);
+            CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                &self.bytecode_segment_felt_sizes,
+                &self.entry_points_by_type,
+            );
 
-        (
-            blake_hash_gas.checked_add_panic_on_overflow(poseidon_hash_gas),
-            poseidon_hash_resources.builtin_instance_counter.clone(),
-        )
+        let migration_resources = EstimatedExecutionResources::V2Hash {
+            // Can't use `+` operator here because the resources are different types.
+            resources: blake_hash_resources.resources() + poseidon_hash_resources.resources(),
+            blake_count: blake_hash_resources.blake_count(),
+        };
+
+        migration_resources
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
@@ -570,116 +558,7 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for CompiledClassV1 {
 /// Note: the function focuses on the bytecode size, and currently ignores the cost handling the
 /// class entry points.
 /// Also, this function is not backward compatible.
-pub fn estimate_casm_poseidon_hash_computation_resources(
-    bytecode_segment_lengths: &NestedFeltCounts,
-) -> EstimatedExecutionResources {
-    let mut resources = EstimatedExecutionResources::new(HashVersion::V1);
-
-    // The constants in this function were computed by running the Casm code on a few values
-    // of `bytecode_segment_lengths`.
-    match bytecode_segment_lengths {
-        NestedFeltCounts::Leaf(length, _) => {
-            // The entire contract is a single segment (old Sierra contracts).
-            let base_resources = ExecutionResources {
-                n_steps: 464,
-                n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
-            };
-            resources += &base_resources;
-            resources += &CasmV1HashResourceEstimate::new(HashVersion::V1)
-                .estimated_resources_of_hash_function(&FeltSizeCount { large: *length, small: 0 });
-        }
-
-        NestedFeltCounts::Node(segments) => {
-            // The contract code is segmented by its functions.
-            let base_resources = ExecutionResources {
-                n_steps: 482,
-                n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
-            };
-            resources += &base_resources;
-            let base_segment_cost = ExecutionResources {
-                n_steps: 25,
-                n_memory_holes: 1,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
-            };
-            for segment in segments {
-                let NestedFeltCounts::Leaf(length, _) = segment else {
-                    panic!(
-                        "Estimating hash cost is only supported for segmentation depth at most 1."
-                    );
-                };
-                resources += &CasmV1HashResourceEstimate::new(HashVersion::V1)
-                    .estimated_resources_of_hash_function(&FeltSizeCount {
-                        large: *length,
-                        small: 0,
-                    });
-                resources += &base_segment_cost;
-            }
-        }
-    }
-
-    resources
-}
-
-/// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
-    CasmV2HashResourceEstimate::estimated_resources_of_hash_function(felt_size_groups)
-}
-
-/// Cost to hash a multi-segment contract:
-fn node_cost(segs: &[NestedFeltCounts]) -> EstimatedExecutionResources {
-    // TODO(AvivG): Add base estimation for node.
-    let mut resources =
-        EstimatedExecutionResources::from((ExecutionResources::default(), HashVersion::V2));
-
-    // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = ExecutionResources::default();
-
-    // For each segment, hash its felts.
-    for seg in segs {
-        match seg {
-            NestedFeltCounts::Leaf(_, felt_size_groups) => {
-                resources += &segment_overhead;
-                resources += &leaf_cost(felt_size_groups);
-            }
-            _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
-        }
-    }
-
-    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
-    // and one segment length (“small” felt) per segment.
-    resources +=
-        &CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
-            large: segs.len(),
-            small: segs.len(),
-        });
-
-    resources
-}
-
-/// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
-/// - Uses only bytecode size.
-pub fn estimate_casm_blake_hash_computation_resources(
-    bytecode_segment_lengths: &NestedFeltCounts,
-) -> EstimatedExecutionResources {
-    // TODO(AvivG): Currently ignores entry-point hashing costs.
-    // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
-
-    // Basic frame overhead.
-    let mut resources = EstimatedExecutionResources::new(HashVersion::V2);
-
-    // Add leaf vs node cost
-    let added_resources = match &bytecode_segment_lengths {
-        // Single-segment contract (e.g., older Sierra contracts).
-        NestedFeltCounts::Leaf(_, felt_size_groups) => leaf_cost(felt_size_groups),
-        NestedFeltCounts::Node(segs) => node_cost(segs),
-    };
-
-    resources += &added_resources;
-
-    resources
-}
+// fn estimate_casm_poseidon_hash_computation_resources
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
 // lengths.
