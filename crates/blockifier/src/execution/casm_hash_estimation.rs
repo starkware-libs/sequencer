@@ -12,11 +12,6 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::{
-    blake_estimation,
-    estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
-    poseidon_hash_many_cost,
-};
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -277,13 +272,21 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
         EstimatedExecutionResources::V1Hash { resources }
     }
 
+    /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        EstimatedExecutionResources::V1Hash {
-            // TODO(AvivG): Consider inlining `poseidon_hash_many_cost` logic here.
-            resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
-        }
+        let data_length = felt_size_groups.n_felts();
+        let poseidon_hash_many_cost = ExecutionResources {
+            n_steps: (data_length / 10) * 55
+                + ((data_length % 10) / 2) * 18
+                + (data_length % 2) * 3
+                + 21,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
+        };
+
+        EstimatedExecutionResources::V1Hash { resources: poseidon_hash_many_cost }
     }
 
     fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
@@ -314,7 +317,8 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
             let NestedFeltCounts::Leaf(length, _) = segment else {
                 panic!("Estimating hash cost is only supported for segmentation depth at most 1.");
             };
-            resources += &poseidon_hash_many_cost(*length);
+            resources += &self
+                .estimated_resources_of_hash_function(&FeltSizeCount { large: *length, small: 0 });
             resources += &base_segment_cost;
         }
         resources
@@ -322,6 +326,59 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 }
 
 pub struct CasmV2HashResourceEstimate;
+
+impl CasmV2HashResourceEstimate {
+    // Constants that define how felts are encoded into u32s for BLAKE hashing.
+    // Number of `u32` words a large felt expands into.
+    pub(crate) const U32_WORDS_PER_LARGE_FELT: usize = 8;
+    // Number of `u32` words a small felt expands into.
+    pub(crate) const U32_WORDS_PER_SMALL_FELT: usize = 2;
+    // Number of `u32` words in a single BLAKE input message block.
+    pub(crate) const U32_WORDS_PER_MESSAGE: usize = 16;
+
+    // Empty input steps (base on manual measurement).
+    const STEPS_EMPTY_INPUT: usize = 170;
+
+    /// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
+    /// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
+    /// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
+    fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+        felt_size_groups: &FeltSizeCount,
+    ) -> usize {
+        // Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
+        // These values are based on empirical measurement by running
+        // `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
+        // Overhead when input fills a full Blake message (16 u32s).
+        const BASE_STEPS_FULL_MSG: usize = 217;
+        // Overhead when input results in a partial message (remainder < 16 u32s).
+        const BASE_STEPS_PARTIAL_MSG: usize = 195;
+        // Extra steps per 2-u32 remainder in partial messages.
+        const STEPS_PER_2_U32_REMINDER: usize = 3;
+        // Per-felt step cost (measured).
+        pub const STEPS_BIG_FELT: usize = 45;
+        pub const STEPS_SMALL_FELT: usize = 15;
+
+        let encoded_u32_len = felt_size_groups.encoded_u32_len();
+        if encoded_u32_len == 0 {
+            // The empty input case is a special case.
+            return Self::STEPS_EMPTY_INPUT;
+        }
+
+        // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
+        let base_steps = if encoded_u32_len % Self::U32_WORDS_PER_MESSAGE == 0 {
+            BASE_STEPS_FULL_MSG
+        } else {
+            // This computation is based on running blake2s with different inputs.
+            // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
+            BASE_STEPS_PARTIAL_MSG
+                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2) * STEPS_PER_2_U32_REMINDER
+        };
+
+        base_steps
+            + felt_size_groups.large * STEPS_BIG_FELT
+            + felt_size_groups.small * STEPS_SMALL_FELT
+    }
+}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
@@ -342,9 +399,10 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
         // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
-        pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+        const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
 
-        let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
+        let n_steps =
+            Self::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
         let builtin_instance_counter = match felt_size_groups.n_felts() {
             // The empty case does not use builtins at all.
             0 => HashMap::new(),
@@ -352,7 +410,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             // case.
             _ => HashMap::from([(
                 BuiltinName::range_check,
-                felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+                felt_size_groups.n_felts() + BASE_RANGE_CHECK_NON_EMPTY,
             )]),
         };
 
