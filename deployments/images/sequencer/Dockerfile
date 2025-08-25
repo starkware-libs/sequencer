@@ -25,16 +25,30 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
         exit 1; \
     fi
 
-
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
+
+# Install required compiler binaries before building
+RUN echo "📦 Installing compiler binaries..." && \
+    CAIRO_VERSION=$(grep 'CAIRO1_COMPILER_VERSION.*=' crates/apollo_infra_utils/src/cairo_compiler_version.rs | sed 's/.*"\(.*\)".*/\1/') && \
+    CAIRO_NATIVE_VERSION=$(grep 'REQUIRED_CAIRO_NATIVE_VERSION.*=' crates/apollo_compile_to_native/src/constants.rs | sed 's/.*"\(.*\)".*/\1/') && \
+    echo "Installing starknet-sierra-compile v$CAIRO_VERSION..." && \
+    cargo install starknet-sierra-compile --version "$CAIRO_VERSION" --locked && \
+    echo "Installing starknet-native-compile v$CAIRO_NATIVE_VERSION..." && \
+    export MLIR_SYS_190_PREFIX=/usr/lib/llvm-19 && \
+    export LLVM_SYS_191_PREFIX=/usr/lib/llvm-19 && \
+    export TABLEGEN_190_PREFIX=/usr/lib/llvm-19 && \
+    cargo install cairo-native --version "$CAIRO_NATIVE_VERSION" --bin starknet-native-compile --locked && \
+    echo "✅ Compiler binaries installed successfully"
+
+# Compiler binaries are now available in ${CARGO_HOME}/bin and will be copied to final stage
 
 RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
         BUILD_FLAGS="--release"; \
     fi; \
-    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
+    SKIP_NATIVE_COMPILE_VALIDATION=1 SKIP_SIERRA_COMPILE_VALIDATION=1 cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
 
 FROM ubuntu:24.04 AS final_stage
@@ -50,8 +64,8 @@ RUN apt-get install -y binutils libc6-dev
 ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/${BUILD_MODE}/apollo_node ./target/${BUILD_MODE}/apollo_node
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-native-compile ./target/${BUILD_MODE}/shared_executables/starknet-native-compile
+COPY --from=builder /var/tmp/rust/bin/starknet-sierra-compile /usr/local/bin/starknet-sierra-compile
+COPY --from=builder /var/tmp/rust/bin/starknet-native-compile /usr/local/bin/starknet-native-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy apollo config schema, used when it loads its configuration.
