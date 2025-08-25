@@ -150,8 +150,11 @@ impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
 ///
 /// This provides resource estimates rather than exact values.
 pub trait EstimateCasmHashResources {
-    /// Specifies the hash function variant that the estimate is for.
-    fn hash_version(&self) -> HashVersion;
+    // Steps computation: call + return + hash_init + alloc_locals + assert + hash_update_single * 2
+    // + call_hash_entry_points * 3 + call_bytecode_hash_node + call_hash_finalize.
+    const BASE_COMPILED_CLASS_HASH_STEPS: usize = 54;
+    // Steps computation: call + return + alloc_locals;
+    const BASE_BYTECODE_HASH_NODE_STEPS: usize = 4;
 
     /// Estimates the Cairo execution resources used when applying the hash function during CASM
     /// hashing.
@@ -159,16 +162,63 @@ pub trait EstimateCasmHashResources {
         _felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources;
 
+    /// Creates an `EstimatedExecutionResources` from a given `ExecutionResources` matching the
+    /// struct's hash function variant.
+    fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources;
+
     /// Estimates the Cairo execution resources for `compiled_class_hash` in the
     /// Starknet OS.
+    // TODO(AvivG): Add estimation of entry points.
     fn estimated_resources_of_compiled_class_hash(
-        &mut self,
-        _bytecode_segment_felt_sizes: &NestedFeltCounts,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
         _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
-        // TODO(AvivG): Implement.
-        EstimatedExecutionResources::new(self.hash_version())
+        let mut resources = Self::from_resources(ExecutionResources {
+            n_steps: Self::BASE_COMPILED_CLASS_HASH_STEPS,
+            ..Default::default()
+        });
+
+        resources += &Self::estimated_resources_of_bytecode_hash_node(bytecode_segment_felt_sizes);
+
+        // Compute cost of `hash_finalize`: hash over (compiled_class_version, hash_entrypoints1,
+        // hash_ep2, hash_ep3, hash_bytecode).
+        let hash_finalize_data_len = 5;
+        let hash_finalize_resources = Self::estimated_resources_of_hash_function(&FeltSizeCount {
+            large: hash_finalize_data_len,
+            small: 0,
+        });
+        resources += &hash_finalize_resources;
+
+        resources
     }
+
+    fn estimated_resources_of_bytecode_hash_node(
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        let mut resources = Self::from_resources(ExecutionResources {
+            n_steps: Self::BASE_BYTECODE_HASH_NODE_STEPS,
+            ..Default::default()
+        });
+
+        // Add leaf vs node cost
+        resources += &match bytecode_segment_felt_sizes {
+            // Single-segment contract (e.g., older Sierra contracts).
+            NestedFeltCounts::Leaf(_, felt_size_groups) => Self::leaf_cost(felt_size_groups),
+            NestedFeltCounts::Node(segments) => Self::node_cost(segments),
+        };
+
+        resources
+    }
+
+    /// Estimates the Cairo execution resources for `bytecode_hahs_node` leaf case.
+    ///
+    /// The entire contract is a single segment (old Sierra contracts).
+    fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources;
+
+    /// Estimates the Cairo execution resources for `bytecode_hahs_node` node case.
+    ///
+    /// The contract code is segmented by its functions.
+    fn node_cost(bytecode_segment_felt_sizes: &[NestedFeltCounts]) -> EstimatedExecutionResources;
 }
 
 // TODO(AvivG): Remove allow once used.
@@ -176,8 +226,22 @@ pub trait EstimateCasmHashResources {
 struct CasmV1HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
-    fn hash_version(&self) -> HashVersion {
-        HashVersion::V1
+    fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V1Hash { resources }
+    }
+
+    #[allow(unused)]
+    fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
+        // TODO(AvivG): Move code from `estimate_casm_poseidon_hash_computation_resources`
+        // `contract_class.rs` here and remove `#[allow(unused)]`.
+        unimplemented!()
+    }
+
+    #[allow(unused)]
+    fn node_cost(bytecode_segment_felt_sizes: &[NestedFeltCounts]) -> EstimatedExecutionResources {
+        // TODO(AvivG): Move code from `estimate_casm_poseidon_hash_computation_resources`
+        // `contract_class.rs` here and remove `#[allow(unused)]`.
+        unimplemented!()
     }
 
     fn estimated_resources_of_hash_function(
@@ -193,8 +257,22 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 pub struct CasmV2HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
-    fn hash_version(&self) -> HashVersion {
-        HashVersion::V2
+    fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V2Hash { resources, blake_count: 0 }
+    }
+
+    #[allow(unused)]
+    fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
+        // TODO(AvivG): Move code from `estimate_casm_hash_computation_resources`
+        // `contract_class.rs` here and remove `#[allow(unused)]`.
+        unimplemented!()
+    }
+
+    #[allow(unused)]
+    fn node_cost(bytecode_segment_felt_sizes: &[NestedFeltCounts]) -> EstimatedExecutionResources {
+        // TODO(AvivG): Move code from `estimate_casm_hash_computation_resources`
+        // `contract_class.rs` here and remove `#[allow(unused)]`.
+        unimplemented!()
     }
 
     /// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
