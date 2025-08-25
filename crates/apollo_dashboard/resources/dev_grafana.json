@@ -283,6 +283,15 @@
         "extra_params": {}
       },
       {
+        "title": "consensus_eth_to_fri_rate_mismatch",
+        "description": "The number of times the eth to fri rate in a proposal does not match the value expected by this validator",
+        "type": "timeseries",
+        "exprs": [
+          "consensus_eth_to_fri_rate_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "consensus_l1_data_gas_mismatch",
         "description": "The number of times the L1 data gas in a proposal does not match the value expected by this validator",
         "type": "timeseries",

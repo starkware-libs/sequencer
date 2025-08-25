@@ -37,6 +37,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+    CONSENSUS_ETH_TO_FRI_RATE_MISMATCH,
     CONSENSUS_L1_DATA_GAS_MISMATCH,
     CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_L2_GAS_PRICE,
@@ -181,6 +182,9 @@ fn get_panel_cende_write_blob_failure() -> Panel {
         PanelType::TimeSeries,
     )
 }
+fn get_panel_consensus_eth_to_fri_rate_mismatch() -> Panel {
+    Panel::from_counter(&CONSENSUS_ETH_TO_FRI_RATE_MISMATCH, PanelType::TimeSeries)
+}
 fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
     Panel::from_counter(&CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::TimeSeries)
 }
@@ -223,6 +227,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_write_blob_success(),
             get_panel_cende_write_blob_failure(),
+            get_panel_consensus_eth_to_fri_rate_mismatch(),
             get_panel_consensus_l1_data_gas_mismatch(),
             get_panel_consensus_l1_gas_mismatch(),
         ],

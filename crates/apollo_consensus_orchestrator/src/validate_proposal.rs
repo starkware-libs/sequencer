@@ -32,6 +32,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::metrics::{
+    CONSENSUS_ETH_TO_FRI_RATE_MISMATCH,
     CONSENSUS_L1_DATA_GAS_MISMATCH,
     CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
@@ -315,10 +316,15 @@ async fn is_block_info_valid(
         ));
     }
     // TODO(Asmaa): consider removing after 0.14 as other validators may use other sources.
-    if l1_gas_price_fri_proposed != l1_gas_price_fri {
+    if block_info_proposed.eth_to_fri_rate != eth_to_fri_rate {
+        CONSENSUS_ETH_TO_FRI_RATE_MISMATCH.increment(1);
+    }
+
+    // L1 gas prices should match exactly in wei.
+    if block_info_proposed.l1_gas_price_wei != l1_gas_prices.base_fee_per_gas {
         CONSENSUS_L1_GAS_MISMATCH.increment(1);
     }
-    if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
+    if block_info_proposed.l1_data_gas_price_wei != l1_gas_prices.blob_fee {
         CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
     Ok(())
