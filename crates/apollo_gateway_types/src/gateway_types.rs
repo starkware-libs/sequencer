@@ -15,8 +15,6 @@ pub struct GatewayInput {
     pub message_metadata: Option<BroadcastedMessageMetadata>,
 }
 
-// TODO(Arni): Create an object that supports the RPC spec. Something like: `DeprecatedResponse` and
-// `RpcSpecResponse`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GatewayOutput {
