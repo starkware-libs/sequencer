@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
+use apollo_deployments::service::NodeService;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_node::config::config_utils::DeploymentBaseAppConfig;
@@ -15,29 +16,29 @@ const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_change
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
     node_index: usize,
-    executable_index: usize,
+    service: NodeService,
 }
 
 impl NodeExecutionId {
-    pub fn new(node_index: usize, executable_index: usize) -> Self {
-        Self { node_index, executable_index }
+    pub fn new(node_index: usize, service: NodeService) -> Self {
+        Self { node_index, service }
     }
     pub fn get_node_index(&self) -> usize {
         self.node_index
     }
-    pub fn get_executable_index(&self) -> usize {
-        self.executable_index
+    pub fn get_service(&self) -> NodeService {
+        self.service
     }
 
     pub fn build_path(&self, base: &Path) -> PathBuf {
         base.join(format!("node_{}", self.node_index))
-            .join(format!("executable_{}", self.executable_index))
+            .join(self.service.name_string())
     }
 }
 
 impl std::fmt::Display for NodeExecutionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Node id {} part {}", self.node_index, self.executable_index)
+        write!(f, "Node id {} service {}", self.node_index, self.service.name_string())
     }
 }
 
