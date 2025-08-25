@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::File;
 
+use apollo_config::presentation::get_config_presentation;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -18,6 +19,7 @@ use tempfile::NamedTempFile;
 use crate::deployment_definitions::DEPLOYMENTS;
 use crate::service::NodeType;
 use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
+use tracing::info;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
@@ -111,6 +113,12 @@ fn load_and_process_service_config_files() {
                     err
                 );
             });
+
+            info!(
+                "{:#?}",
+                get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
+                    .expect("Should be able to get representation.")
+            );
 
             // The config files are set with the actual service host names, which are not
             // DNS-resolvable in the test setting. As such, we set all host names to

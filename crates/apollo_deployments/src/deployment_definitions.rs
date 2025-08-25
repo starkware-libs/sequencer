@@ -40,13 +40,13 @@ const SIERRA_COMPILER_PORT: u16 = 55007;
 const STATE_SYNC_PORT: u16 = 55009;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    || load_and_create_hybrid_deployments(POTC2_DEPLOYMENT_INPUTS_PATH),
+    // || load_and_create_hybrid_deployments(POTC2_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(INTEGRATION_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(TESTNET_DEPLOYMENT_INPUTS_PATH),
-    || load_and_create_hybrid_deployments(STRESS_TEST_DEPLOYMENT_INPUTS_PATH),
-    system_test_deployments,
-    upgrade_test_hybrid_deployments, // TODO(Tsabary): this env is deprecated, remove it.
+    // || load_and_create_hybrid_deployments(INTEGRATION_DEPLOYMENT_INPUTS_PATH),
+    // || load_and_create_hybrid_deployments(TESTNET_DEPLOYMENT_INPUTS_PATH),
+    // || load_and_create_hybrid_deployments(STRESS_TEST_DEPLOYMENT_INPUTS_PATH),
+    // system_test_deployments,
+    // upgrade_test_hybrid_deployments, // TODO(Tsabary): this env is deprecated, remove it.
 ];
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";

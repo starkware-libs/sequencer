@@ -23,6 +23,7 @@ serde_with.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
+tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
