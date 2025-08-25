@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, Index};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
@@ -20,6 +20,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
+use num_bigint::BigUint;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::contract_class::compiled_class_hash::{
@@ -76,26 +77,44 @@ pub struct FeltSizeCount {
 }
 
 impl FeltSizeCount {
+    /// Threshold for considering a felt "small" or "large".
+    /// 2^63 is the threshold for the Blake2s hash function.
+    // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
+    const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+
     pub(crate) fn n_felts(&self) -> usize {
         self.small + self.large
     }
+
+    /// Creates a `FeltSizeCount` by counting how many items in the slice are "small" or "large".
+    /// The `is_small` function determines whether each item is considered small (`true`) or large
+    /// (`false`).
+    pub fn from_slice<T>(items: &[T], is_small: impl Fn(&T) -> bool) -> Self {
+        let mut small = 0;
+        let mut large = 0;
+
+        for x in items {
+            if is_small(x) { small += 1 } else { large += 1 }
+        }
+        FeltSizeCount { small, large }
+    }
 }
 
-/// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
+impl From<&[Felt]> for FeltSizeCount {
+    /// Constructs a `FeltSizeCount` by counting how many felts are "small" (< `SMALL_THRESHOLD`,
+    /// 2^63) and how many are "large" (>= `SMALL_THRESHOLD`).
+    fn from(items: &[Felt]) -> Self {
+        Self::from_slice(items, |x| *x < Self::SMALL_THRESHOLD)
+    }
+}
+
 impl From<&[BigUintAsHex]> for FeltSizeCount {
-    fn from(bytecode: &[BigUintAsHex]) -> Self {
-        // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
-        const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
-
-        let (small, large) = bytecode.iter().fold((0, 0), |(small_count, large_count), x| {
-            if Felt::from(&x.value) < SMALL_THRESHOLD {
-                (small_count + 1, large_count)
-            } else {
-                (small_count, large_count + 1)
-            }
-        });
-
-        FeltSizeCount { small, large }
+    /// Constructs a `FeltSizeCount` by counting how many items are "small" (value <
+    /// `SMALL_THRESHOLD`, 2^63) and how many are "large" (value >= `SMALL_THRESHOLD`).
+    fn from(items: &[BigUintAsHex]) -> Self {
+        static SMALL_THRESHOLD: LazyLock<BigUint> =
+            LazyLock::new(|| FeltSizeCount::SMALL_THRESHOLD.to_biguint());
+        Self::from_slice(items, |x| x.value < *SMALL_THRESHOLD)
     }
 }
 

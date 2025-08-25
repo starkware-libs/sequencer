@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::iter::repeat_n;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
@@ -9,6 +10,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -135,4 +137,32 @@ fn test_create_bytecode_segment_felt_sizes(
 ) {
     let result = NestedFeltCounts::new(&bytecode_segment_lengths, &bytecode);
     assert_eq!(result, expected_structure);
+}
+
+#[rstest]
+#[case::empty(0, 0)]
+#[case::small_and_large(2, 3)]
+/// Test that the `FeltSizeCount` constructor works as expected.
+/// For both Felt and BigUintAsHex slices.
+fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_large: usize) {
+    // Build inputs inline: values straddling the threshold.
+    let small_felt = Felt::from((1u64 << 63) - 1);
+    let large_felt = Felt::from(1u64 << 63);
+    assert!(small_felt < FeltSizeCount::SMALL_THRESHOLD);
+    assert!(large_felt >= FeltSizeCount::SMALL_THRESHOLD);
+
+    let items: Vec<Felt> =
+        repeat_n(small_felt, expected_small).chain(repeat_n(large_felt, expected_large)).collect();
+
+    // Case 1: directly from Felt slice
+    let count_from_felts = FeltSizeCount::from(&items[..]);
+    assert_eq!(count_from_felts.small, expected_small);
+    assert_eq!(count_from_felts.large, expected_large);
+
+    // Case 2: from BigUintAsHex slice
+    let biguint_items: Vec<BigUintAsHex> =
+        items.iter().map(|x| BigUintAsHex::from(x.to_biguint())).collect();
+    let count_from_biguints = FeltSizeCount::from(&biguint_items[..]);
+    assert_eq!(count_from_biguints.small, expected_small);
+    assert_eq!(count_from_biguints.large, expected_large);
 }
