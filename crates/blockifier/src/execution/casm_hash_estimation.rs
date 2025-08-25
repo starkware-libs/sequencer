@@ -12,7 +12,6 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -166,22 +165,28 @@ pub trait EstimateCasmHashResources {
     }
 }
 
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+pub(crate) struct CasmV1HashResourceEstimate;
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {
         HashVersion::V1
     }
 
+    /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        EstimatedExecutionResources::V1Hash {
-            // TODO(AvivG): Consider inlining `poseidon_hash_many_cost` logic here.
-            resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
-        }
+        let data_length = felt_size_groups.n_felts();
+        let estimated_resources_of_poseidon_hash_many = ExecutionResources {
+            n_steps: (data_length / 10) * 55
+                + ((data_length % 10) / 2) * 18
+                + (data_length % 2) * 3
+                + 21,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
+        };
+
+        EstimatedExecutionResources::V1Hash { resources: estimated_resources_of_poseidon_hash_many }
     }
 }
 
