@@ -1,5 +1,8 @@
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
-use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
+use apollo_consensus_manager::metrics::{
+    CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_NO_PEERS_SUBSCRIBED_ERRORS,
+};
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 
 use crate::alerts::{
@@ -144,6 +147,44 @@ pub(crate) fn get_consensus_p2p_peer_down_vec() -> Vec<Alert> {
     vec![
         get_consensus_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Sos),
         get_consensus_p2p_peer_down(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
+/// Triggers if the number of no peers subscribed errors exceeds 5 in a 2-minute window.
+fn get_consensus_p2p_no_peers_subscribed_errors(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "consensus_p2p_no_peers_subscribed_errors",
+        "Consensus p2p no peers subscribed errors",
+        AlertGroup::Consensus,
+        format!(
+            "increase({}[2m])",
+            CONSENSUS_NUM_NO_PEERS_SUBSCRIBED_ERRORS.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 5.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_consensus_p2p_no_peers_subscribed_errors_vec() -> Vec<Alert> {
+    vec![
+        get_consensus_p2p_no_peers_subscribed_errors(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_consensus_p2p_no_peers_subscribed_errors(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
         ),
