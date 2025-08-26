@@ -54,6 +54,7 @@ tokio-util = { workspace = true, optional = true, features = ["rt"] }
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
+tokio-metrics.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }

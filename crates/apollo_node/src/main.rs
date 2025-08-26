@@ -4,6 +4,8 @@ use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
 use apollo_node::servers::run_component_servers;
 use apollo_node::utils::{create_node_modules, load_and_validate_config};
+use tokio::time::Duration;
+use tokio_metrics::RuntimeMetricsReporterBuilder;
 use tracing::info;
 
 set_global_allocator!();
@@ -17,10 +19,20 @@ fn set_exit_process_on_panic() {
     }));
 }
 
+/// Start the tokio runtime metrics reporter to automatically collect and export runtime metrics
+fn setup_tokio_metrics() {
+    tokio::spawn(
+        RuntimeMetricsReporterBuilder::default()
+            .with_interval(Duration::from_secs(10))
+            .describe_and_run(),
+    );
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
 
+    setup_tokio_metrics();
     set_exit_process_on_panic();
 
     let config =
