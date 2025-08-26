@@ -50,10 +50,8 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
-// TODO(AvivG): Lower margin once the estimation of compiled class hash with entry-points is
-// correct.
-const ALLOWED_MARGIN_N_STEPS: usize = 465;
-const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 3;
+const ALLOWED_MARGIN_N_STEPS: usize = 30;
+const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 0;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -292,7 +290,7 @@ fn test_compiled_class_hash_resources_estimation() {
     let hash_version = HashVersion::V1;
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let mut contract_class = match feature_contract.get_class() {
+    let contract_class = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),
     };
@@ -300,9 +298,6 @@ fn test_compiled_class_hash_resources_estimation() {
         RunnableCompiledClass::V1(runnable_contract_class) => runnable_contract_class,
         _ => panic!("Expected RunnableCompiledClass::V1"),
     };
-
-    // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
-    contract_class.entry_points_by_type = Default::default();
 
     // Run the compiled class hash entry point with full contract loading.
     let (mut actual_execution_resources, _hash_computed_by_cairo) =

@@ -54,7 +54,6 @@ use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAn
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
     blake_execution_resources_estimation_to_gas,
-    poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
 };
 #[cfg(feature = "cairo_native")]
