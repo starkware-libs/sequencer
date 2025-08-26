@@ -484,7 +484,6 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
 /// is fully accounted for by the builtin gas delta (Stone vs Stwo).
 ///
 /// Covers combinations of OS computation builtins and CASM hash computation builtins.
-// TODO(AvivG): Consider adding a case with migration gas.
 #[rstest]
 #[case::tx_builtins_only(&[], ExecutionResources::default())]
 #[case::tx_builtins_plus_os_tx_builtins(
