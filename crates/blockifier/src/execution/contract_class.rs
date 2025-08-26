@@ -36,13 +36,9 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
-use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_gas;
-use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -51,10 +47,7 @@ use crate::execution::casm_hash_estimation::{
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
-use crate::execution::execution_utils::{
-    blake_execution_resources_estimation_to_gas,
-    sn_api_to_cairo_vm_program,
-};
+use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
@@ -263,25 +256,17 @@ impl RunnableCompiledClass {
     }
 
     /// Estimate the VM gas required to migrate a CompiledClassHash from Poseidon hashing to Blake.
-    pub fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-        blake_weight: usize,
-    ) -> (GasAmount, BuiltinCounterMap) {
+    pub fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
         match self {
             Self::V0(_) => panic!(
                 "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
                  counted for migration."
             ),
-            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(
-                versioned_constants,
-                blake_weight,
-            ),
+            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(),
             #[cfg(feature = "cairo_native")]
-            Self::V1Native(class) => class.casm().estimate_compiled_class_hash_migration_resources(
-                versioned_constants,
-                blake_weight,
-            ),
+            Self::V1Native(class) => {
+                class.casm().estimate_compiled_class_hash_migration_resources()
+            }
         }
     }
 
@@ -481,36 +466,28 @@ impl CompiledClassV1 {
     /// Returns:
     /// - Total gas amount.
     /// - The builtins used in the Poseidon hash.
-    fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-        blake_weight: usize,
-    ) -> (GasAmount, BuiltinCounterMap) {
+    fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
         let blake_hash_resources =
             CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                 &self.bytecode_segment_felt_sizes,
                 &self.entry_points_by_type,
             );
-        let blake_hash_gas = blake_execution_resources_estimation_to_gas(
-            blake_hash_resources,
-            versioned_constants,
-            blake_weight,
-        );
 
-        let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
         let poseidon_hash_resources =
             CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                 &self.bytecode_segment_felt_sizes,
                 &self.entry_points_by_type,
-            )
-            .resources();
-        let poseidon_hash_gas =
-            vm_resources_to_gas(&poseidon_hash_resources, &builtin_gas_costs, versioned_constants);
+            );
 
-        (
-            blake_hash_gas.checked_add_panic_on_overflow(poseidon_hash_gas),
-            poseidon_hash_resources.builtin_instance_counter.clone(),
-        )
+        let migration_resources = EstimatedExecutionResources::V2Hash {
+            // Can't use `+` operator on `EstimatedExecutionResources` because the resources are of
+            // different enum variants.
+            resources: blake_hash_resources.resources_ref()
+                + poseidon_hash_resources.resources_ref(),
+            blake_count: blake_hash_resources.blake_count(),
+        };
+
+        migration_resources
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
