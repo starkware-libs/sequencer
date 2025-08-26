@@ -30,6 +30,12 @@ use starknet_os::io::os_input::{
     StarknetOsInput,
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
+use starknet_os::io::os_output_types::{
+    PartialCommitmentOsStateDiff,
+    PartialOsStateDiff,
+    TryFromOutputIter,
+};
+use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
@@ -138,6 +144,20 @@ impl OsTestOutput {
         // Flags.
         assert_eq!(self.os_output.os_output.use_kzg_da(), self.expected_values.use_kzg_da);
         assert!(!self.os_output.os_output.full_output());
+
+        // KZG commitment.
+        if self.os_output.os_output.use_kzg_da() {
+            let OsStateDiff::PartialCommitment(PartialCommitmentOsStateDiff(
+                ref partial_commitment,
+            )) = self.os_output.os_output.state_diff
+            else {
+                panic!(
+                    "Expected a PartialCommitment state diff when use_kzg_da is true; full_output \
+                     should be false."
+                );
+            };
+            validate_kzg_segment(self.os_output.da_segment.as_ref().unwrap(), partial_commitment);
+        }
     }
 
     fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
@@ -250,13 +270,15 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) async fn execute_test_with_default_block_contexts(
         self,
         initial_block_number: u64,
+        use_kzg_da: bool,
     ) -> OsTestOutput {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
-                block_context_for_flow_tests(BlockNumber(
-                    initial_block_number + u64::try_from(i).unwrap(),
-                ))
+                block_context_for_flow_tests(
+                    BlockNumber(initial_block_number + u64::try_from(i).unwrap()),
+                    use_kzg_da,
+                )
             })
             .collect();
         self.execute_test_with_block_contexts(block_contexts).await
@@ -319,14 +341,27 @@ impl<S: FlowTestState> TestManager<S> {
     /// Decompresses the state diff from the OS output using the given OS output, state and alias
     /// keys.
     fn get_decompressed_state_diff(
-        os_state_diff: &OsStateDiff,
+        os_output: &StarknetOsRunnerOutput,
         state: &S,
         alias_keys: HashSet<StorageKey>,
     ) -> StateMaps {
-        let OsStateDiff::Partial(ref partial_os_state_diff) = os_state_diff else {
-            panic!("Expected a partial state diff in the output because of the OS config.");
+        let compressed_state_diff = match os_output.os_output.state_diff {
+            OsStateDiff::Partial(ref partial_os_state_diff) => {
+                partial_os_state_diff.as_state_maps()
+            }
+            OsStateDiff::PartialCommitment(_) => {
+                // State diff should be deserialized from the DA segment.
+                let da_segment = os_output.da_segment.clone().unwrap();
+                PartialOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
+                    .unwrap()
+                    .as_state_maps()
+            }
+            OsStateDiff::Full(_) | OsStateDiff::FullCommitment(_) => {
+                panic!(
+                    "Full state diff is not expected in flow tests (full_output should be false)."
+                )
+            }
         };
-        let compressed_state_diff = partial_os_state_diff.as_state_maps();
         decompress(&compressed_state_diff, state, *ALIAS_CONTRACT_ADDRESS, alias_keys)
     }
 
@@ -430,12 +465,12 @@ impl<S: FlowTestState> TestManager<S> {
                 .collect(),
         };
         let expected_config_hash = chain_info.compute_os_config_hash().unwrap();
-        let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
+        let os_hints_config = OsHintsConfig { chain_info, use_kzg_da, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
         let decompressed_state_diff =
-            Self::get_decompressed_state_diff(&os_output.os_output.state_diff, &state, alias_keys);
+            Self::get_decompressed_state_diff(&os_output, &state, alias_keys);
 
         OsTestOutput {
             os_output,
@@ -454,13 +489,13 @@ impl<S: FlowTestState> TestManager<S> {
 
 /// Returns a BlockContext of the given block number with the with the STRK fee token address that
 /// was set in the default initial state.
-pub fn block_context_for_flow_tests(block_number: BlockNumber) -> BlockContext {
+pub fn block_context_for_flow_tests(block_number: BlockNumber, use_kzg_da: bool) -> BlockContext {
     let fee_token_addresses = FeeTokenAddresses {
         strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
         eth_fee_token_address: ContractAddress::default(),
     };
     BlockContext::new(
-        BlockInfo { block_number, ..BlockInfo::create_for_testing() },
+        BlockInfo { block_number, use_kzg_da, ..BlockInfo::create_for_testing() },
         ChainInfo {
             fee_token_addresses,
             chain_id: CHAIN_ID_FOR_TESTS.clone(),

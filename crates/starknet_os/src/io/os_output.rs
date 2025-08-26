@@ -146,16 +146,16 @@ pub enum OsStateDiff {
     PartialCommitment(PartialCommitmentOsStateDiff),
 }
 
-pub(crate) type KzgCommitment = (Felt, Felt);
-pub(crate) type PointEvaluation = (Felt, Felt);
+pub type KzgCommitment = (Felt, Felt);
+pub type PointEvaluation = (Felt, Felt);
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
-pub(crate) struct OsKzgCommitmentInfo {
-    z: Felt,
-    n_blobs: usize,
-    commitments: Vec<KzgCommitment>,
-    evals: Vec<PointEvaluation>,
+pub struct OsKzgCommitmentInfo {
+    pub(crate) z: Felt,
+    pub(crate) n_blobs: usize,
+    pub(crate) commitments: Vec<KzgCommitment>,
+    pub(crate) evals: Vec<PointEvaluation>,
 }
 
 impl TryFromOutputIter for OsKzgCommitmentInfo {
