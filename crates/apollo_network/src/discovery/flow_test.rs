@@ -34,6 +34,7 @@ impl DiscoveryMixedBehaviour {
             None,
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
+            None, // No event tracker for tests
         );
         Self {
             identify: mixed_behaviour.identify,
