@@ -20,7 +20,8 @@ use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
-    let state_sync = StateSync { storage_reader, new_block_sender: channel(0).0 };
+    let state_sync =
+        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client: None };
     (state_sync, storage_writer)
 }
 
@@ -71,16 +72,23 @@ async fn test_get_block() {
 async fn test_get_block_hash() {
     let (mut state_sync, mut storage_writer) = setup();
 
-    let Block { header: expected_header, body: _ } = get_test_block(1, None, None, None);
+    let Block { header: expected_header, body: expected_body } =
+        get_test_block(1, None, None, None);
 
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(expected_header.block_header_without_hash.block_number, &expected_header)
         .unwrap()
+        .append_state_diff(
+            expected_header.block_header_without_hash.block_number,
+            ThinStateDiff::from(get_test_state_diff()),
+        )
+        .unwrap()
+        .append_body(expected_header.block_header_without_hash.block_number, expected_body.clone())
+        .unwrap()
         .commit()
         .unwrap();
-
     // Verify that the block was written and is returned correctly.
     let response = state_sync
         .handle_request(StateSyncRequest::GetBlockHash(

@@ -219,6 +219,7 @@ pub async fn run_server(
     node_version: &'static str,
     class_manager_client: Option<SharedClassManagerClient>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
+    debug!("Started get_last_synced_block");
     let starting_block = get_last_synced_block(storage_reader.clone())?;
     debug!("Starting JSON-RPC.");
     let methods = get_methods_from_supported_apis(

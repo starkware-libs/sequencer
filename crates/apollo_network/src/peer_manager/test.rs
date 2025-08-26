@@ -1,6 +1,7 @@
 // TODO(shahak): Add tests for multiple connection ids
 
 use core::{panic, time};
+use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -9,11 +10,11 @@ use apollo_network_types::test_utils::{get_peer_id, DUMMY_PEER_ID};
 use assert_matches::assert_matches;
 use futures::future::poll_fn;
 use futures::{FutureExt, Stream, StreamExt};
+use libp2p::core::transport::PortUse;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::sleep;
-use void::Void;
 
 use super::behaviour_impl::ToOtherBehaviourEvent;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
@@ -27,7 +28,7 @@ use crate::sqmr::OutboundSessionId;
 impl Unpin for PeerManager {}
 
 impl Stream for PeerManager {
-    type Item = ToSwarm<ToOtherBehaviourEvent, Void>;
+    type Item = ToSwarm<ToOtherBehaviourEvent, Infallible>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::into_inner(self).poll(cx) {
@@ -49,6 +50,7 @@ fn simulate_connection_established(
             endpoint: &libp2p::core::ConnectedPoint::Dialer {
                 address: Multiaddr::empty(),
                 role_override: libp2p::core::Endpoint::Dialer,
+                port_use: PortUse::Reuse,
             },
             failed_addresses: &[],
             other_established: 0,

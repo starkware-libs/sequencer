@@ -312,6 +312,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 local_addr,
                 send_back_addr,
                 error,
+                peer_id: _,
             } => {
                 // No need to panic here since this is a result of another peer trying to dial to us
                 // and failing. Other peers are welcome to retry.

@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   check-docker-test-trigger:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
       should_run: ${{ steps.docker_check.outputs.should_run }}
     steps:
@@ -58,7 +58,7 @@ jobs:
   sequencer_docker_compose_test:
     needs: check-docker-test-trigger
     if: needs.check-docker-test-trigger.outputs.should_run == 'true'
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     env:
       MONITORING_ENABLED: false
       SIMULATOR_RUN_FOREVER: false
