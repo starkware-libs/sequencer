@@ -52,10 +52,10 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
-// TODO(AvivG): Lower margin once the estimation of compiled class hash with entry-points is
-// correct.
-const ALLOWED_MARGIN_N_STEPS: usize = 465;
-const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 3;
+// TODO(AvivG): Lower margin once the estimation is completed.
+const ALLOWED_MARGIN_N_STEPS: usize = 612;
+// TODO(AvivG): remove builtins margin once it's zero for both V1 and V2.
+const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 0;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -174,22 +174,20 @@ impl HashVersionTestSpec for HashVersion {
     fn estimate_execution_resources(
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
-        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources {
         match self {
             HashVersion::V1 => {
                 CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
-                    // TODO(AvivG): Use entry points in estimation.
-                    &Default::default(),
+                    entry_points_by_type,
                 )
                 .resources()
             }
             HashVersion::V2 => {
                 CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
-                    // TODO(AvivG): Use entry points in estimation.
-                    &Default::default(),
+                    entry_points_by_type,
                 )
                 .resources()
             }
@@ -355,9 +353,6 @@ fn test_compiled_class_hash_resources_estimation(
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),
     };
-
-    // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
-    contract_class.entry_points_by_type = Default::default();
     if single_leaf_segment {
         contract_class.bytecode_segment_lengths =
             Some(NestedIntList::Leaf(contract_class.bytecode.len()));
