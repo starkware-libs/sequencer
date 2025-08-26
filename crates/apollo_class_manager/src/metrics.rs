@@ -5,16 +5,8 @@ use apollo_infra::metrics::{
     LocalServerMetrics,
     RemoteClientMetrics,
     RemoteServerMetrics,
-    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-    CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-    CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
-    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
 };
-use apollo_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use strum::VariantNames;
 
 use crate::communication::CLASS_MANAGER_REQUEST_LABELS;
@@ -50,6 +42,8 @@ generate_permutation_labels! {
     (CLASS_OBJECT_TYPE_LABEL, ClassObjectType),
 }
 
+define_infra_metrics!(class_manager);
+
 define_metrics!(
     ClassManager => {
         LabeledMetricCounter {
@@ -63,38 +57,6 @@ define_metrics!(
             "class_manager_class_sizes",
             "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
             labels = CLASS_OBJECT_TYPE_LABELS
-        },
-    },
-    Infra => {
-        LabeledMetricHistogram {
-            CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
-            "class_manager_labeled_processing_times_secs",
-            "Request processing times of the class manager, per label (secs)",
-            labels = CLASS_MANAGER_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
-            "class_manager_labeled_queueing_times_secs",
-            "Request queueing times of the class manager, per label (secs)",
-            labels = CLASS_MANAGER_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-            "class_manager_labeled_local_response_times_secs",
-            "Request local response times of the class manager, per label (secs)",
-            labels = CLASS_MANAGER_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-            "class_manager_labeled_remote_response_times_secs",
-            "Request remote response times of the class manager, per label (secs)",
-            labels = CLASS_MANAGER_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-            "class_manager_labeled_remote_client_communication_failure_times_secs",
-            "Request communication failure times of the class manager, per label (secs)",
-            labels = CLASS_MANAGER_REQUEST_LABELS
         },
     },
 );
@@ -122,25 +84,3 @@ pub(crate) fn register_metrics() {
     N_CLASSES.register();
     CLASS_SIZES.register();
 }
-
-pub const CLASS_MANAGER_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
-    LocalClientMetrics::new(&CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
-    RemoteClientMetrics::new(
-        &CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-        &CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        &CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    ),
-    LocalServerMetrics::new(
-        &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-        &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-        &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-        &CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
-        &CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
-    ),
-    RemoteServerMetrics::new(
-        &CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-        &CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-        &CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-        &CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
-    ),
-);

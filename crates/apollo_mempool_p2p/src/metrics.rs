@@ -4,17 +4,11 @@ use apollo_infra::metrics::{
     LocalServerMetrics,
     RemoteClientMetrics,
     RemoteServerMetrics,
-    MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-    MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-    MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-    MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-    MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-    MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-    MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
-    MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
 };
-use apollo_mempool_p2p_types::communication::MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS;
-use apollo_metrics::define_metrics;
+use apollo_mempool_p2p_types::communication::MEMPOOL_P2P_REQUEST_LABELS;
+use apollo_metrics::{define_infra_metrics, define_metrics};
+
+define_infra_metrics!(mempool_p2p);
 
 define_metrics!(
     MempoolP2p => {
@@ -27,34 +21,4 @@ define_metrics!(
         // Histogram
         MetricHistogram { MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, "apollo_mempool_p2p_broadcasted_transaction_batch_size", "The number of transactions in batches broadcast by the mempool p2p component" }
     },
-    Infra => {
-        // MempoolP2p request labels
-        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS, "mempool_p2p_labeled_processing_times_secs", "Request processing times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
-        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS, "mempool_p2p_labeled_queueing_times_secs", "Request queueing times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
-        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS, "mempool_p2p_labeled_local_response_times_secs", "Request local response times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
-        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS, "mempool_p2p_labeled_remote_response_times_secs", "Request remote response times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
-        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "mempool_p2p_labeled_remote_client_communication_failure_times_secs", "Request communication failure times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
-    },
-);
-
-pub const MEMPOOL_P2P_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
-    LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS),
-    RemoteClientMetrics::new(
-        &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-        &MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        &MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    ),
-    LocalServerMetrics::new(
-        &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-        &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-        &MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-        &MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
-        &MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
-    ),
-    RemoteServerMetrics::new(
-        &MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-        &MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-        &MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-        &MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
-    ),
 );

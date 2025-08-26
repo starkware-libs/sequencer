@@ -4,23 +4,17 @@ use apollo_infra::metrics::{
     LocalServerMetrics,
     RemoteClientMetrics,
     RemoteServerMetrics,
-    MEMPOOL_LOCAL_MSGS_PROCESSED,
-    MEMPOOL_LOCAL_MSGS_RECEIVED,
-    MEMPOOL_LOCAL_QUEUE_DEPTH,
-    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
-    MEMPOOL_REMOTE_MSGS_PROCESSED,
-    MEMPOOL_REMOTE_MSGS_RECEIVED,
-    MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
-    MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool_types::mempool_types::MEMPOOL_REQUEST_LABELS;
-use apollo_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,
 };
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
+
+define_infra_metrics!(mempool);
 
 define_metrics!(
     Mempool => {
@@ -35,38 +29,6 @@ define_metrics!(
         MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
         MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)" },
         MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, "mempool_transaction_time_spent_until_committed", "The time (seconds) a transaction spent in the mempool until it was committed" },
-    },
-    Infra => {
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
-            "mempool_labeled_processing_times_secs",
-            "Request processing times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
-            "mempool_labeled_queueing_times_secs",
-            "Request queueing times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-            "mempool_labeled_local_response_times_secs",
-            "Request local response times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-            "mempool_labeled_remote_response_times_secs",
-            "Request remote response times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-            "mempool_labeled_remote_client_communication_failure_times_secs",
-            "Request communication failure times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
     },
 );
 
@@ -177,25 +139,3 @@ pub(crate) fn register_metrics() {
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();
 }
-
-pub const MEMPOOL_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
-    LocalClientMetrics::new(&MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS),
-    RemoteClientMetrics::new(
-        &MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
-        &MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        &MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    ),
-    LocalServerMetrics::new(
-        &MEMPOOL_LOCAL_MSGS_RECEIVED,
-        &MEMPOOL_LOCAL_MSGS_PROCESSED,
-        &MEMPOOL_LOCAL_QUEUE_DEPTH,
-        &MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
-        &MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
-    ),
-    RemoteServerMetrics::new(
-        &MEMPOOL_REMOTE_MSGS_RECEIVED,
-        &MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
-        &MEMPOOL_REMOTE_MSGS_PROCESSED,
-        &MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
-    ),
-);

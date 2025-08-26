@@ -4,16 +4,8 @@ use apollo_infra::metrics::{
     LocalServerMetrics,
     RemoteClientMetrics,
     RemoteServerMetrics,
-    STATE_SYNC_LOCAL_MSGS_PROCESSED,
-    STATE_SYNC_LOCAL_MSGS_RECEIVED,
-    STATE_SYNC_LOCAL_QUEUE_DEPTH,
-    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-    STATE_SYNC_REMOTE_MSGS_PROCESSED,
-    STATE_SYNC_REMOTE_MSGS_RECEIVED,
-    STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
-    STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
 };
-use apollo_metrics::define_metrics;
+use apollo_metrics::{define_infra_metrics, define_metrics};
 use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
@@ -24,6 +16,8 @@ use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
 use tracing::debug;
+
+define_infra_metrics!(state_sync);
 
 define_metrics!(
     StateSync => {
@@ -46,35 +40,6 @@ define_metrics!(
         MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component since its last restart", init = 0 },
         MetricCounter { STATE_SYNC_REVERTED_TRANSACTIONS, "apollo_state_sync_reverted_transactions", "The number of transactions reverted by the state sync component", init = 0 },
     },
-    Infra => {
-        LabeledMetricHistogram { STATE_SYNC_LABELED_PROCESSING_TIMES_SECS, "state_sync_labeled_processing_times_secs", "Request processing times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
-        LabeledMetricHistogram { STATE_SYNC_LABELED_QUEUEING_TIMES_SECS, "state_sync_labeled_queueing_times_secs", "Request queueing times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
-        LabeledMetricHistogram { STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS, "state_sync_labeled_local_response_times_secs", "Request local response times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
-        LabeledMetricHistogram { STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS, "state_sync_labeled_remote_response_times_secs", "Request remote response times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
-        LabeledMetricHistogram { STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "state_sync_labeled_remote_client_communication_failure_times_secs", "Request communication failure times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
-    },
-);
-
-pub const STATE_SYNC_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
-    LocalClientMetrics::new(&STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS),
-    RemoteClientMetrics::new(
-        &STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-        &STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        &STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    ),
-    LocalServerMetrics::new(
-        &STATE_SYNC_LOCAL_MSGS_RECEIVED,
-        &STATE_SYNC_LOCAL_MSGS_PROCESSED,
-        &STATE_SYNC_LOCAL_QUEUE_DEPTH,
-        &STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
-        &STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
-    ),
-    RemoteServerMetrics::new(
-        &STATE_SYNC_REMOTE_MSGS_RECEIVED,
-        &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
-        &STATE_SYNC_REMOTE_MSGS_PROCESSED,
-        &STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
-    ),
 );
 
 pub async fn register_metrics(
