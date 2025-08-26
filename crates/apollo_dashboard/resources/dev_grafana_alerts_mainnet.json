@@ -571,7 +571,7 @@
       "name": "l1_message_scraper_reorg_detected",
       "title": "L1 message scraper reorg detected",
       "ruleGroup": "l1_messages",
-      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
