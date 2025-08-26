@@ -2,14 +2,10 @@ use std::collections::HashMap;
 
 use blockifier::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
+    CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
 };
-use blockifier::execution::contract_class::{
-    estimate_casm_blake_hash_computation_resources,
-    EntryPointV1,
-    EntryPointsByType,
-    NestedFeltCounts,
-};
+use blockifier::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -75,8 +71,8 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): lower margins once blake estimation is completed.
-const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 5585;
-const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 8;
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 610;
+const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 0;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -190,8 +186,12 @@ impl HashVersionTestSpec for HashVersion {
                 .resources()
             }
             HashVersion::V2 => {
-                estimate_casm_blake_hash_computation_resources(bytecode_segment_felt_sizes)
-                    .resources()
+                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    // TODO(AvivG): Use entry points in estimation.
+                    &Default::default(),
+                )
+                .resources()
             }
         }
     }
