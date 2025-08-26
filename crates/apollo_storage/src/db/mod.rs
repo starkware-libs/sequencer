@@ -214,7 +214,7 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
             //  exclusive: bool,
             //  accede: bool,
             mode: Mode::ReadWrite(ReadWriteOptions {
-                sync_mode: SyncMode::Durable,
+                sync_mode: SyncMode::NoMetaSync,
                 min_size: Some(config.min_size),
                 max_size: Some(config.max_size),
                 growth_step: Some(config.growth_step),
