@@ -722,21 +722,6 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_sierra_gas =
         vm_resources_to_gas(&vm_resources, &builtin_gas_cost, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-<<<<<<< HEAD
-    let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
-        if versioned_constants.enable_casm_hash_migration {
-            get_migration_data(state_reader, executed_class_hashes, versioned_constants)
-        } else {
-            (HashSet::new(), GasAmount::ZERO, HashMap::new())
-        };
-||||||| 01792faa8
-    let (class_hashes_to_migrate, migration_gas) = if versioned_constants.enable_casm_hash_migration
-    {
-        get_migration_data(state_reader, executed_class_hashes)
-    } else {
-        (HashSet::new(), GasAmount::ZERO)
-    };
-=======
     let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
             get_migration_data(
@@ -748,7 +733,6 @@ pub fn get_tx_weights<S: StateReader>(
         } else {
             (HashMap::new(), GasAmount::ZERO, HashMap::new())
         };
->>>>>>> origin/main-v0.14.1
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
     // Each contract is migrated only once, and this migration resources is not part of the CASM
@@ -773,17 +757,6 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
-<<<<<<< HEAD
-    // Migration occurs once per contract, and thus is not treated as part of the CASM hash
-    // computation.
-    add_maps(
-        &mut builtin_counters_without_casm_hash_computation,
-        &migration_poseidon_builtin_counter,
-    );
-||||||| 01792faa8
-    // TODO(Meshi): Add proving builtin_counters to the
-    // `builtin_counters_without_casm_hash_computation`.
-=======
     // Migration occurs once per contract, and thus is not treated as part of the CASM hash
     // computation.
     add_maps(
@@ -792,7 +765,6 @@ pub fn get_tx_weights<S: StateReader>(
     );
 
     let builtin_proving_weights = &bouncer_config.builtin_weights;
->>>>>>> origin/main-v0.14.1
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         &builtin_counters_without_casm_hash_computation,
         sierra_gas_without_casm_hash_computation,
@@ -800,28 +772,6 @@ pub fn get_tx_weights<S: StateReader>(
         versioned_constants,
     );
 
-<<<<<<< HEAD
-    // Use the shared pattern to create proving gas data
-    let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
-        &class_hash_to_casm_hash_computation_resources,
-        proving_gas_without_casm_hash_computation,
-        |resources| vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants),
-    );
-    let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
-||||||| 01792faa8
-    // Since the migration occurs only once per contract, we don't consider it part of the CASM hash
-    // computation.
-    // TODO(Meshi): change this to use the proving migration gas.
-    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
-
-    // Use the shared pattern to create proving gas data
-    let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
-        &class_hash_to_casm_hash_computation_resources,
-        proving_gas_without_casm_hash_computation,
-        |resources| vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants),
-    );
-    let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
-=======
     let (total_proving_gas, casm_hash_computation_data_proving_gas) =
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
@@ -829,7 +779,6 @@ pub fn get_tx_weights<S: StateReader>(
             &builtin_proving_weights.weights,
             versioned_constants,
         );
->>>>>>> origin/main-v0.14.1
 
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
@@ -909,43 +858,6 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
 fn get_migration_data<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-<<<<<<< HEAD
-    versioned_constants: &VersionedConstants,
-) -> (HashSet<ClassHash>, GasAmount, BuiltinCounterMap) {
-    executed_class_hashes
-        .iter()
-        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
-        .map(|class_hash| {
-            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
-            (
-                *class_hash,
-                class.estimate_compiled_class_hash_migration_resources(versioned_constants),
-            )
-        })
-        .fold(
-            (HashSet::new(), GasAmount::ZERO, HashMap::new()),
-            |(mut hashes, mut gas, mut poseidon_builtins), (hash, (new_gas, new_builtins))| {
-                hashes.insert(hash);
-                gas = gas.checked_add_panic_on_overflow(new_gas);
-                poseidon_builtins.extend(new_builtins);
-
-                (hashes, gas, poseidon_builtins)
-            },
-        )
-||||||| 01792faa8
-) -> (HashSet<ClassHash>, GasAmount) {
-    executed_class_hashes
-        .iter()
-        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
-        .map(|class_hash| {
-            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
-            (*class_hash, class.estimate_compiled_class_hash_migration_resources())
-        })
-        .fold((HashSet::new(), GasAmount::ZERO), |(mut hashes, gas), (hash, new_gas)| {
-            hashes.insert(hash);
-            (hashes, gas.checked_add_panic_on_overflow(new_gas))
-        })
-=======
     versioned_constants: &VersionedConstants,
     blake_weight: usize,
 ) -> TransactionExecutionResult<(
@@ -974,5 +886,4 @@ fn get_migration_data<S: StateReader>(
             Ok((class_hashes_to_migrate, gas, poseidon_casm_builtins))
         },
     )
->>>>>>> origin/main-v0.14.1
 }

@@ -315,7 +315,7 @@ impl BlockNumber {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PreviousBlockNumber(Option<BlockNumber>);
+pub struct PreviousBlockNumber(pub Option<BlockNumber>);
 
 impl std::fmt::Display for PreviousBlockNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

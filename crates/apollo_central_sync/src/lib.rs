@@ -57,15 +57,8 @@ use starknet_api::block::{
     BlockSignature,
     StarknetVersion,
 };
-<<<<<<< HEAD
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-||||||| 01792faa8
-use starknet_api::contract_class::{ContractClass, SierraVersion};
-=======
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::{ContractClass, SierraVersion};
->>>>>>> origin/main-v0.14.1
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};

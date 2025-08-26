@@ -1,12 +1,6 @@
 use std::collections::HashMap;
 
 use rstest::{fixture, rstest};
-<<<<<<< HEAD
-||||||| 01792faa8
-use starknet_patricia_storage::map_storage::MapStorage;
-=======
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
->>>>>>> origin/main-v0.14.1
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
@@ -154,17 +148,10 @@ fn test_updated_skeleton_tree_impl_create(
 #[case::empty_modifications(HashMap::new())]
 #[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), MockLeaf::default())]))]
 fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
-<<<<<<< HEAD
     let storage = HashMap::new();
-||||||| 01792faa8
-    let storage: MapStorage = HashMap::new().into();
-=======
-    let mut storage = HashMap::new();
-    let map_storage = BorrowedMapStorage { storage: &mut storage };
->>>>>>> origin/main-v0.14.1
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
-        &map_storage,
+        &storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),

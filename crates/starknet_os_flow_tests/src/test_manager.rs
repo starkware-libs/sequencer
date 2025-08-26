@@ -10,7 +10,7 @@ use blockifier::state::cached_state::StateMaps;
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -75,8 +75,7 @@ pub(crate) struct TestManager<S: FlowTestState> {
 pub(crate) struct OsTestExpectedValues {
     pub(crate) previous_global_root: HashOutput,
     pub(crate) new_global_root: HashOutput,
-    // TODO(Dori): Change type to PreviousBlockNumber once it exists.
-    pub(crate) previous_block_number: Option<BlockNumber>,
+    pub(crate) previous_block_number: PreviousBlockNumber,
     pub(crate) new_block_number: BlockNumber,
     pub(crate) config_hash: Felt,
     pub(crate) use_kzg_da: bool,
@@ -119,7 +118,7 @@ impl OsTestOutput {
 
         // Block numbers.
         assert_eq!(
-            Some(self.os_output.os_output.common_os_output.prev_block_number),
+            self.os_output.os_output.common_os_output.prev_block_number,
             self.expected_values.previous_block_number
         );
         assert_eq!(
@@ -331,7 +330,7 @@ impl<S: FlowTestState> TestManager<S> {
         };
         let expected_previous_global_root = previous_commitment.global_root();
         let previous_block_number =
-            block_contexts.first().unwrap().block_info().block_number.prev();
+            PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
         let new_block_number = block_contexts.last().unwrap().block_info().block_number;
         let chain_info = Self::verify_chain_infos_and_get_one(&block_contexts);
         let use_kzg_da = Self::verify_kzg_da_flag_and_get(&block_contexts);

@@ -64,16 +64,8 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
         self.casm.get_bytecode()
     }
 
-<<<<<<< HEAD
-    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(self.casm.bytecode_segment_lengths())
-||||||| 01792faa8
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
-        self.casm.bytecode_segment_lengths()
-=======
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedFeltCounts> {
         Cow::Borrowed(self.casm.bytecode_segment_felt_sizes())
->>>>>>> origin/main-v0.14.1
     }
 }
 

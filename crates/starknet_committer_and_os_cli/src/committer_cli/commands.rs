@@ -1,15 +1,6 @@
-use std::collections::HashMap;
-
 use starknet_committer::block_committer::commit::commit_block;
-<<<<<<< HEAD
 use starknet_committer::block_committer::input::Config;
 use starknet_patricia_storage::map_storage::MapStorage;
-||||||| 01792faa8
-use starknet_committer::block_committer::input::{Config, ConfigImpl, Input};
-=======
-use starknet_committer::block_committer::input::Config;
-use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
->>>>>>> origin/main-v0.14.1
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -40,27 +31,11 @@ pub async fn parse_and_commit(
     commit(input, output_path, storage).await;
 }
 
-<<<<<<< HEAD
 pub async fn commit(input: InputImpl, output_path: String, storage: MapStorage) {
     let serialized_filled_forest = SerializedForest(
         commit_block(input, &storage).await.expect("Failed to commit the given block."),
     );
     let output = serialized_filled_forest.forest_to_output();
-||||||| 01792faa8
-pub async fn commit(input: Input<ConfigImpl>, output_path: String) {
-    let serialized_filled_forest =
-        SerializedForest(commit_block(input).await.expect("Failed to commit the given block."));
-    let output = serialized_filled_forest.forest_to_output();
-=======
-pub async fn commit(input: InputImpl, output_path: String, mut storage: MapStorage) {
-    let serialized_filled_forest = SerializedForest(
-        commit_block(input, &mut storage).await.expect("Failed to commit the given block."),
-    );
-    // Create an empty storage for the new facts.
-    let mut empty_storage = HashMap::new();
-    let output_storage = BorrowedMapStorage { storage: &mut empty_storage };
-    let output = serialized_filled_forest.forest_to_output(output_storage);
->>>>>>> origin/main-v0.14.1
     write_to_file(&output_path, &output);
     info!(
         "Successfully committed given block. Updated Contracts Trie Root Hash: {:?},

@@ -243,35 +243,6 @@ impl ProcessTxBlockingTask {
     }
 }
 
-<<<<<<< HEAD
-fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {
-    StarknetError {
-        code: StarknetErrorCode::UnknownErrorCode(
-            "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
-        ),
-        message: error.to_string(),
-    }
-}
-
-||||||| 01792faa8
-fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {
-    let ValidateCompiledClassHashError::CompiledClassHashMismatch {
-        computed_class_hash,
-        supplied_class_hash,
-    } = error;
-    StarknetError {
-        code: StarknetErrorCode::UnknownErrorCode(
-            "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
-        ),
-        message: format!(
-            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
-             {supplied_class_hash}.",
-        ),
-    }
-}
-
-=======
->>>>>>> origin/main-v0.14.1
 pub fn create_gateway(
     config: GatewayConfig,
     shared_state_sync_client: SharedStateSyncClient,

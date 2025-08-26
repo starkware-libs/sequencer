@@ -42,12 +42,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
 use crate::blockifier_versioned_constants::VersionedConstants;
-<<<<<<< HEAD
-use crate::bouncer::vm_resources_to_sierra_gas;
-use crate::execution::call_info::BuiltinCounterMap;
-||||||| 01792faa8
-use crate::bouncer::vm_resources_to_sierra_gas;
-=======
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
@@ -55,7 +49,6 @@ use crate::execution::casm_hash_estimation::{
     EstimateCasmHashResources,
     EstimatedExecutionResources,
 };
->>>>>>> origin/main-v0.14.1
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
@@ -262,52 +255,25 @@ impl RunnableCompiledClass {
     }
 
     /// Estimate the VM gas required to migrate a CompiledClassHash from Poseidon hashing to Blake.
-<<<<<<< HEAD
-    pub fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-    ) -> (GasAmount, BuiltinCounterMap) {
-||||||| 01792faa8
-    pub fn estimate_compiled_class_hash_migration_resources(&self) -> GasAmount {
-=======
     pub fn estimate_compiled_class_hash_migration_resources(
         &self,
         versioned_constants: &VersionedConstants,
         blake_weight: usize,
     ) -> (GasAmount, BuiltinCounterMap) {
->>>>>>> origin/main-v0.14.1
         match self {
             Self::V0(_) => panic!(
                 "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
                  counted for migration."
             ),
-<<<<<<< HEAD
-            Self::V1(class) => {
-                class.estimate_compiled_class_hash_migration_resources(versioned_constants)
-            }
-||||||| 01792faa8
-            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(),
-=======
             Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(
                 versioned_constants,
                 blake_weight,
             ),
->>>>>>> origin/main-v0.14.1
             #[cfg(feature = "cairo_native")]
-<<<<<<< HEAD
-            Self::V1Native(class) => {
-                class.casm().estimate_compiled_class_hash_migration_resources(versioned_constants)
-            }
-||||||| 01792faa8
-            Self::V1Native(class) => {
-                class.casm().estimate_compiled_class_hash_migration_resources()
-            }
-=======
             Self::V1Native(class) => class.casm().estimate_compiled_class_hash_migration_resources(
                 versioned_constants,
                 blake_weight,
             ),
->>>>>>> origin/main-v0.14.1
         }
     }
 
@@ -493,43 +459,6 @@ impl CompiledClassV1 {
         estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes)
     }
 
-<<<<<<< HEAD
-    /// Estimate the VM gas required to perform a CompiledClassHash migration.
-    ///
-    /// During the migration, both the blake hash, and the poseidon hash of the CASM are
-    /// computed.
-    ///
-    /// Note: there's an assumption that the gas of the Blake hash is the same in both Stone and
-    /// Stwo (i.e., the only builtin used is `range_check` and its gas is the same in both).
-    ///
-    /// Returns:
-    /// - Total gas amount.
-    /// - The builtins used in the Poseidon hash.
-    fn estimate_compiled_class_hash_migration_resources(
-        &self,
-        versioned_constants: &VersionedConstants,
-    ) -> (GasAmount, BuiltinCounterMap) {
-        let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            &self.bytecode_segment_lengths,
-            versioned_constants,
-        );
-
-        let poseidon_hash_resources =
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths);
-        let poseidon_hash_gas =
-            vm_resources_to_sierra_gas(&poseidon_hash_resources, versioned_constants);
-
-        (
-            blake_hash_gas.checked_add_panic_on_overflow(poseidon_hash_gas),
-            poseidon_hash_resources.builtin_instance_counter.clone(),
-        )
-||||||| 01792faa8
-    /// Estimate the VM gas required to perform a CompiledClassHash migration,
-    /// including both the Blake2s and Poseidon hash computations.
-    fn estimate_compiled_class_hash_migration_resources(&self) -> GasAmount {
-        // TODO(AvivG): implement after blake hash estimation exists.
-        GasAmount::ZERO
-=======
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
     ///
     /// During the migration, both the blake hash, and the poseidon hash of the CASM are
@@ -564,7 +493,6 @@ impl CompiledClassV1 {
             blake_hash_gas.checked_add_panic_on_overflow(poseidon_hash_gas),
             poseidon_hash_resources.builtin_instance_counter.clone(),
         )
->>>>>>> origin/main-v0.14.1
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
@@ -614,16 +542,8 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for CompiledClassV1 {
             .collect()
     }
 
-<<<<<<< HEAD
-    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(&self.bytecode_segment_lengths)
-||||||| 01792faa8
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
-        &self.bytecode_segment_lengths
-=======
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedFeltCounts> {
         Cow::Borrowed(&self.bytecode_segment_felt_sizes)
->>>>>>> origin/main-v0.14.1
     }
 }
 

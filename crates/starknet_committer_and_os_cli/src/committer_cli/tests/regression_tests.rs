@@ -8,7 +8,6 @@ use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
@@ -98,14 +97,13 @@ impl<'de> Deserialize<'de> for TreeRegressionInput {
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_single_tree() {
     let TreeRegressionInput {
-        tree_flow_input: TreeFlowInput { leaf_modifications, mut storage, root_hash },
+        tree_flow_input: TreeFlowInput { leaf_modifications, storage, root_hash },
         expected_hash,
         expected_storage_changes,
     } = serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
 
     let start = std::time::Instant::now();
     // Benchmark the single tree flow test.
-    let storage = BorrowedMapStorage { storage: &mut storage };
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
         &storage,

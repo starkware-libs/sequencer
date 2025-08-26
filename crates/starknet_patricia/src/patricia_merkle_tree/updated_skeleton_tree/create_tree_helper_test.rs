@@ -3,12 +3,6 @@ use std::collections::HashMap;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-<<<<<<< HEAD
-||||||| 01792faa8
-use starknet_patricia_storage::map_storage::MapStorage;
-=======
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
->>>>>>> origin/main-v0.14.1
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
@@ -501,21 +495,10 @@ fn test_update_node_in_nonempty_tree(
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let empty_map = HashMap::new();
-<<<<<<< HEAD
     let empty_storage = HashMap::new();
-||||||| 01792faa8
-=======
-    let mut empty_storage = HashMap::new();
->>>>>>> origin/main-v0.14.1
     let config = OriginalSkeletonMockTrieConfig::new(false);
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<MockLeaf>(
-<<<<<<< HEAD
         &empty_storage,
-||||||| 01792faa8
-        &MapStorage::default(),
-=======
-        &BorrowedMapStorage { storage: &mut empty_storage },
->>>>>>> origin/main-v0.14.1
         root_hash,
         SortedLeafIndices::new(&mut []),
         &config,

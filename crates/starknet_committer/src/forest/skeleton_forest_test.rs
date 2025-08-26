@@ -18,7 +18,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
@@ -292,12 +292,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
-<<<<<<< HEAD
     #[case] storage: MapStorage,
-||||||| 01792faa8
-=======
-    #[case] mut storage: MapStorage,
->>>>>>> origin/main-v0.14.1
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
@@ -316,13 +311,7 @@ fn test_create_original_skeleton_forest(
     };
 
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-<<<<<<< HEAD
         &storage,
-||||||| 01792faa8
-        MapStorage::from(input.storage),
-=======
-        BorrowedMapStorage { storage: &mut storage },
->>>>>>> origin/main-v0.14.1
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &input.state_diff.actual_storage_updates(),

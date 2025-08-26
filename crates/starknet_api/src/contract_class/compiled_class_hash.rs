@@ -141,13 +141,7 @@ pub trait HashableCompiledClass<EH: EntryPointHashable, NL: HashableNestedIntLis
     fn get_hashable_external_entry_points(&self) -> &[EH];
     fn get_hashable_constructor_entry_points(&self) -> &[EH];
     fn get_bytecode(&self) -> Vec<Felt>;
-<<<<<<< HEAD
-    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList>;
-||||||| 01792faa8
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList;
-=======
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NL>;
->>>>>>> origin/main-v0.14.1
 
     /// Returns the compiled class hash using the specified hash version.
     fn hash(&self, hash_version: &HashVersion) -> CompiledClassHash {
@@ -173,13 +167,7 @@ where
 
     let bytecode_hash = bytecode_hash::<H, NL>(
         &hashable_class.get_bytecode(),
-<<<<<<< HEAD
-        &hashable_class.get_bytecode_segment_lengths(),
-||||||| 01792faa8
-        hashable_class.get_bytecode_segment_lengths(),
-=======
         &*hashable_class.get_bytecode_segment_lengths(),
->>>>>>> origin/main-v0.14.1
     );
 
     // Compute total hash by hashing each component on top of the previous one.

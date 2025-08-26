@@ -1,20 +1,11 @@
 use std::collections::HashMap;
 
-<<<<<<< HEAD
-use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
-use blake2s::encode_felt252_data_and_calc_blake_hash;
-use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
-||||||| 01792faa8
-use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
-use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
-=======
 use blake2s::encode_felt252_data_and_calc_blake_hash;
 use blockifier::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
 };
 use blockifier::execution::contract_class::FeltSizeCount;
->>>>>>> origin/main-v0.14.1
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -37,17 +28,8 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
     let estimated =
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&felt_size_groups);
 
-<<<<<<< HEAD
-    // TODO(AvivG): Investigate the discrepancies.
-    estimated.n_steps -= 1;
-||||||| 01792faa8
-    // TODO(AvivG): Investigate the discrepancies.
-    estimated.n_steps -= 1;
-    *estimated.builtin_instance_counter.entry(BuiltinName::range_check).or_default() += 3;
-=======
     let mut resources = estimated.resources().clone();
     resources.n_steps -= 1;
->>>>>>> origin/main-v0.14.1
 
     resources
 }

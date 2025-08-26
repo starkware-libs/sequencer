@@ -2,14 +2,6 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-<<<<<<< HEAD
-use apollo_config::converters::UrlAndHeaders;
-||||||| 01792faa8
-use alloy::node_bindings::AnvilInstance;
-use apollo_config::converters::UrlAndHeaders;
-=======
-use alloy::node_bindings::AnvilInstance;
->>>>>>> origin/main-v0.14.1
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;

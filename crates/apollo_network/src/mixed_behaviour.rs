@@ -74,18 +74,10 @@ impl MixedBehaviour {
         let local_peer_id = PeerId::from_public_key(&public_key);
         let protocol_name =
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
-<<<<<<< HEAD
-                .expect("Failed to create StreamProtocol from a string that starts with /");
-        let kademlia_config = kad::Config::new(protocol_name);
-||||||| 01792faa8
-                .expect("Failed to create StreamProtocol from a string that starts with /"),
-        ]);
-=======
                 .expect("Failed to create StreamProtocol from a string that starts with /");
         let kademlia_config = kad::Config::new(protocol_name);
         let connection_limits = ConnectionLimits::default().with_max_established_per_peer(Some(1));
 
->>>>>>> origin/main-v0.14.1
         Self {
             limits: connection_limits::Behaviour::new(connection_limits),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
