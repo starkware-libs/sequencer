@@ -272,9 +272,10 @@ pub trait EstimateCasmHashResources {
     }
 }
 
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+/// Estimates the VM resources to compute the CASM V1 (Poseidon) hash for a Cairo-1 contract.
+///
+/// Note: this estimation is not backward compatible.
+pub struct CasmV1HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     // Estimated fixed Cairo steps for `bytecode_hash_internal_node` leaf case.

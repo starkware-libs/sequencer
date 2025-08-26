@@ -49,6 +49,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
     EstimatedExecutionResources,
@@ -57,7 +58,6 @@ use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAn
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
     blake_execution_resources_estimation_to_gas,
-    poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
 };
 #[cfg(feature = "cairo_native")]
@@ -454,7 +454,12 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes)
+        // TODO(AvivG): Replace with V2 estimation.
+        CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+            &self.bytecode_segment_felt_sizes,
+            &self.entry_points_by_type,
+        )
+        .resources()
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
@@ -483,7 +488,11 @@ impl CompiledClassV1 {
 
         let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
         let poseidon_hash_resources =
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes);
+            CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                &self.bytecode_segment_felt_sizes,
+                &self.entry_points_by_type,
+            )
+            .resources();
         let poseidon_hash_gas =
             vm_resources_to_gas(&poseidon_hash_resources, &builtin_gas_costs, versioned_constants);
 
@@ -542,51 +551,6 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for CompiledClassV1 {
 
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedFeltCounts> {
         Cow::Borrowed(&self.bytecode_segment_felt_sizes)
-    }
-}
-
-/// Returns the estimated VM resources required for computing Casm hash (for Cairo 1 contracts).
-///
-/// Note: the function focuses on the bytecode size, and currently ignores the cost handling the
-/// class entry points.
-/// Also, this function is not backward compatible.
-pub fn estimate_casm_poseidon_hash_computation_resources(
-    bytecode_segment_lengths: &NestedFeltCounts,
-) -> ExecutionResources {
-    // The constants in this function were computed by running the Casm code on a few values
-    // of `bytecode_segment_lengths`.
-    match bytecode_segment_lengths {
-        NestedFeltCounts::Leaf(length, _) => {
-            // The entire contract is a single segment (old Sierra contracts).
-            &ExecutionResources {
-                n_steps: 464,
-                n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
-            } + &poseidon_hash_many_cost(*length)
-        }
-        NestedFeltCounts::Node(segments) => {
-            // The contract code is segmented by its functions.
-            let mut execution_resources = ExecutionResources {
-                n_steps: 482,
-                n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
-            };
-            let base_segment_cost = ExecutionResources {
-                n_steps: 25,
-                n_memory_holes: 1,
-                builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
-            };
-            for segment in segments {
-                let NestedFeltCounts::Leaf(length, _) = segment else {
-                    panic!(
-                        "Estimating hash cost is only supported for segmentation depth at most 1."
-                    );
-                };
-                execution_resources += &poseidon_hash_many_cost(*length);
-                execution_resources += &base_segment_cost;
-            }
-            execution_resources
-        }
     }
 }
 
