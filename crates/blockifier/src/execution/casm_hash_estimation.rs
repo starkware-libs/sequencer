@@ -164,10 +164,9 @@ pub trait EstimateCasmHashResources {
 
     /// Estimates the Cairo execution resources for `compiled_class_hash` in the
     /// Starknet OS.
-    // TODO(AvivG): Add estimation of entry points.
     fn estimated_resources_of_compiled_class_hash(
         bytecode_segment_felt_sizes: &NestedFeltCounts,
-        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
         // Estimated fixed Cairo steps executed in `compiled_class_hash` (independent of input):
         // 54 = call + return + hash_init + alloc_locals + assert + hash_update_single * 2 +
@@ -180,6 +179,12 @@ pub trait EstimateCasmHashResources {
         });
 
         resources += &Self::estimated_resources_of_bytecode_hash_node(bytecode_segment_felt_sizes);
+        resources +=
+            &Self::estimated_resources_of_hash_entry_points(&entry_points_by_type.l1_handler);
+        resources +=
+            &Self::estimated_resources_of_hash_entry_points(&entry_points_by_type.external);
+        resources +=
+            &Self::estimated_resources_of_hash_entry_points(&entry_points_by_type.constructor);
 
         // Compute cost of `hash_finalize`: hash over (compiled_class_version, hash_ep1, hash_ep2,
         // hash_ep3, hash_bytecode).
@@ -266,6 +271,69 @@ pub trait EstimateCasmHashResources {
             large: bytecode_segment_felt_sizes.len(),
             small: bytecode_segment_felt_sizes.len(),
         });
+
+        resources
+    }
+
+    fn estimated_resources_of_hash_entry_points(
+        entry_points: &[EntryPointV1],
+    ) -> EstimatedExecutionResources {
+        // Estimated fixed Cairo steps executed in `hash_entry_points` (independent of input):
+        // 21 = hash_init + call_hash_entry_points_inner + call_hash_finalize + hash_update_single +
+        // return;
+        const BASE_HASH_ENTRY_POINTS_STEPS: usize = 21;
+
+        let mut resources = Self::from_resources(ExecutionResources {
+            n_steps: BASE_HASH_ENTRY_POINTS_STEPS,
+            ..Default::default()
+        });
+
+        for entry_point in entry_points {
+            resources += &Self::estimated_resources_of_hash_entry_points_inner(entry_point);
+        }
+
+        // Compute cost of `hash_finalize`: hash over (selector1, offset1, builtins_hash1,
+        // selector2, offset2, builtins_hash2, …). Each entry point has a selector ("big" felt),
+        // offset ("small" felt) and builtins hash ("big" felt).
+        resources += &Self::estimated_resources_of_hash_function(&FeltSizeCount {
+            large: entry_points.len() + entry_points.len(),
+            small: entry_points.len(),
+        });
+
+        resources
+    }
+
+    fn estimated_resources_of_hash_entry_points_inner(
+        entry_point: &EntryPointV1,
+    ) -> EstimatedExecutionResources {
+        // Estimated fixed Cairo steps executed in `hash_entry_points_inner`:
+        // 27 = if + hash_update_single * 2 + call_hash_update_with_nested_hash +
+        // call_hash_entry_points_inner;
+        const BASE_HASH_ENTRY_POINTS_INNER_STEPS: usize = 27;
+        // Estimated fixed Cairo steps executed in `hash_update_with_nested_hash`:
+        // 3 = call_hash_update_single + return;
+        const BASE_HASH_UPDATE_WITH_NESTED_HASH_STEPS: usize = 3;
+
+        let mut resources = Self::from_resources(ExecutionResources {
+            n_steps: BASE_HASH_ENTRY_POINTS_INNER_STEPS,
+            ..Default::default()
+        });
+
+        // compute cost of `hash_update_with_nested_hash`
+        let base_resources_of_hash_update_with_nested_hash = ExecutionResources {
+            n_steps: BASE_HASH_UPDATE_WITH_NESTED_HASH_STEPS,
+            ..Default::default()
+        };
+        resources += &base_resources_of_hash_update_with_nested_hash;
+
+        // Builtin list contain both "small" and "big" felts— we treat all as "big" for simplicity.
+        let resources_of_hash_update_with_nested_hash =
+            &Self::estimated_resources_of_hash_function(&FeltSizeCount {
+                large: entry_point.builtins.len(),
+                small: 0,
+            });
+
+        resources += resources_of_hash_update_with_nested_hash;
 
         resources
     }
