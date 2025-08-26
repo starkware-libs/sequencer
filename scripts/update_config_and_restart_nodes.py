@@ -262,6 +262,39 @@ def update_config_values(
     return serialize_config_to_yaml(config, config_data)
 
 
+def normalize_config(config_content: str) -> str:
+    """Normalize configuration by parsing and re-serializing without changes.
+
+    This ensures consistent formatting for accurate diff comparison.
+    """
+    config, config_data = parse_config_from_yaml(config_content)
+    return serialize_config_to_yaml(config, config_data)
+
+
+def show_config_diff(old_content: str, new_content: str, node_id: int) -> None:
+    print_colored(
+        f"--------------------- Config changes to node no. {node_id}'s core service --------------------",
+        Colors.YELLOW,
+    )
+
+    old_lines = old_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+
+    diff = unified_diff(
+        old_lines,
+        new_lines,
+        fromfile=f"config{node_id}.yaml_old",
+        tofile=f"config{node_id}.yaml",
+        lineterm="",
+    )
+
+    diff_output = "".join(diff)
+    if diff_output:
+        print(diff_output)
+    else:
+        print("No changes detected")
+
+
 def main():
     args = parse_arguments()
     validate_arguments(args)
@@ -289,7 +322,9 @@ def main():
         print(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = get_configmap(args.namespace, node_id, args.cluster)
+        original_config = normalize_config(
+            get_configmap(args.namespace, node_id, args.cluster)
+        )
 
         # Update config
         updated_config = update_config_values(
@@ -298,6 +333,9 @@ def main():
 
         # Store configs
         configs[node_id] = {"original": original_config, "updated": updated_config}
+
+        # Show diff
+        show_config_diff(original_config, updated_config, node_id)
 
 
 if __name__ == "__main__":
