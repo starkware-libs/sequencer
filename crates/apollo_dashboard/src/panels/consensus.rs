@@ -44,11 +44,24 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     LABEL_CENDE_FAILURE_REASON,
 };
+use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_consensus_block_number() -> Panel {
     Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::TimeSeries)
+}
+fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
+    Panel::new(
+        "consensus_sync_block_number_diff",
+        "The difference between the consensus block number and the sync block number",
+        vec![format!(
+            "({} - {})",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_round() -> Panel {
     Panel::from_gauge(CONSENSUS_ROUND, PanelType::TimeSeries)
@@ -196,6 +209,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_round(),
             get_panel_consensus_round_avg(),
             get_panel_consensus_round_above_zero(),
+            get_panel_consensus_block_number_diff_from_sync(),
             get_panel_consensus_max_cached_block_number(),
             get_panel_consensus_cached_votes(),
             get_panel_consensus_decisions_reached_by_consensus(),
