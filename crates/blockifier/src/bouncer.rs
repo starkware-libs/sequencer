@@ -63,8 +63,7 @@ impl Default for BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::default(),
             builtin_weights: BuiltinWeights::default(),
-            // TODO(AvivG): This is not a final value, this should be lowered.
-            blake_weight: 8000,
+            blake_weight: 5263,
         }
     }
 }
