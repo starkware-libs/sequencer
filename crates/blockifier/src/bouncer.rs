@@ -614,14 +614,14 @@ fn memory_holes_to_gas(
 
 /// Calculates proving gas from builtin counters and Sierra gas.
 fn proving_gas_from_builtins_and_sierra_gas(
-    builtin_counters: &BuiltinCounterMap,
     sierra_gas: GasAmount,
-    builtin_weights: &BuiltinWeights,
-    versioned_constants: &VersionedConstants,
+    builtin_counters: &BuiltinCounterMap,
+    proving_builtin_weights: &BuiltinGasCosts,
+    sierra_builtin_weights: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_proving_gas = builtins_to_gas(builtin_counters, &builtin_weights.weights);
+    let builtins_proving_gas = builtins_to_gas(builtin_counters, proving_builtin_weights);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, versioned_constants);
+        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, sierra_builtin_weights);
 
     steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
 }
@@ -646,10 +646,9 @@ pub fn vm_resources_to_gas(
 pub fn sierra_gas_to_steps_gas(
     sierra_gas: GasAmount,
     builtin_counters: &BuiltinCounterMap,
-    versioned_constants: &VersionedConstants,
+    sierra_builtin_weights: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_gas_cost =
-        builtins_to_gas(builtin_counters, &versioned_constants.os_constants.gas_costs.builtins);
+    let builtins_gas_cost = builtins_to_gas(builtin_counters, sierra_builtin_weights);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         log::debug!(
@@ -720,9 +719,9 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
 
     // Sierra gas computation.
-    let builtin_gas_cost = versioned_constants.os_constants.gas_costs.builtins;
+    let sierra_builtin_weights = &versioned_constants.os_constants.gas_costs.builtins;
     let vm_resources_sierra_gas =
-        vm_resources_to_gas(&vm_resources, &builtin_gas_cost, versioned_constants);
+        vm_resources_to_gas(&vm_resources, sierra_builtin_weights, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
     let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
@@ -741,15 +740,6 @@ pub fn get_tx_weights<S: StateReader>(
     // hash computation, which is performed every time a contract is loaded.
     sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
 
-    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
-        add_casm_hash_computation_gas_cost(
-            &class_hash_to_casm_hash_computation_resources,
-            sierra_gas_without_casm_hash_computation,
-            &builtin_gas_cost,
-            versioned_constants,
-            bouncer_config.blake_weight,
-        );
-
     // Proving gas computation.
     let mut builtin_counters_without_casm_hash_computation =
         patrticia_update_resources.prover_builtins();
@@ -766,22 +756,32 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &migration_poseidon_builtin_counter,
     );
-
-    let builtin_proving_weights = &bouncer_config.builtin_weights;
+    let proving_builtin_weights = &bouncer_config.builtin_weights.weights;
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
-        &builtin_counters_without_casm_hash_computation,
         sierra_gas_without_casm_hash_computation,
-        builtin_proving_weights,
-        versioned_constants,
+        &builtin_counters_without_casm_hash_computation,
+        proving_builtin_weights,
+        sierra_builtin_weights,
     );
+
+    let blake_opcode_gas = bouncer_config.blake_weight;
+
+    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            sierra_gas_without_casm_hash_computation,
+            sierra_builtin_weights,
+            versioned_constants,
+            blake_opcode_gas,
+        );
 
     let (total_proving_gas, casm_hash_computation_data_proving_gas) =
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
             proving_gas_without_casm_hash_computation,
-            &builtin_proving_weights.weights,
+            proving_builtin_weights,
             versioned_constants,
-            bouncer_config.blake_weight,
+            blake_opcode_gas,
         );
 
     let bouncer_weights = BouncerWeights {
