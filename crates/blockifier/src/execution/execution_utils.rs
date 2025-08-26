@@ -23,7 +23,6 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::execution::contract_class::{FeltSizeCount, RunnableCompiledClass, TrackedResource};
@@ -476,8 +475,5 @@ pub fn blake_execution_resources_estimation_to_gas(
     );
 
     let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
-    resources.to_sierra_gas(
-        |resources| vm_resources_to_gas(resources, &builtin_gas_costs, versioned_constants),
-        Some(blake_opcode_gas),
-    )
+    resources.to_gas(&builtin_gas_costs, blake_opcode_gas, versioned_constants)
 }
