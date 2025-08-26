@@ -145,6 +145,9 @@ impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
 ///
 /// This provides resource estimates rather than exact values.
 pub trait EstimateCasmHashResources {
+    // Estimated fixed Cairo steps for `bytecode_hash_internal_node` leaf case.
+    const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize;
+
     /// Creates an `EstimatedExecutionResources` from a given `ExecutionResources` matching the
     /// struct's hash function variant.
     fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources;
@@ -162,9 +165,10 @@ pub trait EstimateCasmHashResources {
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> EstimatedExecutionResources {
-        // Estimated fixed Cairo steps executed in `compiled_class_hash` (independent of input):
-        // 54 = call + return + hash_init + alloc_locals + assert + hash_update_single * 2 +
-        // call_hash_entry_points * 3 + call_bytecode_hash_node + call_hash_finalize.
+        // Estimated fixed Cairo steps for `compiled_class_hash` (independent of input):
+        // 54 = `call` + `return` + `hash_init` + `alloc_locals` + `assert` +
+        // `hash_update_single`*2 + `call_hash_entry_points`*3 + `call_bytecode_hash_node` +
+        // `call_hash_finalize`.
         const BASE_COMPILED_CLASS_HASH_STEPS: usize = 54;
 
         let mut resources = Self::from_resources(ExecutionResources {
@@ -187,18 +191,80 @@ pub trait EstimateCasmHashResources {
     }
 
     fn estimated_resources_of_bytecode_hash_node(
-        _bytecode_segment_felt_sizes: &NestedFeltCounts,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
     ) -> EstimatedExecutionResources {
-        // Estimated fixed Cairo steps executed in `bytecode_hash_node` (independent of input):
-        // 4 = call + return + alloc_locals.
+        // Estimated fixed Cairo steps for `bytecode_hash_node` (independent of input):
+        // 4 = `call` + `return` + `alloc_locals`.
         const BASE_BYTECODE_HASH_NODE_STEPS: usize = 4;
+        // Additional estimated fixed Cairo steps for `bytecode_hash_node` node case:
+        // 15 = `hash_init` + `call_bytecode_hash_internal_node` + `call_hash_finalize`.
+        const BASE_NODE_CASE_STEPS: usize = 15;
 
-        Self::from_resources(ExecutionResources {
+        let mut resources = Self::from_resources(ExecutionResources {
             n_steps: BASE_BYTECODE_HASH_NODE_STEPS,
             ..Default::default()
-        })
+        });
 
-        // TODO(AvivG): Add estimation of `bytecode_hash_node` leaf vs node cases.
+        // Add leaf vs node cost
+        match bytecode_segment_felt_sizes {
+            // The entire contract is a single segment (e.g., older Sierra contracts).
+            NestedFeltCounts::Leaf(_, felt_size_groups) => {
+                // In the leaf case, the entire segment is hashed together and returned.
+                resources += &Self::estimated_resources_of_hash_function(felt_size_groups);
+            }
+            // The contract is segmented by its functions.
+            NestedFeltCounts::Node(segments) => {
+                // In the node case, `bytecode_hash_internal_node` is called.
+                resources += &Self::from_resources(ExecutionResources {
+                    n_steps: BASE_NODE_CASE_STEPS,
+                    ..Default::default()
+                });
+
+                resources +=
+                    &Self::estimated_resources_of_bytecode_hash_internal_node_leaf_case(segments);
+            }
+        };
+
+        resources
+    }
+
+    /// Estimates the Cairo execution resources for a `bytecode_hash_internal_node` leaf case.
+    ///
+    /// The contract code is segmented by its functions, and each function is a single segment
+    /// (no further segmentation).
+    ///
+    /// `bytecode_hash_internal_node` is applied recursively until all segments are hashed.
+    fn estimated_resources_of_bytecode_hash_internal_node_leaf_case(
+        bytecode_segment_felt_sizes: &[NestedFeltCounts],
+    ) -> EstimatedExecutionResources {
+        let mut resources = Self::from_resources(ExecutionResources::default());
+
+        let bytecode_hash_internal_node_overhead = ExecutionResources {
+            n_steps: Self::BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS,
+            ..Default::default()
+        };
+
+        // For each segment, hash its felts.
+        for seg in bytecode_segment_felt_sizes {
+            match seg {
+                NestedFeltCounts::Leaf(_, felt_size_groups) => {
+                    resources += &bytecode_hash_internal_node_overhead;
+                    resources += &Self::estimated_resources_of_hash_function(felt_size_groups);
+                }
+                _ => {
+                    panic!("Estimating hash cost only supports at most one level of segmentation.")
+                }
+            }
+        }
+
+        // Compute cost of `hash_finalize`: hash over (hash1, len1, hash2, len2, …).
+        // One segment hash (“big” felt) and one segment length (“small” felt) per segment.
+        resources += &Self::estimated_resources_of_hash_function(&FeltSizeCount {
+            large: bytecode_segment_felt_sizes.len(),
+            small: bytecode_segment_felt_sizes.len(),
+        });
+
+        resources
     }
 }
 
@@ -207,6 +273,10 @@ pub trait EstimateCasmHashResources {
 struct CasmV1HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
+    // Estimated fixed Cairo steps for `bytecode_hash_internal_node` leaf case.
+    // Computed based on running multiple contracts with different bytecode segment structures.
+    const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize = 18;
+
     fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
         EstimatedExecutionResources::V1Hash { resources }
     }
@@ -281,6 +351,11 @@ impl CasmV2HashResourceEstimate {
 }
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
+    // Estimated fixed Cairo steps for `bytecode_hash_internal_node` (leaf case):
+    // 30 = `if`*2 + `return` + `alloc_locals` + `let` + `tempvar`*2 + `hash_update_single`*2 +
+    // `call_bytecode_hash_internal_node`. Verified across running multiple contracts.
+    const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize = 30;
+
     fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
         EstimatedExecutionResources::V2Hash { resources, blake_count: 0 }
     }
