@@ -4,6 +4,7 @@ use cached::proc_macro::cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
@@ -128,6 +129,8 @@ impl FeatureContractTrait for FeatureContract {
 /// The information needed to test a [FeatureContract].
 pub struct FeatureContractData {
     pub class_hash: ClassHash,
+    pub compiled_class_hash_v1: CompiledClassHash,
+    pub compiled_class_hash_v2: CompiledClassHash,
     pub runnable_class: RunnableCompiledClass,
     pub sierra: Option<SierraContractClass>,
     pub require_funding: bool,
@@ -153,6 +156,8 @@ impl From<FeatureContract> for FeatureContractData {
 
         Self {
             class_hash: contract.get_class_hash(),
+            compiled_class_hash_v1: contract.get_compiled_class_hash(&HashVersion::V1),
+            compiled_class_hash_v2: contract.get_compiled_class_hash(&HashVersion::V2),
             runnable_class: contract.get_runnable_class(),
             require_funding,
             integer_base: contract.get_integer_base(),

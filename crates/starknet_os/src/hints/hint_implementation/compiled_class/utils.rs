@@ -5,9 +5,9 @@ use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::CompiledClassHash;
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Poseidon, StarkHash};
+use starknet_types_core::hash::StarkHash as HashFunction;
 
 use crate::hints::error::OsHintError;
 use crate::hints::vars::{CairoStruct, Const};
@@ -203,16 +203,16 @@ pub(crate) enum BytecodeSegmentNode {
 }
 
 impl BytecodeSegmentNode {
-    pub(crate) fn hash(&self) -> PoseidonHash {
+    pub(crate) fn hash<H: HashFunction>(&self) -> StarkHash {
         match self {
-            BytecodeSegmentNode::Leaf(leaf) => PoseidonHash(Poseidon::hash_array(&leaf.data)),
+            BytecodeSegmentNode::Leaf(leaf) => H::hash_array(&leaf.data),
             BytecodeSegmentNode::InnerNode(inner_node) => {
                 let flatten_input: Vec<_> = inner_node
                     .segments
                     .iter()
-                    .flat_map(|segment| [Felt::from(segment.length), segment.node.hash().0])
+                    .flat_map(|segment| [Felt::from(segment.length), segment.node.hash::<H>()])
                     .collect();
-                PoseidonHash(Poseidon::hash_array(&flatten_input) + Felt::ONE)
+                H::hash_array(&flatten_input) + Felt::ONE
             }
         }
     }

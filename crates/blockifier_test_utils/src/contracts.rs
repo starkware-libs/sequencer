@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
@@ -152,13 +153,17 @@ impl FeatureContract {
         class_hash!(self.get_integer_base())
     }
 
-    pub fn get_compiled_class_hash(&self) -> CompiledClassHash {
-        match self.cairo_version() {
-            CairoVersion::Cairo0 => CompiledClassHash(Felt::ZERO),
-            CairoVersion::Cairo1(_) => CompiledClassHash(felt!(self.get_integer_base())),
-        }
-    }
+    // Returns dummy compiled class hash for the given hash version.
+    pub fn get_compiled_class_hash(&self, hash_version: &HashVersion) -> CompiledClassHash {
+        let base_felt = felt!(self.get_integer_base());
 
+        let hash_value = match (self.cairo_version(), hash_version) {
+            (CairoVersion::Cairo0, _) => Felt::ZERO,
+            (CairoVersion::Cairo1(_), HashVersion::V1) => base_felt,
+            (CairoVersion::Cairo1(_), _) => base_felt + 100,
+        };
+        CompiledClassHash(hash_value)
+    }
     /// Returns the address of the instance with the given instance ID.
     pub fn instance_address(integer_base: u32, instance_id: u32) -> ContractAddress {
         contract_address!(integer_base + instance_id + ADDRESS_BIT)

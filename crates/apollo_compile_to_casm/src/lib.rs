@@ -5,8 +5,16 @@ use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHa
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
+<<<<<<< HEAD
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+||||||| 01792faa8
+use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::core::CompiledClassHash;
+=======
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
+>>>>>>> origin/main-v0.14.1
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
 use thiserror::Error;

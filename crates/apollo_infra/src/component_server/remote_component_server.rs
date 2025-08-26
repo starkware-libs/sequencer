@@ -1,134 +1,35 @@
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
-use hyper::service::{make_service_fn, service_fn};
+use hyper::service::make_service_fn;
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tower::limit::ConcurrencyLimitLayer;
-use tower::ServiceBuilder;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tower::{service_fn, Service, ServiceExt};
 use tracing::{debug, error, trace, warn};
 
 use crate::component_client::{ClientError, LocalComponentClient};
-use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+    BUSY_PREVIOUS_REQUESTS_MSG,
+};
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
+use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
-/// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
-/// specified component. It receives requests, processes them using the provided component, and
-/// sends back responses. The server needs to be started using the `start` function, which runs
-/// indefinitely.
-///
-/// # Type Parameters
-///
-/// - `Component`: The type of the component that will handle the requests. This type must implement
-///   the `ComponentRequestHandler` trait, which defines how the component processes requests and
-///   generates responses.
-/// - `Request`: The type of requests that the component will handle. This type must implement the
-///   `serde::de::DeserializeOwned` (e.g. by using #[derive(Deserialize)]) trait.
-/// - `Response`: The type of responses that the component will generate. This type must implement
-///   the `Serialize` trait.
-///
-/// # Fields
-///
-/// - `component`: The component responsible for handling the requests and generating responses.
-/// - `socket`: A socket address for the server to listen on.
-///
-/// # Example
-/// ```rust
-/// // Example usage of the RemoteComponentServer
-/// use apollo_metrics::metrics::{MetricCounter, MetricScope};
-/// use async_trait::async_trait;
-/// use serde::{Deserialize, Serialize};
-/// use tokio::task;
-///
-/// use crate::apollo_infra::component_client::LocalComponentClient;
-/// use crate::apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-/// use crate::apollo_infra::component_server::{ComponentServerStarter, RemoteComponentServer};
-/// use crate::apollo_infra::metrics::RemoteServerMetrics;
-///
-/// const REMOTE_MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
-///     MetricScope::Infra,
-///     "remote_received_messages_counter",
-///     "remote_received_messages_counter_filter",
-///     "Received remote messages counter",
-///     0,
-/// );
-/// const REMOTE_VALID_MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
-///     MetricScope::Infra,
-///     "remote_valid_received_messages_counter",
-///     "remote_valid_received_messages_counter_filter",
-///     "Received remote valid messages counter",
-///     0,
-/// );
-/// const REMOTE_MESSAGES_PROCESSED: MetricCounter = MetricCounter::new(
-///     MetricScope::Infra,
-///     "remote_processed_messages_counter",
-///     "remote_processed_messages_counter_filter",
-///     "Processed messages counter",
-///     0,
-/// );
-///
-/// // Define your component
-/// struct MyComponent {}
-///
-/// impl ComponentStarter for MyComponent {}
-///
-/// // Define your request and response types
-/// #[derive(Serialize, Deserialize, Debug)]
-/// struct MyRequest {
-///     pub content: String,
-/// }
-///
-/// #[derive(Serialize, Deserialize, Debug)]
-/// struct MyResponse {
-///     content: String,
-/// }
-///
-/// // Define your request processing logic
-/// #[async_trait]
-/// impl ComponentRequestHandler<MyRequest, MyResponse> for MyComponent {
-///     async fn handle_request(&mut self, request: MyRequest) -> MyResponse {
-///         MyResponse { content: request.content + " processed" }
-///     }
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     // Instantiate a local client to communicate with component.
-///     let (tx, _rx) = tokio::sync::mpsc::channel(32);
-///     let local_client = LocalComponentClient::<MyRequest, MyResponse>::new(tx);
-///
-///     // Set the ip address and port of the server's socket.
-///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
-///     let port: u16 = 8080;
-///     let max_concurrency = 10;
-///
-///     // Instantiate the server.
-///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(
-///         local_client,
-///         ip_address,
-///         port,
-///         max_concurrency,
-///         RemoteServerMetrics::new(
-///             &REMOTE_MESSAGES_RECEIVED,
-///             &REMOTE_VALID_MESSAGES_RECEIVED,
-///             &REMOTE_MESSAGES_PROCESSED,
-///         ),
-///     );
-///
-///     // Start the server in a new task.
-///     task::spawn(async move {
-///         server.start().await;
-///     });
-/// }
-/// ```
+/// The `RemoteComponentServer` struct is a generic server that receives requests and returns
+/// responses for a specified component, using HTTP connection.
+// TODO(alonl): change the metrics to a static reference.
 pub struct RemoteComponentServer<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Send + 'static,
@@ -142,7 +43,7 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + Send + 'static,
+    Request: Serialize + DeserializeOwned + Debug + Send + LabeledRequest + 'static,
     Response: Serialize + DeserializeOwned + Debug + Send + 'static,
 {
     pub fn new(
@@ -166,7 +67,7 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: Arc<RemoteServerMetrics>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
-        trace!("Received HTTP request: {:?}", http_request);
+        trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
@@ -176,7 +77,7 @@ where
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
-                debug!("Successfully deserialized request: {:?}", request);
+                trace!("Successfully deserialized request: {request:?}");
                 metrics.increment_valid_received();
 
                 // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
@@ -189,7 +90,7 @@ where
 
                 match response {
                     Ok(response) => {
-                        debug!("Local client processed request successfully: {:?}", response);
+                        trace!("Local client processed request successfully: {response:?}");
                         HyperResponse::builder()
                             .status(StatusCode::OK)
                             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -207,7 +108,7 @@ where
                 }
             }
             Err(error) => {
-                error!("Failed to deserialize request: {:?}", error);
+                error!("Failed to deserialize request: {error:?}");
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
                 HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
                     SerdeWrapper::new(server_error)
@@ -217,7 +118,7 @@ where
             }
         }
         .expect("Response building should succeed");
-        trace!("Built HTTP response: {:?}", http_response);
+        trace!("Built HTTP response: {http_response:?}");
 
         Ok(http_response)
     }
@@ -226,42 +127,89 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Debug + 'static,
+    Request: Serialize + DeserializeOwned + Send + Debug + LabeledRequest + 'static,
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
     async fn start(&mut self) {
-        debug!("Starting server on socket: {:?}", self.socket);
+        debug!(
+            "Starting server with socket {:?} with {:?} concurrent connections",
+            self.socket, self.max_concurrency
+        );
+        let connection_semaphore = Arc::new(Semaphore::new(self.max_concurrency));
+
         let make_svc = make_service_fn(|_conn| {
+            let connection_semaphore = connection_semaphore.clone();
             let local_client = self.local_client.clone();
-            let max_concurrency = self.max_concurrency;
-            debug!(
-                "Initializing service for new connection with max_concurrency: {:?}",
-                max_concurrency
-            );
             let metrics = self.metrics.clone();
+
             async move {
-                let app_service = service_fn(move |req| {
-                    debug!("Received request: {:?}", req);
-                    Self::remote_component_server_handler(
-                        req,
-                        local_client.clone(),
-                        metrics.clone(),
-                    )
-                });
+                match connection_semaphore.try_acquire_owned() {
+                    Ok(permit) => {
+                        metrics.increment_number_of_connections();
+                        let remote_server_metrics = metrics.clone();
+                        trace!("Acquired semaphore permit for connection");
+                        let handle_request_service = service_fn(move |req| {
+                            trace!("Received request: {:?}", req);
+                            Self::remote_component_server_handler(
+                                req,
+                                local_client.clone(),
+                                remote_server_metrics.clone(),
+                            )
+                        })
+                        .boxed();
 
-                // Apply the ConcurrencyLimitLayer middleware
-                let service = ServiceBuilder::new()
-                    .layer(ConcurrencyLimitLayer::new(max_concurrency))
-                    .service(app_service);
+                        // Bundle the service and the acquired permit to limit concurrency at the
+                        // connection level.
+                        let service = PermitGuardedService {
+                            inner: handle_request_service,
+                            _permit: Some(permit),
+                            remote_server_metrics: metrics,
+                        };
+                        Ok::<_, hyper::Error>(service)
+                    }
+                    Err(_) => {
+                        trace!("Too many connections, denying a new connection");
+                        // Marked `async` to conform to the expected `Service` trait, requiring the
+                        // handler to return a `Future`.
+                        let reject_request_service = service_fn(move |_req| async {
+                            let body: Vec<u8> =
+                                SerdeWrapper::new(ServerError::RequestDeserializationFailure(
+                                    BUSY_PREVIOUS_REQUESTS_MSG.to_string(),
+                                ))
+                                .wrapper_serialize()
+                                .expect("Server error serialization should succeed");
+                            let response: HyperResponse<Body> = HyperResponse::builder()
+                                // Return a 503 Service Unavailable response to indicate that the server is
+                                // busy, which should indicate the load balancer to divert the request to
+                                // another server.
+                                    .status(StatusCode::SERVICE_UNAVAILABLE)
+                                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                    .body(Body::from(body))
+                                    .expect("Should be able to construct server http response.");
+                            // Explicitly mention the type, helping the Rust compiler avoid
+                            // Error type ambiguity.
+                            let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
+                                Ok(response);
+                            wrapped_response
+                        })
+                        .boxed();
 
-                Ok::<_, hyper::Error>(service)
+                        // No permit is acquired, so no need to hold one.
+                        let service = PermitGuardedService {
+                            inner: reject_request_service,
+                            _permit: None,
+                            remote_server_metrics: metrics,
+                        };
+                        Ok::<_, hyper::Error>(service)
+                    }
+                }
             }
         });
-        debug!("Binding server to socket: {:?}", self.socket);
+
         Server::bind(&self.socket)
             .serve(make_svc)
             .await
-            .unwrap_or_else(|e| panic!("HttpServerStartError: {e}"));
+            .unwrap_or_else(|e| panic!("Remote component server start error: {e}"));
     }
 }
 
@@ -272,5 +220,42 @@ where
 {
     fn drop(&mut self) {
         warn!("Dropping {}.", short_type_name::<Self>());
+    }
+}
+
+// TODO(Tsabary): consider moving this to `apollo_infra_utils`, and applying it on the http server
+// as well.
+/// A service wrapper that holds an `OwnedSemaphorePermit` for the lifetime of a connection.
+/// This ensures that the permit is only released when the service (and thus the connection) is
+/// dropped, achieving connection-level concurrency limits in asynchronous servers. Transparently
+/// delegates all service calls to the inner service.
+struct PermitGuardedService<S> {
+    inner: S,
+    _permit: Option<OwnedSemaphorePermit>,
+    remote_server_metrics: Arc<RemoteServerMetrics>,
+}
+
+impl<S, Req> Service<Req> for PermitGuardedService<S>
+where
+    S: Service<Req>,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: Req) -> Self::Future {
+        self.inner.call(req)
+    }
+}
+
+impl<S> Drop for PermitGuardedService<S> {
+    fn drop(&mut self) {
+        if self._permit.is_some() {
+            self.remote_server_metrics.decrement_number_of_connections();
+        }
     }
 }

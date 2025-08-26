@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use apollo_starknet_os_program::os_code_snippets::get_traceback_with_code_snippet;
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
@@ -9,6 +10,9 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use cairo_vm::vm::errors::vm_exception::VmException;
+use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
@@ -48,6 +52,7 @@ pub type VmUtilsResult<T> = Result<T, VmUtilsError>;
 
 pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
     /// Inserts the cairo 0 representation of `self` into the VM at the given address.
+    /// Supports assigning a cairo ptr to the loaded object.
     /// Returns the next address after the inserted object.
     fn load_into(
         &self,
@@ -55,6 +60,16 @@ pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
+    ) -> VmUtilsResult<Relocatable>;
+}
+
+pub(crate) trait LoadIntoVmMemory {
+    /// Inserts the cairo 0 representation of `self` into the VM at the given address.
+    /// Returns the next address after the inserted object.
+    fn load_into_vm_memory(
+        &self,
+        vm: &mut VirtualMachine,
+        address: Relocatable,
     ) -> VmUtilsResult<Relocatable>;
 }
 
@@ -242,6 +257,20 @@ impl<IG: IdentifierGetter, T: LoadCairoObject<IG>> LoadCairoObject<IG> for Vec<T
     }
 }
 
+impl<T: LoadIntoVmMemory> LoadIntoVmMemory for Vec<T> {
+    fn load_into_vm_memory(
+        &self,
+        vm: &mut VirtualMachine,
+        address: Relocatable,
+    ) -> VmUtilsResult<Relocatable> {
+        let mut next_address = address;
+        for t in self.iter() {
+            next_address = t.load_into_vm_memory(vm, next_address)?;
+        }
+        Ok(next_address)
+    }
+}
+
 /// Returns the offset of a field in a cairo struct.
 pub(crate) fn get_field_offset<IG: IdentifierGetter>(
     var_type: CairoStruct,
@@ -278,4 +307,13 @@ pub(crate) fn write_to_temp_segment(
     let segment_start_ptr = vm.add_temporary_segment();
     vm.load_data(segment_start_ptr, &relocatable_data)?;
     Ok(ReadOnlySegment { start_ptr: segment_start_ptr, length: relocatable_data.len() })
+}
+
+pub(crate) fn vm_error_with_code_snippet(
+    runner: &CairoRunner,
+    error: VirtualMachineError,
+) -> VmException {
+    let mut vm_exception = VmException::from_vm_error(runner, error);
+    vm_exception.traceback = get_traceback_with_code_snippet(runner);
+    vm_exception
 }

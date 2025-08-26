@@ -91,6 +91,7 @@ macro_rules! starknet_version_enum {
 }
 
 starknet_version_enum! {
+    (PreV0_9_1, 0, 0, 0), // Blocks pre V0.9.1 had no starknet version field
     (V0_9_1, 0, 9, 1),
     (V0_10_0, 0, 10, 0),
     (V0_10_1, 0, 10, 1),
@@ -114,8 +115,8 @@ starknet_version_enum! {
     (V0_13_5, 0, 13, 5),
     (V0_13_6, 0, 13, 6),
     (V0_14_0, 0, 14, 0),
-    (V0_15_0, 0, 15, 0),
-    V0_15_0
+    (V0_14_1, 0, 14, 1),
+    V0_14_1
 }
 
 impl Default for StarknetVersion {
@@ -310,6 +311,50 @@ impl BlockNumber {
     pub fn iter_up_to(&self, up_to: Self) -> impl Iterator<Item = BlockNumber> {
         let range = self.0..up_to.0;
         range.map(Self)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct PreviousBlockNumber(Option<BlockNumber>);
+
+impl std::fmt::Display for PreviousBlockNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(block_number) => write!(f, "{}", block_number),
+            None => write!(f, "None"),
+        }
+    }
+}
+
+impl TryFrom<Felt> for PreviousBlockNumber {
+    type Error = StarknetApiError;
+
+    /// Returns None if the Felt is Felt::MAX, which represents the previous block number for the
+    /// first block.
+    /// Otherwise, returns Some(BlockNumber) if the Felt is a valid block number.
+    fn try_from(value: Felt) -> Result<Self, Self::Error> {
+        // -1 in the Field (Felt::MAX) represents the previous block number for the first block.
+        if value == Felt::MAX {
+            Ok(Self(None))
+        } else {
+            Ok(Self(Some(BlockNumber(value.try_into().map_err(|_| {
+                StarknetApiError::OutOfRange {
+                    string: format!("Block number {value} is out of range"),
+                }
+            })?))))
+        }
+    }
+}
+
+impl From<PreviousBlockNumber> for Felt {
+    /// Converts a [PreviousBlockNumber](`crate::block::PreviousBlockNumber`) into a Felt.
+    /// Returns Felt::MAX (-1 in the field) if the previous block number is None, which means the
+    /// current block is the first block.
+    fn from(value: PreviousBlockNumber) -> Self {
+        match value.0 {
+            Some(block_number) => Self::from(block_number.0),
+            None => Self::MAX,
+        }
     }
 }
 
@@ -552,11 +597,15 @@ impl GasPrices {
     }
 }
 
+// TODO(Arni): replace all relevant instances of `u64` with UnixTimestamp.
+/// A Unix timestamp in seconds since the Unix epoch (January 1, 1970).
+pub type UnixTimestamp = u64;
+
 /// The timestamp of a [Block](`crate::block::Block`).
 #[derive(
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
-pub struct BlockTimestamp(pub u64);
+pub struct BlockTimestamp(pub UnixTimestamp);
 
 impl BlockTimestamp {
     pub fn saturating_add(self, rhs: &u64) -> Self {

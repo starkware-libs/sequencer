@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::marker::PhantomData;
 
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::db::DbError;
 
@@ -105,6 +105,7 @@ impl<T: StorageSerde + Debug> ValueSerde for VersionZeroWrapper<T> {
 }
 
 /// Trait for migrating values from older versions.
+#[cfg(test)]
 pub(crate) trait Migratable {
     /// Tries to migrate the value from an older version.
     fn try_from_older_version(
@@ -119,10 +120,12 @@ pub(crate) trait Migratable {
 /// that is set to the version. When deserializing, the version is checked and the value is migrated
 /// if the serialization is of an older version.
 #[derive(Clone, Debug)]
+#[cfg(test)]
 pub(crate) struct VersionWrapper<T: StorageSerde + Migratable, const VERSION: u8> {
     _value_type: PhantomData<T>,
 }
 
+#[cfg(test)]
 impl<T: StorageSerde + Debug + Migratable, const VERSION: u8> ValueSerde
     for VersionWrapper<T, VERSION>
 {
@@ -146,7 +149,7 @@ impl<T: StorageSerde + Debug + Migratable, const VERSION: u8> ValueSerde
             return None;
         }
         let res = if version[0] < VERSION {
-            debug!("Migrating value with version {} to version {}", version[0], VERSION);
+            tracing::debug!("Migrating value with version {} to version {}", version[0], VERSION);
             T::try_from_older_version(bytes, version[0]).ok()?
         } else {
             Self::Value::deserialize_from(bytes)?

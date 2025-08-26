@@ -18,6 +18,7 @@ apollo_l1_endpoint_monitor_types.workspace = true
 async-trait.workspace = true
 ethers.workspace = true
 futures.workspace = true
+hex.workspace = true
 mockall.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true

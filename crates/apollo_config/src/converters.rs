@@ -25,6 +25,7 @@
 //! ```
 
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::Debug;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -91,7 +92,7 @@ where
 }
 
 /// A struct containing a URL and its associated headers.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Deserialize, Serialize, PartialEq)]
 pub struct UrlAndHeaders {
     /// The base URL.
     pub url: Url,
@@ -150,6 +151,17 @@ impl UrlAndHeaders {
         if let Some(c) = value.chars().find(|c| Self::RESERVED_CHARS.contains(c)) {
             return Err(format!("Invalid character '{c}' in header {label}: '{value}'"));
         }
+        Ok(())
+    }
+}
+
+// This does not print the headers, so we don't leak keys when logging (except in tests).
+impl Debug for UrlAndHeaders {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[cfg(not(test))]
+        write!(f, "{}", self.url)?;
+        #[cfg(test)]
+        write!(f, "url: {}, headers: {:?}", self.url, self.headers)?;
         Ok(())
     }
 }

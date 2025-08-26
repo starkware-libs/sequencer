@@ -121,9 +121,17 @@ pub struct OsBlockInput {
     // It is the hash that is going to be written by this OS run.
     pub old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
     // A map from Class hashes to Compiled class hashes v2 for all classes that require migration.
+<<<<<<< HEAD
     #[allow(dead_code)]
     // TODO(AvivG): remove allow(dead_code) once migration_class_hashes is used.
     pub class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHash>,
+||||||| 01792faa8
+    #[allow(dead_code)]
+    // TODO(AvivG): remove allow(dead_code) once migration_class_hashes is used.
+    pub(crate) class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHash>,
+=======
+    pub(crate) class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHash>,
+>>>>>>> origin/main-v0.14.1
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
@@ -135,6 +143,8 @@ pub struct OsHintsConfig {
     pub full_output: bool,
     pub use_kzg_da: bool,
     pub chain_info: OsChainInfo,
+    pub public_key_x: Felt,
+    pub public_key_y: Felt,
 }
 
 impl OsHintsConfig {

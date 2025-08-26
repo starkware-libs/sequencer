@@ -2,7 +2,13 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+<<<<<<< HEAD
 use starknet_patricia_storage::storage_trait::Storage;
+||||||| 01792faa8
+use starknet_patricia_storage::map_storage::MapStorage;
+=======
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
+>>>>>>> origin/main-v0.14.1
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -22,10 +28,19 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
+<<<<<<< HEAD
 pub async fn commit_block<S: Storage>(
     input: Input<ConfigImpl>,
     storage: &S,
 ) -> BlockCommitmentResult<FilledForest> {
+||||||| 01792faa8
+pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<FilledForest> {
+=======
+pub async fn commit_block(
+    input: Input<ConfigImpl>,
+    storage: &mut MapStorage,
+) -> BlockCommitmentResult<FilledForest> {
+>>>>>>> origin/main-v0.14.1
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);
     let forest_sorted_indices = ForestSortedIndices {
@@ -39,7 +54,13 @@ pub async fn commit_block<S: Storage>(
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
     let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
+<<<<<<< HEAD
         storage,
+||||||| 01792faa8
+        MapStorage::from(input.storage),
+=======
+        BorrowedMapStorage { storage },
+>>>>>>> origin/main-v0.14.1
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &actual_storage_updates,

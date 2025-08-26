@@ -1,5 +1,11 @@
 use std::collections::HashMap;
 
+<<<<<<< HEAD
+||||||| 01792faa8
+use starknet_patricia_storage::map_storage::MapStorage;
+=======
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+>>>>>>> origin/main-v0.14.1
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
@@ -264,9 +270,20 @@ async fn test_delete_leaf_from_empty_tree() {
 
     let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
+<<<<<<< HEAD
     let storage = HashMap::new();
+||||||| 01792faa8
+=======
+    let mut storage = HashMap::new();
+>>>>>>> origin/main-v0.14.1
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
+<<<<<<< HEAD
         &storage,
+||||||| 01792faa8
+        &MapStorage { storage: HashMap::new() },
+=======
+        &BorrowedMapStorage { storage: &mut storage },
+>>>>>>> origin/main-v0.14.1
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),

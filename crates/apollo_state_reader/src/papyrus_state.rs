@@ -74,6 +74,7 @@ impl ClassReader {
         let casm = self.read_executable(class_hash)?;
         if let ContractClass::V0(casm) = casm { Ok(Some(casm)) } else { Ok(None) }
     }
+<<<<<<< HEAD
 
     #[allow(dead_code)]
     fn read_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
@@ -85,6 +86,21 @@ impl ClassReader {
 
         Ok(compiled_class_hash_v2)
     }
+||||||| 01792faa8
+=======
+
+    /// Returns the compiled class hash v2 for the given class hash.
+    fn read_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<Option<CompiledClassHash>> {
+        let compiled_class_hash_v2 = self
+            .runtime
+            .block_on(self.reader.get_executable_class_hash_v2(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        Ok(compiled_class_hash_v2)
+    }
+>>>>>>> origin/main-v0.14.1
 }
 
 pub struct PapyrusReader {
@@ -172,6 +188,7 @@ impl PapyrusReader {
 
         class_reader.read_optional_deprecated_casm(class_hash)
     }
+<<<<<<< HEAD
 
     // TODO(Aviv): Use it once get_compiled_class_hash_v2 is added to the state reader trait.
     #[allow(dead_code)]
@@ -187,6 +204,28 @@ impl PapyrusReader {
 
         class_reader.read_compiled_class_hash_v2(class_hash)
     }
+||||||| 01792faa8
+=======
+
+    /// Returns the compiled class hash v2 for the given class hash.
+    /// If class reader is not set, it will read the compiled class hash v2 directly from the
+    /// storage.
+    fn read_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<Option<CompiledClassHash>> {
+        let Some(class_reader) = &self.class_reader else {
+            // Try to read directly from storage.
+            let compiled_class_hash_v2 =
+                self.reader()?
+                    .get_executable_class_hash_v2(&class_hash)
+                    .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            return Ok(compiled_class_hash_v2);
+        };
+
+        class_reader.read_compiled_class_hash_v2(class_hash)
+    }
+>>>>>>> origin/main-v0.14.1
 }
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.
@@ -244,6 +283,10 @@ impl StateReader for PapyrusReader {
             Ok(None) => Ok(CompiledClassHash::default()),
             Err(err) => Err(StateError::StateReadError(err.to_string())),
         }
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(self.read_compiled_class_hash_v2(class_hash)?.unwrap_or_default())
     }
 }
 

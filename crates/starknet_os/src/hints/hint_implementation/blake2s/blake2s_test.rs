@@ -1,8 +1,20 @@
 use std::collections::HashMap;
 
+<<<<<<< HEAD
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blake2s::encode_felt252_data_and_calc_blake_hash;
 use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
+||||||| 01792faa8
+use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
+use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
+=======
+use blake2s::encode_felt252_data_and_calc_blake_hash;
+use blockifier::execution::casm_hash_estimation::{
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
+};
+use blockifier::execution::contract_class::FeltSizeCount;
+>>>>>>> origin/main-v0.14.1
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -19,25 +31,25 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 
-/// Counts the number of small and big felts in the data.
-fn data_to_felt_count(data: &[Felt]) -> (usize, usize) {
-    // TODO(AvivG): Use `Blake2Felt252::SMALL_THRESHOLD` when exposed.
-    const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000"); // 2^63
-
-    data.iter().fold((0, 0), |(small, big), felt| {
-        if *felt >= SMALL_THRESHOLD { (small, big + 1) } else { (small + 1, big) }
-    })
-}
-
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
-    let (n_small_felts, n_big_felts) = data_to_felt_count(data);
-    let mut estimated = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
+    let felt_size_groups = FeltSizeCount::from(data);
+    let estimated =
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&felt_size_groups);
 
+<<<<<<< HEAD
     // TODO(AvivG): Investigate the discrepancies.
     estimated.n_steps -= 1;
+||||||| 01792faa8
+    // TODO(AvivG): Investigate the discrepancies.
+    estimated.n_steps -= 1;
+    *estimated.builtin_instance_counter.entry(BuiltinName::range_check).or_default() += 3;
+=======
+    let mut resources = estimated.resources().clone();
+    resources.n_steps -= 1;
+>>>>>>> origin/main-v0.14.1
 
-    estimated
+    resources
 }
 
 /// Test that compares Cairo and Rust implementations of
@@ -80,7 +92,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let state_reader = None;
     let result = initialize_and_run_cairo_0_entry_point(
         &runner_config,
-        BLAKE_COMPILED_CLASS_HASH_BYTES,
+        apollo_starknet_os_program::OS_PROGRAM_BYTES,
         "starkware.cairo.common.cairo_blake2s.blake2s.encode_felt252_data_and_calc_blake_hash",
         &explicit_args,
         &implicit_args,

@@ -8,7 +8,8 @@ use apollo_compile_to_native::compiler::SierraToNativeCompiler;
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
 use log;
-use starknet_api::core::ClassHash;
+use starknet_api::class_cache::GlobalContractCache;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use thiserror::Error;
 
@@ -37,7 +38,7 @@ pub enum ContractClassManagerError {
 /// Represents a request to compile a sierra contract class to a native compiled class.
 ///
 /// # Fields:
-/// * `class_hash` - used to identify the contract class in the cache.
+/// * `class_hash` - used to identify the contract class in the class_cache.
 /// * `sierra_contract_class` - the sierra contract class to be compiled.
 /// * `casm_compiled_class` - stored in [`NativeCompiledClassV1`] to allow fallback to cairo_vm
 ///   execution in case of unexpected failure during native execution.
@@ -48,7 +49,9 @@ type CompilationRequest = (ClassHash, Arc<SierraContractClass>, CompiledClassV1)
 pub struct NativeClassManager {
     cairo_native_run_config: CairoNativeRunConfig,
     /// The global cache of raw contract classes.
-    cache: RawClassCache,
+    class_cache: RawClassCache,
+    /// The global cache of compiled class hashes v2.
+    compiled_class_hash_v2_cache: GlobalContractCache<CompiledClassHash>,
     /// The sending half of the compilation request channel. Set to `None` if native compilation is
     /// disabled.
     sender: Option<SyncSender<CompilationRequest>>,
@@ -66,13 +69,15 @@ impl NativeClassManager {
     /// 3. `config.wait_on_native_compilation` is `true`.
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
-        let cache = RawClassCache::new(config.contract_cache_size);
+        let class_cache = RawClassCache::new(config.contract_cache_size);
+        let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
         let cairo_native_run_config = config.cairo_native_run_config;
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
                 cairo_native_run_config,
-                cache,
+                class_cache,
+                compiled_class_hash_v2_cache,
                 sender: None,
                 compiler: None,
             };
@@ -84,7 +89,8 @@ impl NativeClassManager {
             // Compilation requests are processed synchronously. No need to start the worker.
             return NativeClassManager {
                 cairo_native_run_config,
-                cache,
+                class_cache,
+                compiled_class_hash_v2_cache,
                 sender: None,
                 compiler: Some(compiler),
             };
@@ -93,10 +99,10 @@ impl NativeClassManager {
         let (sender, receiver) = sync_channel(cairo_native_run_config.channel_size);
 
         std::thread::spawn({
-            let cache = cache.clone();
+            let class_cache = class_cache.clone();
             move || {
                 run_compilation_worker(
-                    cache,
+                    class_cache,
                     receiver,
                     compiler,
                     cairo_native_run_config.panic_on_compilation_failure,
@@ -105,12 +111,18 @@ impl NativeClassManager {
         });
 
         // TODO(AVIV): Add private constructor with default values.
-        NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
+        NativeClassManager {
+            cairo_native_run_config,
+            class_cache,
+            compiled_class_hash_v2_cache,
+            sender: Some(sender),
+            compiler: None,
+        }
     }
 
-    /// Returns the runnable compiled class for the given class hash, if it exists in cache.
+    /// Returns the runnable compiled class for the given class hash, if it exists in class_cache.
     pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-        let cached_class = self.cache.get(class_hash)?;
+        let cached_class = self.class_cache.get(class_hash)?;
 
         let cached_class = match cached_class {
             CompiledClasses::V1(_, _) => {
@@ -139,7 +151,7 @@ impl NativeClassManager {
     /// * If `wait_on_native_compilation` is true, caches the Native variant immediately.
     pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CompiledClasses) {
         match compiled_class {
-            CompiledClasses::V0(_) => self.cache.set(class_hash, compiled_class),
+            CompiledClasses::V0(_) => self.class_cache.set(class_hash, compiled_class),
             CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
                 // TODO(Yoni): instead of these two flag, use an enum.
                 if self.wait_on_native_compilation() {
@@ -149,7 +161,7 @@ impl NativeClassManager {
                     // `get_runnable` access.
                     // Ignore compilation errors for now.
                     process_compilation_request(
-                        self.cache.clone(),
+                        self.class_cache.clone(),
                         compiler.clone(),
                         (class_hash, sierra_contract_class, compiled_class_v1),
                         self.cairo_native_run_config.panic_on_compilation_failure,
@@ -159,7 +171,7 @@ impl NativeClassManager {
                 }
 
                 // Cache the V1 class.
-                self.cache.set(
+                self.class_cache.set(
                     class_hash,
                     CompiledClasses::V1(compiled_class_v1.clone(), sierra_contract_class.clone()),
                 );
@@ -175,7 +187,7 @@ impl NativeClassManager {
                 }
             }
             // TODO(Yoni): consider panic since this flow should not be reachable.
-            CompiledClasses::V1Native(_) => self.cache.set(class_hash, compiled_class),
+            CompiledClasses::V1Native(_) => self.class_cache.set(class_hash, compiled_class),
         }
     }
 
@@ -219,14 +231,26 @@ impl NativeClassManager {
         }
     }
 
-    /// Clears the contract cache.
+    /// Clears the contract class_cache.
     pub fn clear(&mut self) {
-        self.cache.clear();
+        self.class_cache.clear();
+    }
+
+    pub fn get_compiled_class_hash_v2(&self, class_hash: &ClassHash) -> Option<CompiledClassHash> {
+        self.compiled_class_hash_v2_cache.get(class_hash)
+    }
+
+    pub fn set_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    ) {
+        self.compiled_class_hash_v2_cache.set(class_hash, compiled_class_hash_v2);
     }
 
     #[cfg(any(feature = "testing", test))]
     pub fn get_cache_size(&self) -> usize {
-        self.cache.lock().cache_size()
+        self.class_cache.lock().cache_size()
     }
 }
 
@@ -234,7 +258,7 @@ impl NativeClassManager {
 /// If no request is available, non-busy-waits until a request is available.
 /// When the sender is dropped, the worker processes all pending requests and terminates.
 fn run_compilation_worker(
-    cache: RawClassCache,
+    class_cache: RawClassCache,
     receiver: Receiver<CompilationRequest>,
     compiler: Arc<SierraToNativeCompiler>,
     panic_on_compilation_failure: bool,
@@ -242,7 +266,7 @@ fn run_compilation_worker(
     log::info!("Compilation worker started.");
     for compilation_request in receiver.iter() {
         process_compilation_request(
-            cache.clone(),
+            class_cache.clone(),
             compiler.clone(),
             compilation_request,
             panic_on_compilation_failure,
@@ -254,13 +278,13 @@ fn run_compilation_worker(
 
 /// Processes a compilation request and caches the result.
 fn process_compilation_request(
-    cache: RawClassCache,
+    class_cache: RawClassCache,
     compiler: Arc<SierraToNativeCompiler>,
     compilation_request: CompilationRequest,
     panic_on_compilation_failure: bool,
 ) -> Result<(), CompilationUtilError> {
     let (class_hash, sierra, casm) = compilation_request;
-    if let Some(CompiledClasses::V1Native(_)) = cache.get(&class_hash) {
+    if let Some(CompiledClasses::V1Native(_)) = class_cache.get(&class_hash) {
         // The contract class is already compiled to native - skip the compilation.
         return Ok(());
     }
@@ -276,7 +300,7 @@ fn process_compilation_request(
     match compilation_result {
         Ok(executor) => {
             let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
-            cache.set(
+            class_cache.set(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
             );
@@ -284,7 +308,7 @@ fn process_compilation_request(
             Ok(())
         }
         Err(err) => {
-            cache.set(
+            class_cache.set(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(casm)),
             );

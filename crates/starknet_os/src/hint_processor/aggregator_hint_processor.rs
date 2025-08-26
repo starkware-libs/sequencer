@@ -40,10 +40,16 @@ pub enum DataAvailability {
 
 #[derive(Deserialize, Debug)]
 pub struct AggregatorInput {
-    pub bootloader_output: Vec<Felt>,
+    // The input data. Wrapped with an Option to allow it to be consumed once by the
+    // get_os_output_for_inner_blocks hint.
+    pub bootloader_output: Option<Vec<Felt>>,
     pub full_output: bool,
     pub da: DataAvailability,
     pub debug_mode: bool,
+    pub fee_token_address: Felt,
+    pub chain_id: Felt,
+    pub public_key_x: Felt,
+    pub public_key_y: Felt,
 }
 
 impl AggregatorInput {

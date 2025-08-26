@@ -47,7 +47,7 @@ define_versioned_constants!(
     (V0_13_5, "../resources/blockifier_versioned_constants_0_13_5.json"),
     (V0_13_6, "../resources/blockifier_versioned_constants_0_13_6.json"),
     (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
-    (V0_15_0, "../resources/blockifier_versioned_constants_0_15_0.json"),
+    (V0_14_1, "../resources/blockifier_versioned_constants_0_14_1.json"),
 );
 
 pub type SyscallGasCostsMap = HashMap<SyscallSelector, RawSyscallGasCost>;
@@ -901,8 +901,7 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.

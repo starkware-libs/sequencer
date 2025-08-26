@@ -31,6 +31,7 @@ use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult}
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
 
+<<<<<<< HEAD
 pub static API_CONTRACT_CLASS_VERSION: LazyLock<Felt> = LazyLock::new(|| {
     SierraContractClass::create_contract_class_version(API_CONTRACT_CLASS_VERSION_SUFFIX)
 });
@@ -38,6 +39,16 @@ pub static API_CONTRACT_CLASS_VERSION: LazyLock<Felt> = LazyLock::new(|| {
 const API_CONTRACT_CLASS_VERSION_SUFFIX: &str = "0.1.0";
 
 const CONTRACT_CLASS_VERSION_PREFIX: &str = "CONTRACT_CLASS_V";
+||||||| 01792faa8
+static API_VERSION: LazyLock<Felt> =
+    LazyLock::new(|| Felt::from_bytes_be_slice(b"CONTRACT_CLASS_V0.1.0"));
+=======
+pub const CONTRACT_CLASS_VERSION: &str = "0.1.0";
+
+static API_VERSION: LazyLock<Felt> = LazyLock::new(|| {
+    Felt::from_bytes_be_slice(format!("CONTRACT_CLASS_V{}", CONTRACT_CLASS_VERSION).as_bytes())
+});
+>>>>>>> origin/main-v0.14.1
 
 /// The differences between two states before and after a block with hash block_hash
 /// and their respective roots.
@@ -229,7 +240,13 @@ impl Default for SierraContractClass {
     fn default() -> Self {
         Self {
             sierra_program: [Felt::ONE, Felt::TWO, Felt::THREE].to_vec(),
+<<<<<<< HEAD
             contract_class_version: API_CONTRACT_CLASS_VERSION_SUFFIX.to_string(),
+||||||| 01792faa8
+            contract_class_version: Default::default(),
+=======
+            contract_class_version: CONTRACT_CLASS_VERSION.to_string(),
+>>>>>>> origin/main-v0.14.1
             entry_points_by_type: Default::default(),
             abi: Default::default(),
         }

@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_float_seconds_to_duration;
@@ -11,6 +12,7 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::{debug_every_n, info_every_n_sec};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
+use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
@@ -45,6 +47,7 @@ pub struct L1Scraper<B: BaseLayerContract> {
     pub last_l1_block_processed: L1BlockReference,
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
+    pub clock: Arc<dyn Clock>,
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
@@ -61,6 +64,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             last_l1_block_processed: l1_start_block,
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
+            clock: Arc::new(DefaultClock),
         })
     }
 
@@ -96,6 +100,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
+        let scrape_timestamp = self.clock.unix_now();
+
         let latest_l1_block = self
             .base_layer
             .latest_l1_block(self.config.finality)
@@ -119,8 +125,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let l1_messages_info = l1_events
             .iter()
             .filter_map(|event| match event {
-                L1Event::LogMessageToL2 { l1_tx_hash, timestamp, .. } => {
-                    Some((*l1_tx_hash, *timestamp))
+                L1Event::LogMessageToL2 { l1_tx_hash, block_timestamp, .. } => {
+                    Some((*l1_tx_hash, *block_timestamp))
                 }
                 _ => None,
             })
@@ -129,7 +135,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let events = l1_events
             .into_iter()
             .map(|event| {
-                Event::from_l1_event(&self.config.chain_id, event)
+                Event::from_l1_event(&self.config.chain_id, event, scrape_timestamp)
                     .map_err(L1ScraperError::HashCalculationError)
             })
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
@@ -209,9 +215,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \
                      hash stored, {}",
-                    hex::encode(last_block_processed_fresh.hash),
+                    last_block_processed_fresh.hash,
                     last_processed_l1_block_number,
-                    hex::encode(self.last_l1_block_processed.hash),
+                    self.last_l1_block_processed.hash,
                 ),
             });
         }
@@ -279,7 +285,7 @@ impl Default for L1ScraperConfig {
             startup_rewind_time_seconds: Duration::from_secs(60 * 60),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval_seconds: Duration::from_secs(120),
+            polling_interval_seconds: Duration::from_secs(30),
         }
     }
 }

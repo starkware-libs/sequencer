@@ -37,7 +37,7 @@
         "price_in_fri": "0xd"
       },
       "use_kzg_da": true,
-      "starknet_version": "0.15.0"
+      "starknet_version": "0.14.1"
     }
   },
   "compressed_state_diff": {
@@ -77,7 +77,7 @@
         "price_in_fri": "0xd"
       },
       "use_kzg_da": true,
-      "starknet_version": "0.15.0"
+      "starknet_version": "0.14.1"
     }
   },
   "bouncer_weights": {
@@ -131,7 +131,7 @@
         "sierra_version": [
           "0x0",
           "0x1",
-          "0x0"
+          "0x2"
         ],
         "hash_value": "0x1"
       },
@@ -267,7 +267,7 @@
         "sierra_version": [
           "0x0",
           "0x1",
-          "0x0"
+          "0x2"
         ],
         "hash_value": "0x4"
       },

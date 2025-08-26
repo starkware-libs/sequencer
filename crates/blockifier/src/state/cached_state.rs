@@ -213,6 +213,10 @@ impl<S: StateReader> StateReader for CachedState<S> {
             .unwrap_or_else(|| panic!("Cannot retrieve '{class_hash:?}' from the cache."));
         Ok(*compiled_class_hash)
     }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.state.get_compiled_class_hash_v2(class_hash)
+    }
 }
 
 impl<S: StateReader> State for CachedState<S> {
@@ -576,6 +580,10 @@ impl<S: StateReader + ?Sized> StateReader for MutRefState<'_, S> {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.0.get_compiled_class_hash(class_hash)
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.0.get_compiled_class_hash_v2(class_hash)
     }
 }
 

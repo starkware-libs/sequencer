@@ -9,10 +9,11 @@ use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
+    CompiledClassHashV2ToV1,
     TransactionExecutorError,
     TransactionExecutorResult,
 };
-use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
@@ -50,10 +51,22 @@ macro_rules! impl_checked_ops {
     };
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
     pub builtin_weights: BuiltinWeights,
+    pub blake_weight: usize,
+}
+
+impl Default for BouncerConfig {
+    fn default() -> Self {
+        Self {
+            block_max_capacity: BouncerWeights::default(),
+            builtin_weights: BuiltinWeights::default(),
+            // TODO(AvivG): This is not a final value, this should be lowered.
+            blake_weight: 8000,
+        }
+    }
 }
 
 impl BouncerConfig {
@@ -61,14 +74,12 @@ impl BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::empty(),
             builtin_weights: BuiltinWeights::empty(),
+            blake_weight: 0,
         }
     }
 
     pub fn max() -> Self {
-        Self {
-            block_max_capacity: BouncerWeights::max(),
-            builtin_weights: BuiltinWeights::default(),
-        }
+        Self { block_max_capacity: BouncerWeights::max(), ..Default::default() }
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
@@ -95,6 +106,12 @@ impl SerializeConfig for BouncerConfig {
         let mut dump =
             prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
         dump.append(&mut prepend_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "blake_weight",
+            &self.blake_weight,
+            "blake opcode gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
@@ -288,7 +305,7 @@ pub struct TxWeights {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub class_hashes_to_migrate: HashSet<ClassHash>,
+    pub class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
 }
 
 impl TxWeights {
@@ -297,95 +314,56 @@ impl TxWeights {
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
-            class_hashes_to_migrate: HashSet::default(),
+            class_hashes_to_migrate: HashMap::default(),
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-// TODO(Meshi): Consider code sharing with the BuiltinGasCosts struct.
 pub struct BuiltinWeights {
-    pub pedersen: usize,
-    pub range_check: usize,
-    pub ecdsa: usize,
-    pub bitwise: usize,
-    pub poseidon: usize,
-    pub keccak: usize,
-    pub ec_op: usize,
-    pub mul_mod: usize,
-    pub add_mod: usize,
-    pub range_check96: usize,
+    pub weights: BuiltinGasCosts,
 }
 
 impl BuiltinWeights {
     pub fn empty() -> Self {
         Self {
-            pedersen: 0,
-            range_check: 0,
-            ecdsa: 0,
-            bitwise: 0,
-            poseidon: 0,
-            keccak: 0,
-            ec_op: 0,
-            mul_mod: 0,
-            add_mod: 0,
-            range_check96: 0,
+            weights: BuiltinGasCosts {
+                pedersen: 0,
+                range_check: 0,
+                ecdsa: 0,
+                bitwise: 0,
+                poseidon: 0,
+                keccak: 0,
+                ecop: 0,
+                mul_mod: 0,
+                add_mod: 0,
+                range_check96: 0,
+            },
         }
     }
 
-    // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
-    pub fn calc_proving_gas_from_builtin_counter(
-        &self,
-        builtin_counters: &BuiltinCounterMap,
-    ) -> GasAmount {
-        let builtin_gas =
-            builtin_counters.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
-                let builtin_weight = self.builtin_weight(name);
-                builtin_weight
-                    .checked_mul(count)
-                    .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
-                             Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
-                             {accumulated_gas}"
-                        )
-                    })
-            });
-
-        GasAmount(u64_from_usize(builtin_gas))
-    }
-
-    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> usize {
-        match builtin_name {
-            BuiltinName::pedersen => self.pedersen,
-            BuiltinName::range_check => self.range_check,
-            BuiltinName::ecdsa => self.ecdsa,
-            BuiltinName::bitwise => self.bitwise,
-            BuiltinName::poseidon => self.poseidon,
-            BuiltinName::keccak => self.keccak,
-            BuiltinName::ec_op => self.ec_op,
-            BuiltinName::mul_mod => self.mul_mod,
-            BuiltinName::add_mod => self.add_mod,
-            BuiltinName::range_check96 => self.range_check96,
-            _ => panic!("Builtin name {builtin_name} is not supported in the bouncer weights."),
-        }
+    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> u64 {
+        self.weights
+            .get_builtin_gas_cost(builtin_name)
+            .expect("Builtin name {builtin_name} is not supported in the bouncer weights.")
     }
 }
 
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            pedersen: 4769,
-            range_check: 70,
-            ecdsa: 1666666,
-            ec_op: 714875,
-            bitwise: 583,
-            keccak: 510707,
-            poseidon: 6250,
-            add_mod: 312,
-            mul_mod: 604,
-            range_check96: 56,
+            weights: BuiltinGasCosts {
+                pedersen: 4769,
+                range_check: 70,
+                ecdsa: 1666666,
+                ecop: 714875,
+                bitwise: 583,
+                keccak: 510707,
+                poseidon: 10000,
+                add_mod: 312,
+                mul_mod: 604,
+                range_check96: 56,
+            },
         }
     }
 }
@@ -393,62 +371,62 @@ impl Default for BuiltinWeights {
 impl SerializeConfig for BuiltinWeights {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from([ser_param(
-            "pedersen",
-            &self.pedersen,
+            "weights.pedersen",
+            &self.weights.pedersen,
             "Pedersen gas weight.",
             ParamPrivacyInput::Public,
         )]);
         dump.append(&mut BTreeMap::from([ser_param(
-            "range_check",
-            &self.range_check,
+            "weights.range_check",
+            &self.weights.range_check,
             "Range_check gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "range_check96",
-            &self.range_check96,
+            "weights.range_check96",
+            &self.weights.range_check96,
             "range_check96 gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "poseidon",
-            &self.poseidon,
+            "weights.poseidon",
+            &self.weights.poseidon,
             "Poseidon gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "ecdsa",
-            &self.ecdsa,
+            "weights.ecdsa",
+            &self.weights.ecdsa,
             "Ecdsa gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "ec_op",
-            &self.ec_op,
+            "weights.ecop",
+            &self.weights.ecop,
             "Ec_op gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "add_mod",
-            &self.add_mod,
+            "weights.add_mod",
+            &self.weights.add_mod,
             "Add_mod gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "mul_mod",
-            &self.mul_mod,
+            "weights.mul_mod",
+            &self.weights.mul_mod,
             "Mul_mod gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "keccak",
-            &self.keccak,
+            "weights.keccak",
+            &self.weights.keccak,
             "Keccak gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "bitwise",
-            &self.bitwise,
+            "weights.bitwise",
+            &self.weights.bitwise,
             "Bitwise gas weight.",
             ParamPrivacyInput::Public,
         )]));
@@ -498,8 +476,10 @@ impl Bouncer {
         &mut self.accumulated_weights.casm_hash_computation_data_proving_gas
     }
 
-    pub fn class_hashes_to_migrate(&self) -> &HashSet<ClassHash> {
-        &self.accumulated_weights.class_hashes_to_migrate
+    pub fn get_mut_class_hashes_to_migrate(
+        &mut self,
+    ) -> &mut HashMap<ClassHash, CompiledClassHashV2ToV1> {
+        &mut self.accumulated_weights.class_hashes_to_migrate
     }
 
     pub fn get_executed_class_hashes(&self) -> HashSet<ClassHash> {
@@ -542,7 +522,7 @@ impl Bouncer {
             &marginal_state_changes_keys,
             versioned_constants,
             tx_builtin_counters,
-            &self.bouncer_config.builtin_weights,
+            &self.bouncer_config,
         )?;
 
         let tx_bouncer_weights = tx_weights.bouncer_weights;
@@ -638,24 +618,20 @@ fn proving_gas_from_builtins_and_sierra_gas(
     builtin_weights: &BuiltinWeights,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_proving_gas =
-        builtin_weights.calc_proving_gas_from_builtin_counter(builtin_counters);
+    let builtins_proving_gas = builtins_to_gas(builtin_counters, &builtin_weights.weights);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, versioned_constants, builtin_counters);
+        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, versioned_constants);
 
     steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
 }
 
 /// Generic function to convert VM resources to gas with configurable builtin gas calculation
-fn vm_resources_to_gas<F>(
+pub fn vm_resources_to_gas(
     resources: &ExecutionResources,
+    builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
-    builtin_gas_calculator: F,
-) -> GasAmount
-where
-    F: FnOnce(&BuiltinCounterMap) -> GasAmount,
-{
-    let builtins_gas_cost = builtin_gas_calculator(&resources.prover_builtins());
+) -> GasAmount {
+    let builtins_gas_cost = builtins_to_gas(&resources.prover_builtins(), builtin_gas_cost);
     let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
@@ -665,33 +641,14 @@ where
         .checked_add_panic_on_overflow(builtins_gas_cost)
 }
 
-/// Converts vm resources to proving gas using the builtin weights.
-fn vm_resources_to_proving_gas(
-    resources: &ExecutionResources,
-    builtin_weights: &BuiltinWeights,
-    versioned_constants: &VersionedConstants,
-) -> GasAmount {
-    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
-        builtin_weights.calc_proving_gas_from_builtin_counter(builtin_counters)
-    })
-}
-
-pub fn vm_resources_to_sierra_gas(
-    resources: &ExecutionResources,
-    versioned_constants: &VersionedConstants,
-) -> GasAmount {
-    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
-        builtins_to_sierra_gas(builtin_counters, versioned_constants)
-    })
-}
-
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
 pub fn sierra_gas_to_steps_gas(
     sierra_gas: GasAmount,
-    versioned_constants: &VersionedConstants,
     builtin_counters: &BuiltinCounterMap,
+    versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_sierra_gas(builtin_counters, versioned_constants);
+    let builtins_gas_cost =
+        builtins_to_gas(builtin_counters, &versioned_constants.os_constants.gas_costs.builtins);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         log::debug!(
@@ -702,30 +659,38 @@ pub fn sierra_gas_to_steps_gas(
     })
 }
 
-pub fn builtins_to_sierra_gas(
+pub fn builtins_to_gas(
     builtin_counters: &BuiltinCounterMap,
-    versioned_constants: &VersionedConstants,
+    builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
+    let builtin_gas = builtin_counters.iter().fold(0u64, |accumulated_gas, (name, &count)| {
+        let builtin_weight = builtin_gas_costs.get_builtin_gas_cost(name).unwrap();
+        builtin_weight
+            .checked_mul(u64_from_usize(count))
+            .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+            .unwrap_or_else(|| {
+                panic!(
+                    "Overflow while converting builtin counters to gas.\nBuiltin: {name}, Weight: \
+                     {builtin_weight}, Count: {count}, Accumulated gas: {accumulated_gas}"
+                )
+            })
+    });
 
-    let total_gas = builtin_counters
-        .iter()
-        .try_fold(0u64, |accumulated_gas, (&builtin, &count)| {
-            let builtin_gas_cost = gas_costs
-                .get_builtin_gas_cost(&builtin)
-                .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
-            let builtin_counters_u64 = u64_from_usize(count);
-            let builtin_total_cost = builtin_counters_u64.checked_mul(builtin_gas_cost)?;
-            accumulated_gas.checked_add(builtin_total_cost)
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "Overflow occurred while converting built-in resources to gas. Builtins: \
-                 {builtin_counters:?}"
-            )
-        });
+    GasAmount(builtin_gas)
+}
 
-    GasAmount(total_gas)
+fn add_casm_hash_computation_gas_cost(
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExecutionResources>,
+    gas_without_casm_hash_computation: GasAmount,
+    builtin_gas_cost: &BuiltinGasCosts,
+    versioned_constants: &VersionedConstants,
+) -> (GasAmount, CasmHashComputationData) {
+    let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
+        class_hash_to_casm_hash_computation_resources,
+        gas_without_casm_hash_computation,
+        |resources| vm_resources_to_gas(resources, builtin_gas_cost, versioned_constants),
+    );
+    (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
 }
 
 // TODO(Noa):Fix.
@@ -738,7 +703,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
     tx_builtin_counters: &BuiltinCounterMap,
-    builtin_weights: &BuiltinWeights,
+    bouncer_config: &BouncerConfig,
 ) -> TransactionExecutionResult<TxWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
@@ -753,25 +718,50 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
 
     // Sierra gas computation.
-    let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
+    let builtin_gas_cost = versioned_constants.os_constants.gas_costs.builtins;
+    let vm_resources_sierra_gas =
+        vm_resources_to_gas(&vm_resources, &builtin_gas_cost, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
+<<<<<<< HEAD
     let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
             get_migration_data(state_reader, executed_class_hashes, versioned_constants)
         } else {
             (HashSet::new(), GasAmount::ZERO, HashMap::new())
         };
+||||||| 01792faa8
+    let (class_hashes_to_migrate, migration_gas) = if versioned_constants.enable_casm_hash_migration
+    {
+        get_migration_data(state_reader, executed_class_hashes)
+    } else {
+        (HashSet::new(), GasAmount::ZERO)
+    };
+=======
+    let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
+        if versioned_constants.enable_casm_hash_migration {
+            get_migration_data(
+                state_reader,
+                executed_class_hashes,
+                versioned_constants,
+                bouncer_config.blake_weight,
+            )?
+        } else {
+            (HashMap::new(), GasAmount::ZERO, HashMap::new())
+        };
+>>>>>>> origin/main-v0.14.1
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
     // Each contract is migrated only once, and this migration resources is not part of the CASM
     // hash computation, which is performed every time a contract is loaded.
     sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
-    let casm_hash_computation_data_sierra_gas = CasmHashComputationData::from_resources(
-        &class_hash_to_casm_hash_computation_resources,
-        sierra_gas_without_casm_hash_computation,
-        |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
-    );
-    let total_sierra_gas = casm_hash_computation_data_sierra_gas.total_gas();
+
+    let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            sierra_gas_without_casm_hash_computation,
+            &builtin_gas_cost,
+            versioned_constants,
+        );
 
     // Proving gas computation.
     let mut builtin_counters_without_casm_hash_computation =
@@ -783,18 +773,46 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
+<<<<<<< HEAD
     // Migration occurs once per contract, and thus is not treated as part of the CASM hash
     // computation.
     add_maps(
         &mut builtin_counters_without_casm_hash_computation,
         &migration_poseidon_builtin_counter,
     );
+||||||| 01792faa8
+    // TODO(Meshi): Add proving builtin_counters to the
+    // `builtin_counters_without_casm_hash_computation`.
+=======
+    // Migration occurs once per contract, and thus is not treated as part of the CASM hash
+    // computation.
+    add_maps(
+        &mut builtin_counters_without_casm_hash_computation,
+        &migration_poseidon_builtin_counter,
+    );
+
+    let builtin_proving_weights = &bouncer_config.builtin_weights;
+>>>>>>> origin/main-v0.14.1
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         &builtin_counters_without_casm_hash_computation,
         sierra_gas_without_casm_hash_computation,
-        builtin_weights,
+        builtin_proving_weights,
         versioned_constants,
     );
+
+<<<<<<< HEAD
+    // Use the shared pattern to create proving gas data
+    let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
+        &class_hash_to_casm_hash_computation_resources,
+        proving_gas_without_casm_hash_computation,
+        |resources| vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants),
+    );
+    let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
+||||||| 01792faa8
+    // Since the migration occurs only once per contract, we don't consider it part of the CASM hash
+    // computation.
+    // TODO(Meshi): change this to use the proving migration gas.
+    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
 
     // Use the shared pattern to create proving gas data
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
@@ -803,6 +821,15 @@ pub fn get_tx_weights<S: StateReader>(
         |resources| vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants),
     );
     let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
+=======
+    let (total_proving_gas, casm_hash_computation_data_proving_gas) =
+        add_casm_hash_computation_gas_cost(
+            &class_hash_to_casm_hash_computation_resources,
+            proving_gas_without_casm_hash_computation,
+            &builtin_proving_weights.weights,
+            versioned_constants,
+        );
+>>>>>>> origin/main-v0.14.1
 
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
@@ -872,7 +899,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_state_changes_keys,
         versioned_constants,
         tx_builtin_counters,
-        &bouncer_config.builtin_weights,
+        bouncer_config,
     )?
     .bouncer_weights;
 
@@ -882,6 +909,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
 fn get_migration_data<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
+<<<<<<< HEAD
     versioned_constants: &VersionedConstants,
 ) -> (HashSet<ClassHash>, GasAmount, BuiltinCounterMap) {
     executed_class_hashes
@@ -904,4 +932,47 @@ fn get_migration_data<S: StateReader>(
                 (hashes, gas, poseidon_builtins)
             },
         )
+||||||| 01792faa8
+) -> (HashSet<ClassHash>, GasAmount) {
+    executed_class_hashes
+        .iter()
+        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
+        .map(|class_hash| {
+            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
+            (*class_hash, class.estimate_compiled_class_hash_migration_resources())
+        })
+        .fold((HashSet::new(), GasAmount::ZERO), |(mut hashes, gas), (hash, new_gas)| {
+            hashes.insert(hash);
+            (hashes, gas.checked_add_panic_on_overflow(new_gas))
+        })
+=======
+    versioned_constants: &VersionedConstants,
+    blake_weight: usize,
+) -> TransactionExecutionResult<(
+    HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    GasAmount,
+    BuiltinCounterMap,
+)> {
+    // TODO(Aviv): Return hash_map<class_hash, compiled_class_hashes_v2_to_v1>.
+    executed_class_hashes.iter().try_fold(
+        (HashMap::new(), GasAmount::ZERO, HashMap::new()),
+        |(mut class_hashes_to_migrate, mut gas, mut poseidon_casm_builtins), &class_hash| {
+            if let Some((class_hash, compiled_class_hash_v2_to_v1)) =
+                should_migrate(state_reader, class_hash)?
+            {
+                let class = state_reader.get_compiled_class(class_hash)?;
+                let (migration_gas, migration_builtins) = class
+                    .estimate_compiled_class_hash_migration_resources(
+                        versioned_constants,
+                        blake_weight,
+                    );
+
+                class_hashes_to_migrate.insert(class_hash, compiled_class_hash_v2_to_v1);
+                gas = gas.checked_add_panic_on_overflow(migration_gas);
+                add_maps(&mut poseidon_casm_builtins, &migration_builtins);
+            }
+            Ok((class_hashes_to_migrate, gas, poseidon_casm_builtins))
+        },
+    )
+>>>>>>> origin/main-v0.14.1
 }
