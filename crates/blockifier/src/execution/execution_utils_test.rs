@@ -46,7 +46,7 @@ fn test_zero_inputs() {
     let resources =
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
     let expected = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
-    assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
+    assert_eq!(resources.resources_ref(), &expected, "Unexpected resources values for zero-input hash");
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }
 

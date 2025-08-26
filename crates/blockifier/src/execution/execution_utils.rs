@@ -466,13 +466,13 @@ pub fn blake_execution_resources_estimation_to_gas(
     // TODO(AvivG): Remove this once gas computation is separated from resource estimation.
     assert!(
         resources
-            .resources()
+            .resources_ref()
             .builtin_instance_counter
             .keys()
             .all(|&k| k == BuiltinName::range_check),
         "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
          assumption that builtin costs are identical between provers.",
-        resources.resources().builtin_instance_counter.keys().collect::<Vec<_>>()
+        resources.resources_ref().builtin_instance_counter.keys().collect::<Vec<_>>()
     );
 
     let builtin_gas_costs = versioned_constants.os_constants.gas_costs.builtins;
