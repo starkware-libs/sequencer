@@ -52,7 +52,11 @@ fn test_zero_inputs() {
         n_steps: CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT,
         ..Default::default()
     };
-    assert_eq!(resources.resources_ref(), &expected, "Unexpected resources values for zero-input hash");
+    assert_eq!(
+        resources.resources_ref(),
+        &expected,
+        "Unexpected resources values for zero-input hash"
+    );
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }
 
