@@ -63,6 +63,18 @@ fn get_panel_consensus_block_number_diff_between_nodes() -> Panel {
         PanelType::TimeSeries,
     )
 }
+fn get_panel_consensus_block_number_diff_between_nodes() -> Panel {
+    Panel::new(
+        "block_number_diff_between_nodes",
+        "Block number diff between nodes",
+        vec![format!(
+            "(max({}) - min({}))",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
 fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     Panel::new(
         "consensus_sync_block_number_diff",
