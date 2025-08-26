@@ -5,11 +5,16 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+testing = []
+
 [lints]
 workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
+apollo_metrics.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true

@@ -1053,7 +1053,9 @@ name = "apollo_config_manager"
 version = "0.15.0-rc.3"
 dependencies = [
  "apollo_config",
+ "apollo_config_manager_types",
  "apollo_infra",
+ "apollo_metrics",
  "serde",
  "validator",
 ]
@@ -1063,6 +1065,7 @@ name = "apollo_config_manager_types"
 version = "0.15.0-rc.3"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "async-trait",
  "mockall",
  "serde",
@@ -1791,6 +1794,7 @@ dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_config",
  "apollo_config_manager",
+ "apollo_config_manager_types",
  "apollo_consensus_manager",
  "apollo_gateway",
  "apollo_gateway_types",

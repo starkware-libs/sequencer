@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 apollo_infra.workspace = true
+apollo_metrics.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
