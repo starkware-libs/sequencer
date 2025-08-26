@@ -48,7 +48,7 @@ pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
                 max_price_per_unit: DEFAULT_STRK_L2_GAS_PRICE.into(),
             },
             l1_data_gas: ResourceBounds {
-                max_amount: GasAmount(1),
+                max_amount: GasAmount(100_000),
                 max_price_per_unit: DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
             },
         })
@@ -78,7 +78,10 @@ fn division(#[case] length: usize, #[case] n_parts: usize, #[case] expected_leng
 /// Scenario of declaring and deploying the test contract.
 #[rstest]
 #[tokio::test]
-async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
+async fn declare_deploy_scenario(
+    #[values(1, 2)] n_blocks: usize,
+    #[values(false, true)] use_kzg_da: bool,
+) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
     let (mut test_manager, mut nonce_manager) =
@@ -137,8 +140,9 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
     test_manager.add_invoke_tx(deploy_contract_tx);
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(initial_block_number).await;
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(initial_block_number, use_kzg_da)
+        .await;
 
     let partial_state_diff = StateMaps {
         // Deployed contract.
