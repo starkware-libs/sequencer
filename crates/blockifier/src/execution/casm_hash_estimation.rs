@@ -51,11 +51,15 @@ impl EstimatedExecutionResources {
         }
     }
 
-    pub fn resources(&self) -> &ExecutionResources {
+    pub fn resources_ref(&self) -> &ExecutionResources {
         match self {
             EstimatedExecutionResources::V1Hash { resources } => resources,
             EstimatedExecutionResources::V2Hash { resources, .. } => resources,
         }
+    }
+
+    pub fn resources(&self) -> ExecutionResources {
+        self.resources_ref().clone()
     }
 
     /// Returns the Blake opcode count.
@@ -271,9 +275,10 @@ pub trait EstimateCasmHashResources {
     }
 }
 
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+/// Estimates the VM resources to compute the CASM V1 (Poseidon) hash for a Cairo-1 contract.
+///
+/// Note: this estimation is not backward compatible.
+pub struct CasmV1HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     // Base steps estimation for `bytecode_hash_internal_node` leaf case.
