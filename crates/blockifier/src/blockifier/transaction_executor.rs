@@ -252,6 +252,10 @@ pub(crate) fn finalize_block<S: StateReader>(
 
     let mut bouncer = bouncer;
     let class_hashes_to_migrate = mem::take(bouncer.get_mut_class_hashes_to_migrate());
+    log::debug!(
+        "Class hashes to migrate (key = class_hash, value = (compiled_class_hash_v2, \
+         compiled_class_hash_v1)): {class_hashes_to_migrate:#?}"
+    );
     if !block_context.versioned_constants.enable_casm_hash_migration {
         assert!(
             class_hashes_to_migrate.is_empty(),
