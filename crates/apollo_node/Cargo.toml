@@ -51,6 +51,10 @@ serde.workspace = true
 serde_json.workspace = true
 tikv-jemallocator.workspace = true
 tokio-util = { workspace = true, optional = true, features = ["rt"] }
+tokio-metrics = { workspace = true, features = [
+  "metrics-rs-integration",
+  "rt",
+], default-features = false }
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
