@@ -950,6 +950,7 @@
         "extra_params": {}
       }
     ],
+    "Storage": [],
     "MempoolP2p": [
       {
         "title": "apollo_mempool_p2p_num_connected_peers",
