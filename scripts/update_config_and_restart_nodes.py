@@ -206,6 +206,56 @@ def parse_config_from_yaml(config_content: str) -> tuple[dict, dict]:
     return config, config_data
 
 
+def serialize_config_to_yaml(full_config: dict, config_data: dict) -> str:
+    """Serialize configuration data back to YAML format.
+
+    Args:
+        full_config: The full YAML configuration dictionary
+        config_data: The JSON configuration data to serialize and inject into the YAML config.
+
+    Returns:
+        str: The serialized YAML content
+    """
+
+    def represent_literal_str(dumper, data):
+        """Custom representer for making sure that multi-line strings are represented as literal strings (using |)"""
+        if "\n" in data:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+    # Put the updated config back into the YAML
+    full_config["data"]["config"] = json.dumps(config_data, indent=2)
+
+    # Configure YAML dumper to use literal style for multi-line strings (see represent_literal_str).
+    yaml.add_representer(str, represent_literal_str)
+
+    # Convert back to YAML
+    try:
+        result = yaml.dump(full_config, default_flow_style=False, allow_unicode=True)
+    finally:
+        # Clean up the custom representer to avoid affecting other YAML operations
+        yaml.add_representer(str, yaml.representer.SafeRepresenter.represent_str)
+
+    return result
+
+
+def update_config_values(
+    config_content: str,
+    node_id: int,
+    config_overrides: dict[str, any] = None,
+) -> str:
+    """Update configuration values in the YAML content and return the updated YAML"""
+    # Parse the configuration
+    config, config_data = parse_config_from_yaml(config_content)
+
+    for key, value in config_overrides.items():
+        print(f"  Overriding config: {key} = {value}")
+        config_data[key] = value
+
+    # Serialize back to YAML
+    return serialize_config_to_yaml(config, config_data)
+
+
 def main():
     args = parse_arguments()
     validate_arguments(args)
@@ -225,12 +275,23 @@ def main():
             Colors.RED,
         )
 
+    # Store original and updated configs for all nodes
+    configs = {}
+
     # Process each node's configuration
     for node_id in range(args.num_nodes):
         print(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
         original_config = get_configmap(args.namespace, node_id, args.cluster)
+
+        # Update config
+        updated_config = update_config_values(
+            original_config, node_id, config_overrides
+        )
+
+        # Store configs
+        configs[node_id] = {"original": original_config, "updated": updated_config}
 
 
 if __name__ == "__main__":
