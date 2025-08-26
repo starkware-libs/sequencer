@@ -12,12 +12,7 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::{
-    blake_estimation,
-    count_blake_opcode,
-    estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
-    poseidon_hash_many_cost,
-};
+use crate::execution::execution_utils::{count_blake_opcode, poseidon_hash_many_cost};
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -192,6 +187,63 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 
 pub struct CasmV2HashResourceEstimate {}
 
+impl CasmV2HashResourceEstimate {
+    // Constants that define how felts are encoded into u32s for BLAKE hashing.
+    // Number of `u32` words a large felt expands into.
+    pub(crate) const U32_WORDS_PER_LARGE_FELT: usize = 8;
+    // Number of `u32` words a small felt expands into.
+    pub(crate) const U32_WORDS_PER_SMALL_FELT: usize = 2;
+    // Input for Blake hash function is a sequence of 16 `u32` words.
+    pub(crate) const U32_WORDS_PER_MESSAGE: usize = 16;
+
+    // Base number of VM steps applied when the input to Blake hashing is empty.
+    // Determined empirically by running `encode_felt252_data_and_calc_blake_hash` on empty input.
+    pub(crate) const STEPS_EMPTY_INPUT: usize = 170;
+
+    /// Estimates the number of VM steps required to hash the given felts with Blake in Starknet OS.
+    ///
+    /// - Each small felt unpacks into 2 `u32`s.
+    /// - Each large felt unpacks into 8 `u32`s.
+    /// - Adds a base cost depending on whether the total encoded `u32` sequence fits exactly into
+    ///   full 16-`u32` Blake messages.
+    pub(crate) fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+        felt_size_groups: &FeltSizeCount,
+    ) -> usize {
+        // The constants used are empirical, based on running
+        // `encode_felt252_data_and_calc_blake_hash` on combinations of large and small
+        // felts. VM steps per large felt.
+        const STEPS_PER_LARGE_FELT: usize = 45;
+        // VM steps per small felt.
+        const STEPS_PER_SMALL_FELT: usize = 15;
+        // Base overhead when input exactly fills a 16-u32 Blake message.
+        const BASE_STEPS_FULL_MSG: usize = 217;
+        // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
+        const BASE_STEPS_PARTIAL_MSG: usize = 195;
+        // Extra VM steps added per 2-u32 remainder in partial Blake messages.
+        const STEPS_PER_2_U32_REMINDER: usize = 3;
+
+        let encoded_u32_len = felt_size_groups.encoded_u32_len();
+        if encoded_u32_len == 0 {
+            // The empty input case is a special case.
+            return Self::STEPS_EMPTY_INPUT;
+        }
+
+        // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
+        let base_steps = if encoded_u32_len % Self::U32_WORDS_PER_MESSAGE == 0 {
+            BASE_STEPS_FULL_MSG
+        } else {
+            // This computation is based on running blake2s with different inputs.
+            // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
+            BASE_STEPS_PARTIAL_MSG
+                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2) * STEPS_PER_2_U32_REMINDER
+        };
+
+        base_steps
+            + felt_size_groups.large * STEPS_PER_LARGE_FELT
+            + felt_size_groups.small * STEPS_PER_SMALL_FELT
+    }
+}
+
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {
         HashVersion::V2
@@ -210,7 +262,14 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
+        // One-time additional `range_check` required for `encode_felt252_data_and_calc_blake_hash`
+        // execution when the input is non-empty.
+        const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+
+        let n_steps =
+            CasmV2HashResourceEstimate::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+                felt_size_groups,
+            );
         let builtin_instance_counter = match felt_size_groups.n_felts() {
             // The empty case does not use builtins at all.
             0 => HashMap::new(),
@@ -218,7 +277,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             // case.
             _ => HashMap::from([(
                 BuiltinName::range_check,
-                felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+                felt_size_groups.n_felts() + BASE_RANGE_CHECK_NON_EMPTY,
             )]),
         };
 
