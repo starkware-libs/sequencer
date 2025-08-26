@@ -243,7 +243,7 @@ impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
             validate_resource_bounds: true,
-            max_allowed_nonce_gap: 50,
+            max_allowed_nonce_gap: 200,
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             min_gas_price_percentage: 100,
