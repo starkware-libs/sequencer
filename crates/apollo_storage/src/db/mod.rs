@@ -33,7 +33,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
-use libmdbx::{DatabaseFlags, Geometry, PageSize, WriteMap};
+use libmdbx::{DatabaseOptions, Mode, PageSize, ReadWriteOptions, SyncMode, WriteMap};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
@@ -43,7 +43,7 @@ use self::table_types::{DbCursor, DbCursorTrait};
 use crate::db::table_types::TableType;
 
 // Maximum number of Sub-Databases.
-const MAX_DBS: usize = 20;
+const MAX_DBS: u64 = 20;
 
 // Note that NO_TLS mode is used by default.
 type EnvironmentKind = WriteMap;
@@ -65,9 +65,9 @@ pub struct DbConfig {
     /// does not exist.
     pub enforce_file_exists: bool,
     /// The minimum size of the database.
-    pub min_size: usize,
+    pub min_size: isize,
     /// The maximum size of the database.
-    pub max_size: usize,
+    pub max_size: isize,
     /// The growth step of the database.
     pub growth_step: isize,
 }
@@ -197,26 +197,40 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
         return Err(DbError::FileDoesNotExist(db_file_path));
     }
     const MAX_READERS: u32 = 1 << 13; // 8K readers
-    let env = Arc::new(
-        Environment::new()
-            .set_geometry(Geometry {
-                size: Some(config.min_size..config.max_size),
+    let env = Arc::new(Environment::open_with_options(
+        config.path(),
+        DatabaseOptions {
+            //  permissions: Option<ffi::mdbx_mode_t>,
+            max_readers: Some(MAX_READERS),
+            max_tables: Some(MAX_DBS),
+            //  rp_augment_limit: Option<u64>,
+            //  loose_limit: Option<u64>,
+            //  dp_reserve_limit: Option<u64>,
+            //  txn_dp_limit: Option<u64>,
+            //  spill_max_denominator: Option<u64>,
+            //  spill_min_denominator: Option<u64>,
+            page_size: Some(get_page_size(page_size::get())),
+            //  no_sub_dir: bool,
+            //  exclusive: bool,
+            //  accede: bool,
+            mode: Mode::ReadWrite(ReadWriteOptions {
+                sync_mode: SyncMode::Durable,
+                min_size: Some(config.min_size),
+                max_size: Some(config.max_size),
                 growth_step: Some(config.growth_step),
-                page_size: Some(get_page_size(page_size::get())),
-                ..Default::default()
-            })
-            .set_max_tables(MAX_DBS)
-            .set_max_readers(MAX_READERS)
-            .set_flags(DatabaseFlags {
-                // There is no locality of pages in the database almost at all, so readahead will
-                // fill the RAM with garbage.
-                no_rdahead: true,
-                // LIFO policy for recycling a Garbage Collection items should be faster.
-                liforeclaim: true,
-                ..Default::default()
-            })
-            .open(&config.path())?,
-    );
+                shrink_threshold: None,
+            }),
+            // There is no locality of pages in the database almost at all, so readahead will
+            // fill the RAM with garbage.
+            no_rdahead: true,
+            //  no_meminit: bool,
+            // coalesce: bool,
+            // LIFO policy for recycling a Garbage Collection items should be faster.
+            liforeclaim: true,
+
+            ..Default::default()
+        },
+    )?);
     Ok((DbReader { env: env.clone() }, DbWriter { env }))
 }
 

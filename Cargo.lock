@@ -2984,26 +2984,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.66.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2b84e06fc203107bfbad243f4aba2af864eb7db3b1cf46ea0a023b0b433d2a7"
-dependencies = [
- "bitflags 2.6.0",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "peeking_take_while",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 1.1.0",
- "shlex",
- "syn 2.0.100",
-]
-
-[[package]]
-name = "bindgen"
 version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
@@ -3055,6 +3035,24 @@ dependencies = [
  "itertools 0.13.0",
  "log",
  "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.0",
+ "shlex",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.72.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f72209734318d0b619a5e0f5129918b848c416e122a3c4ce054e03cb87b726f"
+dependencies = [
+ "bitflags 2.6.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -7694,19 +7692,19 @@ checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
 
 [[package]]
 name = "libmdbx"
-version = "0.3.5"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f0bee397dc9a7003e7bd34fffc1dc2d4c4fdc96530a0c439a5f98c9402bc7bf"
+checksum = "4c5fbc162dd828c0d731c6b14efa05d7617aea5bbe280cd99ccb0c3ce5c0daea"
 dependencies = [
  "bitflags 2.6.0",
- "byteorder",
- "derive_more 0.99.18",
- "indexmap 1.9.3",
+ "derive_more 2.0.1",
+ "indexmap 2.9.0",
  "libc",
  "lifetimed-bytes",
  "mdbx-sys",
  "parking_lot",
- "thiserror 1.0.69",
+ "sealed",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -8297,11 +8295,11 @@ dependencies = [
 
 [[package]]
 name = "mdbx-sys"
-version = "0.12.7"
+version = "13.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21a329f8d655fb646cc9511c00886eefcddb6ef131869ef2d4b02c24c66825ac"
+checksum = "f40966eecb14c75a0fe9247247bb47fc95fb92fd1af2406ce22780d34b69e474"
 dependencies = [
- "bindgen 0.66.1",
+ "bindgen 0.72.0",
  "cc",
  "libc",
 ]
@@ -9472,12 +9470,6 @@ dependencies = [
  "digest 0.10.7",
  "hmac",
 ]
-
-[[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
 name = "pem"
@@ -11227,6 +11219,17 @@ checksum = "da046153aa2352493d6cb7da4b6e5c0c057d8a1d0a9aa8560baffdd945acd414"
 dependencies = [
  "ring 0.17.14",
  "untrusted 0.9.0",
+]
+
+[[package]]
+name = "sealed"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22f968c5ea23d555e670b449c1c5e7b2fc399fdaec1d304a17cd48e288abc107"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
 ]
 
 [[package]]

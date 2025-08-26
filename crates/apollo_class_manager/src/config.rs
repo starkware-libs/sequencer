@@ -15,8 +15,8 @@ use crate::class_storage::CachedClassStorageConfig;
 pub struct ClassHashDbConfig {
     pub path_prefix: PathBuf,
     pub enforce_file_exists: bool,
-    pub min_size: usize,
-    pub max_size: usize,
+    pub min_size: isize,
+    pub max_size: isize,
     pub growth_step: isize,
 }
 
