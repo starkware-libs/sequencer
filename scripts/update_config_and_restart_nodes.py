@@ -38,6 +38,13 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Update configuration for Apollo sequencer nodes and (optionally) restart them",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
+        """,
     )
 
     parser.add_argument(
@@ -66,6 +73,20 @@ def parse_arguments() -> argparse.Namespace:
         help="Configuration overrides in key=value format. Can be specified multiple times. "
         "Example: --config-overrides consensus_manager_config.timeout=5000 "
         '--config-overrides components.gateway.url=\\"localhost\\" (note the escaping of the ")',
+    )
+
+    restart_group = parser.add_mutually_exclusive_group()
+    restart_group.add_argument(
+        "-r",
+        "--restart-nodes",
+        action="store_true",
+        default=None,
+        help="Restart the pods after updating configuration (default behavior)",
+    )
+    restart_group.add_argument(
+        "--no-restart",
+        action="store_true",
+        help="Do not restart the pods after updating configuration",
     )
 
     return parser.parse_args()
@@ -322,6 +343,28 @@ def apply_configmap(
         os.unlink(temp_file)
 
 
+def restart_pod(
+    namespace: str, node_id: int, cluster_prefix: Optional[str] = None
+) -> None:
+    """Restart pod by deleting it"""
+    kubectl_args = [
+        "delete",
+        "pod",
+        "sequencer-core-statefulset-0",
+        "-n",
+        f"{namespace}-{node_id}",
+    ]
+
+    if cluster_prefix:
+        kubectl_args.extend(["--context", f"{cluster_prefix}-{node_id}"])
+
+    try:
+        run_kubectl_command(kubectl_args, capture_output=False)
+    except Exception as e:
+        print(f"Failed restarting core pod for node {node_id}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     args = parse_arguments()
     validate_arguments(args)
@@ -375,6 +418,21 @@ def main():
         apply_configmap(
             configs[node_id]["updated"], args.namespace, node_id, args.cluster
         )
+
+    # Restart is the default so only "don't restart" if explicitly specified
+    should_restart = not args.no_restart
+
+    # Restart all pods only if restart should happen
+    if should_restart:
+        print("\nRestarting pods...")
+        for node_id in range(args.num_nodes):
+            print(f"Restarting pod for node {node_id}...")
+            restart_pod(args.namespace, node_id, args.cluster)
+        print("\nAll nodes have been successfully restarted!")
+    else:
+        print("\nSkipping pod restart (--no-restart was specified)")
+
+    print("\nOperation completed successfully!")
 
 
 if __name__ == "__main__":
