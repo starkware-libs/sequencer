@@ -4,5 +4,13 @@
   "l1_gas_price_scraper_config.polling_interval": 120,
   "l1_gas_price_scraper_config.starting_block": 0,
   "l1_gas_price_scraper_config.starting_block.#is_none": true,
-  "l1_gas_price_scraper_config.startup_num_blocks_multiplier": 2
+  "l1_gas_price_scraper_config.startup_num_blocks_multiplier": 2,
+  "base_layer_config.node_url": "http://anvil.sequencer-dev.sw-dev.io",
+  "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+  "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": "http://anvil.sequencer-dev.sw-dev.io",
+  "l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list": "http://dummy-eth2strk-oracle.sequencer-dev.sw-dev.io",
+  "mempool_p2p_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+  "recorder_url": "http://dummy-recorder.dummy-recorder.sw-dev.io",
+  "state_sync_config.central_sync_client_config.central_source_config.http_headers": "",
+  "state_sync_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101"
 }

@@ -5,5 +5,13 @@
   "l1_gas_price_provider_config.lag_margin_seconds": 300,
   "l1_gas_price_provider_config.number_of_blocks_for_mean": 300,
   "l1_gas_price_provider_config.storage_limit": 3000,
-  "l1_gas_price_provider_config.max_time_gap_seconds": 900
+  "l1_gas_price_provider_config.max_time_gap_seconds": 900,
+  "base_layer_config.node_url": "http://anvil.sequencer-dev.sw-dev.io",
+  "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+  "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": "http://anvil.sequencer-dev.sw-dev.io",
+  "l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list": "http://dummy-eth2strk-oracle.sequencer-dev.sw-dev.io",
+  "mempool_p2p_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+  "recorder_url": "http://dummy-recorder.dummy-recorder.sw-dev.io",
+  "state_sync_config.central_sync_client_config.central_source_config.http_headers": "",
+  "state_sync_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101"
 }
