@@ -25,7 +25,7 @@ const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 // Cairo DictAccess types for concrete objects.
 
-pub(crate) trait TryFromOutputIter {
+pub trait TryFromOutputIter {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError>
@@ -282,4 +282,4 @@ pub struct FullCommitmentOsStateDiff(pub(crate) OsKzgCommitmentInfo);
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 // A commitment to the state diff (with KZG commitment applied) in the partial output format.
-pub struct PartialCommitmentOsStateDiff(pub(crate) OsKzgCommitmentInfo);
+pub struct PartialCommitmentOsStateDiff(pub OsKzgCommitmentInfo);
