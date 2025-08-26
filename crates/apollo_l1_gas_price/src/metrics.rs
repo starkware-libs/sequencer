@@ -82,7 +82,7 @@ pub(crate) fn register_eth_to_strk_metrics() {
     ETH_TO_STRK_RATE.register();
 }
 
-pub const _L1_GAS_PRICE_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+pub const L1_GAS_PRICE_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
     LocalClientMetrics::new(&L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,

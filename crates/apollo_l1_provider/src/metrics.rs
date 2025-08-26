@@ -62,7 +62,7 @@ pub(crate) fn register_scraper_metrics() {
     L1_MESSAGE_SCRAPER_REORG_DETECTED.register();
 }
 
-pub const _L1_PROVIDER_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
+pub const L1_PROVIDER_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
     LocalClientMetrics::new(&L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS),
     RemoteClientMetrics::new(
         &L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
