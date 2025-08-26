@@ -357,7 +357,7 @@ fn get_native_compilation_error_increase() -> Alert {
         "native_compilation_error",
         "Native compilation alert",
         AlertGroup::Batcher,
-        format!("increase({}[1h])", NATIVE_COMPILATION_ERROR.get_name()),
+        format!("increase({}[1h])", NATIVE_COMPILATION_ERROR.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -365,7 +365,7 @@ fn get_native_compilation_error_increase() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Informational,
+        AlertSeverity::WorkingHours,
         AlertEnvFiltering::All,
     )
 }
