@@ -15,6 +15,7 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -270,12 +271,12 @@ impl CasmHashComputationData {
     /// Creates CasmHashComputationData by mapping resources to gas using a provided function.
     /// This method encapsulates the pattern used for both Sierra gas and proving gas computation.
     pub fn from_resources<F>(
-        class_hash_to_resources: &HashMap<ClassHash, ExecutionResources>,
+        class_hash_to_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
         gas_without_casm_hash_computation: GasAmount,
         resources_to_gas_fn: F,
     ) -> Self
     where
-        F: Fn(&ExecutionResources) -> GasAmount,
+        F: Fn(&EstimatedExecutionResources) -> GasAmount,
     {
         Self {
             class_hash_to_casm_hash_computation_gas: class_hash_to_resources
@@ -679,15 +680,16 @@ pub fn builtins_to_gas(
 }
 
 fn add_casm_hash_computation_gas_cost(
-    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExecutionResources>,
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
     gas_without_casm_hash_computation: GasAmount,
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
+    blake_opcode_gas: usize,
 ) -> (GasAmount, CasmHashComputationData) {
     let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
         class_hash_to_casm_hash_computation_resources,
         gas_without_casm_hash_computation,
-        |resources| vm_resources_to_gas(resources, builtin_gas_cost, versioned_constants),
+        |resources| resources.to_gas(builtin_gas_cost, blake_opcode_gas, versioned_constants),
     );
     (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
 }
@@ -744,6 +746,7 @@ pub fn get_tx_weights<S: StateReader>(
             sierra_gas_without_casm_hash_computation,
             &builtin_gas_cost,
             versioned_constants,
+            bouncer_config.blake_weight,
         );
 
     // Proving gas computation.
@@ -777,6 +780,7 @@ pub fn get_tx_weights<S: StateReader>(
             proving_gas_without_casm_hash_computation,
             &builtin_proving_weights.weights,
             versioned_constants,
+            bouncer_config.blake_weight,
         );
 
     let bouncer_weights = BouncerWeights {
@@ -802,7 +806,7 @@ pub fn get_tx_weights<S: StateReader>(
 pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-) -> TransactionExecutionResult<HashMap<ClassHash, ExecutionResources>> {
+) -> TransactionExecutionResult<HashMap<ClassHash, EstimatedExecutionResources>> {
     executed_class_hashes
         .iter()
         .map(|class_hash| {
