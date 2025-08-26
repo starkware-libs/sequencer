@@ -47,6 +47,7 @@ use crate::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
+    EstimatedExecutionResources,
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
@@ -250,9 +251,11 @@ impl RunnableCompiledClass {
         }
     }
 
-    pub fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
+    pub fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
         match self {
-            Self::V0(class) => class.estimate_casm_hash_computation_resources(),
+            Self::V0(class) => CasmV2HashResourceEstimate::from_resources(
+                class.estimate_casm_hash_computation_resources(),
+            ),
             Self::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
             Self::V1Native(class) => class.casm().estimate_casm_hash_computation_resources(),
@@ -460,13 +463,11 @@ impl CompiledClassV1 {
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
-    fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        // TODO(AvivG): Replace with V2 estimation.
-        CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+    fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
+        CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
             &self.bytecode_segment_felt_sizes,
             &self.entry_points_by_type,
         )
-        .resources()
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.

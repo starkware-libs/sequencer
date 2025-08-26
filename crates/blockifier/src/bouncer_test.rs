@@ -554,7 +554,9 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         map_class_hash_to_casm_hash_computation_resources(&state, &executed_class_hashes)
             .unwrap()
             .iter()
-            .fold(ExecutionResources::default(), |acc, (_class_hash, resources)| &acc + resources)
+            .fold(ExecutionResources::default(), |acc, (_class_hash, resources)| {
+                &acc + resources.resources_ref()
+            })
             .prover_builtins()
     };
 
