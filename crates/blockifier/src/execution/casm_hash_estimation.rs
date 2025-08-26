@@ -6,6 +6,8 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::execution_resources::GasAmount;
 
+use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
+use crate::bouncer::vm_resources_to_gas;
 use crate::execution::contract_class::{
     EntryPointV1,
     EntryPointsByType,
@@ -57,38 +59,31 @@ impl EstimatedExecutionResources {
         self.resources_ref().clone()
     }
 
-    /// Returns the Blake opcode count.
-    ///
-    /// This is only defined for the V2 (Blake) variant.
-    // TODO(AvivG): Consider returning 0 for V1 instead of panicking.
+    /// Returns the Blake opcode count, for V1Hash, returns 0.
     pub fn blake_count(&self) -> usize {
         match self {
             EstimatedExecutionResources::V2Hash { blake_count, .. } => *blake_count,
-            _ => panic!("Cannot get blake count from V1Hash"),
+            EstimatedExecutionResources::V1Hash { .. } => 0,
         }
     }
 
-    pub fn to_sierra_gas<F>(
+    pub fn to_gas(
         &self,
-        resources_to_gas_fn: F,
-        blake_opcode_gas: Option<usize>,
-    ) -> GasAmount
-    where
-        F: Fn(&ExecutionResources) -> GasAmount,
-    {
-        match self {
-            EstimatedExecutionResources::V1Hash { resources } => resources_to_gas_fn(resources),
-            EstimatedExecutionResources::V2Hash { resources, blake_count } => {
-                let resources_gas = resources_to_gas_fn(resources);
-                let blake_gas = blake_count
-                    .checked_mul(blake_opcode_gas.unwrap())
-                    .map(u64_from_usize)
-                    .map(GasAmount)
-                    .expect("Overflow computing Blake opcode gas.");
+        builtin_gas_cost: &BuiltinGasCosts,
+        blake_opcode_gas: usize,
+        versioned_constants: &VersionedConstants,
+    ) -> GasAmount {
+        let resources_gas =
+            vm_resources_to_gas(self.resources_ref(), builtin_gas_cost, versioned_constants);
 
-                resources_gas.checked_add_panic_on_overflow(blake_gas)
-            }
-        }
+        let blake_gas = self
+            .blake_count()
+            .checked_mul(blake_opcode_gas)
+            .map(u64_from_usize)
+            .map(GasAmount)
+            .expect("Overflow computing Blake opcode gas.");
+
+        resources_gas.checked_add_panic_on_overflow(blake_gas)
     }
 }
 
