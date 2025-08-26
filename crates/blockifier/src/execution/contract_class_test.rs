@@ -3,6 +3,7 @@ use std::iter::repeat_n;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blake2s::encode_felts_to_u32s;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
@@ -146,10 +147,8 @@ fn test_create_bytecode_segment_felt_sizes(
 /// For both Felt and BigUintAsHex slices.
 fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_large: usize) {
     // Build inputs inline: values straddling the threshold.
-    let small_felt = Felt::from((1u64 << 63) - 1);
-    let large_felt = Felt::from(1u64 << 63);
-    assert!(small_felt < FeltSizeCount::SMALL_THRESHOLD);
-    assert!(large_felt >= FeltSizeCount::SMALL_THRESHOLD);
+    let small_felt = FeltSizeCount::SMALL_THRESHOLD - 1_u64;
+    let large_felt = FeltSizeCount::SMALL_THRESHOLD;
 
     let items: Vec<Felt> =
         repeat_n(small_felt, expected_small).chain(repeat_n(large_felt, expected_large)).collect();
@@ -165,4 +164,19 @@ fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_l
     let count_from_biguints = FeltSizeCount::from(&biguint_items[..]);
     assert_eq!(count_from_biguints.small, expected_small);
     assert_eq!(count_from_biguints.large, expected_large);
+}
+
+#[rstest]
+#[case::boundary_small_felt(&[Felt::from((1u64 << 63) - 1)])]
+#[case::boundary_large_felt(&[Felt::from(1u64 << 63)])]
+#[case::very_small_felt(&[Felt::from(1u64)])]
+#[case::very_large_felt(&[Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
+#[case::many_small(&[Felt::from(1u64); 100])]
+#[case::many_large(&[Felt::from(1u64 << 63); 100])]
+#[case::mixed_small_large(&[Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
+fn test_encoded_u32_len(#[case] test_data: &[Felt]) {
+    let estimated_u32_len = FeltSizeCount::from(test_data).encoded_u32_len();
+    let actual_u32_len = encode_felts_to_u32s(test_data.to_vec()).len();
+
+    assert_eq!(actual_u32_len, estimated_u32_len);
 }
