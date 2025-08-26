@@ -140,22 +140,28 @@ def run_kubectl_command(
         sys.exit(1)
 
 
+def get_namespace_params(
+    namespace: str, node_id: int, cluster_prefix: Optional[str] = None
+) -> list[str]:
+    ret = ["-n", f"{namespace}-{node_id}"]
+    if cluster_prefix:
+        ret.extend(["--context", f"{cluster_prefix}-{node_id}"])
+    return ret
+
+
 def get_configmap(
     namespace: str, node_id: int, cluster_prefix: Optional[str] = None
 ) -> str:
     """Get configmap YAML for a specific node"""
+    # TODO(guy.f): See if we can get the output as JSON and apply as JSON without going through YAML.
     kubectl_args = [
         "get",
         "cm",
         "sequencer-core-config",
-        "-n",
-        f"{namespace}-{node_id}",
         "-o",
         "yaml",
     ]
-
-    if cluster_prefix:
-        kubectl_args.extend(["--context", f"{cluster_prefix}-{node_id}"])
+    kubectl_args.extend(get_namespace_params(namespace, node_id, cluster_prefix))
 
     result = run_kubectl_command(kubectl_args)
     return result.stdout
@@ -275,6 +281,47 @@ def show_config_diff(old_content: str, new_content: str, node_id: int) -> None:
         print("No changes detected")
 
 
+def ask_for_confirmation() -> bool:
+    """Ask user for confirmation to proceed"""
+    while True:
+        response = (
+            input(f"{Colors.BLUE}Do you approve these changes? (y/n){Colors.RESET}")
+            .strip()
+            .lower()
+        )
+        if response == "y":
+            return True
+        elif response == "n":
+            return False
+        else:
+            print("Please enter 'y' for yes or 'n' for no.")
+
+
+def apply_configmap(
+    config_content: str,
+    namespace: str,
+    node_id: int,
+    cluster_prefix: Optional[str] = None,
+) -> None:
+    """Apply updated configmap"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(config_content)
+        temp_file = f.name
+
+    try:
+        kubectl_args = ["apply", "-f", temp_file].extend(
+            get_namespace_params(namespace, node_id, cluster_prefix)
+        )
+
+        run_kubectl_command(kubectl_args, capture_output=False)
+
+    except Exception as e:
+        print(f"Failed applying config for node {node_id}: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        os.unlink(temp_file)
+
+
 def main():
     args = parse_arguments()
     validate_arguments(args)
@@ -316,6 +363,18 @@ def main():
 
         # Show diff
         show_config_diff(original_config, updated_config, node_id)
+
+    if not ask_for_confirmation():
+        print("Operation cancelled by user")
+        sys.exit(1)
+
+    # Apply all configurations
+    print("\nApplying configurations...")
+    for node_id in range(args.num_nodes):
+        print(f"Applying config for node {node_id}...")
+        apply_configmap(
+            configs[node_id]["updated"], args.namespace, node_id, args.cluster
+        )
 
 
 if __name__ == "__main__":
