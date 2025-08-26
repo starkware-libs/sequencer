@@ -33,6 +33,13 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Update configuration for Apollo sequencer nodes and (optionally) restart them",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
+        """,
     )
 
     parser.add_argument(
@@ -59,6 +66,20 @@ def parse_arguments() -> argparse.Namespace:
         help="Configuration overrides in key=value format. Can be specified multiple times. "
         "Example: --config-overrides consensus_manager_config.timeout=5000 "
         '--config-overrides components.gateway.url=\\"localhost\\" (note the escaping of the ")',
+    )
+
+    restart_group = parser.add_mutually_exclusive_group()
+    restart_group.add_argument(
+        "-r",
+        "--restart-nodes",
+        action="store_true",
+        default=None,
+        help="Restart the pods after updating configuration (default behavior)",
+    )
+    restart_group.add_argument(
+        "--no-restart",
+        action="store_true",
+        help="Do not restart the pods after updating configuration",
     )
 
     return parser.parse_args()
@@ -98,7 +119,7 @@ def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
         value = value.strip()
 
         if not key:
-            print(f"Error: Empty key in config override '{override}'", file=sys.stderr)
+            print_error(f"Error: Empty key in config override '{override}'")
             sys.exit(1)
 
         # Try to convert value to appropriate type
@@ -112,7 +133,7 @@ def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
             sys.exit(1)
 
     if not overrides:
-        print("Error: No valid config overrides found", file=sys.stderr)
+        print_error("Error: No valid config overrides found")
         sys.exit(1)
 
     return overrides
@@ -227,7 +248,7 @@ def update_config_values(
     config, config_data = parse_config_from_yaml(config_content)
 
     for key, value in config_overrides.items():
-        print(f"  Overriding config: {key} = {value}")
+        print_colored(f"  Overriding config: {key} = {value}")
         config_data[key] = value
 
     # Serialize back to YAML
@@ -262,9 +283,9 @@ def show_config_diff(old_content: str, new_content: str, node_id: int) -> None:
 
     diff_output = "".join(diff)
     if diff_output:
-        print(diff_output)
+        print_colored(diff_output)
     else:
-        print("No changes detected")
+        print_colored("No changes detected", Colors.BLUE)
 
 
 def ask_for_confirmation() -> bool:
@@ -299,17 +320,37 @@ def apply_configmap(
             sys.exit(1)
 
 
+def restart_pod(namespace: str, node_id: int, cluster_prefix: Optional[str] = None) -> None:
+    """Restart pod by deleting it"""
+    kubectl_args = [
+        "delete",
+        "pod",
+        "sequencer-core-statefulset-0",
+        "-n",
+        f"{namespace}-{node_id}",
+    ]
+
+    if cluster_prefix:
+        kubectl_args.extend(["--context", f"{cluster_prefix}-{node_id}"])
+
+    try:
+        run_kubectl_command(kubectl_args, capture_output=False)
+    except Exception as e:
+        print_error(f"Failed restarting core pod for node {node_id}: {e}")
+        sys.exit(1)
+
+
 def main():
     args = parse_arguments()
     validate_arguments(args)
 
     config_overrides = parse_config_overrides(args.config_overrides)
     if config_overrides:
-        print(f"\nConfig overrides to apply:")
+        print_colored(f"\nConfig overrides to apply:")
         for key, value in config_overrides.items():
-            print(f"  {key} = {value}")
+            print_colored(f"  {key} = {value}")
     else:
-        print("No config overrides provided", file=sys.stderr)
+        print_error("No config overrides provided")
         sys.exit(1)
 
     if not args.cluster:
@@ -338,14 +379,29 @@ def main():
         show_config_diff(original_config, updated_config, node_id)
 
     if not ask_for_confirmation():
-        print("Operation cancelled by user")
+        print_error("Operation cancelled by user")
         sys.exit(1)
 
     # Apply all configurations
-    print("\nApplying configurations...")
+    print_colored("\nApplying configurations...")
     for node_id in range(args.num_nodes):
-        print(f"Applying config for node {node_id}...")
+        print_colored(f"Applying config for node {node_id}...")
         apply_configmap(configs[node_id]["updated"], args.namespace, node_id, args.cluster)
+
+    # Restart is the default so only "don't restart" if explicitly specified
+    should_restart = not args.no_restart
+
+    # Restart all pods only if restart should happen
+    if should_restart:
+        print_colored("\nRestarting pods...")
+        for node_id in range(args.num_nodes):
+            print_colored(f"Restarting pod for node {node_id}...")
+            restart_pod(args.namespace, node_id, args.cluster)
+        print_colored("\nAll nodes have been successfully restarted!", Colors.GREEN)
+    else:
+        print_colored("\nSkipping pod restart (--no-restart was specified)")
+
+    print_colored("\nOperation completed successfully!", Colors.GREEN)
 
 
 if __name__ == "__main__":
