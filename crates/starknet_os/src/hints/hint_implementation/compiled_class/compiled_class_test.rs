@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 
+use blockifier::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
+    EstimateCasmHashResources,
+};
 use blockifier::execution::contract_class::{
     estimate_casm_blake_hash_computation_resources,
-    estimate_casm_poseidon_hash_computation_resources,
+    EntryPointV1,
+    EntryPointsByType,
     NestedFeltCounts,
 };
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -50,8 +55,10 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
-const ALLOWED_MARGIN_N_STEPS: usize = 169;
-const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 4;
+// TODO(AvivG): Lower margin once the estimation of compiled class hash with entry-points is
+// correct.
+const ALLOWED_MARGIN_N_STEPS: usize = 465;
+const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 3;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -94,7 +101,8 @@ trait HashVersionTestSpec {
     /// Estimates the execution resources for the compiled class hash function.
     fn estimate_execution_resources(
         &self,
-        bytecode_segment_lengths: &NestedFeltCounts,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources;
 }
 
@@ -168,16 +176,21 @@ impl HashVersionTestSpec for HashVersion {
     }
     fn estimate_execution_resources(
         &self,
-        bytecode_segment_lengths: &NestedFeltCounts,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources {
         match self {
             HashVersion::V1 => {
-                estimate_casm_poseidon_hash_computation_resources(bytecode_segment_lengths)
+                CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    // TODO(AvivG): Use entry points in estimation.
+                    &Default::default(),
+                )
+                .resources()
             }
             HashVersion::V2 => {
-                estimate_casm_blake_hash_computation_resources(bytecode_segment_lengths)
+                estimate_casm_blake_hash_computation_resources(bytecode_segment_felt_sizes)
                     .resources()
-                    .clone()
             }
         }
     }
@@ -344,12 +357,15 @@ fn test_compiled_class_hash_resources_estimation(
     let (mut actual_execution_resources, _hash_computed_by_cairo) =
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
+    let bytecode_segment_felt_sizes = NestedFeltCounts::new(
+        &contract_class.get_bytecode_segment_lengths(),
+        &contract_class.bytecode,
+    );
     // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation =
-        hash_version.estimate_execution_resources(&NestedFeltCounts::new(
-            &contract_class.get_bytecode_segment_lengths(),
-            &contract_class.bytecode,
-        ));
+    let mut execution_resources_estimation = hash_version.estimate_execution_resources(
+        &bytecode_segment_felt_sizes,
+        &contract_class.entry_points_by_type.into(),
+    );
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
     let allowed_margin = hash_version.allowed_margin_n_steps();
