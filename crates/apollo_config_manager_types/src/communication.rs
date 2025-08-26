@@ -5,8 +5,11 @@ use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, R
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+
+use crate::config_manager_types::ConfigManagerResult;
 
 pub type LocalConfigManagerClient =
     LocalComponentClient<ConfigManagerRequest, ConfigManagerResponse>;
@@ -27,9 +30,7 @@ pub trait ConfigManagerClient: Send + Sync {}
     strum(serialize_all = "snake_case")
 )]
 pub enum ConfigManagerRequest {
-    // TODO(Nadin): Remove this placeholder when adding real request variants
-    #[allow(dead_code)]
-    Placeholder,
+    ReadConfig,
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -37,12 +38,11 @@ impl PrioritizedRequest for ConfigManagerRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
-    // TODO(Nadin): Remove this placeholder when adding real response variants
-    #[allow(dead_code)]
-    Placeholder,
+    ReadConfig(ConfigManagerResult<Value>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ConfigManagerClientError {}
 
 #[async_trait]
