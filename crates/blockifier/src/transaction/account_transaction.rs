@@ -4,10 +4,17 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -535,6 +542,32 @@ impl AccountTransaction {
         }))
     }
 
+    fn check_compile_class_hash_v2_declaration<S: StateReader>(
+        &self,
+        state: &mut TransactionalState<'_, S>,
+    ) -> TransactionExecutionResult<()> {
+        if let Transaction::Declare(declare_tx) = &self.tx {
+            let class_hash = declare_tx.class_hash();
+            let compile_class = state.get_compiled_class(class_hash)?;
+            let compiled_class_hash_v2 = match &compile_class {
+                RunnableCompiledClass::V0(_) => return Ok(()),
+                RunnableCompiledClass::V1(casm) => casm.hash(&HashVersion::V2),
+                #[cfg(feature = "cairo_native")]
+                RunnableCompiledClass::V1Native(casm) => casm.hash(&HashVersion::V2),
+            };
+
+            let compiled_class_hash = declare_tx.compiled_class_hash();
+            if compiled_class_hash_v2 != compiled_class_hash {
+                return Err(TransactionExecutionError::DeclareTransactionCasmHashMissMatch {
+                    class_hash,
+                    compiled_class_hash,
+                    compiled_class_hash_v2,
+                });
+            }
+        }
+        Ok(())
+    }
+
     fn run_non_revertible<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
@@ -561,6 +594,11 @@ impl AccountTransaction {
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
+            if tx_context.block_context.versioned_constants.disallow_casm_hash_v1_declares
+                && self.version() == TransactionVersion::THREE
+            {
+                self.check_compile_class_hash_v2_declaration(state)?;
+            }
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
@@ -936,7 +974,6 @@ impl ValidatableTransaction for AccountTransaction {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![*constants::VALIDATE_RETDATA];
-
             if validate_call_info.execution.failed {
                 return Err(TransactionExecutionError::PanicInValidate {
                     panic_reason: extract_trailing_cairo1_revert_trace(
