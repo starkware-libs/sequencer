@@ -2404,6 +2404,11 @@
     "pointer_target": "starknet_url",
     "privacy": "Public"
   },
+  "state_sync_config.should_replay_processed_txs_metric": {
+    "description": "Whether to replay processed transactions.",
+    "privacy": "Public",
+    "value": false
+  },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
