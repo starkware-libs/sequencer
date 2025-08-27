@@ -50,6 +50,7 @@ fn global_contract_cache_update() {
         4000,
         DEFAULT_STACK_SIZE,
         None,
+        None,
     );
     block_executor
         .append_block(
