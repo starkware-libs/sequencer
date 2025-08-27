@@ -215,7 +215,6 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
         EstimatedExecutionResources::V1Hash {
-            // TODO(AvivG): Consider inlining `poseidon_hash_many_cost` logic here.
             resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
         }
     }
