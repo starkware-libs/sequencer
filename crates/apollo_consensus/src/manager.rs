@@ -574,27 +574,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         msg_round: u32,
         msg_description: &str,
     ) -> bool {
+        let limits = &self.consensus_config.static_config.future_msg_limit;
         let height_diff = msg_height.saturating_sub(current_height.0);
-        let round_diff = msg_round.saturating_sub(current_round);
-        let mut should_cache = true;
 
-        // Check height limits first
-        if height_diff > self.consensus_config.static_config.future_height_limit.into() {
-            should_cache = false;
-        }
-
-        // Check round limits based on height
-        if height_diff == 0 {
+        let should_cache = height_diff <= limits.future_height_limit.into()
             // For current height, check against current round + future_round_limit
-            if round_diff > self.consensus_config.static_config.future_round_limit {
-                should_cache = false;
-            }
-        } else {
-            // For future heights, check absolute round limit
-            if msg_round > self.consensus_config.static_config.future_height_round_limit {
-                should_cache = false;
-            }
-        }
+            && (height_diff == 0 && msg_round <= current_round + limits.future_round_limit
+                // For future heights, check absolute round limit
+                || height_diff > 0 && msg_round <= limits.future_height_round_limit);
 
         if !should_cache {
             warn!(
@@ -605,9 +592,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 msg_round,
                 current_height.0,
                 current_round,
-                self.consensus_config.static_config.future_height_limit,
-                self.consensus_config.static_config.future_height_round_limit,
-                self.consensus_config.static_config.future_round_limit
+                limits.future_height_limit,
+                limits.future_height_round_limit,
+                limits.future_round_limit
             );
         }
 
