@@ -328,11 +328,16 @@ fn test_compiled_class_hash(
     assert_eq!(hash_computed_by_cairo, hash_computed_by_starknet_api.0);
 }
 
-/// Test that execution resources estimation for the compiled class hash
-/// matches the actual execution resources when running the entry point.
+/// Tests that the estimated execution resources for the compiled class hash
+/// match the actual execution resources when running the entry point.
+///
+/// - `hash_version`: which hash version to test (`V1` (Poseidon) or `V2` (Blake)).
+/// - `single_leaf_segment`: whether the entire contract is a single segment (old Sierra contracts)
+///   or segmented by functions.
 #[rstest]
 fn test_compiled_class_hash_resources_estimation(
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+    #[values(true, false)] single_leaf_segment: bool,
 ) {
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -343,6 +348,12 @@ fn test_compiled_class_hash_resources_estimation(
 
     // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
     contract_class.entry_points_by_type = Default::default();
+    if single_leaf_segment {
+        use cairo_lang_starknet_classes::NestedIntList;
+
+        contract_class.bytecode_segment_lengths =
+            Some(NestedIntList::Leaf(contract_class.bytecode.len()));
+    }
 
     // Run the compiled class hash entry point with full contract loading.
     let (mut actual_execution_resources, _hash_computed_by_cairo) =
