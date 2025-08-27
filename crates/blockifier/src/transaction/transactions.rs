@@ -15,6 +15,7 @@ use starknet_api::transaction::{constants, DeclareTransactionV2, DeclareTransact
 
 use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
@@ -24,7 +25,7 @@ use crate::execution::entry_point::{
 use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
-use crate::state::state_api::{State, UpdatableState};
+use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     CommonAccountFields,
@@ -389,5 +390,29 @@ fn try_declare<S: State>(
             // Class is already declared, cannot redeclare.
             Err(TransactionExecutionError::DeclareTransactionError { class_hash })
         }
+    }
+}
+
+/// Verifies that the compiled class hash field in the declare tx,
+/// is the compiled_class_hash_v2 of the compiled contract.
+pub fn check_compile_class_hash_v2_declaration(
+    declare_tx: &DeclareTransaction,
+    state_reader: &impl StateReader,
+) -> TransactionExecutionResult<()> {
+    let compiled_class = declare_tx.contract_class().try_into()?;
+    if let RunnableCompiledClass::V0(_) = compiled_class {
+        return Ok(());
+    }
+    let compiled_class_hash_v2 =
+        state_reader.get_compiled_class_hash_v2(declare_tx.class_hash(), compiled_class.clone())?;
+    let compiled_class_hash = declare_tx.compiled_class_hash();
+    if compiled_class_hash_v2 != compiled_class_hash {
+        Err(TransactionExecutionError::DeclareTransactionCasmHashMissMatch {
+            class_hash: declare_tx.class_hash(),
+            compiled_class_hash,
+            compiled_class_hash_v2,
+        })
+    } else {
+        Ok(())
     }
 }

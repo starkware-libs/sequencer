@@ -18,6 +18,8 @@ use starknet_api::abi::abi_utils::{
     selector_from_name,
 };
 use starknet_api::block::{FeeType, GasPrice};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -505,6 +507,11 @@ fn test_max_fee_limit_validate(
     let block_info = block_context.block_info.clone();
     let class_info = calculate_class_info_for_testing(grindy_validate_account.get_class());
 
+    let compiled_class_hash = match &class_info.contract_class {
+        ContractClass::V0(_) => CompiledClassHash::default(),
+        ContractClass::V1((casm, _)) => casm.hash(&HashVersion::V2),
+    };
+
     // Declare the grindy-validation account.
     let tx = executable_declare_tx(
         declare_tx_args! {
@@ -512,6 +519,7 @@ fn test_max_fee_limit_validate(
             sender_address: account_address,
             resource_bounds,
             nonce: nonce_manager.next(account_address),
+            compiled_class_hash,
         },
         class_info,
     );
@@ -916,11 +924,19 @@ fn test_bootstrap_declare(block_context: BlockContext, #[case] declare_tx: Decla
     let class_info = calculate_class_info_for_testing(
         FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
     );
-    let executable_declare = ApiExecutableDeclareTransaction {
+    let contract_class = class_info.contract_class();
+    let mut executable_declare = ApiExecutableDeclareTransaction {
         tx: declare_tx.clone(),
         tx_hash: TransactionHash::default(),
         class_info,
     };
+    // If this is a V3 declare, override the compiled_class_hash field with v2 hash.
+    if let DeclareTransaction::V3(ref mut tx_v3) = executable_declare.tx {
+        if let ContractClass::V1((casm, _)) = contract_class {
+            tx_v3.compiled_class_hash = casm.hash(&HashVersion::V2);
+        }
+    }
+    let compiled_class_hash = executable_declare.tx.compiled_class_hash();
     let declare_account_tx = AccountTransaction::new_for_sequencing(
         ApiExecutableTransaction::Declare(executable_declare),
     );
@@ -931,7 +947,7 @@ fn test_bootstrap_declare(block_context: BlockContext, #[case] declare_tx: Decla
     // Check declaration.
     assert_eq!(
         state.get_compiled_class_hash(declare_tx.class_hash()).unwrap(),
-        declare_tx.compiled_class_hash()
+        compiled_class_hash
     );
 
     // Ensure the only change is the class declaration: no fees, nonce bump, etc.
@@ -939,10 +955,7 @@ fn test_bootstrap_declare(block_context: BlockContext, #[case] declare_tx: Decla
     assert_eq!(
         state.to_state_diff().unwrap().state_maps,
         StateMaps {
-            compiled_class_hashes: HashMap::from([(
-                declare_tx.class_hash(),
-                declare_tx.compiled_class_hash()
-            )]),
+            compiled_class_hashes: HashMap::from([(declare_tx.class_hash(), compiled_class_hash)]),
             declared_contracts: HashMap::from([(declare_tx.class_hash(), true)]),
             ..Default::default()
         }
