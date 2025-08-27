@@ -337,6 +337,7 @@ If you have to cast a value due to an implementation detail, like a pass-through
 
 Avoid using `as` casts unless there is no other choice --- they are banned by the linter in our repo.
 **Rationale**: if `as` casts overflow or underflow, they saturate, and do so without printing or panicking --- most of the time this isn't the desired result, and can introduce silent bugs.
+
 ```rust
 // BAD
 let x = u128::MAX as u64; // This doesn't panic, it saturates and simply sets `x` as u64::MAX.
@@ -345,6 +346,29 @@ let x = u128::MAX as u64; // This doesn't panic, it saturates and simply sets `x
 ### Match Ergonomics
 
 Don't use `ref` keyword, it's considered legacy, as all of its uses can be replaced more concisely with `&` on the RHS.
+
+```rust
+let maybe_name = Some(String::from("Alice"));
+
+/// ERROR
+if let Some(n) = maybe_name {
+    println!("Hello, {n}");
+};
+println!("{:?}", maybe_name); // BUG - `maybe_name` was consumed in the `if let`.
+
+/// BAD
+if let Some(ref n) = maybe_name {
+    println!("Hello, {n}");
+};
+println!("{:?}", maybe_name);
+
+// GOOD
+if let Some(n) =  &maybe_name { // `n` is of type `&String`.
+    println!("Hello, {n}");
+}
+
+println!("{:?}", maybe_name);
+```
 
 ### Float
 
@@ -355,6 +379,18 @@ Avoid float types unless you're sure it's necessary. If you're sure it's necessa
 ### Turbofish
 
 Mostly prefer type annotation a variable over turbofish, but it's OK to use sometimes for simple casts when a one-liner is preferred.
+
+```rust
+// BAD
+let parsed = "42".parse::<i32>().unwrap();
+
+// GOOD
+let parsed: i32 = "42".parse().unwrap();
+
+// OK
+let items: Vec<Result<i32,_>> = // ...<calc>
+let sum = items.into_iter().collect::<Result<Vec<_>, _>>()?.sum(); // type is i32.
+```
 
 ### Combinators
 
@@ -407,7 +443,7 @@ If you have a oneliner you suspect is a bad practice, when applicable, try searc
 
 Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
 
-If a crate has a viable use-case that doesn't require some heavy-dependency, feature-gate the dependency, this helps reduce compilation time.
+If a crate has a viable use-case that doesn't require some heavy-dependency, [feature-gate](https://doc.rust-lang.org/cargo/reference/features.html#the-features-section) the dependency, this helps reduce compilation time.
 
 ### Unmaintained Dependencies
 
@@ -428,7 +464,7 @@ If you're working around code that uses lazy_static, remove it in favor of the `
 
 ### Macros
 
-The general rule for metaprogramming and language "power features" applies: only use macros if non-macro alternatives are not feasible (like when writing a DSL).
+The general rule for metaprogramming and language "power features" applies: only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
 
 **Rationale**: [the more expressive the macro is, the less it can be reasoned about](https://matklad.github.io/2021/02/14/for-the-love-of-macros.html); well-structured non-macro code doesn't suffer from this.
 
@@ -441,10 +477,6 @@ Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks:
 Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this can lead to leaks and deadlocks: either spawn the tasks separately (`JoinHandle` is cancel-safe) or use safe alternatives like `FuturesUnordered` or `JoinSet`.
 
 When spawning a task, you _must_ maintain the handle returned from the executor and make sure it completes successfully --- otherwise the task will _detach_ from the process.
-
-## Commits/PRs
-
-Commits should be [small](https://docs.google.com/presentation/d/1b4uTSMs16AlaY6cMWrvB1RyOM_JmQ5USW3LDB9MCFj8/edit?slide=id.g3337b86d7d1_0_23#slide=id.g3337b86d7d1_0_23), _self-contained_ and well-defined.
 
 ## AI-Generated Code Guidelines
 
