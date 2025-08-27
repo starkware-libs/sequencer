@@ -190,12 +190,7 @@ impl ConsensusManager {
             timeouts: self.config.consensus_manager_config.timeouts.clone(),
             sync_retry_interval: self.config.consensus_manager_config.sync_retry_interval,
             quorum_type,
-            future_height_limit: self.config.consensus_manager_config.future_height_limit,
-            future_round_limit: self.config.consensus_manager_config.future_round_limit,
-            future_height_round_limit: self
-                .config
-                .consensus_manager_config
-                .future_height_round_limit,
+            future_msg_limit: self.config.consensus_manager_config.future_msg_limit,
         };
         let consensus_fut = apollo_consensus::run_consensus(
             run_consensus_args,
