@@ -149,6 +149,18 @@ impl BlockifierStateReader for SyncStateReader {
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
+
+    fn get_compiled_class_hash_v2(
+            &self,
+            class_hash: ClassHash,
+            _compiled_class: RunnableCompiledClass,
+        ) -> StateResult<CompiledClassHash> {
+        match self.runtime.block_on(self.class_manager_client.get_executable_class_hash_v2(class_hash)) {
+            Ok(Some(compiled_class_hash)) => Ok(compiled_class_hash),
+            Ok(None) => Err(StateError::MissingCompiledClassHashV2(class_hash)),
+            Err(e) => Err(StateError::StateReadError(e.to_string())),
+        }
+    }
 }
 
 pub struct SyncStateReaderFactory {

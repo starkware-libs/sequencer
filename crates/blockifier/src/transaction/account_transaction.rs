@@ -71,6 +71,7 @@ use crate::transaction::transactions::{
     ExecutableTransaction,
     ValidatableTransaction,
 };
+use crate::utils::should_migrate;
 
 #[cfg(test)]
 #[path = "account_transactions_test.rs"]
@@ -561,6 +562,24 @@ impl AccountTransaction {
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
+            // TODO(Meshi): Find a better way to handle tests with non V3 transactions.
+            if tx_context.block_context.versioned_constants.block_casm_hash_v1_declares
+                && self.tx.version() >= TransactionVersion::THREE
+            {
+                if let Transaction::Declare(declare_tx) = &self.tx {
+                    if let Some((class_hash, (compiled_class_hash, compiled_class_hash_v2))) =
+                        should_migrate(state, declare_tx.class_hash(), Some(declare_tx))?
+                    {
+                        return Err(
+                            TransactionExecutionError::DeclareTransactionCasmHashMissMatch {
+                                class_hash,
+                                compiled_class_hash,
+                                compiled_class_hash_v2,
+                            },
+                        );
+                    }
+                }
+            }
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),

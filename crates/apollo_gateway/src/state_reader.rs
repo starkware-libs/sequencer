@@ -54,4 +54,12 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.as_ref().get_compiled_class_hash(class_hash)
     }
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        compiled_class: RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.as_ref()
+            .get_compiled_class_hash_v2(class_hash, compiled_class)
+    }
 }
