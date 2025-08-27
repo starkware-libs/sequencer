@@ -175,7 +175,7 @@
     "value": 2000
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
-    "description": "Contracts for Cairo Specifies whether to execute all class hashes or only a limited selection using Cairo native contracts. If limited, a specific list of class hashes is provided. compilation.",
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "privacy": "Public",
     "value": "All"
   },
