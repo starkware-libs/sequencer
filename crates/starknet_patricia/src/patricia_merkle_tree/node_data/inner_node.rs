@@ -1,8 +1,14 @@
+use std::collections::HashMap;
+
 use ethnum::U256;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
+use crate::patricia_merkle_tree::node_data::errors::{
+    EdgePathError,
+    PathToBottomError,
+    PreimageError,
+};
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 
@@ -191,5 +197,57 @@ impl PathToBottom {
     pub fn new_zero() -> Self {
         Self::new(EdgePath(U256::new(0)), EdgePathLength(0))
             .expect("Creating a zero path unexpectedly failed.")
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Preimage {
+    Binary(BinaryData),
+    Edge(EdgeData),
+}
+
+pub type PreimageMap = HashMap<HashOutput, Preimage>;
+
+impl Preimage {
+    pub(crate) const BINARY_LENGTH: u8 = 2;
+    pub(crate) const EDGE_LENGTH: u8 = 3;
+
+    pub fn length(&self) -> u8 {
+        match self {
+            Self::Binary(_) => Self::BINARY_LENGTH,
+            Self::Edge(_) => Self::EDGE_LENGTH,
+        }
+    }
+
+    pub fn get_binary(&self) -> Result<&BinaryData, PreimageError> {
+        match self {
+            Self::Binary(binary) => Ok(binary),
+            Self::Edge(_) => Err(PreimageError::ExpectedBinary(self.clone())),
+        }
+    }
+}
+
+impl TryFrom<&Vec<Felt>> for Preimage {
+    type Error = PreimageError;
+
+    fn try_from(raw_preimage: &Vec<Felt>) -> Result<Self, Self::Error> {
+        match raw_preimage.as_slice() {
+            [left, right] => Ok(Preimage::Binary(BinaryData {
+                left_hash: HashOutput(*left),
+                right_hash: HashOutput(*right),
+            })),
+            [length, path, bottom] => {
+                Ok(Preimage::Edge(EdgeData {
+                    bottom_hash: HashOutput(*bottom),
+                    path_to_bottom: PathToBottom::new(
+                        (*path).into(),
+                        EdgePathLength::new((*length).try_into().map_err(|_| {
+                            PreimageError::InvalidRawPreimage(raw_preimage.clone())
+                        })?)?,
+                    )?,
+                }))
+            }
+            _ => Err(PreimageError::InvalidRawPreimage(raw_preimage.clone())),
+        }
     }
 }

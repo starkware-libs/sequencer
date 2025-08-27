@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
+use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength};
+use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, Preimage};
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 #[derive(Debug, Error)]
@@ -28,3 +29,15 @@ pub enum LeafError {
 }
 
 pub type LeafResult<T> = Result<T, LeafError>;
+
+#[derive(Debug, Error)]
+pub enum PreimageError {
+    #[error(transparent)]
+    EdgePath(#[from] EdgePathError),
+    #[error("Expected a binary node, found: {0:?}")]
+    ExpectedBinary(Preimage),
+    #[error("Invalid raw preimage: {0:?}, length should be 2 or 3.")]
+    InvalidRawPreimage(Vec<Felt>),
+    #[error(transparent)]
+    PathToBottom(#[from] PathToBottomError),
+}
