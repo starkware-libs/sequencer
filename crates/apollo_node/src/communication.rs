@@ -1,6 +1,7 @@
 use apollo_batcher_types::communication::BatcherRequestWrapper;
 use apollo_class_manager_types::ClassManagerRequestWrapper;
 use apollo_compile_to_casm_types::SierraCompilerRequestWrapper;
+use apollo_config_manager_types::communication::ConfigManagerRequestWrapper;
 use apollo_gateway_types::communication::GatewayRequestWrapper;
 use apollo_infra::component_definitions::ComponentCommunication;
 use apollo_l1_endpoint_monitor::communication::L1EndpointMonitorRequestWrapper;
@@ -18,6 +19,7 @@ use crate::config::node_config::SequencerNodeConfig;
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestWrapper>,
     class_manager_channel: ComponentCommunication<ClassManagerRequestWrapper>,
+    config_manager_channel: ComponentCommunication<ConfigManagerRequestWrapper>,
     gateway_channel: ComponentCommunication<GatewayRequestWrapper>,
     l1_endpoint_monitor_channel: ComponentCommunication<L1EndpointMonitorRequestWrapper>,
     l1_provider_channel: ComponentCommunication<L1ProviderRequestWrapper>,
@@ -43,6 +45,14 @@ impl SequencerNodeCommunication {
 
     pub fn take_class_manager_rx(&mut self) -> Receiver<ClassManagerRequestWrapper> {
         self.class_manager_channel.take_rx()
+    }
+
+    pub fn take_config_manager_tx(&mut self) -> Sender<ConfigManagerRequestWrapper> {
+        self.config_manager_channel.take_tx()
+    }
+
+    pub fn take_config_manager_rx(&mut self) -> Receiver<ConfigManagerRequestWrapper> {
+        self.config_manager_channel.take_rx()
     }
 
     pub fn take_gateway_tx(&mut self) -> Sender<GatewayRequestWrapper> {
@@ -142,6 +152,23 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
                         .inbound_requests_channel_capacity,
                 );
                 (Some(tx_class_manager), Some(rx_class_manager))
+            }
+            false => (None, None),
+        };
+
+    let (tx_config_manager, rx_config_manager) =
+        match config.components.config_manager.execution_mode.is_running_locally() {
+            true => {
+                let (tx_config_manager, rx_config_manager) = channel::<ConfigManagerRequestWrapper>(
+                    config
+                        .components
+                        .config_manager
+                        .local_server_config
+                        .as_ref()
+                        .expect("Config manager local server config should be available.")
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_config_manager), Some(rx_config_manager))
             }
             false => (None, None),
         };
@@ -288,6 +315,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
         class_manager_channel: ComponentCommunication::new(tx_class_manager, rx_class_manager),
+        config_manager_channel: ComponentCommunication::new(tx_config_manager, rx_config_manager),
         gateway_channel: ComponentCommunication::new(tx_gateway, rx_gateway),
         l1_endpoint_monitor_channel: ComponentCommunication::new(
             tx_l1_endpoint_monitor,

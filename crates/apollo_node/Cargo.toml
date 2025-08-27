@@ -20,6 +20,7 @@ apollo_class_manager.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_compile_to_casm.workspace = true
 apollo_config_manager.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_config.workspace = true
 apollo_consensus_manager.workspace = true

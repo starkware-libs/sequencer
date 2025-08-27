@@ -36,6 +36,18 @@ use apollo_compile_to_casm_types::{
     SierraCompilerRequest,
     SierraCompilerResponse,
 };
+use apollo_config_manager::metrics::{
+    CONFIG_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    CONFIG_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    CONFIG_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
+use apollo_config_manager_types::communication::{
+    ConfigManagerRequest,
+    ConfigManagerResponse,
+    LocalConfigManagerClient,
+    RemoteConfigManagerClient,
+    SharedConfigManagerClient,
+};
 use apollo_gateway::metrics::{
     GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
@@ -54,6 +66,7 @@ use apollo_infra::metrics::{
     RemoteClientMetrics,
     BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
     CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,
     L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
@@ -136,6 +149,8 @@ const BATCHER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const CLASS_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
+const CONFIG_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
+    LocalClientMetrics::new(&CONFIG_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const GATEWAY_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const L1_ENDPOINT_MONITOR_LOCAL_CLIENT_METRICS: LocalClientMetrics =
@@ -164,6 +179,12 @@ const CLASS_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMet
     &CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     &CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     &CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+);
+// ConfigManager is local-only, but macro still needs remote metrics parameter (never used)
+const CONFIG_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &CONFIG_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    &CONFIG_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
 const GATEWAY_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
     &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
@@ -209,6 +230,7 @@ const STATE_SYNC_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetric
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
     class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
+    config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
     l1_endpoint_monitor_client: Client<L1EndpointMonitorRequest, L1EndpointMonitorResponse>,
     l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
@@ -281,6 +303,10 @@ impl SequencerNodeClients {
 
     pub fn get_class_manager_shared_client(&self) -> Option<SharedClassManagerClient> {
         get_shared_client!(self, class_manager_client)
+    }
+
+    pub fn get_config_manager_shared_client(&self) -> Option<SharedConfigManagerClient> {
+        get_shared_client!(self, config_manager_client)
     }
 
     pub fn get_gateway_local_client(
@@ -473,6 +499,18 @@ pub fn create_node_clients(
         &CLASS_MANAGER_REMOTE_CLIENT_METRICS
     );
 
+    let config_manager_client = create_client!(
+        &config.components.config_manager.execution_mode,
+        LocalConfigManagerClient,
+        RemoteConfigManagerClient,
+        channels.take_config_manager_tx(),
+        &config.components.config_manager.remote_client_config,
+        &config.components.config_manager.url,
+        config.components.config_manager.port,
+        &CONFIG_MANAGER_LOCAL_CLIENT_METRICS,
+        &CONFIG_MANAGER_REMOTE_CLIENT_METRICS
+    );
+
     let gateway_client = create_client!(
         &config.components.gateway.execution_mode,
         LocalGatewayClient,
@@ -572,6 +610,7 @@ pub fn create_node_clients(
     SequencerNodeClients {
         batcher_client,
         class_manager_client,
+        config_manager_client,
         gateway_client,
         l1_endpoint_monitor_client,
         l1_provider_client,

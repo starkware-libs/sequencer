@@ -15,6 +15,8 @@ define_metrics!(
         MetricCounter { BATCHER_LOCAL_MSGS_PROCESSED, "batcher_local_msgs_processed", "Counter of messages processed by batcher local server", init = 0 },
         MetricCounter { CLASS_MANAGER_LOCAL_MSGS_RECEIVED, "class_manager_local_msgs_received", "Counter of messages received by class manager local server", init = 0 },
         MetricCounter { CLASS_MANAGER_LOCAL_MSGS_PROCESSED, "class_manager_local_msgs_processed", "Counter of messages processed by class manager local server", init = 0 },
+        MetricCounter { CONFIG_MANAGER_LOCAL_MSGS_RECEIVED, "config_manager_local_msgs_received", "Counter of messages received by config manager local server", init = 0 },
+        MetricCounter { CONFIG_MANAGER_LOCAL_MSGS_PROCESSED, "config_manager_local_msgs_processed", "Counter of messages processed by config manager local server", init = 0 },
         MetricCounter { GATEWAY_LOCAL_MSGS_RECEIVED, "gateway_local_msgs_received", "Counter of messages received by gateway local server", init = 0 },
         MetricCounter { GATEWAY_LOCAL_MSGS_PROCESSED, "gateway_local_msgs_processed", "Counter of messages processed by gateway local server", init = 0 },
         MetricCounter { L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED, "l1_endpoint_monitor_local_msgs_received", "Counter of messages received by L1 endpoint monitor local server", init = 0 },
@@ -76,6 +78,7 @@ define_metrics!(
         // Local server queue depths
         MetricGauge { BATCHER_LOCAL_QUEUE_DEPTH, "batcher_local_queue_depth", "The depth of the batcher's local message queue" },
         MetricGauge { CLASS_MANAGER_LOCAL_QUEUE_DEPTH, "class_manager_local_queue_depth", "The depth of the class manager's local message queue" },
+        MetricGauge { CONFIG_MANAGER_LOCAL_QUEUE_DEPTH, "config_manager_local_queue_depth", "The depth of the config manager's local message queue" },
         MetricGauge { GATEWAY_LOCAL_QUEUE_DEPTH, "gateway_local_queue_depth", "The depth of the gateway's local message queue" },
         MetricGauge { L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH, "l1_endpoint_monitor_local_queue_depth", "The depth of the L1 endpoint monitor's local message queue" },
         MetricGauge { L1_PROVIDER_LOCAL_QUEUE_DEPTH, "l1_provider_local_queue_depth", "The depth of the L1 provider's local message queue" },
@@ -87,6 +90,7 @@ define_metrics!(
         // Remote client metrics
         MetricHistogram { BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, "batcher_remote_client_send_attempts", "Required number of remote connection attempts made by a batcher remote client"},
         MetricHistogram { CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, "class_manager_remote_client_send_attempts", "Required number of remote connection attempts made by a class manager remote client"},
+        MetricHistogram { CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, "config_manager_remote_client_send_attempts", "Required number of remote connection attempts made by a config manager remote client"},
         MetricHistogram { GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, "gateway_remote_client_send_attempts", "Required number of remote connection attempts made by a gateway remote client"},
         MetricHistogram { L1_ENDPOINT_MONITOR_SEND_ATTEMPTS, "l1_endpoint_monitor_remote_client_send_attempts", "Required number of remote connection attempts made by a L1 endpoint monitor remote client"},
         MetricHistogram { L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, "l1_provider_remote_client_send_attempts", "Required number of remote connection attempts made by a L1 provider remote client"},
