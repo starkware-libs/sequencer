@@ -4,7 +4,7 @@
       "name": "consensus_proposal_fin_mismatch_once",
       "title": "Consensus proposal fin mismatch occurred",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -58,7 +58,7 @@
       "name": "cende_write_prev_height_blob_latency_too_high",
       "title": "Cende write prev height blob latency too high",
       "ruleGroup": "consensus",
-      "expr": "rate(cende_write_prev_height_blob_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) / clamp_min(rate(cende_write_prev_height_blob_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]), 0.0000001)",
+      "expr": "(sum(rate(cende_write_prev_height_blob_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)) / clamp_min(sum(rate(cende_write_prev_height_blob_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0), 0.0000001)",
       "conditions": [
         {
           "evaluator": {
@@ -85,7 +85,7 @@
       "name": "consensus_conflicting_votes",
       "title": "Consensus conflicting votes",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "sum(increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -112,7 +112,7 @@
       "name": "consensus_decisions_reached_by_consensus_ratio",
       "title": "Consensus decisions reached by consensus ratio",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / clamp_min(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]), 1)",
+      "expr": "(sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) / clamp_min((sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) + (sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -139,7 +139,7 @@
       "name": "consensus_inbound_stream_evicted",
       "title": "Consensus inbound stream evicted",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -166,7 +166,7 @@
       "name": "consensus_l1_gas_price_provider_failure",
       "title": "Consensus L1 gas price provider failure",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -193,7 +193,7 @@
       "name": "consensus_l1_gas_price_provider_failure_once",
       "title": "Consensus L1 gas price provider failure once",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -220,7 +220,7 @@
       "name": "consensus_p2p_disconnections",
       "title": "Consensus p2p disconnections",
       "ruleGroup": "consensus",
-      "expr": "changes(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / 2",
+      "expr": "(sum(changes(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) / 2",
       "conditions": [
         {
           "evaluator": {
@@ -247,7 +247,7 @@
       "name": "consensus_votes_num_sent_messages",
       "title": "Consensus votes num sent messages",
       "ruleGroup": "consensus",
-      "expr": "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "sum(increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -274,7 +274,7 @@
       "name": "eth_to_strk_error_count",
       "title": "Eth to Strk error count",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -490,7 +490,7 @@
       "name": "l1_gas_price_scraper_reorg_detected",
       "title": "L1 gas price scraper reorg detected",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "sum(increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -517,7 +517,7 @@
       "name": "l1_gas_price_scraper_baselayer_error_count",
       "title": "L1 gas price scraper baselayer error count",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "expr": "sum(increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -544,7 +544,7 @@
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_messages",
-      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -625,7 +625,7 @@
       "name": "mempool_p2p_disconnections",
       "title": "Mempool p2p disconnections",
       "ruleGroup": "mempool",
-      "expr": "changes(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / 2",
+      "expr": "(sum(changes(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) / 2",
       "conditions": [
         {
           "evaluator": {
@@ -652,7 +652,7 @@
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
-      "expr": "increase(native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum(increase(native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
