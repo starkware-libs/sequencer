@@ -31,6 +31,7 @@ use starknet_os::io::os_input::{
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::io::os_output_types::{
+    FullOsStateDiff,
     PartialCommitmentOsStateDiff,
     PartialOsStateDiff,
     TryFromOutputIter,
@@ -86,6 +87,7 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) new_block_number: BlockNumber,
     pub(crate) config_hash: Felt,
     pub(crate) use_kzg_da: bool,
+    pub(crate) full_output: bool,
 }
 
 pub(crate) struct OsTestOutput {
@@ -143,7 +145,7 @@ impl OsTestOutput {
 
         // Flags.
         assert_eq!(self.os_output.os_output.use_kzg_da(), self.expected_values.use_kzg_da);
-        assert!(!self.os_output.os_output.full_output());
+        assert_eq!(self.os_output.os_output.full_output(), self.expected_values.full_output);
 
         // KZG commitment.
         if self.os_output.os_output.use_kzg_da() {
@@ -271,6 +273,7 @@ impl<S: FlowTestState> TestManager<S> {
         self,
         initial_block_number: u64,
         use_kzg_da: bool,
+        full_output: bool,
     ) -> OsTestOutput {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
@@ -281,7 +284,7 @@ impl<S: FlowTestState> TestManager<S> {
                 )
             })
             .collect();
-        self.execute_test_with_block_contexts(block_contexts).await
+        self.execute_test_with_block_contexts(block_contexts, full_output).await
     }
 
     /// Executes the test using the provided block contexts.
@@ -289,13 +292,14 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) async fn execute_test_with_block_contexts(
         self,
         block_contexts: Vec<BlockContext>,
+        full_output: bool,
     ) -> OsTestOutput {
         assert_eq!(
             block_contexts.len(),
             self.per_block_transactions.len(),
             "Number of block contexts must match number of transaction blocks."
         );
-        self.execute_flow_test(block_contexts).await
+        self.execute_flow_test(block_contexts, full_output).await
     }
 
     /// Divides the current transactions into the specified number of blocks.
@@ -345,27 +349,34 @@ impl<S: FlowTestState> TestManager<S> {
         state: &S,
         alias_keys: HashSet<StorageKey>,
     ) -> StateMaps {
-        let partial_os_state_diff = match os_output.os_output.state_diff {
-            OsStateDiff::Partial(ref partial_os_state_diff) => partial_os_state_diff,
-            OsStateDiff::PartialCommitment(_) => {
-                // State diff should be deserialized from the DA segment.
-                let da_segment = os_output.da_segment.clone().unwrap();
-                &PartialOsStateDiff::try_from_output_iter(&mut da_segment.into_iter()).unwrap()
+        let os_state_diff_maps = match os_output.os_output.state_diff {
+            OsStateDiff::Partial(ref partial_os_state_diff) => {
+                partial_os_state_diff.as_state_maps()
             }
-            OsStateDiff::Full(_) | OsStateDiff::FullCommitment(_) => {
-                panic!("Expected a partial state diff in the output because of the OS config.")
+            OsStateDiff::Full(ref full_os_state_diff) => full_os_state_diff.as_state_maps(),
+            // In commitment modes, state diff should be deserialized from the DA segment.
+            OsStateDiff::PartialCommitment(_) => {
+                let da_segment = os_output.da_segment.clone().unwrap();
+                PartialOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
+                    .unwrap()
+                    .as_state_maps()
+            }
+            OsStateDiff::FullCommitment(_) => {
+                let da_segment = os_output.da_segment.clone().unwrap();
+                FullOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
+                    .unwrap()
+                    .as_state_maps()
             }
         };
-        decompress(
-            &partial_os_state_diff.as_state_maps(),
-            state,
-            *ALIAS_CONTRACT_ADDRESS,
-            alias_keys,
-        )
+        decompress(&os_state_diff_maps, state, *ALIAS_CONTRACT_ADDRESS, alias_keys)
     }
 
     // Private method which executes the flow test.
-    async fn execute_flow_test(self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
+    async fn execute_flow_test(
+        self,
+        block_contexts: Vec<BlockContext>,
+        full_output: bool,
+    ) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let mut cached_state_inputs = vec![];
@@ -464,7 +475,8 @@ impl<S: FlowTestState> TestManager<S> {
                 .collect(),
         };
         let expected_config_hash = chain_info.compute_os_config_hash().unwrap();
-        let os_hints_config = OsHintsConfig { chain_info, use_kzg_da, ..Default::default() };
+        let os_hints_config =
+            OsHintsConfig { chain_info, use_kzg_da, full_output, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
@@ -480,7 +492,9 @@ impl<S: FlowTestState> TestManager<S> {
                 previous_block_number,
                 new_block_number,
                 config_hash: expected_config_hash,
-                use_kzg_da,
+                full_output,
+                // The OS will not compute a KZG commitment in full output mode.
+                use_kzg_da: use_kzg_da && !full_output,
             },
         }
     }
