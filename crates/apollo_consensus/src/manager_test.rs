@@ -7,6 +7,7 @@ use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
     ConsensusStaticConfig,
+    FutureMsgLimitsConfig,
     TimeoutsConfig,
 };
 use apollo_network::network_manager::test_utils::{
@@ -342,9 +343,11 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
 #[tokio::test]
 async fn future_height_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
     // Use very low limit - only cache 1 height ahead with round 0.
-    consensus_config.static_config.future_height_limit = 1;
-    consensus_config.static_config.future_round_limit = 0;
-    consensus_config.static_config.future_height_round_limit = 0;
+    consensus_config.static_config.future_msg_limit = FutureMsgLimitsConfig {
+        future_height_limit: 1,
+        future_round_limit: 0,
+        future_height_round_limit: 0,
+    };
 
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
@@ -458,9 +461,11 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
 #[rstest]
 #[tokio::test]
 async fn current_height_round_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
-    consensus_config.static_config.future_height_limit = 10;
-    consensus_config.static_config.future_round_limit = 0; // Accept only current round (current_round + 0).
-    consensus_config.static_config.future_height_round_limit = 1;
+    consensus_config.static_config.future_msg_limit = FutureMsgLimitsConfig {
+        future_height_limit: 10,
+        future_round_limit: 0, // Accept only current round (current_round + 0).
+        future_height_round_limit: 1,
+    };
 
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
