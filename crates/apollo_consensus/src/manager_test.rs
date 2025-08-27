@@ -68,9 +68,12 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt, tim
         .times(times);
 }
 
-fn assert_decision(res: RunHeightRes, id: Felt) {
+fn assert_decision(res: RunHeightRes, id: Felt, round: u32) {
     match res {
-        RunHeightRes::Decision(decision) => assert_eq!(decision.block, BlockHash(id)),
+        RunHeightRes::Decision(decision) => {
+            assert_eq!(decision.block, BlockHash(id));
+            assert_eq!(decision.precommits[0].round, round);
+        }
         _ => panic!("Expected decision"),
     }
 }
@@ -130,7 +133,7 @@ async fn manager_multiple_heights_unordered() {
         )
         .await
         .unwrap();
-    assert_decision(decision, Felt::ONE);
+    assert_decision(decision, Felt::ONE, 0);
 
     // Run the manager for height 2.
     expect_validate_proposal(&mut context, Felt::TWO, 1);
@@ -144,7 +147,7 @@ async fn manager_multiple_heights_unordered() {
         )
         .await
         .unwrap();
-    assert_decision(decision, Felt::TWO);
+    assert_decision(decision, Felt::TWO, 0);
 }
 
 #[tokio::test]
@@ -272,7 +275,7 @@ async fn test_timeouts() {
             )
             .await
             .unwrap();
-        assert_decision(decision, Felt::ONE);
+        assert_decision(decision, Felt::ONE, 1);
     });
 
     // Wait for the timeout to be triggered.
@@ -426,7 +429,7 @@ async fn future_height_limit_caching_and_dropping() {
         )
         .await
         .unwrap();
-    assert_decision(decision, Felt::ZERO);
+    assert_decision(decision, Felt::ZERO, 0);
 
     // Run height 1 - should succeed using cached proposal.
     let decision = manager
@@ -439,7 +442,7 @@ async fn future_height_limit_caching_and_dropping() {
         )
         .await
         .unwrap();
-    assert_decision(decision, Felt::ONE);
+    assert_decision(decision, Felt::ONE, 0);
 
     // Run height 2 in background - shouldn't reach consensus because proposal was dropped.
     let manager_handle = tokio::spawn(async move {
@@ -466,4 +469,129 @@ async fn future_height_limit_caching_and_dropping() {
     }
 }
 
-// TODO(Asmaa): Add test for current height future round limit.
+#[tokio::test]
+async fn current_height_round_limit_caching_and_dropping() {
+    const HEIGHT_LIMIT: u32 = 10;
+    const LOW_ROUND_LIMIT: u32 = 0; // Accept only current round (current_round + 0).
+    const HEIGHT_ROUND_LIMIT: u32 = 1;
+
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    // Send proposals for rounds 0 and 1, proposal for round 1 should be dropped.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+    )
+    .await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
+    )
+    .await;
+
+    // Send votes for round 1. These should be dropped because when state machine is in round 0,
+    // round 1 > current_round(0) + future_round_limit(0).
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
+
+    // Send Nil votes for round 0 (current round).
+    send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, prevote(None, 1, 0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
+    send(&mut sender, precommit(None, 1, 0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().returning(|_| false);
+    // Will be called twice for round 0 and 2 (will send the proposal when advancing to round 2).
+    expect_validate_proposal(&mut context, Felt::ONE, 2);
+    context
+        .expect_validators()
+        .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2]);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // Set up coordination for round advancement.
+    let (round1_trigger, round1_wait) = oneshot::channel();
+    let (round2_trigger, round2_wait) = oneshot::channel();
+
+    context
+        .expect_set_height_and_round()
+        .withf(|height, round| *height == BlockNumber(1) && *round == 1)
+        .times(1)
+        .return_once(|_, _| {
+            round1_trigger.send(()).unwrap();
+        });
+    context
+        .expect_set_height_and_round()
+        .withf(|height, round| *height == BlockNumber(1) && *round == 2)
+        .times(1)
+        .return_once(|_, _| {
+            round2_trigger.send(()).unwrap();
+        });
+    // Handle all other set_height_and_round calls normally.
+    context.expect_set_height_and_round().returning(move |_, _| ());
+
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+        HEIGHT_LIMIT,
+        LOW_ROUND_LIMIT,
+        HEIGHT_ROUND_LIMIT,
+    );
+    let mut subscriber_channels = subscriber_channels.into();
+
+    // Spawn tasks to send messages when rounds advance.
+    let mut sender_clone1 = sender.clone();
+    tokio::spawn(async move {
+        round1_wait.await.unwrap();
+        // Send Nil votes from other nodes for round 1.
+        send(&mut sender_clone1, prevote(None, 1, 1, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone1, prevote(None, 1, 1, *PROPOSER_ID)).await;
+        send(&mut sender_clone1, precommit(None, 1, 1, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone1, precommit(None, 1, 1, *PROPOSER_ID)).await;
+    });
+
+    let mut sender_clone2 = sender.clone();
+    let mut proposal_sender_clone = proposal_receiver_sender.clone();
+    tokio::spawn(async move {
+        round2_wait.await.unwrap();
+        // Send proposal for round 2.
+        send_proposal(
+            &mut proposal_sender_clone,
+            vec![TestProposalPart::Init(proposal_init(1, 2, *PROPOSER_ID))],
+        )
+        .await;
+        // Send votes for round 2.
+        send(&mut sender_clone2, prevote(Some(Felt::ONE), 1, 2, *PROPOSER_ID)).await;
+        send(&mut sender_clone2, prevote(Some(Felt::ONE), 1, 2, *VALIDATOR_ID_2)).await;
+        send(&mut sender_clone2, precommit(Some(Felt::ONE), 1, 2, *PROPOSER_ID)).await;
+        send(&mut sender_clone2, precommit(Some(Felt::ONE), 1, 2, *VALIDATOR_ID_2)).await;
+    });
+
+    // Run height 1 - should reach consensus in round 2 because:
+    // 1. Round 1 votes (sent initially) are dropped since 1 > current_round(0) +
+    //    future_round_limit(0)
+    // 2. Round 0 has Nil votes → timeout → advance to round 1
+    // 3. When advancing to round 1, send Nil votes for round 1 → timeout → advance to round 2
+    // 4. When advancing to round 2, send proposal + quorum votes for round 2 → consensus reached
+    let decision = manager
+        .run_height(
+            &mut context,
+            BlockNumber(1),
+            false,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ONE, 2);
+}
