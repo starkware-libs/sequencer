@@ -5,7 +5,11 @@ use std::sync::{Arc, LazyLock};
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
-use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::serde::deserialize_program::{
@@ -775,21 +779,12 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
             instruction_locations,
         )?;
 
-        let entry_points_by_type = EntryPointsByType {
-            constructor: convert_entry_points_v1(&class.entry_points_by_type.constructor),
-            external: convert_entry_points_v1(&class.entry_points_by_type.external),
-            l1_handler: convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
-        };
-        let bytecode_segment_lengths = class
-            .bytecode_segment_lengths
-            .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
-
         let bytecode_segment_felt_sizes =
-            NestedFeltCounts::new(&bytecode_segment_lengths, &class.bytecode);
+            NestedFeltCounts::new(&class.get_bytecode_segment_lengths(), &class.bytecode);
 
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
-            entry_points_by_type,
+            entry_points_by_type: (&class.entry_points_by_type).into(),
             hints: string_to_hint,
             sierra_version,
             bytecode_segment_felt_sizes,
@@ -844,6 +839,22 @@ pub struct EntryPointsByType<EP: HasSelector> {
     pub constructor: Vec<EP>,
     pub external: Vec<EP>,
     pub l1_handler: Vec<EP>,
+}
+
+impl From<CasmContractEntryPoints> for EntryPointsByType<EntryPointV1> {
+    fn from(entry_points_by_type: CasmContractEntryPoints) -> Self {
+        EntryPointsByType {
+            constructor: convert_entry_points_v1(&entry_points_by_type.constructor),
+            external: convert_entry_points_v1(&entry_points_by_type.external),
+            l1_handler: convert_entry_points_v1(&entry_points_by_type.l1_handler),
+        }
+    }
+}
+
+impl From<&CasmContractEntryPoints> for EntryPointsByType<EntryPointV1> {
+    fn from(entry_points_by_type: &CasmContractEntryPoints) -> Self {
+        (&entry_points_by_type).into()
+    }
 }
 
 impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
