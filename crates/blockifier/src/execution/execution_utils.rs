@@ -52,10 +52,6 @@ use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 
-#[cfg(test)]
-#[path = "execution_utils_test.rs"]
-pub mod test;
-
 pub type Args = Vec<CairoArg>;
 
 pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;

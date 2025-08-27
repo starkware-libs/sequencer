@@ -206,7 +206,7 @@ impl CasmV2HashResourceEstimate {
     /// - Each large felt unpacks into 8 `u32`s.
     /// - Adds a base cost depending on whether the total encoded `u32` sequence fits exactly into
     ///   full 16-`u32` Blake messages.
-    pub(crate) fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+    fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
         felt_size_groups: &FeltSizeCount,
     ) -> usize {
         // The constants used are empirical, based on running

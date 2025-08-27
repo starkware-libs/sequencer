@@ -80,7 +80,7 @@ impl FeltSizeCount {
     /// Threshold for considering a felt "small" or "large".
     /// 2^63 is the threshold for the Blake2s hash function.
     // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
-    const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+    pub(crate) const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
 
     pub(crate) fn n_felts(&self) -> usize {
         self.small + self.large
