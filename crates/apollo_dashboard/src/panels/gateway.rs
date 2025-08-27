@@ -3,6 +3,7 @@ use apollo_gateway::metrics::{
     GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     GATEWAY_LABELED_PROCESSING_TIMES_SECS,
     GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+    GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
@@ -70,6 +71,12 @@ fn get_local_client_response_times_panels() -> Vec<Panel> {
 fn get_remote_client_response_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
@@ -178,6 +185,7 @@ pub(crate) fn get_gateway_infra_row() -> Row {
         .chain(get_queueing_times_panels())
         .chain(get_local_client_response_times_panels())
         .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
         .collect::<Vec<_>>(),
     )
 }

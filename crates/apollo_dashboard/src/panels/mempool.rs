@@ -16,6 +16,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
     MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+    MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -75,6 +76,12 @@ fn get_local_client_response_times_panels() -> Vec<Panel> {
 fn get_remote_client_response_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
@@ -212,6 +219,7 @@ pub(crate) fn get_mempool_infra_row() -> Row {
         .chain(get_queueing_times_panels())
         .chain(get_local_client_response_times_panels())
         .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
         .collect::<Vec<_>>(),
     )
 }

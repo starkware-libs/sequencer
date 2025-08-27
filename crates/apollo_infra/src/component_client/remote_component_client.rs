@@ -225,6 +225,7 @@ where
                 self.metrics.record_response_time(elapsed.as_secs_f64(), request_label);
                 return res;
             }
+            self.metrics.record_communication_failure(elapsed.as_secs_f64(), request_label);
             let log_attempt_interval_ms = self.config.log_attempt_interval_ms;
             if attempt % log_attempt_interval_ms == log_attempt_interval_ms - 1 {
                 warn!("Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}");

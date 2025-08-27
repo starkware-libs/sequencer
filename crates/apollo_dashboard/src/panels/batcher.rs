@@ -3,6 +3,7 @@ use apollo_batcher::metrics::{
     BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     BATCHER_LABELED_PROCESSING_TIMES_SECS,
     BATCHER_LABELED_QUEUEING_TIMES_SECS,
+    BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     LAST_BATCHED_BLOCK,
     PROPOSAL_FAILED,
@@ -106,6 +107,13 @@ fn get_panel_reverted_transaction_ratio() -> Panel {
     )
 }
 
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -140,6 +148,7 @@ pub(crate) fn get_batcher_infra_row() -> Row {
         .chain(get_queueing_times_panels())
         .chain(get_local_client_response_times_panels())
         .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
         .collect::<Vec<_>>(),
     )
 }

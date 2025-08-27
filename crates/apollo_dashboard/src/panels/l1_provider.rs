@@ -15,6 +15,7 @@ use apollo_l1_provider::metrics::{
     L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
     L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+    L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
 
@@ -65,6 +66,12 @@ fn get_remote_client_response_times_panels() -> Vec<Panel> {
         PanelType::TimeSeries,
     )
 }
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::from_counter(L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
@@ -109,6 +116,7 @@ pub(crate) fn get_l1_provider_infra_row() -> Row {
         .chain(get_queueing_times_panels())
         .chain(get_local_client_response_times_panels())
         .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
         .collect::<Vec<_>>(),
     )
 }
