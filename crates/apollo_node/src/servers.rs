@@ -19,6 +19,11 @@ use apollo_compile_to_casm::metrics::{
     SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
     SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
 };
+use apollo_config_manager::config_manager::LocalConfigManagerServer;
+use apollo_config_manager::metrics::{
+    CONFIG_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+    CONFIG_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_gateway::metrics::{
@@ -50,6 +55,9 @@ use apollo_infra::metrics::{
     CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
     CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
     CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+    CONFIG_MANAGER_LOCAL_MSGS_PROCESSED,
+    CONFIG_MANAGER_LOCAL_MSGS_RECEIVED,
+    CONFIG_MANAGER_LOCAL_QUEUE_DEPTH,
     GATEWAY_LOCAL_MSGS_PROCESSED,
     GATEWAY_LOCAL_MSGS_RECEIVED,
     GATEWAY_LOCAL_QUEUE_DEPTH,
@@ -172,6 +180,7 @@ use crate::config::node_config::SequencerNodeConfig;
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
+    pub(crate) config_manager: Option<Box<LocalConfigManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_endpoint_monitor: Option<Box<LocalL1EndpointMonitorServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
@@ -446,6 +455,28 @@ fn create_local_servers(
         config.components.class_manager.max_concurrency
     );
 
+    const CONFIG_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
+        &CONFIG_MANAGER_LOCAL_MSGS_RECEIVED,
+        &CONFIG_MANAGER_LOCAL_MSGS_PROCESSED,
+        &CONFIG_MANAGER_LOCAL_QUEUE_DEPTH,
+        &CONFIG_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+        &CONFIG_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    );
+    let config_manager_server = create_local_server!(
+        CONCURRENT_LOCAL_SERVER,
+        &config.components.config_manager.execution_mode,
+        &mut components.config_manager,
+        &config
+            .components
+            .config_manager
+            .local_server_config
+            .as_ref()
+            .expect("Config manager local server config should be available."),
+        communication.take_config_manager_rx(),
+        &CONFIG_MANAGER_METRICS,
+        config.components.config_manager.max_concurrency
+    );
+
     const GATEWAY_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &GATEWAY_LOCAL_MSGS_RECEIVED,
         &GATEWAY_LOCAL_MSGS_PROCESSED,
@@ -620,6 +651,7 @@ fn create_local_servers(
     LocalServers {
         batcher: batcher_server,
         class_manager: class_manager_server,
+        config_manager: config_manager_server,
         gateway: gateway_server,
         l1_endpoint_monitor: l1_endpoint_monitor_server,
         l1_provider: l1_provider_server,
@@ -646,6 +678,7 @@ impl LocalServers {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
+            server_future_and_label(self.config_manager, "Local Config Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_endpoint_monitor, "Local L1 Endpoint Monitor"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
