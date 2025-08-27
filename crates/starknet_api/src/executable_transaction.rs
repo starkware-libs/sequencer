@@ -10,6 +10,7 @@ use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 use thiserror::Error;
 
+use crate::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use crate::contract_class::{ClassInfo, ContractClass};
 use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
@@ -198,6 +199,25 @@ impl DeclareTransaction {
             panic!("Contract class version must be V1.")
         };
         &versioned_casm.0
+    }
+
+    /// Verifies that the compiled class hash field in the declare tx,
+    /// is compiled_class_hash_v2 of the compiled contract.
+    pub fn check_compile_class_hash_v2_declaration(
+        &self,
+    ) -> Result<(), (ClassHash, CompiledClassHash, CompiledClassHash)> {
+        let compiled_class = &self.class_info.contract_class;
+        // TODO(Meshi): Get from state once declare bug in tests is solved.
+        let compiled_class_hash_v2 = match &compiled_class {
+            ContractClass::V0(_) => return Ok(()),
+            ContractClass::V1((casm, _)) => casm.hash(&HashVersion::V2),
+        };
+        let compiled_class_hash = self.compiled_class_hash();
+        if compiled_class_hash_v2 != compiled_class_hash {
+            Err((self.class_hash(), compiled_class_hash, compiled_class_hash_v2))
+        } else {
+            Ok(())
+        }
     }
 
     // Returns whether the declare transaction is for bootstrapping.
