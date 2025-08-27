@@ -16,5 +16,8 @@ apollo_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
+async-trait.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tracing.workspace = true
 validator.workspace = true

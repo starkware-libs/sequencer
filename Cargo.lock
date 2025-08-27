@@ -1056,7 +1056,10 @@ dependencies = [
  "apollo_config_manager_types",
  "apollo_infra",
  "apollo_metrics",
+ "async-trait",
  "serde",
+ "serde_json",
+ "tracing",
  "validator",
 ]
 
