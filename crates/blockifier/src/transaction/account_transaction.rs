@@ -3,7 +3,8 @@ use std::sync::Arc;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
-use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
@@ -535,6 +536,26 @@ impl AccountTransaction {
         }))
     }
 
+    fn check_compile_class_hash_v2_declaration(&self) -> TransactionExecutionResult<()> {
+        if let Transaction::Declare(declare_tx) = &self.tx {
+            let compiled_class = &declare_tx.class_info.contract_class;
+            // TODO(Meshi): Get from state once declare bug in tests is solved.
+            let compiled_class_hash_v2 = match &compiled_class {
+                ContractClass::V0(_) => return Ok(()),
+                ContractClass::V1((casm, _)) => casm.hash(&HashVersion::V2),
+            };
+            let compiled_class_hash = declare_tx.compiled_class_hash();
+            if compiled_class_hash_v2 != compiled_class_hash {
+                return Err(TransactionExecutionError::DeclareTransactionCasmHashMissMatch {
+                    class_hash: declare_tx.class_hash(),
+                    compiled_class_hash,
+                    compiled_class_hash_v2,
+                });
+            }
+        }
+        Ok(())
+    }
+
     fn run_non_revertible<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
@@ -561,6 +582,11 @@ impl AccountTransaction {
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
+            if tx_context.block_context.versioned_constants.block_casm_hash_v1_declares
+                && self.tx.version() >= TransactionVersion::THREE
+            {
+                self.check_compile_class_hash_v2_declaration()?;
+            }
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
