@@ -234,11 +234,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             panic!("Topic '{topic}' has already been registered.");
         }
 
+        // this line might be problematic in high throughput cases since this forces parsing to be
+        // done in sequence
         let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
             |(x, broadcasted_message_metadata)| (T::try_from(x), broadcasted_message_metadata);
         let broadcasted_messages_receiver =
             broadcasted_messages_receiver.map(broadcasted_messages_fn);
 
+        // this line might be problematic in high throughput cases since this forces parsing to be
+        // done in sequence
         let messages_to_broadcast_fn: fn(T) -> Ready<Result<Bytes, SendError>> =
             |x| ready(Ok(Bytes::from(x)));
         let messages_to_broadcast_sender =
