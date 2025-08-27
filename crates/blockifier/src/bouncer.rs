@@ -331,9 +331,11 @@ impl CasmHashMigrationData {
         }
 
         executed_class_hashes.iter().try_fold(Self::empty(), |mut migration_data, &class_hash| {
-            if let Some((class_hash, casm_hash_v2_to_v1)) =
-                should_migrate(state_reader, class_hash)?
-            {
+            if let Some((class_hash, casm_hash_v2_to_v1)) = should_migrate(
+                state_reader,
+                class_hash,
+                state_reader.get_compiled_class(class_hash)?,
+            )? {
                 // Add class hash mapping to the migration data.
                 migration_data.class_hashes_to_migrate.insert(class_hash, casm_hash_v2_to_v1);
 
