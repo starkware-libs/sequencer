@@ -5,12 +5,14 @@ use libp2p::gossipsub::TopicHash;
 
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
+    pub num_dropped_broadcast_messages: MetricCounter,
     pub num_received_broadcast_messages: MetricCounter,
 }
 
 impl BroadcastNetworkMetrics {
     pub fn register(&self) {
         self.num_sent_broadcast_messages.register();
+        self.num_dropped_broadcast_messages.register();
         self.num_received_broadcast_messages.register();
     }
 }

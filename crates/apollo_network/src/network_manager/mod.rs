@@ -633,7 +633,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         });
 
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
-        let _ = self.swarm.broadcast_message(message, topic_hash);
+        let result = self.swarm.broadcast_message(message, topic_hash.clone());
+        if result.is_err() {
+            self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
+                broadcast_metrics.num_dropped_broadcast_messages.increment(1)
+            });
+        }
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
