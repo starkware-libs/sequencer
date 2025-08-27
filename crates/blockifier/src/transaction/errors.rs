@@ -1,7 +1,13 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
 use starknet_api::block::GasPrice;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{AllResourceBounds, Fee, Resource};
 use starknet_api::transaction::TransactionVersion;
@@ -80,6 +86,15 @@ pub enum TransactionExecutionError {
     ContractConstructorExecutionFailed(#[from] ConstructorEntryPointExecutionError),
     #[error("Class with hash {:#064x} is already declared.", **class_hash)]
     DeclareTransactionError { class_hash: ClassHash },
+    #[error(
+        "Mismatch compiled class hash for class with hash {:#064x}. Actual: {:#064x}, Expected: {:#064x}",
+        class_hash.0, compiled_class_hash.0, compiled_class_hash_v2.0
+    )]
+    DeclareTransactionCasmHashMissMatch {
+        class_hash: ClassHash,
+        compiled_class_hash: CompiledClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ExecutionError {
         error: Box<EntryPointExecutionError>,
