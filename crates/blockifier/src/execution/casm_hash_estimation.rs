@@ -46,11 +46,15 @@ impl EstimatedExecutionResources {
         }
     }
 
-    pub fn resources(&self) -> &ExecutionResources {
+    pub fn resources_ref(&self) -> &ExecutionResources {
         match self {
             EstimatedExecutionResources::V1Hash { resources } => resources,
             EstimatedExecutionResources::V2Hash { resources, .. } => resources,
         }
+    }
+
+    pub fn resources(&self) -> ExecutionResources {
+        self.resources_ref().clone()
     }
 
     /// Returns the Blake opcode count.
