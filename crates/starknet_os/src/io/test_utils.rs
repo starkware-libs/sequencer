@@ -1,8 +1,18 @@
+use ark_bls12_381::Fr;
 use blockifier::state::cached_state::StateMaps;
+use num_bigint::BigUint;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
+use crate::hints::hint_implementation::kzg::utils::{
+    horner_eval,
+    polynomial_coefficients_to_kzg_commitment,
+    BLS_PRIME,
+    FIELD_ELEMENTS_PER_BLOB,
+};
+use crate::io::os_output::OsKzgCommitmentInfo;
 use crate::io::os_output_types::{
     FullCompiledClassHashUpdate,
     FullContractChanges,
@@ -140,5 +150,44 @@ impl FullOsStateDiff {
 impl PartialOsStateDiff {
     pub fn as_state_maps(&self) -> StateMaps {
         to_state_maps(&self.contracts, &self.classes)
+    }
+}
+
+/// Computes the KZG commitment for the given DA segment and verifies it matches the provided
+/// commitment info.
+pub fn validate_kzg_segment(da_segment: &[Felt], os_commitment_info: &OsKzgCommitmentInfo) {
+    assert_eq!(os_commitment_info.n_blobs, da_segment.len().div_ceil(FIELD_ELEMENTS_PER_BLOB));
+
+    let expected_z = Poseidon::hash(
+        &Poseidon::hash_array(da_segment),
+        &Poseidon::hash_array(
+            &os_commitment_info
+                .commitments
+                .iter()
+                .flat_map(|(low, high)| vec![*low, *high])
+                .collect::<Vec<Felt>>(),
+        ),
+    );
+    assert_eq!(expected_z, os_commitment_info.z);
+
+    let felt_2_to_the_128 = Felt::TWO.pow(128u16);
+
+    for ((chunk, commitment), (eval_low, eval_high)) in da_segment
+        .chunks(FIELD_ELEMENTS_PER_BLOB)
+        .zip(&os_commitment_info.commitments)
+        .zip(&os_commitment_info.evals)
+    {
+        let computed_commitment = polynomial_coefficients_to_kzg_commitment(
+            chunk.iter().map(|felt| Fr::from(felt.to_biguint())).collect(),
+        )
+        .unwrap();
+        assert_eq!((computed_commitment.0, computed_commitment.1), *commitment);
+
+        let computed_eval = Felt::from(horner_eval(
+            &chunk.iter().map(|felt| felt.to_biguint()).collect::<Vec<BigUint>>(),
+            &expected_z.to_biguint(),
+            &BLS_PRIME,
+        ));
+        assert_eq!(computed_eval, eval_low + felt_2_to_the_128 * eval_high);
     }
 }
