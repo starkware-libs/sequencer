@@ -9,6 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
     bit_reversal,
+    deserialize_blob,
     polynomial_coefficients_to_blob,
     serialize_blob,
     split_commitment,
@@ -54,6 +55,12 @@ fn generate(generator: &BigUint) -> Vec<BigUint> {
     bit_reversal(&mut array).unwrap();
 
     array
+}
+
+#[test]
+fn test_blob_bytes_serde() {
+    let serded_blob = deserialize_blob(&serialize_blob(&BLOB_REGRESSION_INPUT).unwrap()).unwrap();
+    assert_eq!(*BLOB_REGRESSION_INPUT, serded_blob);
 }
 
 /// All the expected values are checked using the contract logic given in the Starknet core

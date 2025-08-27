@@ -36,6 +36,8 @@ pub enum FftError {
     InvalidBinaryToUsize(ParseIntError),
     #[error("Blob size must be {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     InvalidBlobSize(usize),
+    #[error("Raw blob size (in bytes) must be divisible by {BYTES_PER_FIELD_ELEMENT}, got {0}.")]
+    InvalidRawBlobSize(usize),
     #[error(transparent)]
     ParseBigUint(#[from] ParseBigIntError),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
@@ -69,6 +71,17 @@ pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
     Ok(blob
         .iter()
         .flat_map(|x| pad_bytes(x.into_bigint().to_bytes_be(), BYTES_PER_FIELD_ELEMENT))
+        .collect())
+}
+
+pub fn deserialize_blob(blob_bytes: &[u8]) -> Result<Vec<Fr>, FftError> {
+    if blob_bytes.len() % BYTES_PER_FIELD_ELEMENT != 0 {
+        return Err(FftError::InvalidRawBlobSize(blob_bytes.len()));
+    }
+
+    Ok(blob_bytes
+        .chunks_exact(BYTES_PER_FIELD_ELEMENT)
+        .map(|slice| Fr::from(BigUint::from_bytes_be(slice)))
         .collect())
 }
 
