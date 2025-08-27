@@ -36,8 +36,10 @@ use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
@@ -79,6 +81,7 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+                num_dropped_broadcast_messages: CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
             },
         );
         broadcast_metrics_by_topic.insert(
@@ -86,6 +89,7 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+                num_dropped_broadcast_messages: CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {

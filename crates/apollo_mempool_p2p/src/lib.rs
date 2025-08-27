@@ -19,6 +19,7 @@ use tracing::{info_span, Instrument};
 use crate::config::MempoolP2pConfig;
 use crate::metrics::{
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
@@ -43,6 +44,7 @@ pub fn create_p2p_propagator_and_runner(
         BroadcastNetworkMetrics {
             num_sent_broadcast_messages: MEMPOOL_P2P_NUM_SENT_MESSAGES,
             num_received_broadcast_messages: MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
+            num_dropped_broadcast_messages: MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
         },
     );
     let network_manager_metrics = Some(NetworkMetrics {
