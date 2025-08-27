@@ -92,9 +92,9 @@ Always _consider_ using `checked_add` or `saturating_add` (depending on usage) i
 
 ### Assertions
 
-Use `unwrap` either in tests, or in absolutely trivial, bulletproof scenarios.
+Prefer `expect` with useful information rather than unwrap, and use `unwrap` either in tests, or in absolutely trivial, bulletproof scenarios.
 
-Use `expect` only if you have additional information that explain why the value is assumed to exist. [Do not use `expect` as a boilerplate replacement for `unwrap`](https://doc.rust-lang.org/std/error/index.html#common-message-styles), this ends up just repeating information already encoded in rust's panic message:
+In more detail: use `expect` only if you have additional information that explain why the value is assumed to exist. [Do not use `expect` as a boilerplate replacement for `unwrap`](https://doc.rust-lang.org/std/error/index.html#common-message-styles), this ends up just repeating information already encoded in rust's panic message:
 
 ```rust
 // BAD
@@ -129,11 +129,46 @@ Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Eith
 
 ## APIs
 
-Try to keep the API free from external types (types not defined inside the crate) as much as possible. Having external types _in the API_ forces users to use the _exact_ version of the dependency, it won't do Cargo's regular trick of fetching multiple versions of the same dependency, because a single type is passed from one crate to another.
+Types appearing _in the API_ should strongly prefer `std` types, primitives, or types exposed by the crate for external use.
 
-**re-exports for internal items**: avoid; two ways to use a name create needless choice.
+Rationale: Using 3rd-party-types (types not defined inside the crate, `std` or rust builtints) _in the API_ forces users to use the _exact_ version of the dependency, it won't do Cargo's regular trick of fetching multiple versions of the same dependency, because a single type is passed from one crate to another.
 
-**re-exports for external items** (`pub use some_dependency::Foo`): this is usually done to avoid exposing inner types, but it also pulls in trait-impls of the type and adds them to the crate's namespace, polluting the namespace.
+### Re-exports - For Internal Items.
+
+Avoid re-exporting internal items of the crate.
+
+Rationale: two import paths for a single item create needless choice.
+
+Example: an internal re-export is typically made in `lib.rs`:
+
+```rust
+// BAD
+// Filename: lib.rs
+pub use crate::some::type::Foo;
+```
+
+This re-export makes both of these import paths work and point to the same Foo:
+
+```rust
+use crate::Foo;
+use crate::some::type::Foo;
+```
+
+Alternative: none, avoid internal re-exports completely.
+
+### Re-exports - For External Items
+
+Avoid re-exporting external items in most cases.
+
+Rationale: this is usually done to avoid exposing inner types (see [APIs](#APIs)), but it also pulls in trait-impls of the type and adds them to the crate's namespace, polluting the namespace.
+
+Example: a re-export for an external type is:
+
+```rust
+pub use <some_3rd_party_crate>::some::type::Bar;
+```
+
+The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
 
 ### Boolean Function Parameters
 
@@ -162,7 +197,20 @@ TransactionBuilder::new().with_dry_run(true).with_execution_status(ExecutionStat
 
 ### Option Parameters
 
-Prefer enum/zero-sized-type, unless passing `None` as an argument is clear without having to refer to the signature.
+Prefer enums or [zero-sized-type](https://doc.rust-lang.org/book/ch05-01-defining-structs.html#unit-like-structs-without-any-fields), unless passing `None` as an argument is clear without having to refer to the signature.
+
+```rust
+// BAD
+connect("server", None)  // What does None mean here?
+
+// GOOD — Alternative with enums
+connect("server", Logging::Disabled)
+
+// GOOD — Alternative with zero-sized-types.
+struct NoLogging;
+impl Logger for NoLogging {/* no-op implementation */}
+connect("server", NoLogging)
+```
 
 ### Getter Names
 
@@ -198,7 +246,7 @@ Use `submodule_name.rs`, as `mod.rs` [is considered legacy](https://doc.rust-lan
 
 If newtyping as a "pass-through" wrapper (`Foo(pub Bar)`), add `Deref` and `DerefMut`.
 
-Avoid "ip addresses" (`let bar = foo.0.0.0.0.1`): prefer getters if the wrapper is nontrivial, or `Deref` if it is.
+Avoid "ip addresses" (`let bar = foo.0.0.0.0.1`): prefer `Deref` when the derivation is trivial, or switch to a struct wrapper instead of a tuple otherwise.
 
 ### Type Safety
 
@@ -219,10 +267,25 @@ Prefer returning lazy types from inner functions and delay the actual evaluation
 
 **Motivation**: helps the compiler optimize better, usually means less allocations, and in some cases avoid allocation entirely if somewhere up the stack it short-circuits.
 
+**Exception**: Early evaluation is still OK if the allocation is small and/or performed in a non-critical location, but only if it makes the code clearer.
+
 ### Lazy Gotchas - `foo_or` vs `foo_or_else`
 
 Methods that end with `_or`, like `unwrap_or`, are typically eagerly evaluated, meaning `foo.unwrap_or(expensive_calculation_of_foo())` will always be evaluated, even if the original value is unwrapped --- use `_or_else` methods for lazy evaluations, which is typically what you want.
 The same also holds for `expect`, and in general for all methods that take a non-closure parameter.
+
+```rust
+// BAD
+// always panics!
+map.get(key).expect(panic!("{key} should exist because of <reason>"));
+
+// BAD
+// Inefficient: this always allocates a String on the heap.
+map.get(key).expect(format!("{key} should exist because of <reason>"));
+
+// GOOD
+map.get(key).unwrap_or_else(|| panic!("{key} should exist because of <reason>"))
+```
 
 ## Testing
 
@@ -234,7 +297,7 @@ A failure in a unit test should immediately point to the source of the issue, an
 -   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` --- the former will display the error, and the latter will simply say `expected True, got False`.
 -   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
-Put integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in `apollo_integration_tests/tests`. Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
+Put integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in a dedicated integration-test crate for the whole package (mostly relevant for multi-crate packages). Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
 
 To test binary crates, either add a `lib.rs` and call its main from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
 
@@ -273,7 +336,11 @@ All associated functions should depend on `Self`. Associated functions that don'
 If you have to cast a value due to an implementation detail, like a pass-through newtype, prefer `into` over `ImplementationDetail::from`.
 
 Avoid using `as` casts unless there is no other choice --- they are banned by the linter in our repo.
-**Rationale**: they fail silently by saturating results.
+**Rationale**: if `as` casts overflow or underflow, they saturate, and do so without printing or panicking --- most of the time this isn't the desired result, and can introduce silent bugs.
+```rust
+// BAD
+let x = u128::MAX as u64; // This doesn't panic, it saturates and simply sets `x` as u64::MAX.
+```
 
 ### Match Ergonomics
 
