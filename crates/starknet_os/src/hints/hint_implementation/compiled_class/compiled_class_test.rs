@@ -182,7 +182,6 @@ impl HashVersionTestSpec for HashVersion {
             HashVersion::V2 => {
                 estimate_casm_blake_hash_computation_resources(bytecode_segment_felt_sizes)
                     .resources()
-                    .clone()
             }
         }
     }
