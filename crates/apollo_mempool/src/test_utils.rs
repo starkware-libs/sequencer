@@ -290,6 +290,7 @@ pub struct MempoolMetrics {
     pub txs_dropped_expired: u64,
     pub txs_dropped_failed_add_tx_checks: u64,
     pub txs_dropped_rejected: u64,
+    pub txs_dropped_evicted: u64,
     pub pool_size: u64,
     pub priority_queue_size: u64,
     pub pending_queue_size: u64,
@@ -335,6 +336,11 @@ impl MempoolMetrics {
             metrics,
             self.txs_dropped_rejected,
             &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())],
+        );
+        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
+            metrics,
+            self.txs_dropped_evicted,
+            &[(LABEL_NAME_DROP_REASON, DropReason::Evicted.into())],
         );
         MEMPOOL_POOL_SIZE.assert_eq(metrics, self.pool_size);
         MEMPOOL_PRIORITY_QUEUE_SIZE.assert_eq(metrics, self.priority_queue_size);
