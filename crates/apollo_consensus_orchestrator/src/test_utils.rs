@@ -47,7 +47,7 @@ use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;
-use crate::config::ContextConfig;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,

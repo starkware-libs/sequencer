@@ -11,6 +11,7 @@ apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
 apollo_consensus.workspace = true
+apollo_consensus_orchestrator_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_metrics.workspace = true

@@ -1117,6 +1117,7 @@ dependencies = [
  "apollo_config",
  "apollo_consensus",
  "apollo_consensus_orchestrator",
+ "apollo_consensus_orchestrator_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
@@ -1146,6 +1147,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus",
+ "apollo_consensus_orchestrator_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
@@ -1190,6 +1192,16 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_consensus_orchestrator_config"
+version = "0.15.0-rc.3"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
  "validator",
 ]
 
@@ -1420,6 +1432,7 @@ dependencies = [
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
+ "apollo_consensus_orchestrator_config",
  "apollo_deployments",
  "apollo_gateway",
  "apollo_http_server",
@@ -9368,6 +9381,7 @@ dependencies = [
  "apollo_config",
  "apollo_consensus",
  "apollo_consensus_orchestrator",
+ "apollo_consensus_orchestrator_config",
  "apollo_infra_utils",
  "apollo_network",
  "apollo_p2p_sync",

@@ -32,7 +32,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 
 use crate::cende::MockCendeContext;
-use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::test_utils::{
@@ -44,6 +43,7 @@ use crate::test_utils::{
     TIMEOUT,
     TX_BATCH,
 };
+use apollo_consensus_orchestrator_config::ContextConfig;
 
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
