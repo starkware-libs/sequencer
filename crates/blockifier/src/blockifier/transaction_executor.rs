@@ -7,6 +7,7 @@ use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::core::CompiledClassHash;
+use starknet_api::state::CommitmentStateDiff;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -15,7 +16,7 @@ use crate::bouncer::{Bouncer, BouncerWeights, CasmHashComputationData};
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
-use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
+use crate::state::cached_state::{CachedState, StateMaps, TransactionalState};
 use crate::state::compiled_class_hash_migration::CompiledClassHashMigrationUpdater;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};

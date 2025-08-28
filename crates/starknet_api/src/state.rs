@@ -47,6 +47,18 @@ pub struct StateUpdate {
     pub state_diff: StateDiff,
 }
 
+/// Holds uncommitted changes induced on Starknet contracts.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct CommitmentStateDiff {
+    // Contract instance attributes (per address).
+    pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
+    pub address_to_nonce: IndexMap<ContractAddress, Nonce>,
+    pub storage_updates: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
+
+    // Global attributes.
+    pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
+}
+
 /// The differences between two states.
 // Invariant: Addresses are strictly increasing.
 // Invariant: Class hashes of declared_classes and deprecated_declared_classes are exclusive.

@@ -29,7 +29,7 @@ use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedCo
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
+use blockifier::state::cached_state::CachedState;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -44,7 +44,7 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::state::ThinStateDiff;
+use starknet_api::state::{CommitmentStateDiff, ThinStateDiff};
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;

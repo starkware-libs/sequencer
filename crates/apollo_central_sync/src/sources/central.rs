@@ -265,6 +265,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                             self.apollo_starknet_client.block(bn),
                             self.apollo_starknet_client.block_signature(bn)
                         );
+
                         (bn, block_and_signature)
                     })
                     .buffered(self.concurrent_requests);
