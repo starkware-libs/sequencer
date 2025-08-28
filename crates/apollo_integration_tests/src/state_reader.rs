@@ -32,6 +32,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -240,13 +241,14 @@ fn initialize_class_manager_test_state(
         class_manager_storage.set_deprecated_class(class_hash, casm).unwrap();
     }
     for (class_hash, (sierra, casm)) in cairo1_contract_classes {
+        let executable_class_hash = casm.hash(&HashVersion::V1);
         let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
         let class = ContractClass::V1((casm, sierra_version));
         class_manager_storage
             .set_class(
                 class_hash,
                 sierra.try_into().unwrap(),
-                class.compiled_class_hash(),
+                executable_class_hash,
                 class.try_into().unwrap(),
             )
             .unwrap();
@@ -433,7 +435,10 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 // todo(rdr): including both Cairo1 and Native versions for now. Temporal solution
                 // to avoid compilation errors when using the "cairo_native" feature
                 _ => {
-                    self.declared_classes.insert(contract.class_hash(), Default::default());
+                    self.declared_classes.insert(
+                        contract.class_hash(),
+                        contract.contract.get_compiled_class_hash(&HashVersion::V1),
+                    );
                 }
             }
         }
