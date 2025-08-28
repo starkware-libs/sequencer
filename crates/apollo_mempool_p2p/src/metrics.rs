@@ -26,7 +26,26 @@ define_metrics!(
         MetricCounter { MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, "apollo_mempool_p2p_num_received_messages", "The number of messages received by the mempool p2p component", init = 0 },
         MetricCounter { MEMPOOL_P2P_NUM_DROPPED_MESSAGES, "apollo_mempool_p2p_num_dropped_messages", "The number of messages dropped by the mempool p2p component", init = 0 },
         // Histogram
-        MetricHistogram { MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, "apollo_mempool_p2p_broadcasted_transaction_batch_size", "The number of transactions in batches broadcast by the mempool p2p component" }
+        MetricHistogram { MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, "apollo_mempool_p2p_broadcasted_transaction_batch_size", "The number of transactions in batches broadcast by the mempool p2p component" },
+
+        // Event metrics
+        MetricCounter { MEMPOOL_P2P_CONNECTIONS_ESTABLISHED, "apollo_mempool_p2p_connections_established", "The number of connections established by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_CONNECTIONS_CLOSED, "apollo_mempool_p2p_connections_closed", "The number of connections closed by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_DIAL_FAILURE, "apollo_mempool_p2p_dial_failure", "The number of dial failures by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_LISTEN_FAILURE, "apollo_mempool_p2p_listen_failure", "The number of listen failures by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_LISTEN_ERROR, "apollo_mempool_p2p_listen_error", "The number of listen errors by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_ADDRESS_CHANGE, "apollo_mempool_p2p_address_change", "The number of address changes by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_NEW_LISTENERS, "apollo_mempool_p2p_new_listeners", "The number of new listeners by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_NEW_LISTEN_ADDRS, "apollo_mempool_p2p_new_listen_addrs", "The number of new listen addresses by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_EXPIRED_LISTEN_ADDRS, "apollo_mempool_p2p_expired_listen_addrs", "The number of expired listen addresses by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_LISTENER_CLOSED, "apollo_mempool_p2p_listener_closed", "The number of listeners closed by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_NEW_EXTERNAL_ADDR_CANDIDATE, "apollo_mempool_p2p_new_external_addr_candidate", "The number of new external address candidates by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_EXTERNAL_ADDR_CONFIRMED, "apollo_mempool_p2p_external_addr_confirmed", "The number of external addresses confirmed by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_EXTERNAL_ADDR_EXPIRED, "apollo_mempool_p2p_external_addr_expired", "The number of external addresses expired by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_NEW_EXTERNAL_ADDR_OF_PEER, "apollo_mempool_p2p_new_external_addr_of_peer", "The number of new external addresses of peers by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_INBOUND_CONNECTIONS_HANDLED, "apollo_mempool_p2p_inbound_connections_handled", "The number of inbound connections handled by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_OUTBOUND_CONNECTIONS_HANDLED, "apollo_mempool_p2p_outbound_connections_handled", "The number of outbound connections handled by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_CONNECTION_HANDLER_EVENTS, "apollo_mempool_p2p_connection_handler_events", "The number of connection handler events by the mempool p2p component", init = 0 }
     },
     Infra => {
         // MempoolP2p request labels
