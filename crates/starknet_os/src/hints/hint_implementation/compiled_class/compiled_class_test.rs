@@ -11,6 +11,7 @@ use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -328,11 +329,16 @@ fn test_compiled_class_hash(
     assert_eq!(hash_computed_by_cairo, hash_computed_by_starknet_api.0);
 }
 
-/// Test that execution resources estimation for the compiled class hash
-/// matches the actual execution resources when running the entry point.
+/// Test that the estimated execution resources for the compiled class hash
+/// match the actual execution resources when running the entry point.
+///
+/// - `hash_version`: which hash version to test (`V1` (Poseidon) or `V2` (Blake)).
+/// - `single_leaf_segment`: whether to test the entire contract as a single segment (old Sierra
+///   contracts) or to test the contract as is- segmented by functions.
 #[rstest]
 fn test_compiled_class_hash_resources_estimation(
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+    #[values(true, false)] single_leaf_segment: bool,
 ) {
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -343,6 +349,15 @@ fn test_compiled_class_hash_resources_estimation(
 
     // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
     contract_class.entry_points_by_type = Default::default();
+    if single_leaf_segment {
+        contract_class.bytecode_segment_lengths =
+            Some(NestedIntList::Leaf(contract_class.bytecode.len()));
+    } else {
+        assert!(
+            matches!(contract_class.bytecode_segment_lengths, Some(NestedIntList::Node(_))),
+            "Expected bytecode segment lengths to be a node-segmented by its functions"
+        );
+    }
 
     // Run the compiled class hash entry point with full contract loading.
     let (mut actual_execution_resources, _hash_computed_by_cairo) =
