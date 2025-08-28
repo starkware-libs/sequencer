@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::context::BlockContext;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -93,10 +95,7 @@ pub(crate) struct ExecutedContracts {
 
 impl ExecutedContracts {
     pub(crate) fn add_cairo1_contract(&mut self, casm_contract_class: CasmContractClass) {
-        self.contracts.insert(
-            CompiledClassHash(casm_contract_class.compiled_class_hash()),
-            casm_contract_class,
-        );
+        self.contracts.insert(casm_contract_class.hash(&HashVersion::V2), casm_contract_class);
     }
 
     pub(crate) fn add_deprecated_contract(
@@ -128,12 +127,12 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
     } = create_default_initial_state_txs_and_contracts();
     // Execute these 4 txs.
     let initial_state_reader = S::create_empty_state();
+    let mut block_context = BlockContext::create_for_testing();
+    let mut vc = VersionedConstants::create_for_testing();
+    vc.enable_casm_hash_migration = false;
+    block_context.versioned_constants = vc;
     let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
-        execute_transactions(
-            initial_state_reader,
-            &default_initial_state_txs,
-            BlockContext::create_for_testing(),
-        );
+        execute_transactions(initial_state_reader, &default_initial_state_txs, block_context);
     assert_eq!(
         execution_outputs.len(),
         default_initial_state_txs.len(),
