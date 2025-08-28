@@ -22,6 +22,10 @@ pub struct EventMetricsTracker {
 }
 
 impl EventMetricsTracker {
+    pub fn new(metrics: EventMetrics) -> Self {
+        Self { metrics }
+    }
+
     fn track_swarm_event(&mut self, event: &FromSwarm<'_>) {
         match event {
             FromSwarm::ConnectionEstablished(_) => {

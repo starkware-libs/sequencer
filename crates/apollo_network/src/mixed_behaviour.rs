@@ -14,6 +14,8 @@ use starknet_api::core::ChainId;
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
+use crate::event_tracker::EventMetricsTracker;
+use crate::network_manager::metrics::EventMetrics;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -29,6 +31,7 @@ pub struct MixedBehaviour {
     pub kademlia: kad::Behaviour<MemoryStore>,
     pub sqmr: sqmr::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
+    pub event_tracker: Toggle<EventMetricsTracker>,
 }
 
 #[derive(Debug)]
@@ -60,6 +63,7 @@ pub trait BridgedBehaviour {
 impl MixedBehaviour {
     // TODO(Shahak): get config details from network manager config
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         keypair: Keypair,
         // TODO(AndrewL): consider making this non optional
@@ -69,6 +73,7 @@ impl MixedBehaviour {
         node_version: Option<String>,
         discovery_config: DiscoveryConfig,
         peer_manager_config: PeerManagerConfig,
+        event_tracker: Option<EventMetrics>,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -130,6 +135,7 @@ impl MixedBehaviour {
                     "Failed creating gossipsub behaviour due to the following error: {err_string}"
                 )
             }),
+            event_tracker: event_tracker.map(EventMetricsTracker::new).into(),
         }
     }
 }
