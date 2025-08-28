@@ -102,15 +102,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Rust cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        continue-on-error: true
+        with:
+          cache: rust
+
       # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Rust cache
-        uses: namespacelabs/nscloud-cache-action@v1
-        with:
-          cache: rust
 
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
