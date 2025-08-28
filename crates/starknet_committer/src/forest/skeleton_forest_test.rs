@@ -31,6 +31,7 @@ use crate::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
+    StateDiffExt,
 };
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
