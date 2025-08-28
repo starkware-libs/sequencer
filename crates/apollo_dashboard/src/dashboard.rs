@@ -308,16 +308,15 @@ pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetri
 }
 
 pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
-    Row::new(
-        row_name,
-        vec![
-            get_local_client_panels(metrics.get_local_client_metrics()),
-            get_remote_client_panels(metrics.get_remote_client_metrics()),
-            get_local_server_panels(metrics.get_local_server_metrics()),
-            get_remote_server_panels(metrics.get_remote_server_metrics()),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
+    let mut panels: Vec<Panel> = Vec::new();
+    panels.extend(get_local_client_panels(metrics.get_local_client_metrics()));
+    panels.extend(get_remote_client_panels(metrics.get_remote_client_metrics()));
+    panels.extend(get_local_server_panels(metrics.get_local_server_metrics()));
+    panels.extend(get_remote_server_panels(metrics.get_remote_server_metrics()));
+
+    // unstable sort is ok here because there are no duplicate panel names (unstable sort means
+    // that the order of equal elements is not guaranteed)
+    panels.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+
+    Row::new(row_name, panels)
 }
