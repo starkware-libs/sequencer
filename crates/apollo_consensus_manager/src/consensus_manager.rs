@@ -21,7 +21,11 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -34,8 +38,25 @@ use tracing::{info, info_span, Instrument};
 
 use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
+    CONSENSUS_ADDRESS_CHANGE,
+    CONSENSUS_CONNECTIONS_CLOSED,
+    CONSENSUS_CONNECTIONS_ESTABLISHED,
+    CONSENSUS_CONNECTION_HANDLER_EVENTS,
+    CONSENSUS_DIAL_FAILURE,
+    CONSENSUS_EXPIRED_LISTEN_ADDRS,
+    CONSENSUS_EXTERNAL_ADDR_CONFIRMED,
+    CONSENSUS_EXTERNAL_ADDR_EXPIRED,
+    CONSENSUS_INBOUND_CONNECTIONS_HANDLED,
+    CONSENSUS_LISTENER_CLOSED,
+    CONSENSUS_LISTEN_ERROR,
+    CONSENSUS_LISTEN_FAILURE,
+    CONSENSUS_NEW_EXTERNAL_ADDR_CANDIDATE,
+    CONSENSUS_NEW_EXTERNAL_ADDR_OF_PEER,
+    CONSENSUS_NEW_LISTENERS,
+    CONSENSUS_NEW_LISTEN_ADDRS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_OUTBOUND_CONNECTIONS_HANDLED,
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
@@ -97,7 +118,25 @@ impl ConsensusManager {
             num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
-            event_metrics: None,
+            event_metrics: Some(EventMetrics {
+                connections_established: CONSENSUS_CONNECTIONS_ESTABLISHED,
+                connections_closed: CONSENSUS_CONNECTIONS_CLOSED,
+                dial_failure: CONSENSUS_DIAL_FAILURE,
+                listen_failure: CONSENSUS_LISTEN_FAILURE,
+                listen_error: CONSENSUS_LISTEN_ERROR,
+                address_change: CONSENSUS_ADDRESS_CHANGE,
+                new_listeners: CONSENSUS_NEW_LISTENERS,
+                new_listen_addrs: CONSENSUS_NEW_LISTEN_ADDRS,
+                expired_listen_addrs: CONSENSUS_EXPIRED_LISTEN_ADDRS,
+                listener_closed: CONSENSUS_LISTENER_CLOSED,
+                new_external_addr_candidate: CONSENSUS_NEW_EXTERNAL_ADDR_CANDIDATE,
+                external_addr_confirmed: CONSENSUS_EXTERNAL_ADDR_CONFIRMED,
+                external_addr_expired: CONSENSUS_EXTERNAL_ADDR_EXPIRED,
+                new_external_addr_of_peer: CONSENSUS_NEW_EXTERNAL_ADDR_OF_PEER,
+                inbound_connections_handled: CONSENSUS_INBOUND_CONNECTIONS_HANDLED,
+                outbound_connections_handled: CONSENSUS_OUTBOUND_CONNECTIONS_HANDLED,
+                connection_handler_events: CONSENSUS_CONNECTION_HANDLER_EVENTS,
+            }),
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
