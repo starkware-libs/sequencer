@@ -10,7 +10,11 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
@@ -18,10 +22,27 @@ use tracing::{info_span, Instrument};
 
 use crate::config::MempoolP2pConfig;
 use crate::metrics::{
+    MEMPOOL_P2P_ADDRESS_CHANGE,
+    MEMPOOL_P2P_CONNECTIONS_CLOSED,
+    MEMPOOL_P2P_CONNECTIONS_ESTABLISHED,
+    MEMPOOL_P2P_CONNECTION_HANDLER_EVENTS,
+    MEMPOOL_P2P_DIAL_FAILURE,
+    MEMPOOL_P2P_EXPIRED_LISTEN_ADDRS,
+    MEMPOOL_P2P_EXTERNAL_ADDR_CONFIRMED,
+    MEMPOOL_P2P_EXTERNAL_ADDR_EXPIRED,
+    MEMPOOL_P2P_INBOUND_CONNECTIONS_HANDLED,
+    MEMPOOL_P2P_LISTENER_CLOSED,
+    MEMPOOL_P2P_LISTEN_ERROR,
+    MEMPOOL_P2P_LISTEN_FAILURE,
+    MEMPOOL_P2P_NEW_EXTERNAL_ADDR_CANDIDATE,
+    MEMPOOL_P2P_NEW_EXTERNAL_ADDR_OF_PEER,
+    MEMPOOL_P2P_NEW_LISTENERS,
+    MEMPOOL_P2P_NEW_LISTEN_ADDRS,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
+    MEMPOOL_P2P_OUTBOUND_CONNECTIONS_HANDLED,
 };
 use crate::propagator::MempoolP2pPropagator;
 use crate::runner::MempoolP2pRunner;
@@ -52,7 +73,25 @@ pub fn create_p2p_propagator_and_runner(
         num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
-        event_metrics: None,
+        event_metrics: Some(EventMetrics {
+            connections_established: MEMPOOL_P2P_CONNECTIONS_ESTABLISHED,
+            connections_closed: MEMPOOL_P2P_CONNECTIONS_CLOSED,
+            dial_failure: MEMPOOL_P2P_DIAL_FAILURE,
+            listen_failure: MEMPOOL_P2P_LISTEN_FAILURE,
+            listen_error: MEMPOOL_P2P_LISTEN_ERROR,
+            address_change: MEMPOOL_P2P_ADDRESS_CHANGE,
+            new_listeners: MEMPOOL_P2P_NEW_LISTENERS,
+            new_listen_addrs: MEMPOOL_P2P_NEW_LISTEN_ADDRS,
+            expired_listen_addrs: MEMPOOL_P2P_EXPIRED_LISTEN_ADDRS,
+            listener_closed: MEMPOOL_P2P_LISTENER_CLOSED,
+            new_external_addr_candidate: MEMPOOL_P2P_NEW_EXTERNAL_ADDR_CANDIDATE,
+            external_addr_confirmed: MEMPOOL_P2P_EXTERNAL_ADDR_CONFIRMED,
+            external_addr_expired: MEMPOOL_P2P_EXTERNAL_ADDR_EXPIRED,
+            new_external_addr_of_peer: MEMPOOL_P2P_NEW_EXTERNAL_ADDR_OF_PEER,
+            inbound_connections_handled: MEMPOOL_P2P_INBOUND_CONNECTIONS_HANDLED,
+            outbound_connections_handled: MEMPOOL_P2P_OUTBOUND_CONNECTIONS_HANDLED,
+            connection_handler_events: MEMPOOL_P2P_CONNECTION_HANDLER_EVENTS,
+        }),
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,
