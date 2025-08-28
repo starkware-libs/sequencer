@@ -179,8 +179,8 @@ fn test_run_os_with_code_snippet() {
     ));
     assert!(error.to_string().contains(
         r#"
-    assert_nn_le(1, n);
-    ^****************^
+    assert_le(1, n);
+    ^*************^
 "#
     ));
 }
