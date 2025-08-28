@@ -7,9 +7,10 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError,
 };
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
+use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::maybe_dummy_block_hash_and_number;
 use blockifier::transaction::transaction_execution::Transaction;
+use starknet_api::state::CommitmentStateDiff;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     ConfigImpl,

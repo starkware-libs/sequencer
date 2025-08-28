@@ -1,7 +1,6 @@
 use apollo_class_manager_types::SharedClassManagerClient;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
-use blockifier::state::cached_state::CommitmentStateDiff;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
@@ -31,7 +30,7 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcInvokeTransaction,
 };
-use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
+use starknet_api::state::{CommitmentStateDiff, SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,

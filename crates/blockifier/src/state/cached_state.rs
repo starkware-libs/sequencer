@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{CommitmentStateDiff, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
@@ -598,17 +598,6 @@ impl<U: UpdatableState> TransactionalState<'_, U> {
 type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 
 /// Holds uncommitted changes induced on Starknet contracts.
-#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct CommitmentStateDiff {
-    // Contract instance attributes (per address).
-    pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
-    pub address_to_nonce: IndexMap<ContractAddress, Nonce>,
-    pub storage_updates: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
-
-    // Global attributes.
-    pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
-}
 
 impl From<StateMaps> for CommitmentStateDiff {
     fn from(diff: StateMaps) -> Self {

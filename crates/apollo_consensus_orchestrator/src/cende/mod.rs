@@ -13,7 +13,6 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
-use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
     process_transactions,
@@ -36,7 +35,7 @@ use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
-use starknet_api::state::ThinStateDiff;
+use starknet_api::state::{CommitmentStateDiff, ThinStateDiff};
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info, warn, Instrument};

@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
-use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use indexmap::IndexMap;
@@ -11,7 +10,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::state::ThinStateDiff;
+use starknet_api::state::{CommitmentStateDiff, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 
 use crate::errors::BatcherError;
