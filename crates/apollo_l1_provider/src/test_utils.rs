@@ -270,7 +270,7 @@ impl L1ProviderContentBuilder {
 struct TransactionManagerContent {
     pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
-    pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    pub committed: Option<Vec<TransactionPayload>>,
     pub consumed: Option<Vec<ConsumedTransaction>>,
     pub cancel_requested: Option<Vec<CancellationRequest>>,
     pub config: Option<TransactionManagerConfig>,
@@ -292,7 +292,10 @@ impl TransactionManagerContent {
         }
 
         if let Some(expected_committed) = &self.committed {
-            assert_eq!(expected_committed.keys().copied().collect_vec(), snapshot.committed);
+            assert_eq!(
+                expected_committed.iter().map(|tx| tx.tx_hash()).collect_vec(),
+                snapshot.committed
+            );
         }
 
         if let Some(rejected) = &self.rejected {
@@ -322,8 +325,7 @@ impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
-        // TODO(guyn): make this a vector too.
-        let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
+        let committed: Vec<_> = mem::take(&mut content.committed).unwrap_or_default();
         let consumed: Vec<_> = mem::take(&mut content.consumed).unwrap_or_default();
         let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
 
@@ -356,10 +358,10 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
-        for (tx_hash, committed_tx) in committed {
+        for committed_tx in committed {
             let mut record = TransactionRecord::from(committed_tx);
             record.mark_committed();
-            assert_eq!(records.insert(tx_hash, record), None);
+            assert_eq!(records.insert(record.tx.tx_hash(), record), None);
         }
 
         for cancel_requested_tx in cancel_requested {
@@ -404,7 +406,7 @@ impl From<TransactionManagerContent> for TransactionManager {
 struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
-    committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    committed: Option<Vec<TransactionPayload>>,
     consumed: Option<Vec<ConsumedTransaction>>,
     config: Option<TransactionManagerConfig>,
     cancel_requested: Option<Vec<CancellationRequest>>,
@@ -434,7 +436,7 @@ impl TransactionManagerContentBuilder {
             committed
                 .into_iter()
                 // created at block is irrelevant for committed txs.
-                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), scrape_timestamp: 0 })),
+                .map(|tx| TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), scrape_timestamp: 0 }),
         );
         self
     }
@@ -452,14 +454,11 @@ impl TransactionManagerContentBuilder {
         committed: impl IntoIterator<Item = TimedL1HandlerTransaction>,
     ) -> Self {
         self.committed.get_or_insert_default().extend(committed.into_iter().map(|timed_tx| {
-            (
-                timed_tx.tx.tx_hash,
-                TransactionPayload::Full {
-                    tx: timed_tx.tx,
-                    created_at_block_timestamp: timed_tx.timestamp,
-                    scrape_timestamp: timed_tx.timestamp.0,
-                },
-            )
+            TransactionPayload::Full {
+                tx: timed_tx.tx,
+                created_at_block_timestamp: timed_tx.timestamp,
+                scrape_timestamp: timed_tx.timestamp.0,
+            }
         }));
         self
     }
@@ -469,9 +468,7 @@ impl TransactionManagerContentBuilder {
         committed_hashes: impl IntoIterator<Item = TransactionHash>,
     ) -> Self {
         self.committed.get_or_insert_default().extend(
-            committed_hashes
-                .into_iter()
-                .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly(tx_hash))),
+            committed_hashes.into_iter().map(|tx_hash| TransactionPayload::HashOnly(tx_hash)),
         );
         self
     }
