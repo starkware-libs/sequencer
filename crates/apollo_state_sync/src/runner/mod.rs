@@ -13,7 +13,7 @@ use apollo_central_sync::{
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
-use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use apollo_network::network_manager::metrics::{EventMetrics, NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{
     P2pSyncClient,
@@ -33,10 +33,27 @@ use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
     register_metrics,
     update_marker_metrics,
+    P2P_SYNC_ADDRESS_CHANGE,
+    P2P_SYNC_CONNECTIONS_CLOSED,
+    P2P_SYNC_CONNECTIONS_ESTABLISHED,
+    P2P_SYNC_CONNECTION_HANDLER_EVENTS,
+    P2P_SYNC_DIAL_FAILURE,
+    P2P_SYNC_EXPIRED_LISTEN_ADDRS,
+    P2P_SYNC_EXTERNAL_ADDR_CONFIRMED,
+    P2P_SYNC_EXTERNAL_ADDR_EXPIRED,
+    P2P_SYNC_INBOUND_CONNECTIONS_HANDLED,
+    P2P_SYNC_LISTENER_CLOSED,
+    P2P_SYNC_LISTEN_ERROR,
+    P2P_SYNC_LISTEN_FAILURE,
+    P2P_SYNC_NEW_EXTERNAL_ADDR_CANDIDATE,
+    P2P_SYNC_NEW_EXTERNAL_ADDR_OF_PEER,
+    P2P_SYNC_NEW_LISTENERS,
+    P2P_SYNC_NEW_LISTEN_ADDRS,
     P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
     P2P_SYNC_NUM_BLACKLISTED_PEERS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
+    P2P_SYNC_OUTBOUND_CONNECTIONS_HANDLED,
     STATE_SYNC_REVERTED_TRANSACTIONS,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -216,7 +233,25 @@ impl StateSyncRunner {
                     num_active_inbound_sessions: P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
                     num_active_outbound_sessions: P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
                 }),
-                event_metrics: None,
+                event_metrics: Some(EventMetrics {
+                    connections_established: P2P_SYNC_CONNECTIONS_ESTABLISHED,
+                    connections_closed: P2P_SYNC_CONNECTIONS_CLOSED,
+                    dial_failure: P2P_SYNC_DIAL_FAILURE,
+                    listen_failure: P2P_SYNC_LISTEN_FAILURE,
+                    listen_error: P2P_SYNC_LISTEN_ERROR,
+                    address_change: P2P_SYNC_ADDRESS_CHANGE,
+                    new_listeners: P2P_SYNC_NEW_LISTENERS,
+                    new_listen_addrs: P2P_SYNC_NEW_LISTEN_ADDRS,
+                    expired_listen_addrs: P2P_SYNC_EXPIRED_LISTEN_ADDRS,
+                    listener_closed: P2P_SYNC_LISTENER_CLOSED,
+                    new_external_addr_candidate: P2P_SYNC_NEW_EXTERNAL_ADDR_CANDIDATE,
+                    external_addr_confirmed: P2P_SYNC_EXTERNAL_ADDR_CONFIRMED,
+                    external_addr_expired: P2P_SYNC_EXTERNAL_ADDR_EXPIRED,
+                    new_external_addr_of_peer: P2P_SYNC_NEW_EXTERNAL_ADDR_OF_PEER,
+                    inbound_connections_handled: P2P_SYNC_INBOUND_CONNECTIONS_HANDLED,
+                    outbound_connections_handled: P2P_SYNC_OUTBOUND_CONNECTIONS_HANDLED,
+                    connection_handler_events: P2P_SYNC_CONNECTION_HANDLER_EVENTS,
+                }),
             });
             NetworkManager::new(
                 network_config.clone(),
