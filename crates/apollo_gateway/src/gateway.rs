@@ -228,16 +228,11 @@ impl ProcessTxBlockingTask {
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
-        let nonce = stateful_transaction_validator
-            .extract_state_nonce_and_run_validations(
-                &executable_tx,
-                self.mempool_client,
-                self.runtime,
-            )
-            .map_err(|e| StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
-                message: e.to_string(),
-            })?;
+        let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
+            &executable_tx,
+            self.mempool_client,
+            self.runtime,
+        )?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs {
