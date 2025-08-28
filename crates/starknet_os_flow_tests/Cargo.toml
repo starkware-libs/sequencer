@@ -7,7 +7,7 @@ license.workspace = true
 license-file.workspace = true
 
 [dev-dependencies]
-blockifier.workspace = true
+blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true

@@ -4,11 +4,7 @@ use std::fmt::Debug;
 use ethnum::U256;
 use serde_json::json;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_committer::block_committer::input::{
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
+use starknet_api::state::CommitmentStateDiff as StateDiff;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -156,7 +152,10 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let storage = BorrowedMapStorage { storage: &mut storage };
-                let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
+                let output = single_tree_flow_test::<
+                    starknet_committer::block_committer::input::StarknetStorageValue,
+                    TreeHashFunctionImpl,
+                >(
                     leaf_modifications,
                     storage,
                     root_hash,
@@ -268,7 +267,7 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     };
 
     // Create a filled node (irrelevant leaf type) with binary data and zero hash.
-    let filled_node: FilledNode<StarknetStorageValue> =
+    let filled_node: FilledNode<starknet_committer::block_committer::input::StarknetStorageValue> =
         FilledNode { data: NodeData::Binary(binary_data), hash: HashOutput(Felt::ZERO) };
 
     // Serialize the binary node and insert it into the map under the key "value".
@@ -347,7 +346,10 @@ fn hash_state_diff(state_diff: &StateDiff) -> (Vec<u8>, Vec<u8>) {
 }
 
 fn hash_storage_updates(
-    storage_updates: &HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
+    storage_updates: &indexmap::IndexMap<
+        ContractAddress,
+        indexmap::IndexMap<starknet_api::state::StorageKey, starknet_types_core::felt::Felt>,
+    >,
 ) -> (Vec<u8>, Vec<u8>) {
     let mut keys_hash = vec![0; 32];
     let mut values_hash = vec![0; 32];
@@ -360,32 +362,56 @@ fn hash_storage_updates(
     (keys_hash, values_hash)
 }
 
-macro_rules! generate_storage_map_xor_hasher {
-    ($fn_name:ident, $key_type:ty, $val_type:ty) => {
-        fn $fn_name(inner_map: &HashMap<$key_type, $val_type>) -> (Vec<u8>, Vec<u8>) {
-            let mut keys_hash = vec![0; 32];
-            let mut values_hash = vec![0; 32];
-            for (key, value) in inner_map {
-                keys_hash = xor_hash(&keys_hash, &key.0.to_bytes_be());
-                values_hash = xor_hash(&values_hash, &value.0.to_bytes_be());
-            }
-            (keys_hash, values_hash)
-        }
-    };
+fn hash_address_to_class_hash(
+    inner_map: &indexmap::IndexMap<ContractAddress, ClassHash>,
+) -> (Vec<u8>, Vec<u8>) {
+    let mut keys_hash = vec![0; 32];
+    let mut values_hash = vec![0; 32];
+    for (key, value) in inner_map {
+        keys_hash = xor_hash(&keys_hash, &key.0.to_bytes_be());
+        values_hash = xor_hash(&values_hash, &value.0.to_bytes_be());
+    }
+    (keys_hash, values_hash)
 }
 
-generate_storage_map_xor_hasher!(
-    hash_storage_updates_map,
-    StarknetStorageKey,
-    StarknetStorageValue
-);
-generate_storage_map_xor_hasher!(
-    hash_class_hash_to_compiled_class_hash,
-    ClassHash,
-    CompiledClassHash
-);
-generate_storage_map_xor_hasher!(hash_address_to_class_hash, ContractAddress, ClassHash);
-generate_storage_map_xor_hasher!(hash_address_to_nonce, ContractAddress, Nonce);
+fn hash_address_to_nonce(
+    inner_map: &indexmap::IndexMap<ContractAddress, Nonce>,
+) -> (Vec<u8>, Vec<u8>) {
+    let mut keys_hash = vec![0; 32];
+    let mut values_hash = vec![0; 32];
+    for (key, value) in inner_map {
+        keys_hash = xor_hash(&keys_hash, &key.0.to_bytes_be());
+        values_hash = xor_hash(&values_hash, &value.0.to_bytes_be());
+    }
+    (keys_hash, values_hash)
+}
+
+fn hash_class_hash_to_compiled_class_hash(
+    inner_map: &indexmap::IndexMap<ClassHash, starknet_api::core::CompiledClassHash>,
+) -> (Vec<u8>, Vec<u8>) {
+    let mut keys_hash = vec![0; 32];
+    let mut values_hash = vec![0; 32];
+    for (key, value) in inner_map {
+        keys_hash = xor_hash(&keys_hash, &key.0.to_bytes_be());
+        values_hash = xor_hash(&values_hash, &Felt::from(*value).to_bytes_be());
+    }
+    (keys_hash, values_hash)
+}
+
+fn hash_storage_updates_map(
+    inner_map: &indexmap::IndexMap<
+        starknet_api::state::StorageKey,
+        starknet_types_core::felt::Felt,
+    >,
+) -> (Vec<u8>, Vec<u8>) {
+    let mut keys_hash = vec![0; 32];
+    let mut values_hash = vec![0; 32];
+    for (key, value) in inner_map {
+        keys_hash = xor_hash(&keys_hash, &key.0.to_bytes_be());
+        values_hash = xor_hash(&values_hash, &value.to_bytes_be());
+    }
+    (keys_hash, values_hash)
+}
 
 fn hash_storage(storage: &MapStorage) -> (Vec<u8>, Vec<u8>) {
     let mut keys_hash = vec![0; 32];
@@ -416,20 +442,30 @@ pub(crate) fn test_node_db_key() -> String {
     // Generate keys for different node types.
     let hash = HashOutput(zero);
 
-    let binary_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
-        hash,
-    };
+    let binary_node: FilledNode<starknet_committer::block_committer::input::StarknetStorageValue> =
+        FilledNode {
+            data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
+            hash,
+        };
     let binary_node_key = binary_node.db_key().0;
 
-    let edge_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Edge(EdgeData { bottom_hash: hash, path_to_bottom: Default::default() }),
-        hash,
-    };
+    let edge_node: FilledNode<starknet_committer::block_committer::input::StarknetStorageValue> =
+        FilledNode {
+            data: NodeData::Edge(EdgeData {
+                bottom_hash: hash,
+                path_to_bottom: Default::default(),
+            }),
+            hash,
+        };
 
     let edge_node_key = edge_node.db_key().0;
 
-    let storage_leaf = FilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
+    let storage_leaf = FilledNode {
+        data: NodeData::Leaf(starknet_committer::block_committer::input::StarknetStorageValue(
+            zero,
+        )),
+        hash,
+    };
     let storage_leaf_key = storage_leaf.db_key().0;
 
     let state_tree_leaf = FilledNode {
@@ -510,13 +546,14 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
     let binary_data: HashMap<String, u128> = serde_json::from_str(binary_json)?;
 
     // Create a binary node from the parsed data.
-    let binary_rust: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(BinaryData {
-            left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
-            right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
-        }),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
-    };
+    let binary_rust: FilledNode<starknet_committer::block_committer::input::StarknetStorageValue> =
+        FilledNode {
+            data: NodeData::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
+                right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
+            }),
+            hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
+        };
 
     // Store the binary node in the storage.
     rust_fact_storage.set(binary_rust.db_key(), binary_rust.serialize());
@@ -526,24 +563,27 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
     let edge_data: HashMap<String, u128> = serde_json::from_str(edge_json)?;
 
     // Create an edge node from the parsed data.
-    let edge_rust: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Edge(EdgeData {
-            bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
-            path_to_bottom: PathToBottom::new(
-                U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
-                EdgePathLength::new(
-                    (*get_or_key_not_found(&edge_data, "length")?).try_into().map_err(|err| {
-                        PythonTestError::SpecificError(
-                            CommitterSpecificTestError::InvalidCastError(err),
-                        )
-                    })?,
+    let edge_rust: FilledNode<starknet_committer::block_committer::input::StarknetStorageValue> =
+        FilledNode {
+            data: NodeData::Edge(EdgeData {
+                bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
+                path_to_bottom: PathToBottom::new(
+                    U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
+                    EdgePathLength::new(
+                        (*get_or_key_not_found(&edge_data, "length")?).try_into().map_err(
+                            |err| {
+                                PythonTestError::SpecificError(
+                                    CommitterSpecificTestError::InvalidCastError(err),
+                                )
+                            },
+                        )?,
+                    )
+                    .expect("Invalid length"),
                 )
-                .expect("Invalid length"),
-            )
-            .expect("Illegal PathToBottom"),
-        }),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),
-    };
+                .expect("Illegal PathToBottom"),
+            }),
+            hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),
+        };
 
     // Store the edge node in the storage.
     rust_fact_storage.set(edge_rust.db_key(), edge_rust.serialize());
@@ -554,10 +594,9 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
 
     // Create a storage leaf node from the parsed data.
     let storage_leaf_rust = FilledNode {
-        data: NodeData::Leaf(StarknetStorageValue(Felt::from(*get_or_key_not_found(
-            &storage_leaf_data,
-            "value",
-        )?))),
+        data: NodeData::Leaf(starknet_committer::block_committer::input::StarknetStorageValue(
+            Felt::from(*get_or_key_not_found(&storage_leaf_data, "value")?),
+        )),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&storage_leaf_data, "hash")?)),
     };
 

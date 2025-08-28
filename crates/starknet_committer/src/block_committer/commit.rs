@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::CommitmentStateDiff;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use tracing::{info, warn};
@@ -11,7 +12,6 @@ use crate::block_committer::input::{
     Config,
     ConfigImpl,
     Input,
-    StateDiff,
     StateDiffExt,
 };
 use crate::forest::filled_forest::FilledForest;
@@ -51,20 +51,28 @@ pub async fn commit_block(
     info!("Original skeleton forest created successfully.");
 
     if input.config.warn_on_trivial_modifications() {
+        let address_to_class_hash: HashMap<ContractAddress, ClassHash> =
+            input.state_diff.address_to_class_hash.iter().map(|(k, v)| (*k, *v)).collect();
+        let address_to_nonce: HashMap<ContractAddress, Nonce> =
+            input.state_diff.address_to_nonce.iter().map(|(k, v)| (*k, *v)).collect();
         check_trivial_nonce_and_class_hash_updates(
             &original_contracts_trie_leaves,
-            &input.state_diff.address_to_class_hash,
-            &input.state_diff.address_to_nonce,
+            &address_to_class_hash,
+            &address_to_nonce,
         );
     }
 
+    let address_to_class_hash: HashMap<ContractAddress, ClassHash> =
+        input.state_diff.address_to_class_hash.iter().map(|(k, v)| (*k, *v)).collect();
+    let address_to_nonce: HashMap<ContractAddress, Nonce> =
+        input.state_diff.address_to_nonce.iter().map(|(k, v)| (*k, *v)).collect();
     let updated_forest = UpdatedSkeletonForest::create(
         &mut original_forest,
         &input.state_diff.skeleton_classes_updates(),
         &input.state_diff.skeleton_storage_updates(),
         &original_contracts_trie_leaves,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
+        &address_to_class_hash,
+        &address_to_nonce,
     )?;
     info!("Updated skeleton forest created successfully.");
 
@@ -73,8 +81,8 @@ pub async fn commit_block(
         actual_storage_updates,
         actual_classes_updates,
         &original_contracts_trie_leaves,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
+        &address_to_class_hash,
+        &address_to_nonce,
     )
     .await?;
     info!("Filled forest created successfully.");
@@ -116,7 +124,7 @@ type ClassesTrieIndices = Vec<NodeIndex>;
 
 /// Returns all modified indices in the given state diff.
 pub(crate) fn get_all_modified_indices(
-    state_diff: &StateDiff,
+    state_diff: &CommitmentStateDiff,
 ) -> (StorageTriesIndices, ContractsTrieIndices, ClassesTrieIndices) {
     let accessed_addresses = state_diff.accessed_addresses();
     let contracts_trie_indices: Vec<NodeIndex> = accessed_addresses

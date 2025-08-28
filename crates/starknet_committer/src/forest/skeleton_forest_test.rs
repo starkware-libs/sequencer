@@ -1,8 +1,14 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash as StarknetApiCompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
@@ -28,7 +34,6 @@ use crate::block_committer::input::{
     contract_address_into_node_index,
     ConfigImpl,
     Input,
-    StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
     StateDiffExt,
@@ -368,7 +373,7 @@ fn create_contract_leaves(leaves: &[(u128, u128)]) -> HashMap<ContractAddress, C
 
 fn create_storage_updates(
     updates: &[(u8, &[u8])],
-) -> HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>> {
+) -> IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> {
     updates
         .iter()
         .map(|(address, address_indices)| {
@@ -376,12 +381,7 @@ fn create_storage_updates(
                 ContractAddress::try_from(Felt::from(u128::from(*address))).unwrap(),
                 address_indices
                     .iter()
-                    .map(|val| {
-                        (
-                            StarknetStorageKey(StorageKey::from(u128::from(*val))),
-                            StarknetStorageValue(Felt::from(u128::from(*val))),
-                        )
-                    })
+                    .map(|val| (StorageKey::from(u128::from(*val)), Felt::from(u128::from(*val))))
                     .collect(),
             )
         })
@@ -390,12 +390,12 @@ fn create_storage_updates(
 
 fn create_class_hash_to_compiled_class_hash(
     map: &[(u128, u128)],
-) -> HashMap<ClassHash, CompiledClassHash> {
+) -> IndexMap<ClassHash, StarknetApiCompiledClassHash> {
     map.iter()
         .map(|(class_hash, compiled_class_hash)| {
             (
                 ClassHash(Felt::from(*class_hash)),
-                CompiledClassHash(Felt::from(*compiled_class_hash)),
+                StarknetApiCompiledClassHash(Felt::from(*compiled_class_hash)),
             )
         })
         .collect()

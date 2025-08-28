@@ -12048,6 +12048,7 @@ name = "starknet_committer"
 version = "0.15.0-rc.3"
 dependencies = [
  "hex",
+ "indexmap 2.11.0",
  "pretty_assertions",
  "rstest",
  "serde_json",
