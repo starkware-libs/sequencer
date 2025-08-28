@@ -1,6 +1,16 @@
 /data
 /deployments
++!/deployments/images/
 /logs
 **/target/
+target_vscode/
 .git
+.github/
+sequencer_venv/
+monitoring_venv/
+**/*.pyc
+**/__pycache__/
+**/node_modules/
+.cargo/registry/
+.cargo/git/
 !crates/papyrus_load_test/resources
