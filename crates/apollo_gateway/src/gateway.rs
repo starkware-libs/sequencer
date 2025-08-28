@@ -167,7 +167,7 @@ struct ProcessTxBlockingTask {
     mempool_client: SharedMempoolClient,
     chain_info: Arc<ChainInfo>,
     tx: RpcTransaction,
-    transaction_converter: Arc<TransactionConverter>,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     runtime: tokio::runtime::Handle,
 }
 
