@@ -7,6 +7,7 @@ mod config_test;
 mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
+mod event_tracker;
 pub mod gossipsub_impl;
 pub mod misconduct_score;
 mod mixed_behaviour;
