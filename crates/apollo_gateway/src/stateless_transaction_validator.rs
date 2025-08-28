@@ -18,6 +18,11 @@ use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionVali
 #[path = "stateless_transaction_validator_test.rs"]
 mod stateless_transaction_validator_test;
 
+#[cfg_attr(test, mockall::automock)]
+pub trait StatelessTransactionValidatorTrait: Send + Sync {
+    fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()>;
+}
+
 #[derive(Clone)]
 pub struct StatelessTransactionValidator {
     pub config: StatelessTransactionValidatorConfig,
@@ -279,5 +284,11 @@ impl StatelessTransactionValidator {
         }
 
         Err(StatelessTransactionValidatorError::EntryPointsNotUniquelySorted)
+    }
+}
+
+impl StatelessTransactionValidatorTrait for StatelessTransactionValidator {
+    fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
+        Self::validate(self, tx)
     }
 }
