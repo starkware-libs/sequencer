@@ -1,4 +1,5 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_integer_from_var_name;
 
 use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -33,10 +34,14 @@ use crate::hints::types::HintArgs;
 /// }
 /// ```
 pub(crate) fn test_hint<S: StateReader>(
-    _hint_str: &str,
+    hint_str: &str,
     _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
+    let key = get_integer_from_var_name("dummy_key", vm, ids_data, ap_tracking).unwrap();
+    let value =
+        get_integer_from_var_name("compiled_class_hash", vm, ids_data, ap_tracking).unwrap();
+    println!("DORI: key = {key:?}, value={value:?}");
     Ok(())
 }
 

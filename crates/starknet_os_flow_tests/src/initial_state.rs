@@ -156,7 +156,19 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
         .apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
 
     // Commit the state diff.
+    println!(
+        "DORI: state maps compiled class hashes: {:?}",
+        state_diff.state_maps.compiled_class_hashes
+    );
+    println!(
+        "DORI: block summary state diff classes: {:?}",
+        block_summary.state_diff.class_hash_to_compiled_class_hash
+    );
     let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
+    println!(
+        "DORI: committer state diff classes: {:?}",
+        committer_state_diff.class_hash_to_compiled_class_hash
+    );
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
 
@@ -166,6 +178,11 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
         contracts_trie_root_hash: commitment_output.contracts_trie_root_hash,
         classes_trie_root_hash: commitment_output.classes_trie_root_hash,
     };
+    println!(
+        "DORI: state roots of initial state: contracts_trie_root_hash={:?}, \
+         classes_trie_root_hash={:?}",
+        initial_state.contracts_trie_root_hash, initial_state.classes_trie_root_hash
+    );
 
     (InitialStateData { initial_state, execution_contracts }, nonce_manager)
 }

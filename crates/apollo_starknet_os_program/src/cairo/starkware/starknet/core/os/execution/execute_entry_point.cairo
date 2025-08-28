@@ -157,9 +157,13 @@ func execute_entry_point{
     is_reverted: felt, retdata_size: felt, retdata: felt*
 ) {
     alloc_locals;
+    let dummy_key = execution_context.class_hash;
     let (compiled_class_hash: felt) = dict_read{dict_ptr=contract_class_changes}(
         key=execution_context.class_hash
     );
+    %{
+        # TEST HINT 1
+    %}
 
     // The key must be at offset 0.
     static_assert CompiledClassFact.hash == 0;

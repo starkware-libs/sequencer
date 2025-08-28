@@ -4,7 +4,7 @@ use cached::proc_macro::cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
@@ -101,7 +101,7 @@ fn get_real_compiled_class_hash_for_feature_contract(
         ContractClass::V0(_) => {
             panic!("V0 compiled class hash is not supported.")
         }
-        ContractClass::V1((class, _)) => CompiledClassHash(class.compiled_class_hash()),
+        ContractClass::V1((class, _)) => class.hash(&HashVersion::V2),
     }
 }
 

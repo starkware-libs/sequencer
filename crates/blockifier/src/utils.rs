@@ -118,7 +118,7 @@ pub fn should_migrate(
     class_hash: ClassHash,
 ) -> StateResult<Option<(ClassHash, CompiledClassHashV2ToV1)>> {
     let state_compiled_class_hash = state_reader.get_compiled_class_hash(class_hash)?;
-    match state_compiled_class_hash {
+    let r = match state_compiled_class_hash {
         // Class hash does not exist in the state, or is a Cairo 0 class.
         CompiledClassHash(hash) if hash == StarkHash::ZERO => Ok(None),
         state_compiled_class_hash => {
@@ -130,5 +130,7 @@ pub fn should_migrate(
             }
             Ok(Some((class_hash, (compiled_class_hash_v2, state_compiled_class_hash))))
         }
-    }
+    };
+    println!("DORI: should_migrate {class_hash:?} -> {r:?}");
+    r
 }

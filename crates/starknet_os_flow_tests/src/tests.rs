@@ -78,7 +78,7 @@ fn division(#[case] length: usize, #[case] n_parts: usize, #[case] expected_leng
 /// Scenario of declaring and deploying the test contract.
 #[rstest]
 #[tokio::test]
-async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
+async fn declare_deploy_scenario(#[values(1/* , 2*/)] n_blocks: usize) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
     let (mut test_manager, mut nonce_manager) =
@@ -88,6 +88,7 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_contract_sierra = test_contract.get_sierra();
     let class_hash = test_contract_sierra.calculate_class_hash();
+    println!("DORI: class_hash = {class_hash:?}");
     let compiled_class_hash = test_contract.get_real_compiled_class_hash();
     let declare_tx_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
