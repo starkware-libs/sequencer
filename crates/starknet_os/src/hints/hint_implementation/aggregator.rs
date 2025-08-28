@@ -10,6 +10,7 @@ use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::aggregator_utils::FullOsOutputs;
+use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 use crate::io::os_output::{wrap_missing, FullOsOutput, OsOutput};
@@ -151,20 +152,11 @@ pub(crate) fn get_fee_token_address_from_input(
     Ok(())
 }
 
-pub(crate) fn get_public_key_x_from_aggregator_input(
+pub(crate) fn get_public_keys_from_aggregator_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_key_x: Felt = hint_processor.input.public_key_x;
-    insert_value_into_ap(vm, public_key_x)?;
-    Ok(())
-}
-
-pub(crate) fn get_public_key_y_from_aggregator_input(
-    hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let public_key_y: Felt = hint_processor.input.public_key_y;
-    insert_value_into_ap(vm, public_key_y)?;
+    let public_keys = hint_processor.input.public_keys.clone();
+    load_public_keys_into_memory(vm, ids_data, ap_tracking, public_keys)?;
     Ok(())
 }
