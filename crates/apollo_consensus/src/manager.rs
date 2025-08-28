@@ -21,9 +21,9 @@ use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::config::TimeoutsConfig;
+use crate::config::{FutureMsgLimitsConfig, TimeoutsConfig};
 use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,
@@ -54,6 +54,8 @@ pub struct RunConsensusArguments {
     pub sync_retry_interval: Duration,
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
+    /// Future message limits configuration.
+    pub future_msg_limit: FutureMsgLimitsConfig,
 }
 
 /// Run consensus indefinitely.
@@ -91,6 +93,7 @@ where
         run_consensus_args.sync_retry_interval,
         run_consensus_args.quorum_type,
         run_consensus_args.timeouts,
+        run_consensus_args.future_msg_limit,
     );
     loop {
         let must_observer = current_height < run_consensus_args.start_active_height;
@@ -139,7 +142,7 @@ type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     future_votes: BTreeMap<u64, Vec<Vote>>,
@@ -148,6 +151,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     timeouts: TimeoutsConfig,
+    future_msg_limit: FutureMsgLimitsConfig,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
@@ -157,6 +161,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         sync_retry_interval: Duration,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
+        future_msg_limit: FutureMsgLimitsConfig,
     ) -> Self {
         Self {
             validator_id,
@@ -165,6 +170,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
             timeouts,
+            future_msg_limit,
         }
     }
 
@@ -378,19 +384,22 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         match proposal_init.height.cmp(&height) {
             std::cmp::Ordering::Greater => {
-                debug!("Received a proposal for a future height. {:?}", proposal_init);
-                // Note: new proposals with the same height/round will be ignored.
-                //
-                // TODO(matan): This only work for trusted peers. In the case of possibly malicious
-                // peers this is a possible DoS attack (malicious users can insert
-                // invalid/bad/malicious proposals before "good" nodes can propose).
-                //
-                // When moving to version 1.0 make sure this is addressed.
-                self.cached_proposals
-                    .entry(proposal_init.height.0)
-                    .or_default()
-                    .entry(proposal_init.round)
-                    .or_insert((proposal_init, content_receiver));
+                if self.should_cache_proposal(&height, 0, &proposal_init) {
+                    debug!("Received a proposal for a future height. {:?}", proposal_init);
+                    // Note: new proposals with the same height/round will be ignored.
+                    //
+                    // TODO(matan): This only work for trusted peers. In the case of possibly
+                    // malicious peers this is a possible DoS attack (malicious
+                    // users can insert invalid/bad/malicious proposals before
+                    // "good" nodes can propose).
+                    //
+                    // When moving to version 1.0 make sure this is addressed.
+                    self.cached_proposals
+                        .entry(proposal_init.height.0)
+                        .or_default()
+                        .entry(proposal_init.round)
+                        .or_insert((proposal_init, content_receiver));
+                }
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
             std::cmp::Ordering::Less => {
@@ -398,7 +407,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
             std::cmp::Ordering::Equal => match shc {
-                Some(shc) => shc.handle_proposal(context, proposal_init, content_receiver).await,
+                Some(shc) => {
+                    if self.should_cache_proposal(&height, shc.current_round(), &proposal_init) {
+                        shc.handle_proposal(context, proposal_init, content_receiver).await
+                    } else {
+                        Ok(ShcReturn::Tasks(Vec::new()))
+                    }
+                }
                 None => {
                     trace!("Drop proposal from just completed height. {:?}", proposal_init);
                     Ok(ShcReturn::Tasks(Vec::new()))
@@ -452,8 +467,18 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
         match message.height.cmp(&height.0) {
             std::cmp::Ordering::Greater => {
+<<<<<<< HEAD
                 trace!("Cache message for a future height. {:?}", message);
                 self.future_votes.entry(message.height).or_default().push(message);
+||||||| 37e9c3269
+                debug!("Cache message for a future height. {:?}", message);
+                self.future_votes.entry(message.height).or_default().push(message);
+=======
+                if self.should_cache_vote(&height, 0, &message) {
+                    trace!("Cache message for a future height. {:?}", message);
+                    self.future_votes.entry(message.height).or_default().push(message);
+                }
+>>>>>>> origin/main
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
             std::cmp::Ordering::Less => {
@@ -461,7 +486,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
             std::cmp::Ordering::Equal => match shc {
-                Some(shc) => shc.handle_vote(context, message).await,
+                Some(shc) => {
+                    if self.should_cache_vote(&height, shc.current_round(), &message) {
+                        shc.handle_vote(context, message).await
+                    } else {
+                        Ok(ShcReturn::Tasks(Vec::new()))
+                    }
+                }
                 None => {
                     trace!("Drop message from just completed height. {:?}", message);
                     Ok(ShcReturn::Tasks(Vec::new()))
@@ -518,5 +549,64 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // If nothing is cached use current height as "max".
         let max_cached_block_number = self.cached_proposals.keys().max().unwrap_or(&height.0);
         CONSENSUS_MAX_CACHED_BLOCK_NUMBER.set_lossy(*max_cached_block_number);
+    }
+
+    fn should_cache_msg(
+        &self,
+        current_height: &BlockNumber,
+        current_round: u32,
+        msg_height: u64,
+        msg_round: u32,
+        msg_description: &str,
+    ) -> bool {
+        let limits = &self.future_msg_limit;
+        let height_diff = msg_height.saturating_sub(current_height.0);
+
+        let should_cache = height_diff <= limits.future_height_limit.into()
+            // For current height, check against current round + future_round_limit
+            && (height_diff == 0 && msg_round <= current_round + limits.future_round_limit
+                // For future heights, check absolute round limit
+                || height_diff > 0 && msg_round <= limits.future_height_round_limit);
+
+        if !should_cache {
+            warn!(
+                "Dropping {} for height={} round={} when current_height={} current_round={} - \
+                 limits: future_height={}, future_height_round={}, future_round={}",
+                msg_description,
+                msg_height,
+                msg_round,
+                current_height.0,
+                current_round,
+                limits.future_height_limit,
+                limits.future_height_round_limit,
+                limits.future_round_limit
+            );
+        }
+
+        should_cache
+    }
+
+    fn should_cache_proposal(
+        &self,
+        current_height: &BlockNumber,
+        current_round: u32,
+        proposal: &ProposalInit,
+    ) -> bool {
+        self.should_cache_msg(
+            current_height,
+            current_round,
+            proposal.height.0,
+            proposal.round,
+            "proposal",
+        )
+    }
+
+    fn should_cache_vote(
+        &self,
+        current_height: &BlockNumber,
+        current_round: u32,
+        vote: &Vote,
+    ) -> bool {
+        self.should_cache_msg(current_height, current_round, vote.height, vote.round, "vote")
     }
 }

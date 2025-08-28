@@ -176,6 +176,8 @@ impl ConsensusManager {
         } else {
             QuorumType::Byzantine
         };
+        // TODO(Asmaa): refactor to pass entire consensus_manager_config instead of extracting
+        // each field, and handle non-config params.
         let run_consensus_args = apollo_consensus::RunConsensusArguments {
             start_active_height: active_height,
             start_observe_height: observer_height,
@@ -184,6 +186,7 @@ impl ConsensusManager {
             timeouts: self.config.consensus_manager_config.timeouts.clone(),
             sync_retry_interval: self.config.consensus_manager_config.sync_retry_interval,
             quorum_type,
+            future_msg_limit: self.config.consensus_manager_config.future_msg_limit,
         };
         let consensus_fut = apollo_consensus::run_consensus(
             run_consensus_args,
