@@ -4,11 +4,8 @@ use std::fmt::Debug;
 use ethnum::U256;
 use serde_json::json;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_committer::block_committer::input::{
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
+use starknet_api::state::CommitmentStateDiff as StateDiff;
+use starknet_committer::block_committer::input::{StarknetStorageKey, StarknetStorageValue};
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;

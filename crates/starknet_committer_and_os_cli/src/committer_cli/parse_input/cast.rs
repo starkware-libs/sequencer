@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::CommitmentStateDiff;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
-    StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -83,7 +83,7 @@ impl TryFrom<RawInput> for CommitterInputImpl {
             )?;
         }
         let input = Input {
-            state_diff: StateDiff {
+            state_diff: CommitmentStateDiff {
                 address_to_class_hash,
                 address_to_nonce,
                 class_hash_to_compiled_class_hash,
