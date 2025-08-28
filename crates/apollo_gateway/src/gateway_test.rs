@@ -80,7 +80,7 @@ use crate::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use crate::errors::GatewayResult;
+use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::{Gateway, ProcessTxBlockingTask};
 use crate::metrics::{
     register_metrics,
@@ -99,7 +99,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
 };
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
 #[fixture]
 fn mock_stateful_transaction_validator() -> MockStatefulTransactionValidatorTrait {
@@ -114,6 +114,11 @@ fn mock_stateful_transaction_validator_factory() -> MockStatefulTransactionValid
 #[fixture]
 fn mock_transaction_converter() -> MockTransactionConverterTrait {
     MockTransactionConverterTrait::new()
+}
+
+#[fixture]
+fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTrait {
+    MockStatelessTransactionValidatorTrait::new()
 }
 
 #[fixture]
@@ -355,6 +360,7 @@ pub struct ProcessTxOverrides {
     pub mock_stateful_transaction_validator_factory:
         Option<MockStatefulTransactionValidatorFactoryTrait>,
     pub mock_transaction_converter: Option<MockTransactionConverterTrait>,
+    pub mock_stateless_transaction_validator: Option<MockStatelessTransactionValidatorTrait>,
 }
 
 fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
@@ -363,11 +369,12 @@ fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
         .unwrap_or_else(mock_stateful_transaction_validator_factory);
     let mock_transaction_converter =
         overrides.mock_transaction_converter.unwrap_or_else(mock_transaction_converter);
+    let mock_stateless_transaction_validator = overrides
+        .mock_stateless_transaction_validator
+        .unwrap_or_else(mock_stateless_transaction_validator);
 
     ProcessTxBlockingTask {
-        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-            config: StatelessTransactionValidatorConfig::default(),
-        }),
+        stateless_tx_validator: Arc::new(mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
@@ -639,6 +646,35 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
 #[rstest]
 #[tokio::test]
+async fn process_tx_returns_error_for_one_stateless_error_variant(
+    mut mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
+) {
+    let arbitrary_validation_error = Err(StatelessTransactionValidatorError::SignatureTooLong {
+        signature_length: 5001,
+        max_signature_length: 4000,
+    });
+    let error_code =
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.SIGNATURE_TOO_LONG".into());
+
+    mock_stateless_transaction_validator
+        .expect_validate()
+        .return_once(|_| arbitrary_validation_error);
+
+    let overrides = ProcessTxOverrides {
+        mock_stateless_transaction_validator: Some(mock_stateless_transaction_validator),
+        ..Default::default()
+    };
+    let task = process_tx_task(overrides);
+
+    let result: Result<AddTransactionArgs, StarknetError> =
+        tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, error_code);
+}
+
+#[rstest]
+#[tokio::test]
 async fn process_tx_returns_error_when_instantiating_validator_fails(
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) {
@@ -694,6 +730,7 @@ async fn process_tx_conversion_errors_are_mapped_to_internal_error(
             mock_stateful_transaction_validator_factory,
         ),
         mock_transaction_converter: Some(mock_transaction_converter),
+        ..Default::default()
     };
     let process_tx_task = process_tx_task(overrides);
 

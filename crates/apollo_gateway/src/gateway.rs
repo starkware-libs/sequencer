@@ -43,7 +43,10 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
     StatefulTransactionValidatorFactoryTrait,
 };
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::stateless_transaction_validator::{
+    StatelessTransactionValidator,
+    StatelessTransactionValidatorTrait,
+};
 use crate::sync_state_reader::SyncStateReaderFactory;
 
 #[cfg(test)]
@@ -161,7 +164,7 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    stateless_tx_validator: Arc<StatelessTransactionValidator>,
+    stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
