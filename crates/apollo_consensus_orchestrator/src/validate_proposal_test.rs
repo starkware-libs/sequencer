@@ -10,6 +10,7 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
 };
 use apollo_batcher_types::communication::BatcherClientError;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ProposalFin, ProposalPart, TransactionBatch};
 use assert_matches::assert_matches;
@@ -24,7 +25,6 @@ use starknet_api::hash::PoseidonHash;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::ContextConfig;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{

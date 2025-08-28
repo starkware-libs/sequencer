@@ -4,7 +4,7 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator::cende::CendeConfig;
-use apollo_consensus_orchestrator::config::ContextConfig;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use apollo_network::NetworkConfig;
 use apollo_reverts::RevertConfig;
 use serde::{Deserialize, Serialize};
