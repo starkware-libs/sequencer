@@ -103,6 +103,13 @@ impl MetricCounter {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
         assert_equality(&metric_value, &expected_value, self.get_name(), None);
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_exists(&self, metrics_as_string: &str) {
+        let name = self.get_name();
+        let expected_string = format!("# TYPE {name} counter\n{name}");
+        assert!(metrics_as_string.contains(&expected_string));
+    }
 }
 
 pub struct LabeledMetricCounter {
@@ -231,6 +238,13 @@ impl MetricGauge {
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
         assert_equality(&metric_value, &expected_value, self.get_name(), None);
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_exists(&self, metrics_as_string: &str) {
+        let name = self.get_name();
+        let expected_string = format!("# TYPE {name} gauge\n{name}");
+        assert!(metrics_as_string.contains(&expected_string));
     }
 }
 
