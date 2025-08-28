@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_l1_provider_types::{L1ProviderSnapshot, MockL1ProviderClient};
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -37,6 +38,16 @@ use crate::monitoring_endpoint::{
     VERSION,
 };
 use crate::test_utils::build_request;
+use crate::tokio_metrics::{
+    TOKIO_GLOBAL_QUEUE_DEPTH,
+    TOKIO_MAX_BUSY_DURATION_MICROS,
+    TOKIO_MAX_PARK_COUNT,
+    TOKIO_MIN_BUSY_DURATION_MICROS,
+    TOKIO_MIN_PARK_COUNT,
+    TOKIO_TOTAL_BUSY_DURATION_MICROS,
+    TOKIO_TOTAL_PARK_COUNT,
+    TOKIO_WORKERS_COUNT,
+};
 
 const TEST_VERSION: &str = "1.2.3-dev";
 
@@ -243,4 +254,28 @@ async fn l1_provider_not_present() {
     let app = setup_monitoring_endpoint(None).app();
     let response = request_app(app, L1_PROVIDER_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+}
+
+#[tokio::test]
+async fn tokio_metrics_present() {
+    let config = MonitoringEndpointConfig { collect_metrics: true, ..CONFIG_WITHOUT_METRICS };
+    let app = setup_monitoring_endpoint(Some(config)).app();
+
+    // allow the exporter to export tokio metrics
+    tokio::time::sleep(Duration::from_millis(1)).await;
+
+    let response = request_app(app, METRICS).await;
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let prometheus_output = String::from_utf8(body_bytes.to_vec()).unwrap();
+
+    TOKIO_TOTAL_BUSY_DURATION_MICROS.assert_eq(&prometheus_output, 0u64);
+    TOKIO_MIN_BUSY_DURATION_MICROS.assert_eq(&prometheus_output, 0u64);
+    TOKIO_MAX_BUSY_DURATION_MICROS.assert_eq(&prometheus_output, 0u64);
+    TOKIO_TOTAL_PARK_COUNT.assert_eq(&prometheus_output, 0u64);
+    TOKIO_MIN_PARK_COUNT.assert_eq(&prometheus_output, 0u64);
+    TOKIO_MAX_PARK_COUNT.assert_eq(&prometheus_output, 0u64);
+    TOKIO_WORKERS_COUNT.assert_eq(&prometheus_output, 1u64);
+    TOKIO_GLOBAL_QUEUE_DEPTH.assert_eq(&prometheus_output, 0u64);
 }
