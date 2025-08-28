@@ -46,6 +46,7 @@ use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
     StatefulTransactionValidatorFactory,
+    StatefulTransactionValidatorFactoryTrait,
     StatefulTransactionValidatorTrait,
 };
 
