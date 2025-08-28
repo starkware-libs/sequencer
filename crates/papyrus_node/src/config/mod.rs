@@ -24,7 +24,7 @@ use apollo_config::dumping::{
 use apollo_config::loading::load_and_process_config;
 use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus::config::ConsensusConfig;
-use apollo_consensus_orchestrator::config::ContextConfig;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
 #[cfg(feature = "rpc")]

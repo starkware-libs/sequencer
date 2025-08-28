@@ -1,0 +1,16 @@
+[package]
+name = "apollo_consensus_orchestrator_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Configuration types for the consensus orchestrator"
+
+[dependencies]
+apollo_config.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+validator.workspace = true
+
+[lints]
+workspace = true

@@ -18,7 +18,7 @@ use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
-use apollo_consensus_orchestrator::config::ContextConfig;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use apollo_gateway::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,

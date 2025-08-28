@@ -13,6 +13,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterError,
 };
 use apollo_consensus::types::Round;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClientError;
@@ -28,7 +29,6 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::config::ContextConfig;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{

@@ -20,6 +20,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
+use apollo_consensus_orchestrator_config::ContextConfig;
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -47,7 +48,6 @@ use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;
-use crate::config::ContextConfig;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
