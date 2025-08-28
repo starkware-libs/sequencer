@@ -12152,6 +12152,7 @@ version = "0.15.0-rc.3"
 dependencies = [
  "blockifier",
  "blockifier_test_utils",
+ "starknet_api",
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",
