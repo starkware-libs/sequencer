@@ -81,6 +81,7 @@ pub struct NetworkMetrics {
     pub num_blacklisted_peers: MetricGauge,
     pub broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
+    pub event_metrics: Option<EventMetrics>,
 }
 
 impl NetworkMetrics {
@@ -96,6 +97,9 @@ impl NetworkMetrics {
         }
         if let Some(sqmr_metrics) = self.sqmr_metrics.as_ref() {
             sqmr_metrics.register();
+        }
+        if let Some(event_metrics) = self.event_metrics.as_ref() {
+            event_metrics.register();
         }
     }
 }
