@@ -99,7 +99,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
 };
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
 #[fixture]
 fn mock_stateful_transaction_validator() -> MockStatefulTransactionValidatorTrait {
@@ -114,6 +114,11 @@ fn mock_stateful_transaction_validator_factory() -> MockStatefulTransactionValid
 #[fixture]
 fn mock_transaction_converter() -> MockTransactionConverterTrait {
     MockTransactionConverterTrait::new()
+}
+
+#[fixture]
+fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTrait {
+    MockStatelessTransactionValidatorTrait::new()
 }
 
 #[fixture]
@@ -353,12 +358,11 @@ async fn run_add_tx_and_extract_metrics(
 fn process_tx_task(
     mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
     mock_transaction_converter: MockTransactionConverterTrait,
+    mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
 ) -> ProcessTxBlockingTask {
     let chain_info = ChainInfo::create_for_testing();
     ProcessTxBlockingTask {
-        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-            config: StatelessTransactionValidatorConfig::default(),
-        }),
+        stateless_tx_validator: Arc::new(mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
@@ -601,6 +605,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
     mut mock_stateful_transaction_validator: MockStatefulTransactionValidatorTrait,
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
     mock_transaction_converter: MockTransactionConverterTrait,
+    mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
 ) {
     let expected_error = StarknetError {
         code: error_code.clone(),
@@ -615,8 +620,11 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
         .expect_instantiate_validator()
         .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
 
-    let process_tx_task =
-        process_tx_task(mock_stateful_transaction_validator_factory, mock_transaction_converter);
+    let process_tx_task = process_tx_task(
+        mock_stateful_transaction_validator_factory,
+        mock_transaction_converter,
+        mock_stateless_transaction_validator,
+    );
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
@@ -626,9 +634,41 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
 #[rstest]
 #[tokio::test]
+async fn process_tx_returns_error_when_stateless_validation_fails(
+    mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mock_transaction_converter: MockTransactionConverterTrait,
+    mut mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
+) {
+    // There are multiple validation errors that can occur.
+    mock_stateless_transaction_validator.expect_validate().return_once(|_| {
+        Err(crate::errors::StatelessTransactionValidatorError::SignatureTooLong {
+            signature_length: 5001,
+            max_signature_length: 4000,
+        })
+    });
+
+    let task = process_tx_task(
+        mock_stateful_transaction_validator_factory,
+        mock_transaction_converter,
+        mock_stateless_transaction_validator,
+    );
+
+    let result: Result<AddTransactionArgs, StarknetError> =
+        tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    assert_eq!(
+        result.unwrap_err().code,
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.SIGNATURE_TOO_LONG".into())
+    );
+}
+
+#[rstest]
+#[tokio::test]
 async fn process_tx_returns_error_when_instantiating_validator_fails(
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
     mock_transaction_converter: MockTransactionConverterTrait,
+    mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
 ) {
     let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
     let expected_error = StarknetError {
@@ -639,8 +679,11 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
         .expect_instantiate_validator()
         .return_once(|_, _| Err(expected_error));
 
-    let process_tx_task =
-        process_tx_task(mock_stateful_transaction_validator_factory, mock_transaction_converter);
+    let process_tx_task = process_tx_task(
+        mock_stateful_transaction_validator_factory,
+        mock_transaction_converter,
+        mock_stateless_transaction_validator,
+    );
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
@@ -663,6 +706,7 @@ async fn process_tx_conversion_errors_are_mapped_to_internal_error(
     #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
     #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
     mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
 ) {
     let mut mock_transaction_converter = MockTransactionConverterTrait::new();
     mock_transaction_converter
@@ -672,8 +716,11 @@ async fn process_tx_conversion_errors_are_mapped_to_internal_error(
         .expect_convert_internal_rpc_tx_to_executable_tx()
         .return_once(|_| expect_executable_tx_result);
 
-    let process_tx_task =
-        process_tx_task(mock_stateful_transaction_validator_factory, mock_transaction_converter);
+    let process_tx_task = process_tx_task(
+        mock_stateful_transaction_validator_factory,
+        mock_transaction_converter,
+        mock_stateless_transaction_validator,
+    );
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
