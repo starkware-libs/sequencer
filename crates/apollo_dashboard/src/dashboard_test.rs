@@ -54,9 +54,9 @@ fn serialize_alert() {
 #[test]
 fn test_ratio_time_series() {
     let duration = "5m";
-    let metric_1 = MetricCounter::new(MetricScope::Batcher, "r", "r_f", "desc", 0);
-    let metric_2 = MetricCounter::new(MetricScope::Batcher, "p", "p_f", "desc", 0);
-    let metric_3 = MetricCounter::new(MetricScope::Batcher, "a", "a_f", "desc", 0);
+    let metric_1 = MetricCounter::new(MetricScope::Batcher, "r", "desc", 0);
+    let metric_2 = MetricCounter::new(MetricScope::Batcher, "p", "desc", 0);
+    let metric_3 = MetricCounter::new(MetricScope::Batcher, "a", "desc", 0);
 
     let panel =
         Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);

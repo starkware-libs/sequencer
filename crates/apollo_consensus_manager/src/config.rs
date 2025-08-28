@@ -5,7 +5,6 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator::cende::CendeConfig;
 use apollo_consensus_orchestrator::config::ContextConfig;
-use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_network::NetworkConfig;
 use apollo_reverts::RevertConfig;
 use serde::{Deserialize, Serialize};
@@ -17,7 +16,6 @@ use validator::Validate;
 pub struct ConsensusManagerConfig {
     pub consensus_manager_config: ConsensusConfig,
     pub context_config: ContextConfig,
-    pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
     pub stream_handler_config: StreamHandlerConfig,
     #[validate]
     pub network_config: NetworkConfig,
@@ -72,10 +70,6 @@ impl SerializeConfig for ConsensusManagerConfig {
         ));
         config.extend(prepend_sub_config_name(self.context_config.dump(), "context_config"));
         config.extend(prepend_sub_config_name(
-            self.eth_to_strk_oracle_config.dump(),
-            "eth_to_strk_oracle_config",
-        ));
-        config.extend(prepend_sub_config_name(
             self.stream_handler_config.dump(),
             "stream_handler_config",
         ));
@@ -91,7 +85,6 @@ impl Default for ConsensusManagerConfig {
         ConsensusManagerConfig {
             consensus_manager_config: ConsensusConfig::default(),
             context_config: ContextConfig::default(),
-            eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
             stream_handler_config: StreamHandlerConfig::default(),
             cende_config: CendeConfig::default(),
             network_config: NetworkConfig::default(),

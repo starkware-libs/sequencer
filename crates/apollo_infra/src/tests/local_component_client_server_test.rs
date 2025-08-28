@@ -4,8 +4,8 @@ use tokio::sync::mpsc::channel;
 use tokio::task;
 
 use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
-use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
-use crate::component_server::{ComponentServerStarter, LocalComponentServer};
+use crate::component_definitions::{ComponentClient, RequestWrapper};
+use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
 use crate::tests::{
     test_a_b_functionality,
     ComponentA,
@@ -20,6 +20,7 @@ use crate::tests::{
     ResultB,
     ValueA,
     ValueB,
+    TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
 };
 
@@ -64,21 +65,20 @@ async fn local_client_server() {
     let setup_value: ValueB = Felt::from(30);
     let expected_value: ValueA = setup_value;
 
-    let (tx_a, rx_a) =
-        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
-    let (tx_b, rx_b) =
-        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
+    let (tx_a, rx_a) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
+    let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
-    let a_client = ComponentAClient::new(tx_a.clone());
-    let b_client = ComponentBClient::new(tx_b.clone());
+    let a_client = ComponentAClient::new(tx_a.clone(), &TEST_LOCAL_CLIENT_METRICS);
+    let b_client = ComponentBClient::new(tx_b.clone(), &TEST_LOCAL_CLIENT_METRICS);
 
     let component_a = ComponentA::new(Box::new(b_client.clone()));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
+    let config = LocalServerConfig::default();
     let mut component_a_server =
-        LocalComponentServer::new(component_a, rx_a, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_a, &config, rx_a, &TEST_LOCAL_SERVER_METRICS);
     let mut component_b_server =
-        LocalComponentServer::new(component_b, rx_b, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_b, &config, rx_b, &TEST_LOCAL_SERVER_METRICS);
 
     task::spawn(async move {
         let _ = component_a_server.start().await;

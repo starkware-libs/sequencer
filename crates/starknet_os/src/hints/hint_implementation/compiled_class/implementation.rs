@@ -13,6 +13,7 @@ use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::relocatable::Relocatable;
 use starknet_api::core::CompiledClassHash;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::StarkHash as HashFunction;
 
 use super::utils::BytecodeSegment;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -207,13 +208,13 @@ pub(crate) fn load_class<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_segment_hash(
+pub(crate) fn set_ap_to_segment_hash<H: HashFunction>(
     HintArgs { exec_scopes, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
 
-    Ok(insert_value_into_ap(vm, bytecode_segment_structure.hash().0)?)
+    Ok(insert_value_into_ap(vm, bytecode_segment_structure.hash::<H>())?)
 }
 
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(

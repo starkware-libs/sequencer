@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use starknet_api::core::{ClassHash, CompiledClassHash};
+
 use crate::errors::NativeBlockifierResult;
 use crate::storage::Storage;
 
@@ -50,6 +52,14 @@ impl Storage for MockStorage {
     }
 
     fn close(&mut self) {
+        todo!()
+    }
+
+    fn set_executable_class_hash_v2(
+        &mut self,
+        _class_hash: &ClassHash,
+        _compiled_class_hash_v2: CompiledClassHash,
+    ) -> NativeBlockifierResult<()> {
         todo!()
     }
 }

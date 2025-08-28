@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 apollo_infra.workspace = true
+apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
@@ -23,6 +24,7 @@ indexmap.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
+strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 thiserror.workspace = true
 

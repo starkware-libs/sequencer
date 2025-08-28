@@ -5,6 +5,10 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use strum_macros::EnumIter;
 
+pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
+pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
+pub(crate) const SECS_IN_MIN: u64 = 60;
+
 /// Alerts to be configured in the dashboard.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Alerts {
@@ -59,24 +63,24 @@ impl fmt::Display for AlertEnvFiltering {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub(crate) enum AlertSeverity {
-    // Critical issues that demand immediate attention. These are high-impact incidents that
-    // affect the system's availability.
+    /// Critical issues that demand immediate attention. These are high-impact incidents that
+    /// affect the system's availability.
     #[serde(rename = "p1")]
     Sos,
-    // Standard alerts for production issues that require attention around the clock but are not
-    // as time-sensitive as SOS alerts.
+    /// Standard alerts for production issues that require attention around the clock but are not
+    /// as time-sensitive as SOS alerts.
     #[serde(rename = "p2")]
     Regular,
-    // Important alerts that do not require overnight attention. These are delayed during night
-    // hours to reduce unnecessary off-hours noise.
+    /// Important alerts that do not require overnight attention. These are delayed during night
+    /// hours to reduce unnecessary off-hours noise.
     #[serde(rename = "p3")]
     DayOnly,
-    // Alerts that are only triggered during official business hours. These do not trigger during
-    // holidays.
+    /// Alerts that are only triggered during official business hours. These do not trigger during
+    /// holidays.
     #[serde(rename = "p4")]
     WorkingHours,
-    // Non-critical alerts, meant purely for information. These are not intended to wake anyone up
-    // and are monitored only by the development team.
+    /// Non-critical alerts, meant purely for information. These are not intended to wake anyone up
+    /// and are monitored only by the development team.
     #[serde(rename = "p5")]
     Informational,
 }

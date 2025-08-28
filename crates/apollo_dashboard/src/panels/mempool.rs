@@ -5,6 +5,7 @@ use apollo_infra::metrics::{
     MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_REMOTE_MSGS_PROCESSED,
     MEMPOOL_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
     MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool::metrics::{
@@ -12,6 +13,11 @@ use apollo_mempool::metrics::{
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+    MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+    MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -20,30 +26,64 @@ use apollo_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_IN_MEMPOOL,
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
-fn get_panel_mempool_local_msgs_received() -> Panel {
-    Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
+fn get_panel_local_msgs_received() -> Panel {
+    Panel::from_counter(&MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
-fn get_panel_mempool_local_msgs_processed() -> Panel {
-    Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
+fn get_panel_local_msgs_processed() -> Panel {
+    Panel::from_counter(&MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
-fn get_panel_mempool_remote_msgs_received() -> Panel {
-    Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
+fn get_panel_remote_msgs_received() -> Panel {
+    Panel::from_counter(&MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
-fn get_panel_mempool_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
+fn get_panel_remote_valid_msgs_received() -> Panel {
+    Panel::from_counter(&MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
-fn get_panel_mempool_remote_msgs_processed() -> Panel {
-    Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+fn get_panel_remote_msgs_processed() -> Panel {
+    Panel::from_counter(&MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
-fn get_panel_mempool_local_queue_depth() -> Panel {
-    Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+fn get_panel_remote_number_of_connections() -> Panel {
+    Panel::from_gauge(&MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
-fn get_panel_mempool_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+fn get_panel_local_queue_depth() -> Panel {
+    Panel::from_gauge(&MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+}
+fn get_panel_remote_client_send_attempts() -> Panel {
+    Panel::from_hist(&MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+}
+fn get_processing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_queueing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_local_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        &MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
@@ -69,7 +109,7 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
     )
 }
 fn get_panel_mempool_transactions_committed() -> Panel {
-    Panel::from_counter(MEMPOOL_TRANSACTIONS_COMMITTED, PanelType::Stat)
+    Panel::from_counter(&MEMPOOL_TRANSACTIONS_COMMITTED, PanelType::Stat)
 }
 fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
@@ -135,7 +175,10 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     )
 }
 fn get_panel_mempool_transaction_time_spent() -> Panel {
-    Panel::from_hist(TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
+    Panel::from_hist(&TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
+}
+fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
+    Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_mempool_row() -> Row {
@@ -153,6 +196,7 @@ pub(crate) fn get_mempool_row() -> Row {
             get_panel_mempool_get_txs_size(),
             get_panel_mempool_delayed_declares_size(),
             get_panel_mempool_transaction_time_spent(),
+            get_panel_mempool_transaction_time_spent_until_committed(),
         ],
     )
 }
@@ -161,13 +205,21 @@ pub(crate) fn get_mempool_infra_row() -> Row {
     Row::new(
         "Mempool Infra",
         vec![
-            get_panel_mempool_local_msgs_received(),
-            get_panel_mempool_local_msgs_processed(),
-            get_panel_mempool_local_queue_depth(),
-            get_panel_mempool_remote_msgs_received(),
-            get_panel_mempool_remote_valid_msgs_received(),
-            get_panel_mempool_remote_msgs_processed(),
-            get_panel_mempool_remote_client_send_attempts(),
-        ],
+            get_panel_local_msgs_received(),
+            get_panel_local_msgs_processed(),
+            get_panel_local_queue_depth(),
+            get_panel_remote_msgs_received(),
+            get_panel_remote_valid_msgs_received(),
+            get_panel_remote_msgs_processed(),
+            get_panel_remote_number_of_connections(),
+            get_panel_remote_client_send_attempts(),
+        ]
+        .into_iter()
+        .chain(get_processing_times_panels())
+        .chain(get_queueing_times_panels())
+        .chain(get_local_client_response_times_panels())
+        .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
+        .collect::<Vec<_>>(),
     )
 }

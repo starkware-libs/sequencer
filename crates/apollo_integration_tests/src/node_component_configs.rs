@@ -17,6 +17,7 @@ pub struct NodeComponentConfigs {
     http_server_index: usize,
     state_sync_index: usize,
     class_manager_index: usize,
+    consensus_manager_index: usize,
 }
 
 impl NodeComponentConfigs {
@@ -26,6 +27,7 @@ impl NodeComponentConfigs {
         http_server_index: usize,
         state_sync_index: usize,
         class_manager_index: usize,
+        consensus_manager_index: usize,
     ) -> Self {
         Self {
             component_configs,
@@ -33,6 +35,7 @@ impl NodeComponentConfigs {
             http_server_index,
             state_sync_index,
             class_manager_index,
+            consensus_manager_index,
         }
     }
 
@@ -59,6 +62,10 @@ impl NodeComponentConfigs {
     pub fn get_class_manager_index(&self) -> usize {
         self.class_manager_index
     }
+
+    pub fn get_consensus_manager_index(&self) -> usize {
+        self.consensus_manager_index
+    }
 }
 
 impl IntoIterator for NodeComponentConfigs {
@@ -74,6 +81,7 @@ pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
     // All components are in executable index 0.
     NodeComponentConfigs::new(
         NodeType::Consolidated.get_component_configs(None).into_values().collect(),
+        0,
         0,
         0,
         0,
@@ -111,6 +119,9 @@ pub fn create_distributed_component_configs(
         services_component_config
             .get_index_of::<NodeService>(&DistributedNodeServiceName::ClassManager.into())
             .unwrap(),
+        services_component_config
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::ConsensusManager.into())
+            .unwrap(),
     )
 }
 
@@ -137,6 +148,9 @@ pub fn create_hybrid_component_configs(
             .unwrap(),
         services_component_config
             .get_index_of::<NodeService>(&HybridNodeServiceName::HttpServer.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
         services_component_config
             .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())

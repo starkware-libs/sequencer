@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -44,9 +44,10 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
+use crate::update_strategy::UpdateStrategy;
 use crate::utils::{determine_port_numbers, get_validator_id};
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
 pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
@@ -76,17 +77,44 @@ impl GetComponentConfigs for HybridNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
 
-        let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
+        match ports {
+            Some(ports) => {
+                let determined_ports =
+                    determine_port_numbers(Some(ports), HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                // Extract the infra service ports for all inner services of the hybrid node.
+                for inner_service_name in HybridNodeServiceName::iter() {
+                    let inner_service_port = inner_service_name.get_infra_service_port_mapping();
+                    service_ports.extend(inner_service_port);
+                }
+            }
+        };
 
-        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
-        let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
-        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::L1.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::L1.component_config_pair(ports[4]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
-        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[8]);
+        let batcher = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&InfraServicePort::Batcher]);
+        let class_manager = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let gateway = HybridNodeServiceName::Gateway
+            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_gas_price_provider = HybridNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider = HybridNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let l1_endpoint_monitor = HybridNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
+        let mempool = HybridNodeServiceName::Mempool
+            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = HybridNodeServiceName::SierraCompiler
+            .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
+        let signature_manager = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
+        let state_sync = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&InfraServicePort::StateSync]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -95,10 +123,11 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
+                    l1_endpoint_monitor.remote(),
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
-                    signature_manager.remote(),
+                    signature_manager.local(),
                 ),
                 HybridNodeServiceName::HttpServer => {
                     get_http_server_component_config(gateway.remote())
@@ -157,42 +186,21 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
-            Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
-                    match self {
-                        HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
-                            Some(Toleration::ApolloCoreService)
-                        }
-                        HybridNodeServiceName::HttpServer
-                        | HybridNodeServiceName::Gateway
-                        | HybridNodeServiceName::L1
-                        | HybridNodeServiceName::SierraCompiler => {
-                            Some(Toleration::ApolloGeneralService)
-                        }
+            Environment::CloudK8s(cloud_env) => match self {
+                HybridNodeServiceName::Core => match cloud_env {
+                    CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
+                        Some(Toleration::ApolloCoreService)
                     }
-                }
-                CloudK8sEnvironment::Mainnet
-                | CloudK8sEnvironment::SepoliaTestnet
-                | CloudK8sEnvironment::StressTest => match self {
-                    HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
-                    HybridNodeServiceName::HttpServer
-                    | HybridNodeServiceName::Gateway
-                    | HybridNodeServiceName::L1
-                    | HybridNodeServiceName::SierraCompiler => {
-                        Some(Toleration::ApolloGeneralService)
-                    }
-                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                    CloudK8sEnvironment::Mainnet
+                    | CloudK8sEnvironment::SepoliaTestnet
+                    | CloudK8sEnvironment::StressTest => Some(Toleration::ApolloCoreServiceC2D56),
+                    CloudK8sEnvironment::Potc2 => Some(Toleration::Batcher864),
                 },
-                CloudK8sEnvironment::Potc2 => match self {
-                    HybridNodeServiceName::Core => Some(Toleration::Batcher864),
-                    HybridNodeServiceName::HttpServer
-                    | HybridNodeServiceName::Gateway
-                    | HybridNodeServiceName::L1
-                    | HybridNodeServiceName::SierraCompiler => {
-                        Some(Toleration::ApolloGeneralService)
-                    }
-                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
-                },
+                HybridNodeServiceName::HttpServer
+                | HybridNodeServiceName::Gateway
+                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
             },
             Environment::LocalK8s => None,
         }
@@ -204,14 +212,17 @@ impl ServiceNameInner for HybridNodeServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         match self {
-            HybridNodeServiceName::Core => None,
-            HybridNodeServiceName::HttpServer => {
-                get_ingress(ingress_params, get_environment_ingress_internal(environment))
-            }
-            HybridNodeServiceName::Gateway => None,
-            HybridNodeServiceName::L1 => None,
-            HybridNodeServiceName::Mempool => None,
-            HybridNodeServiceName::SierraCompiler => None,
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::Gateway
+            | HybridNodeServiceName::L1
+            | HybridNodeServiceName::Mempool
+            | HybridNodeServiceName::SierraCompiler => None,
+            HybridNodeServiceName::HttpServer => match &environment {
+                Environment::CloudK8s(_) => {
+                    get_ingress(ingress_params, get_environment_ingress_internal(environment))
+                }
+                Environment::LocalK8s => None,
+            },
         }
     }
 
@@ -285,10 +296,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                         Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                     }
                     HybridNodeServiceName::L1 => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
                     }
                     HybridNodeServiceName::Mempool => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
                     }
                     HybridNodeServiceName::SierraCompiler => {
                         Resources::new(Resource::new(1, 2), Resource::new(2, 4))
@@ -319,7 +330,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
-                HybridNodeServiceName::L1 => false,
+                HybridNodeServiceName::L1 => true,
                 HybridNodeServiceName::Mempool => true,
                 HybridNodeServiceName::SierraCompiler => false,
             },
@@ -345,7 +356,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
-                            | InfraServicePort::StateSync => {
+                            | InfraServicePort::StateSync
+                            | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
                             }
                             InfraServicePort::Gateway
@@ -353,7 +365,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
                             | InfraServicePort::Mempool
-                            | InfraServicePort::SignatureManager
                             | InfraServicePort::SierraCompiler => {}
                         },
                     }
@@ -512,6 +523,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {
                             components.insert(component_config_in_service);
                         }
@@ -550,6 +562,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -575,6 +588,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -600,6 +614,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -625,6 +640,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
@@ -650,12 +666,24 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1Scraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SignatureManager
                         | ComponentConfigInService::StateSync => {}
                     }
                 }
             }
         }
         components
+    }
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            HybridNodeServiceName::Core => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::L1 => UpdateStrategy::Recreate,
+            HybridNodeServiceName::Mempool => UpdateStrategy::Recreate,
+            HybridNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
+        }
     }
 }
 
@@ -679,8 +707,11 @@ impl HybridNodeServiceName {
         );
         match self {
             HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                base.remote_client_config.idle_connections =
-                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
             }
             HybridNodeServiceName::Core
             | HybridNodeServiceName::HttpServer
@@ -722,6 +753,7 @@ fn get_core_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
@@ -733,6 +765,7 @@ fn get_core_component_config(
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.l1_provider = l1_provider_remote_config;
+    config.l1_endpoint_monitor = l1_endpoint_monitor_remote_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
@@ -835,13 +868,13 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                 &Template::new(INSTANCE_NAME_FORMAT),
                 &inputs.secret_name_format,
                 DeploymentConfigOverride::new(
-                    &inputs.starknet_contract_address,
+                    inputs.starknet_contract_address,
                     &inputs.chain_id_string,
-                    &inputs.eth_fee_token_address,
+                    inputs.eth_fee_token_address,
                     inputs.starknet_gateway_url.clone(),
-                    &inputs.strk_fee_token_address,
+                    inputs.strk_fee_token_address,
                     inputs.l1_startup_height_override,
-                    inputs.node_ids.len(),
+                    inputs.num_validators,
                     inputs.state_sync_type.clone(),
                 ),
                 &inputs.node_namespace_format,

@@ -336,7 +336,11 @@ pub async fn run_test(
             p2p_sync.run().await
         }) => {
             res.unwrap();
-            unreachable!("Return type Never should never be constructed.");
+            // If return type is no longer Never we still want the unreachable! check.
+            #[allow(unreachable_code)]
+            {
+                unreachable!("Return type Never should never be constructed.");
+            }
         }
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");

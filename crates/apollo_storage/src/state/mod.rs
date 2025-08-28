@@ -96,6 +96,8 @@ pub(crate) type DeprecatedDeclaredClassesBlockTable<'env> =
     TableHandle<'env, ClassHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>;
 pub(crate) type CompiledClassesTable<'env> =
     TableHandle<'env, ClassHash, VersionZeroWrapper<LocationInFile>, SimpleTable>;
+pub(crate) type StatelessCompiledClassHashV2Table<'env> =
+    TableHandle<'env, ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>;
 pub(crate) type DeployedContractsTable<'env> =
     TableHandle<'env, (ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>;
 pub(crate) type ContractStorageTable<'env> = TableHandle<
@@ -501,7 +503,10 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
 
         for (class_hash, _) in &thin_state_diff.declared_classes {
-            declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
+            let not_declared = declared_classes_block_table.get(&self.txn, class_hash)?.is_none();
+            if not_declared {
+                declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
+            }
         }
 
         write_compiled_class_hashes(
@@ -554,6 +559,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             self.open_table(&self.tables.deprecated_declared_classes_block)?;
         // TODO(yair): Consider reverting the compiled classes in their own module.
         let compiled_classes_table = self.open_table(&self.tables.casms)?;
+        let compiled_class_hash_v2_table =
+            self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
         let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
         let nonces_table = self.open_table(&self.tables.nonces)?;
         let storage_table = self.open_table(&self.tables.contract_storage)?;
@@ -592,6 +599,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &self.txn,
             &thin_state_diff,
             &declared_classes_block_table,
+            block_number,
         )?;
         let deleted_classes = delete_declared_classes(
             &self.txn,
@@ -617,6 +625,11 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             thin_state_diff.declared_classes.keys(),
             &compiled_classes_table,
             &self.file_handlers,
+        )?;
+        delete_compiled_class_hashes_v2(
+            &self.txn,
+            thin_state_diff.declared_classes.keys(),
+            &compiled_class_hash_v2_table,
         )?;
         delete_deployed_contracts(
             &self.txn,
@@ -772,11 +785,23 @@ fn delete_declared_classes_block<'env>(
     txn: &'env DbTransaction<'env, RW>,
     thin_state_diff: &ThinStateDiff,
     declared_classes_block_table: &'env DeclaredClassesBlockTable<'env>,
+    block_number: BlockNumber,
 ) -> StorageResult<Vec<ClassHash>> {
     let mut deleted_data = Vec::new();
     for class_hash in thin_state_diff.declared_classes.keys() {
-        declared_classes_block_table.delete(txn, class_hash)?;
-        deleted_data.push(*class_hash);
+        let class_block_entry =
+            declared_classes_block_table.get(txn, class_hash)?.ok_or_else(|| {
+                StorageError::DBInconsistency {
+                    msg: format!(
+                        "Attempting to revert declaration of class {class_hash} but it doesn't \
+                         exist in the DB"
+                    ),
+                }
+            })?;
+        if class_block_entry == block_number {
+            declared_classes_block_table.delete(txn, class_hash)?;
+            deleted_data.push(*class_hash);
+        }
     }
     Ok(deleted_data)
 }
@@ -953,6 +978,17 @@ fn delete_compiled_class_hashes<'env>(
 ) -> StorageResult<()> {
     for (class_hash, _) in &thin_state_diff.declared_classes {
         compiled_class_hash_table.delete(txn, &(*class_hash, block_number))?;
+    }
+    Ok(())
+}
+
+fn delete_compiled_class_hashes_v2<'env>(
+    txn: &'env DbTransaction<'env, RW>,
+    class_hashes: impl Iterator<Item = &'env ClassHash>,
+    compiled_class_hash_v2_table: &'env StatelessCompiledClassHashV2Table<'env>,
+) -> StorageResult<()> {
+    for class_hash in class_hashes {
+        compiled_class_hash_v2_table.delete(txn, class_hash)?;
     }
     Ok(())
 }

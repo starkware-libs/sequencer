@@ -8,7 +8,7 @@ use test_case::test_case;
 
 use super::SingleHeightConsensus;
 use crate::config::TimeoutsConfig;
-use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
+use crate::single_height_consensus::{ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
 use crate::types::ValidatorId;
@@ -25,8 +25,10 @@ lazy_static! {
     static ref PROPOSAL_INIT: ProposalInit =
         ProposalInit { proposer: *PROPOSER_ID, ..Default::default() };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
-    static ref VALIDATE_PROPOSAL_EVENT: ShcEvent = ShcEvent::ValidateProposal(
-        StateMachineEvent::Proposal(Some(BLOCK.id), PROPOSAL_INIT.round, PROPOSAL_INIT.valid_round,),
+    static ref VALIDATE_PROPOSAL_EVENT: StateMachineEvent = StateMachineEvent::Proposal(
+        Some(BLOCK.id),
+        PROPOSAL_INIT.round,
+        PROPOSAL_INIT.valid_round,
     );
     static ref PROPOSAL_FIN: ProposalFin = ProposalFin { proposal_commitment: BLOCK.id };
 }
@@ -98,11 +100,7 @@ async fn proposer() {
     let shc_ret = shc.start(&mut context).await.unwrap();
     assert_eq!(*shc_ret.as_tasks().unwrap()[0].as_build_proposal().unwrap().0, 0);
     assert_eq!(
-        shc.handle_event(
-            &mut context,
-            ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(BLOCK.id), 0)),
-        )
-        .await,
+        shc.handle_event(&mut context, StateMachineEvent::GetProposal(Some(BLOCK.id), 0)).await,
         Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
     );
     assert_eq!(
@@ -316,11 +314,7 @@ async fn rebroadcast_votes() {
     let shc_ret = shc.start(&mut context).await.unwrap();
     assert_eq!(*shc_ret.as_tasks().unwrap()[0].as_build_proposal().unwrap().0, 0);
     assert_eq!(
-        shc.handle_event(
-            &mut context,
-            ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(BLOCK.id), 0)),
-        )
-        .await,
+        shc.handle_event(&mut context, StateMachineEvent::GetProposal(Some(BLOCK.id), 0)).await,
         Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
     );
     assert_eq!(
@@ -342,11 +336,7 @@ async fn rebroadcast_votes() {
     );
     // Re-broadcast vote.
     assert_eq!(
-        shc.handle_event(
-            &mut context,
-            ShcEvent::Precommit(StateMachineEvent::Precommit(Some(BLOCK.id), 0))
-        )
-        .await,
+        shc.handle_event(&mut context, StateMachineEvent::Precommit(Some(BLOCK.id), 0)).await,
         Ok(ShcReturn::Tasks(vec![precommit_task(Some(BLOCK.id.0), 0),]))
     );
 }
@@ -378,12 +368,9 @@ async fn repropose() {
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
     shc.start(&mut context).await.unwrap();
-    shc.handle_event(
-        &mut context,
-        ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(BLOCK.id), 0)),
-    )
-    .await
-    .unwrap();
+    shc.handle_event(&mut context, StateMachineEvent::GetProposal(Some(BLOCK.id), 0))
+        .await
+        .unwrap();
     shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)).await.unwrap();
     context
         .expect_broadcast()
@@ -414,12 +401,7 @@ async fn repropose() {
         .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     shc.handle_vote(&mut context, precommits[2].clone()).await.unwrap();
-    shc.handle_event(
-        &mut context,
-        ShcEvent::TimeoutPrecommit(StateMachineEvent::TimeoutPrecommit(0)),
-    )
-    .await
-    .unwrap();
+    shc.handle_event(&mut context, StateMachineEvent::TimeoutPrecommit(0)).await.unwrap();
 
     let precommits = vec![
         precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),

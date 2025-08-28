@@ -11,6 +11,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n;
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
@@ -72,7 +73,11 @@ impl L1EndpointMonitor {
             }
         }
 
-        error!("No operational L1 endpoints found in {:?}", self.config.ordered_l1_endpoint_urls);
+        error!(
+            "No operational L1 endpoints found in {:?}",
+            // We print only the hostnames to avoid leaking the API keys.
+            self.config.ordered_l1_endpoint_urls.iter().map(to_safe_string).collect::<Vec<_>>()
+        );
         Err(L1EndpointMonitorError::NoActiveL1Endpoint)
     }
 
@@ -86,6 +91,7 @@ impl L1EndpointMonitor {
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
         let l1_client = ProviderBuilder::new().on_http(l1_endpoint_url.clone());
+        let l1_endpoint_url = to_safe_string(l1_endpoint_url);
 
         // Note: response type annotation is coupled with the rpc method used.
         let is_operational_result = tokio::time::timeout(
@@ -103,7 +109,10 @@ impl L1EndpointMonitor {
                 error!("L1 endpoint {l1_endpoint_url} is not operational: {e}");
                 false
             }
-            Ok(Ok(_)) => true,
+            Ok(Ok(_)) => {
+                info_every_n!(1000, "L1 endpoint {l1_endpoint_url} is operational");
+                true
+            }
         }
     }
 }
@@ -148,4 +157,10 @@ impl SerializeConfig for L1EndpointMonitorConfig {
             ),
         ])
     }
+}
+
+// TODO(Arni): Move to apollo_infra_utils.
+fn to_safe_string(url: &Url) -> String {
+    // We print only the hostnames to avoid leaking the API keys.
+    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
 }

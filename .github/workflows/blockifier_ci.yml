@@ -21,20 +21,20 @@ on:
     paths:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
-      - '.github/actions/bootstrap/action.yml'
-      - '.github/workflows/blockifier_ci.yml'
-      - '.github/workflows/upload_artifacts_workflow.yml'
-      - 'build_native_in_docker.sh'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
-      - 'crates/blockifier/**'
-      - 'crates/blockifier_test_utils/**'
-      - 'crates/native_blockifier/**'
-      - 'crates/apollo_sierra_multicompile/build.rs'
-      - 'scripts/build_native_blockifier.sh'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'scripts/sequencer-ci.Dockerfile'
+      - ".github/actions/bootstrap/action.yml"
+      - ".github/workflows/blockifier_ci.yml"
+      - ".github/workflows/upload_artifacts_workflow.yml"
+      - "build_native_in_docker.sh"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/blockifier/**"
+      - "crates/blockifier_test_utils/**"
+      - "crates/native_blockifier/**"
+      - "crates/apollo_sierra_multicompile/build.rs"
+      - "scripts/build_native_blockifier.sh"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "scripts/sequencer-ci.Dockerfile"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -50,7 +50,7 @@ concurrency:
 
 jobs:
   test-without-features:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -61,7 +61,7 @@ jobs:
       - run: cargo build -p blockifier
 
   test-with-transaction-serde-feature:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -72,7 +72,7 @@ jobs:
       - run: cargo build -p blockifier --features transaction_serde
 
   test-with-cairo-native-feature:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -83,12 +83,12 @@ jobs:
       - run: cargo test -p blockifier --features cairo_native
 
   test-with-tracing-feature:
-      runs-on: starkware-ubuntu-24.04-medium
-      steps:
-        - uses: actions/checkout@v4
-        - uses: ./.github/actions/bootstrap
-          with:
-            github_token: ${{ secrets.GITHUB_TOKEN }}
-        # tracing is not activated by any workspace crate; test the build.
-        - run: cargo build -p blockifier --features tracing
-        - run: cargo test -p blockifier --features tracing
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # tracing is not activated by any workspace crate; test the build.
+      - run: cargo build -p blockifier --features tracing
+      - run: cargo test -p blockifier --features tracing

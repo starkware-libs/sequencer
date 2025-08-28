@@ -431,7 +431,7 @@ impl Mempool {
             }
 
             // Remove from pool.
-            let n_removed_txs = self.tx_pool.remove_up_to_nonce(address, next_nonce);
+            let n_removed_txs = self.tx_pool.remove_up_to_nonce_when_committed(address, next_nonce);
             metric_count_committed_txs(n_removed_txs);
 
             // Maybe close nonce gap.

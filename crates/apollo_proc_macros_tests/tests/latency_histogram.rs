@@ -12,18 +12,12 @@ use rstest::rstest;
 const FOO_HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,
     "foo_histogram_test_metric",
-    "foo_histogram_test_metric_filter",
-    "foo_histogram_test_metric_sum_filter",
-    "foo_histogram_test_metric_count_filter",
     "foo function latency histogram test metrics",
 );
 
 const BAR_HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,
     "bar_histogram_test_metric",
-    "bar_histogram_test_metric_filter",
-    "bar_histogram_test_metric_sum_filter",
-    "bar_histogram_test_metric_count_filter",
     "bar function latency histogram test metrics",
 );
 

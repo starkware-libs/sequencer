@@ -1,7 +1,9 @@
+use blake2s::Blake2Felt252;
 use blockifier::state::state_api::StateReader;
 use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
 use serde::Serialize;
+use starknet_types_core::hash::Poseidon;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
@@ -13,8 +15,12 @@ use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
     disable_da_page_creation,
     get_aggregator_output,
+    get_chain_id_from_input,
+    get_fee_token_address_from_input,
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
+    get_public_key_x_from_aggregator_input,
+    get_public_key_y_from_aggregator_input,
     get_use_kzg_da_from_input,
     set_state_update_pointers_to_none,
     write_da_segment,
@@ -133,6 +139,9 @@ use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
     create_block_additional_hints,
     get_n_blocks,
+    get_n_class_hashes_to_migrate,
+    get_public_key_x,
+    get_public_key_y,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -195,6 +204,7 @@ use crate::hints::hint_implementation::stateful_compression::implementation::{
     assert_key_big_enough_for_alias,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
+    get_class_hash_and_compiled_class_hash_v2,
     guess_aliases_contract_storage_ptr,
     guess_contract_addr_storage_ptr,
     initialize_alias_counter,
@@ -508,10 +518,16 @@ define_stateless_hint_enum!(
         }
     ),
     (
-        SetApToSegmentHash,
-        set_ap_to_segment_hash,
+        SetApToSegmentHashPoseidon,
+        set_ap_to_segment_hash::<Poseidon>,
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.poseidon_hash())"#
+        }
+    ),
+    (
+        SetApToSegmentHashBlake,
+        set_ap_to_segment_hash::<Blake2Felt252>,
         indoc! {r#"
-            memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash())"#
+        memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash_blake())"#
         }
     ),
     (
@@ -1077,7 +1093,7 @@ define_hint_enum!(
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 20] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
+        indoc! {r#"memory[fp + 21] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
     not os_hints_config.full_output
 ))"#}
     ),
@@ -1136,6 +1152,11 @@ define_hint_enum!(
         ReadAliasFromKey,
         read_alias_from_key,
         "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
+    ),
+    (
+        GetClassHashAndCompiledClassHashV2,
+        get_class_hash_and_compiled_class_hash_v2,
+        "GetClassHashAndCompiledClassHashV2"
     ),
     (
         WriteNextAliasFromKey,
@@ -1594,9 +1615,14 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         r#"memory[fp + 0] = to_felt_or_relocatable(len(os_input.block_inputs))"#
     ),
     (
+        GetNClassHashesToMigrate,
+        get_n_class_hashes_to_migrate,
+        r#"ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate)"#
+    ),
+    (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 21] = to_felt_or_relocatable(os_hints_config.full_output)"#}
+        indoc! {r#"memory[fp + 22] = to_felt_or_relocatable(os_hints_config.full_output)"#}
     ),
     (
         ConfigureKzgManager,
@@ -1825,7 +1851,17 @@ block_input = next(block_input_iterator)
 ) = get_execution_helper_and_syscall_handlers(
     block_input=block_input, global_hints=global_hints, os_hints_config=os_hints_config
 )"#}
-    )
+    ),
+    (
+        GetPublicKeyX,
+        get_public_key_x,
+        r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_x)"#
+    ),
+    (
+        GetPublicKeyY,
+        get_public_key_y,
+        r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_y)"#
+    ),
 );
 
 define_hint_enum!(
@@ -1891,6 +1927,26 @@ if da_path is not None:
         GetUseKzgDaFromInput,
         get_use_kzg_da_from_input,
         r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
+    ),
+    (
+        GetChainIdFromInput,
+        get_chain_id_from_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["chain_id"])"#
+    ),
+    (
+        GetFeeTokenAddressFromInput,
+        get_fee_token_address_from_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["fee_token_address"])"#
+    ),
+    (
+        GetPublicKeyXFromAggregatorInput,
+        get_public_key_x_from_aggregator_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["public_key_x"])"#
+    ),
+    (
+        GetPublicKeyYFromAggregatorInput,
+        get_public_key_y_from_aggregator_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["public_key_y"])"#
     ),
 );
 

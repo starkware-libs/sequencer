@@ -7,6 +7,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
@@ -84,7 +85,7 @@ fn test_versioned_state_proxy() {
         class_hash_to_compiled_class_hash: HashMap::from([(class_hash, compiled_class_hash)]),
         ..Default::default()
     };
-    state_reader.add_class(&FeatureContractData::from(test_contract));
+    state_reader.add_class(&FeatureContractData::from(test_contract), &HashVersion::V2);
 
     let cached_state = CachedState::from(state_reader);
 

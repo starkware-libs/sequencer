@@ -87,7 +87,6 @@ use starknet_api::block::{
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ClassHash,
-    CompiledClassHash,
     ContractAddress,
     GlobalRoot,
     Nonce,
@@ -113,7 +112,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionOutput as StarknetApiTransactionOutput,
 };
-use starknet_api::{class_hash, contract_address, felt, storage_key, tx_hash};
+use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 
 use super::super::api::EventsChunk;
@@ -3788,7 +3787,7 @@ async fn get_compiled_class() {
             starknet_api::state::ThinStateDiff {
                 declared_classes: IndexMap::from([(
                     cairo1_class_hash,
-                    CompiledClassHash::default(),
+                    compiled_class_hash!(1_u8),
                 )]),
                 deprecated_declared_classes: vec![cairo0_class_hash],
                 ..Default::default()

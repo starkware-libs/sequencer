@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use apollo_l1_gas_price_types::{
-    EthToStrkOracleClientTrait,
-    L1GasPriceProviderClient,
-    PriceInfo,
-    DEFAULT_ETH_TO_FRI_RATE,
-};
+use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{
     StateSyncClient,
@@ -78,14 +73,13 @@ impl From<StateSyncClientError> for ValidateProposalError {
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
     previous_block_info: Option<&ConsensusBlockInfo>,
     gas_price_params: &GasPriceParams,
 ) -> (u128, PriceInfo) {
     let (eth_to_strk_rate, price_info) = tokio::join!(
-        eth_to_strk_oracle_client.eth_to_fri_rate(timestamp),
+        l1_gas_price_provider_client.get_eth_to_fri_rate(timestamp),
         l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp))
     );
     if price_info.is_err() {
@@ -96,45 +90,37 @@ pub(crate) async fn get_oracle_rate_and_prices(
         warn!("Failed to get eth to strk rate from oracle: {:?}", eth_to_strk_rate);
     }
 
-    match (eth_to_strk_rate, price_info) {
-        (Ok(eth_to_strk_rate), Ok(mut price_info)) => {
-            info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
-            apply_fee_transformations(&mut price_info, gas_price_params);
-            return (eth_to_strk_rate, price_info);
-        }
-        _ => {
-            warn!("Using values from previous block info.")
-        }
+    if let (Ok(eth_to_strk_rate), Ok(mut price_info)) = (eth_to_strk_rate, price_info) {
+        info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
+        apply_fee_transformations(&mut price_info, gas_price_params);
+        return (eth_to_strk_rate, price_info);
     }
 
-    if let Some(previous_block_info) = previous_block_info {
-        let (prev_eth_to_strk_rate, prev_l1_price) = (
-            previous_block_info.eth_to_fri_rate,
-            PriceInfo {
-                base_fee_per_gas: previous_block_info.l1_gas_price_wei,
-                blob_fee: previous_block_info.l1_data_gas_price_wei,
-            },
-        );
-        warn!(
-            "previous eth_to_strk_rate: {prev_eth_to_strk_rate}, previous l1 gas price: \
-             {prev_l1_price:?}"
-        );
-        return (prev_eth_to_strk_rate, prev_l1_price);
+    match previous_block_info {
+        Some(block_info) => {
+            let prev_l1_gas_price = PriceInfo {
+                base_fee_per_gas: block_info.l1_gas_price_wei,
+                blob_fee: block_info.l1_data_gas_price_wei,
+            };
+            info!(
+                "Using values from previous block info. eth_to_strk_rate: {}, l1 gas price: {:?}",
+                block_info.eth_to_fri_rate, prev_l1_gas_price
+            );
+            (block_info.eth_to_fri_rate, prev_l1_gas_price)
+        }
+        None => {
+            let l1_gas_price = PriceInfo {
+                base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
+                blob_fee: gas_price_params.min_l1_data_gas_price_wei,
+            };
+            info!(
+                "No previous block info available, using default values. eth_to_strk_rate: {}, l1 \
+                 gas price: {:?}",
+                DEFAULT_ETH_TO_FRI_RATE, l1_gas_price
+            );
+            (DEFAULT_ETH_TO_FRI_RATE, l1_gas_price)
+        }
     }
-    warn!("No previous block info available, using default values");
-    warn!(
-        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: {:?}, \
-         default (min) l1 data gas price: {:?}",
-        gas_price_params.min_l1_gas_price_wei, gas_price_params.min_l1_data_gas_price_wei
-    );
-
-    (
-        DEFAULT_ETH_TO_FRI_RATE,
-        PriceInfo {
-            base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
-            blob_fee: gas_price_params.min_l1_data_gas_price_wei,
-        },
-    )
 }
 
 fn apply_fee_transformations(price_info: &mut PriceInfo, gas_price_params: &GasPriceParams) {

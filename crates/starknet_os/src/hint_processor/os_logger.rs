@@ -82,6 +82,7 @@ pub trait ResourceFinalizer {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize, Debug, Clone))]
 pub struct SyscallTrace {
     selector: SyscallSelector,
     is_deprecated: bool,
@@ -142,6 +143,7 @@ impl TryFrom<&SyscallTrace> for String {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize, Debug, Clone))]
 pub struct OsTransactionTrace {
     tx_type: TransactionType,
     tx_hash: TransactionHash,
@@ -507,5 +509,10 @@ impl OsLogger {
         self.log(&format!("Exiting {}.", String::try_from(&current_tx)?), false);
         self.txs.push(current_tx);
         Ok(())
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn get_txs(&self) -> &Vec<OsTransactionTrace> {
+        &self.txs
     }
 }

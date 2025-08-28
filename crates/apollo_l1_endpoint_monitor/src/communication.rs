@@ -1,8 +1,5 @@
 use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{
-    ComponentRequestAndResponseSender,
-    ComponentRequestHandler,
-};
+use apollo_infra::component_definitions::{ComponentRequestHandler, RequestWrapper};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorRequest, L1EndpointMonitorResponse};
 use async_trait::async_trait;
@@ -14,8 +11,8 @@ pub type LocalL1EndpointMonitorServer =
     LocalComponentServer<L1EndpointMonitor, L1EndpointMonitorRequest, L1EndpointMonitorResponse>;
 pub type RemoteL1EndpointMonitorServer =
     RemoteComponentServer<L1EndpointMonitorRequest, L1EndpointMonitorResponse>;
-pub type L1EndpointMonitorRequestAndResponseSender =
-    ComponentRequestAndResponseSender<L1EndpointMonitorRequest, L1EndpointMonitorResponse>;
+pub type L1EndpointMonitorRequestWrapper =
+    RequestWrapper<L1EndpointMonitorRequest, L1EndpointMonitorResponse>;
 pub type LocalL1EndpointMonitorClient =
     LocalComponentClient<L1EndpointMonitorRequest, L1EndpointMonitorResponse>;
 pub type RemoteL1EndpointMonitorClient =

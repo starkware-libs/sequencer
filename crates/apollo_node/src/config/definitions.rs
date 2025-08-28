@@ -25,3 +25,21 @@ impl From<ConfigPointersMap> for ConfigPointers {
         config_pointers_map.0.into_iter().map(|(k, (v, p))| ((k, v), p)).collect()
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum ConfigExpectation {
+    Redundant,
+    Required,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum ConfigPresence {
+    Absent,
+    Present,
+}
+
+impl<T> From<&Option<T>> for ConfigPresence {
+    fn from(opt: &Option<T>) -> Self {
+        if opt.is_some() { ConfigPresence::Present } else { ConfigPresence::Absent }
+    }
+}

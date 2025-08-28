@@ -9,6 +9,7 @@ class ServiceTopology:
     config: SequencerConfig
     image: str
     controller: str
+    update_strategy_type: str
     replicas: int
     autoscale: bool
     anti_affinity: bool

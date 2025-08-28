@@ -15,19 +15,19 @@ on:
       - synchronize
       - edited
     paths:
-      - '.github/workflows/committer_and_os_cli_push.yml'
-      - 'build_native_in_docker.sh'
-      - 'docker-ci/images/sequencer-ci.Dockerfile'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/apollo_starknet_os_program/**'
-      - 'crates/starknet_committer_and_os_cli/**'
-      - 'crates/starknet_api/**'
-      - 'crates/starknet_committer/**'
-      - 'crates/starknet_os/**'
-      - 'crates/starknet_patricia/**'
-      - 'rust-toolchain.toml'
-      - 'scripts/dependencies.sh'
+      - ".github/workflows/committer_and_os_cli_push.yml"
+      - "build_native_in_docker.sh"
+      - "docker-ci/images/sequencer-ci.Dockerfile"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/apollo_starknet_os_program/**"
+      - "crates/starknet_committer_and_os_cli/**"
+      - "crates/starknet_api/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_os/**"
+      - "crates/starknet_patricia/**"
+      - "rust-toolchain.toml"
+      - "scripts/dependencies.sh"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   gcs-push:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -70,7 +70,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin

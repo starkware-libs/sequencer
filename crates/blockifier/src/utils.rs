@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::hash::StarkHash;
 
+use crate::blockifier::transaction_executor::CompiledClassHashV2ToV1;
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::NumericConversionError;
@@ -108,16 +110,25 @@ where
     }
 }
 
-// TODO(Meshi): Delete this function.
-pub fn should_migrate(_state_reader: &impl StateReader, _class_hash: ClassHash) -> bool {
-    false
-}
-
-// TODO(Meshi): Remove default implementation.
-// Returns the compiled class hash v2 of the given class hash.
-pub fn get_compiled_class_hash_v2(
-    _state_reader: &impl StateReader,
-    _class_hash: ClassHash,
-) -> StateResult<CompiledClassHash> {
-    Ok(CompiledClassHash::default())
+// Class should migrate if his compiled class hash v2 is different from the one in the state.
+/// Returns a map of class hashes to their compiled class hashes for migration if the class should
+/// migrate, otherwise returns None.
+pub fn should_migrate(
+    state_reader: &impl StateReader,
+    class_hash: ClassHash,
+) -> StateResult<Option<(ClassHash, CompiledClassHashV2ToV1)>> {
+    let state_compiled_class_hash = state_reader.get_compiled_class_hash(class_hash)?;
+    match state_compiled_class_hash {
+        // Class hash does not exist in the state, or is a Cairo 0 class.
+        CompiledClassHash(hash) if hash == StarkHash::ZERO => Ok(None),
+        state_compiled_class_hash => {
+            let compiled_class_hash_v2 = state_reader.get_compiled_class_hash_v2(class_hash)?;
+            // If the state compiled class hash is compiled class hash v2, the class should not
+            // migrate.
+            if state_compiled_class_hash == compiled_class_hash_v2 {
+                return Ok(None);
+            }
+            Ok(Some((class_hash, (compiled_class_hash_v2, state_compiled_class_hash))))
+        }
+    }
 }

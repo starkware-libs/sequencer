@@ -4,6 +4,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_api::block::FeeType;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::{felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
@@ -37,7 +38,13 @@ pub fn test_fill_sequencer_balance_reads(
         resource_bounds: default_all_resource_bounds,
     });
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state_inner(chain_info, BALANCE, &[(account.into(), 1)], erc20_version);
+    let state = &mut test_state_inner(
+        chain_info,
+        BALANCE,
+        &[(account.into(), 1)],
+        &HashVersion::V2,
+        erc20_version,
+    );
 
     let sequencer_balance = Fee(100);
     let sequencer_address = block_context.block_info.sequencer_address;

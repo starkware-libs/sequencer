@@ -34,7 +34,7 @@
             "price_in_fri": "0xd"
         },
         "sequencer_address": "0x7",
-        "starknet_version": "0.15.0",
+        "starknet_version": "0.14.1",
         "use_kzg_da": true
     }
 }

@@ -75,14 +75,15 @@ impl ClassReader {
         if let ContractClass::V0(casm) = casm { Ok(Some(casm)) } else { Ok(None) }
     }
 
-    #[allow(dead_code)]
-    fn read_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    /// Returns the compiled class hash v2 for the given class hash.
+    fn read_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<Option<CompiledClassHash>> {
         let compiled_class_hash_v2 = self
             .runtime
             .block_on(self.reader.get_executable_class_hash_v2(class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?
-            .ok_or(StateError::UndeclaredClassHash(class_hash))?;
-
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
         Ok(compiled_class_hash_v2)
     }
 }
@@ -173,15 +174,19 @@ impl PapyrusReader {
         class_reader.read_optional_deprecated_casm(class_hash)
     }
 
-    // TODO(Aviv): Use it once get_compiled_class_hash_v2 is added to the state reader trait.
-    #[allow(dead_code)]
-    fn read_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    /// Returns the compiled class hash v2 for the given class hash.
+    /// If class reader is not set, it will read the compiled class hash v2 directly from the
+    /// storage.
+    fn read_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<Option<CompiledClassHash>> {
         let Some(class_reader) = &self.class_reader else {
-            let compiled_class_hash_v2 = self
-                .reader()?
-                .get_executable_class_hash_v2(&class_hash)
-                .map_err(|err| StateError::StateReadError(err.to_string()))?
-                .ok_or(StateError::UndeclaredClassHash(class_hash))?;
+            // Try to read directly from storage.
+            let compiled_class_hash_v2 =
+                self.reader()?
+                    .get_executable_class_hash_v2(&class_hash)
+                    .map_err(|err| StateError::StateReadError(err.to_string()))?;
             return Ok(compiled_class_hash_v2);
         };
 
@@ -244,6 +249,10 @@ impl StateReader for PapyrusReader {
             Ok(None) => Ok(CompiledClassHash::default()),
             Err(err) => Err(StateError::StateReadError(err.to_string())),
         }
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(self.read_compiled_class_hash_v2(class_hash)?.unwrap_or_default())
     }
 }
 

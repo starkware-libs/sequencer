@@ -4,7 +4,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -13,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
@@ -25,8 +30,8 @@ pub type LocalSierraCompilerClient =
 pub type RemoteSierraCompilerClient =
     RemoteComponentClient<SierraCompilerRequest, SierraCompilerResponse>;
 pub type SharedSierraCompilerClient = Arc<dyn SierraCompilerClient>;
-pub type SierraCompilerRequestAndResponseSender =
-    ComponentRequestAndResponseSender<SierraCompilerRequest, SierraCompilerResponse>;
+pub type SierraCompilerRequestWrapper =
+    RequestWrapper<SierraCompilerRequest, SierraCompilerResponse>;
 
 // TODO(Elin): change to a more efficient serde (bytes, or something similar).
 // A prerequisite for this is to solve serde-untagged lack of support.
@@ -157,10 +162,18 @@ pub enum SierraCompilerClientError {
     SierraCompilerError(#[from] SierraCompilerError),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(SierraCompilerRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum SierraCompilerRequest {
     Compile(RawClass),
 }
+impl_debug_for_infra_requests_and_responses!(SierraCompilerRequest);
+impl_labeled_request!(SierraCompilerRequest, SierraCompilerRequestLabelValue);
+impl PrioritizedRequest for SierraCompilerRequest {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SierraCompilerResponse {
@@ -186,4 +199,9 @@ where
             Direct
         )
     }
+}
+
+generate_permutation_labels! {
+    SIERRA_COMPILER_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, SierraCompilerRequestLabelValue),
 }

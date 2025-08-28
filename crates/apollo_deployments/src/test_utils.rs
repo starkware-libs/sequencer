@@ -14,11 +14,6 @@ pub struct SecretsConfigOverride {
     #[serde(rename = "base_layer_config.node_url")]
     base_layer_config_node_url: Url,
     #[serde(
-        rename = "consensus_manager_config.eth_to_strk_oracle_config.url_header_list",
-        serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
-    )]
-    consensus_manager_config_eth_to_strk_oracle_config_url_header_list: Option<Vec<UrlAndHeaders>>,
-    #[serde(
         rename = "consensus_manager_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
     )]
@@ -28,6 +23,12 @@ pub struct SecretsConfigOverride {
         serialize_with = "serialize_slice_wrapper"
     )]
     l1_endpoint_monitor_config_ordered_l1_endpoint_urls: Vec<Url>,
+    #[serde(
+        rename = "l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list",
+        serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
+    )]
+    l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list:
+        Option<Vec<UrlAndHeaders>>,
     #[serde(
         rename = "mempool_p2p_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
@@ -49,17 +50,17 @@ impl Default for SecretsConfigOverride {
     fn default() -> Self {
         Self {
             base_layer_config_node_url: Url::parse("https://arbitrary.url.com").unwrap(),
-            consensus_manager_config_eth_to_strk_oracle_config_url_header_list: Some(vec![
-                UrlAndHeaders {
-                    url: Url::parse("https://arbitrary.eth_to_strk_oracle.url").unwrap(),
-                    headers: Default::default(),
-                },
-            ]),
             consensus_manager_config_network_config_secret_key: None,
             l1_endpoint_monitor_config_ordered_l1_endpoint_urls: vec![
                 Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),
                 Url::parse("https://arbitrary.ordered_l1_endpoint_2.url").unwrap(),
             ],
+            l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list: Some(
+                vec![UrlAndHeaders {
+                    url: Url::parse("https://arbitrary.eth_to_strk_oracle.url").unwrap(),
+                    headers: Default::default(),
+                }],
+            ),
             mempool_p2p_config_network_config_secret_key: None,
             recorder_url: Url::parse("https://arbitrary.recorder.url").unwrap(),
             state_sync_config_central_sync_client_config_central_source_config_http_headers: ""

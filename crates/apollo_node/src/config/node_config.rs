@@ -18,6 +18,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
+use apollo_config::validators::config_validate;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway::config::GatewayConfig;
@@ -39,10 +40,11 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;
+use crate::config::component_execution_config::ExpectedComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
-// The path of the default configuration file, provided as part of the crate.
+// The path of the configuration schema file, provided as part of the crate.
 pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
 pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
     "crates/apollo_node/resources/config_secrets_schema.json";
@@ -179,7 +181,6 @@ pub struct SequencerNodeConfig {
     pub components: ComponentConfig,
     #[validate]
     pub monitoring_config: MonitoringConfig,
-
     // Business-logic component configs.
     #[validate]
     pub base_layer_config: Option<EthereumBaseLayerConfig>,
@@ -277,12 +278,100 @@ impl Default for SequencerNodeConfig {
     }
 }
 
+macro_rules! validate_component_config_is_set_iff_running_locally {
+    ($self:ident, $component_field:ident, $config_field:ident) => {{
+        // The component config should be set iff its running locally.
+        if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
+            let execution_mode = &$self.components.$component_field.execution_mode;
+            let component_config_availability =
+                if $self.$config_field.is_some() { "available" } else { "not available" };
+            return Err(ConfigError::ComponentConfigMismatch {
+                component_config_mismatch: format!(
+                    "{} component configs mismatch: execution mode {:?} while config is {}",
+                    stringify!($component_field),
+                    execution_mode,
+                    component_config_availability
+                ),
+            });
+        }
+    }};
+}
+
 impl SequencerNodeConfig {
     /// Creates a config object, using the config schema and provided resources.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
         let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH)?;
         let default_config_file = File::open(config_file_name)?;
         load_and_process_config(default_config_file, node_command(), args, true)
+    }
+
+    pub fn validate_node_config(&self) -> Result<(), ConfigError> {
+        // Validate each config member using its `Validate` trait derivation.
+        config_validate(self)?;
+
+        // Custom cross member validations.
+        self.cross_member_validations()
+    }
+
+    fn cross_member_validations(&self) -> Result<(), ConfigError> {
+        // TODO(Tsabary): should be based on iteration of `ComponentConfig` fields.
+        validate_component_config_is_set_iff_running_locally!(self, batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            class_manager,
+            class_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_endpoint_monitor,
+            l1_endpoint_monitor_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_provider,
+            l1_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_gas_price_provider,
+            l1_gas_price_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            mempool_p2p,
+            mempool_p2p_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            sierra_compiler,
+            sierra_compiler_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            consensus_manager,
+            consensus_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            http_server,
+            http_server_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, l1_scraper, l1_scraper_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_gas_price_scraper,
+            l1_gas_price_scraper_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            monitoring_endpoint,
+            monitoring_endpoint_config
+        );
+
+        Ok(())
     }
 }
 

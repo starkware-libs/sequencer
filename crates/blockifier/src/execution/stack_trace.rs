@@ -8,12 +8,14 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use itertools::Itertools;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_utils::format_panic_data;
-use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::syscalls::hint_processor::{SyscallExecutionError, ENTRYPOINT_FAILED_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallExecutionError,
+    ENTRYPOINT_FAILED_ERROR_FELT,
+};
 use crate::transaction::errors::TransactionExecutionError;
 
 #[cfg(test)]
@@ -346,8 +348,6 @@ pub fn extract_trailing_cairo1_revert_trace(
         stack: vec![],
         last_retdata: root_call.execution.retdata.clone(),
     };
-    let entrypoint_failed_felt = Felt::from_hex(ENTRYPOINT_FAILED_ERROR)
-        .unwrap_or_else(|_| panic!("{ENTRYPOINT_FAILED_ERROR} does not fit in a felt."));
 
     // Compute the failing call chain.
     let mut error_calls: Vec<&CallInfo> = vec![];
@@ -360,7 +360,7 @@ pub fn extract_trailing_cairo1_revert_trace(
         // Even if the next inner call is also in failed state, assume a scenario where the current
         // call panicked after ignoring the error result of the inner call.
         let retdata = &call.execution.retdata.0;
-        if retdata.last() != Some(&entrypoint_failed_felt) {
+        if retdata.last() != Some(&ENTRYPOINT_FAILED_ERROR_FELT) {
             break;
         }
         // Select the next inner failure, if it exists and is unique.

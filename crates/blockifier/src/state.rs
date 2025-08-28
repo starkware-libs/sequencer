@@ -1,4 +1,5 @@
 pub mod cached_state;
+pub mod compiled_class_hash_migration;
 pub mod contract_class_manager;
 #[cfg(test)]
 pub mod error_format_test;
@@ -11,3 +12,4 @@ pub mod state_reader_and_contract_manager;
 pub mod stateful_compression;
 #[cfg(any(feature = "testing", test))]
 pub mod stateful_compression_test_utils;
+pub mod utils;

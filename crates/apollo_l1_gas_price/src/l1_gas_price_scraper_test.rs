@@ -20,7 +20,7 @@ fn u64_to_block_hash(value: u64) -> L1BlockHash {
     let mut result = [0u8; 32];
     let bytes = value.to_be_bytes();
     result[24..].copy_from_slice(&bytes);
-    result
+    L1BlockHash(result)
 }
 
 fn create_l1_block_header(block_number: u64) -> L1BlockHeader {

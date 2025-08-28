@@ -249,7 +249,8 @@ async fn validate_fails(
     #[values(
         InvalidValidationStatus::AlreadyIncludedInProposedBlock,
         InvalidValidationStatus::AlreadyIncludedOnL2,
-        InvalidValidationStatus::ConsumedOnL1OrUnknown
+        InvalidValidationStatus::ConsumedOnL1,
+        InvalidValidationStatus::NotFound
     )]
     expected_validation_status: InvalidValidationStatus,
 ) {

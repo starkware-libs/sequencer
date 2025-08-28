@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_metrics::metrics::{
+    LabeledMetricHistogram,
+    MetricCounter,
+    MetricGauge,
+    MetricHistogram,
+};
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
@@ -42,7 +48,7 @@ impl Serialize for Dashboard {
 }
 
 /// Grafana panel types.
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum PanelType {
     Stat,
@@ -51,33 +57,33 @@ pub(crate) enum PanelType {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Panel {
-    name: &'static str,
-    description: &'static str,
+    name: String,
+    description: String,
     exprs: Vec<String>,
     panel_type: PanelType,
 }
 
 impl Panel {
     pub(crate) fn new(
-        name: &'static str,
-        description: &'static str,
+        name: impl ToString,
+        description: impl ToString,
         exprs: Vec<String>,
         panel_type: PanelType,
     ) -> Self {
         // A panel assigns a unique id to each of its expressions. Conventionally, we use letters
         // A–Z, and for simplicity, we limit the number of expressions to this range.
         const NUM_LETTERS: u8 = b'Z' - b'A' + 1;
+        let name = name.to_string();
+        let description = description.to_string();
         assert!(
             exprs.len() <= NUM_LETTERS.into(),
-            "Too many expressions ({} > {}) in panel '{}'.",
+            "Too many expressions ({} > {NUM_LETTERS}) in panel '{name}'.",
             exprs.len(),
-            NUM_LETTERS,
-            name
         );
         Self { name, description, exprs, panel_type }
     }
 
-    pub(crate) fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
+    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -86,7 +92,7 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
+    pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -95,7 +101,7 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
+    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -103,10 +109,39 @@ impl Panel {
                 .iter()
                 .map(|q| {
                     format!(
-                        "histogram_quantile({:.2}, sum(rate({}[{}])) by (le))",
-                        q,
+                        "histogram_quantile({q:.2}, sum by (le) \
+                         (rate({}[{HISTOGRAM_TIME_RANGE}])))",
                         metric.get_name_with_filter(),
-                        HISTOGRAM_TIME_RANGE
+                    )
+                })
+                .collect(),
+            panel_type,
+        )
+    }
+
+    // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
+    pub(crate) fn from_request_type_labeled_hist(
+        metric: &LabeledMetricHistogram,
+        panel_type: PanelType,
+        request_label: &str,
+    ) -> Self {
+        let metric_name_with_filter_and_reason = format!(
+            "{}, {LABEL_NAME_REQUEST_VARIANT}=\"{request_label}\"}}",
+            metric
+                .get_name_with_filter()
+                .strip_suffix("}")
+                .expect("Metric label filter should end with a }")
+        );
+
+        Self::new(
+            format!("{} {request_label}", metric.get_name()),
+            format!("{}: {request_label}", metric.get_description()),
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| {
+                    format!(
+                        "histogram_quantile({q:.2}, sum by (le) \
+                         (rate({metric_name_with_filter_and_reason}[{HISTOGRAM_TIME_RANGE}])))",
                     )
                 })
                 .collect(),
@@ -134,6 +169,19 @@ impl Panel {
 
         Self::new(name, description, vec![expr], PanelType::TimeSeries)
     }
+}
+
+pub(crate) fn create_request_type_labeled_hist_panels(
+    metric: &LabeledMetricHistogram,
+    panel_type: PanelType,
+) -> Vec<Panel> {
+    metric
+        .get_flat_label_values()
+        .into_iter()
+        .map(|request_label| {
+            Panel::from_request_type_labeled_hist(metric, panel_type, request_label)
+        })
+        .collect()
 }
 
 // Custom Serialize implementation for Panel.

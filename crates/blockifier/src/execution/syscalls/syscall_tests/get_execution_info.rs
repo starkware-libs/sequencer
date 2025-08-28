@@ -2,6 +2,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{
@@ -320,8 +321,12 @@ fn test_get_execution_info(
         test_contract_data.class_hash =
             *VersionedConstants::latest_constants().os_constants.data_gas_accounts.first().unwrap();
     }
-    let state =
-        &mut test_state_ex(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract_data, 1)]);
+    let state = &mut test_state_ex(
+        &ChainInfo::create_for_testing(),
+        BALANCE,
+        &[(test_contract_data, 1)],
+        &HashVersion::V2,
+    );
     let expected_block_info = match execution_mode {
         ExecutionMode::Validate => [
             // Rounded block number.

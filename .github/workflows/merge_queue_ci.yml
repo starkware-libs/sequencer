@@ -12,7 +12,7 @@ env:
 
 jobs:
   code_style:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       # Environment setup.
       - uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin

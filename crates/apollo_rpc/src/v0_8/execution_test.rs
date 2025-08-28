@@ -28,6 +28,7 @@ use apollo_starknet_client::reader::objects::transaction::{
 use apollo_starknet_client::reader::PendingData;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::class_hash::ClassHashStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
@@ -60,6 +61,7 @@ use starknet_api::block::{
     BlockTimestamp,
     GasPricePerToken,
 };
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -1644,7 +1646,7 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
     let class2 = starknet_api::state::SierraContractClass::default();
     let casm: CasmContractClass = read_json_file("casm.json");
     let class_hash2 = class_hash!("0x2");
-    let compiled_class_hash = CompiledClassHash(StarkHash::default());
+    let compiled_class_hash = casm.hash(&HashVersion::V2);
 
     let account_class = read_json_file("account_class.json");
     let account_balance_key =
@@ -1708,6 +1710,8 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
                 ),
             },
         )
+        .unwrap()
+        .set_executable_class_hash_v2(&class_hash2, compiled_class_hash)
         .unwrap()
         .append_classes(
             BlockNumber(0),

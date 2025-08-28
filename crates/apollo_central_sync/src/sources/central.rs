@@ -217,15 +217,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
 {
     // Returns the block hash and the block number of the latest block from the central source.
     async fn get_latest_block(&self) -> Result<Option<BlockHashAndNumber>, CentralError> {
-        self.apollo_starknet_client.latest_block().await.map_err(Arc::new)?.map_or(
-            Ok(None),
-            |block| {
-                Ok(Some(BlockHashAndNumber {
-                    hash: block.block_hash(),
-                    number: block.block_number(),
-                }))
-            },
-        )
+        Ok(self.apollo_starknet_client.latest_block_number_and_hash().await.map_err(Arc::new)?)
     }
 
     // Returns the current block hash of the given block number from the central source.

@@ -2,21 +2,22 @@ use std::fmt::{Display, Formatter, Result};
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
+use alloy::primitives::Address as EthereumContractAddress;
 use apollo_http_server::config::HTTP_SERVER_PORT;
 use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
-use strum::{EnumIter, IntoEnumIterator};
-use strum_macros::{Display, EnumDiscriminants, EnumString};
+use starknet_api::core::ContractAddress;
+use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
+use strum_macros::{Display, EnumString};
 use url::Url;
 
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
 use crate::deployments::hybrid::load_and_create_hybrid_deployments;
-
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
@@ -68,18 +69,16 @@ const STRESS_TEST_DEPLOYMENT_INPUTS_PATH: &str =
 #[derive(Debug, Deserialize)]
 pub struct DeploymentInputs {
     pub node_ids: Vec<usize>,
+    pub num_validators: usize,
     pub http_server_ingress_alternative_name: String,
     pub ingress_domain: String,
     pub secret_name_format: Template,
     pub node_namespace_format: Template,
-    pub starknet_contract_address: String, /* TODO(Tsabary): should be an Eth address, currently
-                                            * only enforced at config loading. */
+    pub starknet_contract_address: EthereumContractAddress,
     pub chain_id_string: String,
-    pub eth_fee_token_address: String, /* TODO(Tsabary): should be a Starknet address, currently
-                                        * only enforced at config loading. */
+    pub eth_fee_token_address: ContractAddress,
     pub starknet_gateway_url: Url,
-    pub strk_fee_token_address: String, /* TODO(Tsabary): should be a Starknet address,
-                                         * currently only enforced at config loading. */
+    pub strk_fee_token_address: ContractAddress,
     pub l1_startup_height_override: Option<BlockNumber>,
     pub state_sync_type: StateSyncType,
     pub p2p_communication_type: P2PCommunicationType,
@@ -255,7 +254,6 @@ impl ServicePort {
     }
 }
 
-// TODO(Nadin/ Tsabary): Add SignatureManager to this enum.
 #[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum ComponentConfigInService {
     BaseLayer,
@@ -274,6 +272,7 @@ pub enum ComponentConfigInService {
     MempoolP2p,
     MonitoringEndpoint,
     SierraCompiler,
+    SignatureManager,
     StateSync,
 }
 
@@ -308,6 +307,11 @@ impl ComponentConfigInService {
                 vec!["monitoring_endpoint_config".to_string()]
             }
             ComponentConfigInService::SierraCompiler => vec!["sierra_compiler_config".to_string()],
+            // Signature manager does not have a separate config sub-struct in
+            // `SequencerNodeConfig`. Keep this empty to avoid generating
+            // `signature_manager_config.#is_none` flags.
+            // TODO(Nadin): TAL add refactor this temp fix.
+            ComponentConfigInService::SignatureManager => vec![],
             ComponentConfigInService::StateSync => vec!["state_sync_config".to_string()],
         }
     }

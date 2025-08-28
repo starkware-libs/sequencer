@@ -25,6 +25,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_IN_MEMPOOL,
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
 /// Creates an executable invoke transaction with the given field subset (the rest receive default
@@ -297,6 +298,7 @@ pub struct MempoolMetrics {
     pub total_size_in_bytes: u64,
     pub evictions_count: u64,
     pub transaction_time_spent_in_mempool: HistogramValue,
+    pub transaction_time_spent_until_committed: HistogramValue,
 }
 
 impl MempoolMetrics {
@@ -342,5 +344,7 @@ impl MempoolMetrics {
         MEMPOOL_TOTAL_SIZE_BYTES.assert_eq(metrics, self.total_size_in_bytes);
         TRANSACTION_TIME_SPENT_IN_MEMPOOL
             .assert_eq(metrics, &self.transaction_time_spent_in_mempool);
+        TRANSACTION_TIME_SPENT_UNTIL_COMMITTED
+            .assert_eq(metrics, &self.transaction_time_spent_until_committed);
     }
 }
