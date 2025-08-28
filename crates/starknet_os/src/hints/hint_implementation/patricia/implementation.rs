@@ -18,6 +18,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     EdgeData,
     EdgePathLength,
     PathToBottom,
+    Preimage,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -34,7 +35,6 @@ use crate::hints::hint_implementation::patricia::utils::{
     InnerNode,
     LayerIndex,
     Path,
-    Preimage,
     UpdateTree,
 };
 use crate::hints::types::HintArgs;

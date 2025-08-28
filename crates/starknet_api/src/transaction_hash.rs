@@ -292,7 +292,7 @@ fn get_common_deploy_transaction_hash(
                 None
             }
         })
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .get_pedersen_hash(),
     ))
 }
@@ -327,7 +327,7 @@ fn get_common_invoke_transaction_v0_hash(
             .chain(&transaction.entry_point_selector.0)
             .chain(&HashChain::new().chain_iter(transaction.calldata.0.iter()).get_pedersen_hash())
             .chain_if_fn(|| if !is_deprecated { Some(transaction.max_fee.0.into()) } else { None })
-            .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+            .chain(&Felt::try_from(chain_id)?)
             .get_pedersen_hash(),
     ))
 }
@@ -345,7 +345,7 @@ pub(crate) fn get_invoke_transaction_v1_hash(
         .chain(&Felt::ZERO) // No entry point selector in invoke transaction.
         .chain(&HashChain::new().chain_iter(transaction.calldata.0.iter()).get_pedersen_hash())
         .chain(&transaction.max_fee.0.into())
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .chain(&transaction.nonce.0)
         .get_pedersen_hash(),
     ))
@@ -391,7 +391,7 @@ pub(crate) fn get_invoke_transaction_v3_hash<T: InvokeTransactionV3Trait>(
             .chain(transaction.sender_address().0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
-            .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+            .chain(&Felt::try_from(chain_id)?)
             .chain(&transaction.nonce().0)
             .chain(&data_availability_mode)
             .chain(&account_deployment_data_hash)
@@ -504,7 +504,7 @@ fn get_common_l1_handler_transaction_hash(
                 None
             }
         })
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .chain_if_fn(|| {
             if version > L1HandlerVersions::AsInvoke {
                 Some(transaction.nonce.0)
@@ -529,7 +529,7 @@ pub(crate) fn get_declare_transaction_v0_hash(
         .chain(&Felt::ZERO) // No entry point selector in declare transaction.
         .chain(&HashChain::new().get_pedersen_hash())
         .chain(&transaction.max_fee.0.into())
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .chain(&transaction.class_hash.0)
         .get_pedersen_hash(),
     ))
@@ -548,7 +548,7 @@ pub(crate) fn get_declare_transaction_v1_hash(
         .chain(&Felt::ZERO) // No entry point selector in declare transaction.
         .chain(&HashChain::new().chain(&transaction.class_hash.0).get_pedersen_hash())
         .chain(&transaction.max_fee.0.into())
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .chain(&transaction.nonce.0)
         .get_pedersen_hash(),
     ))
@@ -567,7 +567,7 @@ pub(crate) fn get_declare_transaction_v2_hash(
         .chain(&Felt::ZERO) // No entry point selector in declare transaction.
         .chain(&HashChain::new().chain(&transaction.class_hash.0).get_pedersen_hash())
         .chain(&transaction.max_fee.0.into())
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .chain(&transaction.nonce.0)
         .chain(&transaction.compiled_class_hash.0)
         .get_pedersen_hash(),
@@ -613,7 +613,7 @@ pub(crate) fn get_declare_transaction_v3_hash<T: DeclareTransactionV3Trait>(
             .chain(transaction.sender_address().0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
-            .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+            .chain(&Felt::try_from(chain_id)?)
             .chain(&transaction.nonce().0)
             .chain(&data_availability_mode)
             .chain(&account_deployment_data_hash)
@@ -677,7 +677,7 @@ pub(crate) fn get_deploy_account_transaction_v1_hash(
         .chain(&Felt::ZERO) // No entry point selector in deploy account transaction.
         .chain(&calldata_hash)
         .chain(&transaction.max_fee.0.into())
-        .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+        .chain(&Felt::try_from(chain_id)?)
         .chain(&transaction.nonce.0)
         .get_pedersen_hash(),
     ))
@@ -726,7 +726,7 @@ pub(crate) fn get_deploy_account_transaction_v3_hash<
             .chain(contract_address.0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
-            .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
+            .chain(&Felt::try_from(chain_id)?)
             .chain(&data_availability_mode)
             .chain(&transaction.nonce().0)
             .chain(&constructor_calldata_hash)

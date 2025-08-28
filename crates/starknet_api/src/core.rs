@@ -80,6 +80,16 @@ impl std::fmt::Display for ChainId {
     }
 }
 
+impl TryFrom<&ChainId> for Felt {
+    type Error = StarknetApiError;
+
+    fn try_from(chain_id: &ChainId) -> Result<Self, Self::Error> {
+        Self::from_hex(chain_id.as_hex().as_str()).map_err(|_| Self::Error::OutOfRange {
+            string: format!("Failed to convert chain id {chain_id} to felt."),
+        })
+    }
+}
+
 impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
@@ -304,6 +314,10 @@ pub struct EntryPointSelector(pub StarkHash);
     derive_more::Display,
 )]
 pub struct GlobalRoot(pub StarkHash);
+
+// Hex of 'STARKNET_STATE_V0'.
+pub const GLOBAL_STATE_VERSION: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f53544154455f5630");
 
 /// The commitment on the transactions in a [Block](`crate::block::Block`).
 #[derive(

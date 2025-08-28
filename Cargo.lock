@@ -11941,14 +11941,19 @@ dependencies = [
 name = "starknet_committer"
 version = "0.0.0"
 dependencies = [
+ "ethnum",
  "hex",
  "pretty_assertions",
+ "rand 0.8.5",
+ "rand_distr",
  "rstest",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -11982,8 +11987,6 @@ dependencies = [
  "starknet_os",
  "starknet_patricia",
  "starknet_patricia_storage",
- "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",

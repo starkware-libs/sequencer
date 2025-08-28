@@ -1,6 +1,5 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
-use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -36,8 +35,7 @@ pub(crate) fn chain_id<S: StateReader>(
     HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let chain_id = &hint_processor.os_hints_config.chain_info.chain_id;
-    let chain_id_as_felt = ascii_as_felt(&chain_id.to_string())?;
-    Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
+    Ok(insert_value_into_ap(vm, Felt::try_from(chain_id)?)?)
 }
 
 pub(crate) fn fee_token_address<S: StateReader>(

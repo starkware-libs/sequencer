@@ -101,21 +101,21 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "consensus.future_height_limit": {
+  "consensus.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "value": {
       "$serde_json::private::Number": "10"
     },
     "privacy": "Public"
   },
-  "consensus.future_height_round_limit": {
+  "consensus.future_msg_limit.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "value": {
       "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
-  "consensus.future_round_limit": {
+  "consensus.future_msg_limit.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "value": {
       "$serde_json::private::Number": "10"

@@ -153,5 +153,6 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
         ..Default::default()
     };
 
-    test_output.assert_contains_state_diff(&partial_state_diff);
+    let perform_global_validations = true;
+    test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
 }

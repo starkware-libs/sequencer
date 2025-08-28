@@ -3,11 +3,12 @@ use std::collections::{HashMap, HashSet};
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
     EdgeData,
     EdgePath,
     EdgePathLength,
     PathToBottom,
+    Preimage,
+    PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -17,58 +18,6 @@ use crate::hints::hint_implementation::patricia::error::PatriciaError;
 #[cfg(test)]
 #[path = "utils_test.rs"]
 pub mod utils_test;
-
-#[derive(Clone, Debug)]
-pub enum Preimage {
-    Binary(BinaryData),
-    Edge(EdgeData),
-}
-
-pub type PreimageMap = HashMap<HashOutput, Preimage>;
-
-impl Preimage {
-    pub(crate) const BINARY_LENGTH: u8 = 2;
-    pub(crate) const EDGE_LENGTH: u8 = 3;
-
-    pub fn length(&self) -> u8 {
-        match self {
-            Self::Binary(_) => Self::BINARY_LENGTH,
-            Self::Edge(_) => Self::EDGE_LENGTH,
-        }
-    }
-
-    pub(crate) fn get_binary(&self) -> Result<&BinaryData, PatriciaError> {
-        match self {
-            Self::Binary(binary) => Ok(binary),
-            Self::Edge(_) => Err(PatriciaError::ExpectedBinary(self.clone())),
-        }
-    }
-}
-
-impl TryFrom<&Vec<Felt>> for Preimage {
-    type Error = PatriciaError;
-
-    fn try_from(raw_preimage: &Vec<Felt>) -> Result<Self, Self::Error> {
-        match raw_preimage.as_slice() {
-            [left, right] => Ok(Preimage::Binary(BinaryData {
-                left_hash: HashOutput(*left),
-                right_hash: HashOutput(*right),
-            })),
-            [length, path, bottom] => {
-                Ok(Preimage::Edge(EdgeData {
-                    bottom_hash: HashOutput(*bottom),
-                    path_to_bottom: PathToBottom::new(
-                        (*path).into(),
-                        EdgePathLength::new((*length).try_into().map_err(|_| {
-                            PatriciaError::InvalidRawPreimage(raw_preimage.clone())
-                        })?)?,
-                    )?,
-                }))
-            }
-            _ => Err(PatriciaError::InvalidRawPreimage(raw_preimage.clone())),
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DecodeNodeCase {

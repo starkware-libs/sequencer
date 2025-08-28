@@ -20,7 +20,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     Transaction as StarknetApiTransaction,
 };
-use starknet_api::state::SierraContractClass;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -31,6 +31,7 @@ use starknet_os::io::os_input::{
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -71,13 +72,75 @@ pub(crate) struct TestManager<S: FlowTestState> {
     per_block_transactions: Vec<Vec<BlockifierTransaction>>,
 }
 
+pub(crate) struct OsTestExpectedValues {
+    pub(crate) previous_global_root: HashOutput,
+    pub(crate) new_global_root: HashOutput,
+    // TODO(Dori): Change type to PreviousBlockNumber once it exists.
+    pub(crate) previous_block_number: Option<BlockNumber>,
+    pub(crate) new_block_number: BlockNumber,
+    pub(crate) config_hash: Felt,
+    pub(crate) use_kzg_da: bool,
+}
+
 pub(crate) struct OsTestOutput {
     pub(crate) os_output: StarknetOsRunnerOutput,
     pub(crate) decompressed_state_diff: StateMaps,
+    pub(crate) expected_values: OsTestExpectedValues,
 }
 
 impl OsTestOutput {
-    pub(crate) fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
+    pub(crate) fn perform_validations(
+        &self,
+        perform_global_validations: bool,
+        partial_state_diff: Option<&StateMaps>,
+    ) {
+        if perform_global_validations {
+            self.perform_global_validations();
+        }
+        if let Some(partial_state_diff) = partial_state_diff {
+            self.assert_contains_state_diff(partial_state_diff);
+        }
+    }
+
+    fn perform_global_validations(&self) {
+        // TODO(Dori): Implement global validations for the OS test output.
+
+        // TODO(Dori): Implement builtin validations.
+
+        // Validate state roots.
+        assert_eq!(
+            self.os_output.os_output.common_os_output.initial_root,
+            self.expected_values.previous_global_root.0
+        );
+        assert_eq!(
+            self.os_output.os_output.common_os_output.final_root,
+            self.expected_values.new_global_root.0
+        );
+
+        // Block numbers.
+        assert_eq!(
+            Some(self.os_output.os_output.common_os_output.prev_block_number),
+            self.expected_values.previous_block_number
+        );
+        assert_eq!(
+            self.os_output.os_output.common_os_output.new_block_number,
+            self.expected_values.new_block_number
+        );
+
+        // TODO(Dori): Implement block hash validation.
+
+        // Config hash.
+        assert_eq!(
+            self.os_output.os_output.common_os_output.starknet_os_config_hash,
+            self.expected_values.config_hash,
+        );
+
+        // Flags.
+        assert_eq!(self.os_output.os_output.use_kzg_da(), self.expected_values.use_kzg_da);
+        assert!(!self.os_output.os_output.full_output());
+    }
+
+    fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
         assert!(hashmap_contains_other(
             &self.decompressed_state_diff.class_hashes,
             &partial_state_diff.class_hashes
@@ -225,6 +288,48 @@ impl<S: FlowTestState> TestManager<S> {
             divide_vec_into_n_parts(self.per_block_transactions.pop().unwrap(), n_blocks);
     }
 
+    /// Verifies all [ChainInfo]s are identical in the given block contexts, and returns an
+    /// [OsChainInfo].
+    fn verify_chain_infos_and_get_one(block_contexts: &[BlockContext]) -> OsChainInfo {
+        let mut chain_info_iter = block_contexts.iter().map(|ctx| ctx.chain_info());
+        let first_chain_info =
+            chain_info_iter.next().expect("At least one block context is required.");
+        assert!(
+            chain_info_iter.all(|chain_info| first_chain_info == chain_info),
+            "All block contexts must have the same chain info."
+        );
+        OsChainInfo {
+            chain_id: first_chain_info.chain_id.clone(),
+            strk_fee_token_address: first_chain_info.fee_token_addresses.strk_fee_token_address,
+        }
+    }
+
+    /// Verifies all [BlockContext]s have the same `use_kzg_da` flag, and returns it.
+    fn verify_kzg_da_flag_and_get(block_contexts: &[BlockContext]) -> bool {
+        let mut use_kzg_da_iter = block_contexts.iter().map(|ctx| ctx.block_info().use_kzg_da);
+        let first_use_kzg_da =
+            use_kzg_da_iter.next().expect("At least one block context is required.");
+        assert!(
+            use_kzg_da_iter.all(|use_kzg_da| first_use_kzg_da == use_kzg_da),
+            "All block contexts must have the same use_kzg_da flag."
+        );
+        first_use_kzg_da
+    }
+
+    /// Decompresses the state diff from the OS output using the given OS output, state and alias
+    /// keys.
+    fn get_decompressed_state_diff(
+        os_state_diff: &OsStateDiff,
+        state: &S,
+        alias_keys: HashSet<StorageKey>,
+    ) -> StateMaps {
+        let OsStateDiff::Partial(ref partial_os_state_diff) = os_state_diff else {
+            panic!("Expected a partial state diff in the output because of the OS config.");
+        };
+        let compressed_state_diff = partial_os_state_diff.as_state_maps();
+        decompress(&compressed_state_diff, state, *ALIAS_CONTRACT_ADDRESS, alias_keys)
+    }
+
     // Private method which executes the flow test.
     async fn execute_flow_test(self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
@@ -238,6 +343,12 @@ impl<S: FlowTestState> TestManager<S> {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let expected_previous_global_root = previous_commitment.global_root();
+        let previous_block_number =
+            block_contexts.first().unwrap().block_info().block_number.prev();
+        let new_block_number = block_contexts.last().unwrap().block_info().block_number;
+        let chain_info = Self::verify_chain_infos_and_get_one(&block_contexts);
+        let use_kzg_da = Self::verify_kzg_da_flag_and_get(&block_contexts);
         let mut alias_keys = HashSet::new();
         for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
@@ -301,6 +412,7 @@ impl<S: FlowTestState> TestManager<S> {
             cached_state_inputs.push(cached_state_input);
             previous_commitment = new_commitment;
         }
+        let expected_new_global_root = previous_commitment.global_root();
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
             cached_state_inputs,
@@ -317,22 +429,26 @@ impl<S: FlowTestState> TestManager<S> {
                 .into_iter()
                 .collect(),
         };
-        let chain_info = OsChainInfo {
-            chain_id: CHAIN_ID_FOR_TESTS.clone(),
-            strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
-        };
+        let expected_config_hash = chain_info.compute_os_config_hash().unwrap();
         let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
-        let OsStateDiff::Partial(ref partial_os_state_diff) = os_output.os_output.state_diff else {
-            panic!("Expected a partial state diff in the output because of the OS config.");
-        };
-        let compressed_state_diff = partial_os_state_diff.as_state_maps();
         let decompressed_state_diff =
-            decompress(&compressed_state_diff, &state, *ALIAS_CONTRACT_ADDRESS, alias_keys);
+            Self::get_decompressed_state_diff(&os_output.os_output.state_diff, &state, alias_keys);
 
-        OsTestOutput { os_output, decompressed_state_diff }
+        OsTestOutput {
+            os_output,
+            decompressed_state_diff,
+            expected_values: OsTestExpectedValues {
+                previous_global_root: expected_previous_global_root,
+                new_global_root: expected_new_global_root,
+                previous_block_number,
+                new_block_number,
+                config_hash: expected_config_hash,
+                use_kzg_da,
+            },
+        }
     }
 }
 
@@ -345,7 +461,11 @@ pub fn block_context_for_flow_tests(block_number: BlockNumber) -> BlockContext {
     };
     BlockContext::new(
         BlockInfo { block_number, ..BlockInfo::create_for_testing() },
-        ChainInfo { fee_token_addresses, ..Default::default() },
+        ChainInfo {
+            fee_token_addresses,
+            chain_id: CHAIN_ID_FOR_TESTS.clone(),
+            ..Default::default()
+        },
         VersionedConstants::create_for_testing(),
         BouncerConfig::max(),
     )
