@@ -495,6 +495,10 @@ impl<
             if block.header.block_header_without_hash.starknet_version
                 < STARKNET_VERSION_TO_COMPILE_FROM
             {
+                trace!(
+                    "Updating compiler backward compatibility marker to {}",
+                    block_number.unchecked_next()
+                );
                 txn = txn.update_compiler_backward_compatibility_marker(
                     &block_number.unchecked_next(),
                 )?;
@@ -559,6 +563,11 @@ impl<
             // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
             // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
             if compiler_backward_compatibility_marker <= block_number {
+                trace!(
+                    "Block {block_number} does not contain old classes. \
+                     compiler_backward_compatibility_marker: \
+                     {compiler_backward_compatibility_marker}"
+                );
                 for (expected_class_hash, class) in &classes {
                     let class_hash =
                         class_manager_client.add_class(class.clone()).await?.class_hash;
@@ -570,6 +579,7 @@ impl<
                     }
                 }
             } else {
+                debug!("Block {} contains old classes.", block_number);
                 block_contains_old_classes = true;
             }
 
@@ -596,6 +606,15 @@ impl<
             //
             // TODO(guy.f): Properly fix handling old classes.
             if store_sierras_and_casms || block_contains_old_classes {
+                let store_reason = if store_sierras_and_casms {
+                    "store_sierras_and_casms is true"
+                } else {
+                    "block_contains_old_classes is true"
+                };
+                debug!(
+                    "Appending classes {:?} to storage since {store_reason}",
+                    classes.keys().collect::<Vec<_>>()
+                );
                 txn = txn.append_classes(
                     block_number,
                     &classes
@@ -608,6 +627,12 @@ impl<
                         .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
                         .collect::<Vec<_>>(),
                 )?;
+            } else {
+                trace!(
+                    "Skipping appending classes {:?} to storage since store_sierras_and_casms is \
+                     false and block_contains_old_classes is false",
+                    classes.keys().collect::<Vec<_>>()
+                );
             }
             txn.commit()?;
             Ok(())
