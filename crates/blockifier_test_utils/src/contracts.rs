@@ -246,7 +246,7 @@ impl FeatureContract {
             }
     }
 
-    fn get_non_erc20_base_name(&self) -> &str {
+    pub fn get_non_erc20_base_name(&self) -> &str {
         match self {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
             Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
