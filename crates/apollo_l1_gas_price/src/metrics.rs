@@ -4,17 +4,11 @@ use apollo_infra::metrics::{
     LocalServerMetrics,
     RemoteClientMetrics,
     RemoteServerMetrics,
-    L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
-    L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
-    L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-    L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
-    L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
-    L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
-    L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_l1_gas_price_types::L1_GAS_PRICE_REQUEST_LABELS;
-use apollo_metrics::define_metrics;
+use apollo_metrics::{define_infra_metrics, define_metrics};
+
+define_infra_metrics!(l1_gas_price);
 
 define_metrics!(
     L1GasPrice => {
@@ -28,38 +22,6 @@ define_metrics!(
         MetricGauge { ETH_TO_STRK_RATE, "eth_to_strk_rate", "The current rate of ETH to STRK conversion" },
         MetricGauge { L1_GAS_PRICE_LATEST_MEAN_VALUE, "l1_gas_price_latest_mean_value", "The latest L1 gas price, calculated as an average by the provider client" },
         MetricGauge { L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE, "l1_data_gas_price_latest_mean_value", "The latest L1 data gas price, calculated as an average by the provider client" }
-    },
-    Infra => {
-        LabeledMetricHistogram {
-            L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
-            "l1_gas_price_labeled_processing_times_secs",
-            "Request processing times of the L1 gas price, per label (secs)",
-            labels = L1_GAS_PRICE_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
-            "l1_gas_price_labeled_queueing_times_secs",
-            "Request queueing times of the L1 gas price, per label (secs)",
-            labels = L1_GAS_PRICE_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-            "l1_gas_price_labeled_local_response_times_secs",
-            "Request local response times of the L1 gas price, per label (secs)",
-            labels = L1_GAS_PRICE_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-            "l1_gas_price_labeled_remote_response_times_secs",
-            "Request remote response times of the L1 gas price, per label (secs)",
-            labels = L1_GAS_PRICE_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-            "l1_gas_price_labeled_remote_client_communication_failure_times_secs",
-            "Request communication failure times of the L1 gas price, per label (secs)",
-            labels = L1_GAS_PRICE_REQUEST_LABELS
-        },
     },
 );
 
@@ -81,25 +43,3 @@ pub(crate) fn register_eth_to_strk_metrics() {
     ETH_TO_STRK_SUCCESS_COUNT.register();
     ETH_TO_STRK_RATE.register();
 }
-
-pub const L1_GAS_PRICE_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
-    LocalClientMetrics::new(&L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS),
-    RemoteClientMetrics::new(
-        &L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
-        &L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        &L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    ),
-    LocalServerMetrics::new(
-        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
-        &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-        &L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
-        &L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
-    ),
-    RemoteServerMetrics::new(
-        &L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
-    ),
-);

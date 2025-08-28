@@ -4,18 +4,10 @@ use apollo_infra::metrics::{
     LocalServerMetrics,
     RemoteClientMetrics,
     RemoteServerMetrics,
-    GATEWAY_LOCAL_MSGS_PROCESSED,
-    GATEWAY_LOCAL_MSGS_RECEIVED,
-    GATEWAY_LOCAL_QUEUE_DEPTH,
-    GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
-    GATEWAY_REMOTE_MSGS_PROCESSED,
-    GATEWAY_REMOTE_MSGS_RECEIVED,
-    GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
-    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
 };
 #[cfg(test)]
 use apollo_metrics::metrics::LabeledMetricCounter;
-use apollo_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use strum::{EnumVariantNames, VariantNames};
@@ -32,6 +24,8 @@ generate_permutation_labels! {
     (LABEL_NAME_SOURCE, SourceLabelValue),
 }
 
+define_infra_metrics!(gateway);
+
 define_metrics!(
     Gateway => {
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
@@ -39,38 +33,6 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
-    },
-    Infra => {
-        LabeledMetricHistogram {
-            GATEWAY_LABELED_PROCESSING_TIMES_SECS,
-            "gateway_labeled_processing_times_secs",
-            "Request processing times of the gateway, per label (secs)",
-            labels = GATEWAY_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            GATEWAY_LABELED_QUEUEING_TIMES_SECS,
-            "gateway_labeled_queueing_times_secs",
-            "Request queueing times of the gateway, per label (secs)",
-            labels = GATEWAY_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-            "gateway_labeled_local_response_times_secs",
-            "Request local response times of the gateway, per label (secs)",
-            labels = GATEWAY_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-            "gateway_labeled_remote_response_times_secs",
-            "Request remote response times of the gateway, per label (secs)",
-            labels = GATEWAY_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-            "gateway_labeled_remote_client_communication_failure_times_secs",
-            "Request communication failure times of the gateway, per label (secs)",
-            labels = GATEWAY_REQUEST_LABELS
-        },
     },
 );
 
@@ -141,25 +103,3 @@ pub(crate) fn register_metrics() {
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
 }
-
-pub const GATEWAY_INFRA_METRICS: InfraMetrics = InfraMetrics::new(
-    LocalClientMetrics::new(&GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS),
-    RemoteClientMetrics::new(
-        &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
-        &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-        &GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    ),
-    LocalServerMetrics::new(
-        &GATEWAY_LOCAL_MSGS_RECEIVED,
-        &GATEWAY_LOCAL_MSGS_PROCESSED,
-        &GATEWAY_LOCAL_QUEUE_DEPTH,
-        &GATEWAY_LABELED_PROCESSING_TIMES_SECS,
-        &GATEWAY_LABELED_QUEUEING_TIMES_SECS,
-    ),
-    RemoteServerMetrics::new(
-        &GATEWAY_REMOTE_MSGS_RECEIVED,
-        &GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
-        &GATEWAY_REMOTE_MSGS_PROCESSED,
-        &GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
-    ),
-);
