@@ -11,6 +11,7 @@ use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -209,7 +210,7 @@ impl<S: FlowTestState> TestManager<S> {
         self.execution_contracts
             .declared_class_hash_to_component_hashes
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
-        let compiled_class_hash = CompiledClassHash(casm.compiled_class_hash());
+        let compiled_class_hash = casm.hash(&HashVersion::V2);
         self.execution_contracts
             .executed_contracts
             .contracts
