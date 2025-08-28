@@ -12,10 +12,19 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get remove -y man-db
+        sudo apt-mark hold man-db
+        sudo apt-get install -y --no-install-recommends build-essential binutils lld
+
     - name: Install rust.
       uses: ./.github/actions/install_rust
       with:
         extra_rust_toolchains: ${{ inputs.extra_rust_toolchains }}
         github_token: ${{ inputs.github_token }}
+
     - name: Install cairo native.
       uses: ./.github/actions/setup_native_deps
