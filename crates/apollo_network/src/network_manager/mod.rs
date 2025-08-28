@@ -30,6 +30,7 @@ use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
+use crate::network_manager::metrics::BroadcastNetworkMetrics;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, StreamMap};
@@ -531,19 +532,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: gossipsub_impl::ExternalEvent,
     ) -> Result<(), NetworkError> {
-        if let Some(broadcast_metrics_by_topic) =
-            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
-        {
-            let gossipsub_impl::ExternalEvent::Received { ref topic_hash, .. } = event;
-            match broadcast_metrics_by_topic.get(topic_hash) {
-                Some(broadcast_metrics) => {
-                    broadcast_metrics.num_received_broadcast_messages.increment(1)
-                }
-                None => error!("Attempted to update topic metric with unregistered topic_hash"),
-            }
-        }
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
+
+        self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
+            broadcast_metrics.num_received_broadcast_messages.increment(1);
+        });
+
         trace!("Received broadcast message with topic hash: {topic_hash:?}");
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
@@ -616,17 +611,27 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .insert(outbound_session_id, report_receiver);
     }
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+    fn update_broadcast_metric<'a, F>(&'a self, topic_hash: &TopicHash, f: F)
+    where
+        F: FnOnce(&'a BroadcastNetworkMetrics),
+    {
         if let Some(broadcast_metrics_by_topic) =
             self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
         {
-            match broadcast_metrics_by_topic.get(&topic_hash) {
+            match broadcast_metrics_by_topic.get(topic_hash) {
                 Some(broadcast_metrics) => {
-                    broadcast_metrics.num_sent_broadcast_messages.increment(1)
+                    f(broadcast_metrics);
                 }
                 None => error!("Attempted to update topic metric with unregistered topic_hash"),
             }
         }
+    }
+
+    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+        self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
+            broadcast_metrics.num_sent_broadcast_messages.increment(1)
+        });
+
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
         let _ = self.swarm.broadcast_message(message, topic_hash);
     }
