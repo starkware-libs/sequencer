@@ -10,7 +10,9 @@ use tracing::{info, instrument};
 
 use crate::config::ConfigManagerConfig;
 
+// TODO(Nadin): remove dead_code once we have actual config manager logic
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct ConfigManager {
     config: ConfigManagerConfig,
     // TODO(Nadin): Add actual config state/storage
