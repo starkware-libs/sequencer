@@ -1,3 +1,4 @@
+/// If you are adding a new proto file, make sure to update `PROTO_FILES` before running this.
 use std::fs;
 use std::path::Path;
 
@@ -7,8 +8,14 @@ use apollo_protobuf::regression_test_utils::{
     PROTO_DIR,
     PROTO_FILES,
 };
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 fn main() {
+    let subscriber =
+        FmtSubscriber::builder().with_env_filter(EnvFilter::from_default_env()).finish();
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set global default subscriber");
+
     let out_dir = String::from("crates/apollo_protobuf/") + PROTO_DIR;
 
     generate_protos(out_dir.clone().into(), PROTO_FILES).unwrap();
