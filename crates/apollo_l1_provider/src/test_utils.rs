@@ -173,11 +173,9 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_cancel_requested_txs(
-        mut self,
+        self,
         cancel_requested: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
-        self = self.with_nonzero_timelock_setup();
-
         let now = self.clock.as_ref().unwrap().unix_now();
         let cancellation_request_timestamp = now;
         let cancel_requested =
@@ -186,11 +184,9 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_cancelled_txs(
-        mut self,
+        self,
         cancelled: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
-        self = self.with_nonzero_timelock_setup();
-
         let now = self.clock.as_ref().unwrap().unix_now();
         let cancellation_timelock =
             self.config.unwrap().l1_handler_cancellation_timelock_seconds.as_secs();
@@ -205,14 +201,10 @@ impl L1ProviderContentBuilder {
     /// Use to test timelocking of new l1-handler transactions, if you don't care about the actual
     /// timestamp values. If you want to test specific timestamp values, use `with_timed_txs` and
     /// set clock and cooldown configs manually through the setters.
-    /// Note: do not set clock/configs manually if you use this method, or you may get unexpected
-    /// results.
     pub fn with_timelocked_txs(
         mut self,
         txs: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
-        self = self.with_nonzero_timelock_setup();
-
         let now = self.clock.as_ref().unwrap().unix_now();
         // An l1-handler is timelocked if if was created less than `cooldown` seconds ago. Since
         // timelock is nonzero, all txs created `now` are trivially timelocked.
@@ -252,17 +244,22 @@ impl L1ProviderContentBuilder {
         self.build().into()
     }
 
-    fn with_nonzero_timelock_setup(mut self) -> Self {
+    pub fn with_nonzero_timelock_setup(mut self) -> Self {
         let base_timestamp = 5; // Arbitrary small base timestamp.
         self.clock = self.clock.take().or_else(|| Some(Arc::new(FakeClock::new(base_timestamp))));
 
         let nonzero_timelock = Duration::from_secs(1);
-        let config = self.config.unwrap_or_default();
+        if self.config.is_some() {
+            panic!(
+                "Setting the nonzero timelock overrides a previously given with_config. Use \
+                 with_config at the end of the builder chain."
+            )
+        }
         self.with_config(L1ProviderConfig {
             new_l1_handler_cooldown_seconds: nonzero_timelock,
             l1_handler_cancellation_timelock_seconds: nonzero_timelock,
             l1_handler_consumption_timelock_seconds: nonzero_timelock,
-            ..config
+            ..Default::default()
         })
     }
 }
