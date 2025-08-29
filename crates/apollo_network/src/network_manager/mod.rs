@@ -1,3 +1,4 @@
+mod libp2p_metrics;
 pub mod metrics;
 mod swarm_trait;
 #[cfg(test)]
@@ -20,6 +21,7 @@ use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
+use libp2p::metrics::{Metrics, Recorder, Registry};
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
@@ -29,6 +31,7 @@ use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
+use crate::network_manager::libp2p_metrics::connect_libp2p_registry_to_metrics_exporter_prometheus;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
@@ -61,6 +64,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    libp2p_metrics: Option<Metrics>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -95,12 +99,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
-    pub(crate) fn generic_new(
+    pub(crate) fn generic_new_with_libp2p_metrics(
         mut swarm: SwarmT,
         advertised_multiaddr: Option<Multiaddr>,
         metrics: Option<NetworkMetrics>,
         broadcasted_message_metadata_buffer_size: usize,
         reported_peer_ids_buffer_size: usize,
+        libp2p_metrics: Option<Metrics>,
     ) -> Self {
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
@@ -128,7 +133,26 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            libp2p_metrics,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn generic_new(
+        swarm: SwarmT,
+        advertised_multiaddr: Option<Multiaddr>,
+        metrics: Option<NetworkMetrics>,
+        broadcasted_message_metadata_buffer_size: usize,
+        reported_peer_ids_buffer_size: usize,
+    ) -> Self {
+        Self::generic_new_with_libp2p_metrics(
+            swarm,
+            advertised_multiaddr,
+            metrics,
+            broadcasted_message_metadata_buffer_size,
+            reported_peer_ids_buffer_size,
+            None,
+        )
     }
 
     // TODO(Shahak): Support multiple protocols where they're all different versions of the same
@@ -267,6 +291,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: SwarmEvent<mixed_behaviour::Event>,
     ) -> Result<(), NetworkError> {
+        if let Some(metrics) = self.libp2p_metrics.as_ref() {
+            metrics.record(&event);
+        }
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, num_established, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
@@ -686,7 +713,7 @@ impl NetworkManager {
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
-        metrics: Option<NetworkMetrics>,
+        mut metrics: Option<NetworkMetrics>,
     ) -> Self {
         let NetworkConfig {
             port,
@@ -711,6 +738,7 @@ impl NetworkManager {
             }
             None => Keypair::generate_ed25519(),
         };
+        let mut registry = Registry::default();
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
             .with_tokio()
             // TODO(AndrewL): .with_quic()
@@ -718,6 +746,7 @@ impl NetworkManager {
             .expect("Error building TCP transport")
             .with_dns()
             .expect("Error building DNS transport")
+            .with_bandwidth_metrics(&mut registry)
             .with_behaviour(|key| {
                 mixed_behaviour::MixedBehaviour::new(
                     key.clone(),
@@ -733,6 +762,14 @@ impl NetworkManager {
             .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
             .build();
 
+        let libp2p_metrics = Metrics::new(&mut registry);
+
+        if let Some(metrics) = metrics.as_mut() {
+            if let Some(prefix) = metrics.libp2p_metrics_prefix.as_ref() {
+                connect_libp2p_registry_to_metrics_exporter_prometheus(prefix.clone(), registry);
+            }
+        }
+
         swarm
             .listen_on(listen_address.clone())
             .unwrap_or_else(|_| panic!("Error while binding to {listen_address}"));
@@ -742,12 +779,13 @@ impl NetworkManager {
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });
-        Self::generic_new(
+        Self::generic_new_with_libp2p_metrics(
             swarm,
             advertised_multiaddr,
             metrics,
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
+            Some(libp2p_metrics),
         )
     }
 
