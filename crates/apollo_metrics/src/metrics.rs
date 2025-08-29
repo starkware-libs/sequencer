@@ -47,6 +47,7 @@ pub enum MetricScope {
     CompileToCasm,
     StateSync,
     Storage,
+    Tokio,
 }
 
 pub struct MetricCounter {
