@@ -25,10 +25,8 @@ tempfile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-apollo_infra_utils.workspace = true
 assert_matches.workspace = true
 rstest.workspace = true
 
 [build-dependencies]
-apollo_infra_utils.workspace = true
 tempfile.workspace = true
