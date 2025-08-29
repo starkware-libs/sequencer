@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-use std::time::Duration;
 
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
@@ -13,10 +12,10 @@ use axum::routing::get;
 use axum::{async_trait, Json, Router, Server};
 use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
-use tokio_metrics::RuntimeMetricsReporterBuilder;
 use tracing::{error, info, instrument};
 
 use crate::config::MonitoringEndpointConfig;
+use crate::tokio_metrics::setup_tokio_metrics;
 
 #[cfg(test)]
 #[path = "monitoring_endpoint_test.rs"]
@@ -124,16 +123,6 @@ impl MonitoringEndpoint {
                 get(move || get_l1_provider_snapshot(l1_provider_client)),
             )
     }
-}
-
-/// Start the tokio runtime metrics reporter to automatically collect and export tokio runtime
-/// metrics
-fn setup_tokio_metrics() {
-    tokio::spawn(
-        RuntimeMetricsReporterBuilder::default()
-            .with_interval(Duration::from_secs(10))
-            .describe_and_run(),
-    );
 }
 
 // TODO(tsabary): finalize the separation of the metrics recorder initialization and the monitoring
