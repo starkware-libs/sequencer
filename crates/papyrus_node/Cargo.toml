@@ -22,6 +22,7 @@ apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_orchestrator.workspace = true
+apollo_consensus_orchestrator_config.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync.workspace = true
 apollo_rpc = { workspace = true, optional = true }
