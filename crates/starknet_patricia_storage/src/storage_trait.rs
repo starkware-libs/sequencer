@@ -10,7 +10,7 @@ pub struct DbKey(pub Vec<u8>);
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DbValue(pub Vec<u8>);
 
-pub trait Storage {
+pub trait Storage: Send + Sync {
     /// Returns value from storage, if it exists.
     fn get(&self, key: &DbKey) -> Option<DbValue>;
 
