@@ -21,7 +21,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.apollo-mainnet-1.starknet.io",
+        "external_dns_name": "sequencer-core-service.apollo-sync-test-1.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -39,7 +39,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-1"
+        "gcsm_key": "apollo-sync-test-1"
       },
       "anti_affinity": true,
       "update_strategy_type": "RollingUpdate",
@@ -95,7 +95,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-1"
+        "gcsm_key": "apollo-sync-test-1"
       },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
@@ -135,7 +135,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-1"
+        "gcsm_key": "apollo-sync-test-1"
       },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
@@ -180,7 +180,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-1"
+        "gcsm_key": "apollo-sync-test-1"
       },
       "anti_affinity": true,
       "update_strategy_type": "Recreate",
@@ -209,7 +209,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.apollo-mainnet-1.starknet.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-sync-test-1.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -227,7 +227,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-1"
+        "gcsm_key": "apollo-sync-test-1"
       },
       "anti_affinity": true,
       "update_strategy_type": "Recreate",
@@ -267,7 +267,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-1"
+        "gcsm_key": "apollo-sync-test-1"
       },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
