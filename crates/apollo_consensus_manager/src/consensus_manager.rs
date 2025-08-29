@@ -106,12 +106,14 @@ impl ConsensusManager {
             .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(
                 Topic::new(self.config.proposals_topic.clone()),
                 self.config.broadcast_buffer_size,
+                self.config.broadcast_buffer_size,
             )
             .expect("Failed to register broadcast topic");
 
         let votes_broadcast_channels = network_manager
             .register_broadcast_topic::<Vote>(
                 Topic::new(self.config.votes_topic.clone()),
+                self.config.broadcast_buffer_size,
                 self.config.broadcast_buffer_size,
             )
             .expect("Failed to register broadcast topic");
