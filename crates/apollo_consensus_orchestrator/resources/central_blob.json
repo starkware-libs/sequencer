@@ -836,6 +836,2254 @@
         "l1_data_gas": 1,
         "l2_gas": 1
       }
+    },
+    {
+      "validate_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "pedersen_builtin": 4,
+            "range_check_builtin": 31
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "execute_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "pedersen_builtin": 4,
+                "range_check_builtin": 31
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "fee_transfer_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "actual_fee": "0x26fe9d250e000",
+      "da_gas": {
+        "l1_gas": 1652,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      },
+      "actual_resources": {
+        "n_steps": 4,
+        "range_check_builtin": 31,
+        "pedersen_builtin": 4
+      },
+      "revert_error": null,
+      "total_gas": {
+        "l1_gas": 6860,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      }
+    },
+    {
+      "validate_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "pedersen_builtin": 4,
+            "range_check_builtin": 31
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "execute_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "pedersen_builtin": 4,
+                "range_check_builtin": 31
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "fee_transfer_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "actual_fee": "0x26fe9d250e000",
+      "da_gas": {
+        "l1_gas": 1652,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      },
+      "actual_resources": {
+        "n_steps": 4,
+        "range_check_builtin": 31,
+        "pedersen_builtin": 4
+      },
+      "revert_error": null,
+      "total_gas": {
+        "l1_gas": 6860,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      }
+    },
+    {
+      "validate_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "pedersen_builtin": 4,
+            "range_check_builtin": 31
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "execute_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "pedersen_builtin": 4,
+                "range_check_builtin": 31
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "fee_transfer_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "actual_fee": "0x26fe9d250e000",
+      "da_gas": {
+        "l1_gas": 1652,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      },
+      "actual_resources": {
+        "n_steps": 4,
+        "range_check_builtin": 31,
+        "pedersen_builtin": 4
+      },
+      "revert_error": null,
+      "total_gas": {
+        "l1_gas": 6860,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      }
+    },
+    {
+      "validate_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "pedersen_builtin": 4,
+            "range_check_builtin": 31
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "execute_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "pedersen_builtin": 4,
+                "range_check_builtin": 31
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "fee_transfer_call_info": {
+        "call": {
+          "class_hash": "0x80020000",
+          "code_address": "0x40070000",
+          "entry_point_type": "EXTERNAL",
+          "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+          "calldata": [
+            "0x40070000",
+            "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+            "0x1",
+            "0x2"
+          ],
+          "storage_address": "0xc0020000",
+          "caller_address": "0x1",
+          "call_type": "Call",
+          "initial_gas": 100000000
+        },
+        "execution": {
+          "retdata": [
+            "0x56414c4944"
+          ],
+          "events": [
+            {
+              "order": 2,
+              "event": {
+                "keys": [
+                  "0x9"
+                ],
+                "data": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "l2_to_l1_messages": [
+            {
+              "order": 1,
+              "message": {
+                "to_address": "0x1",
+                "payload": [
+                  "0x0",
+                  "0x1",
+                  "0x2"
+                ]
+              }
+            }
+          ],
+          "cairo_native": false,
+          "failed": false,
+          "gas_consumed": 11690
+        },
+        "inner_calls": [
+          {
+            "call": {
+              "class_hash": "0x80020000",
+              "code_address": "0x40070000",
+              "entry_point_type": "EXTERNAL",
+              "entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
+              "calldata": [
+                "0x40070000",
+                "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701",
+                "0x1",
+                "0x2"
+              ],
+              "storage_address": "0xc0020000",
+              "caller_address": "0x1",
+              "call_type": "Call",
+              "initial_gas": 100000000
+            },
+            "execution": {
+              "retdata": [
+                "0x56414c4944"
+              ],
+              "events": [
+                {
+                  "order": 2,
+                  "event": {
+                    "keys": [
+                      "0x9"
+                    ],
+                    "data": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "l2_to_l1_messages": [
+                {
+                  "order": 1,
+                  "message": {
+                    "to_address": "0x1",
+                    "payload": [
+                      "0x0",
+                      "0x1",
+                      "0x2"
+                    ]
+                  }
+                }
+              ],
+              "cairo_native": false,
+              "failed": false,
+              "gas_consumed": 11690
+            },
+            "inner_calls": [],
+            "resources": {
+              "n_steps": 2,
+              "n_memory_holes": 3,
+              "builtin_instance_counter": {
+                "range_check_builtin": 31,
+                "pedersen_builtin": 4
+              }
+            },
+            "tracked_resource": "SierraGas",
+            "storage_access_tracker": {
+              "storage_read_values": [
+                "0x0",
+                "0x1",
+                "0x2"
+              ],
+              "accessed_storage_keys": [
+                "0x1"
+              ],
+              "read_class_hash_values": [
+                "0x80020000"
+              ],
+              "accessed_contract_addresses": [
+                "0x1"
+              ],
+              "read_block_hash_values": [
+                "0xdeafbee"
+              ],
+              "accessed_blocks": [
+                100
+              ]
+            },
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
+          }
+        ],
+        "resources": {
+          "n_steps": 2,
+          "n_memory_holes": 3,
+          "builtin_instance_counter": {
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
+          }
+        },
+        "tracked_resource": "SierraGas",
+        "storage_access_tracker": {
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
+          ]
+        },
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
+      },
+      "actual_fee": "0x26fe9d250e000",
+      "da_gas": {
+        "l1_gas": 1652,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      },
+      "actual_resources": {
+        "n_steps": 4,
+        "range_check_builtin": 31,
+        "pedersen_builtin": 4
+      },
+      "revert_error": null,
+      "total_gas": {
+        "l1_gas": 6860,
+        "l1_data_gas": 1,
+        "l2_gas": 1
+      }
     }
   ],
   "contract_classes": [
