@@ -119,7 +119,7 @@ pub struct BlockContext {
     // TODO(Yoni, 1/10/2024): consider making these fields public.
     pub(crate) block_info: BlockInfo,
     pub(crate) chain_info: ChainInfo,
-    pub(crate) versioned_constants: VersionedConstants,
+    pub versioned_constants: VersionedConstants,
     pub(crate) bouncer_config: BouncerConfig,
 }
 
