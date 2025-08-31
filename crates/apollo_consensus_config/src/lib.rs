@@ -6,7 +6,13 @@
 pub mod config;
 
 // Re-export the main types for convenience
-pub use config::{ConsensusConfig, StreamHandlerConfig, TimeoutsConfig};
+pub use config::{
+    ConsensusConfig,
+    ConsensusDynamicConfig,
+    ConsensusStaticConfig,
+    StreamHandlerConfig,
+    TimeoutsConfig,
+};
 
 // Re-export ValidatorId type for convenience
 pub type ValidatorId = starknet_api::core::ContractAddress;
