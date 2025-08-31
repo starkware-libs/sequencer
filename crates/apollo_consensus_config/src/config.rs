@@ -17,11 +17,16 @@ use validator::Validate;
 
 use crate::ValidatorId;
 
-/// Configuration for consensus.
+/// Dynamic configuration for consensus that can change at runtime.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
-pub struct ConsensusConfig {
+pub struct ConsensusDynamicConfig {
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
+}
+
+/// Static configuration for consensus that doesn't change during runtime.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
@@ -38,15 +43,29 @@ pub struct ConsensusConfig {
     pub future_height_round_limit: u32,
 }
 
-impl SerializeConfig for ConsensusConfig {
+/// Configuration for consensus containing both static and dynamic configs.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct ConsensusConfig {
+    #[validate]
+    pub dynamic_config: ConsensusDynamicConfig,
+    #[validate]
+    pub static_config: ConsensusStaticConfig,
+}
+
+impl SerializeConfig for ConsensusDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "validator_id",
+            &self.validator_id,
+            "The validator id of the node.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
-            ser_param(
-                "validator_id",
-                &self.validator_id,
-                "The validator id of the node.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "startup_delay",
                 &self.startup_delay.as_secs(),
@@ -83,10 +102,24 @@ impl SerializeConfig for ConsensusConfig {
     }
 }
 
-impl Default for ConsensusConfig {
+impl SerializeConfig for ConsensusConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config
+    }
+}
+
+impl Default for ConsensusDynamicConfig {
+    fn default() -> Self {
+        Self { validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID) }
+    }
+}
+
+impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
-            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
             startup_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
@@ -94,6 +127,53 @@ impl Default for ConsensusConfig {
             future_round_limit: 10,
             future_height_round_limit: 1,
         }
+    }
+}
+
+impl ConsensusConfig {
+    pub fn from_parts(
+        dynamic_config: ConsensusDynamicConfig,
+        static_config: ConsensusStaticConfig,
+    ) -> Self {
+        Self { dynamic_config, static_config }
+    }
+
+    pub fn validator_id(&self) -> ValidatorId {
+        self.dynamic_config.validator_id
+    }
+
+    pub fn validator_id_mut(&mut self) -> &mut ValidatorId {
+        &mut self.dynamic_config.validator_id
+    }
+
+    pub fn startup_delay(&self) -> Duration {
+        self.static_config.startup_delay
+    }
+
+    pub fn timeouts(&self) -> &TimeoutsConfig {
+        &self.static_config.timeouts
+    }
+
+    pub fn sync_retry_interval(&self) -> Duration {
+        self.static_config.sync_retry_interval
+    }
+
+    pub fn future_height_limit(&self) -> u32 {
+        self.static_config.future_height_limit
+    }
+
+    pub fn future_round_limit(&self) -> u32 {
+        self.static_config.future_round_limit
+    }
+
+    pub fn future_height_round_limit(&self) -> u32 {
+        self.static_config.future_height_round_limit
+    }
+}
+
+impl Default for ConsensusConfig {
+    fn default() -> Self {
+        Self::from_parts(ConsensusDynamicConfig::default(), ConsensusStaticConfig::default())
     }
 }
 
