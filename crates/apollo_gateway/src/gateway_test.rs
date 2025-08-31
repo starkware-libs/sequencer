@@ -11,7 +11,11 @@ use apollo_gateway_config::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
+use apollo_gateway_types::deprecated_gateway_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -72,7 +76,7 @@ use strum::VariantNames;
 use tempfile::TempDir;
 
 use crate::errors::GatewayResult;
-use crate::gateway::Gateway;
+use crate::gateway::{Gateway, ProcessTxBlockingTask};
 use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
@@ -84,7 +88,13 @@ use crate::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
+use crate::state_reader::MockStateReaderFactory;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::stateful_transaction_validator::{
+    MockStatefulTransactionValidatorFactoryTrait,
+    MockStatefulTransactionValidatorTrait,
+};
+use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 #[fixture]
 fn config() -> GatewayConfig {
@@ -540,4 +550,64 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     .unwrap();
 
     assert_eq!(loaded_config, original_config);
+}
+
+#[rstest]
+#[case::validate_failure(StarknetErrorCode::KnownErrorCode(
+    KnownStarknetErrorCode::ValidateFailure
+))]
+#[case::invalid_nonce(StarknetErrorCode::KnownErrorCode(
+    KnownStarknetErrorCode::InvalidTransactionNonce
+))]
+#[case::gas_price_too_low(
+    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.GAS_PRICE_TOO_LOW".into())
+)]
+#[case::internal_error(
+    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
+)]
+#[tokio::test]
+async fn test_process_tx_transaction_validations(#[case] validator_error_code: StarknetErrorCode) {
+    let mut mock_stateful_transaction_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_stateful_transaction_validator
+        .expect_extract_state_nonce_and_run_validations()
+        .return_once(move |_, _, _| {
+            Err(StarknetError {
+                code: validator_error_code,
+                message: "placeholder".into(), // Message is not checked in the test.
+            })
+        });
+
+    let mut mock_stateful_tx_validator_factory =
+        MockStatefulTransactionValidatorFactoryTrait::new();
+    mock_stateful_tx_validator_factory
+        .expect_instantiate_validator()
+        .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
+
+    let mock_class_manager_client = MockClassManagerClient::new();
+    let chain_info = ChainInfo::create_for_testing();
+
+    let task = ProcessTxBlockingTask {
+        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+            config: StatelessTransactionValidatorConfig::default(),
+        }),
+        stateful_tx_validator_factory: Arc::new(mock_stateful_tx_validator_factory),
+        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
+        mempool_client: Arc::new(MockMempoolClient::new()),
+        chain_info: Arc::new(chain_info.clone()),
+        tx: invoke_args().get_rpc_tx(),
+        transaction_converter: Arc::new(TransactionConverter::new(
+            Arc::new(mock_class_manager_client),
+            chain_info.chain_id,
+        )),
+        runtime: tokio::runtime::Handle::current(),
+    };
+
+    let result = tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    // All errors are currently mapped to ValidateFailure.
+    assert_eq!(
+        result.unwrap_err().code,
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure)
+    );
 }

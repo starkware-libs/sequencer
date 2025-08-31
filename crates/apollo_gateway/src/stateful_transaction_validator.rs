@@ -37,18 +37,25 @@ mod stateful_transaction_validator_test;
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
+#[cfg_attr(test, mockall::automock)]
+pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
+    fn instantiate_validator(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
+}
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
 }
 
-impl StatefulTransactionValidatorFactory {
+impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
     // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
-    pub fn instantiate_validator(
+    fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
         chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<StatefulTransactionValidator<BlockifierStatefulValidator>>
-    {
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
@@ -74,13 +81,14 @@ impl StatefulTransactionValidatorFactory {
         let blockifier_stateful_tx_validator =
             BlockifierStatefulValidator::create(state, block_context);
 
-        Ok(StatefulTransactionValidator {
+        Ok(Box::new(StatefulTransactionValidator {
             config: self.config.clone(),
             blockifier_stateful_tx_validator,
-        })
+        }))
     }
 }
 
+#[cfg_attr(test, mockall::automock)]
 pub trait StatefulTransactionValidatorTrait {
     fn extract_state_nonce_and_run_validations(
         &mut self,
@@ -208,33 +216,6 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
             message: e.to_string(),
         })?;
         Ok(())
-    }
-
-    pub fn instantiate_validator(
-        &self,
-        state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
-        // TODO(yael 6/5/2024): consider storing the block_info as part of the
-        // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
-        let state = CachedState::new(state_reader);
-        let versioned_constants = VersionedConstants::get_versioned_constants(
-            self.config.versioned_constants_overrides.clone(),
-        );
-        let mut block_info = latest_block_info;
-        block_info.block_number = block_info.block_number.unchecked_next();
-        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
-        // able to read the block_hash of 10 blocks ago from papyrus.
-        let block_context = BlockContext::new(
-            block_info,
-            chain_info.clone(),
-            versioned_constants,
-            BouncerConfig::max(),
-        );
-
-        Ok(BlockifierStatefulValidator::create(state, block_context))
     }
 
     fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
