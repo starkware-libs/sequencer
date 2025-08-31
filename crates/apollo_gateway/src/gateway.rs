@@ -41,7 +41,10 @@ use crate::errors::{
 };
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
 use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::StatefulTransactionValidator;
+use crate::stateful_transaction_validator::{
+    StatefulTransactionValidatorFactory,
+    StatefulTransactionValidatorTrait,
+};
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
 
@@ -53,7 +56,7 @@ pub mod gateway_test;
 pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
+    pub stateful_tx_validator_factory: Arc<StatefulTransactionValidatorFactory>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<TransactionConverter>,
@@ -72,7 +75,7 @@ impl Gateway {
             stateless_tx_validator: Arc::new(StatelessTransactionValidator {
                 config: config.stateless_tx_validator_config.clone(),
             }),
-            stateful_tx_validator: Arc::new(StatefulTransactionValidator {
+            stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
             }),
             state_reader_factory,
@@ -166,7 +169,7 @@ impl Gateway {
 /// from running.
 struct ProcessTxBlockingTask {
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    stateful_tx_validator: Arc<StatefulTransactionValidator>,
+    stateful_tx_validator_factory: Arc<StatefulTransactionValidatorFactory>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
     chain_info: Arc<ChainInfo>,
@@ -179,7 +182,7 @@ impl ProcessTxBlockingTask {
     pub fn new(gateway: &Gateway, tx: RpcTransaction, runtime: tokio::runtime::Handle) -> Self {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
-            stateful_tx_validator: gateway.stateful_tx_validator.clone(),
+            stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
@@ -220,16 +223,14 @@ impl ProcessTxBlockingTask {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let validator = self
-            .stateful_tx_validator
+        let mut stateful_transaction_validator = self
+            .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
-        let nonce = self
-            .stateful_tx_validator
+        let nonce = stateful_transaction_validator
             .extract_state_nonce_and_run_validations(
                 &executable_tx,
                 self.mempool_client,
-                validator,
                 self.runtime,
             )
             .map_err(|e| StarknetError {
