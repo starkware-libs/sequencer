@@ -9,7 +9,7 @@ env:
 
 jobs:
   define_branches:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
       branches: ${{ steps.branches.outputs.branches }}
     steps:
