@@ -1,6 +1,7 @@
 //! This module contains the configuration for consensus, including the `ConsensusConfig` struct
 //! and its implementation of the `SerializeConfig` trait. The configuration includes parameters
 //! such as the validator ID, the network topic of the consensus, and the starting block height.
+//! IDAN TEST!!3
 
 use std::collections::BTreeMap;
 use std::time::Duration;
