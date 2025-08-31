@@ -58,8 +58,19 @@ use libp2p::{PeerId, StreamProtocol};
 
 use crate::Bytes;
 
+/// Unique identifier for outbound SQMR sessions.
+///
+/// An outbound session is initiated by this node when sending a query to another peer.
+/// Each outbound session has a unique ID that tracks the query-response lifecycle.
+///
+/// # Usage
+///
+/// Outbound session IDs are automatically generated when sending queries through
+/// the SQMR client interface. They're used internally to match incoming responses
+/// with their originating queries.
 #[derive(Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq)]
 pub struct OutboundSessionId {
+    /// The numeric session identifier.
     pub value: usize,
 }
 
