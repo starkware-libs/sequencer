@@ -20,9 +20,51 @@ use futures::stream::{Stream, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::{Multiaddr, PeerId};
 
-// This is an implementation of `StreamMap` from tokio_stream. The reason we're implementing it
-// ourselves is that the implementation in tokio_stream requires that the values implement the
-// Stream trait from tokio_stream and not from futures.
+/// A concurrent stream multiplexer that polls multiple streams in a round-robin fashion.
+///
+/// `StreamMap` allows you to manage multiple async streams with associated keys,
+/// polling them fairly and yielding items along with their originating keys.
+/// This is particularly useful for managing multiple protocol sessions or
+/// connections where you need to track which stream produced each item.
+///
+/// This is a custom implementation of `StreamMap` from `tokio_stream`, adapted
+/// to work with the `futures` crate's `Stream` trait rather than `tokio_stream`'s
+/// version.
+///
+/// # Type Parameters
+///
+/// * `K` - The key type, must be orderable for internal storage in a `BTreeMap`
+/// * `V` - The stream type, must implement `Stream + Unpin`
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use std::collections::BTreeMap;
+///
+/// use apollo_network::utils::StreamMap;
+/// use futures::stream::{self, StreamExt};
+///
+/// # async fn example() {
+/// let mut map = BTreeMap::new();
+/// map.insert("stream1", stream::iter(vec![1, 2, 3]));
+/// map.insert("stream2", stream::iter(vec![4, 5, 6]));
+///
+/// let mut stream_map = StreamMap::new(map);
+///
+/// // Items will be yielded with their originating keys
+/// while let Some((key, value)) = stream_map.next().await {
+///     if let Some(v) = value {
+///         println!("Got {} from {}", v, key);
+///     }
+/// }
+/// # }
+/// ```
+///
+/// # Fair Polling
+///
+/// The implementation uses round-robin polling to ensure fairness across all
+/// streams. No single stream can monopolize the polling, which is important
+/// for maintaining responsiveness in networking applications.
 pub struct StreamMap<K: Unpin + Clone + Ord, V: Stream + Unpin> {
     map: BTreeMap<K, V>,
     last_waker_waiting_for_new_stream: Option<Waker>,
