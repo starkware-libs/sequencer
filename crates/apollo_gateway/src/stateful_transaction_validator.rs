@@ -65,6 +65,9 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         let versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
         );
+        // The validation of a transaction is not affected by the casm hash migration.
+        versioned_constants.enable_casm_hash_migration = false;
+
         let mut block_info = latest_block_info;
         block_info.block_number = block_info.block_number.unchecked_next();
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
@@ -213,67 +216,6 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         Ok(())
     }
 
-<<<<<<< HEAD
-    pub fn instantiate_validator(
-        &self,
-        state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
-        // TODO(yael 6/5/2024): consider storing the block_info as part of the
-        // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
-        let state = CachedState::new(state_reader);
-        let mut versioned_constants = VersionedConstants::get_versioned_constants(
-            self.config.versioned_constants_overrides.clone(),
-        );
-        // The validation of a transaction is not affected by the casm hash migration.
-        versioned_constants.enable_casm_hash_migration = false;
-
-        let mut block_info = latest_block_info;
-        block_info.block_number = block_info.block_number.unchecked_next();
-        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
-        // able to read the block_hash of 10 blocks ago from papyrus.
-        let block_context = BlockContext::new(
-            block_info,
-            chain_info.clone(),
-            versioned_constants,
-            BouncerConfig::max(),
-        );
-
-        Ok(BlockifierStatefulValidator::create(state, block_context))
-    }
-
-||||||| ce3842de5
-    pub fn instantiate_validator(
-        &self,
-        state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
-        // TODO(yael 6/5/2024): consider storing the block_info as part of the
-        // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
-        let state = CachedState::new(state_reader);
-        let versioned_constants = VersionedConstants::get_versioned_constants(
-            self.config.versioned_constants_overrides.clone(),
-        );
-        let mut block_info = latest_block_info;
-        block_info.block_number = block_info.block_number.unchecked_next();
-        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
-        // able to read the block_hash of 10 blocks ago from papyrus.
-        let block_context = BlockContext::new(
-            block_info,
-            chain_info.clone(),
-            versioned_constants,
-            BouncerConfig::max(),
-        );
-
-        Ok(BlockifierStatefulValidator::create(state, block_context))
-    }
-
-=======
->>>>>>> origin/main
     fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
         let incoming_tx_nonce = executable_tx.nonce();
 
