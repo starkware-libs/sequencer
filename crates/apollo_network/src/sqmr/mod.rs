@@ -93,9 +93,30 @@ pub struct InboundSessionId {
     pub value: usize,
 }
 
+/// Unified session identifier that can represent either inbound or outbound sessions.
+///
+/// This enum is used in contexts where the session direction (inbound vs outbound)
+/// doesn't matter, such as session cleanup, error reporting, or metrics collection.
+///
+/// # Examples
+///
+/// ```rust
+/// use apollo_network::sqmr::{InboundSessionId, OutboundSessionId, SessionId};
+///
+/// let inbound = SessionId::from(InboundSessionId { value: 1 });
+/// let outbound = SessionId::from(OutboundSessionId { value: 2 });
+///
+/// // Both can be handled uniformly in cleanup code
+/// match inbound {
+///     SessionId::InboundSessionId(id) => println!("Cleaning up inbound session {}", id),
+///     SessionId::OutboundSessionId(id) => println!("Cleaning up outbound session {}", id),
+/// }
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SessionId {
+    /// An outbound session identifier.
     OutboundSessionId(OutboundSessionId),
+    /// An inbound session identifier.
     InboundSessionId(InboundSessionId),
 }
 
