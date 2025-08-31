@@ -555,16 +555,16 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
 )]
 #[tokio::test]
-async fn test_process_tx_transaction_validations(#[case] validator_error_code: StarknetErrorCode) {
+async fn process_tx_transaction_validations(#[case] error_code: StarknetErrorCode) {
+    let expected_error = StarknetError {
+        code: error_code.clone(),
+        message: "placeholder".into(), // Message is not checked
+    };
+
     let mut mock_stateful_transaction_validator = MockStatefulTransactionValidatorTrait::new();
     mock_stateful_transaction_validator
         .expect_extract_state_nonce_and_run_validations()
-        .return_once(move |_, _, _| {
-            Err(StarknetError {
-                code: validator_error_code,
-                message: "placeholder".into(), // Message is not checked in the test.
-            })
-        });
+        .return_once(move |_, _, _| Err(expected_error.clone()));
 
     let mut mock_stateful_tx_validator_factory =
         MockStatefulTransactionValidatorFactoryTrait::new();
@@ -594,9 +594,5 @@ async fn test_process_tx_transaction_validations(#[case] validator_error_code: S
     let result = tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
 
     assert!(result.is_err());
-    // All errors are currently mapped to ValidateFailure.
-    assert_eq!(
-        result.unwrap_err().code,
-        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure)
-    );
+    assert_eq!(result.unwrap_err().code, error_code);
 }
