@@ -7,7 +7,8 @@ pub use crate::state::native_class_manager::NativeClassManager as ContractClassM
 pub mod trivial_class_manager {
     #[cfg(any(feature = "testing", test))]
     use cached::Cached;
-    use starknet_api::core::ClassHash;
+    use starknet_api::class_cache::GlobalContractCache;
+    use starknet_api::core::{ClassHash, CompiledClassHash};
 
     use crate::blockifier::config::ContractClassManagerConfig;
     use crate::execution::contract_class::RunnableCompiledClass;
@@ -15,7 +16,8 @@ pub mod trivial_class_manager {
 
     #[derive(Clone)]
     pub struct TrivialClassManager {
-        cache: RawClassCache,
+        class_cache: RawClassCache,
+        compiled_class_hash_v2_cache: GlobalContractCache<CompiledClassHash>,
     }
 
     // Trivial implementation of the class manager for Native-less projects.
@@ -25,24 +27,42 @@ pub mod trivial_class_manager {
                 !config.cairo_native_run_config.run_cairo_native,
                 "Cairo Native feature is off."
             );
-            Self { cache: RawClassCache::new(config.contract_cache_size) }
+            Self {
+                class_cache: RawClassCache::new(config.contract_cache_size),
+                compiled_class_hash_v2_cache: GlobalContractCache::new(config.contract_cache_size),
+            }
         }
 
         pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-            Some(self.cache.get(class_hash)?.to_runnable())
+            Some(self.class_cache.get(class_hash)?.to_runnable())
         }
 
         pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CompiledClasses) {
-            self.cache.set(class_hash, compiled_class);
+            self.class_cache.set(class_hash, compiled_class);
         }
 
         pub fn clear(&mut self) {
-            self.cache.clear();
+            self.class_cache.clear();
+        }
+
+        pub fn get_compiled_class_hash_v2(
+            &self,
+            class_hash: &ClassHash,
+        ) -> Option<CompiledClassHash> {
+            self.compiled_class_hash_v2_cache.get(class_hash)
+        }
+
+        pub fn set_compiled_class_hash_v2(
+            &self,
+            class_hash: ClassHash,
+            compiled_class_hash_v2: CompiledClassHash,
+        ) {
+            self.compiled_class_hash_v2_cache.set(class_hash, compiled_class_hash_v2);
         }
 
         #[cfg(any(feature = "testing", test))]
         pub fn get_cache_size(&self) -> usize {
-            self.cache.lock().cache_size()
+            self.class_cache.lock().cache_size()
         }
     }
 }

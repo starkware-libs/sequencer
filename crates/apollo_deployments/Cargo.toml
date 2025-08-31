@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+alloy.workspace = true
 apollo_config.workspace = true
 apollo_http_server.workspace = true
 apollo_infra_utils.workspace = true

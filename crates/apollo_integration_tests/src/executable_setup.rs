@@ -1,11 +1,9 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
-use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::config_utils::{BaseAppConfigOverride, DeploymentBaseAppConfig};
+use apollo_node::config::config_utils::DeploymentBaseAppConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::SequencerNodeConfig;
 use apollo_node::test_utils::node_runner::NodeRunner;
@@ -67,19 +65,10 @@ pub struct ExecutableSetup {
 
 impl ExecutableSetup {
     pub async fn new(
-        mut base_app_config: DeploymentBaseAppConfig,
+        base_app_config: DeploymentBaseAppConfig,
         node_execution_id: NodeExecutionId,
-        mut available_ports: AvailablePorts,
         config_path_dir: Option<PathBuf>,
-        component_config: ComponentConfig,
     ) -> Self {
-        // Explicitly collect metrics in the monitoring endpoint.
-        let monitoring_endpoint_config = MonitoringEndpointConfig {
-            port: available_ports.get_next_port(),
-            collect_metrics: true,
-            ..Default::default()
-        };
-
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
             Some(config_path_dir) => {
                 create_dir_all(&config_path_dir).await.unwrap();
@@ -91,12 +80,12 @@ impl ExecutableSetup {
             }
         };
 
-        let MonitoringEndpointConfig { ip, port, .. } = monitoring_endpoint_config;
-        let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
-
-        let base_app_config_override =
-            BaseAppConfigOverride::new(component_config, Some(monitoring_endpoint_config));
-        base_app_config.override_base_app_config(base_app_config_override);
+        let MonitoringEndpointConfig { ip, port, .. } = base_app_config
+            .config
+            .monitoring_endpoint_config
+            .as_ref()
+            .expect("Should have a monitoring endpoint config");
+        let monitoring_client = MonitoringClient::new(SocketAddr::new(*ip, *port));
 
         let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         base_app_config.dump_config_file(&config_path);

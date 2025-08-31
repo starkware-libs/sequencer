@@ -2,6 +2,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::FeeType;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
@@ -43,6 +44,7 @@ pub fn fund_account(
 pub fn setup_test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
+    compiled_classes_hash_version: &HashVersion,
     contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
     state_reader: &mut DictStateReader,
@@ -50,7 +52,7 @@ pub fn setup_test_state(
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
     let erc20_class_hash = erc20.get_class_hash();
-    state_reader.add_class(&FeatureContractData::from(erc20));
+    state_reader.add_class(&FeatureContractData::from(erc20), compiled_classes_hash_version);
     state_reader
         .address_to_class_hash
         .insert(chain_info.fee_token_address(&FeeType::Eth), erc20_class_hash);
@@ -61,7 +63,7 @@ pub fn setup_test_state(
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = contract.class_hash;
-        state_reader.add_class(contract);
+        state_reader.add_class(contract, compiled_classes_hash_version);
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             state_reader.address_to_class_hash.insert(instance_address, class_hash);
@@ -88,13 +90,14 @@ pub fn test_state(
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    test_state_ex(chain_info, initial_balances, &contract_instances_vec[..])
+    test_state_ex(chain_info, initial_balances, &contract_instances_vec[..], &HashVersion::V2)
 }
 
 pub fn test_state_ex(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
+    compiled_classes_hash_version: &HashVersion,
 ) -> CachedState<DictStateReader> {
     // Here we assume that the first contract in the list is the account contract.
     // TODO(YonatanK): Find a way to avoid this assumption.
@@ -108,7 +111,13 @@ pub fn test_state_ex(
         })
         .unwrap_or(CairoVersion::Cairo0);
 
-    test_state_inner(chain_info, initial_balances, contract_instances, erc20_version)
+    test_state_inner(
+        chain_info,
+        initial_balances,
+        contract_instances,
+        compiled_classes_hash_version,
+        erc20_version,
+    )
 }
 
 pub fn test_state_with_contract_manager(
@@ -124,6 +133,7 @@ pub fn test_state_with_contract_manager(
         chain_info,
         initial_balances,
         &contract_instances_vec[..],
+        &HashVersion::V2,
         CairoVersion::Cairo0,
     )
 }
@@ -132,10 +142,18 @@ pub fn test_state_inner(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
+    compiled_classes_hash_version: &HashVersion,
     erc20_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
     let mut reader = DictStateReader::default();
-    setup_test_state(chain_info, initial_balances, contract_instances, erc20_version, &mut reader);
+    setup_test_state(
+        chain_info,
+        initial_balances,
+        compiled_classes_hash_version,
+        contract_instances,
+        erc20_version,
+        &mut reader,
+    );
     CachedState::from(reader)
 }
 
@@ -143,10 +161,18 @@ pub fn test_state_inner_with_contract_manager(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
+    compiled_classes_hash_version: &HashVersion,
     erc20_version: CairoVersion,
 ) -> CachedState<StateReaderAndContractManager<DictStateReader>> {
     let mut reader = DictStateReader::default();
-    setup_test_state(chain_info, initial_balances, contract_instances, erc20_version, &mut reader);
+    setup_test_state(
+        chain_info,
+        initial_balances,
+        compiled_classes_hash_version,
+        contract_instances,
+        erc20_version,
+        &mut reader,
+    );
 
     #[cfg(not(feature = "cairo_native"))]
     let (run_cairo_native, wait_on_native_compilation) = (false, false);

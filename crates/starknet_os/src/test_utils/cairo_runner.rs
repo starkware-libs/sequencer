@@ -592,8 +592,6 @@ pub fn initialize_and_run_cairo_0_entry_point(
         implicit_args,
         hint_locals,
     )?;
-    // Skip parameter validations until they are fixed.
-    let skip_parameter_validations = false;
     let (explicit_return_values, implicit_return_values) = run_cairo_0_entrypoint(
         entrypoint,
         explicit_args,
@@ -603,7 +601,6 @@ pub fn initialize_and_run_cairo_0_entry_point(
         &program,
         runner_config,
         expected_explicit_return_values,
-        skip_parameter_validations,
     )?;
     Ok((explicit_return_values, implicit_return_values, cairo_runner))
 }
@@ -656,17 +653,11 @@ pub fn run_cairo_0_entrypoint(
     program: &Program,
     runner_config: &EntryPointRunnerConfig,
     expected_explicit_return_values: &[EndpointArg],
-    // TODO(Aviv): Remove skip_parameter_validations once it is fixed.
-    skip_parameter_validations: bool,
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
     // TODO(Amos): Perform complete validations.
-    if skip_parameter_validations {
-        info!("Basic Validations on explicit & implicit were skipped.");
-    } else {
-        perform_basic_validations_on_explicit_args(explicit_args, program, &entrypoint)?;
-        perform_basic_validations_on_implicit_args(implicit_args, program, &entrypoint)?;
-        info!("Performed basic validations on explicit & implicit args.");
-    }
+    perform_basic_validations_on_explicit_args(explicit_args, program, &entrypoint)?;
+    perform_basic_validations_on_implicit_args(implicit_args, program, &entrypoint)?;
+    info!("Performed basic validations on explicit & implicit args.");
 
     let explicit_cairo_args: Vec<CairoArg> =
         explicit_args.iter().flat_map(EndpointArg::to_cairo_arg_vec).collect();

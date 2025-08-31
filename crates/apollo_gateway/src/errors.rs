@@ -1,3 +1,5 @@
+use apollo_class_manager_types::transaction_converter::TransactionConverterError;
+use apollo_class_manager_types::{ClassManagerClientError, ClassManagerError};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -10,6 +12,7 @@ use axum::http::StatusCode;
 use blockifier::state::errors::StateError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
+use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::transaction::fields::AllResourceBounds;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -311,4 +314,71 @@ impl From<RPCStateReaderError> for StateError {
 // Converts a serde error to the error type of the state reader.
 pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
     StateError::StateReadError(format!("Failed to parse rpc result {:?}", err.to_string()))
+}
+
+pub fn transaction_converter_err_to_deprecated_gw_err(
+    err: TransactionConverterError,
+) -> StarknetError {
+    match err {
+        TransactionConverterError::ValidateCompiledClassHashError(err) => {
+            convert_compiled_class_hash_error(err)
+        }
+        TransactionConverterError::ClassManagerClientError(err) => {
+            convert_class_manager_client_error(err)
+        }
+        // Internal error because the class manager should have the class in its storage.
+        TransactionConverterError::ClassNotFound { .. } => {
+            StarknetError::internal(&err.to_string())
+        }
+        // TODO(noamsp): Handle this better.
+        TransactionConverterError::StarknetApiError(err) => {
+            StarknetError::internal(&err.to_string())
+        }
+    }
+}
+
+fn convert_compiled_class_hash_error(err: ValidateCompiledClassHashError) -> StarknetError {
+    let ValidateCompiledClassHashError::CompiledClassHashMismatch {
+        computed_class_hash,
+        supplied_class_hash,
+    } = err;
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidCompiledClassHash),
+        message: format!(
+            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
+             {supplied_class_hash}.",
+        ),
+    }
+}
+
+fn convert_class_manager_client_error(err: ClassManagerClientError) -> StarknetError {
+    match err {
+        ClassManagerClientError::ClassManagerError(err) => convert_class_manager_error(err),
+        ClassManagerClientError::ClientError(_) => StarknetError::internal(&err.to_string()),
+    }
+}
+
+fn convert_class_manager_error(err: ClassManagerError) -> StarknetError {
+    let message = format!("{}", err);
+    match err {
+        ClassManagerError::SierraCompiler { .. } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::CompilationFailed),
+            message,
+        },
+        ClassManagerError::ContractClassObjectSizeTooLarge { .. } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::ContractClassObjectSizeTooLarge,
+            ),
+            message,
+        },
+        ClassManagerError::UnsupportedContractClassVersion(_) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidContractClassVersion,
+            ),
+            message,
+        },
+        ClassManagerError::ClassSerde(_)
+        | ClassManagerError::ClassStorage(_)
+        | ClassManagerError::Client(_) => StarknetError::internal(&message),
+    }
 }

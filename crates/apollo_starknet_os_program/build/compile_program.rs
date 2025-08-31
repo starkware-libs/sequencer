@@ -43,11 +43,6 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "starkware/starknet/core/os/state/aliases_test.cairo",
         "aliases_test",
     ));
-    task_set.spawn(compile_and_output_program(
-        out_dir,
-        "starkware/starknet/core/os/contract_class/blake_compiled_class_hash.cairo",
-        "blake_compiled_class_hash",
-    ));
     task_set.join_all().await;
 }
 

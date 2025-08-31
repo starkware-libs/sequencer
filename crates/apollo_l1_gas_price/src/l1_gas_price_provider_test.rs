@@ -1,4 +1,6 @@
-use apollo_l1_gas_price_types::{GasPriceData, PriceInfo};
+use std::sync::Arc;
+
+use apollo_l1_gas_price_types::{GasPriceData, MockEthToStrkOracleClientTrait, PriceInfo};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 
 use crate::l1_gas_price_provider::{
@@ -11,10 +13,11 @@ use crate::l1_gas_price_provider::{
 // To get the prices for the middle three blocks use the timestamp for block[3].
 // Returns the provider, a vector of block prices to compare with, and the timestamp of block[3].
 fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
-    let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
-        number_of_blocks_for_mean: 3,
-        ..Default::default()
-    });
+    let eth_to_strk_oracle_client = Arc::new(MockEthToStrkOracleClientTrait::new());
+    let mut provider = L1GasPriceProvider::new(
+        L1GasPriceProviderConfig { number_of_blocks_for_mean: 3, ..Default::default() },
+        eth_to_strk_oracle_client,
+    );
     provider.initialize().unwrap();
     let mut prices = Vec::new();
     let mut timestamp3 = 0;
@@ -116,10 +119,11 @@ fn gas_price_provider_timestamp_changes_mean() {
 
 #[test]
 fn gas_price_provider_can_start_at_nonzero_height() {
-    let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
-        number_of_blocks_for_mean: 3,
-        ..Default::default()
-    });
+    let eth_to_strk_oracle_client = Arc::new(MockEthToStrkOracleClientTrait::new());
+    let mut provider = L1GasPriceProvider::new(
+        L1GasPriceProviderConfig { number_of_blocks_for_mean: 3, ..Default::default() },
+        eth_to_strk_oracle_client,
+    );
     provider.initialize().unwrap();
     let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };
     let timestamp = BlockTimestamp(0);
@@ -128,10 +132,11 @@ fn gas_price_provider_can_start_at_nonzero_height() {
 
 #[test]
 fn gas_price_provider_uninitialized_error() {
-    let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
-        number_of_blocks_for_mean: 3,
-        ..Default::default()
-    });
+    let eth_to_strk_oracle_client = Arc::new(MockEthToStrkOracleClientTrait::new());
+    let mut provider = L1GasPriceProvider::new(
+        L1GasPriceProviderConfig { number_of_blocks_for_mean: 3, ..Default::default() },
+        eth_to_strk_oracle_client,
+    );
     let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };
     let timestamp = BlockTimestamp(0);
     let result = provider.add_price_info(GasPriceData { block_number: 42, timestamp, price_info });

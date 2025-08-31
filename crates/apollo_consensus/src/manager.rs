@@ -197,6 +197,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        info!("Running consensus for height {}.", height);
         let res = self
             .run_height_inner(
                 context,
@@ -242,6 +243,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.report_max_cached_block_number_metric(height);
         if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
@@ -253,7 +255,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
             height, is_observer, validators,
         );
-        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
         let mut shc = SingleHeightConsensus::new(
             height,

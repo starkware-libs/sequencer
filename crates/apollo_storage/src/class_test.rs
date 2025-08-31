@@ -2,7 +2,8 @@ use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::compiled_class_hash;
+use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
@@ -29,7 +30,7 @@ fn append_classes_writes_correct_data() {
         .append_state_diff(
             BlockNumber(0),
             ThinStateDiff {
-                declared_classes: indexmap! { class_hash => CompiledClassHash::default() },
+                declared_classes: indexmap! { class_hash => compiled_class_hash!(1_u8) },
                 deprecated_declared_classes: vec![deprecated_class_hash],
                 ..Default::default()
             },

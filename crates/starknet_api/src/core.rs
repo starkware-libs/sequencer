@@ -224,6 +224,12 @@ pub fn calculate_contract_address(
 )]
 pub struct ClassHash(pub StarkHash);
 
+impl From<ClassHash> for Felt {
+    fn from(class_hash: ClassHash) -> Felt {
+        class_hash.0
+    }
+}
+
 /// The hash of a compiled ContractClass.
 #[derive(
     Debug,
@@ -242,6 +248,11 @@ pub struct ClassHash(pub StarkHash);
 )]
 pub struct CompiledClassHash(pub StarkHash);
 
+impl From<CompiledClassHash> for Felt {
+    fn from(compiled_class_hash: CompiledClassHash) -> Felt {
+        compiled_class_hash.0
+    }
+}
 /// A general type for nonces.
 #[derive(
     Debug,

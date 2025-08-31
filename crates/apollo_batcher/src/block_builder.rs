@@ -47,6 +47,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::{debug, error, info, trace, warn};
 
@@ -425,13 +426,13 @@ impl BlockBuilder {
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
             &mut self.execution_data,
-            &self.pre_confirmed_tx_sender,
+            &mut self.pre_confirmed_tx_sender,
         )
         .await
     }
 
     fn send_candidate_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
-        // Skip sending candidate transactions during validation flow.
+        // Skip sending candidate transactions during validation flow or if the channel was closed.
         // In validate flow candidate_tx_sender is None.
         let Some(candidate_tx_sender) = &self.candidate_tx_sender else {
             return;
@@ -452,13 +453,18 @@ impl BlockBuilder {
                      to the PreconfirmedBlockWriter.",
                 );
             }
-            // We continue with block building even if sending candidate transactions to
-            // the PreconfirmedBlockWriter fails because it is not critical for the block
-            // building process.
+            Err(TrySendError::Closed(_)) => {
+                warn!(
+                    "Candidate transaction channel was closed. Further candidate transactions \
+                     will not be sent. This is not critical for the block building process."
+                );
+                self.candidate_tx_sender = None;
+            }
             Err(err) => {
-                error!(
+                warn!(
                     "Failed to send a candidate transaction chunk with {num_txs} transactions to \
-                     the PreconfirmedBlockWriter: {:?}",
+                     the PreconfirmedBlockWriter: {:?}. This is not critical for the block \
+                     building process.",
                     err
                 );
             }
@@ -490,7 +496,7 @@ async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     execution_data: &mut BlockTransactionExecutionData,
-    pre_confirmed_tx_sender: &Option<PreconfirmedTxSender>,
+    pre_confirmed_tx_sender: &mut Option<PreconfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
         results.len() == tx_chunk.len(),
@@ -521,8 +527,9 @@ async fn collect_execution_results_and_stream_txs(
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
-                // during validation flow. In validate flow pre_confirmed_tx_sender is None.
-                if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
+                // during validation flow or if the channel was closed. In validate flow
+                // pre_confirmed_tx_sender is None.
+                if let Some(pre_confirmed_sender) = pre_confirmed_tx_sender {
                     let tx_receipt = StarknetClientTransactionReceipt::from((
                         tx_hash,
                         TransactionOffsetInBlock(tx_index),
@@ -534,16 +541,24 @@ async fn collect_execution_results_and_stream_txs(
 
                     let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;
 
-                    let result = pre_confirmed_tx_sender.try_send((
+                    let result = pre_confirmed_sender.try_send((
                         input_tx.clone(),
                         tx_receipt,
                         tx_state_diff,
                     ));
-                    if result.is_err() {
-                        // We continue with block building even if sending data to The
-                        // PreconfirmedBlockWriter fails because it is not critical
-                        // for the block building process.
-                        warn!("Sending data to preconfirmed block writer failed.");
+
+                    match result {
+                        Ok(_) => {}
+                        Err(TrySendError::Closed(_)) => {
+                            warn!(
+                                "Preconfirmed block writer channel was closed. Skipping to send \
+                                 further preconfirmed transactions."
+                            );
+                            *pre_confirmed_tx_sender = None;
+                        }
+                        Err(err) => {
+                            warn!("Sending data to preconfirmed block writer failed: {:?}", err);
+                        }
                     }
                 }
             }
@@ -609,7 +624,7 @@ impl Default for BlockBuilderConfig {
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
-            tx_polling_interval_millis: 1,
+            tx_polling_interval_millis: 10,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -658,6 +673,10 @@ impl BlockBuilderFactory {
     ) -> BlockBuilderResult<
         ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
     > {
+        info!(
+            "preprocess and create transaction executor for block {}",
+            block_metadata.block_info.block_number
+        );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(

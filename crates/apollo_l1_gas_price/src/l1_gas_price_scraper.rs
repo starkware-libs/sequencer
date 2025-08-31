@@ -226,9 +226,7 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \
                      hash stored, {}",
-                    hex::encode(new_header.parent_hash),
-                    last_header.number,
-                    hex::encode(last_header.hash),
+                    new_header.parent_hash, last_header.number, last_header.hash,
                 ),
             });
         }

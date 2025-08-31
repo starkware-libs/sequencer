@@ -1,5 +1,4 @@
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::config_validate;
 use apollo_config::ConfigError;
 use tracing::info;
 
@@ -24,11 +23,11 @@ pub async fn create_node_modules(
 
 pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
-    let config =
+    let loaded_config =
         config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
     info!("Finished loading configuration.");
 
-    if let Err(error) = config_validate(&config) {
+    if let Err(error) = loaded_config.validate_node_config() {
         panic!("Config validation failed: {error}");
     }
     info!("Finished validating configuration.");
@@ -36,10 +35,10 @@ pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig
     info!("Config map:");
     info!(
         "{:#?}",
-        get_config_presentation::<SequencerNodeConfig>(&config, false)
+        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
             .expect("Should be able to get representation.")
     );
     info!("Finished dumping configuration.");
 
-    Ok(config)
+    Ok(loaded_config)
 }

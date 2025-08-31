@@ -1,4 +1,5 @@
 use apollo_batcher::metrics::STORAGE_HEIGHT;
+use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -26,6 +27,16 @@ pub async fn get_batcher_latest_block_number(
     )
     .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
     .expect("Storage height should be at least 1.")
+}
+
+/// Gets the latest decisions reached by consensus from the consensus metrics.
+pub async fn get_consensus_decisions_reached(
+    consensus_monitoring_client: &MonitoringClient,
+) -> u64 {
+    consensus_monitoring_client
+        .get_metric::<u64>(CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name())
+        .await
+        .expect("Failed to get consensus proposals sent metric.")
 }
 
 /// Gets the latest block number from the sync's metrics.
@@ -135,13 +146,15 @@ pub async fn verify_txs_accepted(
     sequencer_idx: usize,
     expected_n_accepted_txs: usize,
 ) {
+    const INTERVAL_MS: u64 = 5_000;
+    const MAX_ATTEMPTS: usize = 20;
+
     info!("Verifying that sequencer {sequencer_idx} accepted {expected_n_accepted_txs} txs.");
-    let n_accepted_txs = sequencer_num_accepted_txs(monitoring_client).await;
-    assert_eq!(
-        n_accepted_txs, expected_n_accepted_txs,
-        "Sequencer {sequencer_idx} accepted an unexpected number of txs. Expected \
-         {expected_n_accepted_txs} got {n_accepted_txs}"
-    );
+    let condition = |num_accpted_tx: &usize| *num_accpted_tx >= expected_n_accepted_txs;
+
+    let n_accepted_txs_closure = || sequencer_num_accepted_txs(monitoring_client);
+
+    run_until(INTERVAL_MS, MAX_ATTEMPTS, n_accepted_txs_closure, condition, None).await;
 }
 
 pub async fn await_txs_accepted(

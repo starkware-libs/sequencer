@@ -25,11 +25,7 @@ use apollo_consensus::types::{
     Round,
     ValidatorId,
 };
-use apollo_l1_gas_price_types::{
-    EthToStrkOracleClientTrait,
-    L1GasPriceProviderClient,
-    DEFAULT_ETH_TO_FRI_RATE,
-};
+use apollo_l1_gas_price_types::{L1GasPriceProviderClient, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
@@ -169,7 +165,6 @@ pub struct SequencerConsensusContextDeps {
     pub state_sync_client: Arc<dyn StateSyncClient>,
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
-    pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
@@ -766,6 +761,10 @@ impl SequencerConsensusContext {
     }
 
     async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
+        info!(
+            "Adding sync block to Batcher for height {}",
+            sync_block.block_header_without_hash.block_number,
+        );
         loop {
             match self.deps.batcher.add_sync_block(sync_block.clone()).await {
                 Ok(_) => break,
