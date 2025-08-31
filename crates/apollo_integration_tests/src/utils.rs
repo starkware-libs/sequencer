@@ -14,8 +14,8 @@ use apollo_class_manager::config::{
 use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager::config::ConfigManagerConfig;
-use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use apollo_consensus::types::ValidatorId;
+use apollo_consensus_config::config::{ConsensusConfig, TimeoutsConfig};
+use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
 use apollo_consensus_orchestrator::config::ContextConfig;
