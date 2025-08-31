@@ -58,13 +58,7 @@ jobs:
   sequencer_docker_compose_test:
     needs: check-docker-test-trigger
     if: needs.check-docker-test-trigger.outputs.should_run == 'true'
-<<<<<<< HEAD
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
-||||||| 6848e0598
-    runs-on: starkware-ubuntu-24.04-large
-=======
-    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
->>>>>>> origin/main
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64-local-builder
     env:
       MONITORING_ENABLED: false
       SIMULATOR_RUN_FOREVER: false
