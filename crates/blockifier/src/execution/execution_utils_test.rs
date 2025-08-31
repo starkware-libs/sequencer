@@ -3,14 +3,16 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_sierra_gas;
-use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
+use crate::execution::casm_hash_estimation::{
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
+};
+use crate::execution::contract_class::FeltSizeCount;
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
-    compute_blake_hash_steps,
-    cost_of_encode_felt252_data_and_calc_blake_hash,
+    blake_encoding,
     count_blake_opcode,
+    estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
 };
 
 #[test]
@@ -24,36 +26,32 @@ fn test_u32_constants() {
     let big_u32s = encode_felts_to_u32s(vec![big_felt]);
 
     // Blake estimation constants should match the actual encoding.
-    assert_eq!(small_u32s.len(), N_U32S_SMALL_FELT);
-    assert_eq!(big_u32s.len(), N_U32S_BIG_FELT);
+    assert_eq!(small_u32s.len(), blake_encoding::U32_WORDS_PER_SMALL_FELT);
+    assert_eq!(big_u32s.len(), blake_encoding::U32_WORDS_PER_LARGE_FELT);
 }
 
 /// Test the edge case of hashing an empty array of felt values.
 #[test]
 fn test_zero_inputs() {
     // logic was written.
-    let steps = compute_blake_hash_steps(0, 0);
+    let steps =
+        estimate_steps_of_encode_felt252_data_and_calc_blake_hash(&FeltSizeCount::default());
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
-    let opcodes = count_blake_opcode(0, 0);
+    let opcodes = count_blake_opcode(&FeltSizeCount::default());
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
-    // Should result in base cost gas only (no opcode gas).
-    let gas = cost_of_encode_felt252_data_and_calc_blake_hash(
-        0,
-        0,
-        VersionedConstants::latest_constants(),
-    );
-    let expected_gas = {
-        let resources = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
-        vm_resources_to_sierra_gas(&resources, VersionedConstants::latest_constants())
-    };
-    assert_eq!(gas, expected_gas, "Unexpected gas value for zero-input hash");
+    // Should result in base cost only (no opcode cost).
+    let resources =
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
+    let expected = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
+    assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
+    assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }
 
 // TODO(AvivG): Add tests for:
-// - `compute_blake_hash_steps` simple cases (felts input).
+// - `estimate_steps_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input).
 // - `count_blake_opcode` simple cases (felts input).
 // - `cost_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input) (including partial
 //   remainder).

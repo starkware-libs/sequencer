@@ -36,7 +36,7 @@ fn global_contract_cache_update() {
     );
     let class_hash = class_hash!("0x1");
 
-    let temp_storage_path = tempfile::tempdir().unwrap().into_path();
+    let temp_storage_path = tempfile::tempdir().unwrap().keep();
     let mut block_executor = PyBlockExecutor::create_for_testing(
         PyConcurrencyConfig::default(),
         PyContractClassManagerConfig::default(),
@@ -119,7 +119,7 @@ fn global_contract_cache_update_large_contract() {
     let dep_casm: DeprecatedContractClass = serde_json::from_value(raw_contract_class)
         .expect("DeprecatedContractClass is not supported for this contract.");
 
-    let temp_storage_path = tempfile::tempdir().unwrap().into_path();
+    let temp_storage_path = tempfile::tempdir().unwrap().keep();
     let mut block_executor = PyBlockExecutor::native_create_for_testing(
         Default::default(),
         PyContractClassManagerConfig::default(),

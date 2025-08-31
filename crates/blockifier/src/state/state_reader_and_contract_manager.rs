@@ -1,4 +1,4 @@
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
@@ -7,7 +7,6 @@ use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
-
 #[cfg(test)]
 #[path = "state_reader_and_contract_manager_test.rs"]
 pub mod state_reader_and_contract_manager_test;
@@ -98,10 +97,35 @@ impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
         self.get_compiled_from_class_manager(class_hash)
     }
 
-    fn get_compiled_class_hash(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<starknet_api::core::CompiledClassHash> {
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.state_reader.get_compiled_class_hash(class_hash)
+    }
+
+    /// Returns the compiled class hash v2 for the given class hash.
+    /// The function assumes that the class hash is already declared,
+    /// and of cairo1 contract class.
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // First, try getting from class manager cache.
+        match self.contract_class_manager.get_compiled_class_hash_v2(&class_hash) {
+            Some(compiled_class_hash) => Ok(compiled_class_hash),
+            None => {
+                // Not in cache → fetch from state reader.
+                let compiled_class_hash =
+                    self.state_reader.get_compiled_class_hash_v2(class_hash)?;
+                // Verify that the returned compiled_class_hash_v2 is not the default value.
+                // default value is used to mark classes that are not declared or cairo0 classes.
+                assert_ne!(
+                    compiled_class_hash,
+                    CompiledClassHash::default(),
+                    "Default compiled class hash is for marking classes that are not declared or \
+                     cairo0 classes. class_hash: {class_hash:?}"
+                );
+                // Store in cache.
+                self.contract_class_manager
+                    .set_compiled_class_hash_v2(class_hash, compiled_class_hash);
+
+                Ok(compiled_class_hash)
+            }
+        }
     }
 }

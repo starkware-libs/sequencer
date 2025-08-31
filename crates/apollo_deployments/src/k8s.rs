@@ -3,7 +3,6 @@ use serde::{Serialize, Serializer};
 
 use crate::deployment::P2PCommunicationType;
 use crate::deployment_definitions::Environment;
-
 // Controls whether external P2P communication is enabled.
 const INTERNAL_ONLY_P2P_COMMUNICATION: bool = true;
 
@@ -178,6 +177,8 @@ pub enum Toleration {
     #[serde(rename = "apollo-core-service-c2d-56")]
     ApolloCoreServiceC2D56,
     ApolloGeneralService,
+    ApolloL1Service,
+    ApolloMempoolService,
     #[serde(rename = "batcher-8-64")]
     Batcher864,
 }

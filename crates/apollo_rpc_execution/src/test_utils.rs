@@ -22,14 +22,7 @@ use starknet_api::block::{
     GasPricePerToken,
 };
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-    SequencerContractAddress,
-};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
@@ -43,7 +36,7 @@ use starknet_api::transaction::{
     InvokeTransactionV1,
     TransactionHash,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
+use starknet_api::{calldata, class_hash, compiled_class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;
@@ -145,7 +138,7 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
                 ),
                 declared_classes: indexmap!(
                     // The class is not used in the execution, so it can be default.
-                    class_hash0 => CompiledClassHash::default()
+                    class_hash0 => compiled_class_hash!(1_u8)
                 ),
                 deprecated_declared_classes: vec![
                     *TEST_ERC20_CONTRACT_CLASS_HASH,

@@ -249,8 +249,8 @@
         "description": "The time it takes to prepare the blob for the next height, i.e create the blob object.",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       },
@@ -259,8 +259,8 @@
         "description": "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed.",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       },
@@ -491,8 +491,8 @@
         "description": "Latency of HTTP add_tx endpoint in secs",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -530,8 +530,8 @@
         "description": "Latency of gateway add_tx function in secs",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       },
@@ -540,8 +540,8 @@
         "description": "Latency of gateway validate function in secs",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       },
@@ -657,11 +657,21 @@
       },
       {
         "title": "mempool_transaction_time_spent",
-        "description": "The time (secs) that a transaction spent in the mempool",
+        "description": "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transaction_time_spent_until_committed",
+        "description": "The time (seconds) a transaction spent in the mempool until it was committed",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -836,12 +846,12 @@
     ],
     "Compile sierra to casm": [
       {
-        "title": "compile_to_casm_compilation_duration",
+        "title": "compile_to_casm_compilation_duration_seconds",
         "description": "Server-side compilation to casm duration in seconds",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -935,7 +945,7 @@
       {
         "title": "apollo_mempool_p2p_num_connected_peers",
         "description": "The number of connected peers to the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -944,7 +954,7 @@
       {
         "title": "apollo_mempool_p2p_num_sent_messages",
         "description": "The number of messages sent by the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -953,7 +963,7 @@
       {
         "title": "apollo_mempool_p2p_num_received_messages",
         "description": "The number of messages received by the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -962,10 +972,10 @@
       {
         "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
         "description": "The number of transactions in batches broadcast by the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1026,12 +1036,471 @@
         "extra_params": {}
       },
       {
+        "title": "batcher_remote_number_of_connections",
+        "description": "Number of connections to batcher remote server",
+        "type": "timeseries",
+        "exprs": [
+          "batcher_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "batcher_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a batcher remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs add_sync_block",
+        "description": "Request processing times of the batcher, per label (secs): add_sync_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs decision_reached",
+        "description": "Request processing times of the batcher, per label (secs): decision_reached",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs get_current_height",
+        "description": "Request processing times of the batcher, per label (secs): get_current_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs get_proposal_content",
+        "description": "Request processing times of the batcher, per label (secs): get_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs propose_block",
+        "description": "Request processing times of the batcher, per label (secs): propose_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs revert_block",
+        "description": "Request processing times of the batcher, per label (secs): revert_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs send_proposal_content",
+        "description": "Request processing times of the batcher, per label (secs): send_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs start_height",
+        "description": "Request processing times of the batcher, per label (secs): start_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_processing_times_secs validate_block",
+        "description": "Request processing times of the batcher, per label (secs): validate_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs add_sync_block",
+        "description": "Request queueing times of the batcher, per label (secs): add_sync_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs decision_reached",
+        "description": "Request queueing times of the batcher, per label (secs): decision_reached",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs get_current_height",
+        "description": "Request queueing times of the batcher, per label (secs): get_current_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs get_proposal_content",
+        "description": "Request queueing times of the batcher, per label (secs): get_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs propose_block",
+        "description": "Request queueing times of the batcher, per label (secs): propose_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs revert_block",
+        "description": "Request queueing times of the batcher, per label (secs): revert_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs send_proposal_content",
+        "description": "Request queueing times of the batcher, per label (secs): send_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs start_height",
+        "description": "Request queueing times of the batcher, per label (secs): start_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_queueing_times_secs validate_block",
+        "description": "Request queueing times of the batcher, per label (secs): validate_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs add_sync_block",
+        "description": "Request local response times of the batcher, per label (secs): add_sync_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs decision_reached",
+        "description": "Request local response times of the batcher, per label (secs): decision_reached",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs get_current_height",
+        "description": "Request local response times of the batcher, per label (secs): get_current_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs get_proposal_content",
+        "description": "Request local response times of the batcher, per label (secs): get_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs propose_block",
+        "description": "Request local response times of the batcher, per label (secs): propose_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs revert_block",
+        "description": "Request local response times of the batcher, per label (secs): revert_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs send_proposal_content",
+        "description": "Request local response times of the batcher, per label (secs): send_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs start_height",
+        "description": "Request local response times of the batcher, per label (secs): start_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_local_response_times_secs validate_block",
+        "description": "Request local response times of the batcher, per label (secs): validate_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs add_sync_block",
+        "description": "Request remote response times of the batcher, per label (secs): add_sync_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs decision_reached",
+        "description": "Request remote response times of the batcher, per label (secs): decision_reached",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs get_current_height",
+        "description": "Request remote response times of the batcher, per label (secs): get_current_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs get_proposal_content",
+        "description": "Request remote response times of the batcher, per label (secs): get_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs propose_block",
+        "description": "Request remote response times of the batcher, per label (secs): propose_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs revert_block",
+        "description": "Request remote response times of the batcher, per label (secs): revert_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs send_proposal_content",
+        "description": "Request remote response times of the batcher, per label (secs): send_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs start_height",
+        "description": "Request remote response times of the batcher, per label (secs): start_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_response_times_secs validate_block",
+        "description": "Request remote response times of the batcher, per label (secs): validate_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs add_sync_block",
+        "description": "Request communication failure times of the batcher, per label (secs): add_sync_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs decision_reached",
+        "description": "Request communication failure times of the batcher, per label (secs): decision_reached",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs get_current_height",
+        "description": "Request communication failure times of the batcher, per label (secs): get_current_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs get_proposal_content",
+        "description": "Request communication failure times of the batcher, per label (secs): get_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs propose_block",
+        "description": "Request communication failure times of the batcher, per label (secs): propose_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs revert_block",
+        "description": "Request communication failure times of the batcher, per label (secs): revert_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs send_proposal_content",
+        "description": "Request communication failure times of the batcher, per label (secs): send_proposal_content",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs start_height",
+        "description": "Request communication failure times of the batcher, per label (secs): start_height",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_labeled_remote_client_communication_failure_times_secs validate_block",
+        "description": "Request communication failure times of the batcher, per label (secs): validate_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(batcher_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1092,12 +1561,421 @@
         "extra_params": {}
       },
       {
+        "title": "state_sync_remote_number_of_connections",
+        "description": "Number of connections to state sync remote server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "state_sync_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a state sync remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs add_new_block",
+        "description": "Request processing times of the state sync, per label (secs): add_new_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs get_block",
+        "description": "Request processing times of the state sync, per label (secs): get_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs get_block_hash",
+        "description": "Request processing times of the state sync, per label (secs): get_block_hash",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs get_class_hash_at",
+        "description": "Request processing times of the state sync, per label (secs): get_class_hash_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs get_latest_block_number",
+        "description": "Request processing times of the state sync, per label (secs): get_latest_block_number",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs get_nonce_at",
+        "description": "Request processing times of the state sync, per label (secs): get_nonce_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs get_storage_at",
+        "description": "Request processing times of the state sync, per label (secs): get_storage_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_processing_times_secs is_class_declared_at",
+        "description": "Request processing times of the state sync, per label (secs): is_class_declared_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs add_new_block",
+        "description": "Request queueing times of the state sync, per label (secs): add_new_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs get_block",
+        "description": "Request queueing times of the state sync, per label (secs): get_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs get_block_hash",
+        "description": "Request queueing times of the state sync, per label (secs): get_block_hash",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs get_class_hash_at",
+        "description": "Request queueing times of the state sync, per label (secs): get_class_hash_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs get_latest_block_number",
+        "description": "Request queueing times of the state sync, per label (secs): get_latest_block_number",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs get_nonce_at",
+        "description": "Request queueing times of the state sync, per label (secs): get_nonce_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs get_storage_at",
+        "description": "Request queueing times of the state sync, per label (secs): get_storage_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_queueing_times_secs is_class_declared_at",
+        "description": "Request queueing times of the state sync, per label (secs): is_class_declared_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs add_new_block",
+        "description": "Request local response times of the state sync, per label (secs): add_new_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs get_block",
+        "description": "Request local response times of the state sync, per label (secs): get_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs get_block_hash",
+        "description": "Request local response times of the state sync, per label (secs): get_block_hash",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs get_class_hash_at",
+        "description": "Request local response times of the state sync, per label (secs): get_class_hash_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs get_latest_block_number",
+        "description": "Request local response times of the state sync, per label (secs): get_latest_block_number",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs get_nonce_at",
+        "description": "Request local response times of the state sync, per label (secs): get_nonce_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs get_storage_at",
+        "description": "Request local response times of the state sync, per label (secs): get_storage_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_local_response_times_secs is_class_declared_at",
+        "description": "Request local response times of the state sync, per label (secs): is_class_declared_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs add_new_block",
+        "description": "Request remote response times of the state sync, per label (secs): add_new_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs get_block",
+        "description": "Request remote response times of the state sync, per label (secs): get_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs get_block_hash",
+        "description": "Request remote response times of the state sync, per label (secs): get_block_hash",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs get_class_hash_at",
+        "description": "Request remote response times of the state sync, per label (secs): get_class_hash_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs get_latest_block_number",
+        "description": "Request remote response times of the state sync, per label (secs): get_latest_block_number",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs get_nonce_at",
+        "description": "Request remote response times of the state sync, per label (secs): get_nonce_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs get_storage_at",
+        "description": "Request remote response times of the state sync, per label (secs): get_storage_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_response_times_secs is_class_declared_at",
+        "description": "Request remote response times of the state sync, per label (secs): is_class_declared_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs add_new_block",
+        "description": "Request communication failure times of the state sync, per label (secs): add_new_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs get_block",
+        "description": "Request communication failure times of the state sync, per label (secs): get_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs get_block_hash",
+        "description": "Request communication failure times of the state sync, per label (secs): get_block_hash",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs get_class_hash_at",
+        "description": "Request communication failure times of the state sync, per label (secs): get_class_hash_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs get_latest_block_number",
+        "description": "Request communication failure times of the state sync, per label (secs): get_latest_block_number",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs get_nonce_at",
+        "description": "Request communication failure times of the state sync, per label (secs): get_nonce_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs get_storage_at",
+        "description": "Request communication failure times of the state sync, per label (secs): get_storage_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_labeled_remote_client_communication_failure_times_secs is_class_declared_at",
+        "description": "Request communication failure times of the state sync, per label (secs): is_class_declared_at",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(state_sync_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1158,12 +2036,71 @@
         "extra_params": {}
       },
       {
+        "title": "gateway_remote_number_of_connections",
+        "description": "Number of connections to gateway remote server",
+        "type": "timeseries",
+        "exprs": [
+          "gateway_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "gateway_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a gateway remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_labeled_processing_times_secs add_transaction",
+        "description": "Request processing times of the gateway, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_labeled_queueing_times_secs add_transaction",
+        "description": "Request queueing times of the gateway, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_labeled_local_response_times_secs add_transaction",
+        "description": "Request local response times of the gateway, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_labeled_remote_response_times_secs add_transaction",
+        "description": "Request remote response times of the gateway, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_labeled_remote_client_communication_failure_times_secs add_transaction",
+        "description": "Request communication failure times of the gateway, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1224,12 +2161,321 @@
         "extra_params": {}
       },
       {
+        "title": "mempool_remote_number_of_connections",
+        "description": "Number of connections to mempool remote server",
+        "type": "timeseries",
+        "exprs": [
+          "mempool_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "mempool_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a mempool remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_processing_times_secs account_tx_in_pool_or_recent_block",
+        "description": "Request processing times of the mempool, per label (secs): account_tx_in_pool_or_recent_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_processing_times_secs add_transaction",
+        "description": "Request processing times of the mempool, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_processing_times_secs commit_block",
+        "description": "Request processing times of the mempool, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_processing_times_secs get_mempool_snapshot",
+        "description": "Request processing times of the mempool, per label (secs): get_mempool_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_processing_times_secs get_transactions",
+        "description": "Request processing times of the mempool, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_processing_times_secs update_gas_price",
+        "description": "Request processing times of the mempool, per label (secs): update_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_queueing_times_secs account_tx_in_pool_or_recent_block",
+        "description": "Request queueing times of the mempool, per label (secs): account_tx_in_pool_or_recent_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_queueing_times_secs add_transaction",
+        "description": "Request queueing times of the mempool, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_queueing_times_secs commit_block",
+        "description": "Request queueing times of the mempool, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_queueing_times_secs get_mempool_snapshot",
+        "description": "Request queueing times of the mempool, per label (secs): get_mempool_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_queueing_times_secs get_transactions",
+        "description": "Request queueing times of the mempool, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_queueing_times_secs update_gas_price",
+        "description": "Request queueing times of the mempool, per label (secs): update_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_local_response_times_secs account_tx_in_pool_or_recent_block",
+        "description": "Request local response times of the mempool, per label (secs): account_tx_in_pool_or_recent_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_local_response_times_secs add_transaction",
+        "description": "Request local response times of the mempool, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_local_response_times_secs commit_block",
+        "description": "Request local response times of the mempool, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_local_response_times_secs get_mempool_snapshot",
+        "description": "Request local response times of the mempool, per label (secs): get_mempool_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_local_response_times_secs get_transactions",
+        "description": "Request local response times of the mempool, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_local_response_times_secs update_gas_price",
+        "description": "Request local response times of the mempool, per label (secs): update_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_response_times_secs account_tx_in_pool_or_recent_block",
+        "description": "Request remote response times of the mempool, per label (secs): account_tx_in_pool_or_recent_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_response_times_secs add_transaction",
+        "description": "Request remote response times of the mempool, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_response_times_secs commit_block",
+        "description": "Request remote response times of the mempool, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_response_times_secs get_mempool_snapshot",
+        "description": "Request remote response times of the mempool, per label (secs): get_mempool_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_response_times_secs get_transactions",
+        "description": "Request remote response times of the mempool, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_response_times_secs update_gas_price",
+        "description": "Request remote response times of the mempool, per label (secs): update_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_client_communication_failure_times_secs account_tx_in_pool_or_recent_block",
+        "description": "Request communication failure times of the mempool, per label (secs): account_tx_in_pool_or_recent_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_client_communication_failure_times_secs add_transaction",
+        "description": "Request communication failure times of the mempool, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_client_communication_failure_times_secs commit_block",
+        "description": "Request communication failure times of the mempool, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_client_communication_failure_times_secs get_mempool_snapshot",
+        "description": "Request communication failure times of the mempool, per label (secs): get_mempool_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_client_communication_failure_times_secs get_transactions",
+        "description": "Request communication failure times of the mempool, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_labeled_remote_client_communication_failure_times_secs update_gas_price",
+        "description": "Request communication failure times of the mempool, per label (secs): update_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1290,12 +2536,171 @@
         "extra_params": {}
       },
       {
+        "title": "mempool_p2p_propagator_remote_number_of_connections",
+        "description": "Number of connections to mempool p2p remote server",
+        "type": "timeseries",
+        "exprs": [
+          "mempool_p2p_propagator_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "mempool_p2p_propagator_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a mempool p2p remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_processing_times_secs add_transaction",
+        "description": "Request processing times of the mempool p2p, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_processing_times_secs broadcast_queued_transactions",
+        "description": "Request processing times of the mempool p2p, per label (secs): broadcast_queued_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_processing_times_secs continue_propagation",
+        "description": "Request processing times of the mempool p2p, per label (secs): continue_propagation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_queueing_times_secs add_transaction",
+        "description": "Request queueing times of the mempool p2p, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_queueing_times_secs broadcast_queued_transactions",
+        "description": "Request queueing times of the mempool p2p, per label (secs): broadcast_queued_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_queueing_times_secs continue_propagation",
+        "description": "Request queueing times of the mempool p2p, per label (secs): continue_propagation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_local_response_times_secs add_transaction",
+        "description": "Request local response times of the mempool p2p, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_local_response_times_secs broadcast_queued_transactions",
+        "description": "Request local response times of the mempool p2p, per label (secs): broadcast_queued_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_local_response_times_secs continue_propagation",
+        "description": "Request local response times of the mempool p2p, per label (secs): continue_propagation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_remote_response_times_secs add_transaction",
+        "description": "Request remote response times of the mempool p2p, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_remote_response_times_secs broadcast_queued_transactions",
+        "description": "Request remote response times of the mempool p2p, per label (secs): broadcast_queued_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_remote_response_times_secs continue_propagation",
+        "description": "Request remote response times of the mempool p2p, per label (secs): continue_propagation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_remote_client_communication_failure_times_secs add_transaction",
+        "description": "Request communication failure times of the mempool p2p, per label (secs): add_transaction",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_remote_client_communication_failure_times_secs broadcast_queued_transactions",
+        "description": "Request communication failure times of the mempool p2p, per label (secs): broadcast_queued_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_labeled_remote_client_communication_failure_times_secs continue_propagation",
+        "description": "Request communication failure times of the mempool p2p, per label (secs): continue_propagation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1356,12 +2761,371 @@
         "extra_params": {}
       },
       {
+        "title": "l1_provider_remote_number_of_connections",
+        "description": "Number of connections to L1 provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_provider_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a L1 provider remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs add_events",
+        "description": "Request processing times of the L1 provider, per label (secs): add_events",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs commit_block",
+        "description": "Request processing times of the L1 provider, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs get_l1_provider_snapshot",
+        "description": "Request processing times of the L1 provider, per label (secs): get_l1_provider_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs get_transactions",
+        "description": "Request processing times of the L1 provider, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs initialize",
+        "description": "Request processing times of the L1 provider, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs start_block",
+        "description": "Request processing times of the L1 provider, per label (secs): start_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_processing_times_secs validate",
+        "description": "Request processing times of the L1 provider, per label (secs): validate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs add_events",
+        "description": "Request queueing times of the L1 provider, per label (secs): add_events",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs commit_block",
+        "description": "Request queueing times of the L1 provider, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs get_l1_provider_snapshot",
+        "description": "Request queueing times of the L1 provider, per label (secs): get_l1_provider_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs get_transactions",
+        "description": "Request queueing times of the L1 provider, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs initialize",
+        "description": "Request queueing times of the L1 provider, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs start_block",
+        "description": "Request queueing times of the L1 provider, per label (secs): start_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_queueing_times_secs validate",
+        "description": "Request queueing times of the L1 provider, per label (secs): validate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs add_events",
+        "description": "Request local response times of the L1 provider, per label (secs): add_events",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs commit_block",
+        "description": "Request local response times of the L1 provider, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs get_l1_provider_snapshot",
+        "description": "Request local response times of the L1 provider, per label (secs): get_l1_provider_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs get_transactions",
+        "description": "Request local response times of the L1 provider, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs initialize",
+        "description": "Request local response times of the L1 provider, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs start_block",
+        "description": "Request local response times of the L1 provider, per label (secs): start_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_local_response_times_secs validate",
+        "description": "Request local response times of the L1 provider, per label (secs): validate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs add_events",
+        "description": "Request remote response times of the L1 provider, per label (secs): add_events",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs commit_block",
+        "description": "Request remote response times of the L1 provider, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs get_l1_provider_snapshot",
+        "description": "Request remote response times of the L1 provider, per label (secs): get_l1_provider_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs get_transactions",
+        "description": "Request remote response times of the L1 provider, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs initialize",
+        "description": "Request remote response times of the L1 provider, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs start_block",
+        "description": "Request remote response times of the L1 provider, per label (secs): start_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_response_times_secs validate",
+        "description": "Request remote response times of the L1 provider, per label (secs): validate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs add_events",
+        "description": "Request communication failure times of the L1 provider, per label (secs): add_events",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs commit_block",
+        "description": "Request communication failure times of the L1 provider, per label (secs): commit_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs get_l1_provider_snapshot",
+        "description": "Request communication failure times of the L1 provider, per label (secs): get_l1_provider_snapshot",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs get_transactions",
+        "description": "Request communication failure times of the L1 provider, per label (secs): get_transactions",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs initialize",
+        "description": "Request communication failure times of the L1 provider, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs start_block",
+        "description": "Request communication failure times of the L1 provider, per label (secs): start_block",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_labeled_remote_client_communication_failure_times_secs validate",
+        "description": "Request communication failure times of the L1 provider, per label (secs): validate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_provider_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1422,12 +3186,221 @@
         "extra_params": {}
       },
       {
+        "title": "l1_gas_price_provider_remote_number_of_connections",
+        "description": "Number of connections to L1 gas price provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_gas_price_provider_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_processing_times_secs add_gas_price",
+        "description": "Request processing times of the L1 gas price, per label (secs): add_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_processing_times_secs get_eth_to_fri_rate",
+        "description": "Request processing times of the L1 gas price, per label (secs): get_eth_to_fri_rate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_processing_times_secs get_gas_price",
+        "description": "Request processing times of the L1 gas price, per label (secs): get_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_processing_times_secs initialize",
+        "description": "Request processing times of the L1 gas price, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_queueing_times_secs add_gas_price",
+        "description": "Request queueing times of the L1 gas price, per label (secs): add_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_queueing_times_secs get_eth_to_fri_rate",
+        "description": "Request queueing times of the L1 gas price, per label (secs): get_eth_to_fri_rate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_queueing_times_secs get_gas_price",
+        "description": "Request queueing times of the L1 gas price, per label (secs): get_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_queueing_times_secs initialize",
+        "description": "Request queueing times of the L1 gas price, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_local_response_times_secs add_gas_price",
+        "description": "Request local response times of the L1 gas price, per label (secs): add_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_local_response_times_secs get_eth_to_fri_rate",
+        "description": "Request local response times of the L1 gas price, per label (secs): get_eth_to_fri_rate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_local_response_times_secs get_gas_price",
+        "description": "Request local response times of the L1 gas price, per label (secs): get_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_local_response_times_secs initialize",
+        "description": "Request local response times of the L1 gas price, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_response_times_secs add_gas_price",
+        "description": "Request remote response times of the L1 gas price, per label (secs): add_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_response_times_secs get_eth_to_fri_rate",
+        "description": "Request remote response times of the L1 gas price, per label (secs): get_eth_to_fri_rate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_response_times_secs get_gas_price",
+        "description": "Request remote response times of the L1 gas price, per label (secs): get_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_response_times_secs initialize",
+        "description": "Request remote response times of the L1 gas price, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_client_communication_failure_times_secs add_gas_price",
+        "description": "Request communication failure times of the L1 gas price, per label (secs): add_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_client_communication_failure_times_secs get_eth_to_fri_rate",
+        "description": "Request communication failure times of the L1 gas price, per label (secs): get_eth_to_fri_rate",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_client_communication_failure_times_secs get_gas_price",
+        "description": "Request communication failure times of the L1 gas price, per label (secs): get_gas_price",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_labeled_remote_client_communication_failure_times_secs initialize",
+        "description": "Request communication failure times of the L1 gas price, per label (secs): initialize",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1488,12 +3461,321 @@
         "extra_params": {}
       },
       {
+        "title": "class_manager_remote_number_of_connections",
+        "description": "Number of connections to class manager remote server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "class_manager_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a class manager remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_processing_times_secs add_class",
+        "description": "Request processing times of the class manager, per label (secs): add_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_processing_times_secs add_class_and_executable_unsafe",
+        "description": "Request processing times of the class manager, per label (secs): add_class_and_executable_unsafe",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_processing_times_secs add_deprecated_class",
+        "description": "Request processing times of the class manager, per label (secs): add_deprecated_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_processing_times_secs get_executable",
+        "description": "Request processing times of the class manager, per label (secs): get_executable",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_processing_times_secs get_executable_class_hash_v2",
+        "description": "Request processing times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_processing_times_secs get_sierra",
+        "description": "Request processing times of the class manager, per label (secs): get_sierra",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs add_class",
+        "description": "Request queueing times of the class manager, per label (secs): add_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs add_class_and_executable_unsafe",
+        "description": "Request queueing times of the class manager, per label (secs): add_class_and_executable_unsafe",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs add_deprecated_class",
+        "description": "Request queueing times of the class manager, per label (secs): add_deprecated_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs get_executable",
+        "description": "Request queueing times of the class manager, per label (secs): get_executable",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs get_executable_class_hash_v2",
+        "description": "Request queueing times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_queueing_times_secs get_sierra",
+        "description": "Request queueing times of the class manager, per label (secs): get_sierra",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_local_response_times_secs add_class",
+        "description": "Request local response times of the class manager, per label (secs): add_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_local_response_times_secs add_class_and_executable_unsafe",
+        "description": "Request local response times of the class manager, per label (secs): add_class_and_executable_unsafe",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_local_response_times_secs add_deprecated_class",
+        "description": "Request local response times of the class manager, per label (secs): add_deprecated_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_local_response_times_secs get_executable",
+        "description": "Request local response times of the class manager, per label (secs): get_executable",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_local_response_times_secs get_executable_class_hash_v2",
+        "description": "Request local response times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_local_response_times_secs get_sierra",
+        "description": "Request local response times of the class manager, per label (secs): get_sierra",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_response_times_secs add_class",
+        "description": "Request remote response times of the class manager, per label (secs): add_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_response_times_secs add_class_and_executable_unsafe",
+        "description": "Request remote response times of the class manager, per label (secs): add_class_and_executable_unsafe",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_response_times_secs add_deprecated_class",
+        "description": "Request remote response times of the class manager, per label (secs): add_deprecated_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_response_times_secs get_executable",
+        "description": "Request remote response times of the class manager, per label (secs): get_executable",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_response_times_secs get_executable_class_hash_v2",
+        "description": "Request remote response times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_response_times_secs get_sierra",
+        "description": "Request remote response times of the class manager, per label (secs): get_sierra",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_class",
+        "description": "Request communication failure times of the class manager, per label (secs): add_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_class_and_executable_unsafe",
+        "description": "Request communication failure times of the class manager, per label (secs): add_class_and_executable_unsafe",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_deprecated_class",
+        "description": "Request communication failure times of the class manager, per label (secs): add_deprecated_class",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_executable",
+        "description": "Request communication failure times of the class manager, per label (secs): get_executable",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_executable_class_hash_v2",
+        "description": "Request communication failure times of the class manager, per label (secs): get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_sierra",
+        "description": "Request communication failure times of the class manager, per label (secs): get_sierra",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -1554,12 +3836,71 @@
         "extra_params": {}
       },
       {
+        "title": "sierra_compiler_remote_number_of_connections",
+        "description": "Number of connections to sierra compiler remote server",
+        "type": "timeseries",
+        "exprs": [
+          "sierra_compiler_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "sierra_compiler_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a sierra compiler remote client",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_labeled_processing_times_secs compile",
+        "description": "Request processing times of the sierra compiler, per label (secs): compile",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_labeled_queueing_times_secs compile",
+        "description": "Request queueing times of the sierra compiler, per label (secs): compile",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_labeled_local_response_times_secs compile",
+        "description": "Request local response times of the sierra compiler, per label (secs): compile",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_labeled_remote_response_times_secs compile",
+        "description": "Request remote response times of the sierra compiler, per label (secs): compile",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_labeled_remote_client_communication_failure_times_secs compile",
+        "description": "Request communication failure times of the sierra compiler, per label (secs): compile",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"compile\"}[5m])))"
         ],
         "extra_params": {}
       }

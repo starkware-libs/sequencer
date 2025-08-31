@@ -7,6 +7,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -93,10 +94,7 @@ pub(crate) struct ExecutedContracts {
 
 impl ExecutedContracts {
     pub(crate) fn add_cairo1_contract(&mut self, casm_contract_class: CasmContractClass) {
-        self.contracts.insert(
-            CompiledClassHash(casm_contract_class.compiled_class_hash()),
-            casm_contract_class,
-        );
+        self.contracts.insert(casm_contract_class.hash(&HashVersion::V2), casm_contract_class);
     }
 
     pub(crate) fn add_deprecated_contract(

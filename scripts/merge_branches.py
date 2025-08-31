@@ -113,7 +113,7 @@ def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_
 
     run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
 
-    included_types_as_conflicts = ["UU", "AA"]
+    included_types_as_conflicts = ["UU", "AA", "DU"]
     if auto_delete_from_dst:
         included_types_as_conflicts.append("UD")
 
@@ -185,5 +185,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     merge_branches(
-        src_branch=args.src, dst_branch=args.dst, auto_delete_from_dst=args.auto_delete_from_dst
+        src_branch=args.src,
+        dst_branch=args.dst,
+        auto_delete_from_dst=args.auto_delete_from_dst,
     )

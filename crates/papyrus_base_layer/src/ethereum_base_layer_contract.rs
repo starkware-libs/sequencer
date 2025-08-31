@@ -26,7 +26,14 @@ use url::Url;
 use validator::Validate;
 
 use crate::eth_events::parse_event;
-use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
+use crate::{
+    BaseLayerContract,
+    L1BlockHash,
+    L1BlockHeader,
+    L1BlockNumber,
+    L1BlockReference,
+    L1Event,
+};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 pub type EthereumContractAddress = Address;
@@ -180,7 +187,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
         Ok(block.map(|block| L1BlockReference {
             number: block.header.number,
-            hash: block.header.hash.0,
+            hash: L1BlockHash(block.header.hash.0),
         }))
     }
 
@@ -215,8 +222,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
         Ok(Some(L1BlockHeader {
             number: block.header.number,
-            hash: block.header.hash.0,
-            parent_hash: block.header.parent_hash.0,
+            hash: L1BlockHash(block.header.hash.0),
+            parent_hash: L1BlockHash(block.header.parent_hash.0),
             timestamp: block.header.timestamp.into(),
             base_fee_per_gas: base_fee.into(),
             blob_fee,

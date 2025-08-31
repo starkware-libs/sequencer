@@ -192,7 +192,7 @@ impl CendeContext for CendeAmbassador {
                 let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
                     // This case happens when restarting the node, `prev_height_blob` initial value
                     // is `None`.
-                    warn!("No blob to write to Aerospike.");
+                    warn!("CENDE_FAILURE: No blob to write to Aerospike.");
                     record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
                     return false;
                 };
@@ -208,8 +208,8 @@ impl CendeContext for CendeAmbassador {
                 // did not update the cende ambassador in `decision_reached` function.
                 if blob.block_number.0 + 1 != current_height.0 {
                     warn!(
-                        "Mismatch blob block number and height, can't write blob to Aerospike. \
-                         Blob block number {}, height {current_height}",
+                        "CENDE_FAILURE: Mismatch blob block number and height, can't write blob \
+                         to Aerospike. Blob block number {}, height {current_height}",
                         blob.block_number
                     );
                     record_write_failure(CendeWriteFailureReason::HeightMismatch);
@@ -260,18 +260,19 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                 true
             } else {
                 warn!(
-                    "The recorder failed to write blob with block number {}. Status code: {}",
+                    "CENDE_FAILURE: The recorder failed to write blob with block number {}. \
+                     Status code: {}. Response: {}",
                     blob.block_number,
                     response.status(),
+                    response.text().await.unwrap_or("Unparsable response".to_owned()),
                 );
-                print_write_blob_response(response).await;
                 record_write_failure(CendeWriteFailureReason::CendeRecorderError);
                 false
             }
         }
         Err(err) => {
             // TODO(dvir): try to test this case.
-            warn!("Failed to send a request to the recorder. Error: {err}");
+            warn!("CENDE_FAILURE: Failed to send a request to the recorder. Error: {err}");
             record_write_failure(CendeWriteFailureReason::CommunicationError);
             false
         }
@@ -287,6 +288,12 @@ async fn print_write_blob_response(response: Response) {
     }
 }
 
+#[derive(Debug)]
+pub struct InternalTransactionWithReceipt {
+    pub transaction: InternalConsensusTransaction,
+    pub execution_info: TransactionExecutionInfo,
+}
+
 #[derive(Debug, Default)]
 pub struct BlobParameters {
     pub(crate) block_info: BlockInfo,
@@ -294,12 +301,11 @@ pub struct BlobParameters {
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) fee_market_info: FeeMarketInfo,
-    pub(crate) transactions: Vec<InternalConsensusTransaction>,
+    pub(crate) transactions_with_execution_infos: Vec<InternalTransactionWithReceipt>,
     pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
-    pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
     pub(crate) compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
 }
 
@@ -319,15 +325,22 @@ impl AerospikeBlob {
                 CentralStateDiff::from((compressed_state_diff, block_info))
             });
 
-        let (central_transactions, contract_classes, compiled_classes) =
-            process_transactions(class_manager, blob_parameters.transactions, block_timestamp)
-                .await?;
-
-        let execution_infos = blob_parameters
-            .execution_infos
+        let (blob_transactions, blob_exec_infos): (
+            Vec<InternalConsensusTransaction>,
+            Vec<TransactionExecutionInfo>,
+        ) = blob_parameters
+            .transactions_with_execution_infos
             .into_iter()
-            .map(CentralTransactionExecutionInfo::from)
-            .collect();
+            .map(|tx_with_exec_info| {
+                (tx_with_exec_info.transaction, tx_with_exec_info.execution_info)
+            })
+            .unzip();
+
+        let (central_transactions, contract_classes, compiled_classes) =
+            process_transactions(class_manager, blob_transactions, block_timestamp).await?;
+
+        let execution_infos =
+            blob_exec_infos.into_iter().map(CentralTransactionExecutionInfo::from).collect();
 
         Ok(AerospikeBlob {
             block_number,

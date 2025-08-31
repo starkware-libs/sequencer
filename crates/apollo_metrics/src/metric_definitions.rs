@@ -54,27 +54,6 @@ macro_rules! define_metrics {
         )*
     };
 
-    // Special case: MetricHistogram
-    (@define_single $scope:ident, MetricHistogram, $name:ident, $key:expr, $desc:expr
-        $(, init = $init:expr)? $(, labels = $labels:expr)?
-    ) => {
-        $crate::paste::paste! {
-            pub const $name: $crate::metrics::MetricHistogram = $crate::metrics::MetricHistogram::new(
-                $crate::metrics::MetricScope::$scope,
-                $key,
-                concat!($key, "_bucket", $crate::metric_label_filter!()),
-                concat!($key, "_sum", $crate::metric_label_filter!()),
-                concat!($key, "_count", $crate::metric_label_filter!()),
-                $desc
-                $(, $init)?
-                $(, $labels)?
-            );
-        }
-    };
-
-    // TODO(Tsabary): add a similar support for LabeledMetricHistogram.
-
-    // Fallback: all others (MetricCounter, MetricGauge, etc.)
     (@define_single $scope:ident, $type:ident, $name:ident, $key:expr, $desc:expr
         $(, init = $init:expr)? $(, labels = $labels:expr)?
     ) => {
@@ -82,7 +61,6 @@ macro_rules! define_metrics {
             pub const $name: $crate::metrics::$type = $crate::metrics::$type::new(
                 $crate::metrics::MetricScope::$scope,
                 $key,
-                concat!($key, $crate::metric_label_filter!()),
                 $desc
                 $(, $init)?
                 $(, $labels)?

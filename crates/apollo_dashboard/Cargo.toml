@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 apollo_batcher.workspace = true
+apollo_class_manager.workspace = true
 apollo_compile_to_casm.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true

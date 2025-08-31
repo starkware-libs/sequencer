@@ -530,7 +530,6 @@ fn test_allocate_addresses_for_state_diff_and_replace(
     ];
 
     // Run the entrypoint with validations on the explicit & implicit args.
-    let skip_parameter_validations = false;
     let (_, explicit_return_values) = run_cairo_0_entrypoint(
         entrypoint,
         &explicit_args,
@@ -540,7 +539,6 @@ fn test_allocate_addresses_for_state_diff_and_replace(
         &program,
         &runner_config,
         &expected_explicit_return_values,
-        skip_parameter_validations,
     )
     .unwrap();
 

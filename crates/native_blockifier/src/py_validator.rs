@@ -43,8 +43,10 @@ impl PyValidator {
         let state = CachedState::new(state_reader);
 
         // Create the block context.
-        let versioned_constants =
+        let mut versioned_constants =
             VersionedConstants::get_versioned_constants(py_versioned_constants_overrides.into());
+        // The validation of a transaction is not affected by the casm hash migration.
+        versioned_constants.enable_casm_hash_migration = false;
         let block_context = BlockContext::new(
             next_block_info.try_into().expect("Failed to convert block info."),
             os_config.into_chain_info(),

@@ -4,6 +4,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::TransactionType;
@@ -277,7 +278,7 @@ pub fn create_account_tx_for_validate_test(
                     version: tx_version,
                     nonce: nonce_manager.next(sender_address),
                     class_hash,
-                    compiled_class_hash: declared_contract.get_compiled_class_hash(),
+                    compiled_class_hash: declared_contract.get_compiled_class_hash(&HashVersion::V2),
                 },
                 class_info,
             );

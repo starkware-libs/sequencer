@@ -6,7 +6,11 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
-use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
+use apollo_gateway_types::deprecated_gateway_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -41,7 +45,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
@@ -54,6 +58,7 @@ use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{
+    compiled_class_hash,
     contract_address,
     declare_tx_args,
     deploy_account_tx_args,
@@ -70,7 +75,7 @@ use crate::config::{
     StatelessTransactionValidatorConfig,
 };
 use crate::errors::GatewayResult;
-use crate::gateway::Gateway;
+use crate::gateway::{Gateway, ProcessTxBlockingTask};
 use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
@@ -82,7 +87,13 @@ use crate::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
+use crate::state_reader::MockStateReaderFactory;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::stateful_transaction_validator::{
+    MockStatefulTransactionValidatorFactoryTrait,
+    MockStatefulTransactionValidatorTrait,
+};
+use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 #[fixture]
 fn config() -> GatewayConfig {
@@ -385,23 +396,33 @@ async fn test_add_tx_positive(
 // result of `add_tx`).
 // TODO(shahak): Test that when an error occurs in handle_request, then it returns the given p2p
 // metadata.
-// TODO(noamsp): Remove ignore from compiled_class_hash_mismatch once class manager component is
-// implemented.
 #[rstest]
 #[tokio::test]
-#[ignore]
-async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) {
-    let mut declare_tx =
-        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx.compiled_class_hash = CompiledClassHash::default();
-    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
+async fn test_compiled_class_hash_mismatch(mut mock_dependencies: MockDependencies) {
+    let declare_tx = declare_tx();
+    let mut declare_tx_inner = assert_matches!(declare_tx.clone(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
+    declare_tx_inner.compiled_class_hash = compiled_class_hash!(1_u8);
+
+    let other_compiled_class_hash = compiled_class_hash!(2_u8);
+    assert_ne!(declare_tx_inner.compiled_class_hash, other_compiled_class_hash);
+
+    mock_dependencies
+        .mock_class_manager_client
+        .expect_add_class()
+        .once()
+        .with(eq(declare_tx_inner.contract_class.clone()))
+        .return_once(move |_| {
+            Ok(ClassHashes {
+                class_hash: declare_tx_inner.contract_class.calculate_class_hash(),
+                executable_class_hash_v2: other_compiled_class_hash,
+            })
+        });
 
     let gateway = mock_dependencies.gateway();
 
-    let err = gateway.add_tx(tx, None).await.unwrap_err();
-    let expected_code = StarknetErrorCode::UnknownErrorCode(
-        "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
-    );
+    let err = gateway.add_tx(declare_tx, None).await.unwrap_err();
+    let expected_code =
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidCompiledClassHash);
     assert_eq!(err.code, expected_code);
 }
 
@@ -529,4 +550,60 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     .unwrap();
 
     assert_eq!(loaded_config, original_config);
+}
+
+#[rstest]
+#[case::validate_failure(StarknetErrorCode::KnownErrorCode(
+    KnownStarknetErrorCode::ValidateFailure
+))]
+#[case::invalid_nonce(StarknetErrorCode::KnownErrorCode(
+    KnownStarknetErrorCode::InvalidTransactionNonce
+))]
+#[case::gas_price_too_low(
+    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.GAS_PRICE_TOO_LOW".into())
+)]
+#[case::internal_error(
+    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
+)]
+#[tokio::test]
+async fn process_tx_transaction_validations(#[case] error_code: StarknetErrorCode) {
+    let expected_error = StarknetError {
+        code: error_code.clone(),
+        message: "placeholder".into(), // Message is not checked
+    };
+
+    let mut mock_stateful_transaction_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_stateful_transaction_validator
+        .expect_extract_state_nonce_and_run_validations()
+        .return_once(move |_, _, _| Err(expected_error.clone()));
+
+    let mut mock_stateful_tx_validator_factory =
+        MockStatefulTransactionValidatorFactoryTrait::new();
+    mock_stateful_tx_validator_factory
+        .expect_instantiate_validator()
+        .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
+
+    let mock_class_manager_client = MockClassManagerClient::new();
+    let chain_info = ChainInfo::create_for_testing();
+
+    let task = ProcessTxBlockingTask {
+        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+            config: StatelessTransactionValidatorConfig::default(),
+        }),
+        stateful_tx_validator_factory: Arc::new(mock_stateful_tx_validator_factory),
+        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
+        mempool_client: Arc::new(MockMempoolClient::new()),
+        chain_info: Arc::new(chain_info.clone()),
+        tx: invoke_args().get_rpc_tx(),
+        transaction_converter: Arc::new(TransactionConverter::new(
+            Arc::new(mock_class_manager_client),
+            chain_info.chain_id,
+        )),
+        runtime: tokio::runtime::Handle::current(),
+    };
+
+    let result = tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, error_code);
 }
