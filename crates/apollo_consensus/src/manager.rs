@@ -23,7 +23,7 @@ use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::config::TimeoutsConfig;
+use apollo_consensus_config::TimeoutsConfig;
 use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,

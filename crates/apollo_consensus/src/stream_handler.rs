@@ -7,6 +7,7 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::num::NonZeroUsize;
 
+use apollo_consensus_config::StreamHandlerConfig;
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use apollo_network::utils::StreamMap;
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
@@ -18,7 +19,6 @@ use futures::StreamExt;
 use lru::LruCache;
 use tracing::{info, instrument, warn};
 
-use crate::config::StreamHandlerConfig;
 use crate::metrics::{
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_INBOUND_STREAM_FINISHED,

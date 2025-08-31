@@ -1082,6 +1082,7 @@ name = "apollo_consensus"
 version = "0.15.0-rc.3"
 dependencies = [
  "apollo_config",
+ "apollo_consensus_config",
  "apollo_metrics",
  "apollo_network",
  "apollo_network_types",
@@ -1109,6 +1110,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_consensus_config"
+version = "0.15.0-rc.3"
+dependencies = [
+ "apollo_config",
+ "apollo_protobuf",
+ "serde",
+ "starknet_api",
+ "validator",
+]
+
+[[package]]
 name = "apollo_consensus_manager"
 version = "0.15.0-rc.3"
 dependencies = [
@@ -1116,6 +1128,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus",
+ "apollo_consensus_config",
  "apollo_consensus_orchestrator",
  "apollo_infra",
  "apollo_infra_utils",
@@ -1418,6 +1431,7 @@ dependencies = [
  "apollo_config",
  "apollo_config_manager",
  "apollo_consensus",
+ "apollo_consensus_config",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
  "apollo_deployments",
@@ -9379,6 +9393,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus",
+ "apollo_consensus_config",
  "apollo_consensus_orchestrator",
  "apollo_infra_utils",
  "apollo_network",

@@ -15,7 +15,7 @@ use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::types::ValidatorId;
+use crate::ValidatorId;
 
 /// Configuration for consensus.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]

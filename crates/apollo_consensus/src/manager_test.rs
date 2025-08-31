@@ -16,7 +16,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
-use crate::config::TimeoutsConfig;
+use apollo_consensus_config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
 use crate::types::ValidatorId;
 use crate::votes_threshold::QuorumType;

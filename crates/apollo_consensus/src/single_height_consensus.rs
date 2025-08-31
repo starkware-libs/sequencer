@@ -12,6 +12,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
+use apollo_consensus_config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
@@ -20,7 +21,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
-use crate::config::TimeoutsConfig;
 use crate::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
