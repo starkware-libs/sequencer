@@ -16,7 +16,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
 use async_trait::async_trait;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use crate::metrics::MEMPOOL_P2P_BROADCASTED_BATCH_SIZE;
 
@@ -63,6 +63,7 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 )
             }
             MempoolP2pPropagatorRequest::BroadcastQueuedTransactions() => {
+                debug!("Received a request to broadcast queued transactions, broadcasting.");
                 MempoolP2pPropagatorResponse::BroadcastQueuedTransactions(
                     self.broadcast_queued_transactions().await,
                 )
@@ -76,8 +77,10 @@ impl MempoolP2pPropagator {
         &mut self,
         transaction: InternalRpcTransaction,
     ) -> MempoolP2pPropagatorResult<()> {
-        info!("Received a new transaction to broadcast to other mempool peers");
-        debug!("broadcasted tx_hash: {:?}", transaction.tx_hash);
+        debug!(
+            "Received a new transaction to broadcast to other mempool peers. tx_hash: {:?}",
+            transaction.tx_hash
+        );
         let transaction =
             match self.transaction_converter.convert_internal_rpc_tx_to_rpc_tx(transaction).await {
                 Ok(transaction) => transaction,
@@ -90,7 +93,7 @@ impl MempoolP2pPropagator {
 
         self.transaction_queue.push(transaction);
         if self.transaction_queue.len() == self.max_transaction_batch_size {
-            info!("Transaction batch is full. Broadcasting the transaction batch");
+            debug!("Transaction batch is full. Broadcasting the transaction batch");
             return self.broadcast_queued_transactions().await;
         }
         Ok(())
@@ -100,8 +103,10 @@ impl MempoolP2pPropagator {
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorResult<()> {
-        info!("Continuing propagation of received transaction");
-        debug!("Propagated transaction metadata: {:?}", broadcasted_message_metadata);
+        debug!(
+            "Continuing propagation of received transaction. Transaction metadata: {:?}",
+            broadcasted_message_metadata
+        );
         self.broadcast_topic_client
             .continue_propagation(&broadcasted_message_metadata)
             .await
