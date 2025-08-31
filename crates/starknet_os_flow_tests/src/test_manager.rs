@@ -23,6 +23,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::transaction::MessageToL1;
 use starknet_os::io::os_input::{
     OsBlockInput,
     OsChainInfo,
@@ -30,7 +31,7 @@ use starknet_os::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
+use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::io::os_output_types::{
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
@@ -72,9 +73,12 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
 
+#[derive(Default)]
 pub(crate) struct TestParameters {
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
+    pub(crate) messages_to_l2: Vec<MessageToL2>,
 }
 
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
@@ -93,6 +97,8 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) config_hash: Felt,
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
+    pub(crate) messages_to_l2: Vec<MessageToL2>,
 }
 
 pub(crate) struct OsTestOutput {
@@ -118,7 +124,7 @@ impl OsTestOutput {
     fn perform_global_validations(&self) {
         // TODO(Dori): Implement global validations for the OS test output.
 
-        // TODO(Dori): Implement builtin validations.
+        // Builtin validations are done in `run_os_stateless_for_testing`.
 
         // Validate state roots.
         assert_eq!(
@@ -165,6 +171,16 @@ impl OsTestOutput {
             };
             validate_kzg_segment(self.os_output.da_segment.as_ref().unwrap(), partial_commitment);
         }
+
+        // Messages.
+        assert_eq!(
+            self.os_output.os_output.common_os_output.messages_to_l1,
+            self.expected_values.messages_to_l1
+        );
+        assert_eq!(
+            self.os_output.os_output.common_os_output.messages_to_l2,
+            self.expected_values.messages_to_l2
+        );
     }
 
     fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
@@ -507,6 +523,8 @@ impl<S: FlowTestState> TestManager<S> {
                 full_output: test_params.full_output,
                 // The OS will not compute a KZG commitment in full output mode.
                 use_kzg_da: use_kzg_da && !test_params.full_output,
+                messages_to_l1: test_params.messages_to_l1.clone(),
+                messages_to_l2: test_params.messages_to_l2.clone(),
             },
         }
     }
