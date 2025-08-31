@@ -23,13 +23,7 @@ concurrency:
 
 jobs:
   commitlint:
-<<<<<<< HEAD
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
-||||||| 6848e0598
-    runs-on: starkware-ubuntu-24.04-small
-=======
     runs-on: ubuntu-24.04
->>>>>>> origin/main
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,13 +46,7 @@ jobs:
         run: echo "$TITLE" | commitlint --verbose
 
   merge-gatekeeper:
-<<<<<<< HEAD
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64
-||||||| 6848e0598
-    runs-on: starkware-ubuntu-24.04-small
-=======
     runs-on: ubuntu-24.04
->>>>>>> origin/main
     # Restrict permissions of the GITHUB_TOKEN.
     # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
     permissions:
