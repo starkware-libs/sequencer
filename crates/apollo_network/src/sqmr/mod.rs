@@ -132,24 +132,66 @@ impl From<InboundSessionId> for SessionId {
     }
 }
 
+/// Events emitted by the SQMR protocol during session lifecycle.
+///
+/// These events represent significant state changes in SQMR sessions that need
+/// to be handled by the network manager or application layer. The events cover
+/// the full lifecycle from session establishment to completion or failure.
+///
+/// # Type Parameters
+///
+/// * `SessionError` - The specific error type used for session failures
 #[derive(Debug)]
 pub enum GenericEvent<SessionError> {
+    /// A new inbound session was established with a query from a peer.
+    ///
+    /// This event is triggered when another peer sends a query to this node.
+    /// The application should process the query and send appropriate responses
+    /// using the provided session ID.
     NewInboundSession {
+        /// The query bytes received from the peer.
         query: Bytes,
+        /// Unique identifier for this inbound session.
         inbound_session_id: InboundSessionId,
+        /// The peer ID that sent the query.
         peer_id: PeerId,
+        /// The protocol identifier for this query.
         protocol_name: StreamProtocol,
     },
+
+    /// A response was received for an outbound session.
+    ///
+    /// This event is triggered when a peer sends a response to a query that
+    /// this node initiated. Multiple such events may be received for a single
+    /// outbound session in the SQMR pattern.
     ReceivedResponse {
+        /// Unique identifier of the outbound session that received this response.
         outbound_session_id: OutboundSessionId,
+        /// The response bytes received from the peer.
         response: Bytes,
+        /// The peer ID that sent the response.
         peer_id: PeerId,
     },
+
+    /// A session failed due to an error.
+    ///
+    /// This event indicates that a session (either inbound or outbound) has
+    /// failed and will not produce any more events. The session should be
+    /// considered closed and any associated resources cleaned up.
     SessionFailed {
+        /// The ID of the session that failed.
         session_id: SessionId,
+        /// The specific error that caused the session to fail.
         error: SessionError,
     },
+
+    /// A session completed successfully.
+    ///
+    /// This event indicates that a session has finished normally without errors.
+    /// For outbound sessions, this means the peer has finished sending responses.
+    /// For inbound sessions, this means all responses have been sent successfully.
     SessionFinishedSuccessfully {
+        /// The ID of the session that completed.
         session_id: SessionId,
     },
 }
