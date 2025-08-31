@@ -60,7 +60,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 3600
           interval: 30
-          ignored: "code-review/reviewable"
+          ignored: code-review/reviewable,build_docker_images
 
       - name: Run Merge Gatekeeper on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
