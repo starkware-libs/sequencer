@@ -19,10 +19,11 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::Bootstrapper;
+use crate::config::L1ProviderConfig;
+use crate::event_identifiers_to_track;
 use crate::l1_provider::{L1Provider, L1ProviderBuilder};
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig, L1ScraperError};
 use crate::test_utils::FakeL1ProviderClient;
-use crate::{event_identifiers_to_track, L1ProviderConfig};
 
 pub fn in_ci() -> bool {
     std::env::var("CI").is_ok()
