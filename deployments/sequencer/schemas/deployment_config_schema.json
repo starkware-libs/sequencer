@@ -1,13 +1,17 @@
 {
   "type": "object",
   "properties": {
-    "application_config_subdir": { "type": "string" },
+    "application_config_subdir": {
+      "type": "string"
+    },
     "services": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
+          "name": {
+            "type": "string"
+          },
           "config_paths": {
             "type": "array",
             "minItems": 1,
@@ -25,49 +29,110 @@
           },
           "ingress": {
             "anyOf": [
-              { "type": "null" },
+              {
+                "type": "null"
+              },
               {
                 "type": "object",
                 "properties": {
-                  "domain": { "type": "string" },
-                  "internal": { "type": "boolean" },
+                  "domain": {
+                    "type": "string"
+                  },
+                  "internal": {
+                    "type": "boolean"
+                  },
                   "rules": {
                     "type": "array",
                     "minItems": 1,
                     "items": {
                       "type": "object",
                       "properties": {
-                        "path": { "type": "string" },
-                        "port": { "type": "integer" },
+                        "path": {
+                          "type": "string"
+                        },
+                        "port": {
+                          "type": "integer"
+                        },
                         "backend": {
-                          "anyOf": [{ "type": "null" }, { "type": "string" }]
+                          "anyOf": [
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ]
                         }
                       },
-                      "required": ["path", "port"]
+                      "required": [
+                        "path",
+                        "port"
+                      ]
                     }
                   },
                   "alternative_names": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "cloud_armor_policy_name": {
                     "anyOf": [
-                      { "type": "string" }
+                      {
+                        "type": "string"
+                      }
                     ]
                   }
                 },
-                "required": ["domain", "internal", "rules"]
+                "required": [
+                  "domain",
+                  "internal",
+                  "rules"
+                ]
               }
             ]
           },
-          "replicas": { "type": "integer", "minimum": 1 },
-          "autoscale": { "type": "boolean" },
-          "anti_affinity": { "type": "boolean" },
+          "replicas": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "autoscale": {
+            "type": "boolean"
+          },
+          "anti_affinity": {
+            "type": "boolean"
+          },
           "toleration": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }]
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "storage": {
-            "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "size_gb": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "class": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "size_gb"
+                ]
+              }
+            ]
           },
           "resources": {
             "type": "object",
@@ -75,31 +140,58 @@
               "requests": {
                 "type": "object",
                 "properties": {
-                  "cpu": { "type": "number", "minimum": 1 },
-                  "memory": { "type": "integer", "minimum": 1 }
+                  "cpu": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "memory": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
                 },
-                "required": ["cpu", "memory"]
+                "required": [
+                  "cpu",
+                  "memory"
+                ]
               },
               "limits": {
                 "type": "object",
                 "properties": {
-                  "cpu": { "type": "number", "minimum": 1 },
-                  "memory": { "type": "integer", "minimum": 1 }
+                  "cpu": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "memory": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
                 },
-                "required": ["cpu", "memory"]
+                "required": [
+                  "cpu",
+                  "memory"
+                ]
               }
             },
-            "required": ["requests", "limits"]
+            "required": [
+              "requests",
+              "limits"
+            ]
           },
           "external_secret": {
             "anyOf": [
-              { "type": "null" },
+              {
+                "type": "null"
+              },
               {
                 "type": "object",
                 "properties": {
-                  "gcsm_key": { "type": "string" }
+                  "gcsm_key": {
+                    "type": "string"
+                  }
                 },
-                "required": ["gcsm_key"]
+                "required": [
+                  "gcsm_key"
+                ]
               }
             ]
           }
@@ -121,5 +213,8 @@
       }
     }
   },
-  "required": ["services", "application_config_subdir"]
+  "required": [
+    "services",
+    "application_config_subdir"
+  ]
 }
