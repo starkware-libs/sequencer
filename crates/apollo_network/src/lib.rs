@@ -206,7 +206,7 @@ mod mixed_behaviour;
 pub mod network_manager;
 pub mod peer_manager;
 mod prune_dead_connections;
-mod sqmr;
+pub mod sqmr;
 #[cfg(test)]
 mod test_utils;
 pub mod utils;
