@@ -25,7 +25,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "cende_write_blob_failure_once",
@@ -52,7 +53,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "cende_write_prev_height_blob_latency_too_high",
@@ -79,7 +81,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_conflicting_votes",
@@ -106,7 +109,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_decisions_reached_by_consensus_ratio",
@@ -133,7 +137,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_inbound_stream_evicted",
@@ -160,7 +165,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "consensus_l1_gas_price_provider_failure",
@@ -187,7 +193,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_l1_gas_price_provider_failure_once",
@@ -214,7 +221,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "consensus_p2p_disconnections",
@@ -241,7 +249,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_votes_num_sent_messages",
@@ -268,7 +277,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "eth_to_strk_error_count",
@@ -295,7 +305,8 @@
       ],
       "for": "1m",
       "intervalSec": 20,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "gateway_add_tx_idle_all_sources",
@@ -322,7 +333,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1"
+      "severity": "p1",
+      "observer_applicable": true
     },
     {
       "name": "pod_state_not_ready",
@@ -349,7 +361,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "pod_state_crashloopbackoff",
@@ -376,7 +389,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "pod_high_cpu_utilization",
@@ -403,7 +417,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "http_server_high_deprecated_transaction_failure_ratio",
@@ -430,7 +445,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "http_server_internal_error_once",
@@ -457,7 +473,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "http_server_no_successful_transactions",
@@ -484,7 +501,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1"
+      "severity": "p1",
+      "observer_applicable": true
     },
     {
       "name": "l1_gas_price_scraper_reorg_detected",
@@ -511,7 +529,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "l1_gas_price_scraper_baselayer_error_count",
@@ -538,7 +557,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "l1_message_scraper_baselayer_error_count",
@@ -565,7 +585,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p5",
+      "observer_applicable": true
     },
     {
       "name": "l1_message_scraper_reorg_detected",
@@ -592,7 +613,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1"
+      "severity": "p1",
+      "observer_applicable": true
     },
     {
       "name": "mempool_add_tx_idle_all_sources",
@@ -619,7 +641,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1"
+      "severity": "p1",
+      "observer_applicable": true
     },
     {
       "name": "mempool_p2p_disconnections",
@@ -646,7 +669,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "native_compilation_error",
@@ -673,7 +697,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "batched_transactions_stuck",
@@ -700,7 +725,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "batched_transactions_stuck_long_time",
@@ -727,7 +753,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "get_consensus_block_number_progress_is_slow",
@@ -754,7 +781,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "cende_write_blob_failure",
@@ -781,7 +809,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_block_number_stuck",
@@ -808,7 +837,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "consensus_block_number_stuck_long_time",
@@ -835,7 +865,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "consensus_p2p_not_enough_peers_for_quorum",
@@ -862,7 +893,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_p2p_not_enough_peers_for_quorum_long_time",
@@ -889,7 +921,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "consensus_p2p_peer_down",
@@ -916,7 +949,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_round_above_zero",
@@ -943,7 +977,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_round_above_zero_multiple_times",
@@ -970,7 +1005,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "consensus_round_high",
@@ -997,7 +1033,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "eth_to_strk_success_count",
@@ -1024,7 +1061,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "pod_state_high_memory_utilization",
@@ -1051,7 +1089,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "pod_state_critical_memory_utilization",
@@ -1078,7 +1117,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "pod_state_high_disk_utilization",
@@ -1105,7 +1145,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "pod_state_critical_disk_utilization",
@@ -1132,7 +1173,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     },
     {
       "name": "http_server_avg_add_tx_latency",
@@ -1159,7 +1201,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "http_server_high_transaction_failure_ratio",
@@ -1186,7 +1229,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "http_server_internal_error_ratio",
@@ -1213,7 +1257,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "gateway_low_successful_transaction_rate",
@@ -1240,7 +1285,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "http_server_p95_add_tx_latency",
@@ -1267,7 +1313,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "l1_gas_price_provider_insufficient_history",
@@ -1294,7 +1341,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "l1_gas_price_scraper_success_count",
@@ -1321,7 +1369,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "l1_message_no_successes",
@@ -1348,7 +1397,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "mempool_evictions_count",
@@ -1375,7 +1425,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "mempool_p2p_peer_down",
@@ -1402,7 +1453,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "mempool_pool_size_increase",
@@ -1429,7 +1481,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "mempool_transaction_drop_ratio",
@@ -1456,7 +1509,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "preconfirmed_block_not_written",
@@ -1483,7 +1537,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4"
+      "severity": "p4",
+      "observer_applicable": true
     },
     {
       "name": "state_sync_lag",
@@ -1510,7 +1565,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "state_sync_stuck",
@@ -1537,7 +1593,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p3",
+      "observer_applicable": true
     },
     {
       "name": "state_sync_stuck_long_time",
@@ -1564,7 +1621,8 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p2",
+      "observer_applicable": true
     }
   ]
 }

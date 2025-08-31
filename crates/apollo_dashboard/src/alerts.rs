@@ -187,6 +187,8 @@ pub(crate) struct Alert {
     evaluation_interval_sec: u64,
     // The severity level of the alert.
     severity: AlertSeverity,
+    // Indicates if relevant for observer nodes.
+    observer_applicable: bool,
     #[serde(skip)]
     alert_env_filtering: AlertEnvFiltering,
 }
@@ -213,6 +215,8 @@ impl Alert {
             pending_duration: pending_duration.to_string(),
             evaluation_interval_sec,
             severity,
+            // TODO(Tsabary): set this field properly based on the alert definition.
+            observer_applicable: true,
             alert_env_filtering,
         }
     }
