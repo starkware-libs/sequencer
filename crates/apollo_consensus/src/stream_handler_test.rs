@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Display;
 
+use apollo_consensus_config::StreamHandlerConfig;
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
@@ -10,7 +11,6 @@ use futures::channel::mpsc::{self, Receiver, SendError, Sender};
 use futures::{FutureExt, SinkExt, StreamExt};
 use prost::DecodeError;
 
-use crate::config::StreamHandlerConfig;
 use crate::stream_handler::StreamHandler;
 const CHANNEL_CAPACITY: usize = 100;
 const MAX_STREAMS: usize = 10;
