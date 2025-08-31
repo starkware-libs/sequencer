@@ -44,6 +44,7 @@ Examples:
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
+  %(prog)s -n apollo-sepolia-integration -N 3 -s 5 --config-overrides validator_id=0x42
         """,
     )
 
@@ -60,6 +61,14 @@ Examples:
         required=True,
         type=int,
         help="The number of nodes to restart (required)",
+    )
+
+    parser.add_argument(
+        "-s",
+        "--start-index",
+        type=int,
+        default=0,
+        help="The starting index for node IDs (default: 0)",
     )
 
     parser.add_argument(
@@ -95,6 +104,10 @@ Examples:
 def validate_arguments(args: argparse.Namespace) -> None:
     if args.num_nodes <= 0:
         print_error("Error: num-nodes must be a positive integer.")
+        sys.exit(1)
+
+    if args.start_index < 0:
+        print_error("Error: start-index must be a non-negative integer.")
         sys.exit(1)
 
 
@@ -383,8 +396,11 @@ def main():
     # Store original and updated configs for all nodes
     configs = {}
 
+    # Define the range of node IDs to process
+    node_ids = range(args.start_index, args.start_index + args.num_nodes)
+
     # Process each node's configuration
-    for node_id in range(args.num_nodes):
+    for node_id in node_ids:
         print_colored(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
@@ -408,9 +424,9 @@ def main():
         sys.exit(1)
 
     # Apply all configurations
-    print_colored("\nApplying configurations...")
-    for node_id in range(args.num_nodes):
-        print_colored(f"Applying config for node {node_id}...")
+    print("\nApplying configurations...")
+    for node_id in node_ids:
+        print(f"Applying config for node {node_id}...")
         apply_configmap(
             configs[node_id]["updated"], args.namespace, node_id, args.cluster
         )
@@ -420,9 +436,8 @@ def main():
 
     # Restart all pods only if restart should happen
     if should_restart:
-        print_colored("\nRestarting pods...")
-        for node_id in range(args.num_nodes):
-            print_colored(f"Restarting pod for node {node_id}...")
+        for node_id in node_ids:
+            print(f"Restarting pod for node {node_id}...")
             restart_pod(args.namespace, node_id, args.cluster)
         print_colored("\nAll nodes have been successfully restarted!", Colors.GREEN)
     else:
