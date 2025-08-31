@@ -1,3 +1,48 @@
+//! Single Query Multiple Response (SQMR) protocol implementation.
+//!
+//! SQMR is a custom protocol that enables efficient request-response communication
+//! patterns where a single query can receive multiple responses from peers. This is
+//! particularly useful for data synchronization scenarios like block or transaction
+//! propagation.
+//!
+//! ## Protocol Overview
+//!
+//! The SQMR protocol operates as follows:
+//!
+//! 1. **Query Phase**: A client sends a single query to a server peer
+//! 2. **Response Phase**: The server can send multiple responses back
+//! 3. **Completion**: The server indicates completion by closing the stream
+//! 4. **Timeout**: Sessions have configurable timeouts to prevent hanging
+//!
+//! ## Key Features
+//!
+//! - **Multiple Responses**: Unlike traditional request-response, supports multiple responses per
+//!   query
+//! - **Session Management**: Proper session lifecycle with unique identifiers
+//! - **Error Handling**: Comprehensive error reporting and session failure handling
+//! - **Configurable Timeouts**: Prevents hanging sessions with configurable timeouts
+//! - **Peer Reporting**: Built-in support for reporting malicious peer behavior
+//!
+//! ## Components
+//!
+//! - [`behaviour`]: libp2p behavior implementation for SQMR protocol
+//! - [`handler`]: Connection handler for managing individual sessions
+//! - [`protocol`]: Protocol definition and message framing
+//! - Session types: [`InboundSessionId`], [`OutboundSessionId`], [`SessionId`]
+//! - Configuration: [`Config`] for protocol parameters
+//!
+//! ## Usage Example
+//!
+//! ```rust,no_run
+//! # use apollo_network::sqmr::Config;
+//! # use std::time::Duration;
+//! // Configure SQMR protocol
+//! let config = Config { session_timeout: Duration::from_secs(120) };
+//!
+//! // Sessions are managed automatically by the NetworkManager
+//! // when registering SQMR protocol clients and servers
+//! ```
+
 pub mod behaviour;
 pub mod handler;
 mod messages;
