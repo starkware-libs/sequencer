@@ -96,11 +96,84 @@ impl SerializeConfig for DiscoveryConfig {
     }
 }
 
+/// Configuration for exponential backoff retry logic.
+///
+/// This struct defines the parameters for the exponential backoff strategy
+/// used when retrying failed operations, particularly bootstrap peer connections.
+///
+/// # Exponential Backoff Algorithm
+///
+/// The delay between retry attempts follows this pattern:
+/// - 1st retry: `base_delay_millis`
+/// - 2nd retry: `base_delay_millis * factor`
+/// - 3rd retry: `base_delay_millis * factor²`
+/// - And so on, capped at `max_delay_seconds`
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::discovery::RetryConfig;
+///
+/// // Aggressive retry (fast but more network usage)
+/// let aggressive = RetryConfig {
+///     base_delay_millis: 50,                     // Start with 50ms
+///     max_delay_seconds: Duration::from_secs(2), // Cap at 2 seconds
+///     factor: 2,                                 // Double each time
+/// };
+///
+/// // Conservative retry (slower but less network usage)
+/// let conservative = RetryConfig {
+///     base_delay_millis: 1000,                    // Start with 1 second
+///     max_delay_seconds: Duration::from_secs(30), // Cap at 30 seconds
+///     factor: 3,                                  // Triple each time
+/// };
+/// ```
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
+    /// Base delay in milliseconds for the first retry attempt.
+    ///
+    /// This is the initial delay before the first retry. Subsequent retries
+    /// will use exponentially increasing delays based on this base value.
+    ///
+    /// Default: 2 milliseconds
+    ///
+    /// ``` rust
+    /// use apollo_network::discovery::RetryConfig;
+    /// let config = RetryConfig::default();
+    /// assert_eq!(config.base_delay_millis, 2);
+    /// ```
     pub base_delay_millis: u64,
+
+    /// Maximum delay between retry attempts.
+    ///
+    /// The exponential backoff delay will be capped at this value to prevent
+    /// excessively long waits between retry attempts.
+    ///
+    /// Default: 5 seconds
+    ///
+    /// ```
+    /// # use apollo_network::discovery::RetryConfig;
+    /// # use std::time::Duration;
+    /// let config = RetryConfig::default();
+    /// assert_eq!(config.max_delay_seconds, Duration::from_secs(5));
+    /// ```
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub max_delay_seconds: Duration,
+
+    /// Multiplication factor for exponential backoff.
+    ///
+    /// Each retry attempt will wait `factor` times longer than the previous
+    /// attempt (subject to the maximum delay cap).
+    ///
+    /// Default: 5
+    ///
+    /// ```
+    /// # use apollo_network::discovery::RetryConfig;
+    /// let config = RetryConfig::default();
+    /// assert_eq!(config.factor, 5);
+    /// ```
     pub factor: u64,
 }
 
