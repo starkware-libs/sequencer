@@ -377,6 +377,8 @@ func serialize_contract_state_diff_conditional{range_check_ptr, res: felt*}(
     );
 }
 
+// Validates that the private keys are within the range [1, StarkCurve.ORDER - 1] as required by
+// the Diffie-Hellman elliptic curve encryption scheme.
 func validate_private_keys{range_check_ptr}(sn_private_keys_start: felt*, n_keys: felt) {
     if (n_keys == 0) {
         return ();
@@ -389,6 +391,7 @@ func validate_private_keys{range_check_ptr}(sn_private_keys_start: felt*, n_keys
     );
 }
 
+// Computes the public keys from the private keys by multiplying by the EC group generator.
 func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     sn_private_keys_start: felt*, sn_public_keys_start: felt*, n_keys: felt
 ) {
