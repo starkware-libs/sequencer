@@ -348,12 +348,13 @@ class ServiceApp(Construct):
         )
 
     def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
+        storage_class = self.service_topology.storage_class or const.PVC_STORAGE_CLASS_NAME
         return k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.labels),
             spec=k8s.PersistentVolumeClaimSpec(
-                storage_class_name=const.PVC_STORAGE_CLASS_NAME,
+                storage_class_name=storage_class,
                 access_modes=const.PVC_ACCESS_MODE,
                 volume_mode=const.PVC_VOLUME_MODE,
                 resources=k8s.ResourceRequirements(

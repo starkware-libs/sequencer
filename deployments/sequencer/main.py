@@ -114,6 +114,7 @@ def main():
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
                 storage=svc["storage"],
+                storage_class=svc["storage_class"],
                 toleration=svc["toleration"],
                 anti_affinity=svc["anti_affinity"],
                 resources=svc["resources"],
