@@ -134,9 +134,28 @@ impl MisconductScore {
     }
 }
 
+/// Implementation of `AddAssign` for accumulating misconduct scores.
+///
+/// This allows multiple misconduct incidents to be accumulated for a peer.
+/// The score is clamped to the maximum malicious threshold to prevent overflow.
+///
+/// # Examples
+///
+/// ```rust
+/// use apollo_network::misconduct_score::MisconductScore;
+///
+/// let mut peer_score = MisconductScore::NEUTRAL;
+/// peer_score += MisconductScore::new(0.3); // First violation
+/// peer_score += MisconductScore::new(0.5); // Second violation
+/// peer_score += MisconductScore::new(0.8); // Third violation
+///
+/// // Score is clamped to maximum malicious level
+/// assert!(peer_score.is_malicious());
+/// ```
 impl AddAssign for MisconductScore {
     fn add_assign(&mut self, rhs: Self) {
         self.score += rhs.score;
+        // Clamp to maximum malicious score to prevent overflow
         if *self > Self::MALICIOUS {
             *self = Self::MALICIOUS;
         }
