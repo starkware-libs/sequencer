@@ -119,8 +119,12 @@ pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
     U256::from(simple_val).to_be_bytes()
 }
 
-fn create_patricia_key(val: u128) -> DbKey {
+fn create_inner_node_patricia_key(val: u128) -> DbKey {
     create_db_key(PatriciaPrefix::InnerNode.into(), &U256::from(val).to_be_bytes())
+}
+
+fn create_leaf_patricia_key<L: Leaf>(val: u128) -> DbKey {
+    create_db_key(L::get_static_prefix(), &U256::from(val).to_be_bytes())
 }
 
 fn create_binary_val(left: u128, right: u128) -> DbValue {
@@ -138,11 +142,18 @@ fn create_edge_val(hash: u128, path: u128, length: u8) -> DbValue {
 }
 
 pub fn create_binary_entry(left: u128, right: u128) -> (DbKey, DbValue) {
-    (create_patricia_key(left + right), create_binary_val(left, right))
+    (create_inner_node_patricia_key(left + right), create_binary_val(left, right))
 }
 
 pub fn create_edge_entry(hash: u128, path: u128, length: u8) -> (DbKey, DbValue) {
-    (create_patricia_key(hash + path + u128::from(length)), create_edge_val(hash, path, length))
+    (
+        create_inner_node_patricia_key(hash + path + u128::from(length)),
+        create_edge_val(hash, path, length),
+    )
+}
+
+pub fn create_leaf_entry<L: Leaf>(hash: u128) -> (DbKey, DbValue) {
+    (create_leaf_patricia_key::<L>(hash), DbValue(create_32_bytes_entry(hash).to_vec()))
 }
 
 pub fn create_binary_skeleton_node(idx: u128) -> (NodeIndex, OriginalSkeletonNode) {
