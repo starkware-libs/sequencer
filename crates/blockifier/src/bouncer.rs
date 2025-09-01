@@ -322,13 +322,13 @@ impl TxWeights {
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BuiltinWeights {
-    pub weights: BuiltinGasCosts,
+    pub gas_costs: BuiltinGasCosts,
 }
 
 impl BuiltinWeights {
     pub fn empty() -> Self {
         Self {
-            weights: BuiltinGasCosts {
+            gas_costs: BuiltinGasCosts {
                 pedersen: 0,
                 range_check: 0,
                 ecdsa: 0,
@@ -342,18 +342,12 @@ impl BuiltinWeights {
             },
         }
     }
-
-    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> u64 {
-        self.weights
-            .get_builtin_gas_cost(builtin_name)
-            .expect("Builtin name {builtin_name} is not supported in the bouncer weights.")
-    }
 }
 
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            weights: BuiltinGasCosts {
+            gas_costs: BuiltinGasCosts {
                 pedersen: 4769,
                 range_check: 70,
                 ecdsa: 1666666,
@@ -372,62 +366,62 @@ impl Default for BuiltinWeights {
 impl SerializeConfig for BuiltinWeights {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from([ser_param(
-            "weights.pedersen",
-            &self.weights.pedersen,
+            "gas_costs.pedersen",
+            &self.gas_costs.pedersen,
             "Pedersen gas weight.",
             ParamPrivacyInput::Public,
         )]);
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.range_check",
-            &self.weights.range_check,
+            "gas_costs.range_check",
+            &self.gas_costs.range_check,
             "Range_check gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.range_check96",
-            &self.weights.range_check96,
+            "gas_costs.range_check96",
+            &self.gas_costs.range_check96,
             "range_check96 gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.poseidon",
-            &self.weights.poseidon,
+            "gas_costs.poseidon",
+            &self.gas_costs.poseidon,
             "Poseidon gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.ecdsa",
-            &self.weights.ecdsa,
+            "gas_costs.ecdsa",
+            &self.gas_costs.ecdsa,
             "Ecdsa gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.ecop",
-            &self.weights.ecop,
+            "gas_costs.ecop",
+            &self.gas_costs.ecop,
             "Ec_op gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.add_mod",
-            &self.weights.add_mod,
+            "gas_costs.add_mod",
+            &self.gas_costs.add_mod,
             "Add_mod gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.mul_mod",
-            &self.weights.mul_mod,
+            "gas_costs.mul_mod",
+            &self.gas_costs.mul_mod,
             "Mul_mod gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.keccak",
-            &self.weights.keccak,
+            "gas_costs.keccak",
+            &self.gas_costs.keccak,
             "Keccak gas weight.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "weights.bitwise",
-            &self.weights.bitwise,
+            "gas_costs.bitwise",
+            &self.gas_costs.bitwise,
             "Bitwise gas weight.",
             ParamPrivacyInput::Public,
         )]));
@@ -616,12 +610,12 @@ fn memory_holes_to_gas(
 fn proving_gas_from_builtins_and_sierra_gas(
     sierra_gas: GasAmount,
     builtin_counters: &BuiltinCounterMap,
-    proving_builtin_weights: &BuiltinGasCosts,
-    sierra_builtin_weights: &BuiltinGasCosts,
+    proving_builtin_gas_costs: &BuiltinGasCosts,
+    sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_proving_gas = builtins_to_gas(builtin_counters, proving_builtin_weights);
+    let builtins_proving_gas = builtins_to_gas(builtin_counters, proving_builtin_gas_costs);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, sierra_builtin_weights);
+        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, sierra_builtin_gas_costs);
 
     steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
 }
@@ -646,9 +640,9 @@ pub fn vm_resources_to_gas(
 pub fn sierra_gas_to_steps_gas(
     sierra_gas: GasAmount,
     builtin_counters: &BuiltinCounterMap,
-    sierra_builtin_weights: &BuiltinGasCosts,
+    sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_gas(builtin_counters, sierra_builtin_weights);
+    let builtins_gas_cost = builtins_to_gas(builtin_counters, sierra_builtin_gas_costs);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         log::debug!(
@@ -719,9 +713,9 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
 
     // Sierra gas computation.
-    let sierra_builtin_weights = &versioned_constants.os_constants.gas_costs.builtins;
+    let sierra_builtin_gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
     let vm_resources_sierra_gas =
-        vm_resources_to_gas(&vm_resources, sierra_builtin_weights, versioned_constants);
+        vm_resources_to_gas(&vm_resources, sierra_builtin_gas_costs, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
@@ -737,12 +731,12 @@ pub fn get_tx_weights<S: StateReader>(
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
 
-    let proving_builtin_weights = &bouncer_config.builtin_weights.weights;
+    let proving_builtin_gas_costs = &bouncer_config.builtin_weights.gas_costs;
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         sierra_gas_without_casm_hash_computation,
         &builtin_counters_without_casm_hash_computation,
-        proving_builtin_weights,
-        sierra_builtin_weights,
+        proving_builtin_gas_costs,
+        sierra_builtin_gas_costs,
     );
 
     // Migration resources.
@@ -755,9 +749,12 @@ pub fn get_tx_weights<S: StateReader>(
         };
     let blake_opcode_gas = bouncer_config.blake_weight;
     let migration_sierra_gas =
-        migration_resources.to_gas(sierra_builtin_weights, blake_opcode_gas, versioned_constants);
-    let migration_proving_gas =
-        migration_resources.to_gas(proving_builtin_weights, blake_opcode_gas, versioned_constants);
+        migration_resources.to_gas(sierra_builtin_gas_costs, blake_opcode_gas, versioned_constants);
+    let migration_proving_gas = migration_resources.to_gas(
+        proving_builtin_gas_costs,
+        blake_opcode_gas,
+        versioned_constants,
+    );
 
     // Migration occurs once per contract and is not included in the CASM hash computation, which
     // is performed every time a contract is loaded.
@@ -768,7 +765,7 @@ pub fn get_tx_weights<S: StateReader>(
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
             sierra_gas_without_casm_hash_computation,
-            sierra_builtin_weights,
+            sierra_builtin_gas_costs,
             versioned_constants,
             // Sierra gas represents `stone` proving costs. However, a Blake opcode cannot be
             // executed in `stone`, (i.e. this version is not supported by `stone`). For
@@ -780,7 +777,7 @@ pub fn get_tx_weights<S: StateReader>(
         add_casm_hash_computation_gas_cost(
             &class_hash_to_casm_hash_computation_resources,
             proving_gas_without_casm_hash_computation,
-            proving_builtin_weights,
+            proving_builtin_gas_costs,
             versioned_constants,
             blake_opcode_gas,
         );
