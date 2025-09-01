@@ -78,3 +78,37 @@ pub(crate) fn check_packed_values_end_and_size(
     insert_value_into_ap(vm, reached_end)?;
     Ok(())
 }
+
+// TODO(Einat): remove allow(unused) once hint is added to enum definition file.
+#[allow(unused)]
+pub(crate) fn naive_unpack_felt252s_to_u32s(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let packed_values_len =
+        get_integer_from_var_name(Ids::PackedValuesLen.into(), vm, ids_data, ap_tracking)?;
+    let packed_values = get_ptr_from_var_name(Ids::PackedValues.into(), vm, ids_data, ap_tracking)?;
+    let unpacked_u32s = get_ptr_from_var_name(Ids::UnpackedU32s.into(), vm, ids_data, ap_tracking)?;
+
+    let vals = vm.get_integer_range(packed_values, felt_to_usize(&packed_values_len)?)?;
+
+    // Split value into either 2 or 8 32-bit limbs.
+    let out: Vec<MaybeRelocatable> = vals
+        .into_iter()
+        .map(|val| val.to_biguint())
+        .flat_map(|val| {
+            let mut limbs = vec![BigUint::from(0_u32); 8];
+            let mut val: BigUint = val + &*POW2_255;
+            for limb in limbs.iter_mut().rev() {
+                let (q, r) = val.div_rem(&POW2_32);
+                *limb = r;
+                val = q;
+            }
+            limbs
+        })
+        .map(Felt::from)
+        .map(MaybeRelocatable::from)
+        .collect();
+
+    vm.load_data(unpacked_u32s, &out).map_err(HintError::Memory)?;
+    Ok(())
+}
