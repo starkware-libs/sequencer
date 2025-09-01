@@ -59,6 +59,31 @@ pub enum NetworkError {
     #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
     BroadcastChannelsDropped { topic_hash: TopicHash },
 }
+
+/// Generic network manager that handles all networking operations.
+///
+/// This is the core networking component that manages connections, protocols,
+/// and message routing. It's generic over the swarm type to allow for testing
+/// with mock swarms.
+///
+/// The network manager operates in an event-driven manner, continuously processing:
+/// - Swarm events (connections, disconnections, protocol events)
+/// - SQMR protocol sessions (queries and responses)
+/// - Broadcast message propagation
+/// - Peer reputation reports
+///
+/// # Type Parameters
+///
+/// * `SwarmT` - The underlying swarm implementation (typically `libp2p::Swarm`)
+///
+/// # Lifecycle
+///
+/// 1. **Initialization**: Create with [`NetworkManager::new`] or
+///    `GenericNetworkManager::generic_new`
+/// 2. **Protocol Registration**: Register SQMR protocols and broadcast topics
+/// 3. **Execution**: Run the event loop with [`GenericNetworkManager::run`]
+///
+/// The event loop will continue running until an unrecoverable error occurs.
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
     inbound_protocol_to_buffer_size: HashMap<StreamProtocol, usize>,
