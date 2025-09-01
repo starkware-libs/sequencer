@@ -196,8 +196,6 @@ pub(crate) struct Alert {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ObserverApplicability {
     Applicable,
-    // TODO(Tsabary): remove annotation when this variant is used.
-    #[allow(dead_code)]
     NotApplicable,
 }
 

@@ -120,7 +120,7 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -142,7 +142,7 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -164,7 +164,7 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -188,7 +188,7 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -210,7 +210,7 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -232,7 +232,7 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -254,7 +254,7 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -277,7 +277,7 @@ fn get_consensus_conflicting_votes() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         // TODO(matan): Increase severity once slashing is supported.
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -299,7 +299,7 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
         "1m",
         20,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -321,7 +321,7 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -343,7 +343,7 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -365,7 +365,7 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -387,7 +387,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -409,7 +409,7 @@ fn get_native_compilation_error_increase() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -459,7 +459,7 @@ fn get_mempool_p2p_disconnections() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }

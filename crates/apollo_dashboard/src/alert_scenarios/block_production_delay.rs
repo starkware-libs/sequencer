@@ -33,7 +33,7 @@ fn get_consensus_round_above_zero(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -69,7 +69,7 @@ fn get_consensus_round_above_zero_multiple_times(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -104,7 +104,7 @@ fn get_cende_write_blob_failure_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -169,7 +169,7 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }

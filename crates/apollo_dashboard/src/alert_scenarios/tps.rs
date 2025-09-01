@@ -41,7 +41,7 @@ fn build_idle_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -96,7 +96,7 @@ fn get_gateway_low_successful_transaction_rate(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }

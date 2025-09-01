@@ -42,7 +42,7 @@ fn get_consensus_block_number_stuck(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -93,7 +93,7 @@ fn get_batched_transactions_stuck(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -191,7 +191,7 @@ fn get_consensus_round_high(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }

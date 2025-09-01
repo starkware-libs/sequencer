@@ -28,7 +28,7 @@ fn serialize_alert() {
         "5m",
         20,
         AlertSeverity::Sos,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     );
 

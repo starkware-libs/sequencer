@@ -29,7 +29,7 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
