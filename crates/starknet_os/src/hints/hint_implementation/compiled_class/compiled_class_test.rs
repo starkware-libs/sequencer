@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
-use blockifier::execution::contract_class::{
-    estimate_casm_poseidon_hash_computation_resources,
-    NestedFeltCounts,
+use blockifier::execution::casm_hash_estimation::{
+    CasmV1HashResourceEstimate,
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
 };
+use blockifier::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -49,8 +52,7 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
-const ALLOWED_MARGIN_N_STEPS: usize = 169;
-const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 4;
+const ALLOWED_MARGIN_N_STEPS: usize = 87;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -64,6 +66,8 @@ const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["399656"];
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
     expect!["range_check_builtin: 846"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
+// Allowed margin between estimated and actual execution resources.
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -82,6 +86,14 @@ trait HashVersionTestSpec {
     fn expected_n_steps_partial_contract(&self) -> Expect;
     /// The expected hash for the test contract.
     fn expected_hash(&self) -> Expect;
+    /// The allowed margin for the number of steps.
+    fn allowed_margin_n_steps(&self) -> usize;
+    /// Estimates the execution resources for the compiled class hash function.
+    fn estimate_execution_resources(
+        &self,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> ExecutionResources;
 }
 
 impl HashVersionTestSpec for HashVersion {
@@ -136,6 +148,34 @@ impl HashVersionTestSpec for HashVersion {
         match self {
             HashVersion::V1 => EXPECTED_V1_HASH,
             HashVersion::V2 => EXPECTED_V2_HASH,
+        }
+    }
+    fn allowed_margin_n_steps(&self) -> usize {
+        match self {
+            HashVersion::V1 => ALLOWED_MARGIN_N_STEPS,
+            HashVersion::V2 => ALLOWED_MARGIN_BLAKE_N_STEPS,
+        }
+    }
+    fn estimate_execution_resources(
+        &self,
+        bytecode_segment_felt_sizes: &NestedFeltCounts,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> ExecutionResources {
+        match self {
+            HashVersion::V1 => {
+                CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    entry_points_by_type,
+                )
+                .resources()
+            }
+            HashVersion::V2 => {
+                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                    bytecode_segment_felt_sizes,
+                    entry_points_by_type,
+                )
+                .resources()
+            }
         }
     }
 }
@@ -281,57 +321,89 @@ fn test_compiled_class_hash(
     assert_eq!(hash_computed_by_cairo, hash_computed_by_starknet_api.0);
 }
 
-/// Test that execution resources estimation for the compiled class hash
-/// matches the actual execution resources when running the entry point.
+/// Test that the estimated execution resources for the compiled class hash
+/// match the actual execution resources when running the entry point.
+///
+/// - `hash_version`: which hash version to test (`V1` (Poseidon) or `V2` (Blake)).
 #[rstest]
-fn test_compiled_class_hash_resources_estimation() {
-    // TODO(Aviv): Parameterize this test to run for both V1 and V2.
-    let hash_version = HashVersion::V1;
-    let feature_contract =
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let mut contract_class = match feature_contract.get_class() {
-        ContractClass::V1((casm, _sierra_version)) => casm,
-        _ => panic!("Expected ContractClass::V1"),
-    };
+fn test_compiled_class_hash_resources_estimation(
+    #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+) {
+    for feature_contract in FeatureContract::all_cairo1_casm_feature_contracts() {
+        let contract_class = match feature_contract.get_class() {
+            ContractClass::V1((casm, _sierra_version)) => casm,
+            _ => panic!("Expected ContractClass::V1"),
+        };
+        let contract_name = feature_contract.get_non_erc20_base_name();
+        let bytecode_structure = &contract_class.bytecode_segment_lengths;
 
-    // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
-    contract_class.entry_points_by_type = Default::default();
+        match feature_contract {
+            // Legacy test contract is a single leaf segment, this is crucial for testing old sierra
+            // contracts.
+            FeatureContract::LegacyTestContract => {
+                assert!(
+                    bytecode_structure.is_none(),
+                    "{contract_name}: Expected single segment bytecode."
+                );
+            }
+            // Empty contract is a single leaf segment as its bytecode is empty (no segmentation).
+            FeatureContract::Empty(_) => {
+                assert!(
+                    matches!(bytecode_structure, Some(NestedIntList::Leaf(_))),
+                    "{contract_name}: Expected single segment bytecode."
+                );
+            }
+            // Other contracts are node-segmented by their functions.
+            _ => {
+                assert!(
+                    matches!(bytecode_structure, Some(NestedIntList::Node(_))),
+                    "{contract_name}: Expected node-segmented bytecode."
+                );
+            }
+        }
 
-    // Run the compiled class hash entry point with full contract loading.
-    let (mut actual_execution_resources, _hash_computed_by_cairo) =
-        run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
-
-    // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation =
-        estimate_casm_poseidon_hash_computation_resources(&NestedFeltCounts::new(
-            &contract_class.get_bytecode_segment_lengths(),
-            &contract_class.bytecode,
-        ));
-    let margin_n_steps =
-        execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
-    assert!(
-        margin_n_steps <= ALLOWED_MARGIN_N_STEPS,
-        "Estimated n_steps and actual n_steps differ by more than {ALLOWED_MARGIN_N_STEPS}.\n \
-         Margin N Steps: {margin_n_steps}"
-    );
-    let margin_poseidon_builtin = execution_resources_estimation
-        .builtin_instance_counter
-        .remove(&BuiltinName::poseidon)
-        .unwrap()
-        .abs_diff(
-            actual_execution_resources
-                .builtin_instance_counter
-                .remove(&BuiltinName::poseidon)
-                .unwrap(),
+        compare_estimated_vs_actual_casm_hash_resources(
+            contract_name,
+            contract_class,
+            &hash_version,
         );
-    assert!(
-        margin_poseidon_builtin <= ALLOWED_MARGIN_POSEIDON_BUILTIN,
-        "Estimated poseidon_builtin and actual poseidon_builtin differ by more than \
-         {ALLOWED_MARGIN_POSEIDON_BUILTIN}.\n Margin Poseidon Builtin: {margin_poseidon_builtin}"
+    }
+}
+
+fn compare_estimated_vs_actual_casm_hash_resources(
+    contract_name: &str,
+    contract_class: CasmContractClass,
+    hash_version: &HashVersion,
+) {
+    // Run the compiled class hash entry point with full contract loading.
+    let (actual_execution_resources, _) =
+        run_compiled_class_hash_entry_point(&contract_class, true, hash_version);
+
+    let bytecode_segments = NestedFeltCounts::new(
+        &contract_class.get_bytecode_segment_lengths(),
+        &contract_class.bytecode,
     );
-    // Assert that all other builtins have exactly the same values.
+
+    // Estimate resources.
+    let execution_resources_estimation = hash_version.estimate_execution_resources(
+        &bytecode_segments,
+        &contract_class.entry_points_by_type.into(),
+    );
+
+    // Compare n_steps.
+    let n_steps_margin =
+        execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+    let allowed_n_steps_margin = hash_version.allowed_margin_n_steps();
+    assert!(
+        n_steps_margin <= allowed_n_steps_margin,
+        "{contract_name}: Estimated n_steps differ from actual by more than \
+         {allowed_n_steps_margin}. Margin: {n_steps_margin}"
+    );
+
+    // Compare builtins.
     assert_eq!(
         execution_resources_estimation.builtin_instance_counter,
-        actual_execution_resources.filter_unused_builtins().builtin_instance_counter
+        actual_execution_resources.filter_unused_builtins().builtin_instance_counter,
+        "{contract_name}: Estimated builtins do not match actual builtins"
     );
 }

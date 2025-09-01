@@ -13,6 +13,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
@@ -151,18 +152,11 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn get_public_key_x<S: StateReader>(
+pub(crate) fn get_public_keys<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_key_x = hint_processor.os_hints_config.public_key_x;
-    Ok(insert_value_into_ap(vm, public_key_x)?)
-}
-
-pub(crate) fn get_public_key_y<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let public_key_y = hint_processor.os_hints_config.public_key_y;
-    Ok(insert_value_into_ap(vm, public_key_y)?)
+    let public_keys = hint_processor.os_hints_config.public_keys.clone();
+    load_public_keys_into_memory(vm, ids_data, ap_tracking, public_keys)?;
+    Ok(())
 }
