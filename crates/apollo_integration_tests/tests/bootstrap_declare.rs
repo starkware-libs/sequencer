@@ -23,6 +23,7 @@ async fn bootstrap_declare() {
         TestIdentifier::EndToEndFlowTestBootstrapDeclare,
         create_bootstrap_declare_scenario(),
         GasAmount(29000000),
+        GasAmount(29000000),
         false,
         true,
     )

@@ -92,6 +92,7 @@ impl FlowTestSetup {
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
         block_max_capacity_sierra_gas: GasAmount,
+        block_max_capacity_proving_gas: GasAmount,
         allow_bootstrap_txs: bool,
     ) -> Self {
         let chain_info = ChainInfo::create_for_testing();
@@ -158,6 +159,7 @@ impl FlowTestSetup {
             AvailablePorts::new(test_unique_index, 1),
             sequencer_0_state_sync_config,
             block_max_capacity_sierra_gas,
+            block_max_capacity_proving_gas,
             allow_bootstrap_txs,
         )
         .await;
@@ -172,6 +174,7 @@ impl FlowTestSetup {
             AvailablePorts::new(test_unique_index, 2),
             sequencer_1_state_sync_config,
             block_max_capacity_sierra_gas,
+            block_max_capacity_proving_gas,
             allow_bootstrap_txs,
         )
         .await;
@@ -234,6 +237,7 @@ impl FlowSequencerSetup {
         mut available_ports: AvailablePorts,
         state_sync_config: StateSyncConfig,
         block_max_capacity_sierra_gas: GasAmount,
+        block_max_capacity_proving_gas: GasAmount,
         allow_bootstrap_txs: bool,
     ) -> Self {
         let path = None;
@@ -277,6 +281,7 @@ impl FlowSequencerSetup {
             component_config,
             base_layer_config,
             block_max_capacity_sierra_gas,
+            block_max_capacity_proving_gas,
             validator_id,
             allow_bootstrap_txs,
         );

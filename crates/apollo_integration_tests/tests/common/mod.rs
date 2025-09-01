@@ -32,6 +32,7 @@ pub async fn end_to_end_flow(
     test_identifier: TestIdentifier,
     test_blocks_scenarios: Vec<TestScenario>,
     block_max_capacity_sierra_gas: GasAmount,
+    block_max_capacity_proving_gas: GasAmount,
     expecting_full_blocks: bool,
     allow_bootstrap_txs: bool,
 ) {
@@ -47,6 +48,7 @@ pub async fn end_to_end_flow(
         &tx_generator,
         test_identifier.into(),
         block_max_capacity_sierra_gas,
+        block_max_capacity_proving_gas,
         allow_bootstrap_txs,
     )
     .await;
