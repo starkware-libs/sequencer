@@ -15,6 +15,7 @@ use apollo_metrics::metrics::{
     MetricHistogram,
 };
 use indexmap::IndexMap;
+use itertools::Itertools;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 
@@ -181,14 +182,17 @@ impl Panel {
 pub(crate) fn create_request_type_labeled_hist_panels(
     metric: &LabeledMetricHistogram,
     panel_type: PanelType,
-) -> Vec<Panel> {
+) -> HashMap<&str, Vec<Panel>> {
     metric
         .get_flat_label_values()
         .into_iter()
         .map(|request_label| {
-            Panel::from_request_type_labeled_hist(metric, panel_type, request_label)
+            (
+                request_label,
+                Panel::from_request_type_labeled_hist(metric, panel_type, request_label),
+            )
         })
-        .collect()
+        .into_group_map()
 }
 
 // Custom Serialize implementation for Panel.
@@ -235,14 +239,33 @@ impl Serialize for Row {
     }
 }
 
-pub(crate) fn get_local_client_panels(local_client_metrics: &LocalClientMetrics) -> Vec<Panel> {
-    create_request_type_labeled_hist_panels(
-        local_client_metrics.get_response_time_metric(),
-        PanelType::TimeSeries,
+fn merge_panel_map<'a>(
+    mut left: HashMap<&'a str, Vec<Panel>>,
+    right: HashMap<&'a str, Vec<Panel>>,
+) -> HashMap<&'a str, Vec<Panel>> {
+    for (k, v) in right {
+        left.entry(k).or_default().extend(v);
+    }
+    left
+}
+
+/// The returned value is a tuple of (regular panels, request type labeled panels grouped by
+/// request type).
+pub(crate) fn get_local_client_panels(
+    local_client_metrics: &LocalClientMetrics,
+) -> (Vec<Panel>, HashMap<&str, Vec<Panel>>) {
+    (
+        vec![],
+        create_request_type_labeled_hist_panels(
+            local_client_metrics.get_response_time_metric(),
+            PanelType::TimeSeries,
+        ),
     )
 }
 
-pub(crate) fn get_remote_client_panels(remote_client_metrics: &RemoteClientMetrics) -> Vec<Panel> {
+pub(crate) fn get_remote_client_panels(
+    remote_client_metrics: &RemoteClientMetrics,
+) -> (Vec<Panel>, HashMap<&str, Vec<Panel>>) {
     let attempts_panel =
         Panel::from_hist(remote_client_metrics.get_attempts_metric(), PanelType::TimeSeries);
     let response_times_panels = create_request_type_labeled_hist_panels(
@@ -253,14 +276,18 @@ pub(crate) fn get_remote_client_panels(remote_client_metrics: &RemoteClientMetri
         remote_client_metrics.get_communication_failure_time_metric(),
         PanelType::TimeSeries,
     );
-    vec![attempts_panel]
-        .into_iter()
-        .chain(response_times_panels)
-        .chain(communication_failure_times_panels)
-        .collect()
+
+    let mut labeled = response_times_panels;
+    for (k, v) in communication_failure_times_panels {
+        labeled.entry(k).or_default().extend(v);
+    }
+
+    (vec![attempts_panel], labeled)
 }
 
-pub(crate) fn get_local_server_panels(local_server_metrics: &LocalServerMetrics) -> Vec<Panel> {
+pub(crate) fn get_local_server_panels(
+    local_server_metrics: &LocalServerMetrics,
+) -> (Vec<Panel>, HashMap<&str, Vec<Panel>>) {
     let received_msgs_panel =
         Panel::from_counter(local_server_metrics.get_received_metric(), PanelType::TimeSeries);
     let processed_msgs_panel =
@@ -275,14 +302,16 @@ pub(crate) fn get_local_server_panels(local_server_metrics: &LocalServerMetrics)
         local_server_metrics.get_queueing_time_metric(),
         PanelType::TimeSeries,
     );
-    vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel]
-        .into_iter()
-        .chain(processing_times_panels)
-        .chain(queueing_times_panels)
-        .collect()
+    let mut labeled = processing_times_panels;
+    for (k, v) in queueing_times_panels {
+        labeled.entry(k).or_default().extend(v);
+    }
+    (vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel], labeled)
 }
 
-pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetrics) -> Vec<Panel> {
+pub(crate) fn get_remote_server_panels(
+    remote_server_metrics: &RemoteServerMetrics,
+) -> (Vec<Panel>, HashMap<&str, Vec<Panel>>) {
     let total_received_msgs_panel = Panel::from_counter(
         remote_server_metrics.get_total_received_metric(),
         PanelType::TimeSeries,
@@ -297,22 +326,48 @@ pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetri
         remote_server_metrics.get_number_of_connections_metric(),
         PanelType::TimeSeries,
     );
-    vec![
-        total_received_msgs_panel,
-        valid_received_msgs_panel,
-        processed_msgs_panel,
-        number_of_connections_panel,
-    ]
-    .into_iter()
-    .collect()
+    (
+        vec![
+            total_received_msgs_panel,
+            valid_received_msgs_panel,
+            processed_msgs_panel,
+            number_of_connections_panel,
+        ],
+        HashMap::new(),
+    )
 }
 
 pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
+    let (local_client_panels, local_client_request_type_labeled_panels) =
+        get_local_client_panels(metrics.get_local_client_metrics());
+    let (remote_client_panels, remote_client_request_type_labeled_panels) =
+        get_remote_client_panels(metrics.get_remote_client_metrics());
+    let (local_server_panels, local_server_request_type_labeled_panels) =
+        get_local_server_panels(metrics.get_local_server_metrics());
+    let (remote_server_panels, remote_server_request_type_labeled_panels) =
+        get_remote_server_panels(metrics.get_remote_server_metrics());
+
+    let client_panels = local_client_panels.into_iter().chain(remote_client_panels).collect_vec();
+    let server_panels = local_server_panels.into_iter().chain(remote_server_panels).collect_vec();
+
+    let grouped_client_panels = merge_panel_map(
+        local_client_request_type_labeled_panels,
+        remote_client_request_type_labeled_panels,
+    );
+    let grouped_server_panels = merge_panel_map(
+        local_server_request_type_labeled_panels,
+        remote_server_request_type_labeled_panels,
+    );
+
     let mut panels: Vec<Panel> = Vec::new();
-    panels.extend(get_local_client_panels(metrics.get_local_client_metrics()));
-    panels.extend(get_remote_client_panels(metrics.get_remote_client_metrics()));
-    panels.extend(get_local_server_panels(metrics.get_local_server_metrics()));
-    panels.extend(get_remote_server_panels(metrics.get_remote_server_metrics()));
+    panels.extend(client_panels);
+    panels.extend(server_panels);
+    for panels_vec in grouped_client_panels.into_values() {
+        panels.extend(panels_vec);
+    }
+    for panels_vec in grouped_server_panels.into_values() {
+        panels.extend(panels_vec);
+    }
 
     // unstable sort is ok here because there are no duplicate panel names (unstable sort means
     // that the order of equal elements is not guaranteed)
