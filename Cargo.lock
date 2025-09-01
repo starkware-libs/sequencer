@@ -1067,6 +1067,7 @@ dependencies = [
 name = "apollo_config_manager_types"
 version = "0.15.0-rc.4"
 dependencies = [
+ "apollo_consensus_config",
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
