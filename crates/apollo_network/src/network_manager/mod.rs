@@ -107,6 +107,44 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
+    /// Runs the network manager's main event loop.
+    ///
+    /// This is the primary entry point for operating the network manager. It runs
+    /// an infinite event loop that processes all networking events including:
+    ///
+    /// - **Swarm Events**: Connection establishment/termination, protocol events
+    /// - **SQMR Sessions**: Inbound/outbound query-response sessions
+    /// - **Broadcast Messages**: GossipSub message broadcasting and reception
+    /// - **Peer Reports**: Handling malicious peer reports and reputation updates
+    ///
+    /// The loop continues until an unrecoverable error occurs or the application
+    /// is terminated.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Never returned under normal operation (infinite loop)
+    /// * `Err(NetworkError)` - When an unrecoverable network error occurs
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use apollo_network::network_manager::NetworkManager;
+    /// use apollo_network::NetworkConfig;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let config = NetworkConfig::default();
+    /// let network_manager = NetworkManager::new(config, None, None);
+    ///
+    /// // This will run indefinitely, processing network events
+    /// network_manager.run().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Event Processing
+    ///
+    /// The event loop uses `tokio::select!` to concurrently handle multiple types
+    /// of events with proper prioritization and fairness.
     pub async fn run(mut self) -> Result<(), NetworkError> {
         if let Some(metrics) = self.metrics.as_ref() {
             metrics.register();
