@@ -484,10 +484,120 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         SqmrClientSender::new(Box::new(payload_sender), buffer_size)
     }
 
-    /// Register a new subscriber for broadcasting and receiving broadcasts for a given topic.
-    /// Panics if this topic is already subscribed.
-    // TODO(Shahak): consider splitting into register_broadcast_topic_client and
-    // register_broadcast_topic_server
+    /// Registers for broadcasting and receiving messages on a GossipSub topic.
+    ///
+    /// This method sets up bidirectional communication for a specific topic using the
+    /// GossipSub protocol. The node can both broadcast messages to the network and
+    /// receive messages broadcast by other peers.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The message type for this topic (must implement serialization traits)
+    ///
+    /// # Arguments
+    ///
+    /// * `topic` - The GossipSub topic to subscribe to
+    /// * `buffer_size` - Size of the internal buffers for messages
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(BroadcastTopicChannels<T>)` - Channels for sending and receiving messages
+    /// * `Err(SubscriptionError)` - If subscription to the topic fails
+    ///
+    /// # Panics
+    ///
+    /// Panics if this topic has already been registered.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use apollo_network::gossipsub_impl::Topic;
+    /// use apollo_network::network_manager::{BroadcastTopicClientTrait, NetworkManager};
+    /// use apollo_network::NetworkConfig;
+    /// use futures::StreamExt;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// // Example transaction type for demonstration
+    /// #[derive(Serialize, Deserialize, Clone)]
+    /// struct Transaction {
+    ///     hash: String,
+    ///     amount: u64,
+    /// }
+    ///
+    /// impl TryFrom<Vec<u8>> for Transaction {
+    ///     type Error = Box<dyn std::error::Error + Send + Sync>;
+    ///     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+    ///         Ok(Transaction { hash: String::from_utf8(bytes)?, amount: 100 })
+    ///     }
+    /// }
+    /// impl From<Transaction> for Vec<u8> {
+    ///     fn from(tx: Transaction) -> Vec<u8> {
+    ///         tx.hash.into_bytes()
+    ///     }
+    /// }
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    ///
+    /// // Register for transaction broadcasting
+    /// let topic = Topic::new("transactions");
+    /// let mut channels = network_manager.register_broadcast_topic::<Transaction>(
+    ///     topic, 1000, // buffer size
+    /// )?;
+    ///
+    /// // Broadcast a transaction
+    /// let transaction = Transaction { hash: "tx123".to_string(), amount: 100 };
+    /// channels.broadcast_topic_client.broadcast_message(transaction).await?;
+    ///
+    /// // Helper functions for the example
+    /// fn validate_transaction(tx: &Transaction) -> bool {
+    ///     !tx.hash.is_empty()
+    /// }
+    /// fn process_transaction(tx: Transaction) {
+    ///     println!("Processing {}", tx.hash);
+    /// }
+    ///
+    /// // Receive and process broadcasted transactions
+    /// while let Some((result, metadata)) = channels.broadcasted_messages_receiver.next().await {
+    ///     match result {
+    ///         Ok(transaction) => {
+    ///             if validate_transaction(&transaction) {
+    ///                 // Valid transaction - continue propagation
+    ///                 channels.broadcast_topic_client.continue_propagation(&metadata).await?;
+    ///                 process_transaction(transaction);
+    ///             } else {
+    ///                 // Invalid transaction - report the originator
+    ///                 channels.broadcast_topic_client.report_peer(metadata).await?;
+    ///             }
+    ///         }
+    ///         Err(e) => {
+    ///             // Malformed message - report the originator
+    ///             eprintln!("Failed to deserialize transaction: {}", e);
+    ///             channels.broadcast_topic_client.report_peer(metadata).await?;
+    ///         }
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Topic Subscription
+    ///
+    /// Once registered, the node joins the GossipSub mesh for the topic and will:
+    /// - Receive all messages broadcast on this topic by other peers
+    /// - Participate in message propagation according to GossipSub rules
+    /// - Maintain mesh connections with other peers interested in this topic
+    ///
+    /// # Message Validation
+    ///
+    /// Received messages should be validated before propagation. Use:
+    /// - [`BroadcastTopicClient::continue_propagation`] for valid messages
+    /// - [`BroadcastTopicClient::report_peer`] for invalid messages
+    ///
+    /// # Buffer Management
+    ///
+    /// The `buffer_size` parameter controls buffering for both outbound and inbound
+    /// messages. Larger buffers can handle traffic bursts but use more memory.
     pub fn register_broadcast_topic<T>(
         &mut self,
         topic: Topic,
