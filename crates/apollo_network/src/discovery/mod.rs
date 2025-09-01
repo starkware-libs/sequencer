@@ -48,12 +48,30 @@ use tokio_retry::strategy::ExponentialBackoff;
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
 
-/// Discovery event type.
-/// Discovery has no external events and outputs only events for other behaviours
+/// Events emitted by the discovery behavior to coordinate with other network behaviors.
+///
+/// The discovery behavior doesn't emit external events directly but instead
+/// coordinates with other behaviors (like Kademlia) to implement the full
+/// discovery process.
 #[derive(Debug)]
 pub enum ToOtherBehaviourEvent {
+    /// Request a Kademlia query for the specified peer.
+    ///
+    /// This event is used to trigger Kademlia DHT queries to find peers
+    /// or gather routing table information.
     RequestKadQuery(PeerId),
-    FoundListenAddresses { peer_id: PeerId, listen_addresses: Vec<Multiaddr> },
+
+    /// Discovered listen addresses for a peer.
+    ///
+    /// This event is emitted when the discovery process finds new listening
+    /// addresses for a known peer, typically through the identify protocol
+    /// or DHT queries.
+    FoundListenAddresses {
+        /// The peer whose addresses were discovered.
+        peer_id: PeerId,
+        /// The discovered listening addresses.
+        listen_addresses: Vec<Multiaddr>,
+    },
 }
 
 /// Discovery behaviour that handles the bootstrapping and Kademlia requesting
