@@ -237,11 +237,34 @@ use validator::{Validate, ValidationError};
 
 pub(crate) type Bytes = Vec<u8>;
 
-// TODO(AndrewL): Fix this
-/// This function considers `""` to be `None` and
-/// `"multiaddr1,multiaddr2"` to be `Some(vec![multiaddr1, multiaddr2])`.
-/// It was purposefully designed this way to be compatible with the old config where only one
-/// bootstrap peer was supported. Hence there is no way to express an empty vector in the config.
+/// Deserializes a comma-separated string of multiaddresses into an optional vector.
+///
+/// This function provides custom deserialization for bootstrap peer multiaddresses.
+/// It handles the following cases:
+/// - Empty string `""` → `None`
+/// - Single address `"addr1"` → `Some(vec![addr1])`
+/// - Multiple addresses `"addr1,addr2"` → `Some(vec![addr1, addr2])`
+///
+/// This design maintains backward compatibility with older configurations that
+/// supported only a single bootstrap peer.
+///
+/// # Arguments
+///
+/// * `de` - The deserializer to read from
+///
+/// # Returns
+///
+/// * `Ok(None)` for empty strings
+/// * `Ok(Some(vec))` for valid multiaddress strings
+/// * `Err(D::Error)` for invalid multiaddress formats
+///
+/// # Examples
+///
+/// ```text
+/// ""                                           → None
+/// "/ip4/1.2.3.4/tcp/10000/p2p/12D3KooW..."   → Some(vec![addr1])
+/// "/ip4/1.2.3.4/tcp/10000/p2p/...,/ip4/..."  → Some(vec![addr1, addr2])
+/// ```
 fn deserialize_multi_addrs<'de, D>(de: D) -> Result<Option<Vec<Multiaddr>>, D::Error>
 where
     D: Deserializer<'de>,
