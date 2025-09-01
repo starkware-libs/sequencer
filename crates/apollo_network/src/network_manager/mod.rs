@@ -212,8 +212,117 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    // TODO(Shahak): Support multiple protocols where they're all different versions of the same
-    // protocol
+    /// Registers this node as a server for an SQMR protocol.
+    ///
+    /// This method sets up the node to accept inbound queries for a specific protocol
+    /// and enables sending multiple responses back to the querying peer. The protocol
+    /// follows the Single Query Multiple Response (SQMR) pattern.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `Query` - The type of queries this server will receive
+    /// * `Response` - The type of responses this server will send back
+    ///
+    /// # Arguments
+    ///
+    /// * `protocol` - The protocol identifier (e.g., "/starknet/blocks/1.0.0")
+    /// * `buffer_size` - Size of the internal buffer for incoming queries
+    ///
+    /// # Returns
+    ///
+    /// An [`SqmrServerReceiver`] that will yield incoming queries for processing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the protocol has already been registered as a server.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use apollo_network::network_manager::NetworkManager;
+    /// use apollo_network::NetworkConfig;
+    /// use futures::StreamExt;
+    /// use serde::{Deserialize, Serialize};
+    ///
+    /// // Example types for demonstration
+    /// #[derive(Serialize, Deserialize, Clone)]
+    /// struct BlockQuery {
+    ///     start_height: u64,
+    ///     end_height: u64,
+    /// }
+    /// #[derive(Serialize, Deserialize, Clone)]
+    /// struct Block {
+    ///     height: u64,
+    ///     hash: String,
+    /// }
+    ///
+    /// #[derive(Debug, Clone)]
+    /// struct ParseError(String);
+    /// impl std::fmt::Display for ParseError {
+    ///     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    ///         write!(f, "{}", self.0)
+    ///     }
+    /// }
+    /// impl std::error::Error for ParseError {}
+    ///
+    /// impl TryFrom<Vec<u8>> for BlockQuery {
+    ///     type Error = ParseError;
+    ///     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+    ///         Ok(BlockQuery { start_height: 1000, end_height: 1010 })
+    ///     }
+    /// }
+    /// impl From<Block> for Vec<u8> {
+    ///     fn from(block: Block) -> Vec<u8> {
+    ///         block.hash.into_bytes()
+    ///     }
+    /// }
+    ///
+    /// // Helper function
+    /// fn get_blocks_for_query(query: &BlockQuery) -> Vec<Block> {
+    ///     (query.start_height..=query.end_height)
+    ///         .map(|h| Block { height: h, hash: format!("hash_{}", h) })
+    ///         .collect()
+    /// }
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    ///
+    /// // Register as a server for block requests
+    /// let mut server = network_manager.register_sqmr_protocol_server::<BlockQuery, Block>(
+    ///     "/starknet/blocks/1.0.0".to_string(),
+    ///     100, // buffer size
+    /// );
+    ///
+    /// // Process incoming queries
+    /// while let Some(mut query_manager) = server.next().await {
+    ///     match query_manager.query() {
+    ///         Ok(query) => {
+    ///             // Process query and send responses
+    ///             for block in get_blocks_for_query(query) {
+    ///                 query_manager.send_response(block).await?;
+    ///             }
+    ///         }
+    ///         Err(_) => {
+    ///             // Report malicious peer for invalid query
+    ///             query_manager.report_peer();
+    ///         }
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Protocol Registration
+    ///
+    /// Once registered, the protocol is added to the node's supported inbound protocols,
+    /// and peers can send queries to this protocol. Each query creates a new session
+    /// that can handle multiple responses.
+    ///
+    /// # Buffer Management
+    ///
+    /// The `buffer_size` parameter controls how many concurrent queries can be buffered
+    /// before backpressure is applied. A larger buffer allows handling more concurrent
+    /// queries but uses more memory.
     pub fn register_sqmr_protocol_server<Query, Response>(
         &mut self,
         protocol: String,
