@@ -26,8 +26,17 @@ use tracing::error;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::{mixed_behaviour, Bytes};
 
+/// Topic type used for GossipSub messaging.
+///
+/// In test builds, uses [`gossipsub::IdentTopic`] for predictable behavior.
+/// In production builds, uses [`gossipsub::Sha256Topic`] for enhanced security.
 #[cfg(test)]
 pub type Topic = gossipsub::IdentTopic;
+
+/// Topic type used for GossipSub messaging.
+///
+/// In test builds, uses [`gossipsub::IdentTopic`] for predictable behavior.
+/// In production builds, uses [`gossipsub::Sha256Topic`] for enhanced security.
 #[cfg(not(test))]
 pub type Topic = gossipsub::Sha256Topic;
 
