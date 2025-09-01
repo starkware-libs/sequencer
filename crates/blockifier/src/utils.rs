@@ -123,6 +123,8 @@ pub fn should_migrate(
         CompiledClassHash(hash) if hash == StarkHash::ZERO => Ok(None),
         state_compiled_class_hash => {
             let compiled_class_hash_v2 = state_reader.get_compiled_class_hash_v2(class_hash)?;
+            // Compiled class hash v2 should not be the default value.
+            assert_ne!(CompiledClassHash::default(), compiled_class_hash_v2);
             // If the state compiled class hash is compiled class hash v2, the class should not
             // migrate.
             if state_compiled_class_hash == compiled_class_hash_v2 {
