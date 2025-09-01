@@ -290,6 +290,27 @@ where
 }
 
 // TODO(Tsabary): move to the config converter module.
+/// Serializes an optional vector of multiaddresses to a comma-separated string.
+///
+/// This function provides the inverse operation of [`deserialize_multi_addrs`],
+/// converting multiaddresses back to their string representation for serialization.
+///
+/// # Arguments
+///
+/// * `multi_addrs` - Optional vector of multiaddresses to serialize
+///
+/// # Returns
+///
+/// * Empty string for `None`
+/// * Comma-separated string of multiaddresses for `Some(vec)`
+///
+/// # Examples
+///
+/// ```text
+/// None                     -> ""
+/// Some(vec![addr1])        -> "/ip4/1.2.3.4/tcp/10000/p2p/12D3KooW..."
+/// Some(vec![addr1, addr2]) -> "/ip4/1.2.3.4/tcp/10000/p2p/...,/ip4/..."
+/// ```
 pub fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
     match multi_addrs {
         None => "".to_owned(),
