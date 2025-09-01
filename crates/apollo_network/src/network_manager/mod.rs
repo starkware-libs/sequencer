@@ -34,10 +34,28 @@ use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
 use crate::{gossipsub_impl, Bytes, NetworkConfig};
 
+/// Errors that can occur during network operations.
+///
+/// This enum represents all possible error conditions that may arise
+/// during networking operations, from connection failures to protocol-specific
+/// errors.
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkError {
+    /// Error occurred while attempting to dial a peer.
+    ///
+    /// This can happen when trying to establish outbound connections to other peers.
+    /// Common causes include network connectivity issues, invalid addresses,
+    /// or the target peer being unavailable.
     #[error(transparent)]
     DialError(#[from] libp2p::swarm::DialError),
+
+    /// Broadcast channels for a specific topic were dropped.
+    ///
+    /// This indicates that the receiving end of broadcast channels has been
+    /// dropped, which typically happens when the subscriber to a topic
+    /// stops listening or encounters an error.
+    ///
+    /// The `topic_hash` identifies which specific topic was affected.
     #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
     BroadcastChannelsDropped { topic_hash: TopicHash },
 }
