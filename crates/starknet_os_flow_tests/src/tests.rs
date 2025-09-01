@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use blockifier::state::cached_state::StateMaps;
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -9,7 +10,8 @@ use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::calculate_contract_address;
+use starknet_api::contract_class::{ClassInfo, SierraVersion};
+use starknet_api::core::{calculate_contract_address, ClassHash, CompiledClassHash};
 use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::declare_tx;
@@ -29,6 +31,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
@@ -75,7 +78,7 @@ fn division(#[case] length: usize, #[case] n_parts: usize, #[case] expected_leng
     assert_eq!(actual_lengths, expected_lengths);
 }
 
-/// Scenario of declaring and deploying the test contract.
+/// Scenario of declaring and deploying the cairo1 test contract.
 #[rstest]
 #[tokio::test]
 async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
@@ -155,4 +158,93 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
 
     let perform_global_validations = true;
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
+}
+
+/// Scenario of declaring, deploying and invoking the cairo0 test contract.
+#[rstest]
+#[tokio::test]
+async fn declare_deploy_invoke_cairo0_scenario() {
+    // Initialize the test manager with a default initial state and get the nonce manager to help
+    // keep track of nonces.
+    let (mut test_manager, mut nonce_manager) =
+        TestManager::<DictStateReader>::new_with_default_initial_state().await;
+    nonce_manager.rollback(*FUNDED_ACCOUNT_ADDRESS);
+
+    // Declare a test contract.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    // The class hash of the cairo0 test contract.
+    let class_hash = ClassHash(Felt::from_hex_unchecked(
+        "0x263c5249f44866bcc38749a4bde98bf378af6605fd586f4f128e8b2f73772ba",
+    ));
+    let compiled_class_hash = CompiledClassHash::default();
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        version: TransactionVersion(Felt::ZERO),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = ClassInfo {
+        contract_class: test_contract.get_class(),
+        sierra_program_length: 0,
+        abi_length: 0,
+        sierra_version: SierraVersion::default(),
+    };
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    // Add the transaction to the test manager.
+    test_manager.add_cairo0_declare_tx(tx, CompiledClassHash(class_hash.0));
+    let arg1 = Felt::from(88);
+    let arg2 = Felt::from(125);
+    // Deploy the test contract using the deploy contract syscall.
+    let constructor_calldata = [
+        2.into(), // constructor length
+        arg1,
+        arg2,
+    ];
+    let contract_address_salt = ContractAddressSalt(Felt::ONE);
+    let calldata: Vec<_> =
+        [class_hash.0, contract_address_salt.0].into_iter().chain(constructor_calldata).collect();
+    let deploy_contract_calldata = create_calldata(
+        *FUNDED_ACCOUNT_ADDRESS,
+        DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+        &calldata,
+    );
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: deploy_contract_calldata,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let expected_contract_address = calculate_contract_address(
+        contract_address_salt,
+        class_hash,
+        &Calldata(constructor_calldata[1..].to_vec().into()),
+        *FUNDED_ACCOUNT_ADDRESS,
+    )
+    .unwrap();
+    let deploy_contract_tx = invoke_tx(invoke_tx_args);
+    let deploy_contract_tx =
+        InvokeTransaction::create(deploy_contract_tx, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx(deploy_contract_tx);
+    // Invoke the `split_felt_wrapper` function of the deployed contract.
+    let args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            expected_contract_address,
+            "split_felt_wrapper",
+            &[Felt::from(12345678901234567890u128)],
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let invoke_tx = invoke_tx(args);
+    let invoke_tx = InvokeTransaction::create(invoke_tx, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx(invoke_tx);
+
+    let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
+    let _test_output =
+        test_manager.execute_test_with_default_block_contexts(initial_block_number).await;
 }
