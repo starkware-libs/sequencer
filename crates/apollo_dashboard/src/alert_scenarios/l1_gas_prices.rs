@@ -12,6 +12,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
@@ -34,6 +35,7 @@ fn get_eth_to_strk_success_count_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }
@@ -69,6 +71,7 @@ fn get_l1_gas_price_scraper_success_count_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }
@@ -106,6 +109,7 @@ fn get_l1_gas_price_provider_insufficient_history_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }
