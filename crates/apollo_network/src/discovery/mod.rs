@@ -74,11 +74,24 @@ pub enum ToOtherBehaviourEvent {
     },
 }
 
-/// Discovery behaviour that handles the bootstrapping and Kademlia requesting
+/// Main discovery behavior that orchestrates peer discovery mechanisms.
+///
+/// This behavior combines bootstrapping and Kademlia requesting to provide
+/// a comprehensive peer discovery system. It handles:
+///
+/// - Initial bootstrapping with configured peers
+/// - Periodic Kademlia queries for ongoing peer discovery
+/// - Address resolution and validation
+/// - Retry logic for failed connections
+///
+/// The behavior operates continuously in the background, maintaining
+/// network connectivity and discovering new peers as needed.
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "ToOtherBehaviourEvent")]
 pub struct Behaviour {
+    /// Handles initial bootstrapping with configured peers.
     boot_strapping: BootstrappingBehaviour,
+    /// Manages ongoing Kademlia queries for peer discovery.
     kad_requesting: KadRequestingBehaviour,
 }
 
