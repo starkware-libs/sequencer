@@ -14,6 +14,7 @@ use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
 use apollo_storage::body::BodyStorageReader;
+use apollo_storage::class::ClassStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::{StateReader, StateStorageReader};
@@ -23,6 +24,7 @@ use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
@@ -112,6 +114,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                 StateSyncResponse::IsClassDeclaredAt(
                     self.is_class_declared_at(block_number, class_hash).await,
                 )
+            }
+            StateSyncRequest::GetDeprecatedClass(class_hash) => {
+                StateSyncResponse::GetDeprecatedClass(self.get_deprecated_class(class_hash).await)
             }
         }
     }
@@ -275,6 +280,19 @@ impl StateSync {
                     deprecated_class_definition_block_number <= block_number
                 },
             ))
+        })
+        .await?
+    }
+
+    async fn get_deprecated_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateSyncResult<Option<DeprecatedContractClass>> {
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn()?;
+            let deprecated_class = txn.get_deprecated_class(&class_hash)?;
+            Ok(deprecated_class)
         })
         .await?
     }

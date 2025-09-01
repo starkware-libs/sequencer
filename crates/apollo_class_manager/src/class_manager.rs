@@ -5,7 +5,6 @@ use apollo_class_manager_types::{
     ClassManagerResult,
     ExecutableClassHash,
 };
-use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_compile_to_casm_types::{
     RawClass,
     RawExecutableClass,
@@ -13,6 +12,7 @@ use apollo_compile_to_casm_types::{
     SierraCompilerClientError,
 };
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::instrument;
@@ -149,7 +149,12 @@ pub fn create_class_manager(
     let FsClassManagerConfig { class_manager_config, class_storage_config } = config;
     let fs_class_storage =
         FsClassStorage::new(class_storage_config).expect("Failed to create class storage.");
-    let class_manager = ClassManager::new(class_manager_config, compiler_client, fs_class_storage, state_sync_client);
+    let class_manager = ClassManager::new(
+        class_manager_config,
+        compiler_client,
+        fs_class_storage,
+        state_sync_client,
+    );
 
     FsClassManager(class_manager)
 }

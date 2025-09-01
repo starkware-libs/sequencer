@@ -17,6 +17,7 @@ use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 use strum::{EnumVariantNames, VariantNames};
@@ -88,6 +89,13 @@ pub trait StateSyncClient: Send + Sync {
         class_hash: ClassHash,
     ) -> StateSyncClientResult<bool>;
 
+    /// Request deprecated contract class by class hash.
+    /// Returns None if the class doesn't exist.
+    async fn get_deprecated_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<Option<DeprecatedContractClass>>;
+
     // TODO(Shahak): Add get_compiled_class_hash for StateSyncReader
 }
 
@@ -120,6 +128,7 @@ pub enum StateSyncRequest {
     GetClassHashAt(BlockNumber, ContractAddress),
     GetLatestBlockNumber(),
     IsClassDeclaredAt(BlockNumber, ClassHash),
+    GetDeprecatedClass(ClassHash),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncRequest);
 impl_labeled_request!(StateSyncRequest, StateSyncRequestLabelValue);
@@ -134,7 +143,8 @@ impl PrioritizedRequest for StateSyncRequest {
             | StateSyncRequest::GetClassHashAt(_, _)
             | StateSyncRequest::AddNewBlock(_)
             | StateSyncRequest::GetLatestBlockNumber()
-            | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
+            | StateSyncRequest::IsClassDeclaredAt(_, _)
+            | StateSyncRequest::GetDeprecatedClass(_) => RequestPriority::Normal,
         }
     }
 }
@@ -149,6 +159,7 @@ pub enum StateSyncResponse {
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
     IsClassDeclaredAt(StateSyncResult<bool>),
+    GetDeprecatedClass(StateSyncResult<Option<DeprecatedContractClass>>),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncResponse);
 
@@ -256,6 +267,20 @@ where
         handle_all_response_variants!(
             StateSyncResponse,
             IsClassDeclaredAt,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn get_deprecated_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<Option<DeprecatedContractClass>> {
+        let request = StateSyncRequest::GetDeprecatedClass(class_hash);
+        handle_all_response_variants!(
+            StateSyncResponse,
+            GetDeprecatedClass,
             StateSyncClientError,
             StateSyncError,
             Direct
