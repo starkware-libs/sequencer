@@ -624,10 +624,40 @@ impl Default for NetworkConfig {
     }
 }
 
-/// Validates a list of bootstrap peers.
+/// Validates a list of bootstrap peer multiaddresses.
 ///
-/// The list must be comprised of `Multiaddr` each containing a `PeerId`.
-/// Each `PeerId` must be unique in the list.
+/// This function ensures that:
+/// 1. Each multiaddress contains a valid peer ID
+/// 2. All peer IDs in the list are unique
+/// 3. The multiaddresses are properly formatted
+///
+/// # Arguments
+///
+/// * `bootstrap_peer_multiaddr` - A slice of multiaddresses to validate
+///
+/// # Returns
+///
+/// * `Ok(())` if all validations pass
+/// * `Err(ValidationError)` if any validation fails
+///
+/// # Examples
+///
+/// Valid bootstrap peers:
+/// ```text
+/// /ip4/1.2.3.4/tcp/10000/p2p/12D3KooWQYHvEJzuBP...
+/// /ip6/::1/tcp/10000/p2p/12D3KooWDifferentPeer...
+/// ```
+///
+/// Invalid (missing peer ID):
+/// ```text
+/// /ip4/1.2.3.4/tcp/10000
+/// ```
+///
+/// Invalid (duplicate peer ID):
+/// ```text
+/// /ip4/1.2.3.4/tcp/10000/p2p/12D3KooWSamePeer...
+/// /ip4/5.6.7.8/tcp/10000/p2p/12D3KooWSamePeer...
+/// ```
 fn validate_bootstrap_peer_multiaddr_list(
     bootstrap_peer_multiaddr: &[Multiaddr],
 ) -> Result<(), validator::ValidationError> {
