@@ -35,7 +35,7 @@ fn get_mempool_pool_size_increase(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -79,7 +79,7 @@ fn get_mempool_evictions_count_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }

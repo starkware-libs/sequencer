@@ -65,25 +65,20 @@ fn test_ratio_time_series() {
         Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
 
     let expected = format!(
-        "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}]) + increase({}[{}])))",
+        "100 * (increase({}[{duration}]) / (increase({}[{duration}]) + increase({}[{duration}]) + \
+         increase({}[{duration}])))",
         metric_1.get_name_with_filter(),
-        duration,
         metric_1.get_name_with_filter(),
-        duration,
         metric_2.get_name_with_filter(),
-        duration,
         metric_3.get_name_with_filter(),
-        duration,
     );
 
     assert_eq!(panel.exprs, vec![expected]);
 
     let expected = format!(
-        "100 * (increase({}[{}]) / (increase({}[{}])))",
+        "100 * (increase({}[{duration}]) / (increase({}[{duration}])))",
         metric_1.get_name_with_filter(),
-        duration,
         metric_2.get_name_with_filter(),
-        duration,
     );
     let panel = Panel::ratio_time_series("y", "y", &metric_1, &[&metric_2], duration);
     assert_eq!(panel.exprs, vec![expected]);
