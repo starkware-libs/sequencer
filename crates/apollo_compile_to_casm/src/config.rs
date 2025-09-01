@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 // TODO(Noa): Reconsider the default values.
-pub const DEFAULT_MAX_BYTECODE_SIZE: usize = 80 * 1024;
+// pub const DEFAULT_MAX_BYTECODE_SIZE: usize = 80 * 1024;
+// TODO(Tsabary): revert to 80 * 1024.
+pub const DEFAULT_MAX_BYTECODE_SIZE: usize = 200000000;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
