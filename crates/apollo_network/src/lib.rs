@@ -203,7 +203,7 @@ pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;
 pub mod peer_manager;
-mod sqmr;
+pub mod sqmr;
 #[cfg(test)]
 mod test_utils;
 pub mod utils;
