@@ -1089,9 +1089,69 @@ fn send_now<Item>(
     }
 }
 
+/// Concrete network manager implementation using libp2p Swarm.
+///
+/// This is the main network manager type used in production. It wraps
+/// [`GenericNetworkManager`] with a concrete libp2p swarm implementation.
 pub type NetworkManager = GenericNetworkManager<Swarm<mixed_behaviour::MixedBehaviour>>;
 
 impl NetworkManager {
+    /// Creates a new network manager with the specified configuration.
+    ///
+    /// This method initializes all networking components including:
+    /// - libp2p swarm with TCP transport, DNS resolution, and security protocols
+    /// - SQMR protocol for query-response communication
+    /// - GossipSub for message broadcasting
+    /// - Kademlia DHT for peer discovery
+    /// - Peer management and reputation systems
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Network configuration parameters
+    /// * `node_version` - Optional version string for identification (e.g., "apollo-node/1.0.0")
+    /// * `metrics` - Optional metrics collection instance
+    ///
+    /// # Returns
+    ///
+    /// A configured [`NetworkManager`] ready to run.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use apollo_network::network_manager::metrics::NetworkMetrics;
+    /// use apollo_network::network_manager::NetworkManager;
+    /// use apollo_network::NetworkConfig;
+    /// use starknet_api::core::ChainId;
+    ///
+    /// let config = NetworkConfig { port: 10000, chain_id: ChainId::Mainnet, ..Default::default() };
+    ///
+    /// let network_manager = NetworkManager::new(
+    ///     config,
+    ///     Some("my-starknet-node/1.0.0".to_string()),
+    ///     None, // metrics
+    /// );
+    /// ```
+    ///
+    /// # Transport Configuration
+    ///
+    /// The network manager is configured with:
+    /// - **TCP Transport**: Primary transport protocol
+    /// - **DNS Resolution**: For resolving domain names in multiaddresses
+    /// - **Noise Protocol**: For connection encryption and authentication
+    /// - **Yamux**: For connection multiplexing
+    ///
+    /// # Identity Generation
+    ///
+    /// If a secret key is provided in the config, it's used to deterministically
+    /// generate the peer ID. Otherwise, a random Ed25519 keypair is generated.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - The provided secret key is invalid
+    /// - Failed to bind to the specified port
+    /// - Transport configuration fails
+    /// - The advertised multiaddress contains a different peer ID than generated
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
@@ -1167,6 +1227,28 @@ impl NetworkManager {
         )
     }
 
+    /// Returns the local peer ID as a string.
+    ///
+    /// The peer ID is derived from the node's cryptographic identity and serves
+    /// as a unique identifier in the network. Other nodes use this ID to
+    /// establish connections and route messages.
+    ///
+    /// # Returns
+    ///
+    /// A string representation of the local peer ID in the format expected
+    /// by libp2p multiaddresses (e.g., "12D3KooWQYHvEJzuBP...").
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use apollo_network::network_manager::NetworkManager;
+    /// use apollo_network::NetworkConfig;
+    ///
+    /// let network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    ///
+    /// let peer_id = network_manager.get_local_peer_id();
+    /// println!("Local peer ID: {}", peer_id);
+    /// ```
     pub fn get_local_peer_id(&self) -> String {
         self.swarm.local_peer_id().to_string()
     }
