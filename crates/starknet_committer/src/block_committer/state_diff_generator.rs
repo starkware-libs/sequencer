@@ -11,7 +11,7 @@ use crate::block_committer::random_structs::RandomValue;
 #[path = "state_diff_generator_test.rs"]
 pub mod state_diff_generator_test;
 
-pub(crate) const CONTRACT_ADDRESS: u32 = 500_u32;
+pub const CONTRACT_ADDRESS: u32 = 500_u32;
 pub(crate) const N_STORAGE_UPDATES: usize = 1000_usize;
 
 pub fn generate_random_state_diff(rng: &mut StdRng) -> StateDiff {
