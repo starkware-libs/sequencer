@@ -6,16 +6,22 @@ import os
 from typing import Optional
 
 from grafana_client import GrafanaApi
-from grafana_client.client import (GrafanaBadInputError, GrafanaClientError,
-                                   GrafanaException, GrafanaServerError)
+from grafana_client.client import (
+    GrafanaBadInputError,
+    GrafanaClientError,
+    GrafanaException,
+    GrafanaServerError,
+)
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 from common import const
-from common.grafana10_objects import (alert_expression_model_object,
-                                      alert_query_model_object,
-                                      alert_query_object, alert_rule_object)
-from common.helpers import (EnvironmentName, alert_env_filename_suffix,
-                            get_logger)
+from common.grafana10_objects import (
+    alert_expression_model_object,
+    alert_query_model_object,
+    alert_query_object,
+    alert_rule_object,
+)
+from common.helpers import EnvironmentName, alert_env_filename_suffix, get_logger
 
 
 def create_alert_expression_model(conditions: list[dict[str, any]]):
@@ -228,7 +234,11 @@ def alert_builder(args: argparse.Namespace):
                 expr=expr,
                 conditions=dev_alert["conditions"],
                 datasource_uid=args.datasource_uid,
-                labels={"og_priority": dev_alert["severity"], "environment": args.env},
+                labels={
+                    "og_priority": dev_alert["severity"],
+                    "environment": args.env,
+                    "observer_applicable": dev_alert["observer_applicable"],
+                },
             )
         )
 
