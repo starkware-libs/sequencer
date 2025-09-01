@@ -320,25 +320,212 @@ fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
     }
 }
 
-// TODO(Shahak): add peer manager config to the network config
+/// Network configuration for the Apollo networking layer.
+///
+/// This struct contains all the configuration parameters needed to initialize and run
+/// the networking subsystem. It includes network-level settings, protocol configurations,
+/// and various timeout and buffer size parameters.
+///
+/// # Examples
+///
+/// ## Basic Configuration
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::NetworkConfig;
+/// use starknet_api::core::ChainId;
+///
+/// let config = NetworkConfig {
+///     port: 10000,
+///     chain_id: ChainId::Mainnet,
+///     session_timeout: Duration::from_secs(120),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// ## Configuration with Bootstrap Peers
+///
+/// ```rust
+/// use apollo_network::NetworkConfig;
+/// use libp2p::Multiaddr;
+/// use starknet_api::core::ChainId;
+///
+/// let bootstrap_peer = "/ip4/1.2.3.4/tcp/10000/p2p/\
+///                       12D3KooWQYHvEJzuBPEXdwMfVdPGXeEFSioa7YcXqWn5Ey6qM8q7"
+///     .parse()
+///     .unwrap();
+/// let config = NetworkConfig {
+///     port: 10000,
+///     chain_id: ChainId::Mainnet,
+///     bootstrap_peer_multiaddr: Some(vec![bootstrap_peer]),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// # Validation
+///
+/// The configuration is automatically validated when deserialized or when
+/// `validate()` is called. Validation includes:
+/// - Ensuring bootstrap peer multiaddresses contain valid peer IDs
+/// - Checking that bootstrap peer IDs are unique
+/// - Validating the secret key format if provided
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 pub struct NetworkConfig {
+    /// The port number the node listens on for incoming connections.
+    ///
+    /// This is the TCP port that the libp2p swarm will bind to for accepting
+    /// inbound connections from other peers in the network.
+    ///
+    /// Default: 10000
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.port, 10000);
+    /// ```
     pub port: u16,
+
+    /// Maximum time a session can remain active before timing out.
+    ///
+    /// This applies to both inbound and outbound SQMR sessions. Sessions that
+    /// exceed this duration will be automatically terminated.
+    ///
+    /// Default: 120 seconds
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// # use std::time::Duration;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.session_timeout, Duration::from_secs(120));
+    /// ```
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub session_timeout: Duration,
+
+    /// Maximum time a connection can remain idle before being closed.
+    ///
+    /// Connections with no active sessions will be terminated after this duration
+    /// to conserve system resources.
+    ///
+    /// Default: 120 seconds
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// # use std::time::Duration;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.idle_connection_timeout, Duration::from_secs(120));
+    /// ```
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
+
+    /// List of bootstrap peer multiaddresses for initial network connectivity.
+    ///
+    /// These are the initial peers that the node will attempt to connect to when
+    /// starting up. Each multiaddress must include a valid peer ID. The peer IDs
+    /// must be unique across all bootstrap peers.
+    ///
+    /// Format: `/ip4/1.2.3.4/tcp/10000/p2p/<peer-id>`
+    ///
+    /// Default: None (no bootstrap peers)
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.bootstrap_peer_multiaddr, None);
+    /// ```
     #[serde(deserialize_with = "deserialize_multi_addrs")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
+
+    /// Optional secret key for deterministic peer ID generation.
+    ///
+    /// If provided, this key will be used to generate the node's peer ID deterministically.
+    /// If None, a random key will be generated on each startup, resulting in a different
+    /// peer ID each time.
+    ///
+    /// The key should be a 32-byte Ed25519 private key.
+    ///
+    /// Default: None (random key generation)
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.secret_key, None);
+    /// ```
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub secret_key: Option<Vec<u8>>,
+
+    /// Optional external multiaddress that other peers should use to reach this node.
+    ///
+    /// If set, this address will be advertised to other peers instead of the
+    /// automatically detected external addresses. This is useful when the node
+    /// is behind NAT or when you want to control exactly which address is advertised.
+    ///
+    /// Default: None (automatic address detection)
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.advertised_multiaddr, None);
+    /// ```
     pub advertised_multiaddr: Option<Multiaddr>,
+
+    /// The Starknet chain ID this node operates on.
+    ///
+    /// This is used to ensure that the node only connects to peers on the same
+    /// network (mainnet, testnet, etc.).
+    ///
+    /// Default: ChainId::Mainnet
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// # use starknet_api::core::ChainId;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.chain_id, ChainId::Mainnet);
+    /// ```
     pub chain_id: ChainId,
+
+    /// Configuration for peer discovery mechanisms.
+    ///
+    /// This includes settings for Kademlia DHT bootstrapping, heartbeat intervals,
+    /// and retry policies for peer discovery operations.
     pub discovery_config: DiscoveryConfig,
+
+    /// Configuration for peer lifecycle and reputation management.
+    ///
+    /// This controls how peers are managed throughout their lifecycle, including
+    /// connection limits, reputation scoring, and peer eviction policies.
     pub peer_manager_config: PeerManagerConfig,
+
+    /// Buffer size for broadcasted message metadata.
+    ///
+    /// This controls the size of the internal buffer that holds metadata about
+    /// messages that have been broadcast through the gossipsub network. A larger
+    /// buffer can handle more concurrent broadcast messages but uses more memory.
+    ///
+    /// Default: 100000
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.broadcasted_message_metadata_buffer_size, 100000);
+    /// ```
     pub broadcasted_message_metadata_buffer_size: usize,
+
+    /// Buffer size for reported peer IDs.
+    ///
+    /// This controls the size of the internal buffer that holds peer IDs that have
+    /// been reported for malicious behavior. Reported peers are subject to reputation
+    /// penalties and potential disconnection.
+    ///
+    /// Default: 100000
+    ///
+    /// ```
+    /// # use apollo_network::NetworkConfig;
+    /// let config = NetworkConfig::default();
+    /// assert_eq!(config.reported_peer_ids_buffer_size, 100000);
+    /// ```
     pub reported_peer_ids_buffer_size: usize,
 }
 
