@@ -177,7 +177,7 @@ pub fn create_node_config(
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
-    block_max_capacity_sierra_gas: GasAmount,
+    block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
@@ -186,7 +186,7 @@ pub fn create_node_config(
     let batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
-        block_max_capacity_sierra_gas,
+        block_max_capacity_gas,
     );
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
@@ -625,7 +625,7 @@ pub fn create_gateway_config(
 pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
-    block_max_capacity_sierra_gas: GasAmount,
+    block_max_capacity_gas: GasAmount,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
@@ -634,7 +634,8 @@ pub fn create_batcher_config(
             chain_info,
             bouncer_config: BouncerConfig {
                 block_max_capacity: BouncerWeights {
-                    sierra_gas: block_max_capacity_sierra_gas,
+                    sierra_gas: block_max_capacity_gas,
+                    proving_gas: block_max_capacity_gas,
                     ..Default::default()
                 },
                 ..Default::default()
