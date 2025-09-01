@@ -1,0 +1,13 @@
+// Protocol messages for the security authentication for the consensus network.
+syntax = "proto3";
+import "p2p/proto/common.proto";
+
+
+message PublicKeyAndChallenge {
+    Felt252 public_key = 1;
+    Felt252 challenge = 2;
+}
+
+message SignedChallengeAndIdentity {
+    repeated Felt252 signature = 1;
+}
