@@ -95,9 +95,49 @@ pub struct Behaviour {
     kad_requesting: KadRequestingBehaviour,
 }
 
+/// Configuration for the peer discovery system.
+///
+/// This struct contains all parameters needed to configure the discovery
+/// behavior, including retry policies and timing intervals.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::discovery::{DiscoveryConfig, RetryConfig};
+///
+/// let config = DiscoveryConfig {
+///     bootstrap_dial_retry_config: RetryConfig {
+///         base_delay_millis: 100,
+///         max_delay_seconds: Duration::from_secs(10),
+///         factor: 2,
+///     },
+///     heartbeat_interval: Duration::from_millis(500),
+/// };
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
+    /// Configuration for retrying failed bootstrap peer connections.
+    ///
+    /// This controls the exponential backoff strategy used when attempting
+    /// to connect to bootstrap peers that are temporarily unavailable.
     pub bootstrap_dial_retry_config: RetryConfig,
+
+    /// Interval between periodic discovery operations.
+    ///
+    /// This determines how frequently the discovery system performs maintenance
+    /// operations such as Kademlia queries for peer discovery. A shorter interval
+    /// provides more aggressive peer discovery but uses more bandwidth and CPU.
+    ///
+    /// Default: 100 milliseconds
+    ///
+    /// ```
+    /// # use apollo_network::discovery::DiscoveryConfig;
+    /// # use std::time::Duration;
+    /// let config = DiscoveryConfig::default();
+    /// assert_eq!(config.heartbeat_interval, Duration::from_millis(100));
+    /// ```
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub heartbeat_interval: Duration,
 }
