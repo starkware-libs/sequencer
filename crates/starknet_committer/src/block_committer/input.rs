@@ -6,6 +6,7 @@ use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
@@ -50,8 +51,20 @@ impl From<&StarknetStorageKey> for NodeIndex {
     }
 }
 
+impl From<&StarknetStorageKey> for DbKey {
+    fn from(key: &StarknetStorageKey) -> Self {
+        Self(serde_json::to_vec(&key.0.0).expect("Serialization of PatriciaKey failed"))
+    }
+}
+
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
+
+impl From<&StarknetStorageValue> for DbValue {
+    fn from(value: &StarknetStorageValue) -> Self {
+        Self(serde_json::to_vec(&value.0).expect("Serialization of Felt failed"))
+    }
+}
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct StateDiff {
