@@ -7,16 +7,6 @@ use rand::Rng;
 use rand_distr::num_traits::ToPrimitive;
 use rand_distr::{Distribution, Geometric};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PATRICIA_KEY_UPPER_BOUND};
-use starknet_committer::block_committer::input::StarknetStorageValue;
-use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use starknet_committer::patricia_merkle_tree::types::{
-    ClassesTrie,
-    CompiledClassHash,
-    ContractsTrie,
-    StorageTrie,
-    StorageTrieMap,
-};
 use starknet_patricia::felt::u256_from_felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
@@ -36,6 +26,17 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
+
+use crate::block_committer::input::StarknetStorageValue;
+use crate::forest::filled_forest::FilledForest;
+use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+use crate::patricia_merkle_tree::types::{
+    ClassesTrie,
+    CompiledClassHash,
+    ContractsTrie,
+    StorageTrie,
+    StorageTrieMap,
+};
 
 pub trait RandomValue {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self;
