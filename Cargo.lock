@@ -908,6 +908,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_metrics",
+ "apollo_state_sync_types",
  "apollo_storage",
  "assert_matches",
  "async-trait",

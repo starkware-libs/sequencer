@@ -18,7 +18,7 @@ impl ClassManager<FsClassStorage> {
         let storage =
             FsClassStorage::new_for_testing(&create_tmp_dir().unwrap(), &create_tmp_dir().unwrap());
 
-        ClassManager::new(config, Arc::new(compiler), storage)
+        ClassManager::new(config, Arc::new(compiler), storage, None)
     }
 }
 

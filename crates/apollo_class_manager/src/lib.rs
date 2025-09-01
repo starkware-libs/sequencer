@@ -11,12 +11,13 @@ pub struct FsClassManager(pub GenericClassManager<FsClassStorage>);
 
 impl Clone for FsClassManager {
     fn clone(&self) -> Self {
-        let GenericClassManager { config, compiler, classes } = &self.0;
+        let GenericClassManager { config, compiler, classes, state_sync_client } = &self.0;
 
         FsClassManager(GenericClassManager {
             config: config.clone(),
             compiler: compiler.clone(),
             classes: classes.clone(),
+            state_sync_client: state_sync_client.clone(),
         })
     }
 }

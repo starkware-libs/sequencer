@@ -12,6 +12,7 @@ use apollo_compile_to_casm_types::{
     SierraCompilerClientError,
 };
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::instrument;
@@ -29,6 +30,7 @@ pub struct ClassManager<S: ClassStorage> {
     pub config: ClassManagerConfig,
     pub compiler: SharedSierraCompilerClient,
     pub classes: CachedClassStorage<S>,
+    pub state_sync_client: Option<SharedStateSyncClient>,
 }
 
 impl<S: ClassStorage> ClassManager<S> {
@@ -36,12 +38,14 @@ impl<S: ClassStorage> ClassManager<S> {
         config: ClassManagerConfig,
         compiler: SharedSierraCompilerClient,
         storage: S,
+        state_sync_client: Option<SharedStateSyncClient>,
     ) -> Self {
         let cached_class_storage_config = config.cached_class_storage_config.clone();
         Self {
             config,
             compiler,
             classes: CachedClassStorage::new(cached_class_storage_config, storage),
+            state_sync_client,
         }
     }
 
@@ -140,11 +144,17 @@ impl<S: ClassStorage> ClassManager<S> {
 pub fn create_class_manager(
     config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
+    state_sync_client: Option<SharedStateSyncClient>,
 ) -> FsClassManager {
     let FsClassManagerConfig { class_manager_config, class_storage_config } = config;
     let fs_class_storage =
         FsClassStorage::new(class_storage_config).expect("Failed to create class storage.");
-    let class_manager = ClassManager::new(class_manager_config, compiler_client, fs_class_storage);
+    let class_manager = ClassManager::new(
+        class_manager_config,
+        compiler_client,
+        fs_class_storage,
+        state_sync_client,
+    );
 
     FsClassManager(class_manager)
 }
