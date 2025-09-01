@@ -9,6 +9,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
 };
 use crate::dashboard::Panel;
 
@@ -27,6 +28,7 @@ fn serialize_alert() {
         "5m",
         20,
         AlertSeverity::Sos,
+        ObserverApplicability::Applicable,
         AlertEnvFiltering::All,
     );
 
