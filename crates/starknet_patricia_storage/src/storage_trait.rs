@@ -18,21 +18,21 @@ pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 
 pub trait Storage {
     /// Returns value from storage, if it exists.
-    fn get(&self, key: &DbKey) -> Result<Option<DbValue>, PatriciaStorageError>;
+    fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
-    fn set(&mut self, key: DbKey, value: DbValue) -> Result<Option<DbValue>, PatriciaStorageError>;
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&self, keys: &[DbKey]) -> Result<Vec<Option<DbValue>>, PatriciaStorageError>;
+    fn mget(&self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: MapStorage) -> Result<(), PatriciaStorageError>;
+    fn mset(&mut self, key_to_value: MapStorage) -> PatriciaStorageResult<()>;
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
-    fn delete(&mut self, key: &DbKey) -> Result<Option<DbValue>, PatriciaStorageError>;
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 }
 
 #[derive(Debug)]
