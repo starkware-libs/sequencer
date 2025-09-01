@@ -224,6 +224,7 @@ define_string_enum! {
         (OsStateUpdate),
         (OutputPtr),
         (PackedFelt),
+        (PackedValue),
         (PackedValues),
         (PackedValuesLen),
         (Path),
