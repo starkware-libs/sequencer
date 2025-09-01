@@ -168,7 +168,7 @@ impl Default for SyncConfig {
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
             collect_pending_data: false,
-            store_sierras_and_casms: false,
+            store_sierras_and_casms: true,
         }
     }
 }
