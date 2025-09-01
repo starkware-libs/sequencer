@@ -1,0 +1,26 @@
+[package]
+name = "apollo_commitment_sync_types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+testing = ["mockall"]
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_committer_types.workspace = true
+apollo_infra.workspace = true
+apollo_proc_macros.workspace = true
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+serde.workspace = true
+starknet_api.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+apollo_committer_types = { workspace = true, features = ["testing"] }
