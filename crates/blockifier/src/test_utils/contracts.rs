@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+use std::sync::{LazyLock, RwLock};
+
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
@@ -11,6 +14,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointOffset,
 };
 use starknet_api::state::SierraContractClass;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;
@@ -18,9 +22,15 @@ use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::test_utils::struct_impls::LoadContractFromFile;
 
+static CASM_HASH_V1_CACHE: LazyLock<RwLock<HashMap<ClassHash, CompiledClassHash>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+static CASM_HASH_V2_CACHE: LazyLock<RwLock<HashMap<ClassHash, CompiledClassHash>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
 pub trait FeatureContractTrait {
     fn get_class(&self) -> ContractClass;
     fn get_runnable_class(&self) -> RunnableCompiledClass;
+    fn get_compiled_class_hash(&self, hash_version: &HashVersion) -> CompiledClassHash;
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
     /// traceback. Computation is not robust, but as long as the cairo function itself is not
@@ -72,6 +82,43 @@ pub trait FeatureContractTrait {
     }
 }
 
+fn get_compiled_class_hash_or_cash(
+    feature_contract: FeatureContract,
+    hash_version: &HashVersion,
+) -> CompiledClassHash {
+    let cache = match hash_version {
+        HashVersion::V1 => CASM_HASH_V1_CACHE.read().unwrap(),
+        HashVersion::V2 => CASM_HASH_V2_CACHE.read().unwrap(),
+    };
+
+    if let Some(cached_class) = cache.get(&feature_contract.get_class_hash()) {
+        return *cached_class;
+    }
+    std::mem::drop(cache);
+    let runnable_class = feature_contract.get_runnable_class();
+    let compiled_class_hash = match runnable_class {
+        RunnableCompiledClass::V0(_) => panic!("V0 contracts are not supported here"),
+        RunnableCompiledClass::V1(class) => class.hash(hash_version),
+        #[cfg(feature = "cairo_native")]
+        RunnableCompiledClass::V1Native(class) => class.hash(hash_version),
+    };
+    match hash_version {
+        HashVersion::V1 => {
+            CASM_HASH_V1_CACHE
+                .write()
+                .unwrap()
+                .insert(feature_contract.get_class_hash(), compiled_class_hash);
+        }
+        HashVersion::V2 => {
+            CASM_HASH_V2_CACHE
+                .write()
+                .unwrap()
+                .insert(feature_contract.get_class_hash(), compiled_class_hash);
+        }
+    }
+    compiled_class_hash
+}
+
 impl FeatureContractTrait for FeatureContract {
     fn get_class(&self) -> ContractClass {
         match self.cairo_version() {
@@ -98,6 +145,14 @@ impl FeatureContractTrait for FeatureContract {
         }
 
         self.get_class().try_into().unwrap()
+    }
+
+    // Returns dummy compiled class hash for the given hash version.
+    fn get_compiled_class_hash(&self, hash_version: &HashVersion) -> CompiledClassHash {
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => CompiledClassHash(Felt::ZERO),
+            CairoVersion::Cairo1(_) => get_compiled_class_hash_or_cash(*self, hash_version),
+        }
     }
 }
 
