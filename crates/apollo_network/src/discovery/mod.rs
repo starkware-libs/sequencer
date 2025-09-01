@@ -95,9 +95,33 @@ pub struct Behaviour {
     kad_requesting: KadRequestingBehaviour,
 }
 
+/// Configuration for the peer discovery system.
+///
+/// This struct contains all parameters needed to configure the discovery
+/// behavior, including retry policies and timing intervals.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::discovery::{DiscoveryConfig, RetryConfig};
+///
+/// let config = DiscoveryConfig {
+///     bootstrap_dial_retry_config: RetryConfig {
+///         base_delay_millis: 100,
+///         max_delay_seconds: Duration::from_secs(10),
+///         factor: 2,
+///     },
+///     heartbeat_interval: Duration::from_millis(500),
+/// };
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
+    /// Configuration for retrying failed bootstrap peer connections.
     pub bootstrap_dial_retry_config: RetryConfig,
+
+    /// Interval between periodic discovery operations.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub heartbeat_interval: Duration,
 }
