@@ -101,7 +101,8 @@ pub async fn create_node_components(
             let compiler_shared_client = clients
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler Client should be available");
-            Some(create_class_manager(class_manager_config.clone(), compiler_shared_client))
+            let state_sync_client = clients.get_state_sync_shared_client();
+            Some(create_class_manager(class_manager_config.clone(), compiler_shared_client, state_sync_client))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
