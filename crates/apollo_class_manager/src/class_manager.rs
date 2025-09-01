@@ -14,6 +14,7 @@ use apollo_compile_to_casm_types::{
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::instrument;
 
@@ -79,11 +80,40 @@ impl<S: ClassStorage> ClassManager<S> {
     }
 
     #[instrument(skip(self), err)]
-    pub fn get_executable(
+    pub async fn get_executable(
         &self,
         class_id: ClassId,
     ) -> ClassManagerResult<Option<RawExecutableClass>> {
-        Ok(self.classes.get_executable(class_id)?)
+        // First try to get the class from local storage
+        if let Ok(Some(executable_class)) = self.classes.get_executable(class_id) {
+            return Ok(Some(executable_class));
+        }
+
+        // If not found locally and we have a state sync client, try to get from state sync
+        if let Some(state_sync_client) = &self.state_sync_client {
+            match state_sync_client.get_deprecated_class(class_id).await {
+                Ok(Some(deprecated_class)) => {
+                    // Convert DeprecatedContractClass to RawExecutableClass
+                    let contract_class = ContractClass::V0(deprecated_class);
+                    let raw_executable_class = RawExecutableClass::try_from(contract_class)
+                        .map_err(|e| ClassManagerError::ClassSerde(e.to_string()))?;
+                    return Ok(Some(raw_executable_class));
+                }
+                Ok(None) => {
+                    // Class not found in state sync either
+                    return Ok(None);
+                }
+                Err(e) => {
+                    // Ignore errors from state sync and return None
+                    // We don't want state sync failures to break the class manager
+                    tracing::warn!("Error getting deprecated class from state sync: {:?}", e);
+                    return Ok(None);
+                }
+            }
+        }
+
+        // If no state sync client or class not found, return None
+        Ok(None)
     }
 
     #[instrument(skip(self), err)]
