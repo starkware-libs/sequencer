@@ -1,3 +1,26 @@
+//! Peer discovery and network bootstrapping functionality.
+//!
+//! This module implements peer discovery mechanisms that enable nodes to find and
+//! connect to other peers in the Starknet network. It combines bootstrapping with
+//! initial known peers and ongoing peer discovery through Kademlia DHT queries.
+//!
+//! ## Key Components
+//!
+//! - **Bootstrapping**: Initial connection to known bootstrap peers
+//! - **Kademlia Queries**: Ongoing peer discovery through DHT queries
+//! - **Identify Protocol**: Peer capability and address discovery
+//! - **Retry Logic**: Exponential backoff for failed connection attempts
+//!
+//! ## Discovery Process
+//!
+//! 1. **Bootstrap Phase**: Connect to configured bootstrap peers
+//! 2. **DHT Integration**: Join the Kademlia DHT network
+//! 3. **Peer Discovery**: Continuously discover new peers through DHT queries
+//! 4. **Address Resolution**: Resolve and validate peer addresses
+//!
+//! The discovery process is designed to be resilient to network partitions and
+//! node failures, ensuring robust connectivity across the network.
+
 mod behaviours;
 #[cfg(test)]
 mod discovery_test;
