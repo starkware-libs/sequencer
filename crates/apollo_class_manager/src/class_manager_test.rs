@@ -67,7 +67,7 @@ async fn class_manager() {
     // Non-existent class.
     let class_id = SierraContractClass::try_from(class.clone()).unwrap().calculate_class_hash();
     assert_eq!(class_manager.get_sierra(class_id), Ok(None));
-    assert_eq!(class_manager.get_executable(class_id), Ok(None));
+    assert_eq!(class_manager.get_executable(class_id).await, Ok(None));
 
     // Add new class.
     let class_hashes = class_manager.add_class(class.clone()).await.unwrap();
@@ -77,7 +77,10 @@ async fn class_manager() {
 
     // Get class.
     assert_eq!(class_manager.get_sierra(class_id).unwrap(), Some(class.clone()));
-    assert_eq!(class_manager.get_executable(class_id).unwrap(), Some(expected_executable_class));
+    assert_eq!(
+        class_manager.get_executable(class_id).await.unwrap(),
+        Some(expected_executable_class)
+    );
 
     // Add existing class; response returned immediately, without invoking compilation.
     let class_hashes = class_manager.add_class(class).await.unwrap();
@@ -120,9 +123,12 @@ async fn class_manager_get_executable() {
         .unwrap();
 
     // Get both executable classes.
-    assert_eq!(class_manager.get_executable(class_hash).unwrap(), Some(expected_executable_class));
     assert_eq!(
-        class_manager.get_executable(deprecated_class_hash).unwrap(),
+        class_manager.get_executable(class_hash).await.unwrap(),
+        Some(expected_executable_class)
+    );
+    assert_eq!(
+        class_manager.get_executable(deprecated_class_hash).await.unwrap(),
         Some(deprecated_executable_class)
     );
 }
