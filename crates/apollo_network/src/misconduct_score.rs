@@ -1,3 +1,34 @@
+//! Peer reputation and misconduct scoring system.
+//!
+//! This module implements a reputation system for tracking peer behavior and identifying
+//! malicious actors in the network. The scoring system uses a normalized scale where
+//! peers accumulate misconduct points based on their behavior.
+//!
+//! ## Scoring System
+//!
+//! - **Range**: [0.0, 1.0] where 0.0 is perfectly well-behaved and 1.0 is malicious
+//! - **Accumulation**: Scores add up over time as misconduct is detected
+//! - **Threshold**: Peers reaching a score of 1.0 are considered malicious
+//! - **Actions**: Malicious peers may be disconnected or ignored
+//!
+//! ## Usage Examples
+//!
+//! ```rust
+//! use apollo_network::misconduct_score::MisconductScore;
+//!
+//! // Start with neutral reputation
+//! let mut peer_score = MisconductScore::NEUTRAL;
+//!
+//! // Add misconduct for protocol violations
+//! peer_score += MisconductScore::new(0.3); // Minor violation
+//! peer_score += MisconductScore::new(0.8); // Major violation
+//!
+//! // Check if peer is now malicious
+//! if peer_score.is_malicious() {
+//!     println!("Peer should be disconnected");
+//! }
+//! ```
+
 use std::ops::AddAssign;
 
 /// MisconductScore is in the range [0, 1].
