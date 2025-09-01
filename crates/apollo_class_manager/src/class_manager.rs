@@ -97,6 +97,10 @@ impl<S: ClassStorage> ClassManager<S> {
                     let contract_class = ContractClass::V0(deprecated_class);
                     let raw_executable_class = RawExecutableClass::try_from(contract_class)
                         .map_err(|e| ClassManagerError::ClassSerde(e.to_string()))?;
+
+                    // Cache the deprecated class for future requests
+                    self.classes.cache_deprecated_class(class_id, raw_executable_class.clone());
+
                     return Ok(Some(raw_executable_class));
                 }
                 Ok(None) => {

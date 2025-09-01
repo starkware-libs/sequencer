@@ -117,6 +117,12 @@ impl<S: ClassStorage> CachedClassStorage<S> {
     pub fn deprecated_class_cached(&self, class_id: ClassId) -> bool {
         self.deprecated_classes.get(&class_id).is_some()
     }
+
+    /// Cache a deprecated class in memory without storing to persistent storage.
+    /// This is useful for caching classes retrieved from external sources like state sync.
+    pub fn cache_deprecated_class(&self, class_id: ClassId, class: RawExecutableClass) {
+        self.deprecated_classes.set(class_id, class);
+    }
 }
 
 impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
