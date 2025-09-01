@@ -54,8 +54,6 @@ const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): Lower margin once the estimation is completed.
 const ALLOWED_MARGIN_N_STEPS: usize = 612;
-// TODO(AvivG): remove builtins margin once it's zero for both V1 and V2.
-const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 0;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -72,7 +70,6 @@ const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): lower margins once blake estimation is completed.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 610;
-const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 0;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -93,8 +90,6 @@ trait HashVersionTestSpec {
     fn expected_hash(&self) -> Expect;
     /// The allowed margin for the number of steps.
     fn allowed_margin_n_steps(&self) -> usize;
-    /// The allowed margin for the builtin usage.
-    fn allowed_margin_builtin(&self) -> (BuiltinName, usize);
     /// Estimates the execution resources for the compiled class hash function.
     fn estimate_execution_resources(
         &self,
@@ -161,14 +156,6 @@ impl HashVersionTestSpec for HashVersion {
         match self {
             HashVersion::V1 => ALLOWED_MARGIN_N_STEPS,
             HashVersion::V2 => ALLOWED_MARGIN_BLAKE_N_STEPS,
-        }
-    }
-    fn allowed_margin_builtin(&self) -> (BuiltinName, usize) {
-        match self {
-            HashVersion::V1 => (BuiltinName::poseidon, ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH),
-            HashVersion::V2 => {
-                (BuiltinName::range_check, ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH)
-            }
         }
     }
     fn estimate_execution_resources(
@@ -364,44 +351,34 @@ fn test_compiled_class_hash_resources_estimation(
     }
 
     // Run the compiled class hash entry point with full contract loading.
-    let (mut actual_execution_resources, _hash_computed_by_cairo) =
+    let (actual_execution_resources, _) =
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
-    let bytecode_segment_felt_sizes = NestedFeltCounts::new(
+    let bytecode_segments = NestedFeltCounts::new(
         &contract_class.get_bytecode_segment_lengths(),
         &contract_class.bytecode,
     );
-    // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation = hash_version.estimate_execution_resources(
-        &bytecode_segment_felt_sizes,
+
+    // Estimate resources.
+    let execution_resources_estimation = hash_version.estimate_execution_resources(
+        &bytecode_segments,
         &contract_class.entry_points_by_type.into(),
     );
 
-    let margin_n_steps =
+    // Compare n_steps.
+    let n_steps_margin =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
-    let allowed_margin = hash_version.allowed_margin_n_steps();
+    let allowed_n_steps_margin = hash_version.allowed_margin_n_steps();
     assert!(
-        margin_n_steps <= allowed_margin,
-        "Estimated n_steps and actual n_steps differ by more than {allowed_margin}.\n Margin N \
-         Steps: {margin_n_steps}"
-    );
-    let (builtin_name, allowed_margin_builtin) = hash_version.allowed_margin_builtin();
-    let margin_builtin = execution_resources_estimation
-        .builtin_instance_counter
-        .remove(&builtin_name)
-        .unwrap()
-        .abs_diff(
-            actual_execution_resources.builtin_instance_counter.remove(&builtin_name).unwrap(),
-        );
-    assert!(
-        margin_builtin <= allowed_margin_builtin,
-        "Estimated {builtin_name} and actual {builtin_name} differ by more than \
-         {allowed_margin_builtin}.\n Margin {builtin_name} Builtin: {margin_builtin}"
+        n_steps_margin <= allowed_n_steps_margin,
+        "Estimated n_steps differ from actual by more than {allowed_n_steps_margin}. Margin: \
+         {n_steps_margin}"
     );
 
-    // Assert that all other builtins have exactly the same values.
+    // Compare builtins.
     assert_eq!(
         execution_resources_estimation.builtin_instance_counter,
-        actual_execution_resources.filter_unused_builtins().builtin_instance_counter
+        actual_execution_resources.filter_unused_builtins().builtin_instance_counter,
+        "Estimated builtins do not match actual builtins"
     );
 }
