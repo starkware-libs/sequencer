@@ -140,7 +140,6 @@ fn fetch_all_patricia_paths(
     })
 }
 
-#[allow(dead_code)]
 /// Fetch the Patricia paths (inner nodes) in the classes trie, contracts trie,
 /// and contracts storage tries for both the previous and new root hashes.
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
