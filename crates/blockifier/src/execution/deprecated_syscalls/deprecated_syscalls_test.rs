@@ -41,7 +41,7 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContractData;
-use crate::test_utils::initial_test_state::{test_state, test_state_ex};
+use crate::test_utils::initial_test_state::{test_state, test_state_inner};
 use crate::test_utils::{
     calldata_for_deploy_test,
     get_const_syscall_resources,
@@ -530,7 +530,7 @@ fn test_tx_info(
             *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
     }
 
-    let mut state = test_state_ex(
+    let mut state = test_state_inner(
         &ChainInfo::create_for_testing(),
         Fee(0),
         &[(test_contract_data, 1)],
