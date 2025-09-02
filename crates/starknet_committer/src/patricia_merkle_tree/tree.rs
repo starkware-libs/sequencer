@@ -139,7 +139,6 @@ fn fetch_all_patricia_paths(
     })
 }
 
-#[allow(dead_code)]
 pub fn fetch_previous_and_new_patricia_paths(
     storage: &impl Storage,
     classes_trie_root_hashes: RootHashes,
