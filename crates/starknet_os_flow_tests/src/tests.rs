@@ -81,6 +81,7 @@ fn division(#[case] length: usize, #[case] n_parts: usize, #[case] expected_leng
 async fn declare_deploy_scenario(
     #[values(1, 2)] n_blocks: usize,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(false, true)] full_output: bool,
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
@@ -141,7 +142,7 @@ async fn declare_deploy_scenario(
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(initial_block_number, use_kzg_da)
+        .execute_test_with_default_block_contexts(initial_block_number, use_kzg_da, full_output)
         .await;
 
     let partial_state_diff = StateMaps {
