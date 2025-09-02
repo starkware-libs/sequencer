@@ -88,12 +88,6 @@ fn fetch_all_patricia_paths(
             .get(idx)
             .expect("Contract address must exist in the contracts trie leaves data.")
             .storage_root_hash;
-        if storage_root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
-            // No storage trie for this contract, it means we call this function with the previous
-            // tree and the contract was added, or we call it with the new tree and the contract was
-            // deleted.
-            continue;
-        }
         // No need to fetch the leaves.
         let leaves = None;
         let proof = fetch_patricia_paths::<StarknetStorageValue>(
@@ -128,7 +122,6 @@ fn fetch_all_patricia_paths(
     })
 }
 
-#[allow(dead_code)]
 pub fn fetch_previous_and_new_patricia_paths(
     storage: &impl Storage,
     classes_trie_root_hashes: RootHashes,
