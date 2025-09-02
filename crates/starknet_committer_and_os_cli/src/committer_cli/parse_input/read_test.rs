@@ -1,16 +1,10 @@
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
+use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_committer::block_committer::input::{
-    ConfigImpl,
-    Input,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
-use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_committer::block_committer::input::{ConfigImpl, Input, StateDiff};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
@@ -94,7 +88,7 @@ fn test_simple_input_parsing() {
         (DbKey([14, 6, 43, 90].to_vec()), DbValue([9, 0, 0, 0, 1].to_vec())),
     ]);
 
-    let expected_address_to_class_hash = HashMap::from([
+    let expected_address_to_class_hash = IndexMap::from([
         (
             ContractAddress::try_from(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
@@ -119,7 +113,7 @@ fn test_simple_input_parsing() {
         ),
     ]);
 
-    let expected_address_to_nonce = HashMap::from([
+    let expected_address_to_nonce = IndexMap::from([
         (
             ContractAddress::try_from(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
@@ -144,13 +138,13 @@ fn test_simple_input_parsing() {
         ),
     ]);
 
-    let expected_class_hash_to_compiled_class_hash = HashMap::from([
+    let expected_class_hash_to_compiled_class_hash = IndexMap::from([
         (
             ClassHash(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
                 0, 0, 0, 0, 0,
             ])),
-            CompiledClassHash(Felt::from_bytes_be_slice(&[
+            starknet_api::core::CompiledClassHash(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 14, 0, 0, 0, 45, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
             ])),
@@ -160,47 +154,43 @@ fn test_simple_input_parsing() {
                 0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0,
                 0, 0, 0, 0, 0, 0,
             ])),
-            CompiledClassHash(Felt::from_bytes_be_slice(&[
+            starknet_api::core::CompiledClassHash(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
             ])),
         ),
     ]);
 
-    let expected_storage_updates = HashMap::from([(
+    let expected_storage_updates = IndexMap::from([(
         ContractAddress::try_from(Felt::from_bytes_be_slice(&[
             0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
             0, 0, 0, 0, 0,
         ]))
         .unwrap(),
-        HashMap::from([
+        IndexMap::from([
             (
-                StarknetStorageKey(
-                    Felt::from_bytes_be_slice(&[
-                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89,
-                        0, 0, 0, 0, 0, 0, 0,
-                    ])
-                    .try_into()
-                    .unwrap(),
-                ),
-                StarknetStorageValue(Felt::from_bytes_be_slice(&[
+                Felt::from_bytes_be_slice(&[
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0,
+                    0, 0, 0, 0, 0, 0,
+                ])
+                .try_into()
+                .unwrap(),
+                Felt::from_bytes_be_slice(&[
                     0, 0, 0, 0, 0, 14, 0, 0, 0, 45, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0,
-                ])),
+                ]),
             ),
             (
-                StarknetStorageKey(
-                    Felt::from_bytes_be_slice(&[
-                        0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0,
-                        89, 0, 0, 0, 0, 0, 0, 0,
-                    ])
-                    .try_into()
-                    .unwrap(),
-                ),
-                StarknetStorageValue(Felt::from_bytes_be_slice(&[
+                Felt::from_bytes_be_slice(&[
+                    0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89,
+                    0, 0, 0, 0, 0, 0, 0,
+                ])
+                .try_into()
+                .unwrap(),
+                Felt::from_bytes_be_slice(&[
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0,
-                ])),
+                ]),
             ),
         ]),
     )]);

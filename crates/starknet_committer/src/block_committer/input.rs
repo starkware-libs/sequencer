@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::core::ContractAddress;
+use starknet_api::state::{CommitmentStateDiff, StorageKey};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -38,6 +38,7 @@ pub fn contract_address_into_node_index(address: &ContractAddress) -> NodeIndex 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when
 // available.
+// TODO(Aviv): Delete the struct wrapper and just work with StorageKey as main type.
 pub struct StarknetStorageKey(pub StorageKey);
 
 impl From<&StarknetStorageKey> for NodeIndex {
@@ -49,13 +50,17 @@ impl From<&StarknetStorageKey> for NodeIndex {
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
 
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct StateDiff {
-    pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
-    pub storage_updates:
-        HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
+pub type StateDiff = starknet_api::state::CommitmentStateDiff;
+
+pub trait StateDiffExt {
+    fn accessed_addresses(&self) -> HashSet<&ContractAddress>;
+    fn skeleton_storage_updates(&self)
+    -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>;
+    fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf>;
+    fn actual_storage_updates(
+        &self,
+    ) -> HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>;
+    fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash>;
 }
 
 /// Trait contains all optional configurations of the committer.
@@ -100,24 +105,13 @@ impl Default for ConfigImpl {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Input<C: Config> {
     /// All relevant information for the state diff commitment.
-    pub state_diff: StateDiff,
+    pub state_diff: CommitmentStateDiff,
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
     pub config: C,
 }
 
-pub(crate) trait StateDiffExt {
-    fn accessed_addresses(&self) -> HashSet<&ContractAddress>;
-    fn skeleton_storage_updates(&self)
-    -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>;
-    fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf>;
-    fn actual_storage_updates(
-        &self,
-    ) -> HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>;
-    fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash>;
-}
-
-impl StateDiffExt for StateDiff {
+impl StateDiffExt for CommitmentStateDiff {
     fn accessed_addresses(&self) -> HashSet<&ContractAddress> {
         HashSet::from_iter(
             self.address_to_class_hash
@@ -133,10 +127,12 @@ impl StateDiffExt for StateDiff {
         self.accessed_addresses()
             .iter()
             .map(|address| {
-                let updates = match self.storage_updates.get(address) {
+                let updates = match self.storage_updates.get(*address) {
                     Some(inner_updates) => inner_updates
                         .iter()
-                        .map(|(key, value)| (key.into(), SkeletonLeaf::from(value.0)))
+                        .map(|(key, value)| {
+                            (NodeIndex::from_leaf_felt(key), SkeletonLeaf::from(*value))
+                        })
                         .collect(),
                     None => HashMap::new(),
                 };
@@ -160,10 +156,13 @@ impl StateDiffExt for StateDiff {
         self.accessed_addresses()
             .iter()
             .map(|address| {
-                let updates = match self.storage_updates.get(address) {
-                    Some(inner_updates) => {
-                        inner_updates.iter().map(|(key, value)| (key.into(), *value)).collect()
-                    }
+                let updates = match self.storage_updates.get(*address) {
+                    Some(inner_updates) => inner_updates
+                        .iter()
+                        .map(|(key, value)| {
+                            (NodeIndex::from_leaf_felt(key), StarknetStorageValue(*value))
+                        })
+                        .collect(),
                     None => HashMap::new(),
                 };
                 (**address, updates)
@@ -175,7 +174,7 @@ impl StateDiffExt for StateDiff {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (class_hash_into_node_index(class_hash), *compiled_class_hash)
+                (class_hash_into_node_index(class_hash), CompiledClassHash(compiled_class_hash.0))
             })
             .collect()
     }

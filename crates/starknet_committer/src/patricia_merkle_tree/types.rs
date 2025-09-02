@@ -16,11 +16,17 @@ pub fn fixed_hex_string_no_prefix(felt: &Felt) -> String {
 pub fn class_hash_into_node_index(class_hash: &ClassHash) -> NodeIndex {
     NodeIndex::from_leaf_felt(&class_hash.0)
 }
-
+// TODO(Aviv): Consider deleting this type and using starknet_api::core::CompiledClassHash directly.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
 
 impl_from_hex_for_felt_wrapper!(CompiledClassHash);
+
+impl From<starknet_api::core::CompiledClassHash> for CompiledClassHash {
+    fn from(value: starknet_api::core::CompiledClassHash) -> Self {
+        CompiledClassHash(value.0)
+    }
+}
 
 pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
 pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
