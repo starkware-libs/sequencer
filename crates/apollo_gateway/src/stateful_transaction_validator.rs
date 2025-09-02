@@ -25,7 +25,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
@@ -232,13 +232,28 @@ fn skip_stateful_validations(
         // check if the transaction nonce is 1, meaning it is post deploy_account, and the
         // account nonce is zero, meaning the account was not deployed yet.
         if tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO) {
+            let account_address = tx.sender_address();
+            info!(
+                "Checking if deploy_account transaction exists for account {}.",
+                tx.sender_address()
+            );
             // We verify that a deploy_account transaction exists for this account. It is sufficient
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
             return runtime
                 .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
-                .map_err(mempool_client_err_to_deprecated_gw_err);
+                .map_err(mempool_client_err_to_deprecated_gw_err)
+                .inspect(|exists| {
+                    if *exists {
+                        info!("Found deploy_account transaction for account {}.", account_address);
+                    } else {
+                        info!(
+                            "No deploy_account transaction found for account {}.",
+                            account_address
+                        );
+                    }
+                });
         }
     }
 
