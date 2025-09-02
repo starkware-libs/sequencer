@@ -2,7 +2,7 @@
 set -e
 
 usage() {
-    echo "Usage: $0 -f <FEEDER_URL> -n <NAMESPACE_PREFIX> -N <NUM_NODES> [-s <START_INDEX>] [-c <CLUSTER_PREFIX>] [-h]"
+    echo "Usage: $0 -f <FEEDER_URL> -n <NAMESPACE_PREFIX> -N <NUM_NODES> [-s <START_INDEX>] [-c <CLUSTER_PREFIX>] [-p <POD_NAME>] [-m <CONFIG_MAP>] [-h]"
     echo ""
     echo "Options:"
     echo "  -f, --feeder-url      The feeder gateway URL (e.g., feeder.integration-sepolia.starknet.io)"
@@ -10,12 +10,16 @@ usage() {
     echo "  -N, --num-nodes       The number of nodes to restart (required)"
     echo "  -s, --start-index     The starting index for the nodes (default: 0)"
     echo "  -c, --cluster         Optional cluster prefix for kubectl context"
+    echo "  -p, --pod-name        The pod name to restart (default: sequencer-core-statefulset-0)"
+    echo "  -m, --config-map      The config map name (default: sequencer-core-config)"
     echo "  -h, --help            Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0 -f feeder.integration-sepolia.starknet.io -n apollo-sepolia-integration -N 3"
     echo "  $0 -f feeder.integration-sepolia.starknet.io -n apollo-sepolia-integration -N 3 -s 2"
     echo "  $0 --feeder-url feeder.integration-sepolia.starknet.io --namespace apollo-sepolia-integration --num-nodes 3 --start-index 1 --cluster my-cluster"
+    echo "  $0 -f feeder.integration-sepolia.starknet.io -n apollo-sepolia-integration -N 3 -p my-custom-pod"
+    echo "  $0 -f feeder.integration-sepolia.starknet.io -n apollo-sepolia-integration -N 3 -m my-custom-config"
     exit 1
 }
 
@@ -25,9 +29,11 @@ NAMESPACE_PREFIX=""
 NUM_NODES=""
 START_INDEX="0"
 CLUSTER_PREFIX=""
+POD_NAME="sequencer-core-statefulset-0"
+CONFIG_MAP="sequencer-core-config"
 
 # Parse command line options using getopt
-TEMP_ARGS=$(getopt -o f:n:N:s:c:h --long feeder-url:,namespace:,num-nodes:,start-index:,cluster:,help -n "$0" -- "$@")
+TEMP_ARGS=$(getopt -o f:n:N:s:c:p:m:h --long feeder-url:,namespace:,num-nodes:,start-index:,cluster:,pod-name:,config-map:,help -n "$0" -- "$@")
 
 if [ $? != 0 ]; then
     echo "Error: Failed to parse arguments" >&2
@@ -57,6 +63,14 @@ while true; do
             ;;
         -c|--cluster)
             CLUSTER_PREFIX="$2"
+            shift 2
+            ;;
+        -p|--pod-name)
+            POD_NAME="$2"
+            shift 2
+            ;;
+        -m|--config-map)
+            CONFIG_MAP="$2"
             shift 2
             ;;
         -h|--help)
@@ -110,7 +124,7 @@ CURRENT_BLOCK_NUMBER=$(curl https://${FEEDER_URL}/feeder_gateway/get_block | jq 
 NEXT_BLOCK_NUMBER=$((CURRENT_BLOCK_NUMBER + 1))
 for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     filename=config${i}.yaml
-    command="kubectl get cm sequencer-core-config -n ${NAMESPACE_PREFIX}-${i} -o yaml"
+    command="kubectl get cm ${CONFIG_MAP} -n ${NAMESPACE_PREFIX}-${i} -o yaml"
     if [ -n "${CLUSTER_PREFIX}" ]; then
         command="${command} --context=${CLUSTER_PREFIX}-${i}"
     fi
@@ -137,7 +151,7 @@ for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     bash -c "${command}" || { echo "Failed applying config for node ${i}"; exit 1; }
 done
 for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
-    command="kubectl delete pod sequencer-core-statefulset-0 -n ${NAMESPACE_PREFIX}-${i}"
+    command="kubectl delete pod ${POD_NAME} -n ${NAMESPACE_PREFIX}-${i}"
     if [ -n "${CLUSTER_PREFIX}" ]; then
         command="${command} --context=${CLUSTER_PREFIX}-${i}"
     fi
