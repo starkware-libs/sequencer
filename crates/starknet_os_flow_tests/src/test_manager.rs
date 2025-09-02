@@ -72,6 +72,11 @@ pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| get_initial_deploy_account_tx().contract_address);
 
+pub(crate) struct TestParameters {
+    pub(crate) use_kzg_da: bool,
+    pub(crate) full_output: bool,
+}
+
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
 pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
@@ -272,19 +277,18 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) async fn execute_test_with_default_block_contexts(
         self,
         initial_block_number: u64,
-        use_kzg_da: bool,
-        full_output: bool,
+        test_params: &TestParameters,
     ) -> OsTestOutput {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
                 block_context_for_flow_tests(
                     BlockNumber(initial_block_number + u64::try_from(i).unwrap()),
-                    use_kzg_da,
+                    test_params.use_kzg_da,
                 )
             })
             .collect();
-        self.execute_test_with_block_contexts(block_contexts, full_output).await
+        self.execute_test_with_block_contexts(block_contexts, test_params).await
     }
 
     /// Executes the test using the provided block contexts.
@@ -292,14 +296,14 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) async fn execute_test_with_block_contexts(
         self,
         block_contexts: Vec<BlockContext>,
-        full_output: bool,
+        test_params: &TestParameters,
     ) -> OsTestOutput {
         assert_eq!(
             block_contexts.len(),
             self.per_block_transactions.len(),
             "Number of block contexts must match number of transaction blocks."
         );
-        self.execute_flow_test(block_contexts, full_output).await
+        self.execute_flow_test(block_contexts, test_params).await
     }
 
     /// Divides the current transactions into the specified number of blocks.
@@ -375,7 +379,7 @@ impl<S: FlowTestState> TestManager<S> {
     async fn execute_flow_test(
         self,
         block_contexts: Vec<BlockContext>,
-        full_output: bool,
+        test_params: &TestParameters,
     ) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
@@ -394,6 +398,10 @@ impl<S: FlowTestState> TestManager<S> {
         let new_block_number = block_contexts.last().unwrap().block_info().block_number;
         let chain_info = Self::verify_chain_infos_and_get_one(&block_contexts);
         let use_kzg_da = Self::verify_kzg_da_flag_and_get(&block_contexts);
+        assert_eq!(
+            use_kzg_da, test_params.use_kzg_da,
+            "use_kzg_da flag in block contexts must match the test parameter."
+        );
         let mut alias_keys = HashSet::new();
         for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
@@ -475,8 +483,12 @@ impl<S: FlowTestState> TestManager<S> {
                 .collect(),
         };
         let expected_config_hash = chain_info.compute_os_config_hash().unwrap();
-        let os_hints_config =
-            OsHintsConfig { chain_info, use_kzg_da, full_output, ..Default::default() };
+        let os_hints_config = OsHintsConfig {
+            chain_info,
+            use_kzg_da,
+            full_output: test_params.full_output,
+            ..Default::default()
+        };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
@@ -492,9 +504,9 @@ impl<S: FlowTestState> TestManager<S> {
                 previous_block_number,
                 new_block_number,
                 config_hash: expected_config_hash,
-                full_output,
+                full_output: test_params.full_output,
                 // The OS will not compute a KZG commitment in full output mode.
-                use_kzg_da: use_kzg_da && !full_output,
+                use_kzg_da: use_kzg_da && !test_params.full_output,
             },
         }
     }
