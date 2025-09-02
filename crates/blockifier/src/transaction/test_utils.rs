@@ -45,7 +45,7 @@ use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
-use crate::test_utils::initial_test_state::{test_state, test_state_ex};
+use crate::test_utils::initial_test_state::{test_state, test_state_inner};
 use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
@@ -180,7 +180,7 @@ pub fn create_init_data_for_compiled_class_hash_migration_test(
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    let state = test_state_ex(
+    let state = test_state_inner(
         chain_info,
         BALANCE,
         &contract_instances_vec[..],
