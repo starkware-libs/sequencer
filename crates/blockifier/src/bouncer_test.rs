@@ -240,7 +240,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.weights);
+        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
@@ -586,7 +586,12 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let expected_builtin_gas_delta = tx_builtin_counters
         .iter()
         .map(|(name, count)| {
-            let stwo_gas = block_context.bouncer_config.builtin_weights.builtin_weight(name);
+            let stwo_gas = block_context
+                .bouncer_config
+                .builtin_weights
+                .gas_costs
+                .get_builtin_gas_cost(name)
+                .unwrap_or_else(|_| panic!("Builtin name {:?} is not supported in the bouncer weights.", name));
             let stone_gas = block_context
                 .versioned_constants
                 .os_constants
