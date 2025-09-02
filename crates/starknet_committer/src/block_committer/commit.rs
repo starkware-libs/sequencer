@@ -12,6 +12,7 @@ use crate::block_committer::input::{
     ConfigImpl,
     Input,
     StateDiff,
+    StateDiffExt,
 };
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -130,8 +131,10 @@ pub(crate) fn get_all_modified_indices(
     let storage_tries_indices: HashMap<ContractAddress, Vec<NodeIndex>> = accessed_addresses
         .iter()
         .map(|address| {
-            let indices: Vec<NodeIndex> = match state_diff.storage_updates.get(address) {
-                Some(updates) => updates.keys().map(NodeIndex::from).collect(),
+            let indices: Vec<NodeIndex> = match state_diff.storage_updates.get(*address) {
+                Some(updates) => {
+                    updates.keys().map(|key| NodeIndex::from_leaf_felt(key.0.key())).collect()
+                }
                 None => Vec::new(),
             };
             (**address, indices)

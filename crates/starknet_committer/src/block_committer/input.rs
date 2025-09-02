@@ -106,8 +106,19 @@ pub struct Input<C: Config> {
     pub config: C,
 }
 
-impl StateDiff {
-    pub(crate) fn accessed_addresses(&self) -> HashSet<&ContractAddress> {
+pub(crate) trait StateDiffExt {
+    fn accessed_addresses(&self) -> HashSet<&ContractAddress>;
+    fn skeleton_storage_updates(&self)
+    -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>;
+    fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf>;
+    fn actual_storage_updates(
+        &self,
+    ) -> HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>;
+    fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash>;
+}
+
+impl StateDiffExt for StateDiff {
+    fn accessed_addresses(&self) -> HashSet<&ContractAddress> {
         HashSet::from_iter(
             self.address_to_class_hash
                 .keys()
@@ -116,8 +127,7 @@ impl StateDiff {
         )
     }
 
-    /// For each modified contract calculates it's actual storage updates.
-    pub(crate) fn skeleton_storage_updates(
+    fn skeleton_storage_updates(
         &self,
     ) -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>> {
         self.accessed_addresses()
@@ -135,7 +145,7 @@ impl StateDiff {
             .collect()
     }
 
-    pub(crate) fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf> {
+    fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf> {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
@@ -144,7 +154,7 @@ impl StateDiff {
             .collect()
     }
 
-    pub(crate) fn actual_storage_updates(
+    fn actual_storage_updates(
         &self,
     ) -> HashMap<ContractAddress, LeafModifications<StarknetStorageValue>> {
         self.accessed_addresses()
@@ -161,7 +171,7 @@ impl StateDiff {
             .collect()
     }
 
-    pub(crate) fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash> {
+    fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash> {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {

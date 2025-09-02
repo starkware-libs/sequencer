@@ -133,7 +133,7 @@ impl FilledForest {
             contract_address_to_storage_updates.len()
         );
         // `contract_address_to_storage_updates` includes all modified contracts, even those with
-        // unmodified storage, see StateDiff::actual_storage_updates().
+        // unmodified storage, see CommitmentStateDiffExt::actual_storage_updates().
         for (contract_address, storage_updates) in contract_address_to_storage_updates {
             let node_index = contract_address_into_node_index(&contract_address);
             let original_contract_state = original_contracts_trie_leaves
