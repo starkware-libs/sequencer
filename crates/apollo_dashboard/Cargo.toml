@@ -34,6 +34,7 @@ apollo_storage.workspace = true
 blockifier.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
+regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 strum.workspace = true
