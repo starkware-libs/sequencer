@@ -40,12 +40,13 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
+use starknet_committer::patricia_merkle_tree::types::{CompiledClassHash, RootHashes};
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
@@ -263,34 +264,63 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             .collect();
         storage.insert(address, previous_storage_leaves);
     }
-    // Note: The generic type `<CompiledClassHash>` here is arbitrary.
-    let commitments = filter_inner_nodes_from_commitments::<CompiledClassHash>(commitments);
+
+    let class_hashes =
+        &extended_state_diff.compiled_class_hashes.keys().cloned().collect::<Vec<_>>();
+    let contract_addresses =
+        &extended_state_diff.get_contract_addresses().iter().cloned().collect::<Vec<_>>();
+    let contract_storage_keys = &extended_state_diff.storage.keys().fold(
+        HashMap::<ContractAddress, Vec<StarknetStorageKey>>::new(),
+        |mut acc, (address, key)| {
+            acc.entry(*address).or_default().push(StarknetStorageKey(*key));
+            acc
+        },
+    );
+    let storage_proofs = fetch_previous_and_new_patricia_paths(
+        commitments,
+        RootHashes {
+            previous_root_hash: previous_commitment.classes_trie_root_hash,
+            new_root_hash: new_commitment.classes_trie_root_hash,
+        },
+        RootHashes {
+            previous_root_hash: previous_commitment.contracts_trie_root_hash,
+            new_root_hash: new_commitment.contracts_trie_root_hash,
+        },
+        class_hashes,
+        contract_addresses,
+        contract_storage_keys,
+    )
+    .unwrap();
     let contracts_trie_commitment_info = CommitmentInfo {
         previous_root: previous_commitment.contracts_trie_root_hash,
         updated_root: new_commitment.contracts_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-        commitment_facts: commitments.clone(),
+        commitment_facts: flatten_preimages(&storage_proofs.contracts_proof.nodes),
     };
     let classes_trie_commitment_info = CommitmentInfo {
         previous_root: previous_commitment.classes_trie_root_hash,
         updated_root: new_commitment.classes_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-        commitment_facts: commitments.clone(),
+        commitment_facts: flatten_preimages(&storage_proofs.classes_proof),
     };
     let storage_tries_commitment_infos = address_to_previous_storage_root_hash
         .iter()
         .map(|(address, previous_root_hash)| {
+            let storage_proof = flatten_preimages(
+                storage_proofs.contracts_storage_proofs.get(address).unwrap_or(&HashMap::new()),
+            );
             (
                 *address,
                 CommitmentInfo {
                     previous_root: *previous_root_hash,
                     updated_root: new_storage_roots[address],
                     tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-                    commitment_facts: commitments.clone(),
+                    commitment_facts: storage_proof,
                 },
             )
         })
         .collect();
+
     (
         CachedStateInput {
             storage,

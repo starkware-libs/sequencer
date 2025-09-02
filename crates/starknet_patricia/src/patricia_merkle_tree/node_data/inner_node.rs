@@ -208,6 +208,16 @@ pub enum Preimage {
 
 pub type PreimageMap = HashMap<HashOutput, Preimage>;
 
+pub fn flatten_preimages(preimage_map: &PreimageMap) -> HashMap<HashOutput, Vec<Felt>> {
+    preimage_map
+        .iter()
+        .map(|(hash, preimage)| {
+            let flatten_preimage: Vec<Felt> = Vec::from(preimage);
+            (*hash, flatten_preimage)
+        })
+        .collect()
+}
+
 impl Preimage {
     pub(crate) const BINARY_LENGTH: u8 = 2;
     pub(crate) const EDGE_LENGTH: u8 = 3;
@@ -248,6 +258,15 @@ impl TryFrom<&Vec<Felt>> for Preimage {
                 }))
             }
             _ => Err(PreimageError::InvalidRawPreimage(raw_preimage.clone())),
+        }
+    }
+}
+
+impl From<&Preimage> for Vec<Felt> {
+    fn from(preimage: &Preimage) -> Self {
+        match preimage {
+            Preimage::Binary(binary) => binary.flatten(),
+            Preimage::Edge(edge) => edge.flatten(),
         }
     }
 }
