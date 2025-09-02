@@ -1379,6 +1379,21 @@
     "privacy": "Public",
     "value": 10000
   },
+  "consensus_manager_config.cende_config.max_retry_duration": {
+    "description": "The maximum duration (seconds) to retry the request to the recorder",
+    "privacy": "Public",
+    "value": 3
+  },
+  "consensus_manager_config.cende_config.max_retry_interval": {
+    "description": "The maximum waiting time (milliseconds) between retries",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "consensus_manager_config.cende_config.min_retry_interval": {
+    "description": "The minimum waiting time (milliseconds) between retries",
+    "privacy": "Public",
+    "value": 50
+  },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
     "pointer_target": "recorder_url",

@@ -5,8 +5,13 @@ mod central_objects;
 use std::collections::BTreeMap;
 use std::future::ready;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
+};
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -28,7 +33,10 @@ use central_objects::{
 };
 #[cfg(test)]
 use mockall::automock;
-use reqwest::{Client, RequestBuilder, Response};
+use reqwest::Response;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, RequestBuilder};
+use reqwest_retry::policies::ExponentialBackoff;
+use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
@@ -102,7 +110,7 @@ pub struct CendeAmbassador {
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
     url: Url,
-    client: Client,
+    client: ClientWithMiddleware,
     skip_write_height: Option<BlockNumber>,
     class_manager: SharedClassManagerClient,
 }
@@ -112,13 +120,19 @@ pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
 
 impl CendeAmbassador {
     pub fn new(cende_config: CendeConfig, class_manager: SharedClassManagerClient) -> Self {
+        let retry_policy = ExponentialBackoff::builder()
+            .retry_bounds(cende_config.min_retry_interval, cende_config.max_retry_interval)
+            .jitter(Jitter::Full)
+            .build_with_total_retry_duration(cende_config.max_retry_duration);
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: cende_config
                 .recorder_url
                 .join(RECORDER_WRITE_BLOB_PATH)
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
-            client: Client::new(),
+            client: ClientBuilder::new(reqwest::Client::new())
+                .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+                .build(),
             skip_write_height: cende_config.skip_write_height,
             class_manager,
         }
@@ -129,6 +143,14 @@ impl CendeAmbassador {
 pub struct CendeConfig {
     pub recorder_url: Url,
     pub skip_write_height: Option<BlockNumber>,
+
+    // Retry policy.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub max_retry_duration: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub min_retry_interval: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub max_retry_interval: Duration,
 }
 
 impl Default for CendeConfig {
@@ -138,18 +160,41 @@ impl Default for CendeConfig {
                 .parse()
                 .expect("recorder_url must be a valid Recorder URL"),
             skip_write_height: None,
+            max_retry_duration: Duration::from_secs(3),
+            min_retry_interval: Duration::from_millis(50),
+            max_retry_interval: Duration::from_secs(1),
         }
     }
 }
 
 impl SerializeConfig for CendeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Private,
-        )]);
+        let mut config = BTreeMap::from_iter([
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the Pythonic cende_recorder",
+                ParamPrivacyInput::Private,
+            ),
+            ser_param(
+                "max_retry_duration",
+                &self.max_retry_duration.as_secs(),
+                "The maximum duration (seconds) to retry the request to the recorder",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_retry_interval",
+                &self.min_retry_interval.as_millis(),
+                "The minimum waiting time (milliseconds) between retries",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_retry_interval",
+                &self.max_retry_interval.as_millis(),
+                "The maximum waiting time (milliseconds) between retries",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         config.extend(ser_optional_param(
             &self.skip_write_height,
             BlockNumber(0),

@@ -17,6 +17,7 @@ use crate::metrics::{
 };
 
 const HEIGHT_TO_WRITE: BlockNumber = BlockNumber(10);
+const TOO_MANY_REQUESTS_STATUS_CODE: usize = 429;
 
 impl BlobParameters {
     fn with_block_number(block_number: BlockNumber) -> Self {
@@ -79,7 +80,7 @@ impl ExpectedMetrics {
 #[case::success(200, Some(9), 1, true, ExpectedMetrics::success())]
 #[case::no_prev_block(200, None, 0, false, ExpectedMetrics::no_prev_blob())]
 #[case::prev_block_height_mismatch(200, Some(7), 0, false, ExpectedMetrics::height_mismatch())]
-#[case::recorder_return_error(500, Some(9), 1, false, ExpectedMetrics::recorder_error())]
+#[case::recorder_return_fatal_error(400, Some(9), 1, false, ExpectedMetrics::recorder_error())]
 #[tokio::test]
 async fn write_prev_height_blob(
     #[case] mock_status_code: usize,
@@ -116,6 +117,44 @@ async fn write_prev_height_blob(
     mock.expect(expected_calls).assert();
 
     expected_metrics.verify_metrics(&recorder.handle().render());
+}
+
+#[rstest]
+#[case::success_after_multiple_retries(200, 1, true)]
+#[case::failure_after_multiple_retries(TOO_MANY_REQUESTS_STATUS_CODE, 50, false)]
+#[tokio::test]
+async fn write_prev_height_blob_multiple_retries(
+    #[case] final_status_code: usize,
+    #[case] expected_retries_max: usize,
+    #[case] expected_result: bool,
+) {
+    let mut server = mockito::Server::new_async().await;
+    let url = server.url();
+
+    let mock_error = server
+        .mock("POST", RECORDER_WRITE_BLOB_PATH)
+        .with_status(TOO_MANY_REQUESTS_STATUS_CODE)
+        .create();
+    let mock_final =
+        server.mock("POST", RECORDER_WRITE_BLOB_PATH).with_status(final_status_code).create();
+
+    let cende_ambassador = CendeAmbassador::new(
+        CendeConfig { recorder_url: url.parse().unwrap(), ..Default::default() },
+        Arc::new(MockClassManagerClient::new()),
+    );
+
+    cende_ambassador
+        .prepare_blob_for_next_height(BlobParameters::with_block_number(
+            HEIGHT_TO_WRITE.prev().unwrap(),
+        ))
+        .await
+        .unwrap();
+
+    let receiver = cende_ambassador.write_prev_height_blob(HEIGHT_TO_WRITE);
+
+    assert_eq!(receiver.await.unwrap(), expected_result);
+    mock_error.expect(1).assert();
+    mock_final.expect_at_least(1).expect_at_most(expected_retries_max).assert();
 }
 
 #[tokio::test]

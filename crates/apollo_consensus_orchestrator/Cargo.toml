@@ -29,6 +29,8 @@ indexmap.workspace = true
 num-rational.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
+reqwest-middleware = { workspace = true, features = ["json"] }
+reqwest-retry.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 shared_execution_objects.workspace = true
