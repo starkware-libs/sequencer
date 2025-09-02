@@ -1229,6 +1229,7 @@ dependencies = [
  "blockifier",
  "indexmap 2.9.0",
  "itertools 0.12.1",
+ "regex",
  "serde",
  "serde_json",
  "strum 0.25.0",
