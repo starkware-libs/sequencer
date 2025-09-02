@@ -535,6 +535,7 @@ fn test_tx_info(
         Fee(0),
         &[(test_contract_data, 1)],
         &HashVersion::V2,
+        CairoVersion::Cairo0,
     );
     let mut version = felt!(3_u8);
     let mut expected_version = if v1_bound_account && !high_tip { felt!(1_u8) } else { version };
