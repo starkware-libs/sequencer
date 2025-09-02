@@ -186,7 +186,7 @@ cairo-lang-sierra-to-casm = "2.12.0-dev.1"
 cairo-lang-starknet-classes = "2.12.0-dev.1"
 cairo-lang-utils = "2.12.0-dev.1"
 cairo-native = "0.6.0"
-cairo-vm = "2.3.1"
+cairo-vm = "2.4.0
 camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.5.4"
@@ -296,7 +296,7 @@ sizeof_internal = { path = "crates/sizeof/sizeof_internal" }
 socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
-starknet-types-core = "0.1.8"
+starknet-types-core = "0.2.0
 starknet_api = { path = "crates/starknet_api", version = "0.15.0-rc.3" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
