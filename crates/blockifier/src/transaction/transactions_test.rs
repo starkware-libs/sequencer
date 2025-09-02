@@ -101,7 +101,6 @@ use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::stack_trace::{
     Cairo1RevertSummary,
-    EntryPointErrorFrame,
     ErrorStack,
     ErrorStackHeader,
     ErrorStackSegment,
@@ -132,7 +131,7 @@ use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::l1_handler::l1handler_tx;
+use crate::test_utils::l1_handler::{l1_handler_set_value_and_revert, l1handler_tx};
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
@@ -2631,7 +2630,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let tx = l1handler_tx(Fee(1), contract_address);
     let calldata = tx.tx.calldata.clone();
     let key = calldata.0[1];
-    let value = calldata.0[2];
+    let successful_value = calldata.0[2];
     let payload_size = tx.payload_size();
     let mut actual_execution_info = tx.execute(state, block_context).unwrap();
 
@@ -2655,7 +2654,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                 .0,
         },
         execution: CallExecution {
-            retdata: Retdata(vec![value]),
+            retdata: Retdata(vec![successful_value]),
             gas_consumed: 0, // Regression-tested explicitly.
             ..Default::default()
         },
@@ -2787,12 +2786,16 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Check the state changes.
     assert_eq!(
         state.get_storage_at(contract_address, StorageKey::try_from(key).unwrap(),).unwrap(),
-        value,
+        successful_value,
     );
+
     // Negative flow: transaction execution failed.
-    let mut tx = l1handler_tx(Fee(1), contract_address);
-    let arbitrary_entry_point_selector = selector_from_name("arbitrary");
-    tx.tx.entry_point_selector = arbitrary_entry_point_selector;
+    let tx = l1_handler_set_value_and_revert(Fee(1), contract_address);
+
+    // Assert we are writing a different value to the same location.
+    let calldata = tx.tx.calldata.clone();
+    assert_eq!(key, calldata.0[1]);
+    assert_ne!(successful_value, calldata.0[2]);
 
     let execution_info = tx.execute(state, block_context).unwrap();
     let mut error_stack_segments = assert_matches!(
@@ -2808,20 +2811,17 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         }
         => stack
     );
-    assert_eq!(error_stack_segments.len(), 2);
     let cairo_1_revert_summery =
-        error_stack_segments.pop().expect("Expected at least two elements in the error stack");
-    let entry_point_error_frame =
-        error_stack_segments.pop().expect("Expected at least two elements in the error stack");
+        error_stack_segments.pop().expect("Expected at least one element in the error stack");
     assert_matches!(
         cairo_1_revert_summery,
         ErrorStackSegment::Cairo1RevertSummary(Cairo1RevertSummary { last_retdata, .. })
-        if last_retdata == retdata!(ascii_as_felt("ENTRYPOINT_NOT_FOUND").unwrap())
+        if last_retdata == retdata!(ascii_as_felt("revert in l1 handler").unwrap())
     );
-    assert_matches!(
-        entry_point_error_frame,
-        ErrorStackSegment::EntryPoint(EntryPointErrorFrame { selector: Some(selector), .. })
-        if selector == arbitrary_entry_point_selector
+    // Check the state didn't change.
+    assert_eq!(
+        state.get_storage_at(contract_address, StorageKey::try_from(key).unwrap(),).unwrap(),
+        successful_value,
     );
 
     // Negative flow: not enough fee paid on L1.
