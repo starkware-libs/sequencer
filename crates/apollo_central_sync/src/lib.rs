@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use apollo_config::converters::deserialize_seconds_to_duration;
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use apollo_starknet_client::reader::PendingData;
@@ -44,7 +44,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures::future::pending;
 use futures::stream;
-use futures_util::{pin_mut, select, Stream, StreamExt};
+use futures_util::{Stream, StreamExt, pin_mut, select};
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
 use tokio::sync::{Mutex, RwLock};
-use tokio::task::{spawn_blocking, JoinError};
+use tokio::task::{JoinError, spawn_blocking};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::pending_sync::sync_pending_data;
@@ -88,6 +88,7 @@ const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
+    // Sleep duration between checking for a new block after the node is synchronized.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub block_propagation_sleep_duration: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -275,6 +276,7 @@ impl<
 > GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
 {
     pub async fn run(mut self) -> StateSyncResult {
+        // main sync loop
         info!("State sync started.");
         loop {
             match self.sync_while_ok().await {
@@ -352,6 +354,7 @@ impl<
         }
         self.handle_block_reverts().await?;
         let block_stream = stream_new_blocks(
+            // downloads blocks from the central source
             self.reader.clone(),
             self.central_source.clone(),
             self.pending_source.clone(),
@@ -365,6 +368,7 @@ impl<
         )
         .fuse();
         let state_diff_stream = stream_new_state_diffs(
+            // downloads state diffs from the central source
             self.reader.clone(),
             self.central_source.clone(),
             self.config.block_propagation_sleep_duration,
@@ -578,6 +582,7 @@ impl<
         }
         let has_class_manager = self.class_manager_client.is_some();
         let store_sierras_and_casms = self.config.store_sierras_and_casms;
+        // the actual storage writing happens here.
         self.perform_storage_writes(move |writer| {
             if has_class_manager {
                 writer

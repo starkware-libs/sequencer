@@ -107,7 +107,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use body::events::EventIndex;
@@ -116,13 +116,13 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
-    open_file,
     FileHandler,
     LocationInFile,
     MMapFileError,
     MmapFileConfig,
     Reader,
     Writer,
+    open_file,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
@@ -138,17 +138,17 @@ use version::{StorageVersionError, Version};
 use crate::body::TransactionIndex;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
-    open_env,
     DbConfig,
     DbError,
     DbReader,
     DbTransaction,
     DbWriter,
+    RO,
+    RW,
     TableHandle,
     TableIdentifier,
     TransactionKind,
-    RO,
-    RW,
+    open_env,
 };
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::MMapFileStats;
@@ -492,6 +492,7 @@ impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
     #[latency_histogram("storage_commit_latency_seconds", false)]
     pub fn commit(self) -> StorageResult<()> {
+        // total time for the commit including the flush
         self.file_handlers.flush();
         Ok(self.txn.commit()?)
     }
@@ -733,15 +734,38 @@ impl FileHandlers<RW> {
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
-    #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
+    #[latency_histogram("storage_file_handler_flush_latency_seconds", false)] // the bottleneck.
     fn flush(&self) {
-        debug!("Flushing the mmap files.");
-        self.thin_state_diff.flush();
-        self.contract_class.flush();
-        self.casm.flush();
-        self.deprecated_contract_class.flush();
-        self.transaction_output.flush();
-        self.transaction.flush();
+        // CONCURRENT FLUSH IMPLEMENTATION using threads
+        // Instead of sequential flushing, spawn concurrent threads for each mmap file
+        debug!("Flushing the mmap files concurrently using threads.");
+
+        // Clone each file handler for thread ownership
+        let thin_state_diff = self.thin_state_diff.clone();
+        let contract_class = self.contract_class.clone();
+        let casm = self.casm.clone();
+        let deprecated_contract_class = self.deprecated_contract_class.clone();
+        let transaction_output = self.transaction_output.clone();
+        let transaction = self.transaction.clone();
+
+        // Spawn concurrent flush threads
+        let handles = vec![
+            std::thread::spawn(move || thin_state_diff.flush()),
+            std::thread::spawn(move || contract_class.flush()),
+            std::thread::spawn(move || casm.flush()),
+            std::thread::spawn(move || deprecated_contract_class.flush()),
+            std::thread::spawn(move || transaction_output.flush()),
+            std::thread::spawn(move || transaction.flush()),
+        ];
+
+        // Wait for all flush operations to complete
+        for (i, handle) in handles.into_iter().enumerate() {
+            if let Err(_) = handle.join() {
+                warn!("Flush thread {} panicked during concurrent flush", i);
+            }
+        }
+
+        debug!("All concurrent flush operations completed.");
     }
 }
 

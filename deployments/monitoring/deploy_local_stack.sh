@@ -7,11 +7,12 @@ export DOCKER_BUILDKIT
 export COMPOSE_DOCKER_CLI_BUILD
 export MONITORING_ENABLED=${MONITORING_ENABLED:-true}
 export FOLLOW_LOGS=${FOLLOW_LOGS:-false}
+export RUST_LOG=${RUST_LOG:-debug}
 
 monitoring_dir=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
 export monitoring_dir
 
-if command -v docker compose &> /dev/null; then
+if docker compose version &> /dev/null; then
   docker_compose="docker compose"
 elif command -v docker-compose &> /dev/null; then
   docker_compose="docker-compose"

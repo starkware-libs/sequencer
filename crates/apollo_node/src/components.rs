@@ -1,30 +1,30 @@
-use apollo_batcher::batcher::{create_batcher, Batcher};
+use apollo_batcher::batcher::{Batcher, create_batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
-use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
-use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
+use apollo_class_manager::class_manager::create_class_manager;
+use apollo_compile_to_casm::{SierraCompiler, create_sierra_compiler};
 use apollo_consensus_manager::consensus_manager::ConsensusManager;
-use apollo_gateway::gateway::{create_gateway, Gateway};
-use apollo_http_server::http_server::{create_http_server, HttpServer};
+use apollo_gateway::gateway::{Gateway, create_gateway};
+use apollo_http_server::http_server::{HttpServer, create_http_server};
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
-use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
+use apollo_l1_provider::l1_scraper::{L1Scraper, fetch_start_block};
+use apollo_mempool::communication::{MempoolCommunicationWrapper, create_mempool};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
 use apollo_mempool_p2p::runner::MempoolP2pRunner;
 use apollo_monitoring_endpoint::monitoring_endpoint::{
-    create_monitoring_endpoint,
     MonitoringEndpoint,
+    create_monitoring_endpoint,
 };
 use apollo_state_sync::runner::StateSyncRunner;
-use apollo_state_sync::{create_state_sync_and_runner, StateSync};
+use apollo_state_sync::{StateSync, create_state_sync_and_runner};
+use papyrus_base_layer::BaseLayerContract;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
-use papyrus_base_layer::BaseLayerContract;
 use tracing::{debug, info};
 
 use crate::clients::SequencerNodeClients;
@@ -51,7 +51,7 @@ pub struct SequencerNodeComponents {
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
     pub mempool_p2p_runner: Option<MempoolP2pRunner>,
     pub sierra_compiler: Option<SierraCompiler>,
-    pub state_sync: Option<StateSync>,
+    pub state_sync: Option<StateSync>, // sync component
     pub state_sync_runner: Option<StateSyncRunner>,
 }
 

@@ -4,18 +4,24 @@
 - Python3
 - docker >= 27.3.1 - (installation guide https://docs.docker.com/engine/install/ubuntu/)
 
+## need to run the first 2 commands.
 ### Setup:
 ```bash
 python3 -m venv monitoring_venv
 source monitoring_venv/bin/activate
+docker create local_data
 ```
-
+## where is my persistent storage + how to make it zero.
+## pinpoint on the function- 30 vs 300ms.
+## find the flush log in the memory- maybe add more verbose logs.
+## maybe add a script to monitor th elogs.
+## start with the function- make it optimized in my setup and then figure out how to optiomize it in the real setup.
 ### Start up:
 To run with docker cache:
 ```bash
 ./deployments/monitoring/deploy_local_stack.sh up -d
 ```
-
+## need to run this command to automatically sync a node.
 To force build (useful to enforce applying changes in docker file settings):
 ```bash
 ./deployments/monitoring/deploy_local_stack.sh up -d --build
@@ -46,6 +52,7 @@ docker compose --version
 ./deployments/monitoring/deploy_local_stack.sh down -v
 deactivate
 rm -rf monitoring_venv
+docker rm local_data
 ```
 ## Making changes:
 After making changes, update dev_grafana.json by running:
