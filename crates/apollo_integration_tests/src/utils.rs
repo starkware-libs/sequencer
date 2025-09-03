@@ -278,6 +278,8 @@ pub fn create_node_config(
     let class_manager_config =
         wrap_if_component_config_expected!(class_manager, class_manager_config);
     let config_manager_config = ConfigManagerConfig::default();
+    let config_manager_config =
+        wrap_if_component_config_expected!(config_manager, config_manager_config);
     let consensus_manager_config =
         wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
     let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
@@ -304,7 +306,7 @@ pub fn create_node_config(
         batcher_config,
         class_manager_config,
         components,
-        config_manager_config: Some(config_manager_config),
+        config_manager_config,
         consensus_manager_config,
         gateway_config,
         http_server_config,
