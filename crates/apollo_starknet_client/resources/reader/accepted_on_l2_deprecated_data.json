@@ -377,7 +377,8 @@
             "deployed_contracts": [],
             "old_declared_contracts": [],
             "declared_classes": [],
-            "replaced_classes": []
+            "replaced_classes": [],
+            "migrated_compiled_class_hashes": []
         }
     }
 }

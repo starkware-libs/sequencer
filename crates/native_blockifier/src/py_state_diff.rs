@@ -75,6 +75,7 @@ impl TryFrom<PyStateDiff> for StateDiff {
             deployed_contracts,
             storage_diffs,
             declared_classes: IndexMap::new(),
+            migrated_compiled_class_hashes: IndexMap::new(),
             deprecated_declared_classes: IndexMap::new(),
             nonces,
         })
