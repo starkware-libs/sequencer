@@ -292,7 +292,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
-    #[case] storage: MapStorage,
+    #[case] mut storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
@@ -311,7 +311,7 @@ fn test_create_original_skeleton_forest(
     };
 
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        &storage,
+        &mut storage,
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &input.state_diff.actual_storage_updates(),
