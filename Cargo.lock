@@ -12354,6 +12354,8 @@ name = "starknet_patricia_storage"
 version = "0.0.0"
 dependencies = [
  "hex",
+ "lru 0.12.5",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
