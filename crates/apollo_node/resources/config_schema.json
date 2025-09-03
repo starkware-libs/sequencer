@@ -347,7 +347,7 @@
   "class_manager_config.class_manager_config.max_compiled_contract_class_object_size": {
     "description": "Limitation of compiled contract class object size.",
     "privacy": "Public",
-    "value": 4089446
+    "value": 200000000
   },
   "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.enforce_file_exists": {
     "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
@@ -2172,7 +2172,7 @@
   "sierra_compiler_config.max_bytecode_size": {
     "description": "Limitation of compiled CASM bytecode size (felts).",
     "privacy": "Public",
-    "value": 81920
+    "value": 200000000
   },
   "sierra_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
@@ -2282,7 +2282,7 @@
   "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
     "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "state_sync_config.central_sync_client_config.sync_config.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
