@@ -1,7 +1,7 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
-
-use crate::map_storage::MapStorage;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -9,6 +9,8 @@ pub struct DbKey(pub Vec<u8>);
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DbValue(pub Vec<u8>);
+
+pub type StorageHashMap = HashMap<DbKey, DbValue>;
 
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
@@ -29,7 +31,7 @@ pub trait Storage {
     fn mget(&self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: MapStorage) -> PatriciaStorageResult<()>;
+    fn mset(&mut self, key_to_value: StorageHashMap) -> PatriciaStorageResult<()>;
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;

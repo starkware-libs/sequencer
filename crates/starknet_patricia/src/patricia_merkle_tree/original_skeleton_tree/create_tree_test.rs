@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue, StorageHashMap};
 use starknet_types_core::felt::Felt;
 
 use super::OriginalSkeletonTreeImpl;
@@ -56,18 +56,18 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 ///                      NZ  9  11    15
 
 #[case::simple_tree_of_height_3(
-    HashMap::from([
-    create_root_edge_entry(50, SubTreeHeight::new(3)),
-    create_binary_entry(8, 9),
-    create_edge_entry(11, 1, 1),
-    create_binary_entry(17, 13),
-    create_edge_entry(15, 3, 2),
-    create_binary_entry(30, 20),
-    create_mock_leaf_entry(8),
-    create_mock_leaf_entry(9),
-    create_mock_leaf_entry(11),
-    create_mock_leaf_entry(15)
-    ]),
+    MapStorage(StorageHashMap::from([
+        create_root_edge_entry(50, SubTreeHeight::new(3)),
+        create_binary_entry(8, 9),
+        create_edge_entry(11, 1, 1),
+        create_binary_entry(17, 13),
+        create_edge_entry(15, 3, 2),
+        create_binary_entry(30, 20),
+        create_mock_leaf_entry(8),
+        create_mock_leaf_entry(9),
+        create_mock_leaf_entry(11),
+        create_mock_leaf_entry(15)
+    ])),
     create_mock_leaf_modifications(vec![(8, 8), (10, 3), (13, 2)]),
     HashOutput(Felt::from(50_u128 + 248_u128)),
     create_expected_skeleton_nodes(
@@ -108,20 +108,20 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 ///                     NZ   2     NZ    NZ
 
 #[case::another_simple_tree_of_height_3(
-    HashMap::from([
-    create_root_edge_entry(29, SubTreeHeight::new(3)),
-    create_binary_entry(10, 2),
-    create_edge_entry(3, 1, 1),
-    create_binary_entry(4, 7),
-    create_edge_entry(12, 0, 1),
-    create_binary_entry(5, 11),
-    create_binary_entry(13, 16),
-    create_mock_leaf_entry(10),
-    create_mock_leaf_entry(2),
-    create_mock_leaf_entry(3),
-    create_mock_leaf_entry(4),
-    create_mock_leaf_entry(7)
-    ]),
+    MapStorage(StorageHashMap::from([
+        create_root_edge_entry(29, SubTreeHeight::new(3)),
+        create_binary_entry(10, 2),
+        create_edge_entry(3, 1, 1),
+        create_binary_entry(4, 7),
+        create_edge_entry(12, 0, 1),
+        create_binary_entry(5, 11),
+        create_binary_entry(13, 16),
+        create_mock_leaf_entry(10),
+        create_mock_leaf_entry(2),
+        create_mock_leaf_entry(3),
+        create_mock_leaf_entry(4),
+        create_mock_leaf_entry(7)
+    ])),
     create_mock_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
     HashOutput(Felt::from(29_u128 + 248_u128)),
     create_expected_skeleton_nodes(
@@ -164,23 +164,23 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 ///                                 \  /     \
 ///                                 20 5     40
 #[case::tree_of_height_4_with_long_edge(
-    HashMap::from([
-    create_root_edge_entry(116, SubTreeHeight::new(4)),
-    create_binary_entry(11, 13),
-    create_edge_entry(5, 0, 1),
-    create_binary_entry(19, 40),
-    create_edge_entry(20, 3, 2),
-    create_binary_entry(6, 59),
-    create_edge_entry(24, 0, 2),
-    create_binary_entry(25, 65),
-    create_binary_entry(26, 90),
-    create_mock_leaf_entry(11),
-    create_mock_leaf_entry(13),
-    create_mock_leaf_entry(20),
-    create_mock_leaf_entry(5),
-    create_mock_leaf_entry(19),
-    create_mock_leaf_entry(40),
-    ]),
+    MapStorage(StorageHashMap::from([
+        create_root_edge_entry(116, SubTreeHeight::new(4)),
+        create_binary_entry(11, 13),
+        create_edge_entry(5, 0, 1),
+        create_binary_entry(19, 40),
+        create_edge_entry(20, 3, 2),
+        create_binary_entry(6, 59),
+        create_edge_entry(24, 0, 2),
+        create_binary_entry(25, 65),
+        create_binary_entry(26, 90),
+        create_mock_leaf_entry(11),
+        create_mock_leaf_entry(13),
+        create_mock_leaf_entry(20),
+        create_mock_leaf_entry(5),
+        create_mock_leaf_entry(19),
+        create_mock_leaf_entry(40),
+    ])),
     create_mock_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 19)]),
     HashOutput(Felt::from(116_u128 + 247_u128)),
     create_expected_skeleton_nodes(

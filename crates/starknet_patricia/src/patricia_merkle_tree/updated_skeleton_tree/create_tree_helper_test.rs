@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
@@ -495,7 +496,7 @@ fn test_update_node_in_nonempty_tree(
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let empty_map = HashMap::new();
-    let empty_storage = HashMap::new();
+    let empty_storage = MapStorage::new();
     let config = OriginalSkeletonMockTrieConfig::new(false);
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<MockLeaf>(
         &empty_storage,

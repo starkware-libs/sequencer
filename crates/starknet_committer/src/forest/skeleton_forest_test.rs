@@ -19,7 +19,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::Origi
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue, StorageHashMap};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
@@ -144,7 +144,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     },
-    HashMap::from([
+    MapStorage(StorageHashMap::from([
         // Roots.
         create_root_edge_entry(29, SubTreeHeight::new(3)),
         create_root_edge_entry(55, SubTreeHeight::new(3)),
@@ -193,7 +193,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         create_storage_leaf_entry(9),
         create_storage_leaf_entry(15),
         create_storage_leaf_entry(16),
-        ]),
+        ])),
      OriginalSkeletonForest{
         classes_trie: OriginalSkeletonTreeImpl {
             nodes: create_expected_skeleton_nodes(
