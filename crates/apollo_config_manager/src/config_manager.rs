@@ -60,7 +60,9 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             ConfigManagerRequest::GetConsensusDynamicConfig => {
                 info!("ConfigManager: handling GetConsensusDynamicConfig request");
                 // TODO(Nadin): Implement actual consensus dynamic config retrieval
-                let result = Err(ConfigManagerError::Placeholder);
+                let result = Err(ConfigManagerError::ConfigNotFound(
+                    "GetConsensusDynamicConfig not yet implemented".to_string(),
+                ));
                 ConfigManagerResponse::GetConsensusDynamicConfig(result)
             }
         }
