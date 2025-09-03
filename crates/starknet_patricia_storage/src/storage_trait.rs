@@ -30,7 +30,7 @@ pub trait Storage {
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&mut self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
+    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Sets values in storage.
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
