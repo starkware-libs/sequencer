@@ -8,6 +8,7 @@ use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::StorageWriter;
 use apollo_test_utils::{get_rng, get_test_block, get_test_state_diff, GetTestInstance};
+use assert_matches::assert_matches;
 use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use rand_chacha::rand_core::RngCore;
@@ -16,7 +17,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
-use crate::StateSync;
+use crate::{StateSync, OLD_DEPLOY_CLASS_HASH_WHITELIST};
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
@@ -306,4 +307,17 @@ async fn test_contract_not_found() {
     };
 
     assert_eq!(get_class_hash_at_result, Err(StateSyncError::ContractNotFound(address)));
+}
+
+#[tokio::test]
+async fn test_is_class_declared_at_whitelist() {
+    let (mut state_sync, _storage_writer) = setup();
+    for class_hash in OLD_DEPLOY_CLASS_HASH_WHITELIST.iter() {
+        assert_matches!(
+            state_sync
+                .handle_request(StateSyncRequest::IsClassDeclaredAt(BlockNumber(0), *class_hash))
+                .await,
+            StateSyncResponse::IsClassDeclaredAt(Ok(true))
+        );
+    }
 }
