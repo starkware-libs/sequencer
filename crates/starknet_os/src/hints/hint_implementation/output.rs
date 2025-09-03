@@ -221,7 +221,7 @@ pub(crate) fn calculate_keys_using_sha256_hash(
     // the Diffie-Hellman elliptic curve.
 
     let mut priv_counter: u8 = 0;
-    let mut next_private_key = || -> Felt {
+    let mut next_private_key = || -> MaybeRelocatable {
         let hash = Sha256::new()
             .chain_update(&random_key_seed)
             .chain_update(PRIV_LABEL)
@@ -232,12 +232,13 @@ pub(crate) fn calculate_keys_using_sha256_hash(
         // Use only first 31 bytes to ensure < 2^248.
         let mut key_bytes = [0u8; 32];
         key_bytes[1..].copy_from_slice(&hash[..31]);
-        Felt::from_bytes_be(&key_bytes)
+        MaybeRelocatable::from(Felt::from_bytes_be(&key_bytes))
     };
 
     let n_keys = get_integer_from_var_name(Ids::NKeys.into(), vm, ids_data, ap_tracking)?;
     let num_private_keys = felt_to_usize(&n_keys)?;
-    let private_keys: Vec<Felt> = (0..num_private_keys).map(|_| next_private_key()).collect();
+    let private_keys: Vec<MaybeRelocatable> =
+        (0..num_private_keys).map(|_| next_private_key()).collect();
     let private_keys_start = vm.gen_arg(&private_keys)?;
 
     insert_value_from_var_name(
