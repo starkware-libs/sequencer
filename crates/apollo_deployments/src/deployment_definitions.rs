@@ -14,6 +14,7 @@ use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumString};
 use url::Url;
 
+use crate::addresses::PEER_IDS;
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
@@ -91,7 +92,18 @@ impl DeploymentInputs {
         let data = read_to_string(path).expect("Failed to read deployment input JSON file");
 
         // Parse JSON into the DeploymentInputs struct
-        from_str(&data).expect("Should be able to parse deployment input JSON")
+        let deployment_inputs: Self =
+            from_str(&data).expect("Should be able to parse deployment input JSON");
+
+        for (node_id, _) in &deployment_inputs.node_ids {
+            assert!(
+                *node_id < PEER_IDS.len(),
+                "Node node_id {node_id} exceeds the number of nodes {}",
+                PEER_IDS.len()
+            );
+        }
+
+        deployment_inputs
     }
 }
 
