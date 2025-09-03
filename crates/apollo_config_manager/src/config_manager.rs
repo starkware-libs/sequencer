@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
+use apollo_config_manager_types::errors::ConfigManagerError;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
@@ -55,6 +56,12 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                 let config_data = self.get_current_config();
                 let result = Ok((*config_data).clone());
                 ConfigManagerResponse::ReadConfig(result)
+            }
+            ConfigManagerRequest::GetConsensusDynamicConfig => {
+                info!("ConfigManager: handling GetConsensusDynamicConfig request");
+                // TODO(Nadin): Implement actual consensus dynamic config retrieval
+                let result = Err(ConfigManagerError::Placeholder);
+                ConfigManagerResponse::GetConsensusDynamicConfig(result)
             }
         }
     }
