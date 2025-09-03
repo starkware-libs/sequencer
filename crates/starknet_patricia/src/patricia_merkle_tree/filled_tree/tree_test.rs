@@ -265,9 +265,9 @@ async fn test_delete_leaf_from_empty_tree() {
 
     let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
-    let storage = MapStorage::default();
+    let mut storage = MapStorage::default();
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
-        &storage,
+        &mut storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),
