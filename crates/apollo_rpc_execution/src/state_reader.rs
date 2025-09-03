@@ -197,12 +197,13 @@ impl BlockifierStateReader for ExecutionStateReader {
                 "Inner storage error. Missing state diff at block {block_number}."
             )))?;
 
-        let compiled_class_hash = state_diff.declared_classes.get(&class_hash).ok_or(
-            StateError::StateReadError(format!(
+        let compiled_class_hash = state_diff
+            .class_hash_to_compiled_class_hash
+            .get(&class_hash)
+            .ok_or(StateError::StateReadError(format!(
                 "Inner storage error. Missing class declaration at block {block_number}, class \
                  {class_hash}."
-            )),
-        )?;
+            )))?;
 
         Ok(*compiled_class_hash)
     }

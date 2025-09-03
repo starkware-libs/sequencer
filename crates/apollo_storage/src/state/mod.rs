@@ -502,7 +502,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         // Must be called after write_deployed_contracts since the nonces are updated there.
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
 
-        for (class_hash, _) in &thin_state_diff.declared_classes {
+        for (class_hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
             let not_declared = declared_classes_block_table.get(&self.txn, class_hash)?.is_none();
             if not_declared {
                 declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
@@ -510,7 +510,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         }
 
         write_compiled_class_hashes(
-            &thin_state_diff.declared_classes,
+            &thin_state_diff.class_hash_to_compiled_class_hash,
             &self.txn,
             block_number,
             &compiled_class_hash_table,
@@ -622,13 +622,13 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         )?;
         let deleted_compiled_classes = delete_compiled_classes(
             &self.txn,
-            thin_state_diff.declared_classes.keys(),
+            thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_classes_table,
             &self.file_handlers,
         )?;
         delete_compiled_class_hashes_v2(
             &self.txn,
-            thin_state_diff.declared_classes.keys(),
+            thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_class_hash_v2_table,
         )?;
         delete_deployed_contracts(
@@ -704,7 +704,7 @@ fn advance_compiled_class_marker_over_blocks_without_classes<'env>(
             .unwrap_or_else(|| panic!("Missing state diff for block {compiled_class_marker}"));
         if !file_handlers
             .get_thin_state_diff_unchecked(state_diff_location)?
-            .declared_classes
+            .class_hash_to_compiled_class_hash
             .is_empty()
         {
             break;
@@ -788,7 +788,7 @@ fn delete_declared_classes_block<'env>(
     block_number: BlockNumber,
 ) -> StorageResult<Vec<ClassHash>> {
     let mut deleted_data = Vec::new();
-    for class_hash in thin_state_diff.declared_classes.keys() {
+    for class_hash in thin_state_diff.class_hash_to_compiled_class_hash.keys() {
         let class_block_entry =
             declared_classes_block_table.get(txn, class_hash)?.ok_or_else(|| {
                 StorageError::DBInconsistency {
@@ -813,7 +813,7 @@ fn delete_declared_classes<'env>(
     file_handlers: &FileHandlers<RW>,
 ) -> StorageResult<IndexMap<ClassHash, SierraContractClass>> {
     let mut deleted_data = IndexMap::new();
-    for class_hash in thin_state_diff.declared_classes.keys() {
+    for class_hash in thin_state_diff.class_hash_to_compiled_class_hash.keys() {
         let Some(contract_class_location) = declared_classes_table.get(txn, class_hash)? else {
             continue;
         };
@@ -976,7 +976,7 @@ fn delete_compiled_class_hashes<'env>(
     thin_state_diff: &ThinStateDiff,
     compiled_class_hash_table: &'env CompiledClassHashTable<'env>,
 ) -> StorageResult<()> {
-    for (class_hash, _) in &thin_state_diff.declared_classes {
+    for (class_hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
         compiled_class_hash_table.delete(txn, &(*class_hash, block_number))?;
     }
     Ok(())

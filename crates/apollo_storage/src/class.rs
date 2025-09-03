@@ -42,7 +42,7 @@
 //!     .append_state_diff(
 //!         BlockNumber(0),
 //!         ThinStateDiff {
-//!             declared_classes: indexmap! { class_hash => CompiledClassHash::default() },
+//!             class_hash_to_compiled_class_hash: indexmap! { class_hash => CompiledClassHash::default() },
 //!             deprecated_declared_classes: vec![deprecated_class_hash],
 //!             ..Default::default()
 //!         },

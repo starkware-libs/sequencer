@@ -212,7 +212,9 @@ impl Storage for PapyrusStorage {
             ThinStateDiff::from_state_diff(state_diff);
         // Add the migrated class hash to the state diff.
         for (class_hash, compiled_class_hash) in migrated_class_hash_to_compiled_class_hash {
-            thin_state_diff.declared_classes.insert(class_hash, compiled_class_hash);
+            thin_state_diff
+                .class_hash_to_compiled_class_hash
+                .insert(class_hash, compiled_class_hash);
         }
 
         append_txn = append_txn.append_state_diff(block_number, thin_state_diff)?.append_classes(
