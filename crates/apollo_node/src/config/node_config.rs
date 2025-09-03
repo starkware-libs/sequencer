@@ -326,6 +326,11 @@ impl SequencerNodeConfig {
             class_manager,
             class_manager_config
         );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            config_manager,
+            config_manager_config
+        );
         validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
         validate_component_config_is_set_iff_running_locally!(
             self,
