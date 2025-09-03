@@ -1364,6 +1364,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "config_manager_config.config_path": {
+    "description": "Path to the configuration directory.",
+    "privacy": "Public",
+    "value": ""
+  },
   "consensus_manager_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
