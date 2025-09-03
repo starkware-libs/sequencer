@@ -81,7 +81,7 @@ use crate::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use crate::errors::GatewayResult;
+use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::{Gateway, ProcessTxBlockingTask};
 use crate::metrics::{
     register_metrics,
@@ -100,7 +100,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
 };
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
 #[fixture]
 fn mock_stateful_transaction_validator() -> MockStatefulTransactionValidatorTrait {
@@ -122,6 +122,13 @@ fn mock_transaction_converter() -> MockTransactionConverterTrait {
         .expect_convert_internal_rpc_tx_to_executable_tx()
         .return_once(|_| Ok(executable_invoke_tx(invoke_args())));
     mock_transaction_converter
+}
+
+#[fixture]
+fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTrait {
+    let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
+    mock_stateless_transaction_validator.expect_validate().return_once(|_| Ok(()));
+    mock_stateless_transaction_validator
 }
 
 #[fixture]
@@ -363,6 +370,7 @@ pub struct ProcessTxOverrides {
     pub mock_stateful_transaction_validator_factory:
         Option<MockStatefulTransactionValidatorFactoryTrait>,
     pub mock_transaction_converter: Option<MockTransactionConverterTrait>,
+    pub mock_stateless_transaction_validator: Option<MockStatelessTransactionValidatorTrait>,
 }
 
 fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
@@ -371,11 +379,12 @@ fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
         .unwrap_or_else(mock_stateful_transaction_validator_factory);
     let mock_transaction_converter =
         overrides.mock_transaction_converter.unwrap_or_else(mock_transaction_converter);
+    let mock_stateless_transaction_validator = overrides
+        .mock_stateless_transaction_validator
+        .unwrap_or_else(mock_stateless_transaction_validator);
 
     ProcessTxBlockingTask {
-        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-            config: StatelessTransactionValidatorConfig::default(),
-        }),
+        stateless_tx_validator: Arc::new(mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
@@ -650,6 +659,34 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
     let process_tx_task = process_tx_task(overrides);
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, error_code);
+}
+
+#[rstest]
+#[tokio::test]
+async fn process_tx_returns_error_for_one_stateless_error_variant() {
+    let arbitrary_validation_error = Err(StatelessTransactionValidatorError::SignatureTooLong {
+        signature_length: 5001,
+        max_signature_length: 4000,
+    });
+    let error_code =
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.SIGNATURE_TOO_LONG".into());
+
+    let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
+    mock_stateless_transaction_validator
+        .expect_validate()
+        .return_once(|_| arbitrary_validation_error);
+
+    let overrides = ProcessTxOverrides {
+        mock_stateless_transaction_validator: Some(mock_stateless_transaction_validator),
+        ..Default::default()
+    };
+    let task = process_tx_task(overrides);
+
+    let result: Result<AddTransactionArgs, StarknetError> =
+        tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
