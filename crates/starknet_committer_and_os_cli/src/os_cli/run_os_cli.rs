@@ -157,6 +157,7 @@ impl From<AggregatorMetrics> for AggregatorCliMetrics {
 
 #[derive(Serialize)]
 pub(crate) struct OsCliOutput<'a> {
+    // TODO(Rotem): add program_output here instead of writing it to a separate file.
     pub(crate) additional_data: &'a CairoPieAdditionalData,
     pub(crate) da_segment: Option<Vec<Felt>>,
     pub(crate) metrics: OsCliMetrics,
@@ -164,7 +165,9 @@ pub(crate) struct OsCliOutput<'a> {
 }
 
 #[derive(Serialize)]
-pub(crate) struct AggregatorCliOutput {
+pub(crate) struct AggregatorCliOutput<'a> {
+    pub(crate) program_output: Vec<Felt>,
+    pub(crate) additional_data: &'a CairoPieAdditionalData,
     pub(crate) metrics: AggregatorCliMetrics,
     pub unused_hints: HashSet<AllHints>,
 }
