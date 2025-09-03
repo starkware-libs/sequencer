@@ -337,8 +337,7 @@ pub struct StarknetOsRunnerOutput {
 }
 
 pub struct StarknetAggregatorRunnerOutput {
-    // TODO(Tzahi): Define a struct for the output.
-    #[cfg(feature = "include_program_output")]
+    // TODO(Tzahi): Consider defining a struct for the output.
     pub aggregator_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     pub metrics: AggregatorMetrics,
