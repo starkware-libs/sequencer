@@ -30,7 +30,7 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
-    /// Timeouts configuration for consensus.
+    /// Timeouts configuration for consensus.ss
     pub timeouts: TimeoutsConfig,
     /// The duration (seconds) between sync attempts.
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
