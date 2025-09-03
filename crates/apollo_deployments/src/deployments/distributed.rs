@@ -669,13 +669,13 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::L1 => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
-                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -695,10 +695,10 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Mempool => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
-                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -864,6 +864,7 @@ fn get_batcher_component_config(
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.l1_provider = l1_provider_remote_config;
     config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
@@ -876,6 +877,7 @@ fn get_class_manager_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.class_manager = class_manager_local_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.sierra_compiler = sierra_compiler_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -890,6 +892,7 @@ fn get_gateway_component_config(
     let mut config = ComponentConfig::disabled();
     config.gateway = gateway_local_config;
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.mempool = mempool_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
@@ -905,6 +908,7 @@ fn get_mempool_component_config(
     config.mempool = mempool_local_config;
     config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -915,6 +919,7 @@ fn get_sierra_compiler_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.sierra_compiler = sierra_compiler_local_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -926,6 +931,7 @@ fn get_state_sync_component_config(
     let mut config = ComponentConfig::disabled();
     config.state_sync = state_sync_local_config;
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -937,6 +943,7 @@ fn get_consensus_manager_component_config(
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
@@ -952,6 +959,7 @@ fn get_http_server_component_config(
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::enabled();
     config.gateway = gateway_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -970,6 +978,7 @@ fn get_l1_component_config(
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
     config.state_sync = state_sync_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config
