@@ -21,7 +21,7 @@ pub struct Output {
 impl SerializedForest {
     pub fn forest_to_output(&self) -> Output {
         // Create an empty storage for the new facts.
-        let mut storage = HashMap::new();
+        let mut storage = MapStorage::new();
         self.0.write_to_storage(&mut storage);
         let contract_storage_root_hash = self.0.get_contract_root_hash().0;
         let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
