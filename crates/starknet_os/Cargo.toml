@@ -19,6 +19,7 @@ testing = ["blockifier/testing", "starknet_patricia/testing"]
 [dependencies]
 apollo_starknet_os_program.workspace = true
 ark-bls12-381.workspace = true
+ark-ec.workspace = true
 ark-ff.workspace = true
 ark-poly.workspace = true
 ark-secp256k1.workspace = true
@@ -50,6 +51,8 @@ serde_json = { workspace = true, features = ["raw_value"] }
 sha2.workspace = true
 sha3.workspace = true
 shared_execution_objects.workspace = true
+starknet-crypto.workspace = true
+starknet-curve.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_patricia.workspace = true
