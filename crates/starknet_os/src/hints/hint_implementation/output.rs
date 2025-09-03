@@ -37,7 +37,7 @@ pub(crate) fn load_public_keys_into_memory(
         if public_keys.is_empty() { MaybeRelocatable::from(0) } else { vm.gen_arg(&public_keys)? };
 
     insert_value_from_var_name(
-        Ids::PublicKeysStart.into(),
+        Ids::PublicKeys.into(),
         public_keys_segment,
         vm,
         ids_data,
@@ -242,7 +242,7 @@ pub(crate) fn calculate_keys_using_sha256_hash(
     let private_keys_start = vm.gen_arg(&private_keys)?;
 
     insert_value_from_var_name(
-        Ids::SnPrivateKeysStart.into(),
+        Ids::SnPrivateKeys.into(),
         private_keys_start,
         vm,
         ids_data,
