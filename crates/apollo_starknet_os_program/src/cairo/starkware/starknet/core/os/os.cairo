@@ -121,13 +121,9 @@ func main{
     local public_keys_start: felt*;
     local n_keys: felt;
     %{ fill_public_keys_array(os_hints['public_keys'], public_keys_start, n_keys) %}
-    let hash_ptr = pedersen_ptr;
-    with hash_ptr {
-        let (public_keys_hash) = get_public_keys_hash(
-            public_keys_start=public_keys_start, n_keys=n_keys
-        );
-    }
-    let pedersen_ptr = hash_ptr;
+    let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
+        public_keys_start=public_keys_start, n_keys=n_keys
+    );
     with txs_range_check_ptr {
         execute_blocks(
             n_blocks=n_blocks,

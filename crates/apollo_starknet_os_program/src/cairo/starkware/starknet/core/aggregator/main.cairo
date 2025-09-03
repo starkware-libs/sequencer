@@ -177,21 +177,17 @@ func output_blocks{
 func check_public_keys{hash_ptr: HashBuiltin*}(
     public_keys_start: felt*, n_keys: felt, starknet_os_config_hash: felt
 ) {
-    with hash_ptr {
-        let (public_keys_hash) = get_public_keys_hash(
-            public_keys_start=public_keys_start, n_keys=n_keys
-        );
-    }
+    let (public_keys_hash) = get_public_keys_hash(
+        public_keys_start=public_keys_start, n_keys=n_keys
+    );
     tempvar chain_id = nondet %{ program_input["chain_id"] %};
     tempvar fee_token_address = nondet %{ program_input["fee_token_address"] %};
     tempvar guessed_starknet_os_config = new StarknetOsConfig(
         chain_id=chain_id, fee_token_address=fee_token_address, public_keys_hash=public_keys_hash
     );
-    with hash_ptr {
-        let (guessed_starknet_os_config_hash) = get_starknet_os_config_hash(
-            starknet_os_config=guessed_starknet_os_config
-        );
-    }
+    let (guessed_starknet_os_config_hash) = get_starknet_os_config_hash(
+        starknet_os_config=guessed_starknet_os_config
+    );
     assert guessed_starknet_os_config_hash = starknet_os_config_hash;
     return ();
 }
