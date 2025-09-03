@@ -30,11 +30,11 @@ impl Storage for MapStorage {
         Ok(self.0.remove(key))
     }
 
-    fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
     }
 
-    fn mget(&self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    fn mget(&mut self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
     }
 }
