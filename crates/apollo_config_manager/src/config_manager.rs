@@ -34,7 +34,6 @@ pub struct ConfigManager {
 impl ConfigManager {
     pub fn new(config: ConfigManagerConfig) -> Self {
         let state = ConfigManagerState::default();
-        info!("ConfigManager initialized with default configuration");
         Self { config, state }
     }
 

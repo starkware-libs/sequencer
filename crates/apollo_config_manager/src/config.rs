@@ -1,15 +1,23 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::SerializeConfig;
-use apollo_config::{ParamPath, SerializedParam};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Validate)]
-pub struct ConfigManagerConfig {}
+#[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
+pub struct ConfigManagerConfig {
+    /// Placeholder field - config cannot be empty for proper deserialization
+    pub _placeholder: String,
+}
 
 impl SerializeConfig for ConfigManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new()
+        BTreeMap::from_iter([ser_param(
+            "placeholder",
+            &self._placeholder,
+            "The path to the configuration directory.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
