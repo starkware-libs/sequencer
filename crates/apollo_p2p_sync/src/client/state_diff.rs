@@ -163,7 +163,7 @@ fn unite_state_diffs(
         }
         StateDiffChunk::DeclaredClass(declared_class) => {
             if state_diff
-                .declared_classes
+                .class_hash_to_compiled_class_hash
                 .insert(declared_class.class_hash, declared_class.compiled_class_hash)
                 .is_some()
             {

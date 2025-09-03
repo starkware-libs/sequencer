@@ -1108,7 +1108,7 @@ impl StorageSerde for ThinStateDiff {
         let mut to_compress: Vec<u8> = Vec::new();
         self.deployed_contracts.serialize_into(&mut to_compress)?;
         self.storage_diffs.serialize_into(&mut to_compress)?;
-        self.declared_classes.serialize_into(&mut to_compress)?;
+        self.class_hash_to_compiled_class_hash.serialize_into(&mut to_compress)?;
         self.deprecated_declared_classes.serialize_into(&mut to_compress)?;
         self.nonces.serialize_into(&mut to_compress)?;
         if to_compress.len() > crate::compression_utils::MAX_DECOMPRESSED_SIZE {
@@ -1131,7 +1131,7 @@ impl StorageSerde for ThinStateDiff {
         Some(Self {
             deployed_contracts: IndexMap::deserialize_from(data)?,
             storage_diffs: IndexMap::deserialize_from(data)?,
-            declared_classes: IndexMap::deserialize_from(data)?,
+            class_hash_to_compiled_class_hash: IndexMap::deserialize_from(data)?,
             deprecated_declared_classes: Vec::deserialize_from(data)?,
             nonces: IndexMap::deserialize_from(data)?,
         })

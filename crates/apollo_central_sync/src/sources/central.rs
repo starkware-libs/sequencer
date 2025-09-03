@@ -294,6 +294,8 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
     ) -> CompiledClassesStream<'_> {
         stream! {
             let txn = self.storage_reader.begin_ro_txn().map_err(CentralError::StorageError)?;
+            // TODO(Aviv): Now the class hashes include both declared classes and migrated compiled class hashes.
+            // Consider refactoring it.
             let class_hashes_iter = initial_block_number
                 .iter_up_to(up_to_block_number)
                 .map(|bn| {
@@ -308,7 +310,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                 .flat_map(|maybe_state_diff| match maybe_state_diff {
                     Ok(state_diff) => {
                         state_diff
-                            .declared_classes
+                            .class_hash_to_compiled_class_hash
                             .into_iter()
                             .map(Ok)
                             .collect()

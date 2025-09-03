@@ -310,7 +310,7 @@ impl FetchBlockData for (ApiContractClass, ClassHash) {
             });
         }
 
-        let declared_classes = thin_state_diff.declared_classes;
+        let declared_classes = thin_state_diff.class_hash_to_compiled_class_hash;
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
         for class_hash in deprecated_declared_classes {
@@ -396,7 +396,7 @@ pub fn split_thin_state_diff(thin_state_diff: ThinStateDiff) -> Vec<StateDiffChu
         }));
     }
 
-    for (class_hash, compiled_class_hash) in thin_state_diff.declared_classes {
+    for (class_hash, compiled_class_hash) in thin_state_diff.class_hash_to_compiled_class_hash {
         state_diff_chunks
             .push(StateDiffChunk::DeclaredClass(DeclaredClass { class_hash, compiled_class_hash }));
     }

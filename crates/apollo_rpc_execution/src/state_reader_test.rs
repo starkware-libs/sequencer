@@ -123,7 +123,7 @@ fn read_state() {
                         storage_key0 => storage_value0,
                     ),
                 ),
-                declared_classes: indexmap!(
+                class_hash_to_compiled_class_hash: indexmap!(
                     class_hash0 => compiled_class_hash0,
                     class_hash5 => compiled_class_hash0,
                 ),
@@ -337,7 +337,7 @@ fn get_compiled_class() {
         .append_state_diff(
             BlockNumber(0),
             ThinStateDiff {
-                declared_classes: indexmap!(class_hash_0x2 => compiled_class_hash!(1_u8)),
+                class_hash_to_compiled_class_hash: indexmap!(class_hash_0x2 => compiled_class_hash!(1_u8)),
                 ..Default::default()
             },
         )
@@ -350,7 +350,7 @@ fn get_compiled_class() {
         .append_state_diff(
             BlockNumber(1),
             ThinStateDiff {
-                declared_classes: indexmap!(class_hash_0x3 => compiled_class_hash!(2_u8)),
+                class_hash_to_compiled_class_hash: indexmap!(class_hash_0x3 => compiled_class_hash!(2_u8)),
                 ..Default::default()
             },
         )

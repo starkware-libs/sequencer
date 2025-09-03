@@ -98,9 +98,9 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
                     .get_state_diff(block_number)?
                     .expect("A state diff with number lower than the state diff marker is missing");
                 (
-                    state_diff.declared_classes.len()
+                    state_diff.class_hash_to_compiled_class_hash.len()
                         + state_diff.deprecated_declared_classes.len(),
-                    state_diff.declared_classes,
+                    state_diff.class_hash_to_compiled_class_hash,
                     state_diff.deprecated_declared_classes.iter().cloned().collect::<HashSet<_>>(),
                 )
             };

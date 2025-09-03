@@ -290,7 +290,7 @@ fn verify_decision_reached_response(
         expected_artifacts.commitment_state_diff.storage_updates
     );
     assert_eq!(
-        response.state_diff.declared_classes,
+        response.state_diff.class_hash_to_compiled_class_hash,
         expected_artifacts.commitment_state_diff.class_hash_to_compiled_class_hash
     );
     assert_eq!(
