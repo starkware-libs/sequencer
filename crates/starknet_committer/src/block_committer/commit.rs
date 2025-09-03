@@ -24,7 +24,7 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 pub async fn commit_block<S: Storage>(
     input: Input<ConfigImpl>,
-    storage: &S,
+    storage: &mut S,
 ) -> BlockCommitmentResult<FilledForest> {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);

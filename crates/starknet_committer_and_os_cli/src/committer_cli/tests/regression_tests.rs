@@ -97,7 +97,7 @@ impl<'de> Deserialize<'de> for TreeRegressionInput {
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_single_tree() {
     let TreeRegressionInput {
-        tree_flow_input: TreeFlowInput { leaf_modifications, storage, root_hash },
+        tree_flow_input: TreeFlowInput { leaf_modifications, mut storage, root_hash },
         expected_hash,
         expected_storage_changes,
     } = serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
@@ -106,7 +106,7 @@ pub async fn test_regression_single_tree() {
     // Benchmark the single tree flow test.
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
-        &storage,
+        &mut storage,
         root_hash,
         OriginalSkeletonStorageTrieConfig::new(false),
     )
