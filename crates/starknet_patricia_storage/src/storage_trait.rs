@@ -20,7 +20,9 @@ pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 
 pub trait Storage {
     /// Returns value from storage, if it exists.
-    fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
+    /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
+    /// for caching).
+    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
@@ -28,7 +30,7 @@ pub trait Storage {
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
+    fn mget(&mut self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Sets values in storage.
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
