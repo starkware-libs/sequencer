@@ -15,6 +15,7 @@ workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator.workspace = true
