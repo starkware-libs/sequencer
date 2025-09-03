@@ -18,7 +18,8 @@ struct StarknetOsConfig {
     // The (L2) address of the fee token contract.
     fee_token_address: felt,
     // The hash of the public keys used to encrypt the state diff.
-    // The default hash is 0, as used in Starknet environments.
+    // The default hash is 0, indicating that encryption will not happen and that there are no
+    // public keys, as is the case in Starknet environments.
     public_keys_hash: felt,
 }
 
@@ -50,7 +51,7 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     return (starknet_os_config_hash=starknet_os_config_hash);
 }
 
-func get_public_keys_hash{hash_ptr: HashBuiltin*}(public_keys_start: felt*, n_keys: felt) -> (
+func get_public_keys_hash{hash_ptr: HashBuiltin*}(n_keys: felt, public_keys: felt*) -> (
     public_keys_hash: felt
 ) {
     if (n_keys == 0) {
@@ -58,7 +59,7 @@ func get_public_keys_hash{hash_ptr: HashBuiltin*}(public_keys_start: felt*, n_ke
     }
     let (hash_state_ptr) = hash_init();
     let (hash_state_ptr) = hash_update(
-        hash_state_ptr=hash_state_ptr, data_ptr=public_keys_start, data_length=n_keys
+        hash_state_ptr=hash_state_ptr, data_ptr=public_keys, data_length=n_keys
     );
     let (public_keys_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
     return (public_keys_hash=public_keys_hash);

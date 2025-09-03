@@ -81,7 +81,7 @@ struct OsCarriedOutputs {
 
 func serialize_os_output{
     range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*
-}(os_output: OsOutput*, replace_keys_with_aliases: felt, public_keys_start: felt*, n_keys: felt) {
+}(os_output: OsOutput*, replace_keys_with_aliases: felt, n_keys: felt, public_keys: felt*) {
     alloc_locals;
 
     local use_kzg_da = os_output.header.use_kzg_da;
@@ -124,8 +124,8 @@ func serialize_os_output{
         state_updates_start=state_updates_start,
         state_updates_end=state_updates_ptr,
         compress_state_updates=compress_state_updates,
-        public_keys_start=public_keys_start,
         n_keys=n_keys,
+        public_keys=public_keys,
     );
 
     if (use_kzg_da != FALSE) {
@@ -238,8 +238,8 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     state_updates_start: felt*,
     state_updates_end: felt*,
     compress_state_updates: felt,
-    public_keys_start: felt*,
     n_keys: felt,
+    public_keys: felt*,
 ) -> (da_start: felt*, da_end: felt*) {
     if (compress_state_updates == 0) {
         return (da_start=state_updates_start, da_end=state_updates_end);
@@ -264,14 +264,12 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
         return (da_start=compressed_start, da_end=compressed_dst);
     }
     local symmetric_key: felt;
-    local sn_private_keys_start: felt*;
+    local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
-    validate_private_keys(sn_private_keys_start, n_keys);
-    let (local sn_public_keys_start: felt*) = alloc();
+    validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+    let (local sn_public_keys: felt*) = alloc();
     compute_public_keys(
-        sn_private_keys_start=sn_private_keys_start,
-        sn_public_keys_start=sn_public_keys_start,
-        n_keys=n_keys,
+        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys=sn_public_keys
     );
 
     // TODO(Einat): encrypt the data with the symmetric key.
@@ -377,31 +375,27 @@ func serialize_contract_state_diff_conditional{range_check_ptr, res: felt*}(
     );
 }
 
-func validate_private_keys{range_check_ptr}(sn_private_keys_start: felt*, n_keys: felt) {
+func validate_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*) {
     if (n_keys == 0) {
         return ();
     }
-    assert_not_zero(sn_private_keys_start[0]);
-    assert_le_felt(sn_private_keys_start[0], StarkCurve.ORDER - 1);
+    assert_not_zero(sn_private_keys[0]);
+    assert_le_felt(sn_private_keys[0], StarkCurve.ORDER - 1);
 
-    return validate_private_keys(
-        sn_private_keys_start=sn_private_keys_start + 1, n_keys=n_keys - 1
-    );
+    return validate_private_keys(n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1);
 }
 
 func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    sn_private_keys_start: felt*, sn_public_keys_start: felt*, n_keys: felt
+    n_keys: felt, sn_private_keys: felt*, sn_public_keys: felt*
 ) {
     if (n_keys == 0) {
         return ();
     }
     let (sn_public_key) = ec_mul(
-        m=sn_private_keys_start[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
+        m=sn_private_keys[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
     );
-    assert sn_public_keys_start[0] = sn_public_key.x;
+    assert sn_public_keys[0] = sn_public_key.x;
     return compute_public_keys(
-        sn_private_keys_start=sn_private_keys_start + 1,
-        sn_public_keys_start=sn_public_keys_start + 1,
-        n_keys=n_keys - 1,
+        n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1, sn_public_keys=sn_public_keys + 1
     );
 }
