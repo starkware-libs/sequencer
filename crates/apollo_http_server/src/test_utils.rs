@@ -32,8 +32,9 @@ impl HttpTestClient {
     // TODO(Yael): add a check for the response content, for all GatewayOutput types.
     pub async fn assert_add_tx_success(&self, tx: impl GatewayTransaction) -> TransactionHash {
         let response = self.add_tx(tx).await;
-        assert!(response.status().is_success(), "{:?}", response.status());
+        let status_code = response.status();
         let text = response.text().await.unwrap();
+        assert!(status_code.is_success(), "{status_code:?}, {text}");
         let response: GatewayOutput = serde_json::from_str(&text)
             .unwrap_or_else(|_| panic!("Gateway responded with: {text}"));
         response.transaction_hash()
