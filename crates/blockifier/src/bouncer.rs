@@ -717,7 +717,7 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_sierra_gas =
         vm_resources_to_gas(&vm_resources, sierra_builtin_gas_costs, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let sierra_gas_without_casm_hash_computation =
+    let mut sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
 
     // Proving gas computation.
@@ -732,7 +732,7 @@ pub fn get_tx_weights<S: StateReader>(
     );
 
     let proving_builtin_gas_costs = &bouncer_config.builtin_weights.gas_costs;
-    let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
+    let mut proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         sierra_gas_without_casm_hash_computation,
         &builtin_counters_without_casm_hash_computation,
         proving_builtin_gas_costs,
@@ -740,26 +740,23 @@ pub fn get_tx_weights<S: StateReader>(
     );
 
     // Migration resources.
-    // TODO(AvivG): Consider moving migration logic to a separate function.
-    let (class_hashes_to_migrate, migration_resources) =
-        if versioned_constants.enable_casm_hash_migration {
-            get_migration_data(state_reader, executed_class_hashes)?
-        } else {
-            (HashMap::new(), EstimatedExecutionResources::new(HashVersion::V2))
-        };
     let blake_opcode_gas = bouncer_config.blake_weight;
-    let migration_sierra_gas =
-        migration_resources.to_gas(sierra_builtin_gas_costs, blake_opcode_gas, versioned_constants);
-    let migration_proving_gas = migration_resources.to_gas(
-        proving_builtin_gas_costs,
-        blake_opcode_gas,
-        versioned_constants,
-    );
+    let (class_hashes_to_migrate, migration_sierra_gas, migration_proving_gas) =
+        compute_migration_contributions(
+            state_reader,
+            executed_class_hashes,
+            sierra_builtin_gas_costs,
+            proving_builtin_gas_costs,
+            versioned_constants,
+            blake_opcode_gas,
+        )?;
 
     // Migration occurs once per contract and is not included in the CASM hash computation, which
     // is performed every time a contract is loaded.
-    sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_sierra_gas);
-    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_proving_gas);
+    sierra_gas_without_casm_hash_computation = sierra_gas_without_casm_hash_computation
+        .checked_add_panic_on_overflow(migration_sierra_gas);
+    proving_gas_without_casm_hash_computation = proving_gas_without_casm_hash_computation
+        .checked_add_panic_on_overflow(migration_proving_gas);
 
     let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
         add_casm_hash_computation_gas_cost(
@@ -880,4 +877,31 @@ fn get_migration_data<S: StateReader>(
             Ok((class_hashes_to_migrate, migration_resources))
         },
     )
+}
+
+fn compute_migration_contributions<S: StateReader>(
+    state_reader: &S,
+    executed_class_hashes: &HashSet<ClassHash>,
+    sierra_builtin_gas_costs: &BuiltinGasCosts,
+    proving_builtin_gas_costs: &BuiltinGasCosts,
+    versioned_constants: &VersionedConstants,
+    blake_opcode_gas: usize,
+) -> TransactionExecutionResult<(HashMap<ClassHash, CompiledClassHashV2ToV1>, GasAmount, GasAmount)>
+{
+    if !versioned_constants.enable_casm_hash_migration {
+        return Ok((HashMap::new(), GasAmount::ZERO, GasAmount::ZERO));
+    }
+
+    let (class_hashes_to_migrate, migration_resources) =
+        get_migration_data(state_reader, executed_class_hashes)?;
+
+    let migration_sierra_gas =
+        migration_resources.to_gas(sierra_builtin_gas_costs, blake_opcode_gas, versioned_constants);
+    let migration_proving_gas = migration_resources.to_gas(
+        proving_builtin_gas_costs,
+        blake_opcode_gas,
+        versioned_constants,
+    );
+
+    Ok((class_hashes_to_migrate, migration_sierra_gas, migration_proving_gas))
 }
