@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
-use apollo_config_manager_types::errors::ConfigManagerError;
+use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
@@ -11,22 +11,31 @@ use tracing::{info, instrument};
 
 use crate::config::ConfigManagerConfig;
 
+/// Internal state management for the ConfigManager.
+#[derive(Clone)]
+pub struct ConfigManagerState {
+    pub consensus_dynamic_config: Arc<ConsensusDynamicConfig>,
+}
+
+impl Default for ConfigManagerState {
+    fn default() -> Self {
+        Self { consensus_dynamic_config: Arc::new(ConsensusDynamicConfig::default()) }
+    }
+}
+
 // TODO(Nadin): remove dead_code once we have actual config manager logic
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct ConfigManager {
     config: ConfigManagerConfig,
-    // TODO(Nadin): Add actual config state/storage
-    current_config: Arc<Value>,
+    state: ConfigManagerState,
 }
 
 impl ConfigManager {
     pub fn new(config: ConfigManagerConfig) -> Self {
-        // TODO(Nadin): Initialize with actual config data
-        let current_config = Arc::new(serde_json::json!({}));
-        info!("ConfigManager initialized");
-
-        Self { config, current_config }
+        let state = ConfigManagerState::default();
+        info!("ConfigManager initialized with default configuration");
+        Self { config, state }
     }
 
     pub async fn update_config(&mut self) -> ConfigManagerResult<()> {
@@ -37,7 +46,13 @@ impl ConfigManager {
     }
 
     pub fn get_current_config(&self) -> Arc<Value> {
-        self.current_config.clone()
+        let config_json = serde_json::to_value(&*self.state.consensus_dynamic_config)
+            .unwrap_or_else(|_| serde_json::json!({}));
+        Arc::new(config_json)
+    }
+
+    pub fn get_consensus_dynamic_config(&self) -> Arc<ConsensusDynamicConfig> {
+        self.state.consensus_dynamic_config.clone()
     }
 }
 
@@ -59,10 +74,8 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             }
             ConfigManagerRequest::GetConsensusDynamicConfig => {
                 info!("ConfigManager: handling GetConsensusDynamicConfig request");
-                // TODO(Nadin): Implement actual consensus dynamic config retrieval
-                let result = Err(ConfigManagerError::ConfigNotFound(
-                    "GetConsensusDynamicConfig not yet implemented".to_string(),
-                ));
+                let consensus_config = self.get_consensus_dynamic_config();
+                let result = Ok((*consensus_config).clone());
                 ConfigManagerResponse::GetConsensusDynamicConfig(result)
             }
         }
