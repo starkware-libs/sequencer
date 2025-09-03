@@ -393,6 +393,7 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
 struct ThinStateDiffBuilder<'a> {
     contracts: &'a [Contract],
     deprecated_declared_classes: Vec<ClassHash>,
+    // TODO(Aviv): Rename it to class_hash_to_compiled_class_hash.
     declared_classes: IndexMap<ClassHash, starknet_api::core::CompiledClassHash>,
     deployed_contracts: IndexMap<ContractAddress, ClassHash>,
     storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
@@ -495,7 +496,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
         ThinStateDiff {
             storage_diffs: self.storage_diffs,
             deployed_contracts: self.deployed_contracts,
-            declared_classes: self.declared_classes,
+            class_hash_to_compiled_class_hash: self.declared_classes,
             deprecated_declared_classes: self.deprecated_declared_classes,
             nonces: self.nonces,
         }

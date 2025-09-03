@@ -135,7 +135,8 @@ impl BlockExecutionArtifacts {
         ThinStateDiff {
             deployed_contracts: commitment_state_diff.address_to_class_hash,
             storage_diffs: commitment_state_diff.storage_updates,
-            declared_classes: commitment_state_diff.class_hash_to_compiled_class_hash,
+            class_hash_to_compiled_class_hash: commitment_state_diff
+                .class_hash_to_compiled_class_hash,
             nonces: commitment_state_diff.address_to_nonce,
             // TODO(AlonH): Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),

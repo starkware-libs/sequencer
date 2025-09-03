@@ -1510,7 +1510,7 @@ async fn get_class_at() {
     let (mut diff, classes, deprecated_classes) =
         starknet_api::state::ThinStateDiff::from_state_diff(get_test_state_diff());
     // Add a deployed contract with Cairo 1 class.
-    let new_class_hash = diff.declared_classes.get_index(0).unwrap().0;
+    let new_class_hash = diff.class_hash_to_compiled_class_hash.get_index(0).unwrap().0;
     diff.deployed_contracts.insert(contract_address!("0x2"), *new_class_hash);
     storage_writer
         .begin_rw_txn()
@@ -1590,7 +1590,7 @@ async fn get_class_at() {
     assert_eq!(res, expected_contract_class);
 
     // New Class
-    let class_hash = diff.declared_classes.get_index(0).unwrap().0;
+    let class_hash = diff.class_hash_to_compiled_class_hash.get_index(0).unwrap().0;
     let expected_contract_class = classes.get(class_hash).unwrap().clone().into();
     assert_eq!(diff.deployed_contracts.get_index(1).unwrap().1, class_hash);
     let address = diff.deployed_contracts.get_index(1).unwrap().0;
@@ -3785,7 +3785,7 @@ async fn get_compiled_class() {
         .append_state_diff(
             BlockNumber(0),
             starknet_api::state::ThinStateDiff {
-                declared_classes: IndexMap::from([(
+                class_hash_to_compiled_class_hash: IndexMap::from([(
                     cairo1_class_hash,
                     compiled_class_hash!(1_u8),
                 )]),

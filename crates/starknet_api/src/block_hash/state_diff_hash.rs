@@ -31,7 +31,7 @@ pub fn calculate_state_diff_hash(state_diff: &ThinStateDiff) -> StateDiffCommitm
     let mut hash_chain = HashChain::new();
     hash_chain = hash_chain.chain(&STARKNET_STATE_DIFF0);
     hash_chain = chain_deployed_contracts(&state_diff.deployed_contracts, hash_chain);
-    hash_chain = chain_declared_classes(&state_diff.declared_classes, hash_chain);
+    hash_chain = chain_declared_classes(&state_diff.class_hash_to_compiled_class_hash, hash_chain);
     hash_chain =
         chain_deprecated_declared_classes(&state_diff.deprecated_declared_classes, hash_chain);
     hash_chain = hash_chain.chain(&Felt::ONE) // placeholder.

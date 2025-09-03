@@ -43,6 +43,7 @@ pub struct PendingStateUpdate {
 pub struct ThinStateDiff {
     pub deployed_contracts: Vec<DeployedContract>,
     pub storage_diffs: Vec<StorageDiff>,
+    // TODO(Aviv): Rename it to class_hash_to_compiled_class_hash.
     pub declared_classes: Vec<ClassHashes>,
     pub deprecated_declared_classes: Vec<ClassHash>,
     pub nonces: Vec<ContractNonce>,
@@ -127,7 +128,7 @@ impl ThinStateDiff {
                 },
             )),
             declared_classes: diff
-                .declared_classes
+                .class_hash_to_compiled_class_hash
                 .into_iter()
                 .map(|(class_hash, compiled_class_hash)| ClassHashes {
                     class_hash,

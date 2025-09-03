@@ -30,12 +30,12 @@ fn get_class_definition_at() {
     let compiled_class_hash = compiled_class_hash!(1_u8);
     let diff0 = ThinStateDiff {
         deprecated_declared_classes: vec![dc0, dc1],
-        declared_classes: IndexMap::from([(nc0, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(nc0, compiled_class_hash)]),
         ..Default::default()
     };
     let diff1 = ThinStateDiff {
         deprecated_declared_classes: vec![dc0],
-        declared_classes: IndexMap::from([(nc1, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(nc1, compiled_class_hash)]),
         ..Default::default()
     };
 
@@ -109,7 +109,7 @@ fn append_state_diff_replaced_classes() {
     let diff0 = ThinStateDiff {
         deployed_contracts: IndexMap::from([(contract_0, hash_0), (contract_1, hash_1)]),
         deprecated_declared_classes: vec![hash_0],
-        declared_classes: IndexMap::from([(hash_1, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(hash_1, compiled_class_hash)]),
         ..Default::default()
     };
     // Replacements between different class types (cairo0 and cairo1).
@@ -120,7 +120,7 @@ fn append_state_diff_replaced_classes() {
     // Replace to class that was declared in the same block.
     let hash_2 = class_hash!("0x12");
     let diff2 = ThinStateDiff {
-        declared_classes: IndexMap::from([(hash_2, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(hash_2, compiled_class_hash)]),
         deployed_contracts: IndexMap::from([(contract_1, hash_2)]),
         ..Default::default()
     };
@@ -173,7 +173,7 @@ fn append_state_diff() {
             (c1, IndexMap::new()),
         ]),
         deprecated_declared_classes: vec![cl0],
-        declared_classes: IndexMap::from([(cl0, c_cls_0), (cl1, c_cls_1)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(cl0, c_cls_0), (cl1, c_cls_1)]),
         nonces: IndexMap::from([(c0, Nonce(StarkHash::from(1_u8)))]),
     };
     let diff1 = ThinStateDiff {
@@ -183,7 +183,7 @@ fn append_state_diff() {
             (c1, IndexMap::from([(key0, felt!("0x0"))])),
         ]),
         deprecated_declared_classes: vec![cl0],
-        declared_classes: indexmap! {},
+        class_hash_to_compiled_class_hash: indexmap! {},
         nonces: IndexMap::from([
             (c0, Nonce(StarkHash::from(2_u8))),
             (c1, Nonce(StarkHash::from(1_u8))),
@@ -292,7 +292,7 @@ fn test_get_class_after_append_thin_state_diff() {
         .append_state_diff(
             BlockNumber(0),
             ThinStateDiff {
-                declared_classes: indexmap! { CLASS_HASH => compiled_class_hash!(3_u8) },
+                class_hash_to_compiled_class_hash: indexmap! { CLASS_HASH => compiled_class_hash!(3_u8) },
                 deprecated_declared_classes: vec![DEPRECATED_CLASS_HASH],
                 ..Default::default()
             },
@@ -402,7 +402,7 @@ fn revert_doesnt_delete_previously_declared_classes() {
         deployed_contracts: IndexMap::from([(c0, cl0)]),
         storage_diffs: IndexMap::new(),
         deprecated_declared_classes: vec![cl0],
-        declared_classes: indexmap! {},
+        class_hash_to_compiled_class_hash: indexmap! {},
         nonces: IndexMap::from([(c0, Nonce(StarkHash::from(1_u8)))]),
     };
 
@@ -411,7 +411,7 @@ fn revert_doesnt_delete_previously_declared_classes() {
         deployed_contracts: IndexMap::from([(c1, cl0)]),
         storage_diffs: IndexMap::new(),
         deprecated_declared_classes: vec![cl0],
-        declared_classes: indexmap! {},
+        class_hash_to_compiled_class_hash: indexmap! {},
         nonces: IndexMap::from([(c1, Nonce(StarkHash::from(2_u8)))]),
     };
 
@@ -506,7 +506,7 @@ fn revert_state() {
         ]),
         storage_diffs: IndexMap::from([(*contract0, updated_storage)]),
         deprecated_declared_classes: vec![class1],
-        declared_classes: IndexMap::from([(class2, compiled_class_hash_2)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(class2, compiled_class_hash_2)]),
         nonces: IndexMap::from([(contract1, nonce1)]),
     };
 
@@ -620,7 +620,7 @@ fn get_nonce_key_serialization() {
         let state_diff = ThinStateDiff {
             deployed_contracts: IndexMap::new(),
             storage_diffs: IndexMap::new(),
-            declared_classes: IndexMap::new(),
+            class_hash_to_compiled_class_hash: IndexMap::new(),
             deprecated_declared_classes: Vec::new(),
             nonces: IndexMap::from([(
                 contract_address,
@@ -673,7 +673,7 @@ fn replace_class() {
             contract_address => class_hash0
         },
         storage_diffs: IndexMap::new(),
-        declared_classes: IndexMap::new(),
+        class_hash_to_compiled_class_hash: IndexMap::new(),
         deprecated_declared_classes: vec![class_hash0],
         nonces: IndexMap::new(),
     };
@@ -703,7 +703,7 @@ fn replace_class() {
             contract_address => class_hash1,
         },
         storage_diffs: IndexMap::new(),
-        declared_classes: indexmap! {
+        class_hash_to_compiled_class_hash: indexmap! {
             class_hash1 => compiled_class_hash!(4_u8),
         },
         deprecated_declared_classes: Vec::new(),
@@ -757,7 +757,7 @@ fn declare_revert_declare_scenario() {
         deployed_contracts: IndexMap::from([(contract_address, deprecated_class_hash)]),
         storage_diffs: IndexMap::new(),
         deprecated_declared_classes: vec![deprecated_class_hash],
-        declared_classes: IndexMap::from([(class_hash, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(class_hash, compiled_class_hash)]),
         nonces: IndexMap::from([(contract_address, Nonce(StarkHash::from(1_u8)))]),
     };
 
@@ -841,7 +841,7 @@ fn declare_revert_declare_without_classes_scenario() {
         deployed_contracts: IndexMap::from([(contract_address, deprecated_class_hash)]),
         storage_diffs: IndexMap::new(),
         deprecated_declared_classes: vec![deprecated_class_hash],
-        declared_classes: IndexMap::from([(class_hash, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: IndexMap::from([(class_hash, compiled_class_hash)]),
         nonces: IndexMap::from([(contract_address, Nonce(StarkHash::from(1_u8)))]),
     };
 
