@@ -245,6 +245,10 @@ async fn declare_deploy_invoke_cairo0_scenario() {
     test_manager.add_invoke_tx(invoke_tx);
 
     let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
-    let _test_output =
+    let test_output =
         test_manager.execute_test_with_default_block_contexts(initial_block_number).await;
+
+    // TODO(Nimrod): Consider adding state diff validation.
+    let perform_global_validations = true;
+    test_output.perform_validations(perform_global_validations, None);
 }
