@@ -133,7 +133,7 @@ impl TryFrom<protobuf::ContractDiff> for ThinStateDiff {
             storage_diffs,
             nonces,
             // These two fields come from DeclaredClass messages.
-            declared_classes: Default::default(),
+            class_hash_to_compiled_class_hash: Default::default(),
             deprecated_declared_classes: Default::default(),
         })
     }
@@ -149,7 +149,7 @@ impl TryFrom<protobuf::DeclaredClass> for ThinStateDiff {
         // cairo-0 class.
         match value.compiled_class_hash {
             Some(compiled_class_hash) => Ok(ThinStateDiff {
-                declared_classes: IndexMap::from_iter([(
+                class_hash_to_compiled_class_hash: IndexMap::from_iter([(
                     class_hash,
                     CompiledClassHash(compiled_class_hash.try_into()?),
                 )]),

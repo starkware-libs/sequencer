@@ -193,7 +193,7 @@ fn thin_state_diff() -> ThinStateDiff {
                 contract_address!(5_u8)=> ClassHash(felt!(5_u8)),
         },
         storage_diffs: indexmap!(contract_address!(3_u8) => indexmap!(storage_key!(3_u8) => felt!(3_u8))),
-        declared_classes: indexmap!(ClassHash(felt!(4_u8))=> CompiledClassHash(felt!(4_u8))),
+        class_hash_to_compiled_class_hash: indexmap!(ClassHash(felt!(4_u8))=> CompiledClassHash(felt!(4_u8))),
         nonces: indexmap!(contract_address!(2_u8)=> nonce!(2)),
         ..Default::default()
     }
