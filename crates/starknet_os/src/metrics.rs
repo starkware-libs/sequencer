@@ -34,6 +34,12 @@ pub struct OsMetrics {
     pub execution_resources: ExecutionResources,
 }
 
+#[derive(Debug, Serialize)]
+pub struct AggregatorMetrics {
+    pub run_info: OsRunInfo,
+    pub execution_resources: ExecutionResources,
+}
+
 impl OsMetrics {
     pub fn new<S: StateReader>(
         runner: &mut CairoRunner,
@@ -44,6 +50,15 @@ impl OsMetrics {
             deprecated_syscall_usages: hint_processor
                 .execution_helpers_manager
                 .get_deprecated_syscall_usages(),
+            run_info: OsRunInfo::new(runner),
+            execution_resources: runner.get_execution_resources()?,
+        })
+    }
+}
+
+impl AggregatorMetrics {
+    pub fn new(runner: &mut CairoRunner) -> Result<Self, RunnerError> {
+        Ok(Self {
             run_info: OsRunInfo::new(runner),
             execution_resources: runner.get_execution_resources()?,
         })
