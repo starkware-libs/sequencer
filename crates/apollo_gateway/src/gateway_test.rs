@@ -214,7 +214,6 @@ fn setup_class_manager_client_mock(
     let class_hash = contract_class.calculate_class_hash();
     let casm = default_compiled_contract_class();
 
-    // TODO(Aviv): use the new compiled class hash.
     let executable_class_hash_v2 = casm.compiled_class_hash();
 
     mock_class_manager_client
