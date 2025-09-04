@@ -3313,6 +3313,8 @@ version = "0.15.0-rc.3"
 dependencies = [
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
+ "expect-test",
+ "num-bigint 0.4.6",
  "pretty_assertions",
  "rstest",
  "serde_json",
