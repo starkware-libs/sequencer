@@ -21,7 +21,7 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub trait OriginalSkeletonTree<'a>: Sized {
     fn create<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
@@ -33,7 +33,7 @@ pub trait OriginalSkeletonTree<'a>: Sized {
     fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
 
     fn create_and_get_previous_leaves<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
@@ -53,7 +53,7 @@ pub struct OriginalSkeletonTreeImpl<'a> {
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
     fn create<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
@@ -71,7 +71,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
     }
 
     fn create_and_get_previous_leaves<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
@@ -93,7 +93,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
 
 impl<'a> OriginalSkeletonTreeImpl<'a> {
     pub fn get_leaves<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
     ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
