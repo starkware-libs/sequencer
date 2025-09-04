@@ -89,7 +89,7 @@ impl Gateway {
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
-        debug!("Processing tx: {:?}", tx);
+        debug!("Processing tx with signature: {:?}", tx.signature());
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             self.check_declare_permissions(declare_tx)?;
@@ -107,12 +107,13 @@ impl Gateway {
                 .await
                 .map_err(|join_err| {
                     error!("Failed to process tx: {}", join_err);
-                    StarknetError::internal(&join_err.to_string())
+                    StarknetError::internal_with_signature_logging(tx.signature(), join_err)
                 })?
                 .inspect_err(|starknet_error| {
                     info!(
-                        "Gateway validation failed for tx: {:?} with error: {}",
-                        tx, starknet_error
+                        "Gateway validation failed for tx with signature: {:?} with error: {}",
+                        tx.signature(),
+                        starknet_error
                     );
                 })?;
 
@@ -120,6 +121,7 @@ impl Gateway {
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
         mempool_client_result_to_deprecated_gw_result(
+            tx.signature(),
             self.mempool_client.add_tx(add_tx_args).await,
         )?;
 
@@ -192,12 +194,13 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
+        let tx_signature = self.tx.signature().clone();
         let internal_tx = self
             .runtime
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
             .map_err(|e| {
                 warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                transaction_converter_err_to_deprecated_gw_err(e)
+                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
         let executable_tx = self
@@ -211,7 +214,7 @@ impl ProcessTxBlockingTask {
                     "Failed to convert internal RPC transaction to executable transaction: {}",
                     e
                 );
-                transaction_converter_err_to_deprecated_gw_err(e)
+                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
         let mut validator = self
@@ -221,8 +224,8 @@ impl ProcessTxBlockingTask {
         let address = executable_tx.contract_address();
         let nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
-            // TODO(yair): Fix this. Need to map the errors better.
-            StarknetError::internal(&e.to_string())
+            // TODO(noamsp): Fix this. Need to map the errors better.
+            StarknetError::internal_with_signature_logging(&tx_signature, e)
         })?;
 
         self.stateful_tx_validator

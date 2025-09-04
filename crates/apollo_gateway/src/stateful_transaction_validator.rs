@@ -3,7 +3,6 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetError,
     StarknetErrorCode,
 };
-use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
@@ -241,7 +240,7 @@ fn skip_stateful_validations(
             // validations.
             return runtime
                 .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
-                .map_err(mempool_client_err_to_deprecated_gw_err);
+                .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err));
         }
     }
 
@@ -251,15 +250,12 @@ fn skip_stateful_validations(
 pub fn get_latest_block_info(
     state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    let state_reader = state_reader_factory
-        .get_state_reader_from_latest_block()
-        .map_err(|e| {
-            error!("Failed to get state reader from latest block: {}", e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })
-        .map_err(|e| StarknetError::internal(&e.to_string()))?;
+    let state_reader = state_reader_factory.get_state_reader_from_latest_block().map_err(|e| {
+        error!("Failed to get state reader from latest block: {e}");
+        StarknetError::internal()
+    })?;
     state_reader.get_block_info().map_err(|e| {
-        error!("Failed to get latest block info: {}", e);
-        StarknetError::internal(&e.to_string())
+        error!("Failed to get latest block info: {e}");
+        StarknetError::internal()
     })
 }

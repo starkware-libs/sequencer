@@ -13,7 +13,7 @@ use blockifier::state::errors::StateError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
-use starknet_api::transaction::fields::AllResourceBounds;
+use starknet_api::transaction::fields::{AllResourceBounds, TransactionSignature};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};
@@ -219,12 +219,14 @@ pub fn mempool_client_result_to_gw_spec_result(
     }
 }
 
-pub fn mempool_client_err_to_deprecated_gw_err(err: MempoolClientError) -> StarknetError {
-    let message = format!("{err}");
-    let code = match err {
+pub fn mempool_client_err_to_deprecated_gw_err(
+    tx_signature: &TransactionSignature,
+    err: MempoolClientError,
+) -> StarknetError {
+    let code = match &err {
         MempoolClientError::ClientError(client_error) => {
             error!("Mempool client error: {}", client_error);
-            return StarknetError::internal(&message);
+            return StarknetError::internal_with_signature_logging(tx_signature, client_error);
         }
         MempoolClientError::MempoolError(mempool_error) => {
             debug!("Mempool error: {}", mempool_error);
@@ -250,7 +252,10 @@ pub fn mempool_client_err_to_deprecated_gw_err(err: MempoolClientError) -> Stark
                 ),
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
-                    return StarknetError::internal(&message);
+                    return StarknetError::internal_with_signature_logging(
+                        tx_signature,
+                        mempool_error,
+                    );
                 }
                 MempoolError::TransactionNotFound { .. } => {
                     // This error is not expected to happen within the gateway, only from other
@@ -260,15 +265,16 @@ pub fn mempool_client_err_to_deprecated_gw_err(err: MempoolClientError) -> Stark
             }
         }
     };
-    StarknetError { code, message }
+    StarknetError { code, message: format!("{:?}", err) }
 }
 
 /// Converts a mempool client result to a gateway result. Some errors variants are unreachable in
 /// Gateway context, and some are not considered errors from the gateway's perspective.
 pub fn mempool_client_result_to_deprecated_gw_result(
+    tx_signature: &TransactionSignature,
     value: MempoolClientResult<()>,
 ) -> GatewayResult<()> {
-    value.map_err(mempool_client_err_to_deprecated_gw_err)
+    value.map_err(|err| mempool_client_err_to_deprecated_gw_err(tx_signature, err))
 }
 
 pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;
@@ -317,6 +323,7 @@ pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
 }
 
 pub fn transaction_converter_err_to_deprecated_gw_err(
+    tx_signature: &TransactionSignature,
     err: TransactionConverterError,
 ) -> StarknetError {
     match err {
@@ -324,15 +331,15 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
             convert_compiled_class_hash_error(err)
         }
         TransactionConverterError::ClassManagerClientError(err) => {
-            convert_class_manager_client_error(err)
+            convert_class_manager_client_error(tx_signature, err)
         }
         // Internal error because the class manager should have the class in its storage.
         TransactionConverterError::ClassNotFound { .. } => {
-            StarknetError::internal(&err.to_string())
+            StarknetError::internal_with_signature_logging(tx_signature, err)
         }
         // TODO(noamsp): Handle this better.
         TransactionConverterError::StarknetApiError(err) => {
-            StarknetError::internal(&err.to_string())
+            StarknetError::internal_with_signature_logging(tx_signature, err)
         }
     }
 }
@@ -351,34 +358,45 @@ fn convert_compiled_class_hash_error(err: ValidateCompiledClassHashError) -> Sta
     }
 }
 
-fn convert_class_manager_client_error(err: ClassManagerClientError) -> StarknetError {
+fn convert_class_manager_client_error(
+    tx_signature: &TransactionSignature,
+    err: ClassManagerClientError,
+) -> StarknetError {
     match err {
-        ClassManagerClientError::ClassManagerError(err) => convert_class_manager_error(err),
-        ClassManagerClientError::ClientError(_) => StarknetError::internal(&err.to_string()),
+        ClassManagerClientError::ClassManagerError(err) => {
+            convert_class_manager_error(tx_signature, err)
+        }
+        ClassManagerClientError::ClientError(_) => {
+            StarknetError::internal_with_signature_logging(tx_signature, err)
+        }
     }
 }
 
-fn convert_class_manager_error(err: ClassManagerError) -> StarknetError {
-    let message = format!("{}", err);
+fn convert_class_manager_error(
+    tx_signature: &TransactionSignature,
+    err: ClassManagerError,
+) -> StarknetError {
     match err {
         ClassManagerError::SierraCompiler { .. } => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::CompilationFailed),
-            message,
+            message: err.to_string(),
         },
         ClassManagerError::ContractClassObjectSizeTooLarge { .. } => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(
                 KnownStarknetErrorCode::ContractClassObjectSizeTooLarge,
             ),
-            message,
+            message: err.to_string(),
         },
         ClassManagerError::UnsupportedContractClassVersion(_) => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(
                 KnownStarknetErrorCode::InvalidContractClassVersion,
             ),
-            message,
+            message: err.to_string(),
         },
         ClassManagerError::ClassSerde(_)
         | ClassManagerError::ClassStorage(_)
-        | ClassManagerError::Client(_) => StarknetError::internal(&message),
+        | ClassManagerError::Client(_) => {
+            StarknetError::internal_with_signature_logging(tx_signature, err)
+        }
     }
 }
