@@ -1,7 +1,8 @@
 use apollo_infra::metrics::{
+    MEMPOOL_P2P_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
     MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-    MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_P2P_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
     MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
@@ -64,7 +65,15 @@ fn get_panel_remote_number_of_connections() -> Panel {
 }
 
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "mempool_p2p_local_queue_depth",
+        "The depth of the mempool p2p's local priority queues",
+        vec![
+            MEMPOOL_P2P_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            MEMPOOL_P2P_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_remote_client_send_attempts() -> Panel {
