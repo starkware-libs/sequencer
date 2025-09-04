@@ -16,6 +16,6 @@ class ServiceTopology:
     k8s_service_config: dict[str, typing.Union[str, bool]]
     ingress: typing.Optional[dict[any, any]]
     toleration: typing.Optional[str]
-    storage: typing.Optional[int]
+    storage: typing.Optional[dict[str, any]]
     resources: typing.Optional[dict[str, dict[str, int]]]
     external_secret: typing.Optional[dict[str, str]]
