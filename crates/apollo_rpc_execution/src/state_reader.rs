@@ -207,7 +207,11 @@ impl BlockifierStateReader for ExecutionStateReader {
         Ok(*compiled_class_hash)
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
         // Try to read the compiled class hash v2 from the dedicated stateless table.
         // If it's missing (e.g., class not declared/Cairo0), return the default value.
         let maybe_hash = self

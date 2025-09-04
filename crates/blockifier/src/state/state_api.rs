@@ -65,7 +65,11 @@ pub trait StateReader {
 
     /// Returns the compiled class hash (v2) of the given class hash.
     /// Returns `CompiledClassHash::default()` if no v1_class is found for the given class hash.
-    fn get_compiled_class_hash_v2(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    fn get_compiled_class_hash_v2(
+        &self,
+        _class_hash: ClassHash,
+        _compiled_class: RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
         unimplemented!(
             "get_compiled_class_hash_v2 is not implemented in StateReader trait.
             There is a default implementation in utils.rs that can be used instead.
