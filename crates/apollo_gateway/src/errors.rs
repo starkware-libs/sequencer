@@ -8,8 +8,8 @@ use apollo_gateway_types::deprecated_gateway_error::{
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::{MempoolClientError, MempoolClientResult};
 use apollo_mempool_types::errors::MempoolError;
-use axum::http::StatusCode;
 use blockifier::state::errors::StateError;
+use reqwest::StatusCode;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;

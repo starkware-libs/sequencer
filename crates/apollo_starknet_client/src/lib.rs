@@ -44,8 +44,8 @@ pub enum ClientCreationError {
     BadUrl(#[from] url::ParseError),
     #[error(transparent)]
     BuildError(#[from] reqwest::Error),
-    #[error(transparent)]
-    HttpHeaderError(#[from] http::Error),
+    #[error("Failed to create header map.")]
+    HttpHeaderError,
 }
 
 /// Errors that might be solved by retrying mechanism.
@@ -95,7 +95,7 @@ impl StarknetClient {
         retry_config: RetryConfig,
     ) -> Result<Self, ClientCreationError> {
         let header_map = match http_headers {
-            Some(inner) => (&inner).try_into()?,
+            Some(inner) => (&inner).try_into().map_err(|_| ClientCreationError::HttpHeaderError)?,
             None => HeaderMap::new(),
         };
         let info = os_info::get();
