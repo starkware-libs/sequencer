@@ -6,12 +6,14 @@ use libp2p::gossipsub::TopicHash;
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
     pub num_received_broadcast_messages: MetricCounter,
+    pub error_metrics: BroadcastNetworkErrorMetrics,
 }
 
 impl BroadcastNetworkMetrics {
     pub fn register(&self) {
         self.num_sent_broadcast_messages.register();
         self.num_received_broadcast_messages.register();
+        self.error_metrics.register();
     }
 }
 
@@ -26,6 +28,16 @@ impl SqmrNetworkMetrics {
         self.num_active_inbound_sessions.set(0f64);
         self.num_active_outbound_sessions.register();
         self.num_active_outbound_sessions.set(0f64);
+    }
+}
+
+pub struct BroadcastNetworkErrorMetrics {
+    pub num_no_peers_subscribed_errors: MetricCounter,
+}
+
+impl BroadcastNetworkErrorMetrics {
+    pub fn register(&self) {
+        self.num_no_peers_subscribed_errors.register();
     }
 }
 
