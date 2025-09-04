@@ -1,7 +1,8 @@
 use apollo_infra::metrics::{
+    STATE_SYNC_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
     STATE_SYNC_LOCAL_MSGS_RECEIVED,
-    STATE_SYNC_LOCAL_QUEUE_DEPTH,
+    STATE_SYNC_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
     STATE_SYNC_REMOTE_MSGS_PROCESSED,
     STATE_SYNC_REMOTE_MSGS_RECEIVED,
@@ -44,7 +45,15 @@ fn get_panel_remote_msgs_processed() -> Panel {
     Panel::from_counter(STATE_SYNC_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(STATE_SYNC_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "state_sync_local_queue_depth",
+        "The depth of the state sync's local priority queues",
+        vec![
+            STATE_SYNC_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            STATE_SYNC_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)

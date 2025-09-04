@@ -13,9 +13,10 @@ use apollo_batcher::metrics::{
     REVERTED_TRANSACTIONS,
 };
 use apollo_infra::metrics::{
+    BATCHER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     BATCHER_LOCAL_MSGS_PROCESSED,
     BATCHER_LOCAL_MSGS_RECEIVED,
-    BATCHER_LOCAL_QUEUE_DEPTH,
+    BATCHER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
     BATCHER_REMOTE_MSGS_PROCESSED,
     BATCHER_REMOTE_MSGS_RECEIVED,
@@ -59,7 +60,15 @@ fn get_panel_remote_number_of_connections() -> Panel {
     Panel::from_gauge(BATCHER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "batcher_local_queue_depth",
+        "The depth of the batcher's local priority queues",
+        vec![
+            BATCHER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            BATCHER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_processing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
