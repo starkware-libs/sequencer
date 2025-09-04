@@ -147,11 +147,15 @@ pub async fn create_node_components(
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price shared client should be available");
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager shared client should be available");
             Some(ConsensusManager::new(
                 consensus_manager_config.clone(),
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
+                config_manager_client,
                 l1_gas_price_client,
             ))
         }

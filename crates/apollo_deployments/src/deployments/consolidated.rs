@@ -163,8 +163,7 @@ fn get_consolidated_config() -> ComponentConfig {
     ComponentConfig {
         batcher: base.clone(),
         class_manager: base.clone(),
-        // TODO(Nadin): use base.clone() once config manager is ready.
-        config_manager: ReactiveComponentExecutionConfig::disabled(),
+        config_manager: base.clone(),
         gateway: base.clone(),
         mempool: base.clone(),
         mempool_p2p: base.clone(),

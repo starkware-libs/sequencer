@@ -937,6 +937,7 @@ fn get_consensus_manager_component_config(
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
