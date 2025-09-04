@@ -87,7 +87,7 @@ fn valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
-/// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
+/// Test the validation of the struct SequencerNodeConfig and that the default config file is up to.
 /// date. To update the default config file, run `cargo run --bin <FIX_BINARY_NAME>`.
 #[test]
 fn default_config_file_is_up_to_date() {
