@@ -300,6 +300,15 @@ mod TestContract {
         value
     }
 
+    #[l1_handler]
+    fn l1_handler_set_value_and_revert(
+        self: @ContractState, from_address: felt252, key: StorageAddress, value: felt252
+    ) {
+        let address_domain = 0;
+        syscalls::storage_write_syscall(address_domain, key, value).unwrap_syscall();
+        panic_with_felt252('revert in l1 handler');
+    }
+
     #[external(v0)]
     fn test_deploy(
         self: @ContractState,
