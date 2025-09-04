@@ -164,7 +164,9 @@ pub(crate) struct OsCliOutput<'a> {
 }
 
 #[derive(Serialize)]
-pub(crate) struct AggregatorCliOutput {
+pub(crate) struct AggregatorCliOutput<'a> {
+    pub(crate) program_output: Vec<Felt>,
+    pub(crate) additional_data: &'a CairoPieAdditionalData,
     pub(crate) metrics: AggregatorCliMetrics,
     pub unused_hints: HashSet<AllHints>,
 }

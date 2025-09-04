@@ -190,7 +190,6 @@ pub fn run_aggregator(
         run_program(layout, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)?;
 
     Ok(StarknetAggregatorRunnerOutput {
-        #[cfg(feature = "include_program_output")]
         aggregator_output: runner_output.raw_output,
         cairo_pie: runner_output.cairo_pie,
         metrics: AggregatorMetrics::new(&mut runner_output.cairo_runner)?,
