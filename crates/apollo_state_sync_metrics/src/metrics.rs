@@ -1,15 +1,16 @@
 use apollo_metrics::define_metrics;
 use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
+use apollo_storage::StorageTxn;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::StorageTxn;
 use starknet_api::block::BlockNumber;
 
 define_metrics!(
+//metrics
     StateSync => {
         // Central metrics.
         MetricGauge { CENTRAL_SYNC_BASE_LAYER_MARKER, "apollo_central_sync_base_layer_marker", "The first block number for which the central sync component does not guarantee L1 finality" },

@@ -6,7 +6,6 @@ mod concurrent_flush_performance_test {
     use starknet_api::state::ThinStateDiff;
 
     use crate::body::BodyStorageWriter;
-    use crate::mmap_file::Writer;
     use crate::state::StateStorageWriter;
     use crate::test_utils::get_test_storage;
     use crate::{FileHandlers, RW};
@@ -33,7 +32,7 @@ mod concurrent_flush_performance_test {
             txn.commit().unwrap();
             let elapsed = start.elapsed();
             flush_times.push(elapsed);
-            println!("  Operation {}: Flush took {:.3}ms", i + 1, elapsed.as_secs_f64() * 1000.0);
+            println!("Operation {}: Flush took {:.3}ms", i + 1, elapsed.as_secs_f64() * 1000.0);
 
             // Small delay to simulate realistic usage.
             std::thread::sleep(std::time::Duration::from_millis(5));
@@ -67,22 +66,14 @@ mod concurrent_flush_performance_test {
 
     #[test]
     fn test_sequential_vs_concurrent_flush_comparison() {
-        println!("\n🏁 Sequential vs Concurrent Flush Comparison");
-        println!("==============================================");
-
-        // Test sequential flush (original implementation)
-        println!("\n📊 Testing SEQUENTIAL flush (original way)...");
+        println!("Testing SEQUENTIAL flush");
         let sequential_times = run_flush_test_with_method("Sequential", |file_handlers| {
-            file_handlers.flush(); // Original sequential implementation
+            file_handlers.flush();
         });
-
-        // Test concurrent flush (new implementation)
-        println!("\n🚀 Testing CONCURRENT flush (your optimization)...");
+        println!("Testing CONCURRENT flush");
         let concurrent_times = run_flush_test_with_method("Concurrent", |file_handlers| {
-            file_handlers.flush_concurrent(); // Your new concurrent implementation
+            file_handlers.flush_concurrent();
         });
-
-        // Compare results
         compare_performance(sequential_times, concurrent_times);
     }
 
@@ -92,38 +83,26 @@ mod concurrent_flush_performance_test {
     {
         let ((_reader, mut writer), _temp_dir) = get_test_storage();
         let mut flush_times = Vec::new();
-
-        // Warmup
         for i in 0..3 {
             let txn = writer.begin_rw_txn().unwrap();
             let txn = txn.append_body(BlockNumber(i), BlockBody::default()).unwrap();
             let txn = txn.append_state_diff(BlockNumber(i), ThinStateDiff::default()).unwrap();
-
-            // Custom flush timing
             let start = Instant::now();
             flush_method(&txn.file_handlers);
             let elapsed = start.elapsed();
-
-            // Still need to commit the transaction (but we already flushed)
             txn.commit().unwrap();
 
             println!("  {} warmup {}: {:.3}ms", method_name, i + 1, elapsed.as_secs_f64() * 1000.0);
         }
 
-        // Main test
         for i in 0..10 {
             let txn = writer.begin_rw_txn().unwrap();
             let txn = txn.append_body(BlockNumber(i + 3), BlockBody::default()).unwrap();
             let txn = txn.append_state_diff(BlockNumber(i + 3), ThinStateDiff::default()).unwrap();
-
-            // Measure only the flush operation
             let start = Instant::now();
             flush_method(&txn.file_handlers);
             let elapsed = start.elapsed();
-
-            // Complete the transaction
             txn.commit().unwrap();
-
             flush_times.push(elapsed);
             println!(
                 "  {} operation {}: {:.3}ms",
@@ -142,48 +121,27 @@ mod concurrent_flush_performance_test {
         sequential_times: Vec<std::time::Duration>,
         concurrent_times: Vec<std::time::Duration>,
     ) {
-        println!("\n📈 PERFORMANCE COMPARISON");
-        println!("=========================");
-
         let seq_avg =
             sequential_times.iter().sum::<std::time::Duration>() / sequential_times.len() as u32;
         let conc_avg =
             concurrent_times.iter().sum::<std::time::Duration>() / concurrent_times.len() as u32;
-
         let seq_min = sequential_times.iter().min().unwrap();
         let seq_max = sequential_times.iter().max().unwrap();
         let conc_min = concurrent_times.iter().min().unwrap();
         let conc_max = concurrent_times.iter().max().unwrap();
-
-        println!("\n🐌 SEQUENTIAL (old way):");
+        println!("SEQUENTIAL:");
         println!("   Average: {:.3}ms", seq_avg.as_secs_f64() * 1000.0);
         println!("   Min:     {:.3}ms", seq_min.as_secs_f64() * 1000.0);
         println!("   Max:     {:.3}ms", seq_max.as_secs_f64() * 1000.0);
-
-        println!("\n🚀 CONCURRENT (your optimization):");
+        println!("CONCURRENT:");
         println!("   Average: {:.3}ms", conc_avg.as_secs_f64() * 1000.0);
         println!("   Min:     {:.3}ms", conc_min.as_secs_f64() * 1000.0);
         println!("   Max:     {:.3}ms", conc_max.as_secs_f64() * 1000.0);
-
         let improvement_factor = seq_avg.as_secs_f64() / conc_avg.as_secs_f64();
         let time_saved = seq_avg.as_secs_f64() - conc_avg.as_secs_f64();
-
-        println!("\n🎯 IMPROVEMENT ANALYSIS:");
-        println!("   ⚡ Speedup factor: {:.2}x faster", improvement_factor);
-        println!("   ⏱️  Time saved per flush: {:.3}ms", time_saved * 1000.0);
-        println!("   📊 Performance improvement: {:.1}%", (improvement_factor - 1.0) * 100.0);
-
-        if improvement_factor > 2.0 {
-            println!("   🏆 EXCELLENT: Your concurrent implementation is significantly faster!");
-        } else if improvement_factor > 1.5 {
-            println!("   ✅ GOOD: Your concurrent implementation shows solid improvement!");
-        } else {
-            println!("   ⚠️  MODERATE: Improvement exists but may vary with workload size");
-        }
-
-        println!("\n🔍 EXPLANATION:");
-        println!("   Sequential: Flushes 6 file types one after another");
-        println!("   Concurrent: Flushes 6 file types simultaneously with threads");
-        println!("   The improvement comes from parallel I/O operations!");
+        println!("IMPROVEMENT ANALYSIS:");
+        println!("Speedup factor: {:.2}x faster", improvement_factor);
+        println!("Time saved per flush: {:.3}ms", time_saved * 1000.0);
+        println!("Performance improvement: {:.1}%", (improvement_factor - 1.0) * 100.0);
     }
 }
