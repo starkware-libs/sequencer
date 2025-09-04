@@ -11,6 +11,8 @@ use validator::Validate;
 
 use crate::class_storage::CachedClassStorageConfig;
 
+const DEFAULT_MAX_COMPILED_CONTRACT_CLASS_OBJECT_SIZE: usize = 4089446;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ClassHashDbConfig {
     pub path_prefix: PathBuf,
@@ -166,7 +168,8 @@ impl Default for ClassManagerConfig {
     fn default() -> Self {
         ClassManagerConfig {
             cached_class_storage_config: CachedClassStorageConfig::default(),
-            max_compiled_contract_class_object_size: 4089446,
+            max_compiled_contract_class_object_size:
+                DEFAULT_MAX_COMPILED_CONTRACT_CLASS_OBJECT_SIZE,
         }
     }
 }

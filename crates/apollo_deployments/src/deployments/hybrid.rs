@@ -52,7 +52,6 @@ pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
 const CORE_STORAGE: usize = 1000;
 const TEST_CORE_STORAGE: usize = 1;
-const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -915,13 +914,6 @@ pub(crate) fn create_hybrid_instance_config_override(
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
-    assert!(
-        node_id < MAX_NODE_ID,
-        "Node node_id {} exceeds the number of nodes {}",
-        node_id,
-        MAX_NODE_ID
-    );
-
     // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
     // consistently throughout the code.
     const CORE_SERVICE_PORT: u16 = 53080;
