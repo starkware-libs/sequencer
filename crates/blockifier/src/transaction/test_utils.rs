@@ -180,7 +180,13 @@ pub fn create_init_data_for_compiled_class_hash_migration_test(
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    let state = test_state_ex(chain_info, BALANCE, &contract_instances_vec[..], &HashVersion::V1);
+    let state = test_state_ex(
+        chain_info,
+        BALANCE,
+        &contract_instances_vec[..],
+        &HashVersion::V1,
+        CairoVersion::Cairo0,
+    );
     TestInitData {
         state,
         account_address: account.get_instance_address(0),
