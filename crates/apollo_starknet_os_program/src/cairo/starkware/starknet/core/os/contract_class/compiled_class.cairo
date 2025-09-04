@@ -82,44 +82,7 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
     );
     local n_compiled_class_facts;
     local compiled_class_facts: CompiledClassFact*;
-    %{
-        from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-            create_bytecode_segment_structure,
-        )
-        from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
-            get_compiled_class_struct,
-        )
-
-        ids.n_compiled_class_facts = len(os_input.compiled_classes)
-        ids.compiled_class_facts = segments.add()
-        for i, (compiled_class_hash, compiled_class) in enumerate(
-            sorted(os_input.compiled_classes.items())
-        ):
-            # Load the compiled class.
-            cairo_contract = get_compiled_class_struct(
-                identifiers=ids._context.identifiers,
-                compiled_class=compiled_class,
-                # Load the entire bytecode - the unaccessed segments will be overriden and skipped
-                # after the execution, in `validate_compiled_class_facts_post_execution`.
-                bytecode=compiled_class.bytecode,
-            )
-            segments.load_data(
-                ptr=ids.compiled_class_facts[i].address_,
-                data=(compiled_class_hash, segments.gen_arg(cairo_contract))
-            )
-
-            bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
-            # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
-            # the builtin costs.
-            segments.load_data(
-                ptr=bytecode_ptr + cairo_contract.bytecode_length,
-                data=[0x208b7fff7fff7ffe, ids.builtin_costs]
-            )
-
-            # Load hints and debug info.
-            vm_load_program(
-                compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)
-    %}
+    %{ LoadClassesAndBuildBytecodeSegmentStructures %}
 
     return (
         n_compiled_class_facts=n_compiled_class_facts,
@@ -133,30 +96,11 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
 func validate_compiled_class_facts_post_execution{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
     n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
 ) {
-    %{
-        from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-            BytecodeAccessOracle,
-        )
-
-        # Build the bytecode segment structures.
-        bytecode_segment_structures = {
-            compiled_hash: create_bytecode_segment_structure(
-                bytecode=compiled_class.bytecode,
-                bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-            ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
-        }
-        bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
-        vm_enter_scope({
-            "bytecode_segment_structures": bytecode_segment_structures,
-            "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
-        })
-    %}
     validate_compiled_class_facts(
         n_compiled_class_facts=n_compiled_class_facts,
         compiled_class_facts=compiled_class_facts,
         builtin_costs=builtin_costs,
     );
-    %{ vm_exit_scope() %}
 
     return ();
 }
@@ -171,7 +115,7 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
     }
     alloc_locals;
 
-    let compiled_class_fact = compiled_class_facts[0];
+    let compiled_class_fact = &compiled_class_facts[0];
     let compiled_class = compiled_class_fact.compiled_class;
 
     validate_entry_points(
@@ -190,12 +134,8 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
     );
 
     // Calculate the compiled class hash.
-    %{
-        vm_enter_scope({
-            "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
-            "is_segment_used_callback": is_segment_used_callback
-        })
-    %}
+    // This hint enters a new scope that contains the bytecode segment structure of the class.
+    %{ EnterScopeWithBytecodeSegmentStructure %}
     let (hash) = blake_compiled_class_hash(compiled_class, full_contract=FALSE);
     %{
         vm_exit_scope()

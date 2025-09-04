@@ -32,7 +32,7 @@
   "batcher_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
     "privacy": "Public",
-    "value": 8000
+    "value": 5263
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",

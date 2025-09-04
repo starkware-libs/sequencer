@@ -39,11 +39,7 @@ use starknet_api::block::StarknetVersion;
 use storage::StorageConfig;
 
 use crate::py_state_diff::PyStateDiff;
-use crate::py_testing_wrappers::{
-    estimate_casm_hash_computation_resources_for_testing_list,
-    estimate_casm_hash_computation_resources_for_testing_single,
-    raise_error_for_testing,
-};
+use crate::py_testing_wrappers::raise_error_for_testing;
 
 #[pymodule]
 fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
@@ -67,14 +63,7 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
     // TODO(Dori, 1/4/2023): If and when supported in the Python build environment, gate this code
     //   with #[cfg(test)].
     py_module.add_function(wrap_pyfunction!(raise_error_for_testing, py)?)?;
-    py_module.add_function(wrap_pyfunction!(
-        estimate_casm_hash_computation_resources_for_testing_list,
-        py
-    )?)?;
-    py_module.add_function(wrap_pyfunction!(
-        estimate_casm_hash_computation_resources_for_testing_single,
-        py
-    )?)?;
+
     py_module.add("ALIAS_COUNTER_STORAGE_KEY", ALIAS_COUNTER_STORAGE_KEY.to_string())?;
     py_module.add(
         "MAX_NON_COMPRESSED_CONTRACT_ADDRESS",

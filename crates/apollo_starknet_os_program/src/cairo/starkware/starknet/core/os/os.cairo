@@ -4,6 +4,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
+    EcOpBuiltin,
     HashBuiltin,
     KeccakBuiltin,
     ModBuiltin,
@@ -44,7 +45,7 @@ from starkware.starknet.core.os.execution.execute_syscalls import execute_syscal
 from starkware.starknet.core.os.execution.execute_transactions import execute_transactions
 from starkware.starknet.core.os.os_config.os_config import (
     get_starknet_os_config_hash,
-    get_public_key_hash,
+    get_public_keys_hash,
     StarknetOsConfig,
 )
 from starkware.starknet.core.os.output import (
@@ -71,7 +72,7 @@ func main{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -116,12 +117,15 @@ func main{
         n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
         deprecated_compiled_class_facts=deprecated_compiled_class_facts,
     );
-    tempvar public_key = new EcPoint(
-        x=nondet %{ os_input.public_key_x %}, y=nondet %{ os_input.public_key_y %}
-    );
+
+    local public_keys_start: felt*;
+    local n_keys: felt;
+    %{ fill_public_keys_array(os_hints['public_keys'], public_keys_start, n_keys) %}
     let hash_ptr = pedersen_ptr;
     with hash_ptr {
-        let (public_key_hash) = get_public_key_hash(public_key=public_key);
+        let (public_keys_hash) = get_public_keys_hash(
+            public_keys_start=public_keys_start, n_keys=n_keys
+        );
     }
     let pedersen_ptr = hash_ptr;
     with txs_range_check_ptr {
@@ -129,7 +133,7 @@ func main{
             n_blocks=n_blocks,
             os_output_per_block_dst=os_outputs,
             compiled_class_facts_bundle=compiled_class_facts_bundle,
-            public_key_hash=public_key_hash,
+            public_keys_hash=public_keys_hash,
         );
     }
 
@@ -171,7 +175,10 @@ func main{
     // Currently, the block hash is not enforced by the OS.
     // TODO(Yoni, 1/1/2026): compute the block hash.
     serialize_os_output(
-        os_output=final_os_output, replace_keys_with_aliases=TRUE, public_key=public_key
+        os_output=final_os_output,
+        replace_keys_with_aliases=TRUE,
+        public_keys_start=public_keys_start,
+        n_keys=n_keys,
     );
 
     // The following code deals with the problem that untrusted code (contract code) could
@@ -229,7 +236,7 @@ func execute_blocks{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -240,7 +247,7 @@ func execute_blocks{
     n_blocks: felt,
     os_output_per_block_dst: OsOutput*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
-    public_key_hash: felt,
+    public_keys_hash: felt,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -284,7 +291,7 @@ func execute_blocks{
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
         compiled_class_facts_bundle=compiled_class_facts_bundle,
-        public_key_hash=public_key_hash,
+        public_keys_hash=public_keys_hash,
     );
 
     // Pre-process block.
@@ -322,7 +329,6 @@ func execute_blocks{
             block_input=block_input,
         ))
     %}
-
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
             contract_state_changes_start=contract_state_changes_start,
@@ -368,7 +374,7 @@ func execute_blocks{
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
         compiled_class_facts_bundle=compiled_class_facts_bundle,
-        public_key_hash=public_key_hash,
+        public_keys_hash=public_keys_hash,
     );
 }
 
@@ -474,7 +480,6 @@ func migrate_classes_to_v2_casm_hash{
     // Guess the class hash and compiled class hash v2.
     local class_hash;
     local expected_casm_hash_v2;
-
     %{ GetClassHashAndCompiledClassHashV2 %}
 
     // Find the compiled class fact using the guessed v2 hash.
@@ -491,8 +496,12 @@ func migrate_classes_to_v2_casm_hash{
     // The full hash is needed to verify the migration;
     // taking the class from the block context is not necessary,
     // it's for future optimization (to skip the additional hash on these classes at the end).
+
+    // This hint enters a new scope that contains the bytecode segment structure of the class.
+    %{ EnterScopeWithBytecodeSegmentStructure %}
     let (casm_hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
     let (casm_hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
+    %{ vm_exit_scope() %}
     // Verify the guessed v2 hash.
     assert expected_casm_hash_v2 = casm_hash_v2;
     // Update the casm hash from v1 to v2.
