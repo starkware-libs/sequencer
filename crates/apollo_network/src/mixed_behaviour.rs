@@ -65,15 +65,15 @@ impl MixedBehaviour {
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        keypair: Keypair,
-        // TODO(AndrewL): consider making this non optional
-        bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
         streamed_bytes_config: sqmr::Config,
-        chain_id: ChainId,
-        node_version: Option<String>,
         discovery_config: DiscoveryConfig,
         peer_manager_config: PeerManagerConfig,
         event_tracker_metrics: Option<EventMetrics>,
+        keypair: Keypair,
+        // TODO(AndrewL): consider making this non optional
+        bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
+        chain_id: ChainId,
+        node_version: Option<String>,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
