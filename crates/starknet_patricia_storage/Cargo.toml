@@ -14,8 +14,12 @@ workspace = true
 
 [dependencies]
 hex.workspace = true
+lru.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
