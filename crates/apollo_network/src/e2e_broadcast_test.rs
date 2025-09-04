@@ -20,13 +20,13 @@ const TIMEOUT: Duration = Duration::from_secs(5);
 async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<MixedBehaviour> {
     let mut swarm = Swarm::new_ephemeral_tokio(|keypair| {
         MixedBehaviour::new(
-            keypair.clone(),
-            bootstrap_peer_multiaddr.map(|multiaddr| vec![multiaddr]),
             sqmr::Config::default(),
-            ChainId::Mainnet,
-            None,
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
+            None,
+            keypair.clone(),
+            bootstrap_peer_multiaddr.map(|multiaddr| vec![multiaddr]),
+            ChainId::Mainnet,
             None,
         )
     });
