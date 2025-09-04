@@ -239,13 +239,16 @@ impl L1GasPriceProvider {
         let price_info_out = price_info_summed
             .checked_div(actual_number_of_blocks)
             .expect("Actual number of blocks should be non-zero");
-        info_every_n_sec!(
-            1,
-            "Calculated L1 gas price for timestamp {}: {:?} (based on blocks {}-{}, inclusive)",
+        info!(
+            "Calculated L1 gas price for timestamp {}: {:?} (based on blocks {}-{}, inclusive. \
+             Corespondent buffer indexes {}-{}. Buffer length {}.)",
             timestamp.0,
             price_info_out,
             samples[first_index].block_number,
             samples[last_index - 1].block_number,
+            first_index,
+            last_index - 1,
+            samples.len(),
         );
         L1_GAS_PRICE_LATEST_MEAN_VALUE.set_lossy(price_info_out.base_fee_per_gas.0);
         L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.set_lossy(price_info_out.blob_fee.0);
