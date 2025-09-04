@@ -214,8 +214,12 @@ impl<S: StateReader> StateReader for CachedState<S> {
         Ok(*compiled_class_hash)
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.state.get_compiled_class_hash_v2(class_hash)
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        casm: RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.state.get_compiled_class_hash_v2(class_hash, casm)
     }
 }
 
@@ -565,8 +569,12 @@ impl<S: StateReader + ?Sized> StateReader for MutRefState<'_, S> {
         self.0.get_compiled_class_hash(class_hash)
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.0.get_compiled_class_hash_v2(class_hash)
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        casm: RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.0.get_compiled_class_hash_v2(class_hash, casm)
     }
 }
 

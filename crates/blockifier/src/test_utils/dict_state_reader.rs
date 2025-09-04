@@ -115,7 +115,11 @@ impl StateReader for DictStateReader {
         Ok(compiled_class_hash)
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _casm: RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
         let compiled_class_hash =
             self.class_hash_to_compiled_class_hash_v2.get(&class_hash).copied().unwrap_or_default();
         Ok(compiled_class_hash)
