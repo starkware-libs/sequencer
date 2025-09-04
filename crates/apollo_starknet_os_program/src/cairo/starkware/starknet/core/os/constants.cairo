@@ -110,7 +110,7 @@ const SEND_MESSAGE_TO_L1_GAS_COST = 14470;
 const META_TX_V0_GAS_COST = 167950;
 const META_TX_V0_CALLDATA_FACTOR_GAS_COST = 4850;
 
-// Note the the following costs include `SYSCALL_BASE_GAS_COST` implicitly.
+// Note the following costs include `SYSCALL_BASE_GAS_COST` implicitly.
 const SECP256K1_ADD_GAS_COST = 43230;
 const SECP256K1_GET_POINT_FROM_X_GAS_COST = 41800;
 const SECP256K1_GET_XY_GAS_COST = 21670;

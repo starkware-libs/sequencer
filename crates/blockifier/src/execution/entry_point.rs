@@ -50,7 +50,7 @@ pub const FAULTY_CLASS_HASH: &str =
 pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
-/// Holds the the information required to revert the execution of an entry point.
+/// Holds the information required to revert the execution of an entry point.
 #[derive(Debug)]
 pub struct EntryPointRevertInfo {
     // The contract address that the revert info applies to.
