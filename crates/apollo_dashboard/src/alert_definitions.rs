@@ -408,7 +408,7 @@ fn get_native_compilation_error_increase() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::WorkingHours,
+        AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
