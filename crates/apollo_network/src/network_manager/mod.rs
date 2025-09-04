@@ -687,7 +687,7 @@ impl NetworkManager {
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
-        metrics: Option<NetworkMetrics>,
+        mut metrics: Option<NetworkMetrics>,
     ) -> Self {
         let NetworkConfig {
             port,
@@ -731,6 +731,8 @@ impl NetworkManager {
                 node_version,
                 discovery_config,
                 peer_manager_config,
+                metrics.as_mut()
+                    .and_then(|m| m.event_metrics.take())
             ))
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
