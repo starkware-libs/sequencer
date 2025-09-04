@@ -539,8 +539,14 @@ impl<
 
         // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
         // classes.
-        let (thin_state_diff, classes, deprecated_classes) =
+        let (thin_state_diff, classes, mut deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
+
+        deprecated_classes.extend(
+            deployed_contract_class_definitions
+                .iter()
+                .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class.clone())),
+        );
 
         let mut block_contains_non_backwards_compatible_classes = false;
         // Sending to class manager before updating the storage so that if the class manager send
@@ -589,9 +595,7 @@ impl<
                 block_contains_non_backwards_compatible_classes = true;
             }
 
-            for (class_hash, deprecated_class) in
-                deprecated_classes.iter().chain(deployed_contract_class_definitions.iter())
-            {
+            for (class_hash, deprecated_class) in &deprecated_classes {
                 class_manager_client
                     .add_deprecated_class(*class_hash, deprecated_class.clone())
                     .await?;
@@ -632,7 +636,6 @@ impl<
                         .collect::<Vec<_>>(),
                     &deprecated_classes
                         .iter()
-                        .chain(deployed_contract_class_definitions.iter())
                         .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
                         .collect::<Vec<_>>(),
                 )?;
