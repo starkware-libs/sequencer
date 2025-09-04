@@ -73,17 +73,27 @@ define_metrics!(
         MetricGauge { MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS, "mempool_p2p_propagator_remote_number_of_connections", "Number of connections to mempool p2p remote server" },
         MetricGauge { SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS, "sierra_compiler_remote_number_of_connections", "Number of connections to sierra compiler remote server" },
         MetricGauge { STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS, "state_sync_remote_number_of_connections", "Number of connections to state sync remote server" },
-        // Local server queue depths
-        MetricGauge { BATCHER_LOCAL_QUEUE_DEPTH, "batcher_local_queue_depth", "The depth of the batcher's local message queue" },
-        MetricGauge { CLASS_MANAGER_LOCAL_QUEUE_DEPTH, "class_manager_local_queue_depth", "The depth of the class manager's local message queue" },
-        MetricGauge { GATEWAY_LOCAL_QUEUE_DEPTH, "gateway_local_queue_depth", "The depth of the gateway's local message queue" },
-        MetricGauge { L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH, "l1_endpoint_monitor_local_queue_depth", "The depth of the L1 endpoint monitor's local message queue" },
-        MetricGauge { L1_PROVIDER_LOCAL_QUEUE_DEPTH, "l1_provider_local_queue_depth", "The depth of the L1 provider's local message queue" },
-        MetricGauge { L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, "l1_gas_price_provider_local_queue_depth", "The depth of the L1 gas price provider's local message queue" },
-        MetricGauge { MEMPOOL_LOCAL_QUEUE_DEPTH, "mempool_local_queue_depth", "The depth of the mempool's local message queue" },
-        MetricGauge { MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, "mempool_p2p_propagator_local_queue_depth", "The depth of the mempool p2p's local message queue" },
-        MetricGauge { SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, "sierra_compiler_local_queue_depth", "The depth of the sierra compiler's local message queue" },
-        MetricGauge { STATE_SYNC_LOCAL_QUEUE_DEPTH, "state_sync_local_queue_depth", "The depth of the state sync's local message queue" },
+        // Local server priority queue depths
+        MetricGauge { BATCHER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "batcher_local_high_priority_queue_depth", "The depth of the batcher's high priority request queue" },
+        MetricGauge { BATCHER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "batcher_local_normal_priority_queue_depth", "The depth of the batcher's normal priority request queue" },
+        MetricGauge { CLASS_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "class_manager_local_high_priority_queue_depth", "The depth of the class manager's high priority request queue" },
+        MetricGauge { CLASS_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "class_manager_local_normal_priority_queue_depth", "The depth of the class manager's normal priority request queue" },
+        MetricGauge { GATEWAY_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "gateway_local_high_priority_queue_depth", "The depth of the gateway's high priority request queue" },
+        MetricGauge { GATEWAY_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "gateway_local_normal_priority_queue_depth", "The depth of the gateway's normal priority request queue" },
+        MetricGauge { L1_ENDPOINT_MONITOR_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "l1_endpoint_monitor_local_high_priority_queue_depth", "The depth of the L1 endpoint monitor's high priority request queue" },
+        MetricGauge { L1_ENDPOINT_MONITOR_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "l1_endpoint_monitor_local_normal_priority_queue_depth", "The depth of the L1 endpoint monitor's normal priority request queue" },
+        MetricGauge { L1_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "l1_provider_local_high_priority_queue_depth", "The depth of the L1 provider's high priority request queue" },
+        MetricGauge { L1_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "l1_provider_local_normal_priority_queue_depth", "The depth of the L1 provider's normal priority request queue" },
+        MetricGauge { L1_GAS_PRICE_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "l1_gas_price_provider_local_high_priority_queue_depth", "The depth of the L1 gas price provider's high priority request queue" },
+        MetricGauge { L1_GAS_PRICE_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "l1_gas_price_provider_local_normal_priority_queue_depth", "The depth of the L1 gas price provider's normal priority request queue" },
+        MetricGauge { MEMPOOL_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "mempool_local_high_priority_queue_depth", "The depth of the mempool's high priority request queue" },
+        MetricGauge { MEMPOOL_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "mempool_local_normal_priority_queue_depth", "The depth of the mempool's normal priority request queue" },
+        MetricGauge { MEMPOOL_P2P_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "mempool_p2p_propagator_local_high_priority_queue_depth", "The depth of the mempool p2p's high priority request queue" },
+        MetricGauge { MEMPOOL_P2P_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "mempool_p2p_propagator_local_normal_priority_queue_depth", "The depth of the mempool p2p's normal priority request queue" },
+        MetricGauge { SIERRA_COMPILER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "sierra_compiler_local_high_priority_queue_depth", "The depth of the sierra compiler's high priority request queue" },
+        MetricGauge { SIERRA_COMPILER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "sierra_compiler_local_normal_priority_queue_depth", "The depth of the sierra compiler's normal priority request queue" },
+        MetricGauge { STATE_SYNC_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH, "state_sync_local_high_priority_queue_depth", "The depth of the state sync's high priority request queue" },
+        MetricGauge { STATE_SYNC_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH, "state_sync_local_normal_priority_queue_depth", "The depth of the state sync's normal priority request queue" },
         // Remote client metrics
         MetricHistogram { BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, "batcher_remote_client_send_attempts", "Required number of remote connection attempts made by a batcher remote client"},
         MetricHistogram { CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, "class_manager_remote_client_send_attempts", "Required number of remote connection attempts made by a class manager remote client"},
@@ -159,7 +169,8 @@ impl RemoteClientMetrics {
 pub struct LocalServerMetrics {
     received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
-    queue_depth: &'static MetricGauge,
+    high_priority_queue_depth: &'static MetricGauge,
+    normal_priority_queue_depth: &'static MetricGauge,
     processing_times: &'static LabeledMetricHistogram,
     queueing_times: &'static LabeledMetricHistogram,
 }
@@ -168,17 +179,26 @@ impl LocalServerMetrics {
     pub const fn new(
         received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
-        queue_depth: &'static MetricGauge,
+        high_priority_queue_depth: &'static MetricGauge,
+        normal_priority_queue_depth: &'static MetricGauge,
         processing_times: &'static LabeledMetricHistogram,
         queueing_times: &'static LabeledMetricHistogram,
     ) -> Self {
-        Self { received_msgs, processed_msgs, queue_depth, processing_times, queueing_times }
+        Self {
+            received_msgs,
+            processed_msgs,
+            high_priority_queue_depth,
+            normal_priority_queue_depth,
+            processing_times,
+            queueing_times,
+        }
     }
 
     pub fn register(&self) {
         self.received_msgs.register();
         self.processed_msgs.register();
-        self.queue_depth.register();
+        self.high_priority_queue_depth.register();
+        self.normal_priority_queue_depth.register();
         self.processing_times.register();
         self.queueing_times.register();
     }
@@ -205,15 +225,32 @@ impl LocalServerMetrics {
             .expect("processed_msgs metrics should be available")
     }
 
-    pub fn set_queue_depth(&self, value: usize) {
-        self.queue_depth.set_lossy(value);
+    pub fn set_high_priority_queue_depth(&self, value: usize) {
+        self.high_priority_queue_depth.set_lossy(value);
+    }
+
+    pub fn set_normal_priority_queue_depth(&self, value: usize) {
+        self.normal_priority_queue_depth.set_lossy(value);
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> usize {
-        self.queue_depth
+    pub fn get_high_priority_queue_depth_value(&self, metrics_as_string: &str) -> usize {
+        self.high_priority_queue_depth
             .parse_numeric_metric::<usize>(metrics_as_string)
-            .expect("queue_depth metrics should be available")
+            .expect("high_priority_queue_depth metrics should be available")
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_normal_priority_queue_depth_value(&self, metrics_as_string: &str) -> usize {
+        self.normal_priority_queue_depth
+            .parse_numeric_metric::<usize>(metrics_as_string)
+            .expect("normal_priority_queue_depth metrics should be available")
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_total_queue_depth_value(&self, metrics_as_string: &str) -> usize {
+        self.get_high_priority_queue_depth_value(metrics_as_string)
+            + self.get_normal_priority_queue_depth_value(metrics_as_string)
     }
 
     // TODO(Tsabary): add the getter fns for tests.
