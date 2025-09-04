@@ -530,12 +530,22 @@ impl<
         &mut self,
         block_number: BlockNumber,
         block_hash: BlockHash,
-        state_diff: StateDiff,
+        mut state_diff: StateDiff,
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // TODO(dan): verifications - verify state diff against stored header.
         debug!("Storing state diff.");
-        trace!("StateDiff data: {state_diff:#?}");
+        trace!(
+            "StateDiff data: {state_diff:#?}, deployed_contract_class_definitions: \
+             {deployed_contract_class_definitions:#?}"
+        );
+
+        // TODO(noamsp): describe why we do this.
+        state_diff.deprecated_declared_classes.extend(
+            deployed_contract_class_definitions
+                .iter()
+                .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class.clone())),
+        );
 
         // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
         // classes.
@@ -589,9 +599,7 @@ impl<
                 block_contains_non_backwards_compatible_classes = true;
             }
 
-            for (class_hash, deprecated_class) in
-                deprecated_classes.iter().chain(deployed_contract_class_definitions.iter())
-            {
+            for (class_hash, deprecated_class) in &deprecated_classes {
                 class_manager_client
                     .add_deprecated_class(*class_hash, deprecated_class.clone())
                     .await?;
@@ -632,7 +640,6 @@ impl<
                         .collect::<Vec<_>>(),
                     &deprecated_classes
                         .iter()
-                        .chain(deployed_contract_class_definitions.iter())
                         .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
                         .collect::<Vec<_>>(),
                 )?;
