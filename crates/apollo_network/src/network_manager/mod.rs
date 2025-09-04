@@ -734,15 +734,15 @@ impl NetworkManager {
         // TODO(Shahak): quic transpot does not work (failure appears in the command line when running in debug mode)
         // .with_quic()
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
-                key.clone(),
-                bootstrap_peer_multiaddr,
                 sqmr::Config { session_timeout },
-                chain_id,
-                node_version,
                 discovery_config,
                 peer_manager_config,
                 metrics.as_mut()
-                    .and_then(|m| m.event_metrics.take())
+                    .and_then(|m| m.event_metrics.take()),
+                key.clone(),
+                bootstrap_peer_multiaddr,
+                chain_id,
+                node_version
             ))
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
