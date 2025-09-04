@@ -11,7 +11,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV1,
     RunnableCompiledClass,
 };
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
+use blockifier::state::cached_state::{CachedState, MutRefState};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use indexmap::IndexMap;
@@ -20,7 +20,7 @@ use papyrus_common::state::{DeployedContract, ReplacedClass, StorageEntry};
 pub use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff};
+use starknet_api::state::{CommitmentStateDiff, StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
