@@ -25,7 +25,7 @@ def main(deployment_config_path: str):
 
     # Get application config subdirectory
     config_dir = deployment_config["application_config_subdir"]
-    config_dir_path = Path(os.environ["GITHUB_WORKSPACE"]) / config_dir
+    config_dir_path = config_dir
 
     # Load secrets.json from the config directory
     secrets_path = Path(SECRETS_JSON_PATH)
@@ -53,14 +53,7 @@ def main(deployment_config_path: str):
 
     # Inject secrets into each config
     for cfg_file in config_files:
-        full_path = config_dir_path / cfg_file
-        if not full_path.is_file():
-            print(
-                f"❌ Config file {full_path} not found. Available files in {config_dir_path}:"
-            )
-            for file in config_dir_path.iterdir():
-                print(" -", file.name)
-            sys.exit(1)
+        full_path = f"{config_dir_path}/{cfg_file}"
 
         print(f"Injecting secrets into {full_path}")
         try:
