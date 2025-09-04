@@ -300,6 +300,64 @@ impl CasmHashComputationData {
     }
 }
 
+/// Aggregates compiled class hash migration data for executed classes.
+///
+/// Tracks which classes need migration from V1 to V2 compiled hashes and
+/// accumulates the estimated execution resources required to perform the migration.
+struct CasmHashMigrationData {
+    class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    resources: EstimatedExecutionResources,
+}
+
+impl CasmHashMigrationData {
+    fn empty() -> Self {
+        Self {
+            class_hashes_to_migrate: HashMap::new(),
+            resources: EstimatedExecutionResources::new(HashVersion::V2),
+        }
+    }
+
+    /// Builds a migration aggregation from the current state.
+    /// Returns empty if migration is disabled.
+    /// Otherwise, iterates over `executed_class_hashes`, selects classes that should migrate
+    /// via `should_migrate`, and accumulates their migration resources.
+    fn from_state<S: StateReader>(
+        state_reader: &S,
+        executed_class_hashes: &HashSet<ClassHash>,
+        versioned_constants: &VersionedConstants,
+    ) -> TransactionExecutionResult<Self> {
+        if !versioned_constants.enable_casm_hash_migration {
+            return Ok(Self::empty());
+        }
+
+        executed_class_hashes.iter().try_fold(Self::empty(), |mut migration_data, &class_hash| {
+            if let Some((class_hash, casm_hash_v2_to_v1)) =
+                should_migrate(state_reader, class_hash)?
+            {
+                // Add class hash mapping to the migration data.
+                migration_data.class_hashes_to_migrate.insert(class_hash, casm_hash_v2_to_v1);
+
+                // Accumulate the class's migration resources.
+                let class = state_reader.get_compiled_class(class_hash)?;
+                migration_data.resources +=
+                    &class.estimate_compiled_class_hash_migration_resources();
+            }
+            Ok(migration_data)
+        })
+    }
+
+    /// Converts the aggregated migration resources into gas amounts using the provided builtin gas
+    /// costs and `blake_opcode_gas`.
+    fn to_gas(
+        &self,
+        builtin_gas_costs: &BuiltinGasCosts,
+        versioned_constants: &VersionedConstants,
+        blake_opcode_gas: usize,
+    ) -> GasAmount {
+        self.resources.to_gas(builtin_gas_costs, blake_opcode_gas, versioned_constants)
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub struct TxWeights {
@@ -717,7 +775,7 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_sierra_gas =
         vm_resources_to_gas(&vm_resources, sierra_builtin_gas_costs, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let sierra_gas_without_casm_hash_computation =
+    let mut sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
 
     // Proving gas computation.
@@ -732,34 +790,32 @@ pub fn get_tx_weights<S: StateReader>(
     );
 
     let proving_builtin_gas_costs = &bouncer_config.builtin_weights.gas_costs;
-    let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
+    let mut proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         sierra_gas_without_casm_hash_computation,
         &builtin_counters_without_casm_hash_computation,
         proving_builtin_gas_costs,
         sierra_builtin_gas_costs,
     );
 
-    // Migration resources.
-    // TODO(AvivG): Consider moving migration logic to a separate function.
-    let (class_hashes_to_migrate, migration_resources) =
-        if versioned_constants.enable_casm_hash_migration {
-            get_migration_data(state_reader, executed_class_hashes)?
-        } else {
-            (HashMap::new(), EstimatedExecutionResources::new(HashVersion::V2))
-        };
-    let blake_opcode_gas = bouncer_config.blake_weight;
-    let migration_sierra_gas =
-        migration_resources.to_gas(sierra_builtin_gas_costs, blake_opcode_gas, versioned_constants);
-    let migration_proving_gas = migration_resources.to_gas(
-        proving_builtin_gas_costs,
-        blake_opcode_gas,
+    // Casm hash migration resources.
+    let migration_data = CasmHashMigrationData::from_state(
+        state_reader,
+        executed_class_hashes,
         versioned_constants,
-    );
+    )?;
+
+    let blake_opcode_gas = bouncer_config.blake_weight;
 
     // Migration occurs once per contract and is not included in the CASM hash computation, which
     // is performed every time a contract is loaded.
-    sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_sierra_gas);
-    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_proving_gas);
+    sierra_gas_without_casm_hash_computation =
+        sierra_gas_without_casm_hash_computation.checked_add_panic_on_overflow(
+            migration_data.to_gas(sierra_builtin_gas_costs, versioned_constants, blake_opcode_gas),
+        );
+    proving_gas_without_casm_hash_computation =
+        proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(
+            migration_data.to_gas(proving_builtin_gas_costs, versioned_constants, blake_opcode_gas),
+        );
 
     let (total_sierra_gas, casm_hash_computation_data_sierra_gas) =
         add_casm_hash_computation_gas_cost(
@@ -796,7 +852,7 @@ pub fn get_tx_weights<S: StateReader>(
         bouncer_weights,
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
-        class_hashes_to_migrate,
+        class_hashes_to_migrate: migration_data.class_hashes_to_migrate,
     })
 }
 
@@ -855,29 +911,4 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     .bouncer_weights;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
-}
-
-fn get_migration_data<S: StateReader>(
-    state_reader: &S,
-    executed_class_hashes: &HashSet<ClassHash>,
-) -> TransactionExecutionResult<(
-    HashMap<ClassHash, CompiledClassHashV2ToV1>,
-    EstimatedExecutionResources,
-)> {
-    executed_class_hashes.iter().try_fold(
-        (HashMap::new(), EstimatedExecutionResources::new(HashVersion::V2)),
-        |(mut class_hashes_to_migrate, mut migration_resources), &class_hash| {
-            if let Some((class_hash, compiled_class_hash_v2_to_v1)) =
-                should_migrate(state_reader, class_hash)?
-            {
-                let class = state_reader.get_compiled_class(class_hash)?;
-                let additional_migration_resources =
-                    class.estimate_compiled_class_hash_migration_resources();
-
-                class_hashes_to_migrate.insert(class_hash, compiled_class_hash_v2_to_v1);
-                migration_resources += &additional_migration_resources;
-            }
-            Ok((class_hashes_to_migrate, migration_resources))
-        },
-    )
 }
