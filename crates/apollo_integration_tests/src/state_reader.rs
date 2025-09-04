@@ -32,6 +32,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -433,7 +434,12 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 // todo(rdr): including both Cairo1 and Native versions for now. Temporal solution
                 // to avoid compilation errors when using the "cairo_native" feature
                 _ => {
-                    self.declared_classes.insert(contract.class_hash(), Default::default());
+                    self.declared_classes.insert(
+                        contract.class_hash(),
+                        // Imitate the behavior of a class that was declared before the migration
+                        // with casm v1 (poseidon) to trigger migration in the integration tests.
+                        contract.contract.get_compiled_class_hash(&HashVersion::V1),
+                    );
                 }
             }
         }
