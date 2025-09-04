@@ -2,13 +2,14 @@ use core::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_class_manager_types::ClassManagerClient;
+use apollo_class_manager_types::{ClassManagerClient, MockClassManagerClient};
 use apollo_starknet_client::reader::PendingData;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
+use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use async_stream::stream;
 use async_trait::async_trait;
@@ -26,10 +27,12 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
-use starknet_api::core::{ClassHash, SequencerPublicKey};
+use starknet_api::core::{ClassHash, EntryPointSelector, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointOffset, EntryPointV0};
 use starknet_api::felt;
-use starknet_api::state::StateDiff;
+use starknet_api::hash::StarkHash;
+use starknet_api::state::{StateDiff, StateNumber};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 use tracing::{debug, error};
@@ -188,6 +191,7 @@ async fn sync_empty_chain() {
 async fn sync_happy_flow() {
     const N_BLOCKS: u64 = 5;
     const LATEST_BLOCK_NUMBER: BlockNumber = BlockNumber(N_BLOCKS - 1);
+    const DEPLOY_BLOCK_NUMBER: BlockNumber = BlockNumber(N_BLOCKS - 2);
     // FIXME: (Omri) analyze and set a lower value.
     const MAX_TIME_TO_SYNC_MS: u64 = 800;
     let _ = simple_logger::init_with_env();
@@ -225,18 +229,56 @@ async fn sync_happy_flow() {
         .boxed();
         blocks_stream
     });
+
+    // Create test data for the state diff
+    let mut rng = get_rng();
+
+    let deprecated_class_hash = ClassHash(StarkHash::ONE);
+    let mut deprecated_class = ContractClass::get_test_instance(&mut rng);
+    deprecated_class.entry_points_by_type.insert(
+        Default::default(),
+        vec![EntryPointV0 {
+            selector: EntryPointSelector::default(),
+            offset: EntryPointOffset(123),
+        }],
+    );
+    let deployed_class_hash = ClassHash(StarkHash::TWO);
+    let mut deployed_class = ContractClass::get_test_instance(&mut rng);
+    deployed_class.entry_points_by_type.insert(
+        Default::default(),
+        vec![EntryPointV0 {
+            selector: EntryPointSelector::default(),
+            offset: EntryPointOffset(124),
+        }],
+    );
+
+    let expected_deprecated_class = deprecated_class.clone();
+    let expected_deployed_class = deployed_class.clone();
     central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
+        let deprecated_class = deprecated_class.clone();
+        let deployed_class = deployed_class.clone();
         let state_stream: StateUpdatesStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
                 // TODO(Eitan): test classes were added to class manager by including declared classes and deprecated declared classes
                 if block_number.0 >= N_BLOCKS {
                     yield Err(CentralError::BlockNotFound { block_number })
                 }
+                // For the last block, include test data for deployed class definitions
+                let mut state_diff = StateDiff::default();
+                let mut deployed_contract_class_definitions = IndexMap::new();
+                if block_number.0 >= DEPLOY_BLOCK_NUMBER.0 {
+                    deployed_contract_class_definitions = IndexMap::from([(deployed_class_hash, deployed_class.clone())]);
+                }
+
+                if block_number == LATEST_BLOCK_NUMBER {
+                    state_diff.deprecated_declared_classes = IndexMap::from([(deprecated_class_hash, deprecated_class.clone())]);
+                }
+
                 yield Ok((
                     block_number,
                     create_block_hash(block_number, false),
-                    StateDiff::default(),
-                    IndexMap::new(),
+                    state_diff,
+                    deployed_contract_class_definitions,
                 ));
             }
         }
@@ -263,6 +305,27 @@ async fn sync_happy_flow() {
         })
     });
 
+    // Create mock class manager client with expectations
+    let mut mock_class_manager = MockClassManagerClient::new();
+
+    // Expect add_deprecated_class to be called for both class hashes
+    mock_class_manager
+        .expect_add_deprecated_class()
+        .withf(move |class_hash, _class| *class_hash == deployed_class_hash)
+        .times(1)
+        .returning(|_class_hash, _class| Ok(()));
+    mock_class_manager
+        .expect_add_deprecated_class()
+        .withf(move |class_hash, _class| *class_hash == deprecated_class_hash)
+        .times(1)
+        .returning(|_class_hash, _class| Ok(()));
+
+    mock_class_manager
+        .expect_add_deprecated_class()
+        .withf(move |class_hash, _class| *class_hash == deployed_class_hash)
+        .times(1)
+        .returning(|_class_hash, _class| Ok(()));
+
     let ((reader, writer), _temp_dir) = get_test_storage();
     let sync_future = run_sync(
         reader.clone(),
@@ -270,7 +333,7 @@ async fn sync_happy_flow() {
         central_mock,
         base_layer_mock,
         get_test_sync_config(false),
-        None,
+        Some(Arc::new(mock_class_manager)),
     );
 
     // Check that the storage reached N_BLOCKS within MAX_TIME_TO_SYNC_MS.
@@ -303,6 +366,35 @@ async fn sync_happy_flow() {
             if base_layer_marker > BlockNumber(N_BLOCKS) {
                 return CheckStoragePredicateResult::Error;
             }
+
+            let txn = reader.begin_ro_txn().unwrap();
+            let state_reader = txn.get_state_reader().unwrap();
+
+            let deploy_block_number = state_reader
+                .get_deprecated_class_definition_block_number(&deployed_class_hash)
+                .unwrap();
+            assert_eq!(deploy_block_number, Some(DEPLOY_BLOCK_NUMBER));
+
+            let declare_deprecated_block_number = state_reader
+                .get_deprecated_class_definition_block_number(&deprecated_class_hash)
+                .unwrap();
+            assert_eq!(declare_deprecated_block_number, Some(LATEST_BLOCK_NUMBER));
+
+            let deploy_class = state_reader
+                .get_deprecated_class_definition_at(
+                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
+                    &deployed_class_hash,
+                )
+                .unwrap();
+            assert_eq!(deploy_class, Some(expected_deployed_class.clone()));
+
+            let declare_deprecated_class = state_reader
+                .get_deprecated_class_definition_at(
+                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
+                    &deprecated_class_hash,
+                )
+                .unwrap();
+            assert_eq!(declare_deprecated_class, Some(expected_deprecated_class.clone()));
 
             CheckStoragePredicateResult::Passed
         });
