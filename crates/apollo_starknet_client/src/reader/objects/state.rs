@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 pub use papyrus_common::state::{
     DeclaredClassHashEntry,
     DeployedContract,
+    MigratedCompiledClassHashEntry,
     ReplacedClass,
     StorageEntry,
 };
@@ -30,6 +31,7 @@ pub struct StateDiff {
     pub storage_diffs: IndexMap<ContractAddress, Vec<StorageEntry>>,
     pub deployed_contracts: Vec<DeployedContract>,
     pub declared_classes: Vec<DeclaredClassHashEntry>,
+    pub migrated_compiled_classes: Vec<MigratedCompiledClassHashEntry>,
     pub old_declared_contracts: Vec<ClassHash>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
     pub replaced_classes: Vec<ReplacedClass>,
