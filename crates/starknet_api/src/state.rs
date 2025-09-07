@@ -56,7 +56,7 @@ pub struct StateDiff {
     pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
     pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, SierraContractClass)>,
-    // TODO(Aviv): Add migrated compiled class hashes field.
+    pub migrated_compiled_classes: IndexMap<ClassHash, CompiledClassHash>,
     pub deprecated_declared_classes: IndexMap<ClassHash, DeprecatedContractClass>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
 }
@@ -69,7 +69,7 @@ pub struct ThinStateDiff {
     pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
     pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     // class hash to compiled class hash is affected by both declared_classes and
-    // migrated_compiled_class_hashes.
+    // migrated_compiled_classes.
     pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
     pub deprecated_declared_classes: Vec<ClassHash>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
@@ -86,6 +86,11 @@ impl ThinStateDiff {
                     .declared_classes
                     .iter()
                     .map(|(class_hash, (compiled_hash, _class))| (*class_hash, *compiled_hash))
+                    .chain(
+                        diff.migrated_compiled_classes
+                            .iter()
+                            .map(|(class_hash, compiled_hash)| (*class_hash, *compiled_hash)),
+                    )
                     .collect(),
                 deprecated_declared_classes: diff
                     .deprecated_declared_classes
