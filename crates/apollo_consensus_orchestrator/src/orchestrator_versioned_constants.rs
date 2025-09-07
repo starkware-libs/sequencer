@@ -15,7 +15,7 @@ pub struct VersionedConstants {
     pub min_gas_price: GasPrice,
     /// The maximum block size in gas units.
     pub max_block_size: GasAmount,
-    /// The target gas usage per block (usually half of a block's gas limit).
+    /// The target gas usage per block.
     pub gas_target: GasAmount,
     /// The margin for the eth to fri rate disagreement, expressed as a percentage (parts per
     /// hundred).
