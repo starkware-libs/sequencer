@@ -66,7 +66,7 @@ use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArg
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
-use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
+use crate::metrics::{record_build_proposal_failure, register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
 use crate::validate_proposal::{
@@ -288,6 +288,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     }
                     Err(e) => {
                         warn!("PROPOSAL_FAILED: Proposal failed as proposer. Error: {e:?}");
+                        record_build_proposal_failure(&e);
                     }
                 }
             }
