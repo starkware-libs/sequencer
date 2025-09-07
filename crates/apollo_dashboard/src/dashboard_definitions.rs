@@ -22,6 +22,7 @@ use crate::panels::mempool_p2p::get_mempool_p2p_row;
 use crate::panels::sierra_compiler::get_compile_to_casm_row;
 use crate::panels::state_sync::{get_state_sync_p2p_row, get_state_sync_row};
 use crate::panels::storage::get_storage_row;
+use crate::panels::tokio::get_tokio_row;
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
@@ -47,6 +48,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_state_sync_p2p_row(),
             get_storage_row(),
             get_mempool_p2p_row(),
+            get_tokio_row(),
             get_component_infra_row("Batcher Infra", &BATCHER_INFRA_METRICS),
             get_component_infra_row("State Sync Infra", &STATE_SYNC_INFRA_METRICS),
             get_component_infra_row("Gateway Infra", &GATEWAY_INFRA_METRICS),
