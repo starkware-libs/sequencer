@@ -180,6 +180,7 @@ pub fn create_node_config(
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
+    base_layer_url: Url,
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
@@ -211,7 +212,7 @@ pub fn create_node_config(
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
-        ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+        ordered_l1_endpoint_urls: vec![base_layer_url.clone()],
         ..Default::default()
     };
     let validate_resource_bounds = !allow_bootstrap_txs;

@@ -1668,6 +1668,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "url",
  "validator",
 ]
 
@@ -9586,6 +9587,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+ "url",
  "validator",
 ]
 
