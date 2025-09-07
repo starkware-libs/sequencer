@@ -72,7 +72,7 @@ pub(crate) fn get_thin_state_diff() -> ThinStateDiff {
                 StorageKey::from(8_u128) => Felt::from_bytes_be_slice(&[9_u8]),
             },
         },
-        declared_classes: indexmap! {
+        class_hash_to_compiled_class_hash: indexmap! {
             ClassHash(Felt::from_bytes_be_slice(&[13_u8])) =>
                 CompiledClassHash(Felt::from_bytes_be_slice(&[14_u8]))
         },

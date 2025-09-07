@@ -997,7 +997,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
             // Avoid starting streams from blocks without declared classes.
             while from < state_marker {
                 let state_diff = txn.get_state_diff(from)?.expect("Expecting to have state diff up to the marker.");
-                if state_diff.declared_classes.is_empty() {
+                if state_diff.class_hash_to_compiled_class_hash.is_empty() {
                     from = from.unchecked_next();
                 }
                 else {

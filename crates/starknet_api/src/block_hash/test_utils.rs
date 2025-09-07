@@ -56,7 +56,7 @@ pub(crate) fn get_state_diff() -> ThinStateDiff {
                 10u64.into() => 11u64.into(),
             },
         },
-        declared_classes: indexmap! {
+        class_hash_to_compiled_class_hash: indexmap! {
             ClassHash(12u64.into()) => CompiledClassHash(13u64.into()),
             ClassHash(14u64.into()) => CompiledClassHash(15u64.into()),
         },
