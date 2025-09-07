@@ -5,23 +5,22 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, Row};
 
-// TODO(alonl): Create all of these panels using a macro (and for the other panels as well).
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
-    Panel::from_gauge(&MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
+    Panel::from(&MEMPOOL_P2P_NUM_CONNECTED_PEERS)
 }
 
 fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
-    Panel::from_counter(&MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::TimeSeries)
+    Panel::from(&MEMPOOL_P2P_NUM_SENT_MESSAGES)
 }
 
 fn get_panel_mempool_p2p_num_received_messages() -> Panel {
-    Panel::from_counter(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
+    Panel::from(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES)
 }
 
 fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
-    Panel::from_hist(&MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::TimeSeries)
+    Panel::from(&MEMPOOL_P2P_BROADCASTED_BATCH_SIZE)
 }
 
 pub(crate) fn get_mempool_p2p_row() -> Row {

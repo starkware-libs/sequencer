@@ -40,7 +40,7 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
     )
 }
 fn get_panel_mempool_transactions_committed() -> Panel {
-    Panel::from_counter(&MEMPOOL_TRANSACTIONS_COMMITTED, PanelType::Stat)
+    Panel::from(&MEMPOOL_TRANSACTIONS_COMMITTED)
 }
 fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
@@ -106,10 +106,10 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     )
 }
 fn get_panel_mempool_transaction_time_spent() -> Panel {
-    Panel::from_hist(&TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
+    Panel::from(&TRANSACTION_TIME_SPENT_IN_MEMPOOL)
 }
 fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
-    Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, PanelType::TimeSeries)
+    Panel::from(&TRANSACTION_TIME_SPENT_UNTIL_COMMITTED)
 }
 
 pub(crate) fn get_mempool_row() -> Row {

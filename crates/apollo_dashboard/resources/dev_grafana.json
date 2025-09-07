@@ -332,7 +332,7 @@
       {
         "title": "batcher_proposal_started",
         "description": "Counter of proposals started",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -341,7 +341,7 @@
       {
         "title": "batcher_proposal_succeeded",
         "description": "Counter of successful proposals",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -350,7 +350,7 @@
       {
         "title": "batcher_proposal_failed",
         "description": "Counter of failed proposals",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -359,7 +359,7 @@
       {
         "title": "batcher_batched_transactions",
         "description": "Counter of batched transactions across all forks",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -368,7 +368,7 @@
       {
         "title": "batcher_last_batched_block",
         "description": "The last block received by batching",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -397,7 +397,7 @@
       {
         "title": "apollo_state_sync_processed_transactions",
         "description": "The number of transactions processed by the state sync component since its last restart",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_state_sync_processed_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -406,7 +406,7 @@
       {
         "title": "apollo_state_sync_reverted_transactions",
         "description": "The number of transactions reverted by the state sync component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_state_sync_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -415,7 +415,7 @@
       {
         "title": "apollo_central_sync_central_block_marker",
         "description": "The first block number that doesn't exist yet",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -424,7 +424,7 @@
       {
         "title": "apollo_state_sync_body_marker",
         "description": "The first block number for which the state sync component does not have a body",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -433,7 +433,7 @@
       {
         "title": "apollo_state_sync_class_manager_marker",
         "description": "The first block number for which the state sync component does not guarantee all of the corresponding classes are stored in the class manager component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -442,7 +442,7 @@
       {
         "title": "apollo_state_sync_header_marker",
         "description": "The first block number for which the state sync component does not have a header",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_state_sync_header_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -451,7 +451,7 @@
       {
         "title": "apollo_state_sync_state_marker",
         "description": "The first block number for which the state sync component does not have a state body",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_state_sync_state_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -622,7 +622,7 @@
       {
         "title": "mempool_txs_committed",
         "description": "The number of transactions that were committed to block",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -736,7 +736,7 @@
       {
         "title": "eth_to_strk_error_count",
         "description": "Number of times the query to the Eth to Strk oracle failed due to an error or timeout",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -745,7 +745,7 @@
       {
         "title": "eth_to_strk_success_count",
         "description": "Number of times the query to the Eth to Strk oracle succeeded",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -763,7 +763,7 @@
       {
         "title": "l1_gas_price_provider_insufficient_history",
         "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -772,7 +772,7 @@
       {
         "title": "l1_gas_price_scraper_success_count",
         "description": "Number of times the L1 gas price scraper successfully scraped and updated gas prices",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -781,7 +781,7 @@
       {
         "title": "l1_gas_price_scraper_baselayer_error_count",
         "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -790,7 +790,7 @@
       {
         "title": "l1_gas_price_scraper_reorg_detected",
         "description": "Number of times the L1 gas price scraper detected a reorganization in the base layer",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -855,7 +855,7 @@
       {
         "title": "native_compilation_error",
         "description": "Counter of Native compilation failures in the blockifier",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -943,7 +943,7 @@
       {
         "title": "apollo_p2p_sync_num_connected_peers",
         "description": "The number of connected peers to the p2p sync component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_p2p_sync_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -952,7 +952,7 @@
       {
         "title": "apollo_p2p_sync_num_active_inbound_sessions",
         "description": "The number of inbound sessions to the p2p sync component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_p2p_sync_num_active_inbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -961,7 +961,7 @@
       {
         "title": "apollo_p2p_sync_num_active_outbound_sessions",
         "description": "The number of outbound sessions to the p2p sync component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_p2p_sync_num_active_outbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1033,7 +1033,7 @@
       {
         "title": "tokio_total_busy_duration",
         "description": "The amount of time worker threads were busy (in microseconds)",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1042,7 +1042,7 @@
       {
         "title": "tokio_min_busy_duration",
         "description": "The minimum amount of time a worker thread was busy (in microseconds)",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_min_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1051,7 +1051,7 @@
       {
         "title": "tokio_max_busy_duration",
         "description": "The maximum amount of time a worker thread was busy (in microseconds)",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_max_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1060,7 +1060,7 @@
       {
         "title": "tokio_total_park_count",
         "description": "The number of times worker threads parked",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_total_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1069,7 +1069,7 @@
       {
         "title": "tokio_min_park_count",
         "description": "The minimum number of times any worker thread parked",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_min_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1078,7 +1078,7 @@
       {
         "title": "tokio_max_park_count",
         "description": "The maximum number of times any worker thread parked",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_max_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1087,7 +1087,7 @@
       {
         "title": "tokio_global_queue_depth",
         "description": "The number of tasks currently scheduled in the runtime's global queue",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_global_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1096,7 +1096,7 @@
       {
         "title": "tokio_workers_count",
         "description": "The number of worker threads used by the runtime",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "tokio_workers_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],

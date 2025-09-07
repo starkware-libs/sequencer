@@ -90,42 +90,6 @@ impl Panel {
         Self { name, description, exprs, panel_type }
     }
 
-    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
-        Self::new(
-            metric.get_name(),
-            metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
-            panel_type,
-        )
-    }
-
-    pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
-        Self::new(
-            metric.get_name(),
-            metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
-            panel_type,
-        )
-    }
-
-    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
-        Self::new(
-            metric.get_name(),
-            metric.get_description(),
-            HISTOGRAM_QUANTILES
-                .iter()
-                .map(|q| {
-                    format!(
-                        "histogram_quantile({q:.2}, sum by (le) \
-                         (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                        metric.get_name_with_filter(),
-                    )
-                })
-                .collect(),
-            panel_type,
-        )
-    }
-
     // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
     // TODO(alonl): remove the _ prefix once the function is used.
     pub(crate) fn _from_request_type_labeled_hist(
@@ -179,7 +143,48 @@ impl Panel {
     }
 }
 
-// TODO(alonl): remove the _ prefix once the function is used.
+impl From<&MetricCounter> for Panel {
+    fn from(metric: &MetricCounter) -> Self {
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            vec![metric.get_name_with_filter().to_string()],
+            PanelType::TimeSeries,
+        )
+    }
+}
+
+impl From<&MetricGauge> for Panel {
+    fn from(metric: &MetricGauge) -> Self {
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            vec![metric.get_name_with_filter().to_string()],
+            PanelType::TimeSeries,
+        )
+    }
+}
+
+impl From<&MetricHistogram> for Panel {
+    fn from(metric: &MetricHistogram) -> Self {
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| {
+                    format!(
+                        "histogram_quantile({q:.2}, sum by (le) \
+                         (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                        metric.get_name_with_filter(),
+                    )
+                })
+                .collect(),
+            PanelType::TimeSeries,
+        )
+    }
+}
+
 pub(crate) fn _create_request_type_labeled_hist_panels(
     metric: &LabeledMetricHistogram,
     panel_type: PanelType,
@@ -277,18 +282,15 @@ pub(crate) fn get_unlabeled_local_client_panels(
 pub(crate) fn get_unlabeled_remote_client_panels(
     remote_client_metrics: &RemoteClientMetrics,
 ) -> Vec<Panel> {
-    vec![Panel::from_hist(remote_client_metrics.get_attempts_metric(), PanelType::TimeSeries)]
+    vec![Panel::from(remote_client_metrics.get_attempts_metric())]
 }
 
 pub(crate) fn get_unlabeled_local_server_panels(
     local_server_metrics: &LocalServerMetrics,
 ) -> Vec<Panel> {
-    let received_msgs_panel =
-        Panel::from_counter(local_server_metrics.get_received_metric(), PanelType::TimeSeries);
-    let processed_msgs_panel =
-        Panel::from_counter(local_server_metrics.get_processed_metric(), PanelType::TimeSeries);
-    let queue_depth_panel =
-        Panel::from_gauge(local_server_metrics.get_queue_depth_metric(), PanelType::TimeSeries);
+    let received_msgs_panel = Panel::from(local_server_metrics.get_received_metric());
+    let processed_msgs_panel = Panel::from(local_server_metrics.get_processed_metric());
+    let queue_depth_panel = Panel::from(local_server_metrics.get_queue_depth_metric());
 
     vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel]
 }
@@ -296,20 +298,11 @@ pub(crate) fn get_unlabeled_local_server_panels(
 pub(crate) fn get_unlabeled_remote_server_panels(
     remote_server_metrics: &RemoteServerMetrics,
 ) -> Vec<Panel> {
-    let total_received_msgs_panel = Panel::from_counter(
-        remote_server_metrics.get_total_received_metric(),
-        PanelType::TimeSeries,
-    );
-    let valid_received_msgs_panel = Panel::from_counter(
-        remote_server_metrics.get_valid_received_metric(),
-        PanelType::TimeSeries,
-    );
-    let processed_msgs_panel =
-        Panel::from_counter(remote_server_metrics.get_processed_metric(), PanelType::TimeSeries);
-    let number_of_connections_panel = Panel::from_gauge(
-        remote_server_metrics.get_number_of_connections_metric(),
-        PanelType::TimeSeries,
-    );
+    let total_received_msgs_panel = Panel::from(remote_server_metrics.get_total_received_metric());
+    let valid_received_msgs_panel = Panel::from(remote_server_metrics.get_valid_received_metric());
+    let processed_msgs_panel = Panel::from(remote_server_metrics.get_processed_metric());
+    let number_of_connections_panel =
+        Panel::from(remote_server_metrics.get_number_of_connections_metric());
 
     vec![
         total_received_msgs_panel,
