@@ -2,6 +2,8 @@ use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
+use crate::build_proposal::BuildProposalError;
+
 define_metrics!(
     ConsensusOrchestrator => {
         MetricGauge { CONSENSUS_NUM_BATCHES_IN_PROPOSAL, "consensus_num_batches_in_proposal", "The number of transaction batches in a valid proposal received" },
@@ -20,6 +22,9 @@ define_metrics!(
         MetricHistogram { CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, "cende_write_prev_height_blob_latency", "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed." },
         MetricCounter { CENDE_WRITE_BLOB_SUCCESS , "cende_write_blob_success", "The number of successful blob writes to Aerospike", init = 0 },
         LabeledMetricCounter { CENDE_WRITE_BLOB_FAILURE , "cende_write_blob_failure", "The number of failed blob writes to Aerospike", init = 0, labels = CENDE_WRITE_BLOB_FAILURE_REASON },
+
+        // Proposal build failure metrics
+        LabeledMetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILURE , "consensus_build_proposal_failure", "Number of failures while building a proposal", init = 0, labels = BUILD_PROPOSAL_FAILURE_REASON },
     }
 );
 
@@ -44,6 +49,55 @@ pub(crate) fn record_write_failure(reason: CendeWriteFailureReason) {
     CENDE_WRITE_BLOB_FAILURE.increment(1, &[(LABEL_CENDE_FAILURE_REASON, reason.into())]);
 }
 
+// Build proposal failure reasons
+pub const LABEL_BUILD_PROPOSAL_FAILURE_REASON: &str = "build_proposal_failure_reason";
+
+#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum BuildProposalFailureReason {
+    BatcherError,
+    StateSyncClientError,
+    StateSyncNotReady,
+    SendError,
+    EthToStrkOracleError,
+    L1GasPriceProviderError,
+    Interrupted,
+    CendeWriteError,
+    TransactionConverterError,
+    BlockInfoConversionError,
+}
+
+generate_permutation_labels! {
+    BUILD_PROPOSAL_FAILURE_REASON,
+    (LABEL_BUILD_PROPOSAL_FAILURE_REASON, BuildProposalFailureReason),
+}
+
+impl From<&BuildProposalError> for BuildProposalFailureReason {
+    fn from(e: &BuildProposalError) -> Self {
+        match e {
+            BuildProposalError::Batcher(_, _) => Self::BatcherError,
+            BuildProposalError::StateSyncClientError(_) => Self::StateSyncClientError,
+            BuildProposalError::StateSyncNotReady(_) => Self::StateSyncNotReady,
+            BuildProposalError::SendError(_) => Self::SendError,
+            BuildProposalError::EthToStrkOracle(_) => Self::EthToStrkOracleError,
+            BuildProposalError::L1GasPriceProvider(_) => Self::L1GasPriceProviderError,
+            BuildProposalError::Interrupted => Self::Interrupted,
+            BuildProposalError::CendeWriteError(_) => Self::CendeWriteError,
+            BuildProposalError::TransactionConverterError(_) => Self::TransactionConverterError,
+            BuildProposalError::BlockInfoConversion(_) => Self::BlockInfoConversionError,
+        }
+    }
+}
+
+pub(crate) fn record_build_proposal_failure<R>(reason: R)
+where
+    R: Into<BuildProposalFailureReason>,
+{
+    let reason = reason.into();
+    CONSENSUS_BUILD_PROPOSAL_FAILURE
+        .increment(1, &[(LABEL_BUILD_PROPOSAL_FAILURE_REASON, reason.into())]);
+}
+
 pub(crate) fn register_metrics() {
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL.register();
     CONSENSUS_NUM_TXS_IN_PROPOSAL.register();
@@ -57,4 +111,5 @@ pub(crate) fn register_metrics() {
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.register();
     CENDE_WRITE_BLOB_SUCCESS.register();
     CENDE_WRITE_BLOB_FAILURE.register();
+    CONSENSUS_BUILD_PROPOSAL_FAILURE.register();
 }
