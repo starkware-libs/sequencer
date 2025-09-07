@@ -64,10 +64,16 @@ fn state_sorted() {
     let deprecated_declared_1 = (ClassHash(hash1), DeprecatedContractClass::default());
     let nonce_0 = (contract_address_0, Nonce(hash0));
     let nonce_1 = (contract_address_1, Nonce(hash1));
+    let migrated_compiled_class_hash_0 = (ClassHash(hash0), compiled_class_hash!(3_u8));
+    let migrated_compiled_class_hash_1 = (ClassHash(hash1), compiled_class_hash!(4_u8));
 
     let unsorted_deployed_contracts = IndexMap::from([dep_contract_1, dep_contract_0]);
     let unsorted_declared_classes =
         IndexMap::from([declare_class_1.clone(), declare_class_0.clone()]);
+    let unsorted_migrated_compiled_class_hashes = IndexMap::from([
+        migrated_compiled_class_hash_1.clone(),
+        migrated_compiled_class_hash_0.clone(),
+    ]);
     let unsorted_deprecated_declared =
         IndexMap::from([deprecated_declared_1.clone(), deprecated_declared_0.clone()]);
     let unsorted_nonces = IndexMap::from([nonce_1, nonce_0]);
@@ -82,6 +88,7 @@ fn state_sorted() {
         storage_diffs: unsorted_storage_diffs,
         deprecated_declared_classes: unsorted_deprecated_declared,
         declared_classes: unsorted_declared_classes,
+        migrated_compiled_class_hashes: unsorted_migrated_compiled_class_hashes,
         nonces: unsorted_nonces,
     };
 
@@ -94,6 +101,8 @@ fn state_sorted() {
         (contract_address_0, sorted_storage_entries.clone()),
         (contract_address_1, sorted_storage_entries.clone()),
     ]);
+    let sorted_migrated_compiled_class_hashes =
+        IndexMap::from([migrated_compiled_class_hash_0, migrated_compiled_class_hash_1]);
 
     sort_state_diff(&mut state_diff);
     assert_eq!(
@@ -117,6 +126,10 @@ fn state_sorted() {
         sorted_storage_entries.get_index(0).unwrap(),
     );
     assert_eq!(state_diff.nonces.get_index(0).unwrap(), sorted_nonces.get_index(0).unwrap());
+    assert_eq!(
+        state_diff.migrated_compiled_class_hashes.get_index(0).unwrap(),
+        sorted_migrated_compiled_class_hashes.get_index(0).unwrap()
+    );
 }
 
 #[tokio::test]
