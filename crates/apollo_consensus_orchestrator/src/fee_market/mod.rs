@@ -24,7 +24,7 @@ pub struct FeeMarketInfo {
 /// # Parameters
 /// - `price`: The base gas price per unit (in fri) of the current block.
 /// - `gas_used`: The total gas used in the current block.
-/// - `gas_target`: The target gas usage per block (usually half of a block's gas limit).
+/// - `gas_target`: The target gas usage per block.
 pub fn calculate_next_base_gas_price(
     price: GasPrice,
     gas_used: GasAmount,
@@ -32,11 +32,9 @@ pub fn calculate_next_base_gas_price(
 ) -> GasPrice {
     let versioned_constants =
         orchestrator_versioned_constants::VersionedConstants::latest_constants();
-    // Setting target to 50% of max block size balances price changes and prevents spikes.
-    assert_eq!(
-        gas_target,
-        versioned_constants.max_block_size.checked_factor_div(2).expect("Failed to divide by 2"),
-        "Gas target must be 50% of max block size to balance price changes."
+    assert!(
+        gas_target < versioned_constants.max_block_size,
+        "Gas target must be lower than max block size."
     );
     // A minimum gas price prevents precision loss. Additionally, a minimum gas price helps avoid
     // extended periods of low pricing.
