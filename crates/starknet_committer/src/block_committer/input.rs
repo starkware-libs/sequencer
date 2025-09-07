@@ -101,7 +101,7 @@ impl Default for ConfigImpl {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct Input<C: Config> {
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
