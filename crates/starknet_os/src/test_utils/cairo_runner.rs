@@ -635,7 +635,7 @@ pub fn initialize_cairo_runner(
     for (key, value) in hint_locals.into_iter() {
         cairo_runner.exec_scopes.insert_box(&key, value);
     }
-    let allow_missing_builtins = false;
+    let allow_missing_builtins = true;
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
