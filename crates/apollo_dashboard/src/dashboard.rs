@@ -308,16 +308,11 @@ pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetri
 }
 
 pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
-    Row::new(
-        row_name,
-        vec![
-            get_local_client_panels(metrics.get_local_client_metrics()),
-            get_remote_client_panels(metrics.get_remote_client_metrics()),
-            get_local_server_panels(metrics.get_local_server_metrics()),
-            get_remote_server_panels(metrics.get_remote_server_metrics()),
-        ]
-        .into_iter()
-        .flatten()
-        .collect(),
-    )
+    let mut panels: Vec<Panel> = Vec::new();
+    panels.extend(get_local_client_panels(metrics.get_local_client_metrics()));
+    panels.extend(get_remote_client_panels(metrics.get_remote_client_metrics()));
+    panels.extend(get_local_server_panels(metrics.get_local_server_metrics()));
+    panels.extend(get_remote_server_panels(metrics.get_remote_server_metrics()));
+
+    Row::new(row_name, panels)
 }
