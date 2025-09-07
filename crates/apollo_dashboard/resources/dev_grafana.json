@@ -29,6 +29,17 @@
         "extra_params": {}
       },
       {
+        "title": "Average block time",
+        "description": "Average block time (10m)",
+        "type": "timeseries",
+        "exprs": [
+          "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {
+          "unit": "s"
+        }
+      },
+      {
         "title": "consensus_round_above_zero",
         "description": "The number of times the consensus round has increased above zero",
         "type": "timeseries",
