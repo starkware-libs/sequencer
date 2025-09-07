@@ -178,6 +178,24 @@ impl Panel {
     }
 }
 
+impl From<&MetricCounter> for Panel {
+    fn from(metric: &MetricCounter) -> Self {
+        Self::from_counter(metric, PanelType::TimeSeries)
+    }
+}
+
+impl From<&MetricGauge> for Panel {
+    fn from(metric: &MetricGauge) -> Self {
+        Self::from_gauge(metric, PanelType::TimeSeries)
+    }
+}
+
+impl From<&MetricHistogram> for Panel {
+    fn from(metric: &MetricHistogram) -> Self {
+        Self::from_hist(metric, PanelType::TimeSeries)
+    }
+}
+
 pub(crate) fn create_request_type_labeled_hist_panels(
     metric: &LabeledMetricHistogram,
     panel_type: PanelType,
@@ -274,8 +292,7 @@ pub(crate) fn get_local_client_panels(local_client_metrics: &LocalClientMetrics)
 }
 
 pub(crate) fn get_remote_client_panels(remote_client_metrics: &RemoteClientMetrics) -> Vec<Panel> {
-    let attempts_panel =
-        Panel::from_hist(remote_client_metrics.get_attempts_metric(), PanelType::TimeSeries);
+    let attempts_panel = Panel::from(remote_client_metrics.get_attempts_metric());
     let response_times_panels = create_request_type_labeled_hist_panels(
         remote_client_metrics.get_response_time_metric(),
         PanelType::TimeSeries,
@@ -292,12 +309,9 @@ pub(crate) fn get_remote_client_panels(remote_client_metrics: &RemoteClientMetri
 }
 
 pub(crate) fn get_local_server_panels(local_server_metrics: &LocalServerMetrics) -> Vec<Panel> {
-    let received_msgs_panel =
-        Panel::from_counter(local_server_metrics.get_received_metric(), PanelType::TimeSeries);
-    let processed_msgs_panel =
-        Panel::from_counter(local_server_metrics.get_processed_metric(), PanelType::TimeSeries);
-    let queue_depth_panel =
-        Panel::from_gauge(local_server_metrics.get_queue_depth_metric(), PanelType::TimeSeries);
+    let received_msgs_panel = Panel::from(local_server_metrics.get_received_metric());
+    let processed_msgs_panel = Panel::from(local_server_metrics.get_processed_metric());
+    let queue_depth_panel = Panel::from(local_server_metrics.get_queue_depth_metric());
     let processing_times_panels = create_request_type_labeled_hist_panels(
         local_server_metrics.get_processing_time_metric(),
         PanelType::TimeSeries,
@@ -314,20 +328,11 @@ pub(crate) fn get_local_server_panels(local_server_metrics: &LocalServerMetrics)
 }
 
 pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetrics) -> Vec<Panel> {
-    let total_received_msgs_panel = Panel::from_counter(
-        remote_server_metrics.get_total_received_metric(),
-        PanelType::TimeSeries,
-    );
-    let valid_received_msgs_panel = Panel::from_counter(
-        remote_server_metrics.get_valid_received_metric(),
-        PanelType::TimeSeries,
-    );
-    let processed_msgs_panel =
-        Panel::from_counter(remote_server_metrics.get_processed_metric(), PanelType::TimeSeries);
-    let number_of_connections_panel = Panel::from_gauge(
-        remote_server_metrics.get_number_of_connections_metric(),
-        PanelType::TimeSeries,
-    );
+    let total_received_msgs_panel = Panel::from(remote_server_metrics.get_total_received_metric());
+    let valid_received_msgs_panel = Panel::from(remote_server_metrics.get_valid_received_metric());
+    let processed_msgs_panel = Panel::from(remote_server_metrics.get_processed_metric());
+    let number_of_connections_panel =
+        Panel::from(remote_server_metrics.get_number_of_connections_metric());
     vec![
         total_received_msgs_panel,
         valid_received_msgs_panel,
