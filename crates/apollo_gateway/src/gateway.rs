@@ -24,7 +24,6 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
-use blockifier::context::ChainInfo;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -63,7 +62,6 @@ pub struct Gateway {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<TransactionConverter>,
-    pub chain_info: Arc<ChainInfo>,
 }
 
 impl Gateway {
@@ -80,10 +78,10 @@ impl Gateway {
             }),
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
+                chain_info: config.chain_info.clone(),
             }),
             state_reader_factory,
             mempool_client,
-            chain_info: Arc::new(config.chain_info.clone()),
             transaction_converter: Arc::new(transaction_converter),
         }
     }
@@ -170,7 +168,6 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
-    chain_info: Arc<ChainInfo>,
     tx: RpcTransaction,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     runtime: tokio::runtime::Handle,
@@ -183,7 +180,6 @@ impl ProcessTxBlockingTask {
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
-            chain_info: gateway.chain_info.clone(),
             tx,
             transaction_converter: gateway.transaction_converter.clone(),
             runtime,
@@ -220,7 +216,7 @@ impl ProcessTxBlockingTask {
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
+            .instantiate_validator(self.state_reader_factory.as_ref())?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &executable_tx,
