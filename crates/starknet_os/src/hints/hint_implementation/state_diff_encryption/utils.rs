@@ -13,7 +13,6 @@ mod utils_test;
 /// of a given x coordinate, where alpha and beta are the Starknet curve parameters.
 // TODO(Avi, 10/09/2025): Remove this and use [AffinePoint::new_from_x] instead after bumping
 // starknet-types-core to 0.2.0.
-#[allow(dead_code)]
 fn recover_y(x: Felt) -> Felt {
     let alpha = Felt::from_bytes_be(&StarkCurve::a().to_bytes_be());
     let beta = Felt::from_bytes_be(&StarkCurve::b().to_bytes_be());
@@ -21,7 +20,38 @@ fn recover_y(x: Felt) -> Felt {
     y_squared.sqrt().expect("{x} does not represent the x coordinate of a point on the curve.")
 }
 
-#[allow(dead_code)]
+pub fn compute_public_keys(
+    private_keys: &[Felt],
+) -> Vec<Felt> {
+    let mut public_keys = Vec::with_capacity(private_keys.len());
+    for &private_key in private_keys {
+        let public_key_point = &AffinePoint::generator() * private_key;
+        public_keys.push(public_key_point.x());
+    }
+    public_keys
+}
+
+pub fn encrypt_symmetric_key(
+    sn_private_keys: &[Felt],
+    public_keys: &[Felt],
+    symmetric_key: Felt,
+) -> Vec<Felt> {
+    assert_eq!(sn_private_keys.len(), public_keys.len());
+
+    sn_private_keys
+        .iter()
+        .zip(public_keys)
+        .map(|(&sn_private_key, &public_key)| {
+            let y = recover_y(public_key);
+            let public_key_point = AffinePoint::new(public_key, y).expect("Invalid public key");
+            let shared_secret = (&public_key_point * sn_private_key).x();
+            // Encrypt the symmetric key using the shared secret.
+            // TODO(Avi, 10/09/2025): Use the naive felt encoding once available.
+            symmetric_key + encode_felt252_data_and_calc_blake_hash(&[shared_secret])
+        })
+        .collect()
+}
+
 pub fn decrypt_state_diff(
     private_key: Felt,
     sn_public_key: Felt,
@@ -50,4 +80,46 @@ pub fn decrypt_state_diff(
                 - encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
         })
         .collect()
+}
+
+#[allow(dead_code)]
+pub fn encrypt_state_diff(
+    public_keys: &[Felt],
+    sn_private_keys: &[Felt],
+    symmetric_key: Felt,
+    state_diff: &[Felt],
+) -> Vec<Felt> {
+    // Encrypt the state_diff using the symmetric key.
+    let encrypted_state_diff = state_diff
+        .iter()
+        .enumerate()
+        .map(|(i, felt)| {
+            felt + encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
+        })
+        .collect();
+
+    // For each key,
+    //  - compute the shared secret using Diffie-Hellman key exchange; and
+    //  - compute the starknet public key.
+    let mut symmetric_key_encryptions: Vec<Felt> = vec![];
+    let mut sn_public_keys: Vec<Felt> = vec![];
+    for (&public_key, &sn_private_key) in public_keys.iter().zip(sn_private_keys.iter()) {
+        let public_key_y = recover_y(public_key);
+        let public_key_point =
+            AffinePoint::new(public_key, public_key_y).expect("invalid public key coordinates");
+        let shared_secret_point = &public_key_point * sn_private_key;
+        let shared_secret = shared_secret_point.x();
+
+        // Encrypt the symmetric key using the shared secret.
+        // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
+        symmetric_key_encryptions
+            .push(symmetric_key + encode_felt252_data_and_calc_blake_hash(&[shared_secret]));
+
+        // Compute the starknet public key.
+        sn_public_keys.push((&AffinePoint::generator() * sn_private_key).x());
+    }
+
+    let n_keys = vec![Felt::from(public_keys.len())];
+
+    [n_keys, sn_public_keys, symmetric_key_encryptions, encrypted_state_diff].concat()
 }
