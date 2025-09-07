@@ -37,11 +37,13 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+    CONSENSUS_BUILD_PROPOSAL_FAILURE,
     CONSENSUS_L1_DATA_GAS_MISMATCH,
     CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
+    LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
@@ -215,6 +217,19 @@ fn get_panel_cende_write_blob_failure() -> Panel {
         PanelType::TimeSeries,
     )
 }
+fn get_panel_build_proposal_failure() -> Panel {
+    Panel::new(
+        "Build Proposal Failure by Reason",
+        "The number of build proposal failures",
+        vec![format!(
+            "sum by ({}) (increase({}[10m]))",
+            LABEL_BUILD_PROPOSAL_FAILURE_REASON,
+            CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
+        )],
+        PanelType::BarGauge,
+    )
+    .with_log_query("\"PROPOSAL_FAILED: Proposal failed as proposer\"")
+}
 fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
     Panel::from_counter(&CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::TimeSeries)
 }
@@ -260,6 +275,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_write_blob_success(),
             get_panel_cende_write_blob_failure(),
+            get_panel_build_proposal_failure(),
             get_panel_consensus_l1_data_gas_mismatch(),
             get_panel_consensus_l1_gas_mismatch(),
         ],
