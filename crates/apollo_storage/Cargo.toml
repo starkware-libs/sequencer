@@ -50,6 +50,7 @@ statistical = { workspace = true, optional = true }
 
 
 [dev-dependencies]
+apollo_metrics.workspace = true
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec", "schemars"] }
