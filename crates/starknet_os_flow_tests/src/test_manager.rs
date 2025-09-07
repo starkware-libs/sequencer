@@ -31,7 +31,7 @@ use starknet_os::io::os_input::{
     StarknetOsInput,
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
-use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
+use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
@@ -433,7 +433,7 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
-        let os_output = run_os_stateless(layout, os_hints).unwrap();
+        let (os_output, _) = run_os_stateless_for_testing(layout, os_hints).unwrap();
         let decompressed_state_diff =
             Self::get_decompressed_state_diff(&os_output.os_output.state_diff, &state, alias_keys);
 
