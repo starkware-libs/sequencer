@@ -2,7 +2,7 @@
 //! StarknetClient.
 use std::collections::HashMap;
 
-use apollo_starknet_client::reader::objects::state::StateDiff;
+use apollo_starknet_client::reader::objects::state::{MigratedCompiledClassHashEntry, StateDiff};
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
 use blockifier::execution::call_info::{CallExecution, OrderedEvent, OrderedL2ToL1Message};
@@ -688,6 +688,31 @@ pub struct StarknetClientStateDiff(pub StateDiff);
 
 impl From<StateMaps> for StarknetClientStateDiff {
     fn from(state_maps: StateMaps) -> Self {
+        // Partition compiled class hashes based on declaration.
+        let (declared, migrated): (Vec<_>, Vec<_>) =
+            state_maps.compiled_class_hashes.into_iter().partition(|(class_hash, _)| {
+                state_maps
+                    .declared_contracts
+                    .get(class_hash)
+                    .is_some_and(|&is_declared| is_declared)
+            });
+
+        let declared_classes = declared
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| DeclaredClassHashEntry {
+                class_hash,
+                compiled_class_hash,
+            })
+            .collect();
+
+        let migrated_compiled_classes = migrated
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| MigratedCompiledClassHashEntry {
+                class_hash,
+                compiled_class_hash,
+            })
+            .collect();
+
         StarknetClientStateDiff(StateDiff {
             storage_diffs: IndexMap::from(StorageView(state_maps.storage))
                 .into_iter()
@@ -706,14 +731,8 @@ impl From<StateMaps> for StarknetClientStateDiff {
                 .into_iter()
                 .map(|(address, class_hash)| DeployedContract { address, class_hash })
                 .collect(),
-            declared_classes: state_maps
-                .compiled_class_hashes
-                .into_iter()
-                .map(|(class_hash, compiled_class_hash)| DeclaredClassHashEntry {
-                    class_hash,
-                    compiled_class_hash,
-                })
-                .collect(),
+            declared_classes,
+            migrated_compiled_classes,
             old_declared_contracts: Default::default(),
             nonces: state_maps.nonces.into_iter().collect(),
             replaced_classes: Default::default(),
