@@ -312,6 +312,17 @@
         "extra_params": {}
       },
       {
+        "title": "Build Proposal Failure by Reason",
+        "description": "The number of build proposal failures",
+        "type": "bargauge",
+        "exprs": [
+          "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+        ],
+        "extra_params": {
+          "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\""
+        }
+      },
+      {
         "title": "consensus_l1_data_gas_mismatch",
         "description": "The number of times the L1 data gas in a proposal does not match the value expected by this validator",
         "type": "timeseries",
