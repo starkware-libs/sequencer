@@ -11,7 +11,7 @@ use crate::alerts::{
     AlertSeverity,
     ObserverApplicability,
 };
-use crate::dashboard::Panel;
+use crate::dashboard::{Panel, Unit};
 
 #[test]
 fn serialize_alert() {
@@ -62,7 +62,9 @@ fn test_ratio_time_series() {
     let metric_3 = MetricCounter::new(MetricScope::Batcher, "a", "desc", 0);
 
     let panel =
-        Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
+        Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration)
+            .with_unit(Unit::Percent)
+            .show_percent_change();
 
     let expected = format!(
         "100 * (increase({}[{duration}]) / (increase({}[{duration}]) + increase({}[{duration}]) + \
@@ -74,6 +76,8 @@ fn test_ratio_time_series() {
     );
 
     assert_eq!(panel.exprs, vec![expected]);
+    assert_eq!(panel.extra.unit, Some(Unit::Percent));
+    assert!(panel.extra.show_percent_change);
 
     let expected = format!(
         "100 * (increase({}[{duration}]) / (increase({}[{duration}])))",
@@ -82,4 +86,6 @@ fn test_ratio_time_series() {
     );
     let panel = Panel::ratio_time_series("y", "y", &metric_1, &[&metric_2], duration);
     assert_eq!(panel.exprs, vec![expected]);
+    assert!(panel.extra.unit.is_none());
+    assert!(!panel.extra.show_percent_change);
 }
