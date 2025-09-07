@@ -29,7 +29,7 @@ impl LocalClientMetrics {
         self.response_times
     }
 
-    pub fn _get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
+    pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
         vec![self.response_times]
     }
 }
@@ -83,7 +83,7 @@ impl RemoteClientMetrics {
         self.communication_failure_times
     }
 
-    pub fn _get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
+    pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
         vec![self.response_times, self.communication_failure_times]
     }
 }
@@ -178,7 +178,7 @@ impl LocalServerMetrics {
         self.queue_depth
     }
 
-    pub fn _get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
+    pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
         vec![self.processing_times, self.queueing_times]
     }
 }
@@ -272,7 +272,7 @@ impl RemoteServerMetrics {
         self.number_of_connections
     }
 
-    pub fn _get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
+    pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
         vec![]
     }
 }
