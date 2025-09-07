@@ -40,6 +40,7 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
+use url::Url;
 use validator::Validate;
 
 use crate::version::VERSION_FULL;
@@ -55,6 +56,7 @@ pub struct NodeConfig {
     pub rpc: RpcConfig,
     pub central: CentralSourceConfig,
     pub base_layer: EthereumBaseLayerConfig,
+    pub base_layer_url: Url,
     pub monitoring_gateway: MonitoringGatewayConfig,
     #[validate]
     pub storage: StorageConfig,
@@ -77,6 +79,7 @@ impl Default for NodeConfig {
         NodeConfig {
             central: CentralSourceConfig::default(),
             base_layer: EthereumBaseLayerConfig::default(),
+            base_layer_url: Url::parse("https://mainnet.infura.io/v3/%3Cyour_api_key%3E").unwrap(),
             #[cfg(feature = "rpc")]
             rpc: RpcConfig::default(),
             monitoring_gateway: MonitoringGatewayConfig::default(),
@@ -104,16 +107,23 @@ impl SerializeConfig for NodeConfig {
             ser_optional_sub_config(&self.consensus, "consensus"),
             ser_optional_sub_config(&self.context, "context"),
             ser_optional_sub_config(&self.network, "network"),
-            BTreeMap::from_iter([ser_param(
-                "collect_profiling_metrics",
-                &self.collect_profiling_metrics,
-                "If true, collect profiling metrics for the node.",
-                ParamPrivacyInput::Public,
-            )]),
+            BTreeMap::from_iter([
+                ser_param(
+                    "collect_profiling_metrics",
+                    &self.collect_profiling_metrics,
+                    "If true, collect profiling metrics for the node.",
+                    ParamPrivacyInput::Public,
+                ),
+                ser_param(
+                    "base_layer_url",
+                    &self.base_layer_url,
+                    "URL for communicating with Ethereum.",
+                    ParamPrivacyInput::Private,
+                ),
+            ]),
         ];
         #[cfg(feature = "rpc")]
         sub_configs.push(prepend_sub_config_name(self.rpc.dump(), "rpc"));
-
         sub_configs.into_iter().flatten().collect()
     }
 }
