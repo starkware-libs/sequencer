@@ -133,30 +133,31 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
         sender_address, receiver_address
     );
 
-    let base_layer_config = build_base_layer_config_for_testing();
+    let (base_layer_config, base_layer_url) = build_base_layer_config_for_testing();
 
-    deploy_starknet_l1_contract(base_layer_config.clone()).await;
+    deploy_starknet_l1_contract(base_layer_config.clone(), base_layer_url.clone()).await;
 
     make_block_history_on_anvil(
         sender_address,
         receiver_address,
         base_layer_config,
+        base_layer_url,
         NUM_BLOCKS_NEEDED_ON_L1,
     )
     .await;
 }
 
-fn build_base_layer_config_for_testing() -> EthereumBaseLayerConfig {
+fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
     let starknet_contract_address: EthereumContractAddress =
         DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
 
-    EthereumBaseLayerConfig {
-        node_url,
+    let base_layer_config = EthereumBaseLayerConfig {
         starknet_contract_address,
         prague_blob_gas_calc: true,
         ..Default::default()
-    }
+    };
+    (base_layer_config, node_url)
 }
 
 #[derive(Parser, Debug)]

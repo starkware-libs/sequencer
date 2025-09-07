@@ -3,11 +3,6 @@ source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
 ---
 {
-  "base_layer.node_url": {
-    "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
-    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E",
-    "privacy": "Private"
-  },
   "base_layer.prague_blob_gas_calc": {
     "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
     "value": true,
@@ -23,6 +18,11 @@ expression: dumped_default_config
     "value": {
       "$serde_json::private::Number": "1000"
     },
+    "privacy": "Public"
+  },
+  "base_layer_url": {
+    "description": "URL for communicating with Ethereum.",
+    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E",
     "privacy": "Public"
   },
   "central.class_cache_size": {

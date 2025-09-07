@@ -286,19 +286,11 @@ pub async fn create_node_components(
     let l1_endpoint_monitor = match config.components.l1_endpoint_monitor.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let base_layer_config =
-                config.base_layer_config.as_ref().expect("Base Layer config should be set");
             let l1_endpoint_monitor_config = config
                 .l1_endpoint_monitor_config
                 .as_ref()
                 .expect("L1 Endpoint Monitor config should be set");
-            Some(
-                L1EndpointMonitor::new(
-                    l1_endpoint_monitor_config.clone(),
-                    &base_layer_config.node_url,
-                )
-                .unwrap(),
-            )
+            Some(L1EndpointMonitor::new(l1_endpoint_monitor_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
@@ -310,12 +302,18 @@ pub async fn create_node_components(
         ActiveComponentExecutionMode::Enabled => {
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
+            let l1_endpoint_monitor_config = config
+                .l1_endpoint_monitor_config
+                .as_ref()
+                .expect("L1 Endpoint Monitor config should be set");
+            let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
             let l1_scraper_config =
                 config.l1_scraper_config.as_ref().expect("L1 Scraper config should be set");
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+            let base_layer =
+                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
             let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
@@ -323,7 +321,7 @@ pub async fn create_node_components(
             let monitored_base_layer = MonitoredEthereumBaseLayer::new(
                 base_layer,
                 l1_endpoint_monitor_client,
-                base_layer_config.node_url.clone(),
+                initial_node_url,
             );
 
             Some(
@@ -351,6 +349,11 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
+            let l1_endpoint_monitor_config = config
+                .l1_endpoint_monitor_config
+                .as_ref()
+                .expect("L1 Endpoint Monitor config should be set");
+            let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
             let l1_provider_config =
                 config.l1_provider_config.expect("L1 Provider config should be set");
             let mut l1_provider_builder = L1ProviderBuilder::new(
@@ -403,7 +406,10 @@ pub async fn create_node_components(
                      to align to its height",
                 );
                 let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
-                let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+                let base_layer = EthereumBaseLayerContract::new(
+                    base_layer_config.clone(),
+                    initial_node_url.clone(),
+                );
                 let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
@@ -459,11 +465,17 @@ pub async fn create_node_components(
                 .expect("L1 gas price client should be available");
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+            let l1_endpoint_monitor_config = config
+                .l1_endpoint_monitor_config
+                .as_ref()
+                .expect("L1 Endpoint Monitor config should be set");
+            let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
+            let base_layer =
+                EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
             let monitored_base_layer = MonitoredEthereumBaseLayer::new(
                 base_layer,
                 l1_endpoint_monitor_client,
-                base_layer_config.node_url.clone(),
+                initial_node_url,
             );
 
             Some(L1GasPriceScraper::new(

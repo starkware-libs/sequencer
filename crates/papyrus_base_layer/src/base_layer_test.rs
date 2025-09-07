@@ -9,6 +9,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
+use url::Url;
 
 use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
@@ -18,7 +19,7 @@ use crate::ethereum_base_layer_contract::{
     Starknet,
 };
 use crate::test_utils::{
-    anvil_instance_from_config,
+    anvil_instance_from_url,
     ethereum_base_layer_config_for_anvil,
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
@@ -36,7 +37,11 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
 
     let provider = ProviderBuilder::new().on_mocked_client(asserter.clone()).root().clone();
     let contract = Starknet::new(Default::default(), provider);
-    let base_layer = EthereumBaseLayerContract { contract, config: Default::default() };
+    let base_layer = EthereumBaseLayerContract {
+        contract,
+        config: Default::default(),
+        url: Url::parse("http://dummy_url").unwrap(),
+    };
 
     (base_layer, asserter)
 }
@@ -49,11 +54,10 @@ async fn latest_proved_block_ethereum() {
     }
     #[allow(deprecated)] // Legacy code, will be removed soon, don't add new instances if this.
     let (node_handle, starknet_contract_address) = crate::test_utils::get_test_ethereum_node();
-    let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
-        node_url: node_handle.0.endpoint().parse().unwrap(),
-        starknet_contract_address,
-        ..Default::default()
-    });
+    let contract = EthereumBaseLayerContract::new(
+        EthereumBaseLayerConfig { starknet_contract_address, ..Default::default() },
+        node_handle.0.endpoint().parse().unwrap(),
+    );
 
     let first_sn_state_update =
         BlockHashAndNumber { number: BlockNumber(100), hash: BlockHash(felt!("0x100")) };
@@ -124,9 +128,9 @@ async fn events_from_other_contract() {
     }
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
-    let this_config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_config(&this_config);
-    let this_contract = EthereumBaseLayerContract::new(this_config.clone());
+    let (this_config, this_url) = ethereum_base_layer_config_for_anvil(None);
+    let _anvil = anvil_instance_from_url(this_url.clone());
+    let this_contract = EthereumBaseLayerContract::new(this_config.clone(), this_url.clone());
 
     // Test: get_proved_block_at_unknown_block_number.
     // TODO(Arni): turn this into a unit test, with its own anvil instance.

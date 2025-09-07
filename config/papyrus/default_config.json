@@ -1,9 +1,4 @@
 {
-  "base_layer.node_url": {
-    "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
-    "privacy": "Private",
-    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
-  },
   "base_layer.prague_blob_gas_calc": {
     "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
     "privacy": "Public",
@@ -18,6 +13,11 @@
     "description": "The timeout (milliseconds) for a query of the L1 base layer",
     "privacy": "Public",
     "value": 1000
+  },
+  "base_layer_url": {
+    "description": "URL for communicating with Ethereum.",
+    "privacy": "Public",
+    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
   },
   "central.class_cache_size": {
     "description": "Size of class cache, must be a positive integer.",

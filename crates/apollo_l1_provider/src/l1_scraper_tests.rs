@@ -20,7 +20,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     Starknet,
 };
 use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
+    anvil_instance_from_url,
     ethereum_base_layer_config_for_anvil,
 };
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
@@ -37,6 +37,7 @@ use starknet_api::transaction::{
     TransactionHasher,
     TransactionVersion,
 };
+use url::Url;
 
 use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::{L1Provider, L1ProviderBuilder};
@@ -77,9 +78,10 @@ fn receive_commit_block(
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
 async fn scraper(
     base_layer_config: EthereumBaseLayerConfig,
+    base_layer_url: Url,
 ) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config, base_layer_url);
     let l1_scraper_config = L1ScraperConfig::default();
 
     let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
@@ -106,10 +108,10 @@ async fn txs_happy_flow() {
         return;
     }
 
-    let base_layer_config = ethereum_base_layer_config_for_anvil(None);
-    let anvil = anvil_instance_from_config(&base_layer_config);
+    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
+    let anvil = anvil_instance_from_url(base_layer_url.clone());
     // Setup.
-    let (mut scraper, fake_client) = scraper(base_layer_config).await;
+    let (mut scraper, fake_client) = scraper(base_layer_config, base_layer_url).await;
 
     // Test.
     // Scrape multiple events.
