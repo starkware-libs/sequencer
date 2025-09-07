@@ -46,7 +46,7 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_consensus_block_number() -> Panel {
     Panel::from_gauge(&CONSENSUS_BLOCK_NUMBER, PanelType::TimeSeries)
@@ -85,6 +85,15 @@ fn get_panel_consensus_round_avg() -> Panel {
         vec![format!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+}
+fn get_panel_consensus_block_time_avg() -> Panel {
+    Panel::new(
+        "Average block time",
+        "Average block time (10m)",
+        vec![format!("600 / increase({}[10m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
 }
 fn get_panel_consensus_round_above_zero() -> Panel {
     Panel::from_counter(&CONSENSUS_ROUND_ABOVE_ZERO, PanelType::TimeSeries)
@@ -220,6 +229,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
             get_panel_consensus_round_avg(),
+            get_panel_consensus_block_time_avg(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_between_nodes(),
             get_panel_consensus_block_number_diff_from_sync(),
