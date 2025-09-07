@@ -943,6 +943,7 @@ pub fn sort_state_diff(diff: &mut StateDiff) {
     diff.deployed_contracts.sort_unstable_keys();
     diff.nonces.sort_unstable_keys();
     diff.storage_diffs.sort_unstable_keys();
+    diff.migrated_compiled_class_hashes.sort_unstable_keys();
     for storage_entries in diff.storage_diffs.values_mut() {
         storage_entries.sort_unstable_keys();
     }
