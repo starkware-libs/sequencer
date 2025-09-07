@@ -62,12 +62,49 @@ pub(crate) enum PanelType {
     TimeSeries,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Unit {
+    Bytes,
+    Seconds,
+    Percent,
+}
+
+impl Unit {
+    fn grafana_id(&self) -> &'static str {
+        match self {
+            Unit::Bytes => "bytes",
+            Unit::Seconds => "s",
+            Unit::Percent => "percent",
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct ExtraParams {
+    pub unit: Option<Unit>,
+    pub show_percent_change: bool,
+}
+
+impl ExtraParams {
+    fn to_string_map(&self) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        if let Some(u) = &self.unit {
+            map.insert("unit".into(), u.grafana_id().into());
+        }
+        if self.show_percent_change {
+            map.insert("showPercentChange".into(), "true".into());
+        }
+        map
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Panel {
     name: String,
     description: String,
     exprs: Vec<String>,
     panel_type: PanelType,
+    extra: ExtraParams,
 }
 
 impl Panel {
@@ -87,7 +124,16 @@ impl Panel {
             "Too many expressions ({} > {NUM_LETTERS}) in panel '{name}'.",
             exprs.len(),
         );
-        Self { name, description, exprs, panel_type }
+        Self { name, description, exprs, panel_type, extra: ExtraParams::default() }
+    }
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.extra.unit = Some(unit);
+        self
+    }
+
+    pub fn show_percent_change(mut self) -> Self {
+        self.extra.show_percent_change = true;
+        self
     }
 
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
@@ -202,10 +248,7 @@ impl Serialize for Panel {
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
         state.serialize_field("exprs", &self.exprs)?;
-
-        // Append an empty dictionary `{}` at the end
-        let empty_map: HashMap<String, String> = HashMap::new();
-        state.serialize_field("extra_params", &empty_map)?;
+        state.serialize_field("extra_params", &self.extra.to_string_map())?;
 
         state.end()
     }

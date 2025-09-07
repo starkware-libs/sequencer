@@ -8,7 +8,7 @@ use apollo_batcher::metrics::{
     REVERTED_TRANSACTIONS,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_proposal_started() -> Panel {
     Panel::from_counter(&PROPOSAL_STARTED, PanelType::Stat)
@@ -42,6 +42,7 @@ fn get_panel_reverted_transaction_ratio() -> Panel {
         &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
         "5m",
     )
+    .with_unit(Unit::Percent)
 }
 
 fn get_panel_batched_transactions_rate() -> Panel {

@@ -28,7 +28,7 @@ fn get_panel_p2p_sync_num_active_outbound_sessions() -> Panel {
 // State Sync panels
 
 fn get_panel_state_sync_processed_transactions() -> Panel {
-    Panel::from_counter(&STATE_SYNC_PROCESSED_TRANSACTIONS, PanelType::Stat)
+    Panel::from_counter(&STATE_SYNC_PROCESSED_TRANSACTIONS, PanelType::Stat).show_percent_change()
 }
 fn get_panel_state_sync_reverted_transactions() -> Panel {
     Panel::from_counter(&STATE_SYNC_REVERTED_TRANSACTIONS, PanelType::Stat)

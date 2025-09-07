@@ -14,7 +14,7 @@ use apollo_mempool::metrics::{
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
@@ -85,6 +85,7 @@ fn get_panel_mempool_total_size_in_bytes() -> Panel {
         vec![format!("avg_over_time({}[2m])", MEMPOOL_TOTAL_SIZE_BYTES.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Bytes)
 }
 fn get_panel_mempool_get_txs_size() -> Panel {
     Panel::new(
@@ -107,6 +108,7 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
 }
 fn get_panel_mempool_transaction_time_spent() -> Panel {
     Panel::from_hist(&TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
+        .with_unit(Unit::Seconds)
 }
 fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
     Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, PanelType::TimeSeries)

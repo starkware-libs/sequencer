@@ -390,7 +390,9 @@
         "exprs": [
           "100 * (increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "percent"
+        }
       }
     ],
     "State Sync": [
@@ -401,7 +403,9 @@
         "exprs": [
           "apollo_state_sync_processed_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "showPercentChange": "true"
+        }
       },
       {
         "title": "apollo_state_sync_reverted_transactions",
@@ -662,7 +666,9 @@
         "exprs": [
           "avg_over_time(mempool_total_size_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "bytes"
+        }
       },
       {
         "title": "mempool_get_txs_size",
@@ -690,7 +696,9 @@
           "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "s"
+        }
       },
       {
         "title": "mempool_transaction_time_spent_until_committed",
