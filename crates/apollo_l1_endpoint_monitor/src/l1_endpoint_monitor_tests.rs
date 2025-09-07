@@ -132,12 +132,3 @@ async fn all_down_fails() {
     assert_eq!(result, Err(L1EndpointMonitorError::NoActiveL1Endpoint));
     assert_eq!(monitor.current_l1_endpoint_index, 0);
 }
-
-#[tokio::test]
-async fn initialized_with_unknown_url_returns_error() {
-    let some_valid_endpoint = mock_working_l1_endpoint().await;
-    let config = l1_endpoint_monitor_config(vec![some_valid_endpoint.url]);
-    let unknown_url = url(BAD_ENDPOINT_1);
-    let result = L1EndpointMonitor::new(config.clone(), &unknown_url);
-    assert_eq!(result, Err(L1EndpointMonitorError::InitializationError { unknown_url }));
-}

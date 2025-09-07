@@ -122,34 +122,39 @@ pub fn anvil(port: Option<u16>) -> AnvilInstance {
     })
 }
 
-pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLayerConfig {
+pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> (EthereumBaseLayerConfig, Url) {
     // Use the specified port if provided; otherwise, default to Anvil's default port.
     let non_optional_port = port.unwrap_or(DEFAULT_ANVIL_PORT);
     let endpoint = format!("http://localhost:{}", non_optional_port);
-    EthereumBaseLayerConfig {
-        node_url: Url::parse(&endpoint).unwrap(),
+    let url = Url::parse(&endpoint).unwrap();
+    let config = EthereumBaseLayerConfig {
         starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
         ..Default::default()
-    }
+    };
+    (config, url)
 }
 
-pub fn anvil_instance_from_config(config: &EthereumBaseLayerConfig) -> AnvilInstance {
-    let port = config.node_url.port();
+pub fn anvil_instance_from_url(url: &Url) -> AnvilInstance {
+    let port = url.port();
     let anvil = anvil(port);
-    assert_eq!(config.node_url, anvil.endpoint_url(), "Unexpected config for Anvil instance.");
+    assert_eq!(url, &anvil.endpoint_url(), "Unexpected config for Anvil instance.");
     anvil
 }
 
 pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
     config: &EthereumBaseLayerConfig,
+    url: &Url,
 ) -> (AnvilInstance, StarknetL1Contract) {
-    let anvil = anvil_instance_from_config(config);
-    let starknet_l1_contract = deploy_starknet_l1_contract(config.clone()).await;
+    let anvil = anvil_instance_from_url(url);
+    let starknet_l1_contract = deploy_starknet_l1_contract(config.clone(), url).await;
     (anvil, starknet_l1_contract)
 }
 
-pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> StarknetL1Contract {
-    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config);
+pub async fn deploy_starknet_l1_contract(
+    config: EthereumBaseLayerConfig,
+    url: &Url,
+) -> StarknetL1Contract {
+    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config, url.clone());
     Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
 }
 
@@ -157,9 +162,10 @@ pub async fn make_block_history_on_anvil(
     sender_address: Address,
     receiver_address: Address,
     base_layer_config: EthereumBaseLayerConfig,
+    url: &Url,
     num_blocks: usize,
 ) {
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
     let provider = base_layer.contract.provider();
     let mut prev_block_number =
         usize::try_from(provider.get_block_number().await.unwrap()).unwrap();

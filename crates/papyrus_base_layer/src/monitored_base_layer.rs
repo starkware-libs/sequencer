@@ -25,15 +25,14 @@ pub struct MonitoredBaseLayer<B: BaseLayerContract + Send + Sync> {
 }
 
 impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
-    pub fn new(
+    pub async fn new(
         base_layer: B,
         l1_endpoint_monitor_client: SharedL1EndpointMonitorClient,
-        initial_node_url: Url,
     ) -> Self {
         MonitoredBaseLayer {
+            current_node_url: RwLock::new(base_layer.get_url().await.unwrap()),
             base_layer: Mutex::new(base_layer),
             monitor: l1_endpoint_monitor_client,
-            current_node_url: RwLock::new(initial_node_url),
         }
     }
 
@@ -158,6 +157,10 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
             .get_block_header(block_number)
             .await
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn get_url(&self) -> Result<Url, Self::Error> {
+        Ok(self.current_node_url.read().await.clone())
     }
 
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
