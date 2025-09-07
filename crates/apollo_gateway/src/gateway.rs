@@ -19,7 +19,7 @@ use apollo_gateway_types::gateway_types::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
-use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_mempool_types::mempool_types::AddTransactionArgs;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
@@ -193,8 +193,6 @@ impl ProcessTxBlockingTask {
     // TODO(Arni): Make into async function and remove all block_on calls once we manage removing
     // the spawn_blocking call.
     fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
-        // TODO(Arni, 1/5/2024): Perform congestion control.
-
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
@@ -230,11 +228,7 @@ impl ProcessTxBlockingTask {
             self.runtime,
         )?;
 
-        // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        Ok(AddTransactionArgs {
-            tx: internal_tx,
-            account_state: AccountState { address: executable_tx.contract_address(), nonce },
-        })
+        Ok(AddTransactionArgs::new(internal_tx, nonce))
     }
 }
 
