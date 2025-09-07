@@ -9,7 +9,7 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
 use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
+    anvil_instance_from_url,
     ethereum_base_layer_config_for_anvil,
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
@@ -33,10 +33,10 @@ async fn scraper_end_to_end() {
     }
 
     // Setup.
-    let base_layer_config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil_server_guard = anvil_instance_from_config(&base_layer_config);
+    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
+    let _anvil_server_guard = anvil_instance_from_url(&base_layer_url);
     let mut l1_provider_client = MockL1ProviderClient::default();
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config, base_layer_url);
 
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();

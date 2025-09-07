@@ -22,18 +22,8 @@ pub struct L1EndpointMonitor {
 }
 
 impl L1EndpointMonitor {
-    pub fn new(
-        config: L1EndpointMonitorConfig,
-        initial_node_url: &Url,
-    ) -> L1EndpointMonitorResult<Self> {
-        let starting_l1_endpoint_index =
-            config.ordered_l1_endpoint_urls.iter().position(|url| url == initial_node_url).ok_or(
-                L1EndpointMonitorError::InitializationError {
-                    unknown_url: initial_node_url.clone(),
-                },
-            )?;
-
-        Ok(Self { current_l1_endpoint_index: starting_l1_endpoint_index, config })
+    pub fn new(config: L1EndpointMonitorConfig) -> Self {
+        Self { current_l1_endpoint_index: 0, config }
     }
 
     /// Returns a functional L1 endpoint, or fails if all configured endpoints are non-operational.
