@@ -29,6 +29,10 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         for i, expr in enumerate(exprs)
     ]
 
+    extra = panel.get("extra_params", {})
+    unit = extra.get("unit", "none")
+    show_percent_change = extra.get("showPercentChange", False)
+
     grafana_panel = {
         "id": panel_id,
         "type": panel["type"],
@@ -38,17 +42,13 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         "targets": targets,
         "fieldConfig": {
             "defaults": {
-                "unit": "none",
-                "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                        {"color": "green", "value": None},
-                        {"color": "orange", "value": 70},
-                        {"color": "red", "value": 90},
-                    ],
-                },
+                "color": {"mode": "palette-classic"},
+                "unit": unit,
             }
         },
+        "options": {
+            "showPercentChange": show_percent_change
+        }
     }
     return grafana_panel
 
