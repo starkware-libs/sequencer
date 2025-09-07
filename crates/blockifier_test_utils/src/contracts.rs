@@ -335,7 +335,8 @@ impl FeatureContract {
         }
     }
 
-    /// Unique integer representing each unique contract. Used to derive "class hash" and "address".
+    /// Unique integer representing each unique contract. Used to derive "class hash", "address" and
+    /// "compiled class hash".
     pub fn get_integer_base(self) -> u32 {
         self.get_cairo_version_bit()
             + match self {
