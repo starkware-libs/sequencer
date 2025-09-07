@@ -191,6 +191,37 @@ pub(crate) fn create_request_type_labeled_hist_panels(
         .collect()
 }
 
+// For a given request label and vector of labeled histogram metrics, create a panel with multiple
+// expressions.
+pub(crate) fn _get_multi_metric_panel(
+    panel_name: &str,
+    panel_description: &str,
+    request_label: &str,
+    metrics: &Vec<&LabeledMetricHistogram>,
+    panel_type: PanelType,
+) -> Panel {
+    let mut exprs: Vec<String> = vec![];
+    for metric in metrics {
+        // TODO(alonl): func this (duplicate with from_request_type_labeled_hist)
+        let metric_name_with_filter_and_reason = format!(
+            "{}, {LABEL_NAME_REQUEST_VARIANT}=\"{request_label}\"}}",
+            metric
+                .get_name_with_filter()
+                .strip_suffix("}")
+                .expect("Metric label filter should end with a }")
+        );
+        exprs.extend(HISTOGRAM_QUANTILES.iter().map(|q| {
+            format!(
+                "histogram_quantile({q:.2},label_replace(sum by (le) \
+                 (rate({metric_name_with_filter_and_reason}[{HISTOGRAM_TIME_RANGE}])), \
+                 \"label_name\", \"{q:.2} {}\", \"le\", \".*\"))",
+                metric.get_name()
+            )
+        }))
+    }
+    Panel::new(panel_name, panel_description, exprs, panel_type)
+}
+
 // Custom Serialize implementation for Panel.
 impl Serialize for Panel {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -303,8 +334,68 @@ pub(crate) fn get_remote_server_panels(remote_server_metrics: &RemoteServerMetri
         processed_msgs_panel,
         number_of_connections_panel,
     ]
-    .into_iter()
-    .collect()
+}
+
+// This function assumes that all metrics share the same labels.
+pub(crate) fn _get_labeled_client_panels(
+    local_client_metrics: &LocalClientMetrics,
+    remote_client_metrics: &RemoteClientMetrics,
+) -> Vec<Panel> {
+    let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
+        local_client_metrics.get_all_labeled_metrics();
+    labeled_metrics.extend(remote_client_metrics.get_all_labeled_metrics());
+
+    let Some(first_metric) = labeled_metrics.first() else {
+        return vec![];
+    };
+    let request_labels = first_metric.get_flat_label_values();
+
+    let mut panels = vec![];
+    for request_label in request_labels {
+        let panel_name = format!("{} (client)", request_label);
+        let panel_description = format!("Client infra metrics for request type {}", request_label);
+        let panel = _get_multi_metric_panel(
+            &panel_name,
+            &panel_description,
+            request_label,
+            &labeled_metrics,
+            PanelType::TimeSeries,
+        );
+        panels.push(panel);
+    }
+
+    panels
+}
+
+// This function assumes that all metrics share the same labels.
+pub(crate) fn _get_labeled_server_panels(
+    local_server_metrics: &LocalServerMetrics,
+    remote_server_metrics: &RemoteServerMetrics,
+) -> Vec<Panel> {
+    let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
+        local_server_metrics.get_all_labeled_metrics();
+    labeled_metrics.extend(remote_server_metrics.get_all_labeled_metrics());
+
+    let Some(first_metric) = labeled_metrics.first() else {
+        return vec![];
+    };
+    let request_labels = first_metric.get_flat_label_values();
+
+    let mut panels = vec![];
+    for request_label in request_labels {
+        let panel_name = format!("{} (server)", request_label);
+        let panel_description = format!("Server infra metrics for request type {}", request_label);
+        let panel = _get_multi_metric_panel(
+            &panel_name,
+            &panel_description,
+            request_label,
+            &labeled_metrics,
+            PanelType::TimeSeries,
+        );
+        panels.push(panel);
+    }
+
+    panels
 }
 
 pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
