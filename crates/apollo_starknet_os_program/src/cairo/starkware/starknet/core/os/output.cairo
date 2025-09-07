@@ -1,8 +1,9 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
-from starkware.cairo.common.ec import ec_mul, StarkCurve
+from starkware.cairo.common.ec import ec_mul, recover_y, StarkCurve
 from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -397,5 +398,29 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     assert sn_public_keys[0] = sn_public_key.x;
     return compute_public_keys(
         n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1, sn_public_keys=sn_public_keys + 1
+    );
+}
+
+func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
+    n_keys: felt,
+    public_keys: felt*,
+    sn_private_keys: felt*,
+    symmetric_key: felt,
+    symmetric_key_encryptions_dst: felt*,
+) {
+    if (n_keys == 0) {
+        return ();
+    }
+    let (public_key) = recover_y(public_keys[0]);
+    let (shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
+    // TODO(Avi, 10/9/2025): Switch to naive encoding once the function is available.
+    assert symmetric_key_encryptions_dst[0] = symmetric_key +
+        encode_felt252_data_and_calc_blake_hash(data_len=1, data=&shared_secret.x);
+    return encrypt_symmetric_key(
+        n_keys=n_keys - 1,
+        public_keys=&public_keys[1],
+        sn_private_keys=&sn_private_keys[1],
+        symmetric_key=symmetric_key,
+        symmetric_key_encryptions_dst=&symmetric_key_encryptions_dst[1],
     );
 }
