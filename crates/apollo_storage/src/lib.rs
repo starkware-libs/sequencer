@@ -105,6 +105,12 @@ pub mod test_utils;
 #[cfg(test)]
 mod concurrent_flush_test;
 
+#[cfg(test)]
+mod production_simulation_test;
+
+#[cfg(test)]
+mod stress_test;
+
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
@@ -534,7 +540,7 @@ struct_field_names! {
         casms: TableIdentifier<ClassHash, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         // Empirically, defining the common prefix as (ContractAddress, StorageKey) is better space-wise than defining the
         // common prefix only as ContractAddress.
-        contract_storage: TableIdentifier<((ContractAddress, StorageKey), BlockNumber), NoVersionValueWrapper<Felt>, CommonPrefix>,
+        contract_storage: TableIdentifier<((ContractAddress, StorageKey), BlockNumber), NoVersionValueWrapper<Felt>, CommonPrefix>, // this is what we talked about
         declared_classes: TableIdentifier<ClassHash, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         declared_classes_block: TableIdentifier<ClassHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>,
         deprecated_declared_classes: TableIdentifier<ClassHash, VersionZeroWrapper<IndexedDeprecatedContractClass>, SimpleTable>,
