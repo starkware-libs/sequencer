@@ -2,13 +2,32 @@ use std::collections::HashMap;
 
 use apollo_metrics::generate_permutation_labels;
 use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
-use libp2p::gossipsub::TopicHash;
-use strum::{EnumVariantNames, VariantNames};
-use strum_macros::{EnumIter, IntoStaticStr};
+use libp2p::gossipsub::{PublishError, TopicHash};
+use strum::{EnumIter, IntoStaticStr, VariantNames};
+use strum_macros::EnumVariantNames;
+
+// Labels used for broadcast drop metrics
+pub const LABEL_NAME_BROADCAST_DROP_REASON: &str = "drop_reason";
+
+#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum BroadcastPublishDropReason {
+    Duplicate,
+    SigningError,
+    NoPeersSubscribedToTopic,
+    MessageTooLarge,
+    TransformFailed,
+    AllQueuesFull,
+}
+
+generate_permutation_labels! {
+    NETWORK_BROADCAST_DROP_LABELS,
+    (LABEL_NAME_BROADCAST_DROP_REASON, BroadcastPublishDropReason),
+}
 
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
-    pub num_dropped_broadcast_messages: MetricCounter,
+    pub num_dropped_broadcast_messages: LabeledMetricCounter,
     pub num_received_broadcast_messages: MetricCounter,
 }
 
@@ -17,6 +36,34 @@ impl BroadcastNetworkMetrics {
         self.num_sent_broadcast_messages.register();
         self.num_dropped_broadcast_messages.register();
         self.num_received_broadcast_messages.register();
+    }
+
+    fn inc_dropped_msgs(&self, reason: BroadcastPublishDropReason) {
+        self.num_dropped_broadcast_messages
+            .increment(1, &[(LABEL_NAME_BROADCAST_DROP_REASON, reason.into())]);
+    }
+
+    pub fn increment_publish_error(&self, err: &PublishError) {
+        match err {
+            PublishError::Duplicate => {
+                self.inc_dropped_msgs(BroadcastPublishDropReason::Duplicate);
+            }
+            PublishError::SigningError(_) => {
+                self.inc_dropped_msgs(BroadcastPublishDropReason::SigningError);
+            }
+            PublishError::NoPeersSubscribedToTopic => {
+                self.inc_dropped_msgs(BroadcastPublishDropReason::NoPeersSubscribedToTopic);
+            }
+            PublishError::MessageTooLarge => {
+                self.inc_dropped_msgs(BroadcastPublishDropReason::MessageTooLarge);
+            }
+            PublishError::TransformFailed(_) => {
+                self.inc_dropped_msgs(BroadcastPublishDropReason::TransformFailed);
+            }
+            PublishError::AllQueuesFull(_) => {
+                self.inc_dropped_msgs(BroadcastPublishDropReason::AllQueuesFull);
+            }
+        }
     }
 }
 

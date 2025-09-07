@@ -7,7 +7,7 @@ use apollo_infra::metrics::{
 };
 use apollo_mempool_p2p_types::communication::MEMPOOL_P2P_REQUEST_LABELS;
 use apollo_metrics::{define_infra_metrics, define_metrics};
-use apollo_network::network_manager::metrics::EVENT_TYPE_LABELS;
+use apollo_network::network_manager::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
 
 define_infra_metrics!(mempool_p2p);
 
@@ -19,7 +19,7 @@ define_metrics!(
         // Counters
         MetricCounter { MEMPOOL_P2P_NUM_SENT_MESSAGES, "apollo_mempool_p2p_num_sent_messages", "The number of messages sent by the mempool p2p component", init = 0 },
         MetricCounter { MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, "apollo_mempool_p2p_num_received_messages", "The number of messages received by the mempool p2p component", init = 0 },
-        MetricCounter { MEMPOOL_P2P_NUM_DROPPED_MESSAGES, "apollo_mempool_p2p_num_dropped_messages", "The number of messages dropped by the mempool p2p component", init = 0 },
+        LabeledMetricCounter { MEMPOOL_P2P_NUM_DROPPED_MESSAGES, "apollo_mempool_p2p_num_dropped_messages", "The number of messages dropped by the mempool p2p component", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
         // Histogram
         MetricHistogram { MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, "apollo_mempool_p2p_broadcasted_transaction_batch_size", "The number of transactions in batches broadcast by the mempool p2p component" },
         // Network events
