@@ -43,11 +43,11 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
+    pub chain_info: ChainInfo,
 }
 
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
@@ -55,7 +55,6 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
@@ -85,7 +84,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
             block_info,
-            chain_info.clone(),
+            self.chain_info.clone(),
             versioned_constants,
             BouncerConfig::max(),
         );
