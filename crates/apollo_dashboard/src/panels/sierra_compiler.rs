@@ -1,9 +1,9 @@
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, Row};
 
 fn get_panel_compilation_duration() -> Panel {
-    Panel::from_hist(&COMPILATION_DURATION, PanelType::TimeSeries)
+    Panel::from(&COMPILATION_DURATION)
 }
 
 pub(crate) fn get_compile_to_casm_row() -> Row {

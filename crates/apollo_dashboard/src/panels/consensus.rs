@@ -49,7 +49,7 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_consensus_block_number() -> Panel {
-    Panel::from_gauge(&CONSENSUS_BLOCK_NUMBER, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_BLOCK_NUMBER)
 }
 fn get_panel_consensus_block_number_diff_between_nodes() -> Panel {
     Panel::new(
@@ -76,7 +76,7 @@ fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     )
 }
 fn get_panel_consensus_round() -> Panel {
-    Panel::from_gauge(&CONSENSUS_ROUND, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_ROUND)
 }
 fn get_panel_consensus_round_avg() -> Panel {
     Panel::new(
@@ -87,61 +87,61 @@ fn get_panel_consensus_round_avg() -> Panel {
     )
 }
 fn get_panel_consensus_round_above_zero() -> Panel {
-    Panel::from_counter(&CONSENSUS_ROUND_ABOVE_ZERO, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_ROUND_ABOVE_ZERO)
 }
 fn get_panel_consensus_max_cached_block_number() -> Panel {
-    Panel::from_gauge(&CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_MAX_CACHED_BLOCK_NUMBER)
 }
 fn get_panel_consensus_cached_votes() -> Panel {
-    Panel::from_gauge(&CONSENSUS_CACHED_VOTES, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_CACHED_VOTES)
 }
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
-    Panel::from_counter(&CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS)
 }
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
-    Panel::from_counter(&CONSENSUS_DECISIONS_REACHED_BY_SYNC, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_DECISIONS_REACHED_BY_SYNC)
 }
 fn get_panel_consensus_inbound_stream_started() -> Panel {
-    Panel::from_counter(&CONSENSUS_INBOUND_STREAM_STARTED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_INBOUND_STREAM_STARTED)
 }
 fn get_panel_consensus_inbound_stream_evicted() -> Panel {
-    Panel::from_counter(&CONSENSUS_INBOUND_STREAM_EVICTED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_INBOUND_STREAM_EVICTED)
 }
 fn get_panel_consensus_inbound_stream_finished() -> Panel {
-    Panel::from_counter(&CONSENSUS_INBOUND_STREAM_FINISHED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_INBOUND_STREAM_FINISHED)
 }
 fn get_panel_consensus_outbound_stream_started() -> Panel {
-    Panel::from_counter(&CONSENSUS_OUTBOUND_STREAM_STARTED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_OUTBOUND_STREAM_STARTED)
 }
 fn get_panel_consensus_outbound_stream_finished() -> Panel {
-    Panel::from_counter(&CONSENSUS_OUTBOUND_STREAM_FINISHED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_OUTBOUND_STREAM_FINISHED)
 }
 fn get_panel_consensus_proposals_received() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_RECEIVED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_PROPOSALS_RECEIVED)
 }
 fn get_panel_consensus_proposals_valid_init() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_VALID_INIT, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_PROPOSALS_VALID_INIT)
 }
 fn get_panel_consensus_proposals_validated() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_VALIDATED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_PROPOSALS_VALIDATED)
 }
 fn get_panel_consensus_proposals_invalid() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_INVALID, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_PROPOSALS_INVALID)
 }
 fn get_panel_consensus_build_proposal_total() -> Panel {
-    Panel::from_counter(&CONSENSUS_BUILD_PROPOSAL_TOTAL, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_BUILD_PROPOSAL_TOTAL)
 }
 fn get_panel_consensus_build_proposal_failed() -> Panel {
-    Panel::from_counter(&CONSENSUS_BUILD_PROPOSAL_FAILED, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_BUILD_PROPOSAL_FAILED)
 }
 fn get_panel_consensus_reproposals() -> Panel {
-    Panel::from_counter(&CONSENSUS_REPROPOSALS, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_REPROPOSALS)
 }
 fn get_panel_consensus_new_value_locks() -> Panel {
-    Panel::from_counter(&CONSENSUS_NEW_VALUE_LOCKS, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_NEW_VALUE_LOCKS)
 }
 fn get_panel_consensus_held_locks() -> Panel {
-    Panel::from_counter(&CONSENSUS_HELD_LOCKS, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_HELD_LOCKS)
 }
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
@@ -156,43 +156,43 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
     )
 }
 fn get_panel_consensus_num_batches_in_proposal() -> Panel {
-    Panel::from_gauge(&CONSENSUS_NUM_BATCHES_IN_PROPOSAL, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_NUM_BATCHES_IN_PROPOSAL)
 }
 fn get_panel_consensus_num_txs_in_proposal() -> Panel {
-    Panel::from_gauge(&CONSENSUS_NUM_TXS_IN_PROPOSAL, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_NUM_TXS_IN_PROPOSAL)
 }
 fn get_panel_consensus_l2_gas_price() -> Panel {
-    Panel::from_gauge(&CONSENSUS_L2_GAS_PRICE, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_L2_GAS_PRICE)
 }
 fn get_panel_consensus_num_connected_peers() -> Panel {
-    Panel::from_gauge(&CONSENSUS_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_NUM_CONNECTED_PEERS)
 }
 fn get_panel_consensus_votes_num_sent_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_VOTES_NUM_SENT_MESSAGES, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_VOTES_NUM_SENT_MESSAGES)
 }
 fn get_panel_consensus_votes_num_received_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES)
 }
 fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES)
 }
 fn get_panel_consensus_proposals_num_received_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES)
 }
 fn get_panel_consensus_conflicting_votes() -> Panel {
-    Panel::from_counter(&CONSENSUS_CONFLICTING_VOTES, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_CONFLICTING_VOTES)
 }
 fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
-    Panel::from_gauge(&CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, PanelType::TimeSeries)
+    Panel::from(&CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER)
 }
 fn get_panel_cende_prepare_blob_for_next_height_latency() -> Panel {
-    Panel::from_hist(&CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, PanelType::TimeSeries)
+    Panel::from(&CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY)
 }
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
-    Panel::from_hist(&CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, PanelType::TimeSeries)
+    Panel::from(&CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY)
 }
 fn get_panel_cende_write_blob_success() -> Panel {
-    Panel::from_counter(&CENDE_WRITE_BLOB_SUCCESS, PanelType::TimeSeries)
+    Panel::from(&CENDE_WRITE_BLOB_SUCCESS)
 }
 fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
@@ -207,10 +207,10 @@ fn get_panel_cende_write_blob_failure() -> Panel {
     )
 }
 fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
-    Panel::from_counter(&CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_L1_DATA_GAS_MISMATCH)
 }
 fn get_panel_consensus_l1_gas_mismatch() -> Panel {
-    Panel::from_counter(&CONSENSUS_L1_GAS_MISMATCH, PanelType::TimeSeries)
+    Panel::from(&CONSENSUS_L1_GAS_MISMATCH)
 }
 
 pub(crate) fn get_consensus_row() -> Row {
