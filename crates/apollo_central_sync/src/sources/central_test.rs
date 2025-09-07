@@ -25,6 +25,7 @@ use futures_util::pin_mut;
 use indexmap::{indexmap, IndexMap};
 use lru::LruCache;
 use mockall::predicate;
+use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -317,6 +318,10 @@ async fn stream_state_updates() {
         ],
         old_declared_contracts: vec![class_hash1, class_hash3],
         declared_classes: vec![class_hash_entry1, class_hash_entry2],
+        migrated_compiled_class_hashes: vec![MigratedCompiledClassHashEntry {
+            class_hash: class_hash1,
+            compiled_class_hash: compiled_class_hash1,
+        }],
         nonces: IndexMap::from([(contract_address1, nonce1)]),
         replaced_classes: vec![ReplacedClass {
             address: contract_address3,

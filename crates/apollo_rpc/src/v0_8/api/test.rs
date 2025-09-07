@@ -2599,6 +2599,7 @@ async fn get_state_update() {
                     ClientDeclaredClassHashEntry { class_hash, compiled_class_hash }
                 })
                 .collect(),
+            migrated_compiled_class_hashes: vec![],
             old_declared_contracts: expected_state_diff.deprecated_declared_classes,
             nonces: IndexMap::from_iter(
                 expected_state_diff
