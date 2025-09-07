@@ -70,7 +70,7 @@ pub fn encrypt_state_diff(
 
     // For each key,
     //  - compute the shared secret using Diffie-Hellman key exchange; and
-    //  - compute the starknet public key
+    //  - compute the starknet public key.
     let mut symmetric_key_encryptions: Vec<Felt> = vec![];
     let mut sn_public_keys: Vec<Felt> = vec![];
     for (&public_key, &sn_private_key) in public_keys.iter().zip(sn_private_keys.iter()) {
