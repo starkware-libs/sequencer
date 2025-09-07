@@ -29,6 +29,33 @@ const INIT_PRICE_FOR_TESTING: GasPrice = GasPrice(30_000_000_000);
     VERSIONED_CONSTANTS.max_block_size / 2,
     GasPrice(INIT_PRICE_FOR_TESTING.0)
 )]
+#[case::high_congestion_80(
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 9 / 10),
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4 / 5), // Gas target 80%
+    GasPrice(
+        INIT_PRICE_FOR_TESTING.0
+            + (INIT_PRICE_FOR_TESTING.0
+                * u128::from(VERSIONED_CONSTANTS.max_block_size.0 / 10) // delta = |0.9*max - 0.8*max| = 0.1*max
+                / (u128::from(VERSIONED_CONSTANTS.max_block_size.0 * 4 / 5)
+                    * VERSIONED_CONSTANTS.gas_price_max_change_denominator)),
+    )
+)]
+#[case::low_congestion_80(
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 / 4),
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4 / 5), // Gas target 80%
+    GasPrice(
+        INIT_PRICE_FOR_TESTING.0
+            - (INIT_PRICE_FOR_TESTING.0
+                * u128::from(VERSIONED_CONSTANTS.max_block_size.0 * 11 / 20)) // delta = |0.25*max - 0.8*max| = 0.55*max
+                / (u128::from(VERSIONED_CONSTANTS.max_block_size.0 * 4 / 5)
+                    * VERSIONED_CONSTANTS.gas_price_max_change_denominator),
+    )
+)]
+#[case::stable_80(
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4/5),
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4/5), // Gas target 80%
+    GasPrice(INIT_PRICE_FOR_TESTING.0)
+)]
 fn price_calculation_snapshot(
     #[case] gas_used: GasAmount,
     #[case] gas_target: GasAmount,
