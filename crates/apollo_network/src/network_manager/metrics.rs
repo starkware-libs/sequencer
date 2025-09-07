@@ -2,13 +2,27 @@ use std::collections::HashMap;
 
 use apollo_metrics::generate_permutation_labels;
 use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
-use libp2p::gossipsub::TopicHash;
-use strum::{EnumVariantNames, VariantNames};
-use strum_macros::{EnumIter, IntoStaticStr};
+use libp2p::gossipsub::{PublishError, TopicHash};
+use strum::{EnumIter, IntoStaticStr, VariantNames};
+use strum_macros::EnumVariantNames;
+
+// Labels used for broadcast drop metrics
+pub const LABEL_NAME_BROADCAST_DROP_REASON: &str = "drop_reason";
+
+#[derive(EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum BroadcastPublishDropReason {
+    PublishError,
+}
+
+generate_permutation_labels! {
+    NETWORK_BROADCAST_DROP_LABELS,
+    (LABEL_NAME_BROADCAST_DROP_REASON, BroadcastPublishDropReason),
+}
 
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
-    pub num_dropped_broadcast_messages: MetricCounter,
+    pub num_dropped_broadcast_messages: LabeledMetricCounter,
     pub num_received_broadcast_messages: MetricCounter,
 }
 
@@ -17,6 +31,13 @@ impl BroadcastNetworkMetrics {
         self.num_sent_broadcast_messages.register();
         self.num_dropped_broadcast_messages.register();
         self.num_received_broadcast_messages.register();
+    }
+
+    pub fn increment_publish_error(&self, err: &PublishError) {
+        // Map each error variant to a stable label. Use Debug string and leak to obtain 'static.
+        let error_variant: &'static str = Box::leak(format!("{:?}", err).into_boxed_str());
+        let label = [(LABEL_NAME_BROADCAST_DROP_REASON, error_variant)];
+        self.num_dropped_broadcast_messages.increment(1, &label);
     }
 }
 

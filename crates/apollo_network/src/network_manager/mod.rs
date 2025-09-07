@@ -636,7 +636,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         let result = self.swarm.broadcast_message(message, topic_hash.clone());
         if result.is_err() {
             self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
-                broadcast_metrics.num_dropped_broadcast_messages.increment(1)
+                broadcast_metrics.increment_publish_error(&err);
             });
         }
     }
