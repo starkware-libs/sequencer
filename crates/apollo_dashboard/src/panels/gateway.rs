@@ -13,9 +13,10 @@ use apollo_gateway::metrics::{
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
 use apollo_infra::metrics::{
+    GATEWAY_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     GATEWAY_LOCAL_MSGS_PROCESSED,
     GATEWAY_LOCAL_MSGS_RECEIVED,
-    GATEWAY_LOCAL_QUEUE_DEPTH,
+    GATEWAY_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
     GATEWAY_REMOTE_MSGS_PROCESSED,
     GATEWAY_REMOTE_MSGS_RECEIVED,
@@ -57,7 +58,15 @@ fn get_panel_remote_number_of_connections() -> Panel {
     Panel::from_gauge(GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "gateway_local_queue_depth",
+        "The depth of the gateway's local priority queues",
+        vec![
+            GATEWAY_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            GATEWAY_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)

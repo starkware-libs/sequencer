@@ -1,7 +1,8 @@
 use apollo_infra::metrics::{
+    L1_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     L1_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_PROVIDER_LOCAL_MSGS_RECEIVED,
-    L1_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_PROVIDER_REMOTE_MSGS_RECEIVED,
@@ -37,7 +38,15 @@ fn get_panel_remote_msgs_processed() -> Panel {
     Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "l1_provider_local_queue_depth",
+        "The depth of the L1 provider's local priority queues",
+        vec![
+            L1_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            L1_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)

@@ -7,9 +7,10 @@ use apollo_compile_to_casm::metrics::{
     SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
 use apollo_infra::metrics::{
+    SIERRA_COMPILER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
     SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
-    SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+    SIERRA_COMPILER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
     SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
     SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
@@ -35,7 +36,15 @@ fn get_panel_remote_msgs_processed() -> Panel {
     Panel::from_counter(SIERRA_COMPILER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "sierra_compiler_local_queue_depth",
+        "The depth of the sierra compiler's local priority queues",
+        vec![
+            SIERRA_COMPILER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            SIERRA_COMPILER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)

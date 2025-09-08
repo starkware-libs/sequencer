@@ -1,7 +1,8 @@
 use apollo_infra::metrics::{
+    L1_GAS_PRICE_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
-    L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_GAS_PRICE_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
@@ -44,7 +45,19 @@ fn get_panel_remote_number_of_connections() -> Panel {
     Panel::from_gauge(L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "l1_gas_price_provider_local_queue_depth",
+        "The depth of the L1 gas price provider's local priority queues",
+        vec![
+            L1_GAS_PRICE_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH
+                .get_name_with_filter()
+                .to_string(),
+            L1_GAS_PRICE_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH
+                .get_name_with_filter()
+                .to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)

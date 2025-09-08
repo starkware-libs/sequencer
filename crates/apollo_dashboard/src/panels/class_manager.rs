@@ -6,9 +6,10 @@ use apollo_class_manager::metrics::{
     CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
 use apollo_infra::metrics::{
+    CLASS_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
     CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
     CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+    CLASS_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
     CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
     CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
@@ -37,7 +38,15 @@ fn get_panel_remote_number_of_connections() -> Panel {
     Panel::from_gauge(CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
-    Panel::from_gauge(CLASS_MANAGER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+    Panel::new(
+        "class_manager_local_queue_depth",
+        "The depth of the class manager's local priority queues",
+        vec![
+            CLASS_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+            CLASS_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH.get_name_with_filter().to_string(),
+        ],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
