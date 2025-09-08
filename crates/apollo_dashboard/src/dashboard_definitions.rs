@@ -12,7 +12,7 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 use crate::dashboard::{get_component_infra_row, Dashboard};
 use crate::panels::batcher::get_batcher_row;
 use crate::panels::blockifier::get_blockifier_row;
-use crate::panels::consensus::{get_consensus_p2p_row, get_consensus_row};
+use crate::panels::consensus::{get_cende_row, get_consensus_p2p_row, get_consensus_row};
 use crate::panels::gateway::get_gateway_row;
 use crate::panels::http_server::get_http_server_row;
 use crate::panels::l1_gas_price::get_l1_gas_price_row;
@@ -34,6 +34,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
         "Sequencer Node Dashboard",
         vec![
             get_consensus_row(),
+            get_cende_row(),
             get_batcher_row(),
             get_state_sync_row(),
             get_http_server_row(),

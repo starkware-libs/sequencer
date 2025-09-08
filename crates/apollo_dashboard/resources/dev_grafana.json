@@ -2,17 +2,17 @@
   "Sequencer Node Dashboard": {
     "Consensus": [
       {
-        "title": "consensus_block_number",
-        "description": "The block number consensus is working to decide",
-        "type": "timeseries",
+        "title": "Consensus Height",
+        "description": "The block height the node is currently working on",
+        "type": "stat",
         "exprs": [
           "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "consensus_round",
-        "description": "The round of the state machine",
+        "title": "Consensus Round",
+        "description": "The round the node is currently working on",
         "type": "timeseries",
         "exprs": [
           "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -20,7 +20,7 @@
         "extra_params": {}
       },
       {
-        "title": "Average consensus round",
+        "title": "Average Consensus Round",
         "description": "Average consensus round (10m)",
         "type": "timeseries",
         "exprs": [
@@ -40,17 +40,17 @@
         }
       },
       {
-        "title": "consensus_round_above_zero",
+        "title": "Consensus Rounds Above Zero",
         "description": "The number of times the consensus round has increased above zero",
         "type": "timeseries",
         "exprs": [
-          "consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "block_number_diff_between_nodes",
-        "description": "Block number diff between nodes",
+        "title": "Height Diff Between Nodes",
+        "description": "The difference between the highest and lowest consensus heights between nodes",
         "type": "timeseries",
         "exprs": [
           "(max(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - min(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}))"
@@ -58,11 +58,137 @@
         "extra_params": {}
       },
       {
-        "title": "consensus_sync_block_number_diff",
-        "description": "The difference between the consensus block number and the sync block number",
-        "type": "timeseries",
+        "title": "Consensus Height Diff From Sync",
+        "description": "The difference between the consensus height and the sync height",
+        "type": "stat",
         "exprs": [
           "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Decisions Reached By Consensus",
+        "description": "The number of decisions reached by way of consensus",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Decisions Reached By Sync",
+        "description": "The number of decisions reached by way of sync",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposals Received",
+        "description": "The number of proposals received from the network",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_proposals_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Validation Success",
+        "description": "The number of proposals received and validated successfully",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_proposals_validated{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Validation Failed",
+        "description": "The number of proposals received and failed validation",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposals Received - Valid Init",
+        "description": "The number of proposals received with a valid init",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_proposals_valid_init{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Received - L1 Data Gas Mismatch",
+        "description": "The number of proposals received with a L1 data gas mismatch",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_l1_data_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Received - L1 Gas Mismatch",
+        "description": "The number of proposals received with a L1 gas mismatch",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_l1_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Build",
+        "description": "The number of proposals that started building",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_build_proposal_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Build Failed",
+        "description": "The number of proposals that failed to be built",
+        "type": "timeseries",
+        "exprs": [
+          "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Consensus Timeouts By Reason",
+        "description": "The number of times consensus has timed out",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (timeout_reason) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Number of Batches Received in Proposal",
+        "description": "The number of transaction batches received in a valid proposal",
+        "type": "timeseries",
+        "exprs": [
+          "consensus_num_batches_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Number of Transactions in Proposal Received",
+        "description": "The total number of individual transactions in a valid proposal received",
+        "type": "timeseries",
+        "exprs": [
+          "consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_l2_gas_price",
+        "description": "The L2 gas price calculated in an accepted proposal",
+        "type": "timeseries",
+        "exprs": [
+          "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -81,78 +207,6 @@
         "type": "timeseries",
         "exprs": [
           "consensus_cached_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_decisions_reached_by_consensus",
-        "description": "The total number of decisions reached by way of consensus",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_decisions_reached_by_sync",
-        "description": "The total number of decisions reached by way of sync",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_proposals_received",
-        "description": "The total number of proposals received",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_proposals_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_proposals_valid_init",
-        "description": "The total number of proposals received with a valid init",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_proposals_valid_init{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_proposals_validated",
-        "description": "The total number of complete, valid proposals received",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_proposals_validated{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_proposals_invalid",
-        "description": "The total number of proposals that failed validation",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_build_proposal_total",
-        "description": "The total number of proposals built",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_build_proposal_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_build_proposal_failed",
-        "description": "The number of proposals that failed to be built",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -180,33 +234,6 @@
         "type": "timeseries",
         "exprs": [
           "consensus_held_locks{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_timeouts",
-        "description": "The number of times consensus has timed out",
-        "type": "timeseries",
-        "exprs": [
-          "sum  by (timeout_reason) (consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_num_batches_in_proposal",
-        "description": "The number of transaction batches in a valid proposal received",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_num_batches_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_num_txs_in_proposal",
-        "description": "The total number of individual transactions in a valid proposal received",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -254,80 +281,59 @@
           "consensus_outbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
-      },
+      }
+    ],
+    "Cende": [
       {
-        "title": "consensus_l2_gas_price",
-        "description": "The L2 gas price calculated in an accepted proposal",
+        "title": "Write Blob Success",
+        "description": "The number of successful blob writes to Cende",
         "type": "timeseries",
         "exprs": [
-          "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(cende_write_blob_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "cende_last_prepared_blob_block_number",
-        "description": "The blob block number that cende knows. That means the sequencer can be the proposer only if the current height is greater by one than this value.",
+        "title": "Write Blob Failure by Reason",
+        "description": "The number of failed blob writes to Cende",
         "type": "timeseries",
+        "exprs": [
+          "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Write Blob Latency",
+        "description": "The time it takes to write the blob to Cende",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {
+          "unit": "s"
+        }
+      },
+      {
+        "title": "Last Prepared Blob Block Number",
+        "description": "The block number that is ready to be sent to Cende in the next height",
+        "type": "stat",
         "exprs": [
           "cende_last_prepared_blob_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "cende_prepare_blob_for_next_height_latency",
-        "description": "The time it takes to prepare the blob for the next height, i.e create the blob object.",
+        "title": "Prepare Blob for Next Height Latency",
+        "description": "The time it takes to prepare the blob for the next height",
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
-      },
-      {
-        "title": "cende_write_prev_height_blob_latency",
-        "description": "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed.",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "cende_write_blob_success",
-        "description": "The number of successful blob writes to Aerospike",
-        "type": "timeseries",
-        "exprs": [
-          "cende_write_blob_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "cende_write_blob_failure",
-        "description": "The number of failed blob writes to Aerospike",
-        "type": "timeseries",
-        "exprs": [
-          "sum  by (cende_write_failure_reason) (cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_l1_data_gas_mismatch",
-        "description": "The number of times the L1 data gas in a proposal does not match the value expected by this validator",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_l1_data_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "consensus_l1_gas_mismatch",
-        "description": "The number of times the L1 gas in a proposal does not match the value expected by this validator",
-        "type": "timeseries",
-        "exprs": [
-          "consensus_l1_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "s"
+        }
       }
     ],
     "Batcher": [
