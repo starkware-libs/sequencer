@@ -52,25 +52,25 @@ type BlockifierStatefulValidator = StatefulValidator<
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     async fn instantiate_validator(
         &self,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
+
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+    pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub contract_class_manager: ContractClassManager,
 }
 
 #[async_trait]
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
-    // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
     async fn instantiate_validator(
         &self,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let (blockifier_state_reader, gateway_fixed_block_state_reader) = state_reader_factory
+        let (blockifier_state_reader, gateway_fixed_block_state_reader) = self
+            .state_reader_factory
             .get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block()
             .await
             .map_err(|err| GatewaySpecError::UnexpectedError {

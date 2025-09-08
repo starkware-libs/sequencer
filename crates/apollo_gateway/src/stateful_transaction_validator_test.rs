@@ -160,17 +160,17 @@ async fn test_extract_state_nonce_and_run_validations(
 #[rstest]
 #[tokio::test]
 async fn test_instantiate_validator() {
-    let stateful_validator_factory = StatefulTransactionValidatorFactory {
-        config: StatefulTransactionValidatorConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
-    };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
 
-    let validator =
-        stateful_validator_factory.instantiate_validator(Arc::new(state_reader_factory)).await;
+    let stateful_validator_factory = StatefulTransactionValidatorFactory {
+        config: StatefulTransactionValidatorConfig::default(),
+        chain_info: ChainInfo::create_for_testing(),
+        state_reader_factory: Arc::new(state_reader_factory),
+        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
+    };
 
+    let validator = stateful_validator_factory.instantiate_validator().await;
     assert!(validator.is_ok());
 }
 
