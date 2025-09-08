@@ -11,12 +11,13 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
+use starknet_api::transaction::fields::TransactionSignature;
 
 use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 
 mod common;
 
-const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 3;
+const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 4;
 
 #[tokio::test]
 async fn custom_cairo0_txs() {
@@ -32,18 +33,20 @@ async fn custom_cairo0_txs() {
 
 fn create_custom_cairo0_txs_scenario() -> Vec<TestScenario> {
     vec![TestScenario {
-        create_rpc_txs_fn: create_cairo_0_syscall_test_txs,
+        create_rpc_txs_fn: create_custom_cairo0_test_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, CUSTOM_CAIRO_0_INVOKE_TX_COUNT),
     }]
 }
 
-fn create_cairo_0_syscall_test_txs(
+/// The transactions are taken from starkware repo.
+fn create_custom_cairo0_test_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     let account_tx_generator = tx_generator.account_with_id_mut(CAIRO0_ACCOUNT_ID);
     let mut txs = vec![];
     txs.extend(generate_direct_test_contract_invoke_txs_cairo_0_syscall(account_tx_generator));
+    txs.extend(generate_invoke_txs_with_signature_cairo_0_syscall(account_tx_generator));
 
     txs
 }
@@ -78,4 +81,20 @@ fn generate_direct_test_contract_invoke_txs_cairo_0_syscall(
         rpc_invoke_tx(account_tx_generator.invoke_tx_builder().calldata(calldata))
     })
     .collect()
+}
+
+fn generate_invoke_txs_with_signature_cairo_0_syscall(
+    account_tx_generator: &mut AccountTransactionGenerator,
+) -> Vec<RpcTransaction> {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+
+    let fn_name = "add_signature_to_counters";
+    let fn_args = vec![felt!(2021_u64)];
+    let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, &fn_args);
+
+    let signature = TransactionSignature(vec![felt!(100_u64), felt!(200_u64)].into());
+
+    vec![rpc_invoke_tx(
+        account_tx_generator.invoke_tx_builder().calldata(calldata).signature(signature),
+    )]
 }
