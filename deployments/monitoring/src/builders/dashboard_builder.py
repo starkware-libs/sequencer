@@ -54,7 +54,22 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
             "defaults": {
                 "color": {"mode": "palette-classic"},
                 "unit": unit,
-            }
+            },
+            "overrides": [
+            # Override the pod display name to show only namespace and location labels
+                {
+                    "matcher": {
+                        "id": "byRegexp",
+                        "options": ".*location.*"
+                    },
+                    "properties": [
+                        {
+                            "id": "displayName",
+                            "value": "${__field.labels.namespace} | ${__field.labels.location}"
+                        }
+                    ]
+                }
+            ]
         },
         "options": {
             "showPercentChange": show_percent_change
@@ -62,6 +77,16 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         "links": (
             [{"url": link, "title": "GCP Logs", "targetBlank": True}]
         ),
+        "transformations": [
+            # Renames labels of the form {label="value"} to just "value"
+            {
+                "id": "renameByRegex",
+                "options": {
+                    "regex": "^\\{[^=]+=\\\"([^\\\"]+)\\\"\\}$",
+                    "renamePattern": "$1"
+                }
+            }
+        ]
     }
     return grafana_panel
 
