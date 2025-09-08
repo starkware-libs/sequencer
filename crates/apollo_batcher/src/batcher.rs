@@ -760,6 +760,9 @@ impl Batcher {
                 let mut active_proposal = active_proposal.lock().await;
                 if *active_proposal == Some(proposal_id) {
                     active_proposal.take();
+
+                    log_txs_execution_result(proposal_id, &result);
+
                     let proposal_already_exists =
                         executed_proposals.lock().await.insert(proposal_id, result);
                     assert!(
@@ -873,6 +876,33 @@ impl Batcher {
         STORAGE_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
         Ok(())
+    }
+}
+
+/// Logs the result of the transactions execution in the proposal.
+fn log_txs_execution_result(
+    proposal_id: ProposalId,
+    result: &Result<BlockExecutionArtifacts, Arc<BlockBuilderError>>,
+) {
+    // Constructing log message.
+    if let Ok(block_artifacts) = result {
+        let mut log_msg = format!(
+            "Finished generating proposal {} with {} transactions",
+            proposal_id,
+            block_artifacts.execution_data.execution_infos.len(),
+        );
+        block_artifacts.execution_data.execution_infos.iter().for_each(|(tx_hash, info)| {
+            log_msg.push_str(&format!(", {tx_hash}:"));
+            if info.revert_error.is_some() {
+                log_msg.push_str(" Reverted");
+            } else {
+                log_msg.push_str(" Successful");
+            }
+        });
+        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
+            log_msg.push_str(&format!(", {tx_hash}: Rejected"));
+        });
+        info!(log_msg);
     }
 }
 
