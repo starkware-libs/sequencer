@@ -23,7 +23,8 @@ struct StarknetOsConfig {
     public_keys_hash: felt,
 }
 
-// Calculates the hash of StarkNet OS config.
+// Calculates the hash of StarkNet OS config. The public keys hash is not included if there are no
+// public keys (i.e., for envs where the state diff is not encrypted).
 func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: StarknetOsConfig*) -> (
     starknet_os_config_hash: felt
 ) {
@@ -51,6 +52,7 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     return (starknet_os_config_hash=starknet_os_config_hash);
 }
 
+// Computes the hash of the public keys, returns 0 if there are no public keys.
 func get_public_keys_hash{hash_ptr: HashBuiltin*}(n_keys: felt, public_keys: felt*) -> (
     public_keys_hash: felt
 ) {
