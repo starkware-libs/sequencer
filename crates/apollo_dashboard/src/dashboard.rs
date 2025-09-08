@@ -60,6 +60,7 @@ impl Serialize for Dashboard {
 pub(crate) enum PanelType {
     Stat,
     TimeSeries,
+    BarGauge,
 }
 
 #[derive(Debug, Clone, PartialEq)]
