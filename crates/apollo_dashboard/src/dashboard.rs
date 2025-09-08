@@ -86,6 +86,7 @@ impl Unit {
 pub struct ExtraParams {
     pub unit: Option<Unit>,
     pub show_percent_change: bool,
+    pub log_query: Option<String>,
 }
 
 impl ExtraParams {
@@ -96,6 +97,9 @@ impl ExtraParams {
         }
         if self.show_percent_change {
             map.insert("showPercentChange".into(), "true".into());
+        }
+        if let Some(lq) = &self.log_query {
+            map.insert("log_query".to_string(), lq.clone());
         }
         map
     }
@@ -137,6 +141,11 @@ impl Panel {
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn show_percent_change(mut self) -> Self {
         self.extra.show_percent_change = true;
+        self
+    }
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
+        self.extra.log_query = Some(log_query.into());
         self
     }
 
