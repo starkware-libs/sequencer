@@ -1249,6 +1249,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared_execution_objects",
+ "sizeof",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -12151,7 +12152,7 @@ dependencies = [
 
 [[package]]
 name = "sizeof"
-version = "0.15.0-rc.2"
+version = "0.15.0-rc.4"
 dependencies = [
  "size-of",
  "sizeof_internal",
@@ -12168,7 +12169,7 @@ dependencies = [
 
 [[package]]
 name = "sizeof_macro"
-version = "0.15.0-rc.2"
+version = "0.15.0-rc.4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12436,7 +12437,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "size-of",
+ "sizeof",
  "starknet-crypto",
  "starknet-types-core",
  "strum 0.25.0",
