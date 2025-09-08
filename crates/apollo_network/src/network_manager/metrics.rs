@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
-use apollo_metrics::metrics::{MetricCounter, MetricGauge};
+use apollo_metrics::generate_permutation_labels;
+use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
 use libp2p::gossipsub::TopicHash;
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::{EnumIter, IntoStaticStr};
 
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
@@ -31,48 +34,46 @@ impl SqmrNetworkMetrics {
     }
 }
 
-pub struct EventMetrics {
-    // Swarm events
-    pub connections_established: MetricCounter,
-    pub connections_closed: MetricCounter,
-    pub dial_failure: MetricCounter,
-    pub listen_failure: MetricCounter,
-    pub listen_error: MetricCounter,
-    pub address_change: MetricCounter,
-    pub new_listeners: MetricCounter,
-    pub new_listen_addrs: MetricCounter,
-    pub expired_listen_addrs: MetricCounter,
-    pub listener_closed: MetricCounter,
-    pub new_external_addr_candidate: MetricCounter,
-    pub external_addr_confirmed: MetricCounter,
-    pub external_addr_expired: MetricCounter,
-    pub new_external_addr_of_peer: MetricCounter,
+pub const LABEL_NAME_EVENT_TYPE: &str = "event_type";
 
-    // Connection handler events
-    pub inbound_connections_handled: MetricCounter,
-    pub outbound_connections_handled: MetricCounter,
-    pub connection_handler_events: MetricCounter,
+#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum EventType {
+    ConnectionsEstablished,
+    ConnectionsClosed,
+    DialFailure,
+    ListenFailure,
+    ListenError,
+    AddressChange,
+    NewListeners,
+    NewListenAddrs,
+    ExpiredListenAddrs,
+    ListenerClosed,
+    NewExternalAddrCandidate,
+    ExternalAddrConfirmed,
+    ExternalAddrExpired,
+    NewExternalAddrOfPeer,
+    InboundConnectionsHandled,
+    OutboundConnectionsHandled,
+    ConnectionHandlerEvents,
+}
+
+generate_permutation_labels! {
+    EVENT_TYPE_LABELS,
+    (LABEL_NAME_EVENT_TYPE, EventType),
+}
+
+pub struct EventMetrics {
+    pub event_counter: LabeledMetricCounter,
 }
 
 impl EventMetrics {
     pub fn register(&self) {
-        self.connections_established.register();
-        self.connections_closed.register();
-        self.dial_failure.register();
-        self.listen_failure.register();
-        self.listen_error.register();
-        self.address_change.register();
-        self.new_listeners.register();
-        self.new_listen_addrs.register();
-        self.expired_listen_addrs.register();
-        self.listener_closed.register();
-        self.new_external_addr_candidate.register();
-        self.external_addr_confirmed.register();
-        self.external_addr_expired.register();
-        self.new_external_addr_of_peer.register();
-        self.inbound_connections_handled.register();
-        self.outbound_connections_handled.register();
-        self.connection_handler_events.register();
+        self.event_counter.register();
+    }
+
+    pub fn increment_event(&self, event_type: EventType) {
+        self.event_counter.increment(1, &[(LABEL_NAME_EVENT_TYPE, event_type.into())]);
     }
 }
 
