@@ -782,10 +782,10 @@
       },
       {
         "title": "eth_to_strk_rate",
-        "description": "The current rate of ETH to STRK conversion",
+        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1e21)",
         "type": "timeseries",
         "exprs": [
-          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "(eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / 1000000000000000000000"
         ],
         "extra_params": {}
       },
@@ -836,10 +836,10 @@
       },
       {
         "title": "eth_to_strk_rate",
-        "description": "The current rate of ETH to STRK conversion",
+        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1e21)",
         "type": "timeseries",
         "exprs": [
-          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "(eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / 1000000000000000000000"
         ],
         "extra_params": {}
       },

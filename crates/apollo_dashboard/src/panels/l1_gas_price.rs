@@ -7,6 +7,7 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
+use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
@@ -37,7 +38,16 @@ fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {
 }
 
 fn get_panel_eth_to_strk_rate() -> Panel {
-    Panel::from_gauge(&ETH_TO_STRK_RATE, PanelType::TimeSeries)
+    Panel::new(
+        ETH_TO_STRK_RATE.get_name(),
+        "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1e21)",
+        vec![format!(
+            "({}) / {}",
+            ETH_TO_STRK_RATE.get_name_with_filter(),
+            DEFAULT_ETH_TO_FRI_RATE
+        )],
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_l1_gas_price_latest_mean_value() -> Panel {
