@@ -5,6 +5,7 @@ use apollo_batcher::metrics::{
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
+    PROPOSAL_UNEXECUTED_TXS,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
 };
@@ -42,6 +43,9 @@ fn get_panel_proposal_aborted() -> Panel {
         vec![format!("increase({}[10m])", PROPOSAL_ABORTED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+}
+fn get_panel_proposal_unexecuted_txs() -> Panel {
+    Panel::from_gauge(&PROPOSAL_UNEXECUTED_TXS, PanelType::TimeSeries)
 }
 fn get_panel_batched_transactions() -> Panel {
     Panel::from_counter(&BATCHED_TRANSACTIONS, PanelType::Stat)
@@ -89,6 +93,7 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_proposal_succeeded(),
             get_panel_proposal_failed(),
             get_panel_proposal_aborted(),
+            get_panel_proposal_unexecuted_txs(),
             get_panel_batched_transactions(),
             get_panel_last_batched_block(),
             get_panel_rejection_ratio(),

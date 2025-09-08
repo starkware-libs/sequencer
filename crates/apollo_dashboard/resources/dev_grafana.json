@@ -377,6 +377,15 @@
         "extra_params": {}
       },
       {
+        "title": "batcher_proposal_unexecuted_txs",
+        "description": "The number of unexecuted transactions in the last proposal",
+        "type": "timeseries",
+        "exprs": [
+          "batcher_proposal_unexecuted_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "batcher_batched_transactions",
         "description": "Counter of batched transactions across all forks",
         "type": "stat",

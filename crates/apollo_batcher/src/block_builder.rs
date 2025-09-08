@@ -52,7 +52,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
-use crate::metrics::FULL_BLOCKS;
+use crate::metrics::{FULL_BLOCKS, PROPOSAL_UNEXECUTED_TXS};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
@@ -283,6 +283,8 @@ impl BlockBuilder {
             self.n_executed_txs
         };
 
+        let not_executed = self.block_txs.len() - self.n_executed_txs;
+        PROPOSAL_UNEXECUTED_TXS.set_lossy(not_executed);
         info!(
             "Finished building block. Started executing {} transactions. Finished executing {} \
              transactions. Final number of transactions (as set by the proposer): {}.",

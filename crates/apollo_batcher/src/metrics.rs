@@ -32,6 +32,7 @@ define_metrics!(
         MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", init = 0 },
         MetricCounter { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", init = 0 },
         MetricCounter { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", init = 0 },
+        MetricGauge { PROPOSAL_UNEXECUTED_TXS, "batcher_proposal_unexecuted_txs", "The number of unexecuted transactions in the last proposal"},
         // Transactions
         MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", init = 0 },
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", init = 0 },
@@ -55,6 +56,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
     PROPOSAL_SUCCEEDED.register();
     PROPOSAL_FAILED.register();
     PROPOSAL_ABORTED.register();
+    PROPOSAL_UNEXECUTED_TXS.register();
 
     BATCHED_TRANSACTIONS.register();
     REJECTED_TRANSACTIONS.register();
