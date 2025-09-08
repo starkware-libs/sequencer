@@ -70,7 +70,6 @@ macro_rules! define_metrics {
 }
 
 // TODO(alonl): remove the `_labeled` from the metrics names.
-// TODO(alonl): Instead of importing the metrics directly, import the InfraMetrics bundle.
 /// Macro to define Infra metrics for a component and expose a ready-to-use InfraMetrics bundle.
 ///
 /// Given a component identifier (e.g., `mempool_p2p`), this macro generates:
