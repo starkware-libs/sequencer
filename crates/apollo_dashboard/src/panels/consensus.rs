@@ -157,11 +157,11 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
         CONSENSUS_TIMEOUTS.get_name(),
         CONSENSUS_TIMEOUTS.get_description(),
         vec![format!(
-            "sum  by ({}) ({})",
+            "sum by ({}) (increase({}[$__range]))",
             LABEL_NAME_TIMEOUT_REASON,
             CONSENSUS_TIMEOUTS.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
 }
 fn get_panel_consensus_num_batches_in_proposal() -> Panel {
