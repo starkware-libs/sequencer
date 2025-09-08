@@ -92,7 +92,6 @@ use crate::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
-use crate::state_reader::MockStateReaderFactory;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
@@ -318,7 +317,6 @@ fn process_tx_task(
 ) -> ProcessTxBlockingTask {
     ProcessTxBlockingTask {
         stateful_tx_validator_factory: Arc::new(stateful_transaction_validator_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
         executable_tx: executable_invoke_tx(invoke_args()),
         runtime: tokio::runtime::Handle::current(),
@@ -563,7 +561,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
@@ -606,7 +604,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|| Err(expected_error));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
