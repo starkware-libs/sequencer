@@ -14,16 +14,24 @@ class EnvironmentName(Enum):
 # Translates the environment name to a suffix for alert filenames. We use the `mainnet` setting for development and the mainnet environment.
 # The `testnet` setting is used for integration and testnet environments.
 def alert_env_filename_suffix(env: EnvironmentName) -> str:
-    if env == EnvironmentName.DEV:
-        return "mainnet"
-    elif env == EnvironmentName.INTEGRATION:
-        return "testnet"
-    elif env == EnvironmentName.TESTNET:
-        return "testnet"
-    elif env == EnvironmentName.MAINNET:
-        return "mainnet"
-    else:
-        raise ValueError(f"Unknown environment: {env}")
+    env_to_alert_filename_suffix_mapping = {
+        EnvironmentName.DEV: "mainnet",
+        EnvironmentName.INTEGRATION: "testnet",
+        EnvironmentName.TESTNET: "testnet",
+        EnvironmentName.MAINNET: "mainnet",
+    }
+    return env_to_alert_filename_suffix_mapping[env]
+
+
+# Translates the environment name to a GCP project name in order to access the logs.
+def env_to_gcp_project_name(env: EnvironmentName) -> str:
+    env_to_gcp_project_name_mapping = {
+        EnvironmentName.DEV: "",
+        EnvironmentName.INTEGRATION: "starkware-starknet-testnet",
+        EnvironmentName.TESTNET: "starkware-starknet-testnet",
+        EnvironmentName.MAINNET: "starkware-prod",
+    }
+    return env_to_gcp_project_name_mapping[env]
 
 
 def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
