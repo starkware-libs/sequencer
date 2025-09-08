@@ -20,6 +20,7 @@ use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,
     CompiledClassHash,
     ContractsProof,
+    RootHashes,
     StorageProofs,
 };
 generate_trie_config!(OriginalSkeletonStorageTrieConfig, StarknetStorageValue);
@@ -40,7 +41,6 @@ impl OriginalSkeletonContractsTrieConfig {
     }
 }
 
-#[allow(dead_code)]
 /// Fetch all tries patricia paths given the modified leaves.
 /// Assumption: `contract_addresses` contain all `ContractAddress`es in `contract_storage_keys`.
 fn fetch_all_patricia_paths(
@@ -121,3 +121,48 @@ fn fetch_all_patricia_paths(
     })
 }
 
+#[allow(dead_code)]
+pub fn fetch_previous_and_new_patricia_paths(
+    storage: &impl Storage,
+    classes_trie_root_hashes: RootHashes,
+    contracts_trie_root_hashes: RootHashes,
+    class_hashes: &[ClassHash],
+    contract_addresses: &[ContractAddress],
+    contract_storage_keys: &HashMap<ContractAddress, Vec<StarknetStorageKey>>,
+) -> TraversalResult<StorageProofs> {
+    let prev_proofs = fetch_all_patricia_paths(
+        storage,
+        classes_trie_root_hashes.previous_root_hash,
+        contracts_trie_root_hashes.previous_root_hash,
+        class_hashes,
+        contract_addresses,
+        contract_storage_keys,
+    )?;
+    let new_proofs = fetch_all_patricia_paths(
+        storage,
+        classes_trie_root_hashes.new_root_hash,
+        contracts_trie_root_hashes.new_root_hash,
+        class_hashes,
+        contract_addresses,
+        contract_storage_keys,
+    )?;
+
+    let mut classes_proof = prev_proofs.classes_proof;
+    classes_proof.extend(new_proofs.classes_proof);
+
+    let mut contracts_proof = prev_proofs.contracts_proof;
+    contracts_proof.nodes.extend(new_proofs.contracts_proof.nodes);
+    contracts_proof.contract_leaves_data.extend(new_proofs.contracts_proof.contract_leaves_data);
+
+    let mut contracts_storage_proofs = prev_proofs.contracts_storage_proofs;
+    for (address, proof) in new_proofs.contracts_storage_proofs {
+        match contracts_storage_proofs.get_mut(&address) {
+            Some(existing_proof) => existing_proof.extend(proof),
+            None => {
+                contracts_storage_proofs.insert(address, proof);
+            }
+        }
+    }
+
+    Ok(StorageProofs { classes_proof, contracts_proof, contracts_storage_proofs })
+}
