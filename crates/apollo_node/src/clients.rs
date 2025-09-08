@@ -4,6 +4,7 @@ use apollo_batcher::metrics::{
     BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_batcher_types::communication::{
     BatcherRequest,
@@ -16,6 +17,7 @@ use apollo_class_manager::metrics::{
     CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_class_manager_types::{
     ClassManagerRequest,
@@ -28,6 +30,7 @@ use apollo_compile_to_casm::metrics::{
     SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     SIERRA_COMPILER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_compile_to_casm_types::{
     LocalSierraCompilerClient,
@@ -36,10 +39,24 @@ use apollo_compile_to_casm_types::{
     SierraCompilerRequest,
     SierraCompilerResponse,
 };
+use apollo_config_manager::metrics::{
+    CONFIG_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    CONFIG_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    CONFIG_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+};
+use apollo_config_manager_types::communication::{
+    ConfigManagerRequest,
+    ConfigManagerResponse,
+    LocalConfigManagerClient,
+    RemoteConfigManagerClient,
+    SharedConfigManagerClient,
+};
 use apollo_gateway::metrics::{
     GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_gateway_types::communication::{
     GatewayRequest,
@@ -49,6 +66,7 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
+<<<<<<< HEAD
 use apollo_infra::metrics::{
     LocalClientMetrics,
     RemoteClientMetrics,
@@ -64,6 +82,9 @@ use apollo_infra::metrics::{
     SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
+=======
+use apollo_infra::metrics::{LocalClientMetrics, RemoteClientMetrics};
+>>>>>>> origin/main-v0.14.0
 use apollo_l1_endpoint_monitor::communication::{
     LocalL1EndpointMonitorClient,
     RemoteL1EndpointMonitorClient,
@@ -72,15 +93,17 @@ use apollo_l1_endpoint_monitor_types::{
     L1EndpointMonitorRequest,
     L1EndpointMonitorResponse,
     SharedL1EndpointMonitorClient,
-    L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
 use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    L1_GAS_PRICE_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
 use apollo_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
@@ -88,17 +111,20 @@ use apollo_l1_provider::metrics::{
     L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
 use apollo_mempool::metrics::{
     MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
@@ -130,6 +156,7 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_state_sync_types::communication::{
     LocalStateSyncClient,
@@ -144,15 +171,19 @@ use crate::communication::SequencerNodeCommunication;
 use crate::config::component_execution_config::ReactiveComponentExecutionMode;
 use crate::config::node_config::SequencerNodeConfig;
 
+// TODO(alonl): remove these and use the InfraMetrics consts in their place.
+
 // Local client metrics per component (static references are required by LocalComponentClient::new)
 const BATCHER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const CLASS_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
+const CONFIG_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
+    LocalClientMetrics::new(&CONFIG_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const GATEWAY_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const L1_ENDPOINT_MONITOR_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS);
+    LocalClientMetrics::new(&L1_ENDPOINT_MONITOR_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const L1_PROVIDER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
     LocalClientMetrics::new(&L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
 const L1_GAS_PRICE_LOCAL_CLIENT_METRICS: LocalClientMetrics =
@@ -180,15 +211,21 @@ const CLASS_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMet
     &CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     &CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
+// ConfigManager is local-only, but macro still needs remote metrics parameter (never used)
+const CONFIG_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &CONFIG_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    &CONFIG_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+);
 const GATEWAY_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
     &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
     &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     &GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
 const L1_ENDPOINT_MONITOR_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,
-    &L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS,
-    &L1_ENDPOINT_MONITOR_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+    &L1_ENDPOINT_MONITOR_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &L1_ENDPOINT_MONITOR_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    &L1_ENDPOINT_MONITOR_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
 const L1_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
     &L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
@@ -196,7 +233,7 @@ const L1_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetri
     &L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
 const L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &L1_GAS_PRICE_REMOTE_CLIENT_SEND_ATTEMPTS,
     &L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     &L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
 );
@@ -229,6 +266,7 @@ const STATE_SYNC_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetric
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
     class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
+    config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
     l1_endpoint_monitor_client: Client<L1EndpointMonitorRequest, L1EndpointMonitorResponse>,
     l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
@@ -302,6 +340,10 @@ impl SequencerNodeClients {
 
     pub fn get_class_manager_shared_client(&self) -> Option<SharedClassManagerClient> {
         get_shared_client!(self, class_manager_client)
+    }
+
+    pub fn get_config_manager_shared_client(&self) -> Option<SharedConfigManagerClient> {
+        get_shared_client!(self, config_manager_client)
     }
 
     pub fn get_gateway_local_client(
@@ -504,6 +546,18 @@ pub fn create_node_clients(
         &CLASS_MANAGER_REMOTE_CLIENT_METRICS
     );
 
+    let config_manager_client = create_client!(
+        &config.components.config_manager.execution_mode,
+        LocalConfigManagerClient,
+        RemoteConfigManagerClient,
+        channels.take_config_manager_tx(),
+        &config.components.config_manager.remote_client_config,
+        &config.components.config_manager.url,
+        config.components.config_manager.port,
+        &CONFIG_MANAGER_LOCAL_CLIENT_METRICS,
+        &CONFIG_MANAGER_REMOTE_CLIENT_METRICS
+    );
+
     let gateway_client = create_client!(
         &config.components.gateway.execution_mode,
         LocalGatewayClient,
@@ -615,6 +669,7 @@ pub fn create_node_clients(
     SequencerNodeClients {
         batcher_client,
         class_manager_client,
+        config_manager_client,
         gateway_client,
         l1_endpoint_monitor_client,
         l1_provider_client,

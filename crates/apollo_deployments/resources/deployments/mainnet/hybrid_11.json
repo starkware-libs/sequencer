@@ -1,0 +1,11 @@
+{
+  "consensus_manager_config.network_config.advertised_multiaddr": "/dns/sequencer-core-service.apollo-mainnet-11.starknet.io/tcp/53080/p2p/12D3KooWJ2JJbbMRt1YrERoMPfU4hwTASZkpVqbfGiyu4d3MGGhs",
+  "consensus_manager_config.network_config.advertised_multiaddr.#is_none": false,
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-core-service.apollo-mainnet-1.starknet.io/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe",
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
+  "mempool_p2p_config.network_config.advertised_multiaddr": "/dns/sequencer-mempool-service.apollo-mainnet-11.starknet.io/tcp/53200/p2p/12D3KooWJ2JJbbMRt1YrERoMPfU4hwTASZkpVqbfGiyu4d3MGGhs",
+  "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": false,
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-mempool-service.apollo-mainnet-1.starknet.io/tcp/53200/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe",
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
+  "validator_id": "0x1"
+}

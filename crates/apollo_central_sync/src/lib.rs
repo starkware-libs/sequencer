@@ -151,8 +151,11 @@ impl SerializeConfig for SyncConfig {
             ser_param(
                 "store_sierras_and_casms",
                 &self.store_sierras_and_casms,
-                "Whether to store sierras and casms to the storage. This allows maintaining \
-                 backward-compatibility with native-blockifier",
+                "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This \
+                 is needed for backward compatibility with the native blockifier. Behavior: \
+                 \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for \
+                 **legacy** classes (compiled with a version < \
+                 `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -493,6 +496,10 @@ impl<
             if block.header.block_header_without_hash.starknet_version
                 < STARKNET_VERSION_TO_COMPILE_FROM
             {
+                trace!(
+                    "Updating compiler backward compatibility marker to {}",
+                    block_number.unchecked_next()
+                );
                 txn = txn.update_compiler_backward_compatibility_marker(
                     &block_number.unchecked_next(),
                 )?;
@@ -524,19 +531,29 @@ impl<
         &mut self,
         block_number: BlockNumber,
         block_hash: BlockHash,
-        state_diff: StateDiff,
+        mut state_diff: StateDiff,
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // TODO(dan): verifications - verify state diff against stored header.
         debug!("Storing state diff.");
-        trace!("StateDiff data: {state_diff:#?}");
+        trace!(
+            "StateDiff data: {state_diff:#?}, deployed_contract_class_definitions: \
+             {deployed_contract_class_definitions:#?}"
+        );
+
+        // TODO(noamsp): describe why we do this.
+        state_diff.deprecated_declared_classes.extend(
+            deployed_contract_class_definitions
+                .iter()
+                .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class.clone())),
+        );
 
         // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
         // classes.
         let (thin_state_diff, classes, deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
 
-        let mut block_contains_old_classes = false;
+        let mut block_contains_non_backwards_compatible_classes = false;
         // Sending to class manager before updating the storage so that if the class manager send
         // fails we retry the same block.
         if let Some(class_manager_client) = &self.class_manager_client {
@@ -557,6 +574,17 @@ impl<
             // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
             // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
             if compiler_backward_compatibility_marker <= block_number {
+                if compiler_backward_compatibility_marker == block_number {
+                    info!(
+                        "Reached first block ({block_number}) without non backward compatible \
+                         classes."
+                    );
+                }
+                trace!(
+                    "Block {block_number} does not contain non backward compatible classes. \
+                     compiler_backward_compatibility_marker: \
+                     {compiler_backward_compatibility_marker}"
+                );
                 for (expected_class_hash, class) in &classes {
                     let class_hash =
                         class_manager_client.add_class(class.clone()).await?.class_hash;
@@ -568,7 +596,8 @@ impl<
                     }
                 }
             } else {
-                block_contains_old_classes = true;
+                debug!("Block {} contains non backward compatible classes.", block_number);
+                block_contains_non_backwards_compatible_classes = true;
             }
 
             for (class_hash, deprecated_class) in &deprecated_classes {
@@ -589,11 +618,21 @@ impl<
             }
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
-            // Old classes must be stored for later use since we will only be be adding them to the
-            // class manager later, once we have their compiled classes.
+            // Non backwards compatible classes must be stored for later use since we will only be
+            // be adding them to the class manager later, once we have their compiled
+            // classes.
             //
-            // TODO(guy.f): Properly fix handling old classes.
-            if store_sierras_and_casms || block_contains_old_classes {
+            // TODO(guy.f): Properly fix handling non backwards compatible classes.
+            if store_sierras_and_casms || block_contains_non_backwards_compatible_classes {
+                let store_reason = if store_sierras_and_casms {
+                    "store_sierras_and_casms is true"
+                } else {
+                    "block_contains_non_backwards_compatible_classes is true"
+                };
+                debug!(
+                    "Appending classes {:?} to storage since {store_reason}",
+                    classes.keys().collect::<Vec<_>>()
+                );
                 txn = txn.append_classes(
                     block_number,
                     &classes
@@ -602,10 +641,15 @@ impl<
                         .collect::<Vec<_>>(),
                     &deprecated_classes
                         .iter()
-                        .chain(deployed_contract_class_definitions.iter())
                         .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
                         .collect::<Vec<_>>(),
                 )?;
+            } else {
+                trace!(
+                    "Skipping appending classes {:?} to storage since store_sierras_and_casms is \
+                     false and block_contains_non_backwards_compatible_classes is false",
+                    classes.keys().collect::<Vec<_>>()
+                );
             }
             txn.commit()?;
             Ok(())

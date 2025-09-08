@@ -29,6 +29,7 @@ use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
+use crate::network_manager::metrics::BroadcastNetworkMetrics;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
@@ -530,19 +531,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: gossipsub_impl::ExternalEvent,
     ) -> Result<(), NetworkError> {
-        if let Some(broadcast_metrics_by_topic) =
-            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
-        {
-            let gossipsub_impl::ExternalEvent::Received { ref topic_hash, .. } = event;
-            match broadcast_metrics_by_topic.get(topic_hash) {
-                Some(broadcast_metrics) => {
-                    broadcast_metrics.num_received_broadcast_messages.increment(1)
-                }
-                None => error!("Attempted to update topic metric with unregistered topic_hash"),
-            }
-        }
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
+
+        self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
+            broadcast_metrics.num_received_broadcast_messages.increment(1);
+        });
+
         trace!("Received broadcast message with topic hash: {topic_hash:?}");
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
@@ -615,19 +610,29 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .insert(outbound_session_id, report_receiver);
     }
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+    fn update_broadcast_metric<'a, F>(&'a self, topic_hash: &TopicHash, f: F)
+    where
+        F: FnOnce(&'a BroadcastNetworkMetrics),
+    {
         if let Some(broadcast_metrics_by_topic) =
             self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
         {
-            match broadcast_metrics_by_topic.get(&topic_hash) {
+            match broadcast_metrics_by_topic.get(topic_hash) {
                 Some(broadcast_metrics) => {
-                    broadcast_metrics.num_sent_broadcast_messages.increment(1)
+                    f(broadcast_metrics);
                 }
                 None => error!("Attempted to update topic metric with unregistered topic_hash"),
             }
         }
+    }
+
+    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+        self.update_broadcast_metric(&topic_hash, |broadcast_metrics| {
+            broadcast_metrics.num_sent_broadcast_messages.increment(1)
+        });
+
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
-        self.swarm.broadcast_message(message, topic_hash);
+        let _ = self.swarm.broadcast_message(message, topic_hash);
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
@@ -686,7 +691,7 @@ impl NetworkManager {
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
-        metrics: Option<NetworkMetrics>,
+        mut metrics: Option<NetworkMetrics>,
     ) -> Self {
         let NetworkConfig {
             port,
@@ -712,6 +717,7 @@ impl NetworkManager {
             None => Keypair::generate_ed25519(),
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
+<<<<<<< HEAD
             .with_tokio()
             // TODO(AndrewL): .with_quic()
             .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
@@ -732,6 +738,29 @@ impl NetworkManager {
             .expect("Error while building the swarm")
             .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
             .build();
+=======
+        .with_tokio()
+        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+        .expect("Error building TCP transport")
+        .with_dns()
+        .expect("Error building DNS transport")
+        // TODO(Shahak): quic transpot does not work (failure appears in the command line when running in debug mode)
+        // .with_quic()
+        .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
+                key.clone(),
+                bootstrap_peer_multiaddr,
+                sqmr::Config { session_timeout },
+                chain_id,
+                node_version,
+                discovery_config,
+                peer_manager_config,
+                metrics.as_mut()
+                    .and_then(|m| m.event_metrics.take())
+            ))
+        .expect("Error while building the swarm")
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
+        .build();
+>>>>>>> origin/main-v0.14.0
 
         swarm
             .listen_on(listen_address.clone())

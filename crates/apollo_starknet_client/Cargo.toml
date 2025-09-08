@@ -15,7 +15,6 @@ apollo_test_utils = { workspace = true, optional = true }
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
 enum-iterator = { workspace = true, optional = true }
-http.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 mockall = { workspace = true, optional = true }
 os_info.workspace = true

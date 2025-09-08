@@ -3,6 +3,7 @@ use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
+use apollo_config_manager::config_manager::ConfigManager;
 use apollo_consensus_manager::consensus_manager::ConsensusManager;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
@@ -39,6 +40,7 @@ use crate::version::VERSION_FULL;
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
+    pub config_manager: Option<ConfigManager>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
@@ -111,12 +113,32 @@ pub async fn create_node_components(
         }
     };
 
+<<<<<<< HEAD
     let signature_manager = match config.components.signature_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(create_signature_manager())
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+=======
+    let config_manager = match config.components.config_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+            let config_manager_config =
+                config.config_manager_config.as_ref().expect("Config Manager config should be set");
+            Some(ConfigManager::new(config_manager_config.clone()))
+        }
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+        | ReactiveComponentExecutionMode::Remote => {
+            panic!(
+                "ConfigManager does not support remote mode - it's a local infrastructure \
+                 component"
+            );
+        }
+        ReactiveComponentExecutionMode::Disabled => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
+>>>>>>> origin/main-v0.14.0
     };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
@@ -510,6 +532,7 @@ pub async fn create_node_components(
     SequencerNodeComponents {
         batcher,
         class_manager,
+        config_manager,
         consensus_manager,
         gateway,
         http_server,

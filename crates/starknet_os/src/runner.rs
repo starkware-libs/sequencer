@@ -34,7 +34,7 @@ use crate::io::os_input::{
     StarknetOsInput,
 };
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
-use crate::metrics::OsMetrics;
+use crate::metrics::{AggregatorMetrics, OsMetrics};
 use crate::vm_utils::vm_error_with_code_snippet;
 
 pub struct RunnerReturnObject {
@@ -271,12 +271,14 @@ pub fn run_aggregator(
     let mut aggregator_hint_processor =
         AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
 
-    let runner_output = run_program(layout, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)?;
+    let mut runner_output =
+        run_program(layout, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)?;
 
     Ok(StarknetAggregatorRunnerOutput {
         #[cfg(feature = "include_program_output")]
         aggregator_output: runner_output.raw_output,
         cairo_pie: runner_output.cairo_pie,
+        metrics: AggregatorMetrics::new(&mut runner_output.cairo_runner)?,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: aggregator_hint_processor.get_unused_hints(),
     })

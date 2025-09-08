@@ -5,11 +5,25 @@ use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use apollo_batcher::metrics::{
     BATCHER_LABELED_PROCESSING_TIMES_SECS,
     BATCHER_LABELED_QUEUEING_TIMES_SECS,
+    BATCHER_LOCAL_MSGS_PROCESSED,
+    BATCHER_LOCAL_MSGS_RECEIVED,
+    BATCHER_LOCAL_QUEUE_DEPTH,
+    BATCHER_REMOTE_MSGS_PROCESSED,
+    BATCHER_REMOTE_MSGS_RECEIVED,
+    BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
+    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
 use apollo_class_manager::metrics::{
     CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
     CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+    CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
+    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_compile_to_casm::communication::{
     LocalSierraCompilerServer,
@@ -18,12 +32,34 @@ use apollo_compile_to_casm::communication::{
 use apollo_compile_to_casm::metrics::{
     SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
     SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
+    SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
+    SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
+    SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+    SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
+    SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
+    SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS,
+    SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
+};
+use apollo_config_manager::config_manager::LocalConfigManagerServer;
+use apollo_config_manager::metrics::{
+    CONFIG_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+    CONFIG_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    CONFIG_MANAGER_LOCAL_MSGS_PROCESSED,
+    CONFIG_MANAGER_LOCAL_MSGS_RECEIVED,
+    CONFIG_MANAGER_LOCAL_QUEUE_DEPTH,
 };
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_gateway::metrics::{
     GATEWAY_LABELED_PROCESSING_TIMES_SECS,
     GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+    GATEWAY_LOCAL_MSGS_PROCESSED,
+    GATEWAY_LOCAL_MSGS_RECEIVED,
+    GATEWAY_LOCAL_QUEUE_DEPTH,
+    GATEWAY_REMOTE_MSGS_PROCESSED,
+    GATEWAY_REMOTE_MSGS_RECEIVED,
+    GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
+    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_http_server::communication::HttpServer;
 use apollo_infra::component_server::{
@@ -33,30 +69,14 @@ use apollo_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
-use apollo_infra::metrics::{
-    LocalServerMetrics,
-    RemoteServerMetrics,
-    BATCHER_LOCAL_MSGS_PROCESSED,
-    BATCHER_LOCAL_MSGS_RECEIVED,
-    BATCHER_LOCAL_QUEUE_DEPTH,
-    BATCHER_REMOTE_MSGS_PROCESSED,
-    BATCHER_REMOTE_MSGS_RECEIVED,
-    BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
-    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
-    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-    CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
-    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-    GATEWAY_LOCAL_MSGS_PROCESSED,
-    GATEWAY_LOCAL_MSGS_RECEIVED,
-    GATEWAY_LOCAL_QUEUE_DEPTH,
-    GATEWAY_REMOTE_MSGS_PROCESSED,
-    GATEWAY_REMOTE_MSGS_RECEIVED,
-    GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
-    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+use apollo_infra::metrics::{LocalServerMetrics, RemoteServerMetrics};
+use apollo_l1_endpoint_monitor::communication::{
+    LocalL1EndpointMonitorServer,
+    RemoteL1EndpointMonitorServer,
+};
+use apollo_l1_endpoint_monitor_types::{
+    L1_ENDPOINT_MONITOR_LABELED_PROCESSING_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_LABELED_QUEUEING_TIMES_SECS,
     L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
     L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
     L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH,
@@ -64,6 +84,7 @@ use apollo_infra::metrics::{
     L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
     L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS,
     L1_ENDPOINT_MONITOR_REMOTE_VALID_MSGS_RECEIVED,
+<<<<<<< HEAD
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
@@ -120,6 +141,8 @@ use apollo_l1_endpoint_monitor::communication::{
 use apollo_l1_endpoint_monitor_types::{
     L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS,
     L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS,
+=======
+>>>>>>> origin/main-v0.14.0
 };
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
@@ -127,8 +150,15 @@ use apollo_l1_gas_price::communication::{
     RemoteL1GasPriceServer,
 };
 use apollo_l1_gas_price::metrics::{
-    L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
-    L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+    L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
+    L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
+    L1_GAS_PRICE_LOCAL_MSGS_PROCESSED,
+    L1_GAS_PRICE_LOCAL_MSGS_RECEIVED,
+    L1_GAS_PRICE_LOCAL_QUEUE_DEPTH,
+    L1_GAS_PRICE_REMOTE_MSGS_PROCESSED,
+    L1_GAS_PRICE_REMOTE_MSGS_RECEIVED,
+    L1_GAS_PRICE_REMOTE_NUMBER_OF_CONNECTIONS,
+    L1_GAS_PRICE_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_l1_provider::communication::{
     L1ScraperServer,
@@ -138,15 +168,36 @@ use apollo_l1_provider::communication::{
 use apollo_l1_provider::metrics::{
     L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
     L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+    L1_PROVIDER_LOCAL_MSGS_PROCESSED,
+    L1_PROVIDER_LOCAL_MSGS_RECEIVED,
+    L1_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_PROVIDER_REMOTE_MSGS_PROCESSED,
+    L1_PROVIDER_REMOTE_MSGS_RECEIVED,
+    L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
+    L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use apollo_mempool::metrics::{
     MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
     MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+    MEMPOOL_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
+    MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
     MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
+    MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
+    MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool_p2p::propagator::{
     LocalMempoolP2pPropagatorServer,
@@ -168,6 +219,13 @@ use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
     STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
+    STATE_SYNC_LOCAL_MSGS_PROCESSED,
+    STATE_SYNC_LOCAL_MSGS_RECEIVED,
+    STATE_SYNC_LOCAL_QUEUE_DEPTH,
+    STATE_SYNC_REMOTE_MSGS_PROCESSED,
+    STATE_SYNC_REMOTE_MSGS_RECEIVED,
+    STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
+    STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
 };
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
@@ -187,6 +245,7 @@ use crate::config::node_config::SequencerNodeConfig;
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
+    pub(crate) config_manager: Option<Box<LocalConfigManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_endpoint_monitor: Option<Box<LocalL1EndpointMonitorServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
@@ -415,6 +474,9 @@ macro_rules! create_wrapper_server {
     };
 }
 
+// TODO(alonl): use the InfraMetrics consts instead of referencing the metrics directly (same for
+// remote servers).
+
 fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
@@ -463,6 +525,28 @@ fn create_local_servers(
         config.components.class_manager.max_concurrency
     );
 
+    const CONFIG_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
+        &CONFIG_MANAGER_LOCAL_MSGS_RECEIVED,
+        &CONFIG_MANAGER_LOCAL_MSGS_PROCESSED,
+        &CONFIG_MANAGER_LOCAL_QUEUE_DEPTH,
+        &CONFIG_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+        &CONFIG_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    );
+    let config_manager_server = create_local_server!(
+        CONCURRENT_LOCAL_SERVER,
+        &config.components.config_manager.execution_mode,
+        &mut components.config_manager,
+        &config
+            .components
+            .config_manager
+            .local_server_config
+            .as_ref()
+            .expect("Config manager local server config should be available."),
+        communication.take_config_manager_rx(),
+        &CONFIG_MANAGER_METRICS,
+        config.components.config_manager.max_concurrency
+    );
+
     const GATEWAY_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &GATEWAY_LOCAL_MSGS_RECEIVED,
         &GATEWAY_LOCAL_MSGS_PROCESSED,
@@ -489,8 +573,8 @@ fn create_local_servers(
         &L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
         &L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
         &L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH,
-        &L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS,
-        &L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS,
+        &L1_ENDPOINT_MONITOR_LABELED_PROCESSING_TIMES_SECS,
+        &L1_ENDPOINT_MONITOR_LABELED_QUEUEING_TIMES_SECS,
     );
     let l1_endpoint_monitor_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -507,11 +591,11 @@ fn create_local_servers(
     );
 
     const L1_GAS_PRICE_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
-        &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-        &L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
-        &L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+        &L1_GAS_PRICE_LOCAL_MSGS_RECEIVED,
+        &L1_GAS_PRICE_LOCAL_MSGS_PROCESSED,
+        &L1_GAS_PRICE_LOCAL_QUEUE_DEPTH,
+        &L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
+        &L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
     );
     let l1_gas_price_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -659,6 +743,7 @@ fn create_local_servers(
     LocalServers {
         batcher: batcher_server,
         class_manager: class_manager_server,
+        config_manager: config_manager_server,
         gateway: gateway_server,
         l1_endpoint_monitor: l1_endpoint_monitor_server,
         l1_provider: l1_provider_server,
@@ -686,6 +771,7 @@ impl LocalServers {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
+            server_future_and_label(self.config_manager, "Local Config Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_endpoint_monitor, "Local L1 Endpoint Monitor"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
@@ -779,10 +865,10 @@ pub fn create_remote_servers(
         l1_provider_metrics
     );
     let l1_gas_price_provider_metrics = RemoteServerMetrics::new(
-        &L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
+        &L1_GAS_PRICE_REMOTE_MSGS_RECEIVED,
+        &L1_GAS_PRICE_REMOTE_VALID_MSGS_RECEIVED,
+        &L1_GAS_PRICE_REMOTE_MSGS_PROCESSED,
+        &L1_GAS_PRICE_REMOTE_NUMBER_OF_CONNECTIONS,
     );
     let l1_gas_price_provider_server = create_remote_server!(
         &config.components.l1_gas_price_provider.execution_mode,

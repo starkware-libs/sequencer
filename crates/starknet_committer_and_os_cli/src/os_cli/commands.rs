@@ -144,11 +144,11 @@ pub(crate) fn parse_and_run_aggregator(
         .modify(|filter| *filter = aggregator_input.log_level())
         .expect("Failed to set the log level.");
 
-    let StarknetAggregatorRunnerOutput { cairo_pie, unused_hints, .. } =
+    let StarknetAggregatorRunnerOutput { cairo_pie, metrics, unused_hints, .. } =
         run_aggregator(layout, aggregator_input)
             .unwrap_or_else(|err| panic!("Aggregator run failed. Error: {err}"));
     serialize_runner_output(
-        &AggregatorCliOutput { unused_hints },
+        &AggregatorCliOutput { metrics: metrics.into(), unused_hints },
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,

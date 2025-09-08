@@ -13,8 +13,9 @@ use apollo_class_manager::config::{
 };
 use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
-use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use apollo_consensus::types::ValidatorId;
+use apollo_config_manager::config::ConfigManagerConfig;
+use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
+use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
 use apollo_consensus_orchestrator::config::ContextConfig;
@@ -276,6 +277,7 @@ pub fn create_node_config(
     let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
     let class_manager_config =
         wrap_if_component_config_expected!(class_manager, class_manager_config);
+    let config_manager_config = ConfigManagerConfig::default();
     let consensus_manager_config =
         wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
     let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
@@ -302,6 +304,7 @@ pub fn create_node_config(
         batcher_config,
         class_manager_config,
         components,
+        config_manager_config: Some(config_manager_config),
         consensus_manager_config,
         gateway_config,
         http_server_config,
@@ -343,9 +346,12 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             network_config,
             immediate_active_height: BlockNumber(1),
             consensus_manager_config: ConsensusConfig {
-                // TODO(Matan, Dan): Set the right amount
-                startup_delay: Duration::from_secs(15),
-                timeouts: timeouts.clone(),
+                static_config: ConsensusStaticConfig {
+                    // TODO(Matan, Dan): Set the right amount
+                    startup_delay: Duration::from_secs(15),
+                    timeouts: timeouts.clone(),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             context_config: ContextConfig {
@@ -673,11 +679,11 @@ pub fn set_validator_id(
     node_index: usize,
 ) -> ValidatorId {
     let validator_id = ValidatorId::try_from(
-        Felt::from(consensus_manager_config.consensus_manager_config.validator_id)
+        Felt::from(consensus_manager_config.consensus_manager_config.dynamic_config.validator_id)
             + Felt::from(node_index),
     )
     .unwrap();
-    consensus_manager_config.consensus_manager_config.validator_id = validator_id;
+    consensus_manager_config.consensus_manager_config.dynamic_config.validator_id = validator_id;
     validator_id
 }
 
@@ -696,6 +702,7 @@ pub fn create_state_sync_configs(
                 port: rpc_ports.remove(0),
                 ..Default::default()
             },
+            should_replay_processed_txs_metric: true,
             ..Default::default()
         })
         .collect()

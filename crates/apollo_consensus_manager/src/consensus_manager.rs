@@ -97,6 +97,7 @@ impl ConsensusManager {
             num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
+            event_metrics: None,
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
@@ -179,10 +180,14 @@ impl ConsensusManager {
         let run_consensus_args = apollo_consensus::RunConsensusArguments {
             start_active_height: active_height,
             start_observe_height: observer_height,
-            validator_id: self.config.consensus_manager_config.validator_id,
-            consensus_delay: self.config.consensus_manager_config.startup_delay,
-            timeouts: self.config.consensus_manager_config.timeouts.clone(),
-            sync_retry_interval: self.config.consensus_manager_config.sync_retry_interval,
+            validator_id: self.config.consensus_manager_config.dynamic_config.validator_id,
+            consensus_delay: self.config.consensus_manager_config.static_config.startup_delay,
+            timeouts: self.config.consensus_manager_config.static_config.timeouts.clone(),
+            sync_retry_interval: self
+                .config
+                .consensus_manager_config
+                .static_config
+                .sync_retry_interval,
             quorum_type,
         };
         let consensus_fut = apollo_consensus::run_consensus(
