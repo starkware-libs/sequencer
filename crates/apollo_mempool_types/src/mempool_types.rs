@@ -32,6 +32,13 @@ pub struct AddTransactionArgs {
     pub account_state: AccountState,
 }
 
+impl AddTransactionArgs {
+    pub fn new(tx: InternalRpcTransaction, nonce: Nonce) -> Self {
+        let address = tx.contract_address();
+        Self { tx, account_state: AccountState { address, nonce } }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
