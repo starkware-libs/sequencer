@@ -93,7 +93,6 @@ use crate::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
-use crate::state_reader::MockStateReaderFactory;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
@@ -561,7 +560,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
@@ -569,7 +568,6 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
     };
@@ -614,7 +612,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|| Err(expected_error));
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
@@ -622,7 +620,6 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
     };
