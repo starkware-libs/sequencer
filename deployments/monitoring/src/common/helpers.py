@@ -24,7 +24,19 @@ def alert_env_filename_suffix(env: EnvironmentName) -> str:
         return "mainnet"
     else:
         raise ValueError(f"Unknown environment: {env}")
-
+    
+# Translates the environment name to a GCP project name in order to access the logs.
+def env_to_gcp_project_name(env: EnvironmentName) -> str:
+    if env == EnvironmentName.DEV:
+        return ""
+    elif env == EnvironmentName.INTEGRATION:
+        return "starkware-starknet-testnet"
+    elif env == EnvironmentName.TESTNET:
+        return "starkware-starknet-testnet"
+    elif env == EnvironmentName.MAINNET:
+        return "starkware-prod"
+    else:
+        raise ValueError(f"Unknown environment: {env}")
 
 def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
     message_color = "light_white"
