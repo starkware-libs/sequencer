@@ -11,19 +11,19 @@ use apollo_batcher::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_proposal_started() -> Panel {
-    Panel::from_counter(&PROPOSAL_STARTED, PanelType::Stat)
+    Panel::from(&PROPOSAL_STARTED)
 }
 fn get_panel_proposal_succeeded() -> Panel {
-    Panel::from_counter(&PROPOSAL_SUCCEEDED, PanelType::Stat)
+    Panel::from(&PROPOSAL_SUCCEEDED)
 }
 fn get_panel_proposal_failed() -> Panel {
-    Panel::from_counter(&PROPOSAL_FAILED, PanelType::Stat)
+    Panel::from(&PROPOSAL_FAILED)
 }
 fn get_panel_batched_transactions() -> Panel {
-    Panel::from_counter(&BATCHED_TRANSACTIONS, PanelType::Stat)
+    Panel::from(&BATCHED_TRANSACTIONS)
 }
 fn get_panel_last_batched_block() -> Panel {
-    Panel::from_gauge(&LAST_BATCHED_BLOCK, PanelType::Stat)
+    Panel::from(&LAST_BATCHED_BLOCK)
 }
 fn get_panel_rejection_ratio() -> Panel {
     Panel::ratio_time_series(
