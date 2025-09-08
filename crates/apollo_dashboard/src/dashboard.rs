@@ -148,7 +148,7 @@ impl Panel {
             panel_type,
         )
     }
-    #[allow(dead_code)] // TODO(Asmaa): use in panels
+
     pub(crate) fn from_counter_increase_range(
         metric: &MetricCounter,
         panel_type: PanelType,
