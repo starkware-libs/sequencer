@@ -345,7 +345,7 @@
         "description": "Counter of proposals started",
         "type": "stat",
         "exprs": [
-          "batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
         ],
         "extra_params": {}
       },
@@ -354,7 +354,7 @@
         "description": "Counter of successful proposals",
         "type": "stat",
         "exprs": [
-          "batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
         ],
         "extra_params": {}
       },
@@ -363,7 +363,16 @@
         "description": "Counter of failed proposals",
         "type": "stat",
         "exprs": [
-          "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_proposal_aborted",
+        "description": "Counter of aborted proposals",
+        "type": "stat",
+        "exprs": [
+          "increase(batcher_proposal_aborted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
         ],
         "extra_params": {}
       },
