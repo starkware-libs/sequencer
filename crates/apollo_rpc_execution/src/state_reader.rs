@@ -222,11 +222,11 @@ impl BlockifierStateReader for ExecutionStateReader {
             .get_executable_class_hash_v2(&class_hash)
             .map_err(storage_err_to_state_err)?;
 
-        Ok(maybe_hash.unwrap_or_default())
+        maybe_hash.ok_or(StateError::MissingCompiledClassHashV2(class_hash))
     }
 }
 
-// Converts a storage error to the error type of the state reader.
+/// Converts a storage error to the error type of the state reader.
 fn storage_err_to_state_err(err: StorageError) -> StateError {
     StateError::StateReadError(err.to_string())
 }
