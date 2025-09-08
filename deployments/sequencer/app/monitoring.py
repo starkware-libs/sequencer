@@ -56,7 +56,7 @@ class GrafanaDashboardApp(MonitoringApp):
 
         self.grafana_dashboard = grafana_dashboard.load()["dashboard"]
         self.grafana_dashboard["title"] = f"sequencer-{self.namespace}-dashboard"
-        grafana_dashboard = self._get_shared_grafana_dashboard()
+        self.grafana_dashboard_obj = self._get_shared_grafana_dashboard()
 
     def _get_shared_grafana_dashboard_spec(self):
         return SharedGrafanaDashboardSpec(
@@ -69,7 +69,7 @@ class GrafanaDashboardApp(MonitoringApp):
     def _get_shared_grafana_dashboard(self):
         return SharedGrafanaDashboard(
             self,
-            self.node.id,
+            Names.to_dns_label(self, include_hash=False),
             metadata=self._get_api_object_metadata(),
             spec=self._get_shared_grafana_dashboard_spec(),
         )
@@ -88,9 +88,11 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
 
         self.grafana_alert_group = grafana_alert_rule_group
         self.grafana_alert_files = self.grafana_alert_group.get_alert_files()
-        grafana_alert_rule_group = self._get_shared_grafana_alert_rule_group()
+        self.grafana_alert_rule_group_obj = self._get_shared_grafana_alert_rule_group()
 
-    def _exec_err_state_enum_selector(self, exec_err_state: str) -> Optional[str]:
+    def _exec_err_state_enum_selector(
+        self, exec_err_state: str
+    ) -> Optional[SharedGrafanaAlertRuleGroupSpecRulesExecErrState]:
         if exec_err_state.upper() == "OK":
             return SharedGrafanaAlertRuleGroupSpecRulesExecErrState.OK
         elif exec_err_state.upper() == "ERROR":
@@ -102,7 +104,9 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
         else:
             return None
 
-    def _exec_no_data_state_enum_selector(self, no_data_state: str) -> Optional[str]:
+    def _exec_no_data_state_enum_selector(
+        self, no_data_state: str
+    ) -> Optional[SharedGrafanaAlertRuleGroupSpecRulesNoDataState]:
         if no_data_state.upper() == "OK":
             return SharedGrafanaAlertRuleGroupSpecRulesNoDataState.OK
         elif no_data_state.upper() == "NODATA":
@@ -122,25 +126,25 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
             uid=uid,
             title=title,
             condition=rule["condition"],
-            for_=rule["for"],
-            annotations=rule["annotations"],
-            is_paused=rule["isPaused"],
-            labels=rule["labels"],
+            for_=rule.get("for"),
+            annotations=rule.get("annotations"),
+            is_paused=rule.get("isPaused", False),
+            labels=rule.get("labels"),
             notification_settings=None,
-            exec_err_state=self._exec_err_state_enum_selector(rule["execErrState"]),
-            no_data_state=self._exec_no_data_state_enum_selector(rule["noDataState"]),
+            exec_err_state=self._exec_err_state_enum_selector(rule.get("execErrState", "")),
+            no_data_state=self._exec_no_data_state_enum_selector(rule.get("noDataState", "")),
             data=[
                 SharedGrafanaAlertRuleGroupSpecRulesData(
-                    datasource_uid=data["datasourceUid"],
-                    model=data["model"],
-                    query_type=data["queryType"],
-                    ref_id=data["refId"],
+                    datasource_uid=data.get("datasourceUid"),
+                    model=data.get("model"),
+                    query_type=data.get("queryType"),
+                    ref_id=data.get("refId"),
                     relative_time_range=SharedGrafanaAlertRuleGroupSpecRulesDataRelativeTimeRange(
                         from_=data["relativeTimeRange"]["from"],
                         to=data["relativeTimeRange"]["to"],
                     ),
                 )
-                for data in rule["data"]
+                for data in rule.get("data", [])
             ],
         )
 
@@ -151,7 +155,7 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
             rules.append(self._get_shared_grafana_alert_rule_group_rules(alert_rule))
 
         return SharedGrafanaAlertRuleGroupSpec(
-            name=sanitize_name(f"{self.cluster}-{self.namespace}-{self.node.id}"),
+            name=sanitize_name(f"{self.cluster}-{self.namespace}-{Names.to_dns_label(self, include_hash=False)}"),
             instance_selector=SharedGrafanaAlertRuleGroupSpecInstanceSelector(),
             interval="1m",
             editable=False,
@@ -162,7 +166,7 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
     def _get_shared_grafana_alert_rule_group(self):
         return SharedGrafanaAlertRuleGroup(
             self,
-            self.node.id,
+            Names.to_dns_label(self, include_hash=False),
             metadata=self._get_api_object_metadata(),
             spec=self._get_shared_grafana_alert_rule_group_spec(),
         )
