@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use apollo_batcher::metrics::{
-    BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
 use apollo_batcher_types::communication::{
     BatcherRequest,
     BatcherResponse,
@@ -13,12 +8,7 @@ use apollo_batcher_types::communication::{
     RemoteBatcherClient,
     SharedBatcherClient,
 };
-use apollo_class_manager::metrics::{
-    CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_class_manager_types::{
     ClassManagerRequest,
     ClassManagerResponse,
@@ -26,12 +16,7 @@ use apollo_class_manager_types::{
     RemoteClassManagerClient,
     SharedClassManagerClient,
 };
-use apollo_compile_to_casm::metrics::{
-    SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    SIERRA_COMPILER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_compile_to_casm_types::{
     LocalSierraCompilerClient,
     RemoteSierraCompilerClient,
@@ -39,12 +24,7 @@ use apollo_compile_to_casm_types::{
     SierraCompilerRequest,
     SierraCompilerResponse,
 };
-use apollo_config_manager::metrics::{
-    CONFIG_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    CONFIG_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    CONFIG_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_config_manager_types::communication::{
     ConfigManagerRequest,
     ConfigManagerResponse,
@@ -52,12 +32,7 @@ use apollo_config_manager_types::communication::{
     RemoteConfigManagerClient,
     SharedConfigManagerClient,
 };
-use apollo_gateway::metrics::{
-    GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_gateway_types::communication::{
     GatewayRequest,
     GatewayResponse,
@@ -66,7 +41,6 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
-use apollo_infra::metrics::{LocalClientMetrics, RemoteClientMetrics};
 use apollo_l1_endpoint_monitor::communication::{
     LocalL1EndpointMonitorClient,
     RemoteL1EndpointMonitorClient,
@@ -75,39 +49,16 @@ use apollo_l1_endpoint_monitor_types::{
     L1EndpointMonitorRequest,
     L1EndpointMonitorResponse,
     SharedL1EndpointMonitorClient,
-    L1_ENDPOINT_MONITOR_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_REMOTE_CLIENT_SEND_ATTEMPTS,
+    L1_ENDPOINT_MONITOR_INFRA_METRICS,
 };
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
-use apollo_l1_gas_price::metrics::{
-    L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    L1_GAS_PRICE_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
 use apollo_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
-use apollo_l1_provider::metrics::{
-    L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
-use apollo_mempool::metrics::{
-    MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
-use apollo_mempool_p2p::metrics::{
-    MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
+use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
     MempoolP2pPropagatorRequest,
@@ -122,12 +73,7 @@ use apollo_mempool_types::communication::{
     RemoteMempoolClient,
     SharedMempoolClient,
 };
-use apollo_state_sync_metrics::metrics::{
-    STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-    STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-    STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
+use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 use apollo_state_sync_types::communication::{
     LocalStateSyncClient,
     RemoteStateSyncClient,
@@ -140,91 +86,6 @@ use tracing::info;
 use crate::communication::SequencerNodeCommunication;
 use crate::config::component_execution_config::ReactiveComponentExecutionMode;
 use crate::config::node_config::SequencerNodeConfig;
-
-// TODO(alonl): remove these and use the InfraMetrics consts in their place.
-
-// Local client metrics per component (static references are required by LocalComponentClient::new)
-const BATCHER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const CLASS_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const CONFIG_MANAGER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&CONFIG_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const GATEWAY_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const L1_ENDPOINT_MONITOR_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&L1_ENDPOINT_MONITOR_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const L1_PROVIDER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const L1_GAS_PRICE_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const MEMPOOL_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const MEMPOOL_P2P_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const SIERRA_COMPILER_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-const STATE_SYNC_LOCAL_CLIENT_METRICS: LocalClientMetrics =
-    LocalClientMetrics::new(&STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS);
-
-// Remote client metrics per component (static references are required by
-// RemoteComponentClient::new)
-const BATCHER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const CLASS_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-// ConfigManager is local-only, but macro still needs remote metrics parameter (never used)
-const CONFIG_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &CONFIG_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &CONFIG_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &CONFIG_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const GATEWAY_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const L1_ENDPOINT_MONITOR_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &L1_ENDPOINT_MONITOR_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &L1_ENDPOINT_MONITOR_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &L1_ENDPOINT_MONITOR_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const L1_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &L1_GAS_PRICE_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &L1_GAS_PRICE_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const MEMPOOL_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const MEMPOOL_P2P_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const SIERRA_COMPILER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &SIERRA_COMPILER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
-const STATE_SYNC_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
-    &STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-    &STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-    &STATE_SYNC_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-);
 
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
@@ -482,8 +343,8 @@ pub fn create_node_clients(
         &config.components.batcher.remote_client_config,
         &config.components.batcher.url,
         config.components.batcher.port,
-        &BATCHER_LOCAL_CLIENT_METRICS,
-        &BATCHER_REMOTE_CLIENT_METRICS
+        &BATCHER_INFRA_METRICS.get_local_client_metrics(),
+        &BATCHER_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let class_manager_client = create_client!(
@@ -494,8 +355,8 @@ pub fn create_node_clients(
         &config.components.class_manager.remote_client_config,
         &config.components.class_manager.url,
         config.components.class_manager.port,
-        &CLASS_MANAGER_LOCAL_CLIENT_METRICS,
-        &CLASS_MANAGER_REMOTE_CLIENT_METRICS
+        &CLASS_MANAGER_INFRA_METRICS.get_local_client_metrics(),
+        &CLASS_MANAGER_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let config_manager_client = create_client!(
@@ -506,8 +367,8 @@ pub fn create_node_clients(
         &config.components.config_manager.remote_client_config,
         &config.components.config_manager.url,
         config.components.config_manager.port,
-        &CONFIG_MANAGER_LOCAL_CLIENT_METRICS,
-        &CONFIG_MANAGER_REMOTE_CLIENT_METRICS
+        &CONFIG_MANAGER_INFRA_METRICS.get_local_client_metrics(),
+        &CONFIG_MANAGER_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let gateway_client = create_client!(
@@ -518,8 +379,8 @@ pub fn create_node_clients(
         &config.components.gateway.remote_client_config,
         &config.components.gateway.url,
         config.components.gateway.port,
-        &GATEWAY_LOCAL_CLIENT_METRICS,
-        &GATEWAY_REMOTE_CLIENT_METRICS
+        &GATEWAY_INFRA_METRICS.get_local_client_metrics(),
+        &GATEWAY_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let l1_endpoint_monitor_client = create_client!(
@@ -530,8 +391,8 @@ pub fn create_node_clients(
         &config.components.l1_endpoint_monitor.remote_client_config,
         &config.components.l1_endpoint_monitor.url,
         config.components.l1_endpoint_monitor.port,
-        &L1_ENDPOINT_MONITOR_LOCAL_CLIENT_METRICS,
-        &L1_ENDPOINT_MONITOR_REMOTE_CLIENT_METRICS
+        &L1_ENDPOINT_MONITOR_INFRA_METRICS.get_local_client_metrics(),
+        &L1_ENDPOINT_MONITOR_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let l1_provider_client = create_client!(
@@ -542,8 +403,8 @@ pub fn create_node_clients(
         &config.components.l1_provider.remote_client_config,
         &config.components.l1_provider.url,
         config.components.l1_provider.port,
-        &L1_PROVIDER_LOCAL_CLIENT_METRICS,
-        &L1_PROVIDER_REMOTE_CLIENT_METRICS
+        &L1_PROVIDER_INFRA_METRICS.get_local_client_metrics(),
+        &L1_PROVIDER_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let l1_gas_price_client = create_client!(
@@ -554,8 +415,8 @@ pub fn create_node_clients(
         &config.components.l1_gas_price_provider.remote_client_config,
         &config.components.l1_gas_price_provider.url,
         config.components.l1_gas_price_provider.port,
-        &L1_GAS_PRICE_LOCAL_CLIENT_METRICS,
-        &L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_METRICS
+        &L1_GAS_PRICE_INFRA_METRICS.get_local_client_metrics(),
+        &L1_GAS_PRICE_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let mempool_client = create_client!(
@@ -566,8 +427,8 @@ pub fn create_node_clients(
         &config.components.mempool.remote_client_config,
         &config.components.mempool.url,
         config.components.mempool.port,
-        &MEMPOOL_LOCAL_CLIENT_METRICS,
-        &MEMPOOL_REMOTE_CLIENT_METRICS
+        &MEMPOOL_INFRA_METRICS.get_local_client_metrics(),
+        &MEMPOOL_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let mempool_p2p_propagator_client = create_client!(
@@ -578,8 +439,8 @@ pub fn create_node_clients(
         &config.components.mempool_p2p.remote_client_config,
         &config.components.mempool_p2p.url,
         config.components.mempool_p2p.port,
-        &MEMPOOL_P2P_LOCAL_CLIENT_METRICS,
-        &MEMPOOL_P2P_REMOTE_CLIENT_METRICS
+        &MEMPOOL_P2P_INFRA_METRICS.get_local_client_metrics(),
+        &MEMPOOL_P2P_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let sierra_compiler_client = create_client!(
@@ -590,8 +451,8 @@ pub fn create_node_clients(
         &config.components.sierra_compiler.remote_client_config,
         &config.components.sierra_compiler.url,
         config.components.sierra_compiler.port,
-        &SIERRA_COMPILER_LOCAL_CLIENT_METRICS,
-        &SIERRA_COMPILER_REMOTE_CLIENT_METRICS
+        &SIERRA_COMPILER_INFRA_METRICS.get_local_client_metrics(),
+        &SIERRA_COMPILER_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let state_sync_client = create_client!(
@@ -602,8 +463,8 @@ pub fn create_node_clients(
         &config.components.state_sync.remote_client_config,
         &config.components.state_sync.url,
         config.components.state_sync.port,
-        &STATE_SYNC_LOCAL_CLIENT_METRICS,
-        &STATE_SYNC_REMOTE_CLIENT_METRICS
+        &STATE_SYNC_INFRA_METRICS.get_local_client_metrics(),
+        &STATE_SYNC_INFRA_METRICS.get_remote_client_metrics()
     );
 
     SequencerNodeClients {

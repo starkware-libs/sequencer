@@ -2,70 +2,19 @@ use std::future::pending;
 use std::pin::Pin;
 
 use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
-use apollo_batcher::metrics::{
-    BATCHER_LABELED_PROCESSING_TIMES_SECS,
-    BATCHER_LABELED_QUEUEING_TIMES_SECS,
-    BATCHER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    BATCHER_LOCAL_MSGS_PROCESSED,
-    BATCHER_LOCAL_MSGS_RECEIVED,
-    BATCHER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    BATCHER_REMOTE_MSGS_PROCESSED,
-    BATCHER_REMOTE_MSGS_RECEIVED,
-    BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
-    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
-use apollo_class_manager::metrics::{
-    CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
-    CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
-    CLASS_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-    CLASS_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-    CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
-    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_compile_to_casm::communication::{
     LocalSierraCompilerServer,
     RemoteSierraCompilerServer,
 };
-use apollo_compile_to_casm::metrics::{
-    SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
-    SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
-    SIERRA_COMPILER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
-    SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
-    SIERRA_COMPILER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
-    SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
-    SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS,
-    SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::config_manager::LocalConfigManagerServer;
-use apollo_config_manager::metrics::{
-    CONFIG_MANAGER_LABELED_PROCESSING_TIMES_SECS,
-    CONFIG_MANAGER_LABELED_QUEUEING_TIMES_SECS,
-    CONFIG_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    CONFIG_MANAGER_LOCAL_MSGS_PROCESSED,
-    CONFIG_MANAGER_LOCAL_MSGS_RECEIVED,
-    CONFIG_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-};
+use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
-use apollo_gateway::metrics::{
-    GATEWAY_LABELED_PROCESSING_TIMES_SECS,
-    GATEWAY_LABELED_QUEUEING_TIMES_SECS,
-    GATEWAY_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    GATEWAY_LOCAL_MSGS_PROCESSED,
-    GATEWAY_LOCAL_MSGS_RECEIVED,
-    GATEWAY_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    GATEWAY_REMOTE_MSGS_PROCESSED,
-    GATEWAY_REMOTE_MSGS_RECEIVED,
-    GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
-    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_http_server::communication::HttpServer;
 use apollo_infra::component_server::{
     ComponentServerStarter,
@@ -74,82 +23,26 @@ use apollo_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
-use apollo_infra::metrics::{LocalServerMetrics, RemoteServerMetrics};
 use apollo_l1_endpoint_monitor::communication::{
     LocalL1EndpointMonitorServer,
     RemoteL1EndpointMonitorServer,
 };
-use apollo_l1_endpoint_monitor_types::{
-    L1_ENDPOINT_MONITOR_LABELED_PROCESSING_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_LABELED_QUEUEING_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
-    L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
-    L1_ENDPOINT_MONITOR_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    L1_ENDPOINT_MONITOR_REMOTE_MSGS_PROCESSED,
-    L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
-    L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS,
-    L1_ENDPOINT_MONITOR_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_l1_endpoint_monitor_types::L1_ENDPOINT_MONITOR_INFRA_METRICS;
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
     LocalL1GasPriceServer,
     RemoteL1GasPriceServer,
 };
-use apollo_l1_gas_price::metrics::{
-    L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
-    L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
-    L1_GAS_PRICE_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    L1_GAS_PRICE_LOCAL_MSGS_PROCESSED,
-    L1_GAS_PRICE_LOCAL_MSGS_RECEIVED,
-    L1_GAS_PRICE_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    L1_GAS_PRICE_REMOTE_MSGS_PROCESSED,
-    L1_GAS_PRICE_REMOTE_MSGS_RECEIVED,
-    L1_GAS_PRICE_REMOTE_NUMBER_OF_CONNECTIONS,
-    L1_GAS_PRICE_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_provider::communication::{
     L1ScraperServer,
     LocalL1ProviderServer,
     RemoteL1ProviderServer,
 };
-use apollo_l1_provider::metrics::{
-    L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
-    L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
-    L1_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    L1_PROVIDER_LOCAL_MSGS_PROCESSED,
-    L1_PROVIDER_LOCAL_MSGS_RECEIVED,
-    L1_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    L1_PROVIDER_REMOTE_MSGS_PROCESSED,
-    L1_PROVIDER_REMOTE_MSGS_RECEIVED,
-    L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
-    L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
-use apollo_mempool::metrics::{
-    MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
-    MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
-    MEMPOOL_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    MEMPOOL_LOCAL_MSGS_PROCESSED,
-    MEMPOOL_LOCAL_MSGS_RECEIVED,
-    MEMPOOL_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    MEMPOOL_REMOTE_MSGS_PROCESSED,
-    MEMPOOL_REMOTE_MSGS_RECEIVED,
-    MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
-    MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
-};
-use apollo_mempool_p2p::metrics::{
-    MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
-    MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
-    MEMPOOL_P2P_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-    MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-    MEMPOOL_P2P_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-    MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-    MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
-    MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
+use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_mempool_p2p::propagator::{
     LocalMempoolP2pPropagatorServer,
     RemoteMempoolP2pPropagatorServer,
@@ -158,18 +51,7 @@ use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
-use apollo_state_sync_metrics::metrics::{
-    STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
-    STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
-    STATE_SYNC_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-    STATE_SYNC_LOCAL_MSGS_PROCESSED,
-    STATE_SYNC_LOCAL_MSGS_RECEIVED,
-    STATE_SYNC_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-    STATE_SYNC_REMOTE_MSGS_PROCESSED,
-    STATE_SYNC_REMOTE_MSGS_RECEIVED,
-    STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
-    STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
-};
+use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
@@ -415,22 +297,11 @@ macro_rules! create_wrapper_server {
     };
 }
 
-// TODO(alonl): use the InfraMetrics consts instead of referencing the metrics directly (same for
-// remote servers).
-
 fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
-    const BATCHER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &BATCHER_LOCAL_MSGS_RECEIVED,
-        &BATCHER_LOCAL_MSGS_PROCESSED,
-        &BATCHER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &BATCHER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &BATCHER_LABELED_PROCESSING_TIMES_SECS,
-        &BATCHER_LABELED_QUEUEING_TIMES_SECS,
-    );
     let batcher_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.batcher.execution_mode,
@@ -442,17 +313,9 @@ fn create_local_servers(
             .as_ref()
             .expect("Batcher local server config should be available."),
         communication.take_batcher_rx(),
-        &BATCHER_METRICS
+        &BATCHER_INFRA_METRICS.get_local_server_metrics()
     );
 
-    const CLASS_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-        &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-        &CLASS_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &CLASS_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
-        &CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
-    );
     let class_manager_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.class_manager.execution_mode,
@@ -464,18 +327,10 @@ fn create_local_servers(
             .as_ref()
             .expect("Class manager local server config should be available."),
         communication.take_class_manager_rx(),
-        &CLASS_MANAGER_METRICS,
+        &CLASS_MANAGER_INFRA_METRICS.get_local_server_metrics(),
         config.components.class_manager.max_concurrency
     );
 
-    const CONFIG_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &CONFIG_MANAGER_LOCAL_MSGS_RECEIVED,
-        &CONFIG_MANAGER_LOCAL_MSGS_PROCESSED,
-        &CONFIG_MANAGER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &CONFIG_MANAGER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &CONFIG_MANAGER_LABELED_PROCESSING_TIMES_SECS,
-        &CONFIG_MANAGER_LABELED_QUEUEING_TIMES_SECS,
-    );
     let config_manager_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.config_manager.execution_mode,
@@ -487,18 +342,10 @@ fn create_local_servers(
             .as_ref()
             .expect("Config manager local server config should be available."),
         communication.take_config_manager_rx(),
-        &CONFIG_MANAGER_METRICS,
+        &CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
         config.components.config_manager.max_concurrency
     );
 
-    const GATEWAY_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &GATEWAY_LOCAL_MSGS_RECEIVED,
-        &GATEWAY_LOCAL_MSGS_PROCESSED,
-        &GATEWAY_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &GATEWAY_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &GATEWAY_LABELED_PROCESSING_TIMES_SECS,
-        &GATEWAY_LABELED_QUEUEING_TIMES_SECS,
-    );
     let gateway_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.gateway.execution_mode,
@@ -510,18 +357,10 @@ fn create_local_servers(
             .as_ref()
             .expect("Gateway local server config should be available."),
         communication.take_gateway_rx(),
-        &GATEWAY_METRICS,
+        &GATEWAY_INFRA_METRICS.get_local_server_metrics(),
         config.components.gateway.max_concurrency
     );
 
-    const L1_ENDPOINT_MONITOR_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
-        &L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
-        &L1_ENDPOINT_MONITOR_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &L1_ENDPOINT_MONITOR_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &L1_ENDPOINT_MONITOR_LABELED_PROCESSING_TIMES_SECS,
-        &L1_ENDPOINT_MONITOR_LABELED_QUEUEING_TIMES_SECS,
-    );
     let l1_endpoint_monitor_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_endpoint_monitor.execution_mode,
@@ -533,17 +372,9 @@ fn create_local_servers(
             .as_ref()
             .expect("L1 endpoint monitor local server config should be available."),
         communication.take_l1_endpoint_monitor_rx(),
-        &L1_ENDPOINT_MONITOR_METRICS
+        &L1_ENDPOINT_MONITOR_INFRA_METRICS.get_local_server_metrics()
     );
 
-    const L1_GAS_PRICE_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &L1_GAS_PRICE_LOCAL_MSGS_RECEIVED,
-        &L1_GAS_PRICE_LOCAL_MSGS_PROCESSED,
-        &L1_GAS_PRICE_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &L1_GAS_PRICE_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
-        &L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
-    );
     let l1_gas_price_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_gas_price_provider.execution_mode,
@@ -555,17 +386,9 @@ fn create_local_servers(
             .as_ref()
             .expect("L1 gas price provider local server config should be available."),
         communication.take_l1_gas_price_rx(),
-        &L1_GAS_PRICE_PROVIDER_METRICS
+        &L1_GAS_PRICE_INFRA_METRICS.get_local_server_metrics()
     );
 
-    const L1_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &L1_PROVIDER_LOCAL_MSGS_RECEIVED,
-        &L1_PROVIDER_LOCAL_MSGS_PROCESSED,
-        &L1_PROVIDER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &L1_PROVIDER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
-        &L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
-    );
     let l1_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_provider.execution_mode,
@@ -577,17 +400,9 @@ fn create_local_servers(
             .as_ref()
             .expect("L1 provider local server config should be available."),
         communication.take_l1_provider_rx(),
-        &L1_PROVIDER_METRICS
+        &L1_PROVIDER_INFRA_METRICS.get_local_server_metrics()
     );
 
-    const MEMPOOL_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &MEMPOOL_LOCAL_MSGS_RECEIVED,
-        &MEMPOOL_LOCAL_MSGS_PROCESSED,
-        &MEMPOOL_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &MEMPOOL_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
-        &MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
-    );
     let mempool_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.mempool.execution_mode,
@@ -599,17 +414,9 @@ fn create_local_servers(
             .as_ref()
             .expect("Mempool local server config should be available."),
         communication.take_mempool_rx(),
-        &MEMPOOL_METRICS
+        &MEMPOOL_INFRA_METRICS.get_local_server_metrics()
     );
 
-    const MEMPOOL_P2P_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-        &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-        &MEMPOOL_P2P_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &MEMPOOL_P2P_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
-        &MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
-    );
     let mempool_p2p_propagator_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
         &config.components.mempool_p2p.execution_mode,
@@ -621,17 +428,9 @@ fn create_local_servers(
             .as_ref()
             .expect("Mempool p2p local server config should be available."),
         communication.take_mempool_p2p_propagator_rx(),
-        &MEMPOOL_P2P_METRICS
+        &MEMPOOL_P2P_INFRA_METRICS.get_local_server_metrics()
     );
 
-    const SIERRA_COMPILER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
-        &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
-        &SIERRA_COMPILER_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &SIERRA_COMPILER_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
-        &SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
-    );
     let sierra_compiler_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.sierra_compiler.execution_mode,
@@ -643,18 +442,10 @@ fn create_local_servers(
             .as_ref()
             .expect("Sierra compiler local server config should be available."),
         communication.take_sierra_compiler_rx(),
-        &SIERRA_COMPILER_METRICS,
+        &SIERRA_COMPILER_INFRA_METRICS.get_local_server_metrics(),
         config.components.sierra_compiler.max_concurrency
     );
 
-    const STATE_SYNC_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &STATE_SYNC_LOCAL_MSGS_RECEIVED,
-        &STATE_SYNC_LOCAL_MSGS_PROCESSED,
-        &STATE_SYNC_LOCAL_HIGH_PRIORITY_QUEUE_DEPTH,
-        &STATE_SYNC_LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH,
-        &STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
-        &STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
-    );
     let state_sync_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.state_sync.execution_mode,
@@ -666,7 +457,7 @@ fn create_local_servers(
             .as_ref()
             .expect("State sync local server config should be available."),
         communication.take_state_sync_rx(),
-        &STATE_SYNC_METRICS,
+        &STATE_SYNC_INFRA_METRICS.get_local_server_metrics(),
         config.components.state_sync.max_concurrency
     );
 
@@ -714,90 +505,53 @@ impl LocalServers {
     }
 }
 
-// TODO(alonl): use the InfraMetrics consts instead of creating the consts here.
 pub fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
-    const BATCHER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &BATCHER_REMOTE_MSGS_RECEIVED,
-        &BATCHER_REMOTE_VALID_MSGS_RECEIVED,
-        &BATCHER_REMOTE_MSGS_PROCESSED,
-        &BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
         config.components.batcher.ip,
         config.components.batcher.port,
         config.components.batcher.max_concurrency,
-        BATCHER_METRICS
+        BATCHER_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const CLASS_MANAGER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-        &CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-        &CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-        &CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let class_manager_server = create_remote_server!(
         &config.components.class_manager.execution_mode,
         || { clients.get_class_manager_local_client() },
         config.components.class_manager.ip,
         config.components.class_manager.port,
         config.components.class_manager.max_concurrency,
-        CLASS_MANAGER_METRICS
+        CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const GATEWAY_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &GATEWAY_REMOTE_MSGS_RECEIVED,
-        &GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
-        &GATEWAY_REMOTE_MSGS_PROCESSED,
-        &GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
         config.components.gateway.ip,
         config.components.gateway.port,
         config.components.gateway.max_concurrency,
-        GATEWAY_METRICS
+        GATEWAY_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const L1_ENDPOINT_MONITOR_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
-        &L1_ENDPOINT_MONITOR_REMOTE_VALID_MSGS_RECEIVED,
-        &L1_ENDPOINT_MONITOR_REMOTE_MSGS_PROCESSED,
-        &L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let l1_endpoint_monitor_server = create_remote_server!(
         &config.components.l1_endpoint_monitor.execution_mode,
         || { clients.get_l1_endpoint_monitor_local_client() },
         config.components.l1_endpoint_monitor.ip,
         config.components.l1_endpoint_monitor.port,
         config.components.l1_endpoint_monitor.max_concurrency,
-        L1_ENDPOINT_MONITOR_METRICS
+        L1_ENDPOINT_MONITOR_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const L1_PROVIDER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &L1_PROVIDER_REMOTE_MSGS_RECEIVED,
-        &L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
-        &L1_PROVIDER_REMOTE_MSGS_PROCESSED,
-        &L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
         config.components.l1_provider.ip,
         config.components.l1_provider.port,
         config.components.l1_provider.max_concurrency,
-        L1_PROVIDER_METRICS
-    );
-    const L1_GAS_PRICE_PROVIDER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &L1_GAS_PRICE_REMOTE_MSGS_RECEIVED,
-        &L1_GAS_PRICE_REMOTE_VALID_MSGS_RECEIVED,
-        &L1_GAS_PRICE_REMOTE_MSGS_PROCESSED,
-        &L1_GAS_PRICE_REMOTE_NUMBER_OF_CONNECTIONS,
+        L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
     );
     let l1_gas_price_provider_server = create_remote_server!(
         &config.components.l1_gas_price_provider.execution_mode,
@@ -805,14 +559,7 @@ pub fn create_remote_servers(
         config.components.l1_gas_price_provider.ip,
         config.components.l1_gas_price_provider.port,
         config.components.l1_gas_price_provider.max_concurrency,
-        L1_GAS_PRICE_PROVIDER_METRICS
-    );
-
-    const MEMPOOL_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &MEMPOOL_REMOTE_MSGS_RECEIVED,
-        &MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
-        &MEMPOOL_REMOTE_MSGS_PROCESSED,
-        &MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
+        L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let mempool_server = create_remote_server!(
@@ -821,52 +568,34 @@ pub fn create_remote_servers(
         config.components.mempool.ip,
         config.components.mempool.port,
         config.components.mempool.max_concurrency,
-        MEMPOOL_METRICS
+        MEMPOOL_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const MEMPOOL_P2P_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-        &MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-        &MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-        &MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
         config.components.mempool_p2p.ip,
         config.components.mempool_p2p.port,
         config.components.mempool_p2p.max_concurrency,
-        MEMPOOL_P2P_METRICS
+        MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const SIERRA_COMPILER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
-        &SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
-        &SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
-        &SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let sierra_compiler_server = create_remote_server!(
         &config.components.sierra_compiler.execution_mode,
         || { clients.get_sierra_compiler_local_client() },
         config.components.sierra_compiler.ip,
         config.components.sierra_compiler.port,
         config.components.sierra_compiler.max_concurrency,
-        SIERRA_COMPILER_METRICS
+        SIERRA_COMPILER_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    const STATE_SYNC_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
-        &STATE_SYNC_REMOTE_MSGS_RECEIVED,
-        &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
-        &STATE_SYNC_REMOTE_MSGS_PROCESSED,
-        &STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
-    );
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
         config.components.state_sync.ip,
         config.components.state_sync.port,
         config.components.state_sync.max_concurrency,
-        STATE_SYNC_METRICS
+        STATE_SYNC_INFRA_METRICS.get_remote_server_metrics()
     );
 
     RemoteServers {
