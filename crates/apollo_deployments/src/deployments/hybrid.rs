@@ -937,14 +937,6 @@ pub(crate) fn create_hybrid_instance_config_override(
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
-<<<<<<< HEAD
-    assert!(
-        node_id < MAX_NODE_ID,
-        "Node node_id {node_id} exceeds the number of nodes {MAX_NODE_ID}"
-    );
-
-=======
->>>>>>> origin/main-v0.14.0
     // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
     // consistently throughout the code.
     const CORE_SERVICE_PORT: u16 = 53080;

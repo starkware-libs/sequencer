@@ -66,25 +66,7 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
-<<<<<<< HEAD
-use apollo_infra::metrics::{
-    LocalClientMetrics,
-    RemoteClientMetrics,
-    BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
-    L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,
-    L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
-    SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-};
-=======
 use apollo_infra::metrics::{LocalClientMetrics, RemoteClientMetrics};
->>>>>>> origin/main-v0.14.0
 use apollo_l1_endpoint_monitor::communication::{
     LocalL1EndpointMonitorClient,
     RemoteL1EndpointMonitorClient,
@@ -144,6 +126,7 @@ use apollo_signature_manager::metrics::{
     SIGNATURE_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     SIGNATURE_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     SIGNATURE_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+    SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_signature_manager_types::{
     LocalSignatureManagerClient,
