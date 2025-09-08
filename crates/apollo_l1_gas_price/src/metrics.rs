@@ -1,10 +1,3 @@
-use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
-};
 use apollo_l1_gas_price_types::L1_GAS_PRICE_REQUEST_LABELS;
 use apollo_metrics::{define_infra_metrics, define_metrics};
 

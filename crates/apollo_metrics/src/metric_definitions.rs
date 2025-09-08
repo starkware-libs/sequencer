@@ -184,16 +184,17 @@ macro_rules! define_infra_metrics {
                 },
             );
 
-            pub const [<$component:snake:upper _INFRA_METRICS>]: InfraMetrics = InfraMetrics::new(
-                LocalClientMetrics::new(
+            pub const [<$component:snake:upper _INFRA_METRICS>]: apollo_infra::metrics::InfraMetrics
+            = apollo_infra::metrics::InfraMetrics::new(
+                apollo_infra::metrics::LocalClientMetrics::new(
                     &[<$component:snake:upper _LABELED_LOCAL_RESPONSE_TIMES_SECS>],
                 ),
-                RemoteClientMetrics::new(
+                apollo_infra::metrics::RemoteClientMetrics::new(
                     &[<$component:snake:upper _REMOTE_CLIENT_SEND_ATTEMPTS>],
                     &[<$component:snake:upper _LABELED_REMOTE_RESPONSE_TIMES_SECS>],
                     &[<$component:snake:upper _LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS>],
                 ),
-                LocalServerMetrics::new(
+                apollo_infra::metrics::LocalServerMetrics::new(
                     &[<$component:snake:upper _LOCAL_MSGS_RECEIVED>],
                     &[<$component:snake:upper _LOCAL_MSGS_PROCESSED>],
                     &[<$component:snake:upper _LOCAL_HIGH_PRIORITY_QUEUE_DEPTH>],
@@ -201,7 +202,7 @@ macro_rules! define_infra_metrics {
                     &[<$component:snake:upper _LABELED_PROCESSING_TIMES_SECS>],
                     &[<$component:snake:upper _LABELED_QUEUEING_TIMES_SECS>],
                 ),
-                RemoteServerMetrics::new(
+                apollo_infra::metrics::RemoteServerMetrics::new(
                     &[<$component:snake:upper _REMOTE_MSGS_RECEIVED>],
                     &[<$component:snake:upper _REMOTE_VALID_MSGS_RECEIVED>],
                     &[<$component:snake:upper _REMOTE_MSGS_PROCESSED>],
