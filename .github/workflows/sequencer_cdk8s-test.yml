@@ -68,6 +68,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cdk8s-artifacts
+          if-no-files-found: error
+          retention-days: 1
           path: |
             deployments/sequencer/dist
             deployments/sequencer/resources
