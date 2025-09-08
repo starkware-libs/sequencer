@@ -937,6 +937,33 @@
           "consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_network_events",
+        "description": "Network events counter by event type for consensus",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (event_type) (apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_votes_num_dropped_messages",
+        "description": "The number of messages dropped by the consensus p2p component over the Votes topic",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (drop_reason) (apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_dropped_messages",
+        "description": "The number of messages dropped by the consensus p2p component over the Proposals topic",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (drop_reason) (apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
       }
     ],
     "StateSyncP2p": [
@@ -1025,6 +1052,24 @@
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_network_events",
+        "description": "Network events counter by event type for mempool p2p",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (event_type) (apollo_mempool_p2p_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_num_dropped_messages",
+        "description": "The number of messages dropped by the mempool p2p component",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
         ],
         "extra_params": {}
       }
