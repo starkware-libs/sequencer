@@ -100,28 +100,11 @@ pub fn test_state(
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    test_state_ex(
+    test_state_inner(
         chain_info,
         initial_balances,
         &contract_instances_vec[..],
         &HashVersion::V2,
-        erc20_version,
-    )
-}
-
-// TODO(Aviv): Delete it and use only test_state_inner.
-pub fn test_state_ex(
-    chain_info: &ChainInfo,
-    initial_balances: Fee,
-    contract_instances: &[(FeatureContractData, u16)],
-    compiled_classes_hash_version: &HashVersion,
-    erc20_version: CairoVersion,
-) -> CachedState<DictStateReader> {
-    test_state_inner(
-        chain_info,
-        initial_balances,
-        contract_instances,
-        compiled_classes_hash_version,
         erc20_version,
     )
 }
