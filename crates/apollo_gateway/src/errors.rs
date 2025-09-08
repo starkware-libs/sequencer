@@ -6,6 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::gateway_types::SUPPORTED_TRANSACTION_VERSIONS;
 use apollo_mempool_types::communication::{MempoolClientError, MempoolClientResult};
 use apollo_mempool_types::errors::MempoolError;
 use axum::http::StatusCode;
@@ -161,12 +162,8 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                     "StarknetErrorCode.SIGNATURE_TOO_LONG".to_string(),
                 )
             }
-            StatelessTransactionValidatorError::StarknetApiError(..) =>
-            // TODO(yair): map SN_API errors to the correct error codes.
-            {
-                StarknetErrorCode::UnknownErrorCode(
-                    "StarknetErrorCode.STARKNET_API_ERROR".to_string(),
-                )
+            StatelessTransactionValidatorError::StarknetApiError(e) => {
+                return convert_sn_api_error(e);
             }
             StatelessTransactionValidatorError::ZeroResourceBounds { .. }
             | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. } => {
@@ -341,10 +338,7 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ClassNotFound { .. } => {
             StarknetError::internal_with_signature_logging("Class not found", tx_signature, err)
         }
-        // TODO(noamsp): Handle this better.
-        TransactionConverterError::StarknetApiError(err) => {
-            StarknetError::internal_with_signature_logging("Starknet API error", tx_signature, err)
-        }
+        TransactionConverterError::StarknetApiError(err) => convert_sn_api_error(err),
     }
 }
 
@@ -404,5 +398,38 @@ fn convert_class_manager_error(
         | ClassManagerError::Client(_) => {
             StarknetError::internal_with_signature_logging("Class manager error", tx_signature, err)
         }
+    }
+}
+
+fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
+    match err {
+        StarknetApiError::InvalidStarknetVersion(tx_version) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidTransactionVersion,
+            ),
+            message: format!(
+                "Transaction version {tx_version:?} is not supported. Supported versions: \
+                 {SUPPORTED_TRANSACTION_VERSIONS:?}.",
+            ),
+        },
+        StarknetApiError::ContractClassVersionSierraProgramLengthMismatch { .. }
+        | StarknetApiError::ContractClassVersionMismatch { .. } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidContractClassVersion,
+            ),
+            message: err.to_string(),
+        },
+        StarknetApiError::ZeroGasPrice
+        | StarknetApiError::GasPriceConversionError(..)
+        | StarknetApiError::UnknownTransactionType(..)
+        | StarknetApiError::InvalidResourceMappingInitializer(..)
+        | StarknetApiError::ParseIntError(..)
+        | StarknetApiError::BlockHashVersion { .. }
+        | StarknetApiError::ParseSierraVersionError(..)
+        | StarknetApiError::ResourceHexToFeltConversion(..)
+        | StarknetApiError::OutOfRange { .. } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+            message: err.to_string(),
+        },
     }
 }
