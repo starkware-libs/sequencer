@@ -25,9 +25,12 @@ use apollo_consensus::metrics::{
     LABEL_NAME_TIMEOUT_REASON,
 };
 use apollo_consensus_manager::metrics::{
+    CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
@@ -43,6 +46,10 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     LABEL_CENDE_FAILURE_REASON,
+};
+use apollo_network::network_manager::metrics::{
+    LABEL_NAME_BROADCAST_DROP_REASON,
+    LABEL_NAME_EVENT_TYPE,
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
@@ -213,6 +220,45 @@ fn get_panel_consensus_l1_gas_mismatch() -> Panel {
     Panel::from(&CONSENSUS_L1_GAS_MISMATCH)
 }
 
+fn get_panel_consensus_network_events_by_type() -> Panel {
+    Panel::new(
+        CONSENSUS_NETWORK_EVENTS.get_name(),
+        CONSENSUS_NETWORK_EVENTS.get_description(),
+        vec![format!(
+            "sum by ({}) ({})",
+            LABEL_NAME_EVENT_TYPE,
+            CONSENSUS_NETWORK_EVENTS.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_consensus_votes_dropped_messages_by_reason() -> Panel {
+    Panel::new(
+        CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name(),
+        CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_description(),
+        vec![format!(
+            "sum by ({}) ({})",
+            LABEL_NAME_BROADCAST_DROP_REASON,
+            CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
+    Panel::new(
+        CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name(),
+        CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_description(),
+        vec![format!(
+            "sum by ({}) ({})",
+            LABEL_NAME_BROADCAST_DROP_REASON,
+            CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_consensus_row() -> Row {
     Row::new(
         "Consensus",
@@ -266,6 +312,9 @@ pub(crate) fn get_consensus_p2p_row() -> Row {
             get_panel_consensus_proposals_num_sent_messages(),
             get_panel_consensus_proposals_num_received_messages(),
             get_panel_consensus_conflicting_votes(),
+            get_panel_consensus_network_events_by_type(),
+            get_panel_consensus_votes_dropped_messages_by_reason(),
+            get_panel_consensus_proposals_dropped_messages_by_reason(),
         ],
     )
 }
