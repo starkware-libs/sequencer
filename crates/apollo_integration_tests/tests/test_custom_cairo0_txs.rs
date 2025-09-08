@@ -17,7 +17,11 @@ use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 mod common;
 
 const DEFAULT_TIP: u64 = 1_u64;
+<<<<<<< HEAD
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 5;
+=======
+const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 4;
+>>>>>>> 9a31f1367 (apollo_integration_tests: add signature arg to generate_rpc_invoke_tx and add invoke_tx that use it)
 
 #[tokio::test]
 async fn custom_cairo0_txs() {
@@ -48,7 +52,10 @@ fn create_custom_cairo0_test_txs(
     let mut txs = vec![];
     txs.extend(generate_direct_test_contract_invoke_txs_cairo_0_syscall(account_tx_generator));
     txs.extend(generate_invoke_txs_with_signature_cairo_0_syscall(account_tx_generator));
+<<<<<<< HEAD
     txs.extend(generate_deploy_contract_invoke_tx(account_tx_generator));
+=======
+>>>>>>> 9a31f1367 (apollo_integration_tests: add signature arg to generate_rpc_invoke_tx and add invoke_tx that use it)
 
     txs
 }
