@@ -66,7 +66,6 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
-<<<<<<< HEAD
 use apollo_infra::metrics::{
     LocalClientMetrics,
     RemoteClientMetrics,
@@ -82,9 +81,6 @@ use apollo_infra::metrics::{
     SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
-=======
-use apollo_infra::metrics::{LocalClientMetrics, RemoteClientMetrics};
->>>>>>> origin/main-v0.14.0
 use apollo_l1_endpoint_monitor::communication::{
     LocalL1EndpointMonitorClient,
     RemoteL1EndpointMonitorClient,

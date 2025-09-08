@@ -78,14 +78,6 @@ def check_service_alive(
 
     time.sleep(initial_delay)
     start_time = time.time()
-<<<<<<< HEAD
-    print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
-    print(f"Address: {address}")
-    print(f"Timeout: {timeout}s")
-    print(f"Interval: {interval}s")
-    print(f"Retry: {retry}, Retry delay: {retry_delay}s\n")
-=======
->>>>>>> origin/main-v0.14.0
 
     while True:
         elapsed = time.time() - start_time
@@ -204,17 +196,6 @@ def main(
             service_name=service_name,
         )
 
-<<<<<<< HEAD
-        # Each sequencer is configured to use the same internal port - 8082,
-        # so we offset the local port to avoid conflicts when running multiple sequencers locally.
-        # This ensures unique local ports per instance.
-        local_port = monitoring_port + i
-        print(f"🚀 Starting port-forwarding for {service_name} on local port {local_port}...")
-        pf_process = subprocess.Popen(
-            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-=======
         process = Process(
             name=service_name,
             target=run_service_check,
@@ -229,7 +210,6 @@ def main(
                 initial_delay,
                 process_queue,
             ),
->>>>>>> origin/main-v0.14.0
         )
         process.start()
         healthcheck_processes.append(process)

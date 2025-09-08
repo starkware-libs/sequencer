@@ -113,14 +113,14 @@ pub async fn create_node_components(
         }
     };
 
-<<<<<<< HEAD
     let signature_manager = match config.components.signature_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(create_signature_manager())
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
-=======
+    };
+
     let config_manager = match config.components.config_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
             let config_manager_config =
@@ -138,7 +138,6 @@ pub async fn create_node_components(
             // TODO(tsabary): assert config is not set.
             None
         }
->>>>>>> origin/main-v0.14.0
     };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
