@@ -54,8 +54,17 @@ const TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     0,
 );
 
-const TEST_QUEUE_DEPTH: MetricGauge =
-    MetricGauge::new(MetricScope::Infra, "queue_queue_depth", "Test channel queue depth gauge");
+const TEST_HIGH_PRIORITY_QUEUE_DEPTH: MetricGauge = MetricGauge::new(
+    MetricScope::Infra,
+    "high_priority_queue_depth",
+    "Test high priority queue depth gauge",
+);
+
+const TEST_NORMAL_PRIORITY_QUEUE_DEPTH: MetricGauge = MetricGauge::new(
+    MetricScope::Infra,
+    "normal_priority_queue_depth",
+    "Test normal priority queue depth gauge",
+);
 
 const _TEST_PROCESSING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "processing_times", "Test processing time histogram");
@@ -95,7 +104,8 @@ const _TEST_QUEUEING_TIMES_SECS_LABELLED_B: LabeledMetricHistogram = LabeledMetr
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
     &TEST_MSGS_RECEIVED,
     &TEST_MSGS_PROCESSED,
-    &TEST_QUEUE_DEPTH,
+    &TEST_HIGH_PRIORITY_QUEUE_DEPTH,
+    &TEST_NORMAL_PRIORITY_QUEUE_DEPTH,
     &TEST_PROCESSING_TIMES_SECS_LABELLED_A,
     &TEST_QUEUEING_TIMES_SECS_LABELLED_A,
 );

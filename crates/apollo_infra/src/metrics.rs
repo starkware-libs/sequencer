@@ -92,7 +92,8 @@ impl RemoteClientMetrics {
 pub struct LocalServerMetrics {
     received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
-    queue_depth: &'static MetricGauge,
+    high_priority_queue_depth: &'static MetricGauge,
+    normal_priority_queue_depth: &'static MetricGauge,
     processing_times: &'static LabeledMetricHistogram,
     queueing_times: &'static LabeledMetricHistogram,
 }
@@ -101,17 +102,26 @@ impl LocalServerMetrics {
     pub const fn new(
         received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
-        queue_depth: &'static MetricGauge,
+        high_priority_queue_depth: &'static MetricGauge,
+        normal_priority_queue_depth: &'static MetricGauge,
         processing_times: &'static LabeledMetricHistogram,
         queueing_times: &'static LabeledMetricHistogram,
     ) -> Self {
-        Self { received_msgs, processed_msgs, queue_depth, processing_times, queueing_times }
+        Self {
+            received_msgs,
+            processed_msgs,
+            high_priority_queue_depth,
+            normal_priority_queue_depth,
+            processing_times,
+            queueing_times,
+        }
     }
 
     pub fn register(&self) {
         self.received_msgs.register();
         self.processed_msgs.register();
-        self.queue_depth.register();
+        self.high_priority_queue_depth.register();
+        self.normal_priority_queue_depth.register();
         self.processing_times.register();
         self.queueing_times.register();
     }
@@ -138,15 +148,26 @@ impl LocalServerMetrics {
             .expect("processed_msgs metrics should be available")
     }
 
-    pub fn set_queue_depth(&self, value: usize) {
-        self.queue_depth.set_lossy(value);
+    pub fn set_high_priority_queue_depth(&self, value: usize) {
+        self.high_priority_queue_depth.set_lossy(value);
+    }
+
+    pub fn set_normal_priority_queue_depth(&self, value: usize) {
+        self.normal_priority_queue_depth.set_lossy(value);
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> usize {
-        self.queue_depth
+    pub fn get_high_priority_queue_depth_value(&self, metrics_as_string: &str) -> usize {
+        self.high_priority_queue_depth
             .parse_numeric_metric::<usize>(metrics_as_string)
-            .expect("queue_depth metrics should be available")
+            .expect("high_priority_queue_depth metrics should be available")
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_normal_priority_queue_depth_value(&self, metrics_as_string: &str) -> usize {
+        self.normal_priority_queue_depth
+            .parse_numeric_metric::<usize>(metrics_as_string)
+            .expect("normal_priority_queue_depth metrics should be available")
     }
 
     // TODO(Tsabary): add the getter fns for tests.
@@ -174,8 +195,12 @@ impl LocalServerMetrics {
         self.processed_msgs
     }
 
-    pub fn get_queue_depth_metric(&self) -> &'static MetricGauge {
-        self.queue_depth
+    pub fn get_high_priority_queue_depth_metric(&self) -> &'static MetricGauge {
+        self.high_priority_queue_depth
+    }
+
+    pub fn get_normal_priority_queue_depth_metric(&self) -> &'static MetricGauge {
+        self.normal_priority_queue_depth
     }
 
     pub fn get_all_labeled_metrics(&self) -> Vec<&'static LabeledMetricHistogram> {
