@@ -167,11 +167,18 @@ pub fn create_test_init_data(chain_info: &ChainInfo, cairo_version: CairoVersion
 }
 
 /// Initializes a state before the compiled class hash migration.
-/// The classes are declared with the old hash version.
+/// if `declare_with_casm_hash_v1` is true, the classes are declared with the old hash version.
 pub fn create_init_data_for_compiled_class_hash_migration_test(
     chain_info: &ChainInfo,
     cairo_version: CairoVersion,
+    declare_with_casm_hash_v1: bool,
 ) -> TestInitData {
+    // If the classes are not declared with the old hash version, return the test init data for the
+    // new hash version.
+    if !declare_with_casm_hash_v1 {
+        return create_test_init_data(chain_info, cairo_version);
+    }
+
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
