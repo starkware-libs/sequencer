@@ -92,7 +92,7 @@ impl BenchTestSetup {
 
         let gateway_business_logic = Gateway::new(
             config.gateway_config,
-            Arc::new(state_reader_factory),
+            state_reader_factory,
             Arc::new(mempool_client),
             transaction_converter,
         );
