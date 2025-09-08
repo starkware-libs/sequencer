@@ -5,7 +5,8 @@ import time
 
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
-from common.helpers import get_logger
+from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
+from urllib.parse import quote
 
 
 def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
@@ -32,6 +33,15 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     extra = panel.get("extra_params", {})
     unit = extra.get("unit", "none")
     show_percent_change = extra.get("showPercentChange", False)
+    log_query = extra.get("log_query", "")
+    link = "\n".join([
+        "https://console.cloud.google.com/logs/query;",
+        f"query=resource.labels.namespace_name=~%22^%28${{namespace:pipe}}%29$%22%0A{quote(log_query)};",
+        "minLogTime=${_from:date:iso};",
+        "maxLogTime=${_to:date:iso};",
+        "?project=${gcp_project}",
+    ])
+
 
     grafana_panel = {
         "id": panel_id,
@@ -48,7 +58,10 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         },
         "options": {
             "showPercentChange": show_percent_change
-        }
+        },
+        "links": (
+            [{"url": link, "title": "GCP Logs", "targetBlank": True}]
+        ),
     }
     return grafana_panel
 
@@ -71,9 +84,17 @@ def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
     return f"{out_dir}/{file_name}.json"
 
 
-def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
+def make_gcp_project_var(gcp_project_value: str) -> dict:
+    return {
+        "type": "constant",
+        "name": "gcp_project",
+        "query": gcp_project_value,
+    }
+
+def create_dashboard(dashboard_name: str, dev_dashboard: json, env: EnvironmentName) -> dict:
     dashboard = empty_dashboard.copy()
     templating = templating_object.copy()
+    templating["list"].append(make_gcp_project_var(env_to_gcp_project_name(env)))
     panel_id = 1
     x_position = 0
     y_position = 0
@@ -141,6 +162,7 @@ def dashboard_builder(args: argparse.Namespace) -> None:
                 create_dashboard(
                     dashboard_name=dashboard_name,
                     dev_dashboard=dev_json[dashboard_name],
+                    env=EnvironmentName(args.env)
                 ),
             ]
         )
