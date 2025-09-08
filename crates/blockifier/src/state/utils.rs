@@ -7,7 +7,8 @@ use crate::state::state_api::{StateReader, StateResult};
 
 /// Default implementation of `get_compiled_class_hash_v2`, of state reader trait.
 /// Returns the compiled class hash (v2) of the given class hash.
-/// Returns `CompiledClassHash::default()` if no v1_class is found for the given class hash.
+/// Returns `StateError::MissingCompiledClassHashV2` if no v1_class is found for the given class
+/// hash.
 #[allow(dead_code)]
 pub fn get_compiled_class_hash_v2(
     state_reader: &impl StateReader,
@@ -16,7 +17,7 @@ pub fn get_compiled_class_hash_v2(
 ) -> StateResult<CompiledClassHash> {
     match state_reader.get_compiled_class(class_hash) {
         Ok(RunnableCompiledClass::V0(_)) | Err(StateError::UndeclaredClassHash(_)) => {
-            Ok(CompiledClassHash::default())
+            Err(StateError::MissingCompiledClassHashV2(class_hash))
         }
         Ok(RunnableCompiledClass::V1(class)) => Ok(class.hash(&HashVersion::V2)),
         #[cfg(feature = "cairo_native")]
