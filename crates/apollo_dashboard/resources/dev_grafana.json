@@ -859,10 +859,10 @@
       },
       {
         "title": "eth_to_strk_rate",
-        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=a)",
+        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1000000000000000000000)",
         "type": "timeseries",
         "exprs": [
-          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 100"
+          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 1000000000000000000000"
         ],
         "extra_params": {}
       },
@@ -908,15 +908,6 @@
         "type": "timeseries",
         "exprs": [
           "l1_gas_price_scraper_latest_scraped_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "eth_to_strk_rate",
-        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=a)",
-        "type": "timeseries",
-        "exprs": [
-          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 100"
         ],
         "extra_params": {}
       },
