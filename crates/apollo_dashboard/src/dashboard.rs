@@ -233,7 +233,7 @@ impl Panel {
 
         let expr = format!("100 * ({} / ({}))", numerator_expr, denominator_expr);
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries)
+        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::Percent)
     }
 }
 
