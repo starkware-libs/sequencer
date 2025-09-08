@@ -1,0 +1,1 @@
+{"version":3,"file":"types.js","sourceRoot":"","sources":["../../src/markdown/types.ts"],"names":[],"mappings":"","sourcesContent":["export interface CodeBlock {\n  source: string;\n  language: string;\n}\n"]}

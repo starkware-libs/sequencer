@@ -1,0 +1,86 @@
+{
+    "$ref": "#/definitions/ManifestObjectDefinition",
+    "definitions": {
+        "ManifestObjectDefinition": {
+            "type": "object",
+            "properties": {
+                "apiVersion": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ManifestObjectDefinition"
+                    }
+                },
+                "metadata": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "spec": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "properties": {
+                        "group": {
+                            "type": "string"
+                        },
+                        "names": {
+                            "type": "object",
+                            "additionalProperties": {},
+                            "properties": {
+                                "kind": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "kind"
+                            ]
+                        },
+                        "versions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {},
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "openAPIV3Schema": {}
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ]
+                            }
+                        },
+                        "version": {
+                            "type": "string"
+                        },
+                        "validation": {
+                            "type": "object",
+                            "properties": {
+                                "openAPIV3Schema": {}
+                            }
+                        }
+                    },
+                    "required": [
+                        "group",
+                        "names"
+                    ]
+                }
+            }
+        }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
+}

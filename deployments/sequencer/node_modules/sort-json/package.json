@@ -1,0 +1,38 @@
+{
+  "name": "sort-json",
+  "version": "2.0.1",
+  "description": "Takes a json-file and return a copy of the same file, but sorted",
+  "main": "index.js",
+  "dependencies": {
+    "detect-indent": "^5.0.0",
+    "detect-newline": "^2.1.0",
+    "minimist": "^1.2.0"
+  },
+  "bin": {
+    "sort-json": "./app/cmd.js"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "dirty-chai": "^1.2.2",
+    "eslint": "^4.18.2",
+    "eslint-config-airbnb": "^12.0.0",
+    "eslint-plugin-import": "^1.16.0",
+    "eslint-plugin-jsx-a11y": "^2.2.3",
+    "eslint-plugin-react": "^6.4.1",
+    "mocha": "^5.2.0"
+  },
+  "scripts": {
+    "test": "mocha tests",
+    "lint": "eslint tests && eslint app"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kesla/sort-json.git"
+  },
+  "author": "David Björklund <david.bjorklund@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kesla/sort-json/issues"
+  },
+  "homepage": "https://github.com/kesla/sort-json"
+}

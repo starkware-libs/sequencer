@@ -1,0 +1,1 @@
+{"version":3,"file":"record-references-version.js","sourceRoot":"","sources":["../../src/languages/record-references-version.ts"],"names":[],"mappings":";;;AAAA,sEAAsE;AACzD,QAAA,yBAAyB,GAAG,GAAG,CAAC","sourcesContent":["// This is separate from \"record-references.ts\" to avoid a load cycle.\nexport const RECORD_REFERENCES_VERSION = '2';\n"]}

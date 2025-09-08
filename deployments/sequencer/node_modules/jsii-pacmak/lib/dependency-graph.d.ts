@@ -1,0 +1,50 @@
+import * as fs from 'fs-extra';
+import * as util from './util';
+/**
+ * Traverses the dependency graph and invokes the provided callback method for
+ * each individual dependency root directory (including the current package).
+ * The dependency roots are de-duplicated based on their absolute path on the
+ * file system.
+ *
+ * @param packageDir the current package's root directory (i.e: where the
+ *                   `package.json` file is located)
+ * @param callback   the function to invoke with each package's informations
+ * @param host       the dependency graph traversal host to use (this parameter
+ *                   should typically not be provided unless this module is
+ *                   being unit tested)
+ */
+export declare function traverseDependencyGraph(packageDir: string, callback: Callback, host?: TraverseDependencyGraphHost): Promise<void>;
+/**
+ * A callback invoked for each node in a NPM module's dependency graph.
+ *
+ * @param packageDir the directory where the current package is located.
+ * @param meta       the contents of the `package.json` file for this package.
+ * @param root       whether this package is the root that was provided to the
+ *                   `traverseDependencyGraph` call.
+ *
+ * @returns `true` if this package's own dependencies should be processed,
+ *          `false` otherwise.
+ */
+export type Callback = (packageDir: string, meta: PackageJson, root: boolean) => boolean | Promise<boolean>;
+/**
+ * Host methods for traversing dependency graphs.
+ */
+export interface TraverseDependencyGraphHost {
+    readonly readJson: typeof fs.readJson;
+    readonly findDependencyDirectory: typeof util.findDependencyDirectory;
+}
+/**
+ * Contents of the `package.json` file.
+ */
+export interface PackageJson {
+    readonly dependencies?: {
+        readonly [name: string]: string;
+    };
+    readonly peerDependencies?: {
+        readonly [name: string]: string;
+    };
+    readonly bundleDependencies?: string[];
+    readonly bundledDependencies?: string[];
+    readonly [key: string]: unknown;
+}
+//# sourceMappingURL=dependency-graph.d.ts.map

@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.586930">
+
+    <PropertyGroup>
+        <BuildCommand>npm run import</BuildCommand>
+        <SolutionPath>$(SolutionDir)MyApp.sln</SolutionPath>
+    </PropertyGroup>
+
+    <Target Name="RemoveProjectsFromSolution" BeforeTargets="Build">
+        <ItemGroup>
+            <ProjectFiles Include="$(SolutionDir)Imports\Imports.*\**\*.csproj" />
+        </ItemGroup>
+
+        <Exec Command="dotnet sln $(SolutionPath) remove @(ProjectFiles -> '&quot;%(FullPath)&quot;', ' ')" />
+    </Target>
+
+    <Target Name="AddProjectsToSolution" AfterTargets="Build">
+        <ItemGroup>
+            <ProjectFiles Include="$(SolutionDir)Imports\Imports.*\**\*.csproj" />
+        </ItemGroup>
+
+        <Exec Command="dotnet sln $(SolutionPath) add @(ProjectFiles -> '&quot;%(FullPath)&quot;', ' ')" />
+    </Target>
+
+</Project>

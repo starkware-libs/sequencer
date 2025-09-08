@@ -1,0 +1,28 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const childProcess = require("child_process");
+const path = require("path");
+const util_1 = require("util");
+const exec = (0, util_1.promisify)(childProcess.exec);
+test('jsii-tree', () => expect(jsiiTree()).resolves.toMatchSnapshot());
+test('jsii-tree --all', () => expect(jsiiTree('--all')).resolves.toMatchSnapshot());
+test('jsii-tree --types', () => expect(jsiiTree('--types')).resolves.toMatchSnapshot());
+test('jsii-tree --members', () => expect(jsiiTree('--members')).resolves.toMatchSnapshot());
+test('jsii-tree --inheritance', () => expect(jsiiTree('--inheritance')).resolves.toMatchSnapshot());
+test('jsii-tree --signatures', () => expect(jsiiTree('--signatures')).resolves.toMatchSnapshot());
+async function jsiiTree(...args) {
+    const command = [
+        process.execPath,
+        ...process.execArgv,
+        path.join(__dirname, '..', 'bin', 'jsii-tree'),
+        ...args,
+        '--no-colors',
+        path.dirname(require.resolve('jsii-calc/package.json')),
+    ].join(' ');
+    const { stdout, stderr } = await exec(command);
+    if (stderr) {
+        console.error(stderr);
+    }
+    return stdout;
+}
+//# sourceMappingURL=jsii-tree.test.js.map

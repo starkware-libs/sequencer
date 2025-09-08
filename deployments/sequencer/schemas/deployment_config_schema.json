@@ -17,7 +17,7 @@
           },
           "controller": {
             "type": "string",
-            "pattern": "^(?i)(statefulset|deployment)$",
+            "pattern": "^(statefulset|deployment)$",
             "errorMessage": "Invalid value, must be 'statefulset' or 'deployment'"
           },
           "update_strategy_type": {

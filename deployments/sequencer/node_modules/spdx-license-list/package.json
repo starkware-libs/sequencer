@@ -1,0 +1,62 @@
+{
+	"name": "spdx-license-list",
+	"version": "6.10.0",
+	"description": "List of SPDX licenses",
+	"license": "CC0-1.0",
+	"repository": "sindresorhus/spdx-license-list",
+	"funding": "https://github.com/sponsors/sindresorhus",
+	"author": {
+		"name": "Sindre Sorhus",
+		"email": "sindresorhus@gmail.com",
+		"url": "https://sindresorhus.com"
+	},
+	"sideEffects": false,
+	"engines": {
+		"node": ">=8"
+	},
+	"scripts": {
+		"//test": "xo && ava && tsd",
+		"test": "xo && ava",
+		"make": "node make.js"
+	},
+	"files": [
+		"index.js",
+		"index.d.ts",
+		"full.js",
+		"full.d.ts",
+		"simple.js",
+		"simple.d.ts",
+		"spdx.json",
+		"spdx-full.json",
+		"spdx-simple.json",
+		"licenses"
+	],
+	"keywords": [
+		"spdx",
+		"license",
+		"licenses",
+		"mit",
+		"bsd",
+		"list",
+		"open source",
+		"software",
+		"id",
+		"ids",
+		"identifiers",
+		"set"
+	],
+	"devDependencies": {
+		"ava": "^1.4.1",
+		"got": "^9.6.0",
+		"hard-rejection": "^2.0.0",
+		"ora": "^3.2.0",
+		"p-map": "^2.0.0",
+		"tsd": "^0.13.1",
+		"xo": "^0.24.0"
+	},
+	"xo": {
+		"rules": {
+			"import/extensions": "off"
+		}
+	}
+}

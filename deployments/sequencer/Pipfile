@@ -14,6 +14,7 @@ types-jsonschema = "*"
 mypy = "*"
 black = "*"
 isort = "*"
+zipp = "*"
 
 [requires]
 python_version = "3.10"

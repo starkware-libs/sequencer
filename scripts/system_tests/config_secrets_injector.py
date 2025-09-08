@@ -45,9 +45,7 @@ def main(deployment_config_path: str):
     for service in services:
         cfgs = service.get("config_paths")
         if not cfgs:
-            print(
-                f"⚠️ No config paths defined for service: {service.get('name', 'unknown')}"
-            )
+            print(f"⚠️ No config paths defined for service: {service.get('name', 'unknown')}")
             continue
         config_files.extend(cfgs)
 

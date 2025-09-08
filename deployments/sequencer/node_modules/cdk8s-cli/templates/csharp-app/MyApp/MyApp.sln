@@ -1,0 +1,23 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+#
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyApp", "MyApp\MyApp.csproj", "{D0E5713E-D58F-482D-92C0-504C9AB84DD5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cdk8s.Imports", "Cdk8s.Imports\Cdk8s.Imports.esproj", "{5337F2AB-8B52-48F8-9AA5-0DC7CEFAF8A4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D0E5713E-D58F-482D-92C0-504C9AB84DD5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0E5713E-D58F-482D-92C0-504C9AB84DD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0E5713E-D58F-482D-92C0-504C9AB84DD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0E5713E-D58F-482D-92C0-504C9AB84DD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5337F2AB-8B52-48F8-9AA5-0DC7CEFAF8A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5337F2AB-8B52-48F8-9AA5-0DC7CEFAF8A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5337F2AB-8B52-48F8-9AA5-0DC7CEFAF8A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5337F2AB-8B52-48F8-9AA5-0DC7CEFAF8A4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
+

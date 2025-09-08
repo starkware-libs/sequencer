@@ -1,0 +1,11 @@
+{
+  "name": "imports",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "import": "cdk8s import -o ../Imports"
+  },
+  "dependencies": {
+    "cdk8s-cli": "{{ cdk8s_cli_spec }}"
+  }
+}

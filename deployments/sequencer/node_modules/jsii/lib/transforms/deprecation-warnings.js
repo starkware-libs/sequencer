@@ -1,0 +1,456 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DeprecationWarningsInjector = exports.WARNINGSCODE_FILE_NAME = void 0;
+const fs = require("node:fs");
+const path = require("node:path");
+const spec = require("@jsii/spec");
+const ts = require("typescript");
+const symbol_id_1 = require("../common/symbol-id");
+exports.WARNINGSCODE_FILE_NAME = '.warnings.jsii.js';
+const WARNING_FUNCTION_NAME = 'print';
+const PARAMETER_NAME = 'p';
+const FOR_LOOP_ITEM_NAME = 'o';
+const NAMESPACE = 'jsiiDeprecationWarnings';
+const LOCAL_ENUM_NAMESPACE = 'ns';
+const VISITED_OBJECTS_SET_NAME = 'visitedObjects';
+const DEPRECATION_ERROR = 'DeprecationError';
+const GET_PROPERTY_DESCRIPTOR = 'getPropertyDescriptor';
+class DeprecationWarningsInjector {
+    constructor(typeChecker) {
+        this.typeChecker = typeChecker;
+        this.transformers = {
+            before: [],
+        };
+    }
+    process(assembly, projectInfo) {
+        const projectRoot = projectInfo.projectRoot;
+        const functionDeclarations = [];
+        const types = assembly.types ?? {};
+        for (const type of Object.values(types)) {
+            const statements = [];
+            let isEmpty = true;
+            // This will add the parameter to the set of visited objects, to prevent infinite recursion
+            statements.push(ts.factory.createExpressionStatement(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(VISITED_OBJECTS_SET_NAME), 'add'), undefined, [ts.factory.createIdentifier(PARAMETER_NAME)])));
+            const tryStatements = [];
+            if (spec.isDeprecated(type) && spec.isEnumType(type)) {
+                // The type is deprecated
+                tryStatements.push(createWarningFunctionCall(type.fqn, type.docs?.deprecated));
+                isEmpty = false;
+            }
+            if (spec.isEnumType(type) && type.locationInModule?.filename) {
+                tryStatements.push(createEnumRequireStatement(type.locationInModule?.filename));
+                tryStatements.push(createDuplicateEnumValuesCheck(type));
+                for (const member of Object.values(type.members ?? [])) {
+                    if (spec.isDeprecated(member)) {
+                        // The enum member is deprecated
+                        const condition = ts.factory.createBinaryExpression(ts.factory.createIdentifier(PARAMETER_NAME), ts.SyntaxKind.EqualsEqualsEqualsToken, ts.factory.createPropertyAccessExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(LOCAL_ENUM_NAMESPACE), type.name), member.name));
+                        tryStatements.push(createWarningFunctionCall(`${type.fqn}#${member.name}`, member.docs?.deprecated, condition));
+                        isEmpty = false;
+                    }
+                }
+            }
+            else if (spec.isInterfaceType(type) && type.datatype) {
+                const { statementsByProp, excludedProps } = processInterfaceType(type, types, assembly, projectInfo, undefined, undefined);
+                for (const [name, statement] of statementsByProp.entries()) {
+                    if (!excludedProps.has(name)) {
+                        tryStatements.push(statement);
+                        isEmpty = false;
+                    }
+                }
+            }
+            statements.push(ts.factory.createTryStatement(ts.factory.createBlock(tryStatements), undefined, ts.factory.createBlock([
+                ts.factory.createExpressionStatement(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(VISITED_OBJECTS_SET_NAME), 'delete'), undefined, [ts.factory.createIdentifier(PARAMETER_NAME)])),
+            ])));
+            const paramValue = ts.factory.createParameterDeclaration(undefined, undefined, PARAMETER_NAME);
+            const functionName = fnName(type.fqn);
+            const functionDeclaration = ts.factory.createFunctionDeclaration(undefined, undefined, ts.factory.createIdentifier(functionName), [], [paramValue], undefined, createFunctionBlock(isEmpty ? [] : statements));
+            functionDeclarations.push(functionDeclaration);
+        }
+        this.transformers = {
+            before: [
+                (context) => {
+                    const transformer = new Transformer(this.typeChecker, context, projectRoot, this.buildTypeIndex(assembly), assembly);
+                    return transformer.transform.bind(transformer);
+                },
+            ],
+        };
+        generateWarningsFile(projectRoot, functionDeclarations);
+    }
+    get customTransformers() {
+        return this.transformers;
+    }
+    buildTypeIndex(assembly) {
+        const result = new Map();
+        for (const type of Object.values(assembly.types ?? {})) {
+            const symbolId = type.symbolId;
+            if (symbolId) {
+                result.set(symbolId, type);
+            }
+        }
+        return result;
+    }
+}
+exports.DeprecationWarningsInjector = DeprecationWarningsInjector;
+function processInterfaceType(type, types, assembly, projectInfo, statementsByProp = new Map(), excludedProps = new Set()) {
+    for (const prop of Object.values(type.properties ?? {})) {
+        const fqn = `${type.fqn}#${prop.name}`;
+        if (spec.isDeprecated(prop) || spec.isDeprecated(type)) {
+            // If the property individually is deprecated, or the entire type is deprecated
+            const deprecatedDocs = prop.docs?.deprecated ?? type.docs?.deprecated;
+            const statement = createWarningFunctionCall(fqn, deprecatedDocs, ts.factory.createBinaryExpression(ts.factory.createStringLiteral(prop.name), ts.SyntaxKind.InKeyword, ts.factory.createIdentifier(PARAMETER_NAME)), undefined);
+            statementsByProp.set(prop.name, statement);
+        }
+        else {
+            /* If a prop is not deprecated, we don't want to generate a warning for it,
+               even if another property with the same name is deprecated in another
+               super-interface. */
+            excludedProps.add(prop.name);
+        }
+        if (spec.isNamedTypeReference(prop.type) && Object.keys(types).includes(prop.type.fqn)) {
+            const functionName = importedFunctionName(prop.type.fqn, assembly, projectInfo);
+            if (functionName) {
+                const statement = createTypeHandlerCall(functionName, `${PARAMETER_NAME}.${prop.name}`);
+                statementsByProp.set(`${prop.name}_`, statement);
+            }
+        }
+        else if (spec.isCollectionTypeReference(prop.type) &&
+            spec.isNamedTypeReference(prop.type.collection.elementtype)) {
+            const functionName = importedFunctionName(prop.type.collection.elementtype.fqn, assembly, projectInfo);
+            if (functionName) {
+                const statement = createTypeHandlerCall(functionName, `${PARAMETER_NAME}.${prop.name}`, prop.type.collection.kind);
+                statementsByProp.set(`${prop.name}_`, statement);
+            }
+        }
+        else if (spec.isUnionTypeReference(prop.type) &&
+            spec.isNamedTypeReference(prop.type.union.types[0]) &&
+            Object.keys(types).includes(prop.type.union.types[0].fqn)) {
+            const functionName = importedFunctionName(prop.type.union.types[0].fqn, assembly, projectInfo);
+            if (functionName) {
+                const statement = createTypeHandlerCall(functionName, `${PARAMETER_NAME}.${prop.name}`);
+                statementsByProp.set(`${prop.name}_`, statement);
+            }
+        }
+    }
+    // We also generate calls to all the supertypes
+    for (const interfaceName of type.interfaces ?? []) {
+        const assemblies = projectInfo.dependencyClosure.concat(assembly);
+        const superType = findType(interfaceName, assemblies);
+        if (superType.type) {
+            processInterfaceType(superType.type, types, assembly, projectInfo, statementsByProp, excludedProps);
+        }
+    }
+    return { statementsByProp, excludedProps };
+}
+function fnName(fqn) {
+    return fqn.replace(/[^\w\d]/g, '_');
+}
+function createFunctionBlock(statements) {
+    if (statements.length > 0) {
+        const validation = ts.factory.createIfStatement(ts.factory.createBinaryExpression(ts.factory.createIdentifier(PARAMETER_NAME), ts.SyntaxKind.EqualsEqualsToken, ts.factory.createNull()), ts.factory.createReturnStatement());
+        return ts.factory.createBlock([validation, ...statements], true);
+    }
+    return ts.factory.createBlock([], true);
+}
+function createWarningFunctionCall(fqn, message = '', condition, includeNamespace = false) {
+    const functionName = includeNamespace ? `${NAMESPACE}.${WARNING_FUNCTION_NAME}` : WARNING_FUNCTION_NAME;
+    const mainStatement = ts.factory.createExpressionStatement(ts.factory.createCallExpression(ts.factory.createIdentifier(functionName), undefined, [
+        ts.factory.createStringLiteral(fqn),
+        ts.factory.createStringLiteral(message),
+    ]));
+    return condition ? ts.factory.createIfStatement(condition, mainStatement) : mainStatement;
+}
+function generateWarningsFile(projectRoot, functionDeclarations) {
+    const names = [...functionDeclarations].map((d) => d.name?.text).filter(Boolean);
+    const exportedSymbols = [WARNING_FUNCTION_NAME, GET_PROPERTY_DESCRIPTOR, DEPRECATION_ERROR, ...names].join(',');
+    const functionText = `function ${WARNING_FUNCTION_NAME}(name, deprecationMessage) {
+  const deprecated = process.env.JSII_DEPRECATED;
+  const deprecationMode = ['warn', 'fail', 'quiet'].includes(deprecated) ? deprecated : 'warn';
+  const message = \`\${name} is deprecated.\\n  \${deprecationMessage.trim()}\\n  This API will be removed in the next major release.\`;
+  switch (deprecationMode) {
+    case "fail":
+      throw new ${DEPRECATION_ERROR}(message);
+    case "warn":
+      console.warn("[WARNING]", message);
+      break;
+  }
+}
+
+function ${GET_PROPERTY_DESCRIPTOR}(obj, prop) {
+  const descriptor = Object.getOwnPropertyDescriptor(obj, prop);
+  if (descriptor) {
+    return descriptor;
+  }
+  const proto = Object.getPrototypeOf(obj);
+  const prototypeDescriptor = proto && getPropertyDescriptor(proto, prop);
+  if (prototypeDescriptor) {
+    return prototypeDescriptor;
+  }
+  return {};
+}
+
+const ${VISITED_OBJECTS_SET_NAME} = new Set();
+
+class ${DEPRECATION_ERROR} extends Error {
+  constructor(...args) {
+    super(...args);
+    Object.defineProperty(this, 'name', {
+      configurable: false,
+      enumerable: true,
+      value: '${DEPRECATION_ERROR}',
+      writable: false,
+    });
+  }
+}
+
+module.exports = {${exportedSymbols}}
+`;
+    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+    const resultFile = ts.createSourceFile(path.join(projectRoot, exports.WARNINGSCODE_FILE_NAME), functionText, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
+    const declarations = functionDeclarations.map((declaration) => printer.printNode(ts.EmitHint.Unspecified, declaration, resultFile));
+    const content = declarations.concat(printer.printFile(resultFile)).join('\n');
+    fs.writeFileSync(path.join(projectRoot, exports.WARNINGSCODE_FILE_NAME), content);
+}
+class Transformer {
+    constructor(typeChecker, context, projectRoot, typeIndex, assembly) {
+        this.typeChecker = typeChecker;
+        this.context = context;
+        this.projectRoot = projectRoot;
+        this.typeIndex = typeIndex;
+        this.assembly = assembly;
+        this.warningCallsWereInjected = false;
+    }
+    transform(node) {
+        this.warningCallsWereInjected = false;
+        const result = this.visitEachChild(node);
+        if (ts.isSourceFile(result) && this.warningCallsWereInjected) {
+            const importDir = path.relative(path.dirname(result.fileName), this.projectRoot);
+            const importPath = importDir.startsWith('..')
+                ? unixPath(path.join(importDir, exports.WARNINGSCODE_FILE_NAME))
+                : `./${exports.WARNINGSCODE_FILE_NAME}`;
+            return ts.factory.updateSourceFile(result, [
+                createRequireStatement(NAMESPACE, importPath),
+                ...result.statements,
+            ]);
+        }
+        return result;
+    }
+    visitEachChild(node) {
+        return ts.visitEachChild(node, this.visitor.bind(this), this.context);
+    }
+    visitor(node) {
+        if (ts.isMethodDeclaration(node) && node.body != null) {
+            const statements = this.getStatementsForDeclaration(node);
+            this.warningCallsWereInjected = this.warningCallsWereInjected || statements.length > 0;
+            return ts.factory.updateMethodDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.questionToken, node.typeParameters, node.parameters, node.type, ts.factory.updateBlock(node.body, [
+                ...wrapWithRethrow(statements, ts.factory.createPropertyAccessExpression(ts.factory.createThis(), node.name.getText(node.getSourceFile()))),
+                ...node.body.statements,
+            ]));
+        }
+        else if (ts.isGetAccessorDeclaration(node) && node.body != null) {
+            const statements = this.getStatementsForDeclaration(node);
+            this.warningCallsWereInjected = this.warningCallsWereInjected || statements.length > 0;
+            return ts.factory.updateGetAccessorDeclaration(node, node.modifiers, node.name, node.parameters, node.type, ts.factory.updateBlock(node.body, [
+                ...wrapWithRethrow(statements, ts.factory.createPropertyAccessExpression(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(NAMESPACE), GET_PROPERTY_DESCRIPTOR), undefined, [ts.factory.createThis(), ts.factory.createStringLiteral(node.name.getText(node.getSourceFile()))]), 'get')),
+                ...node.body.statements,
+            ]));
+        }
+        else if (ts.isSetAccessorDeclaration(node) && node.body != null) {
+            const statements = this.getStatementsForDeclaration(node);
+            this.warningCallsWereInjected = this.warningCallsWereInjected || statements.length > 0;
+            return ts.factory.updateSetAccessorDeclaration(node, node.modifiers, node.name, node.parameters, ts.factory.updateBlock(node.body, [
+                ...wrapWithRethrow(statements, ts.factory.createPropertyAccessExpression(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(NAMESPACE), GET_PROPERTY_DESCRIPTOR), undefined, [ts.factory.createThis(), ts.factory.createStringLiteral(node.name.getText(node.getSourceFile()))]), 'set')),
+                ...node.body.statements,
+            ]));
+        }
+        else if (ts.isConstructorDeclaration(node) && node.body != null) {
+            const statements = this.getStatementsForDeclaration(node);
+            this.warningCallsWereInjected = this.warningCallsWereInjected || statements.length > 0;
+            return ts.factory.updateConstructorDeclaration(node, node.modifiers, node.parameters, ts.factory.updateBlock(node.body, insertStatements(node.body, wrapWithRethrow(statements, node.parent.name))));
+        }
+        return this.visitEachChild(node);
+    }
+    /**
+     * @param getOrSet for property accessors, determines which of the getter or
+     *                 setter should be used to get the caller function value.
+     */
+    getStatementsForDeclaration(node) {
+        const klass = node.parent;
+        const classSymbolId = (0, symbol_id_1.symbolIdentifier)(this.typeChecker, this.typeChecker.getTypeAtLocation(klass).symbol);
+        if (classSymbolId && this.typeIndex.has(classSymbolId)) {
+            const classType = this.typeIndex.get(classSymbolId);
+            if (ts.isConstructorDeclaration(node)) {
+                const initializer = classType?.initializer;
+                if (initializer) {
+                    return this.getStatements(classType, initializer);
+                }
+            }
+            const methods = classType?.methods ?? [];
+            const method = methods.find((m) => m.name === node.name?.getText());
+            if (method) {
+                return this.getStatements(classType, method);
+            }
+            const properties = classType?.properties ?? [];
+            const property = properties.find((p) => p.name === node.name?.getText());
+            if (property) {
+                return createWarningStatementForElement(property, classType);
+            }
+        }
+        return [];
+    }
+    getStatements(classType, method) {
+        const statements = createWarningStatementForElement(method, classType);
+        for (const parameter of Object.values(method.parameters ?? {})) {
+            const parameterType = this.assembly.types && spec.isNamedTypeReference(parameter.type)
+                ? this.assembly.types[parameter.type.fqn]
+                : undefined;
+            if (parameterType) {
+                const functionName = `${NAMESPACE}.${fnName(parameterType.fqn)}`;
+                statements.push(ts.factory.createExpressionStatement(ts.factory.createCallExpression(ts.factory.createIdentifier(functionName), undefined, [
+                    ts.factory.createIdentifier(parameter.name),
+                ])));
+            }
+        }
+        return statements;
+    }
+}
+function createWarningStatementForElement(element, classType) {
+    if (spec.isDeprecated(element)) {
+        const elementName = element.name;
+        const fqn = elementName ? `${classType.fqn}#${elementName}` : classType.fqn;
+        const message = element.docs?.deprecated ?? classType.docs?.deprecated;
+        return [createWarningFunctionCall(fqn, message, undefined, true)];
+    }
+    return [];
+}
+/**
+ * Inserts a list of statements in the correct position inside a block of statements.
+ * If there is a `super` call, It inserts the statements just after it. Otherwise,
+ * insert the statements right at the beginning of the block.
+ */
+function insertStatements(block, newStatements) {
+    function splicePoint(statement) {
+        if (statement == null) {
+            return 0;
+        }
+        let isSuper = false;
+        statement.forEachChild((node) => {
+            if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.SuperKeyword) {
+                isSuper = true;
+            }
+        });
+        return isSuper ? 1 : 0;
+    }
+    const result = [...block.statements];
+    result.splice(splicePoint(block.statements[0]), 0, ...newStatements);
+    return ts.factory.createNodeArray(result);
+}
+function createEnumRequireStatement(typeLocation) {
+    const { ext } = path.parse(typeLocation);
+    const jsFileName = typeLocation.replace(ext, '.js');
+    return createRequireStatement(LOCAL_ENUM_NAMESPACE, `./${jsFileName}`);
+}
+function createRequireStatement(name, importPath) {
+    return ts.factory.createVariableStatement(undefined, ts.factory.createVariableDeclarationList([
+        ts.factory.createVariableDeclaration(name, undefined, undefined, ts.factory.createCallExpression(ts.factory.createIdentifier('require'), undefined, [
+            ts.factory.createStringLiteral(importPath),
+        ])),
+    ], ts.NodeFlags.Const));
+}
+/**
+ * Returns a ready-to-used function name (including a `require`, if necessary)
+ */
+function importedFunctionName(typeName, assembly, projectInfo) {
+    const assemblies = projectInfo.dependencyClosure.concat(assembly);
+    const { type, moduleName } = findType(typeName, assemblies);
+    if (type) {
+        return moduleName !== assembly.name
+            ? `require("${moduleName}/${exports.WARNINGSCODE_FILE_NAME}").${fnName(type.fqn)}`
+            : fnName(type.fqn);
+    }
+    return undefined;
+}
+/**
+ * Find the type and module name in an array of assemblies
+ * matching a given type name
+ */
+function findType(typeName, assemblies) {
+    for (const asm of assemblies) {
+        if (asm.metadata?.jsii?.compiledWithDeprecationWarnings) {
+            const types = asm.types ?? {};
+            for (const name of Object.keys(types)) {
+                if (typeName === name) {
+                    return { type: types[name], moduleName: asm.name };
+                }
+            }
+        }
+    }
+    return {};
+}
+function createTypeHandlerCall(functionName, parameter, collectionKind) {
+    switch (collectionKind) {
+        case spec.CollectionKind.Array:
+            return ts.factory.createIfStatement(ts.factory.createBinaryExpression(ts.factory.createIdentifier(parameter), ts.SyntaxKind.ExclamationEqualsToken, ts.factory.createNull()), ts.factory.createForOfStatement(undefined, ts.factory.createVariableDeclarationList([ts.factory.createVariableDeclaration(FOR_LOOP_ITEM_NAME)], ts.NodeFlags.Const), ts.factory.createIdentifier(parameter), createTypeHandlerCall(functionName, FOR_LOOP_ITEM_NAME)));
+        case spec.CollectionKind.Map:
+            return ts.factory.createIfStatement(ts.factory.createBinaryExpression(ts.factory.createIdentifier(parameter), ts.SyntaxKind.ExclamationEqualsToken, ts.factory.createNull()), ts.factory.createForOfStatement(undefined, ts.factory.createVariableDeclarationList([ts.factory.createVariableDeclaration(FOR_LOOP_ITEM_NAME)], ts.NodeFlags.Const), ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('Object'), 'values'), undefined, [ts.factory.createIdentifier(parameter)]), createTypeHandlerCall(functionName, FOR_LOOP_ITEM_NAME)));
+        case undefined:
+            return ts.factory.createIfStatement(ts.factory.createPrefixUnaryExpression(ts.SyntaxKind.ExclamationToken, ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(VISITED_OBJECTS_SET_NAME), ts.factory.createIdentifier('has')), undefined, [ts.factory.createIdentifier(parameter)])), ts.factory.createExpressionStatement(ts.factory.createCallExpression(ts.factory.createIdentifier(functionName), undefined, [
+                ts.factory.createIdentifier(parameter),
+            ])));
+    }
+}
+/**
+ * There is a chance an enum contains duplicates values with distinct keys,
+ * with one of those keys being deprecated. This is a potential pattern to "rename" an enum.
+ * In this case, we can't concretely determine if the deprecated member was used or not,
+ * so in those cases we skip the warnings altogether, rather than erroneously warning for valid usage.
+ * This create a statement to check if the enum value is a duplicate:
+ *
+ * if (Object.values(Foo).filter(x => x === p).length > 1) { return; }
+ *
+ * Note that we can't just check the assembly for these duplicates, due to:
+ * https://github.com/aws/jsii/issues/2782
+ */
+function createDuplicateEnumValuesCheck(type) {
+    return ts.factory.createIfStatement(ts.factory.createBinaryExpression(ts.factory.createPropertyAccessExpression(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('Object'), 'values'), undefined, [ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier(LOCAL_ENUM_NAMESPACE), type.name)]), ts.factory.createIdentifier('filter')), undefined, [
+        ts.factory.createArrowFunction(undefined, undefined, [ts.factory.createParameterDeclaration(undefined, undefined, 'x')], undefined, ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), ts.factory.createBinaryExpression(ts.factory.createIdentifier('x'), ts.factory.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken), ts.factory.createIdentifier(PARAMETER_NAME))),
+    ]), ts.factory.createIdentifier('length')), ts.factory.createToken(ts.SyntaxKind.GreaterThanToken), ts.factory.createNumericLiteral('1')), ts.factory.createReturnStatement());
+}
+// We try-then-rethrow exceptions to avoid runtimes displaying an uncanny wall of text if the place
+// where the error was thrown is webpacked. For example, jest somehow manages to capture the throw
+// location and renders the source line (which may be the whole file) when bundled.
+function wrapWithRethrow(statements, caller) {
+    if (statements.length === 0) {
+        return statements;
+    }
+    return [
+        ts.factory.createTryStatement(ts.factory.createBlock(statements), ts.factory.createCatchClause(ts.factory.createVariableDeclaration('error'), ts.factory.createBlock([
+            // If this is a DeprecationError, trim its stack trace to surface level before re-throwing,
+            // so we don't carry out possibly confusing frames from injected code. That can be toggled
+            // off by setting JSII_DEBUG=1, so we can also diagnose in-injected code faults.
+            ts.factory.createIfStatement(ts.factory.createBinaryExpression(ts.factory.createBinaryExpression(ts.factory.createPropertyAccessExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('process'), 'env'), 'JSII_DEBUG'), ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.factory.createStringLiteral('1')), ts.SyntaxKind.AmpersandAmpersandToken, ts.factory.createBinaryExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('error'), 'name'), ts.SyntaxKind.EqualsEqualsEqualsToken, ts.factory.createStringLiteral(DEPRECATION_ERROR))), ts.factory.createBlock([
+                ts.factory.createExpressionStatement(ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('Error'), 'captureStackTrace'), undefined, [ts.factory.createIdentifier('error'), caller])),
+            ])),
+            ts.factory.createThrowStatement(ts.factory.createIdentifier('error')),
+        ])), undefined),
+    ];
+}
+/**
+ * Force a path to be UNIXy (use `/` as a separator)
+ *
+ * `path.join()` etc. will use the system-dependent path separator (either `/` or `\`
+ * depending on your platform).
+ *
+ * However, if we actually emit the path-dependent separator to the `.js` files, then
+ * files compiled with jsii on Windows cannot be used on any other platform. That seems
+ * like an unnecessary restriction, especially since a `/` will work fine on Windows,
+ * so make sure to always emit `/`.
+ *
+ * TSC itself always strictly emits `/` (or at least, emits the same what you put in).
+ */
+function unixPath(filePath) {
+    if (path.sep === '\\') {
+        return filePath.replace(/\\/g, '/');
+    }
+    return filePath;
+}
+//# sourceMappingURL=deprecation-warnings.js.map
