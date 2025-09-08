@@ -760,6 +760,47 @@ impl Batcher {
                 let mut active_proposal = active_proposal.lock().await;
                 if *active_proposal == Some(proposal_id) {
                     active_proposal.take();
+
+                    // Constructing multiline log message.
+                    if let Ok(block_artifacts) = &result {
+                        let mut log_msg = format!(
+                            "Finished generating proposal {} with {} transactions\n",
+                            proposal_id,
+                            block_artifacts.execution_data.execution_infos.len(),
+                        );
+                        block_artifacts.execution_data.execution_infos.iter().for_each(
+                            |(tx_hash, info)| {
+                                log_msg.push_str(&format!("\n{tx_hash}:"));
+                                if block_artifacts
+                                    .execution_data
+                                    .consumed_l1_handler_tx_hashes
+                                    .contains(tx_hash)
+                                {
+                                    log_msg.push_str(" L1 handler ");
+                                }
+                                if info.revert_error.is_some() {
+                                    log_msg.push_str(" Reverted");
+                                } else {
+                                    log_msg.push_str(" Executed");
+                                }
+                            },
+                        );
+                        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(
+                            |tx_hash| {
+                                log_msg.push_str(&format!("\n{tx_hash}:"));
+                                if block_artifacts
+                                    .execution_data
+                                    .consumed_l1_handler_tx_hashes
+                                    .contains(tx_hash)
+                                {
+                                    log_msg.push_str(" L1 handler");
+                                }
+                                log_msg.push_str(" Rejected");
+                            },
+                        );
+                        info!(log_msg);
+                    }
+
                     let proposal_already_exists =
                         executed_proposals.lock().await.insert(proposal_id, result);
                     assert!(
