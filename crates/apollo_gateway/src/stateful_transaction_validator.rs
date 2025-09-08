@@ -42,24 +42,26 @@ type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
-        state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
-pub struct StatefulTransactionValidatorFactory {
+pub struct StatefulTransactionValidatorFactory<S: StateReaderFactory> {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+    pub state_reader_factory: S,
 }
 
-impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
+impl<S: StateReaderFactory> StatefulTransactionValidatorFactoryTrait
+    for StatefulTransactionValidatorFactory<S>
+{
     // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
     fn instantiate_validator(
         &self,
-        state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
+        let latest_block_info = get_latest_block_info(&self.state_reader_factory)?;
+        let state_reader =
+            self.state_reader_factory.get_state_reader(latest_block_info.block_number);
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
