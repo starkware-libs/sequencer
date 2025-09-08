@@ -207,7 +207,10 @@ fn assert_server_metrics(
 ) {
     let received_msgs = TEST_LOCAL_SERVER_METRICS.get_received_value(metrics_as_string);
     let processed_msgs = TEST_LOCAL_SERVER_METRICS.get_processed_value(metrics_as_string);
-    let queue_depth = TEST_LOCAL_SERVER_METRICS.get_queue_depth_value(metrics_as_string);
+    let queue_depth =
+        TEST_LOCAL_SERVER_METRICS.get_high_priority_queue_depth_value(metrics_as_string);
+    let queue_depth =
+        TEST_LOCAL_SERVER_METRICS.get_normal_priority_queue_depth_value(metrics_as_string);
 
     assert_eq!(
         received_msgs,

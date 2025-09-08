@@ -187,7 +187,6 @@ where
                 }
             }
             self.metrics.increment_received();
-            self.metrics.set_queue_depth(self.rx.len());
         }
 
         error!(
@@ -435,6 +434,10 @@ where
     Request: Send + Debug + LabeledRequest,
     Response: Send,
 {
+    // Update priority and normal queue depth metrics
+    metrics.set_high_priority_queue_depth(high_rx.len());
+    metrics.set_normal_priority_queue_depth(normal_rx.len());
+
     let request_wrapper = tokio::select! {
         // Prioritize high priority requests over normal priority ones using `biased`.
         biased;

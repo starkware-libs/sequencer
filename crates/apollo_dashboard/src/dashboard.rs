@@ -287,8 +287,21 @@ pub(crate) fn get_unlabeled_local_server_panels(
         Panel::from_counter(local_server_metrics.get_received_metric(), PanelType::TimeSeries);
     let processed_msgs_panel =
         Panel::from_counter(local_server_metrics.get_processed_metric(), PanelType::TimeSeries);
-    let queue_depth_panel =
-        Panel::from_gauge(local_server_metrics.get_queue_depth_metric(), PanelType::TimeSeries);
+    let queue_depth_panel = Panel::new(
+        "local_queue_depth",
+        "The depth of the local priority queues",
+        vec![
+            local_server_metrics
+                .get_high_priority_queue_depth_metric()
+                .get_name_with_filter()
+                .to_string(),
+            local_server_metrics
+                .get_normal_priority_queue_depth_metric()
+                .get_name_with_filter()
+                .to_string(),
+        ],
+        PanelType::TimeSeries,
+    );
 
     vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel]
 }

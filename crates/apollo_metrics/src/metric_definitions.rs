@@ -168,9 +168,14 @@ macro_rules! define_infra_metrics {
                         concat!("Number of connections to ", stringify!([<$component:snake>]), " remote server")
                     },
                     MetricGauge {
-                        [<$component:snake:upper _LOCAL_QUEUE_DEPTH>],
-                        stringify!([<$component:snake _local_queue_depth>]),
-                        concat!("The depth of the ", stringify!([<$component:snake>]), "'s local message queue")
+                        [<$component:snake:upper _LOCAL_HIGH_PRIORITY_QUEUE_DEPTH>],
+                        stringify!([<$component:snake _local_high_priority_queue_depth>]),
+                        concat!("The depth of the ", stringify!([<$component:snake>]), "'s local high priority message queue")
+                    },
+                    MetricGauge {
+                        [<$component:snake:upper _LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH>],
+                        stringify!([<$component:snake _local_normal_priority_queue_depth>]),
+                        concat!("The depth of the ", stringify!([<$component:snake>]), "'s local normal priority message queue")
                     },
                     MetricHistogram {
                         [<$component:snake:upper _REMOTE_CLIENT_SEND_ATTEMPTS>],
@@ -192,7 +197,8 @@ macro_rules! define_infra_metrics {
                 LocalServerMetrics::new(
                     &[<$component:snake:upper _LOCAL_MSGS_RECEIVED>],
                     &[<$component:snake:upper _LOCAL_MSGS_PROCESSED>],
-                    &[<$component:snake:upper _LOCAL_QUEUE_DEPTH>],
+                    &[<$component:snake:upper _LOCAL_HIGH_PRIORITY_QUEUE_DEPTH>],
+                    &[<$component:snake:upper _LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH>],
                     &[<$component:snake:upper _LABELED_PROCESSING_TIMES_SECS>],
                     &[<$component:snake:upper _LABELED_QUEUEING_TIMES_SECS>],
                 ),
