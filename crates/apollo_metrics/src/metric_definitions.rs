@@ -69,16 +69,15 @@ macro_rules! define_metrics {
     };
 }
 
-// TODO(alonl): remove the `_labeled` from the metrics names.
 /// Macro to define Infra metrics for a component and expose a ready-to-use InfraMetrics bundle.
 ///
 /// Given a component identifier (e.g., `mempool_p2p`), this macro generates:
 /// - Five Infra labeled histograms (scoped under `Infra`):
-///   - `<COMPONENT>_LABELED_PROCESSING_TIMES_SECS`
-///   - `<COMPONENT>_LABELED_QUEUEING_TIMES_SECS`
-///   - `<COMPONENT>_LABELED_LOCAL_RESPONSE_TIMES_SECS`
-///   - `<COMPONENT>_LABELED_REMOTE_RESPONSE_TIMES_SECS`
-///   - `<COMPONENT>_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS`
+///   - `<COMPONENT>_PROCESSING_TIMES_SECS`
+///   - `<COMPONENT>_QUEUEING_TIMES_SECS`
+///   - `<COMPONENT>_LOCAL_RESPONSE_TIMES_SECS`
+///   - `<COMPONENT>_REMOTE_RESPONSE_TIMES_SECS`
+///   - `<COMPONENT>_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS`
 /// - The standard Infra counters/gauges/histograms for this component (scoped under `Infra`):
 ///   - `<COMPONENT>_LOCAL_MSGS_RECEIVED`
 ///   - `<COMPONENT>_LOCAL_MSGS_PROCESSED`
@@ -101,32 +100,32 @@ macro_rules! define_infra_metrics {
             $crate::define_metrics!(
                 Infra => {
                     LabeledMetricHistogram {
-                        [<$component:snake:upper _LABELED_PROCESSING_TIMES_SECS>],
-                        stringify!([<$component:snake _labeled_processing_times_secs>]),
+                        [<$component:snake:upper _PROCESSING_TIMES_SECS>],
+                        stringify!([<$component:snake _processing_times_secs>]),
                         concat!("Request processing times of the ", stringify!([<$component:snake>]), ", per label (secs)"),
                         labels = [<$component:snake:upper _REQUEST_LABELS>]
                     },
                     LabeledMetricHistogram {
-                        [<$component:snake:upper _LABELED_QUEUEING_TIMES_SECS>],
-                        stringify!([<$component:snake _labeled_queueing_times_secs>]),
+                        [<$component:snake:upper _QUEUEING_TIMES_SECS>],
+                        stringify!([<$component:snake _queueing_times_secs>]),
                         concat!("Request queueing times of the ", stringify!([<$component:snake>]), ", per label (secs)"),
                         labels = [<$component:snake:upper _REQUEST_LABELS>]
                     },
                     LabeledMetricHistogram {
-                        [<$component:snake:upper _LABELED_LOCAL_RESPONSE_TIMES_SECS>],
-                        stringify!([<$component:snake _labeled_local_response_times_secs>]),
+                        [<$component:snake:upper _LOCAL_RESPONSE_TIMES_SECS>],
+                        stringify!([<$component:snake _local_response_times_secs>]),
                         concat!("Request local response times of the ", stringify!([<$component:snake>]), ", per label (secs)"),
                         labels = [<$component:snake:upper _REQUEST_LABELS>]
                     },
                     LabeledMetricHistogram {
-                        [<$component:snake:upper _LABELED_REMOTE_RESPONSE_TIMES_SECS>],
-                        stringify!([<$component:snake _labeled_remote_response_times_secs>]),
+                        [<$component:snake:upper _REMOTE_RESPONSE_TIMES_SECS>],
+                        stringify!([<$component:snake _remote_response_times_secs>]),
                         concat!("Request remote response times of the ", stringify!([<$component:snake>]), ", per label (secs)"),
                         labels = [<$component:snake:upper _REQUEST_LABELS>]
                     },
                     LabeledMetricHistogram {
-                        [<$component:snake:upper _LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS>],
-                        stringify!([<$component:snake _labeled_remote_client_communication_failure_times_secs>]),
+                        [<$component:snake:upper _REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS>],
+                        stringify!([<$component:snake _remote_client_communication_failure_times_secs>]),
                         concat!("Request communication failure times of the ", stringify!([<$component:snake>]), ", per label (secs)"),
                         labels = [<$component:snake:upper _REQUEST_LABELS>]
                     },
@@ -186,20 +185,20 @@ macro_rules! define_infra_metrics {
 
             pub const [<$component:snake:upper _INFRA_METRICS>]: InfraMetrics = InfraMetrics::new(
                 LocalClientMetrics::new(
-                    &[<$component:snake:upper _LABELED_LOCAL_RESPONSE_TIMES_SECS>],
+                    &[<$component:snake:upper _LOCAL_RESPONSE_TIMES_SECS>],
                 ),
                 RemoteClientMetrics::new(
                     &[<$component:snake:upper _REMOTE_CLIENT_SEND_ATTEMPTS>],
-                    &[<$component:snake:upper _LABELED_REMOTE_RESPONSE_TIMES_SECS>],
-                    &[<$component:snake:upper _LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS>],
+                    &[<$component:snake:upper _REMOTE_RESPONSE_TIMES_SECS>],
+                    &[<$component:snake:upper _REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS>],
                 ),
                 LocalServerMetrics::new(
                     &[<$component:snake:upper _LOCAL_MSGS_RECEIVED>],
                     &[<$component:snake:upper _LOCAL_MSGS_PROCESSED>],
                     &[<$component:snake:upper _LOCAL_HIGH_PRIORITY_QUEUE_DEPTH>],
                     &[<$component:snake:upper _LOCAL_NORMAL_PRIORITY_QUEUE_DEPTH>],
-                    &[<$component:snake:upper _LABELED_PROCESSING_TIMES_SECS>],
-                    &[<$component:snake:upper _LABELED_QUEUEING_TIMES_SECS>],
+                    &[<$component:snake:upper _PROCESSING_TIMES_SECS>],
+                    &[<$component:snake:upper _QUEUEING_TIMES_SECS>],
                 ),
                 RemoteServerMetrics::new(
                     &[<$component:snake:upper _REMOTE_MSGS_RECEIVED>],
