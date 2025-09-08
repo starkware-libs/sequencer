@@ -65,20 +65,22 @@ fn price_calculation_snapshot(
     assert_eq!(actual, expected);
 }
 
-#[test]
-fn test_gas_price_with_extreme_values() {
-    let max_block_size = VERSIONED_CONSTANTS.max_block_size;
+#[rstest]
+#[case::min_price_zero_usage(GasAmount(0), VERSIONED_CONSTANTS.min_gas_price)]
+#[case::min_price_max_usage(GasAmount(VERSIONED_CONSTANTS.max_block_size.0),  
+GasPrice(
+        VERSIONED_CONSTANTS.min_gas_price.0
+            + (VERSIONED_CONSTANTS.min_gas_price.0
+                * u128::from(VERSIONED_CONSTANTS.max_block_size.0 / 2 )) // delta = |1*max - 0.5*max| = 0.5*max
+                / (u128::from(VERSIONED_CONSTANTS.max_block_size.0 / 2)
+                    * VERSIONED_CONSTANTS.gas_price_max_change_denominator),
+    )
+)]
+fn price_at_floor(#[case] gas_used: GasAmount, #[case] expected: GasPrice) {
     let min_gas_price = VERSIONED_CONSTANTS.min_gas_price;
-
-    let price = min_gas_price;
-    let gas_target = max_block_size / 2;
-    let gas_used = GasAmount(0);
-    assert_eq!(calculate_next_base_gas_price(price, gas_used, gas_target), min_gas_price);
-
-    let price = min_gas_price;
-    let gas_target = max_block_size / 2;
-    let gas_used = max_block_size;
-    assert!(calculate_next_base_gas_price(price, gas_used, gas_target) > min_gas_price);
+    let gas_target = VERSIONED_CONSTANTS.max_block_size / 2;
+    let actual = calculate_next_base_gas_price(min_gas_price, gas_used, gas_target);
+    assert_eq!(actual, expected);
 }
 
 #[rstest]
