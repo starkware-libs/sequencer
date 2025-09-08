@@ -714,11 +714,12 @@ impl LocalServers {
     }
 }
 
+// TODO(alonl): use the InfraMetrics consts instead of creating the consts here.
 pub fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
-    let batcher_metrics = RemoteServerMetrics::new(
+    const BATCHER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &BATCHER_REMOTE_MSGS_RECEIVED,
         &BATCHER_REMOTE_VALID_MSGS_RECEIVED,
         &BATCHER_REMOTE_MSGS_PROCESSED,
@@ -730,10 +731,10 @@ pub fn create_remote_servers(
         config.components.batcher.ip,
         config.components.batcher.port,
         config.components.batcher.max_concurrency,
-        batcher_metrics
+        BATCHER_METRICS
     );
 
-    let class_manager_metrics = RemoteServerMetrics::new(
+    const CLASS_MANAGER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
         &CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
         &CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
@@ -745,10 +746,10 @@ pub fn create_remote_servers(
         config.components.class_manager.ip,
         config.components.class_manager.port,
         config.components.class_manager.max_concurrency,
-        class_manager_metrics
+        CLASS_MANAGER_METRICS
     );
 
-    let gateway_metrics = RemoteServerMetrics::new(
+    const GATEWAY_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &GATEWAY_REMOTE_MSGS_RECEIVED,
         &GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
         &GATEWAY_REMOTE_MSGS_PROCESSED,
@@ -760,10 +761,10 @@ pub fn create_remote_servers(
         config.components.gateway.ip,
         config.components.gateway.port,
         config.components.gateway.max_concurrency,
-        gateway_metrics
+        GATEWAY_METRICS
     );
 
-    let l1_endpoint_monitor_metrics = RemoteServerMetrics::new(
+    const L1_ENDPOINT_MONITOR_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
         &L1_ENDPOINT_MONITOR_REMOTE_VALID_MSGS_RECEIVED,
         &L1_ENDPOINT_MONITOR_REMOTE_MSGS_PROCESSED,
@@ -775,10 +776,10 @@ pub fn create_remote_servers(
         config.components.l1_endpoint_monitor.ip,
         config.components.l1_endpoint_monitor.port,
         config.components.l1_endpoint_monitor.max_concurrency,
-        l1_endpoint_monitor_metrics
+        L1_ENDPOINT_MONITOR_METRICS
     );
 
-    let l1_provider_metrics = RemoteServerMetrics::new(
+    const L1_PROVIDER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &L1_PROVIDER_REMOTE_MSGS_RECEIVED,
         &L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
         &L1_PROVIDER_REMOTE_MSGS_PROCESSED,
@@ -790,9 +791,9 @@ pub fn create_remote_servers(
         config.components.l1_provider.ip,
         config.components.l1_provider.port,
         config.components.l1_provider.max_concurrency,
-        l1_provider_metrics
+        L1_PROVIDER_METRICS
     );
-    let l1_gas_price_provider_metrics = RemoteServerMetrics::new(
+    const L1_GAS_PRICE_PROVIDER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &L1_GAS_PRICE_REMOTE_MSGS_RECEIVED,
         &L1_GAS_PRICE_REMOTE_VALID_MSGS_RECEIVED,
         &L1_GAS_PRICE_REMOTE_MSGS_PROCESSED,
@@ -804,10 +805,10 @@ pub fn create_remote_servers(
         config.components.l1_gas_price_provider.ip,
         config.components.l1_gas_price_provider.port,
         config.components.l1_gas_price_provider.max_concurrency,
-        l1_gas_price_provider_metrics
+        L1_GAS_PRICE_PROVIDER_METRICS
     );
 
-    let mempool_metrics = RemoteServerMetrics::new(
+    const MEMPOOL_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &MEMPOOL_REMOTE_MSGS_RECEIVED,
         &MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
         &MEMPOOL_REMOTE_MSGS_PROCESSED,
@@ -820,10 +821,10 @@ pub fn create_remote_servers(
         config.components.mempool.ip,
         config.components.mempool.port,
         config.components.mempool.max_concurrency,
-        mempool_metrics
+        MEMPOOL_METRICS
     );
 
-    let mempool_p2p_metrics = RemoteServerMetrics::new(
+    const MEMPOOL_P2P_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
         &MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
         &MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
@@ -835,10 +836,10 @@ pub fn create_remote_servers(
         config.components.mempool_p2p.ip,
         config.components.mempool_p2p.port,
         config.components.mempool_p2p.max_concurrency,
-        mempool_p2p_metrics
+        MEMPOOL_P2P_METRICS
     );
 
-    let sierra_compiler_metrics = RemoteServerMetrics::new(
+    const SIERRA_COMPILER_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
         &SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
         &SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
@@ -850,10 +851,10 @@ pub fn create_remote_servers(
         config.components.sierra_compiler.ip,
         config.components.sierra_compiler.port,
         config.components.sierra_compiler.max_concurrency,
-        sierra_compiler_metrics
+        SIERRA_COMPILER_METRICS
     );
 
-    let state_sync_metrics = RemoteServerMetrics::new(
+    const STATE_SYNC_METRICS: &RemoteServerMetrics = &RemoteServerMetrics::new(
         &STATE_SYNC_REMOTE_MSGS_RECEIVED,
         &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
         &STATE_SYNC_REMOTE_MSGS_PROCESSED,
@@ -865,7 +866,7 @@ pub fn create_remote_servers(
         config.components.state_sync.ip,
         config.components.state_sync.port,
         config.components.state_sync.max_concurrency,
-        state_sync_metrics
+        STATE_SYNC_METRICS
     );
 
     RemoteServers {

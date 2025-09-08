@@ -180,7 +180,7 @@ async fn setup_remote_server_test(
         socket.ip(),
         socket.port(),
         max_concurrency,
-        TEST_REMOTE_SERVER_METRICS,
+        &TEST_REMOTE_SERVER_METRICS,
     );
     task::spawn(async move {
         let _ = remote_server.start().await;
