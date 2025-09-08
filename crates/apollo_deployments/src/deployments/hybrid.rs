@@ -919,7 +919,7 @@ pub(crate) fn create_hybrid_instance_config_override(
     const CORE_SERVICE_PORT: u16 = 53080;
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
-    let bootstrap_node_id = 0;
+    let bootstrap_node_id = 1;
     let bootstrap_peer_id = get_peer_id(bootstrap_node_id);
     let node_peer_id = get_peer_id(node_id);
 
@@ -935,29 +935,19 @@ pub(crate) fn create_hybrid_instance_config_override(
             Some(get_p2p_address(&domain, port, peer_id))
         };
 
-    let (consensus_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr) = match node_id {
-        0 => {
-            // First node does not have a bootstrap peer.
-            (None, None)
-        }
-        _ => {
-            // Other nodes have the first node as a bootstrap peer.
-            (
-                build_peer_address(
-                    HybridNodeServiceName::Core,
-                    CORE_SERVICE_PORT,
-                    bootstrap_node_id,
-                    &bootstrap_peer_id,
-                ),
-                build_peer_address(
-                    HybridNodeServiceName::Mempool,
-                    MEMPOOL_SERVICE_PORT,
-                    bootstrap_node_id,
-                    &bootstrap_peer_id,
-                ),
-            )
-        }
-    };
+    let consensus_bootstrap_peer_multiaddr = build_peer_address(
+        HybridNodeServiceName::Core,
+        CORE_SERVICE_PORT,
+        bootstrap_node_id,
+        &bootstrap_peer_id,
+    );
+
+    let mempool_bootstrap_peer_multiaddr = build_peer_address(
+        HybridNodeServiceName::Mempool,
+        MEMPOOL_SERVICE_PORT,
+        bootstrap_node_id,
+        &bootstrap_peer_id,
+    );
 
     let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
         match p2p_communication_type {
