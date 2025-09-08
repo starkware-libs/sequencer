@@ -247,7 +247,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
 
     alloc_locals;
 
-    // Output a compression of the state updates.
+    // Compress the state updates.
     local compressed_start: felt*;
     %{
         if use_kzg_da:
@@ -260,9 +260,12 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);
     }
+
     if (n_keys == 0) {
         return (da_start=compressed_start, da_end=compressed_dst);
     }
+
+    // Encrypt the compressed state updates.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
@@ -396,6 +399,6 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     );
     assert sn_public_keys[0] = sn_public_key.x;
     return compute_public_keys(
-        n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1, sn_public_keys=sn_public_keys + 1
+        n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1], sn_public_keys=&sn_public_keys[1]
     );
 }
