@@ -25,7 +25,7 @@ const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
     NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("100")); // 2^8.
 const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
-pub(crate) trait TryFromOutputIter {
+pub trait TryFromOutputIter {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError>
