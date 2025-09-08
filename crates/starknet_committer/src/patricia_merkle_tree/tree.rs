@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::generate_trie_config;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
@@ -8,11 +8,18 @@ use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, T
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::storage_trait::Storage;
 
-use crate::block_committer::input::{try_node_index_into_contract_address, StarknetStorageValue};
+use crate::block_committer::input::{
+    contract_address_into_node_index,
+    try_node_index_into_contract_address,
+    StarknetStorageKey,
+    StarknetStorageValue,
+};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
+    class_hash_into_node_index,
     CompiledClassHash,
     ContractsTrieProof,
+    RootHashes,
     StarknetStorageProofs,
 };
 generate_trie_config!(OriginalSkeletonStorageTrieConfig, StarknetStorageValue);
@@ -33,7 +40,6 @@ impl OriginalSkeletonContractsTrieConfig {
     }
 }
 
-#[allow(dead_code)]
 /// Fetch all tries patricia paths given the modified leaves.
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
@@ -120,4 +126,58 @@ fn fetch_all_patricia_paths(
         contracts_proof: ContractsTrieProof { nodes: contracts_proof_nodes, contract_leaves_data },
         contracts_storage_proofs,
     })
+}
+
+#[allow(dead_code)]
+pub fn fetch_previous_and_new_patricia_paths(
+    storage: &impl Storage,
+    classes_trie_root_hashes: RootHashes,
+    contracts_trie_root_hashes: RootHashes,
+    class_hashes: &[ClassHash],
+    contract_addresses: &[ContractAddress],
+    contract_storage_keys: &HashMap<ContractAddress, Vec<StarknetStorageKey>>,
+) -> TraversalResult<StarknetStorageProofs> {
+    let mut class_leaf_indices =
+        class_hashes.iter().map(class_hash_into_node_index).collect::<Vec<_>>();
+    let class_sorted_leaf_indices = SortedLeafIndices::new(&mut class_leaf_indices);
+
+    let mut contract_leaf_indices =
+        contract_addresses.iter().map(contract_address_into_node_index).collect::<Vec<_>>();
+    let contract_sorted_leaf_indices = SortedLeafIndices::new(&mut contract_leaf_indices);
+
+    let mut contract_storage_leaf_indices: HashMap<NodeIndex, Vec<NodeIndex>> =
+        contract_storage_keys
+            .iter()
+            .map(|(address, keys)| {
+                let node_index = contract_address_into_node_index(address);
+                let leaf_indices: Vec<_> = keys.iter().map(NodeIndex::from).collect();
+                (node_index, leaf_indices)
+            })
+            .collect();
+    let contract_storage_sorted_leaf_indices = &contract_storage_leaf_indices
+        .iter_mut()
+        .map(|(address, leaf_indices)| (*address, SortedLeafIndices::new(leaf_indices)))
+        .collect::<HashMap<_, _>>();
+
+    let prev_proofs = fetch_all_patricia_paths(
+        storage,
+        classes_trie_root_hashes.previous_root_hash,
+        contracts_trie_root_hashes.previous_root_hash,
+        class_sorted_leaf_indices,
+        contract_sorted_leaf_indices,
+        contract_storage_sorted_leaf_indices,
+    )?;
+    let new_proofs = fetch_all_patricia_paths(
+        storage,
+        classes_trie_root_hashes.new_root_hash,
+        contracts_trie_root_hashes.new_root_hash,
+        class_sorted_leaf_indices,
+        contract_sorted_leaf_indices,
+        contract_storage_sorted_leaf_indices,
+    )?;
+
+    let mut proofs = prev_proofs;
+    proofs.extend(new_proofs);
+
+    Ok(proofs)
 }

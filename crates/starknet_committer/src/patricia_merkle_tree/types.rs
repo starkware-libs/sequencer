@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
@@ -37,4 +38,21 @@ pub struct StarknetStorageProofs {
     pub classes_proof: PreimageMap,
     pub contracts_proof: ContractsTrieProof,
     pub contracts_storage_proofs: HashMap<ContractAddress, PreimageMap>,
+}
+
+impl StarknetStorageProofs {
+    pub(crate) fn extend(&mut self, other: StarknetStorageProofs) {
+        self.classes_proof.extend(other.classes_proof);
+        self.contracts_proof.nodes.extend(other.contracts_proof.nodes);
+        self.contracts_proof
+            .contract_leaves_data
+            .extend(other.contracts_proof.contract_leaves_data);
+        for (address, proof) in other.contracts_storage_proofs {
+            self.contracts_storage_proofs.entry(address).or_default().extend(proof);
+        }
+    }
+}
+pub struct RootHashes {
+    pub previous_root_hash: HashOutput,
+    pub new_root_hash: HashOutput,
 }
