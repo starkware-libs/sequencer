@@ -1,6 +1,7 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_BATCHED_BLOCK,
+    PROPOSAL_ABORTED,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
@@ -11,13 +12,36 @@ use apollo_batcher::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_proposal_started() -> Panel {
-    Panel::from_counter(&PROPOSAL_STARTED, PanelType::Stat)
+    Panel::new(
+        "Proposal Started",
+        "Number of proposals started over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_STARTED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_proposal_succeeded() -> Panel {
-    Panel::from_counter(&PROPOSAL_SUCCEEDED, PanelType::Stat)
+    Panel::new(
+        "Proposal Succeeded",
+        "Number of proposals succeeded over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_SUCCEEDED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_proposal_failed() -> Panel {
-    Panel::from_counter(&PROPOSAL_FAILED, PanelType::Stat)
+    Panel::new(
+        "Proposal Failed",
+        "Number of proposals failed over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_FAILED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+}
+fn get_panel_proposal_aborted() -> Panel {
+    Panel::new(
+        "Proposal Aborted",
+        "Number of proposals aborted over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_ABORTED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_batched_transactions() -> Panel {
     Panel::from_counter(&BATCHED_TRANSACTIONS, PanelType::Stat)
@@ -64,6 +88,7 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_proposal_started(),
             get_panel_proposal_succeeded(),
             get_panel_proposal_failed(),
+            get_panel_proposal_aborted(),
             get_panel_batched_transactions(),
             get_panel_last_batched_block(),
             get_panel_rejection_ratio(),
