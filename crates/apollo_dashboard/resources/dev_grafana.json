@@ -305,9 +305,9 @@
       {
         "title": "cende_write_blob_failure",
         "description": "The number of failed blob writes to Aerospike",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
-          "sum  by (cende_write_failure_reason) (cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
         ],
         "extra_params": {}
       },

@@ -208,11 +208,11 @@ fn get_panel_cende_write_blob_failure() -> Panel {
         CENDE_WRITE_BLOB_FAILURE.get_name(),
         CENDE_WRITE_BLOB_FAILURE.get_description(),
         vec![format!(
-            "sum  by ({}) ({})",
+            "sum by ({}) (increase({}[$__range]))",
             LABEL_CENDE_FAILURE_REASON,
             CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
 }
 fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
