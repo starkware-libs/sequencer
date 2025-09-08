@@ -3,7 +3,9 @@ use std::path::Path;
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use serde::Serialize;
+use apollo_network::serialize_multi_addrs;
+use libp2p::Multiaddr;
+use serde::{Serialize, Serializer};
 use serde_json::to_value;
 use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
@@ -167,34 +169,34 @@ impl DeploymentConfigOverride {
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct NetworkConfigOverride {
     // Bootstrap peer address.
-    #[serde(rename = "bootstrap_peer_multiaddr")]
-    bootstrap_peer_multiaddr: String,
+    #[serde(rename = "bootstrap_peer_multiaddr", serialize_with = "serialize_multi_addrs_wrapper")]
+    bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
     #[serde(rename = "bootstrap_peer_multiaddr.#is_none")]
     bootstrap_peer_multiaddr_is_none: bool,
 
     // Advertised self address.
     #[serde(rename = "advertised_multiaddr")]
-    advertised_multiaddr: String,
+    advertised_multiaddr: Multiaddr,
     #[serde(rename = "advertised_multiaddr.#is_none")]
     advertised_multiaddr_is_none: bool,
 }
 
 impl NetworkConfigOverride {
     pub fn new(
-        bootstrap_peer_multiaddr: Option<String>,
-        advertised_multiaddr: Option<String>,
+        bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
+        advertised_multiaddr: Option<Multiaddr>,
     ) -> Self {
-        let (bootstrap_peer_multiaddr, bootstrap_peer_multiaddr_is_none) =
-            match bootstrap_peer_multiaddr {
-                Some(addr) => (addr, false),
-                None => ("".to_string(), true),
+        let (bootstrap_peers_multiaddrs, bootstrap_peer_multiaddr_is_none) =
+            match bootstrap_peers_multiaddrs {
+                Some(addrs) => (Some(addrs), false),
+                None => (Some(vec![]), true),
             };
         let (advertised_multiaddr, advertised_multiaddr_is_none) = match advertised_multiaddr {
             Some(addr) => (addr, false),
-            None => ("".to_string(), true),
+            None => (Multiaddr::empty(), true),
         };
         Self {
-            bootstrap_peer_multiaddr,
+            bootstrap_peers_multiaddrs,
             bootstrap_peer_multiaddr_is_none,
             advertised_multiaddr,
             advertised_multiaddr_is_none,
@@ -225,6 +227,27 @@ impl InstanceConfigOverride {
             consensus_network_config_override,
             mempool_network_config_override,
             validator_id: validator_id.to_string(),
+        }
+    }
+}
+
+// Wrapper function for the custom `serialize_multi_addrs` function, to be
+// compatible with serde's `serialize_with` attribute. It first applies the custom serialization
+// logic to convert the optional list into a `String`, and then serializes that string.
+fn serialize_multi_addrs_wrapper<S>(
+    optional_multi_addrs: &Option<Vec<Multiaddr>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match optional_multi_addrs {
+        None => serializer.serialize_none(),
+        Some(multi_addrs) => {
+            // Call the implemented custom serialization function
+            let s = serialize_multi_addrs(&Some(multi_addrs.clone()));
+            // Serialize the returned String
+            serializer.serialize_some(&s)
         }
     }
 }

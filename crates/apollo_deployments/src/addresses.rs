@@ -1,13 +1,17 @@
-// Derived using `get_peer_id_from_secret_key` binary, where the secret key of node with index `id`
-// is format!("0x01010101010101010101010101010101010101010101010101010101010101{:02x}", id + 1)
+use std::str::FromStr;
+
+use libp2p::multiaddr::Protocol;
+use libp2p::{Multiaddr, PeerId};
+
+// The following peer ids are derived using `get_peer_id_from_secret_key` binary, where the secret
+// key of node with index `id` is format!("
+// 0x01010101010101010101010101010101010101010101010101010101010101{:02x}", id + 1)
 //
 // ```
 // for i in `printf '0x01010101010101010101010101010101010101010101010101010101010101%02X\n'
 // {1..40}`; do cargo run --bin get_peer_id_from_secret_key $i ; done 2>/dev/null | awk '/Peer/
 // {printf("\t\"%s\",\n", $NF)}'
 // ```
-
-// TODO(Tsabary): sort the bootstrap peer id issues.
 
 pub(crate) const PEER_IDS: [&str; 40] = [
     "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
@@ -52,11 +56,14 @@ pub(crate) const PEER_IDS: [&str; 40] = [
     "12D3KooWFsQnPdqpbKDRpXxhTzDSHHb5QkzP1me3PGeoML6nHNgt",
 ];
 
-pub(crate) fn get_peer_id(node_id: usize) -> String {
+pub(crate) fn get_peer_id(node_id: usize) -> PeerId {
     assert!(node_id < PEER_IDS.len(), "Node index out of bounds: {}", node_id);
-    PEER_IDS[node_id].to_string()
+    PeerId::from_str(PEER_IDS[node_id]).unwrap()
 }
 
-pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{}/tcp/{}/p2p/{}", dns, port, peer_id)
+pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &PeerId) -> Multiaddr {
+    Multiaddr::from_str(format!("/dns/{dns}").as_str())
+        .unwrap()
+        .with(Protocol::Tcp(port))
+        .with(Protocol::P2p(*peer_id))
 }
