@@ -369,29 +369,38 @@
         "extra_params": {}
       },
       {
-        "title": "batcher_proposal_started",
-        "description": "Counter of proposals started",
-        "type": "stat",
+        "title": "Proposal Started",
+        "description": "Number of proposals started over the last 10 minutes",
+        "type": "timeseries",
         "exprs": [
-          "batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "batcher_proposal_succeeded",
-        "description": "Counter of successful proposals",
-        "type": "stat",
+        "title": "Proposal Succeeded",
+        "description": "Number of proposals succeeded over the last 10 minutes",
+        "type": "timeseries",
         "exprs": [
-          "batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "batcher_proposal_failed",
-        "description": "Counter of failed proposals",
-        "type": "stat",
+        "title": "Proposal Failed",
+        "description": "Number of proposals failed over the last 10 minutes",
+        "type": "timeseries",
         "exprs": [
-          "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Proposal Aborted",
+        "description": "Number of proposals aborted over the last 10 minutes",
+        "type": "timeseries",
+        "exprs": [
+          "increase(batcher_proposal_aborted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
