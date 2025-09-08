@@ -61,7 +61,6 @@ pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
 }
@@ -80,8 +79,8 @@ impl Gateway {
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
+                state_reader_factory,
             }),
-            state_reader_factory,
             mempool_client,
             transaction_converter,
         }
@@ -234,7 +233,6 @@ impl Gateway {
 /// from running.
 struct ProcessTxBlockingTask {
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
     executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
@@ -248,7 +246,6 @@ impl ProcessTxBlockingTask {
     ) -> Self {
         Self {
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
-            state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
             executable_tx,
             runtime,
@@ -256,9 +253,8 @@ impl ProcessTxBlockingTask {
     }
 
     fn process_tx(self) -> GatewayResult<Nonce> {
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref())?;
+        let mut stateful_transaction_validator =
+            self.stateful_tx_validator_factory.instantiate_validator()?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,
