@@ -1228,6 +1228,7 @@ dependencies = [
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_metrics",
+ "apollo_monitoring_endpoint",
  "apollo_state_sync_metrics",
  "apollo_storage",
  "blockifier",

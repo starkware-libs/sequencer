@@ -1029,6 +1029,80 @@
         "extra_params": {}
       }
     ],
+    "Tokio Runtime Metrics": [
+      {
+        "title": "tokio_total_busy_duration",
+        "description": "The amount of time worker threads were busy (in microseconds)",
+        "type": "stat",
+        "exprs": [
+          "tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_min_busy_duration",
+        "description": "The minimum amount of time a worker thread was busy (in microseconds)",
+        "type": "stat",
+        "exprs": [
+          "tokio_min_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_max_busy_duration",
+        "description": "The maximum amount of time a worker thread was busy (in microseconds)",
+        "type": "stat",
+        "exprs": [
+          "tokio_max_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_total_park_count",
+        "description": "The number of times worker threads parked",
+        "type": "stat",
+        "exprs": [
+          "tokio_total_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_min_park_count",
+        "description": "The minimum number of times any worker thread parked",
+        "type": "stat",
+        "exprs": [
+          "tokio_min_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_max_park_count",
+        "description": "The maximum number of times any worker thread parked",
+        "type": "stat",
+        "exprs": [
+          "tokio_max_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_global_queue_depth",
+        "description": "The number of tasks currently scheduled in the runtime's global queue",
+        "type": "stat",
+        "exprs": [
+          "tokio_global_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "tokio_workers_count",
+        "description": "The number of worker threads used by the runtime",
+        "type": "stat",
+        "exprs": [
+          "tokio_workers_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      }
+    ],
     "Batcher Infra": [
       {
         "title": "batcher_labeled_local_response_times_secs add_sync_block",
