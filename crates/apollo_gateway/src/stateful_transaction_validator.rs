@@ -42,23 +42,24 @@ type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
-        state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
-pub struct StatefulTransactionValidatorFactory {
+pub struct StatefulTransactionValidatorFactory<S: StateReaderFactory> {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+    pub state_reader_factory: S,
 }
 
-impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
-    // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
+impl<S: StateReaderFactory> StatefulTransactionValidatorFactoryTrait
+    for StatefulTransactionValidatorFactory<S>
+{
     fn instantiate_validator(
         &self,
-        state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
+        let state_reader = self
+            .state_reader_factory
             .get_state_reader_from_latest_block()
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
