@@ -6,6 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::gateway_types::SUPPORTED_TRANSACTION_VERSIONS;
 use apollo_mempool_types::communication::{MempoolClientError, MempoolClientResult};
 use apollo_mempool_types::errors::MempoolError;
 use axum::http::StatusCode;
@@ -161,12 +162,8 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                     "StarknetErrorCode.SIGNATURE_TOO_LONG".to_string(),
                 )
             }
-            StatelessTransactionValidatorError::StarknetApiError(..) =>
-            // TODO(yair): map SN_API errors to the correct error codes.
-            {
-                StarknetErrorCode::UnknownErrorCode(
-                    "StarknetErrorCode.STARKNET_API_ERROR".to_string(),
-                )
+            StatelessTransactionValidatorError::StarknetApiError(e) => {
+                return convert_sn_api_error(None, e);
             }
             StatelessTransactionValidatorError::ZeroResourceBounds { .. }
             | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. } => {
@@ -341,9 +338,8 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ClassNotFound { .. } => {
             StarknetError::internal_with_signature_logging("Class not found", err, tx_signature)
         }
-        // TODO(noamsp): Handle this better.
         TransactionConverterError::StarknetApiError(err) => {
-            StarknetError::internal_with_signature_logging("Starknet API error", err, tx_signature)
+            convert_sn_api_error(Some(tx_signature), err)
         }
     }
 }
@@ -404,5 +400,81 @@ fn convert_class_manager_error(
         | ClassManagerError::Client(_) => {
             StarknetError::internal_with_signature_logging("Class manager error", err, tx_signature)
         }
+    }
+}
+
+fn convert_sn_api_error(
+    tx_signature: Option<&TransactionSignature>,
+    err: StarknetApiError,
+) -> StarknetError {
+    match err {
+        StarknetApiError::BlockHashVersion { .. } => {
+            internal_with_optional_signature_logging("Block hash version error", err, tx_signature)
+        }
+        StarknetApiError::InnerDeserialization(..) => internal_with_optional_signature_logging(
+            "Inner deserialization error",
+            err,
+            tx_signature,
+        ),
+        StarknetApiError::OutOfRange { .. } => {
+            internal_with_optional_signature_logging("Out of range error", err, tx_signature)
+        }
+        StarknetApiError::ParseIntError(..) => {
+            internal_with_optional_signature_logging("Parse int error", err, tx_signature)
+        }
+        StarknetApiError::ResourceHexToFeltConversion(..) => {
+            internal_with_optional_signature_logging(
+                "Resource hex to felt conversion error",
+                err,
+                tx_signature,
+            )
+        }
+        StarknetApiError::InvalidResourceMappingInitializer(..) => {
+            internal_with_optional_signature_logging(
+                "Invalid resource mapping initializer error",
+                err,
+                tx_signature,
+            )
+        }
+        StarknetApiError::ParseSierraVersionError(..) => internal_with_optional_signature_logging(
+            "Parse sierra version error",
+            err,
+            tx_signature,
+        ),
+        StarknetApiError::InvalidStarknetVersion(tx_version) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidTransactionVersion,
+            ),
+            message: format!(
+                "Transaction version {tx_version:?} is not supported. Supported versions: \
+                 {SUPPORTED_TRANSACTION_VERSIONS:?}.",
+            ),
+        },
+        StarknetApiError::ZeroGasPrice
+        | StarknetApiError::GasPriceConversionError(..)
+        | StarknetApiError::UnknownTransactionType(..) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+            message: err.to_string(),
+        },
+        StarknetApiError::ContractClassVersionSierraProgramLengthMismatch { .. }
+        | StarknetApiError::ContractClassVersionMismatch { .. } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidContractClassVersion,
+            ),
+            message: err.to_string(),
+        },
+    }
+}
+
+fn internal_with_optional_signature_logging(
+    log_message: &str,
+    err: impl std::error::Error,
+    tx_signature: Option<&TransactionSignature>,
+) -> StarknetError {
+    match tx_signature {
+        Some(tx_signature) => {
+            StarknetError::internal_with_signature_logging(log_message, err, tx_signature)
+        }
+        None => StarknetError::internal_with_logging(log_message, err),
     }
 }
