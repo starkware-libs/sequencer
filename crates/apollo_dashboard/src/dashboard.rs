@@ -157,6 +157,31 @@ impl Panel {
             panel_type,
         )
     }
+    #[allow(dead_code)] // TODO(Asmaa): use in panels
+    pub(crate) fn from_counter_increase_range(
+        metric: &MetricCounter,
+        panel_type: PanelType,
+    ) -> Self {
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            vec![format!("increase({}[$__range])", metric.get_name_with_filter())],
+            panel_type,
+        )
+    }
+    #[allow(dead_code)] // TODO(Asmaa): use in panels
+    pub(crate) fn from_counter_increase_for(
+        metric: &MetricCounter,
+        panel_type: PanelType,
+        window: &str,
+    ) -> Self {
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            vec![format!("increase({}[{}])", metric.get_name_with_filter(), window)],
+            panel_type,
+        )
+    }
 
     pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
