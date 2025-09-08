@@ -12,7 +12,7 @@ use libp2p::swarm::{
 };
 use libp2p::{Multiaddr, PeerId};
 
-use crate::network_manager::metrics::EventMetrics;
+use crate::network_manager::metrics::{EventMetrics, EventType};
 
 /// A behavior that tracks all network events and updates metrics accordingly.
 /// This behavior does not generate any events of its own and has no connection handler.
@@ -29,46 +29,46 @@ impl EventMetricsTracker {
     fn track_swarm_event(&mut self, event: &FromSwarm<'_>) {
         match event {
             FromSwarm::ConnectionEstablished(_) => {
-                self.metrics.connections_established.increment(1);
+                self.metrics.increment_event(EventType::ConnectionsEstablished);
             }
             FromSwarm::ConnectionClosed(_) => {
-                self.metrics.connections_closed.increment(1);
+                self.metrics.increment_event(EventType::ConnectionsClosed);
             }
             FromSwarm::DialFailure(_) => {
-                self.metrics.dial_failure.increment(1);
+                self.metrics.increment_event(EventType::DialFailure);
             }
             FromSwarm::ListenFailure(_) => {
-                self.metrics.listen_failure.increment(1);
+                self.metrics.increment_event(EventType::ListenFailure);
             }
             FromSwarm::ListenerError(_) => {
-                self.metrics.listen_error.increment(1);
+                self.metrics.increment_event(EventType::ListenError);
             }
             FromSwarm::AddressChange(_) => {
-                self.metrics.address_change.increment(1);
+                self.metrics.increment_event(EventType::AddressChange);
             }
             FromSwarm::NewListener(_) => {
-                self.metrics.new_listeners.increment(1);
+                self.metrics.increment_event(EventType::NewListeners);
             }
             FromSwarm::NewListenAddr(_) => {
-                self.metrics.new_listen_addrs.increment(1);
+                self.metrics.increment_event(EventType::NewListenAddrs);
             }
             FromSwarm::ExpiredListenAddr(_) => {
-                self.metrics.expired_listen_addrs.increment(1);
+                self.metrics.increment_event(EventType::ExpiredListenAddrs);
             }
             FromSwarm::ListenerClosed(_) => {
-                self.metrics.listener_closed.increment(1);
+                self.metrics.increment_event(EventType::ListenerClosed);
             }
             FromSwarm::NewExternalAddrCandidate(_) => {
-                self.metrics.new_external_addr_candidate.increment(1);
+                self.metrics.increment_event(EventType::NewExternalAddrCandidate);
             }
             FromSwarm::ExternalAddrConfirmed(_) => {
-                self.metrics.external_addr_confirmed.increment(1);
+                self.metrics.increment_event(EventType::ExternalAddrConfirmed);
             }
             FromSwarm::ExternalAddrExpired(_) => {
-                self.metrics.external_addr_expired.increment(1);
+                self.metrics.increment_event(EventType::ExternalAddrExpired);
             }
             FromSwarm::NewExternalAddrOfPeer(_) => {
-                self.metrics.new_external_addr_of_peer.increment(1);
+                self.metrics.increment_event(EventType::NewExternalAddrOfPeer);
             }
             _ => {}
         }
@@ -86,7 +86,7 @@ impl NetworkBehaviour for EventMetricsTracker {
         _local_addr: &Multiaddr,
         _remote_addr: &Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        self.metrics.inbound_connections_handled.increment(1);
+        self.metrics.increment_event(EventType::InboundConnectionsHandled);
         Ok(libp2p::swarm::dummy::ConnectionHandler)
     }
 
@@ -98,7 +98,7 @@ impl NetworkBehaviour for EventMetricsTracker {
         _role_override: libp2p::core::Endpoint,
         _port_use: libp2p::core::transport::PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        self.metrics.outbound_connections_handled.increment(1);
+        self.metrics.increment_event(EventType::OutboundConnectionsHandled);
         Ok(libp2p::swarm::dummy::ConnectionHandler)
     }
 
@@ -112,7 +112,7 @@ impl NetworkBehaviour for EventMetricsTracker {
         _connection_id: ConnectionId,
         _event: THandlerOutEvent<Self>,
     ) {
-        self.metrics.connection_handler_events.increment(1);
+        self.metrics.increment_event(EventType::ConnectionHandlerEvents);
     }
 
     fn poll(
