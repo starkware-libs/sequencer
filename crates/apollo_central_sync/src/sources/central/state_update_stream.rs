@@ -298,6 +298,9 @@ fn client_to_central_state_update(
                         (class_hash, (compiled_class_hash, class))
                     })
                     .collect(),
+                // TODO(Aviv): Use the starknet client migrated compiled class hashes after its
+                // added.
+                migrated_compiled_classes: IndexMap::new(),
                 deprecated_declared_classes: deprecated_classes
                     .into_iter()
                     .map(|(class_hash, generic_class)| {
