@@ -186,9 +186,9 @@
       {
         "title": "consensus_timeouts",
         "description": "The number of times consensus has timed out",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
-          "sum  by (timeout_reason) (consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          "sum by (timeout_reason) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
         ],
         "extra_params": {}
       },
