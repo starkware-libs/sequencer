@@ -1133,11 +1133,12 @@
         "extra_params": {}
       },
       {
-        "title": "batcher_local_queue_depth",
-        "description": "The depth of the batcher's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "batcher_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "batcher_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -1442,11 +1443,12 @@
         "extra_params": {}
       },
       {
-        "title": "state_sync_local_queue_depth",
-        "description": "The depth of the state_sync's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "state_sync_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "state_sync_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "state_sync_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -1725,11 +1727,12 @@
         "extra_params": {}
       },
       {
-        "title": "gateway_local_queue_depth",
-        "description": "The depth of the gateway's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "gateway_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "gateway_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "gateway_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -1826,11 +1829,12 @@
         "extra_params": {}
       },
       {
-        "title": "mempool_local_queue_depth",
-        "description": "The depth of the mempool's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "mempool_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "mempool_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "mempool_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -2057,11 +2061,12 @@
         "extra_params": {}
       },
       {
-        "title": "mempool_p2p_local_queue_depth",
-        "description": "The depth of the mempool_p2p's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "mempool_p2p_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "mempool_p2p_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "mempool_p2p_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -2210,11 +2215,12 @@
         "extra_params": {}
       },
       {
-        "title": "l1_provider_local_queue_depth",
-        "description": "The depth of the l1_provider's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "l1_provider_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "l1_provider_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "l1_provider_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -2467,11 +2473,12 @@
         "extra_params": {}
       },
       {
-        "title": "l1_gas_price_local_queue_depth",
-        "description": "The depth of the l1_gas_price's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "l1_gas_price_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "l1_gas_price_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "l1_gas_price_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -2646,11 +2653,12 @@
         "extra_params": {}
       },
       {
-        "title": "class_manager_local_queue_depth",
-        "description": "The depth of the class_manager's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "class_manager_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "class_manager_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "class_manager_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -2851,11 +2859,12 @@
         "extra_params": {}
       },
       {
-        "title": "sierra_compiler_local_queue_depth",
-        "description": "The depth of the sierra_compiler's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "sierra_compiler_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "sierra_compiler_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "sierra_compiler_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -2952,11 +2961,12 @@
         "extra_params": {}
       },
       {
-        "title": "l1_endpoint_monitor_local_queue_depth",
-        "description": "The depth of the l1_endpoint_monitor's local message queue",
+        "title": "local_queue_depth",
+        "description": "The depth of the local priority queues",
         "type": "timeseries",
         "exprs": [
-          "l1_endpoint_monitor_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "l1_endpoint_monitor_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+          "l1_endpoint_monitor_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
