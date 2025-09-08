@@ -32,6 +32,9 @@ define_metrics!(
         MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", init = 0 },
         MetricCounter { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", init = 0 },
         MetricCounter { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", init = 0 },
+        // Per-proposal txs that did not end up in block or were deferred
+        MetricGauge { VALIDATOR_WASTED_TXS, "batcher_validator_wasted_txs", "Number of txs executed by validator but not included in the block"},
+        MetricGauge { PROPOSER_DEFERRED_TXS, "batcher_proposer_deferred_txs", "Number of txs started execution but not finished by end of proposal by proposer"},
         // Transactions
         MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", init = 0 },
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", init = 0 },
@@ -55,6 +58,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     PROPOSAL_SUCCEEDED.register();
     PROPOSAL_FAILED.register();
     PROPOSAL_ABORTED.register();
+    VALIDATOR_WASTED_TXS.register();
+    PROPOSER_DEFERRED_TXS.register();
 
     BATCHED_TRANSACTIONS.register();
     REJECTED_TRANSACTIONS.register();
