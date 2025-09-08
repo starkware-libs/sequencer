@@ -48,8 +48,7 @@ pub struct AggregatorInput {
     pub debug_mode: bool,
     pub fee_token_address: Felt,
     pub chain_id: Felt,
-    pub public_key_x: Felt,
-    pub public_key_y: Felt,
+    pub public_keys: Option<Vec<Felt>>,
 }
 
 impl AggregatorInput {

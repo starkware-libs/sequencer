@@ -214,6 +214,7 @@ define_string_enum! {
         (NewRoot),
         (NextAvailableAlias),
         (NewStateEntry),
+        (NKeys),
         (Node),
         (NotOnCurve),
         (OldBlockHash),
@@ -230,6 +231,8 @@ define_string_enum! {
         (PrevAliasesStateEntry),
         (PrevRoot),
         (PrevValue),
+        (PublicKeysStart),
+        (SnPrivateKeysStart),
         (RangeCheck96Ptr, "range_check96_ptr"),
         (RangeCheckPtr),
         (RemainingGas),
@@ -265,6 +268,7 @@ define_string_enum! {
         (StateEntry),
         (StateUpdatesStart),
         (StorageKey),
+        (SymmetricKey),
         (SyscallPtr),
         (TransactionHash),
         (TxInfo),
@@ -392,6 +396,10 @@ define_string_enum! {
         (
             CompiledClassFact,
             "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClassFact"
+        ),
+        (
+            CompiledClassFactPtr,
+            "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClassFact*"
         ),
         (DeployResponse, "starkware.starknet.common.new_syscalls.DeployResponse"),
         (DeprecatedCallContractResponse, "starkware.starknet.common.syscalls.CallContractResponse"),
