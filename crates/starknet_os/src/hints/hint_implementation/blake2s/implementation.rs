@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
@@ -5,14 +7,17 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_ptr_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
-use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
@@ -20,19 +25,26 @@ static POW2_32: LazyLock<BigUint> = LazyLock::new(|| BigUint::from(1_u32) << 32)
 static POW2_63: LazyLock<BigUint> = LazyLock::new(|| BigUint::from(1_u32) << 63);
 static POW2_255: LazyLock<BigUint> = LazyLock::new(|| BigUint::from(1_u32) << 255);
 
+pub(crate) fn unpack_setup<'a>(
+    vm: &'a mut VirtualMachine,
+    ids_data: &'a HashMap<String, HintReference>,
+    ap_tracking: &'a ApTracking,
+) -> Result<(Relocatable, Vec<Cow<'a, Felt>>), OsHintError> {
+    let packed_values_len =
+        get_integer_from_var_name(Ids::PackedValuesLen.into(), vm, ids_data, ap_tracking)?;
+    let packed_values = get_ptr_from_var_name(Ids::PackedValues.into(), vm, ids_data, ap_tracking)?;
+    let unpacked_u32s = get_ptr_from_var_name(Ids::UnpackedU32s.into(), vm, ids_data, ap_tracking)?;
+    let vals = vm.get_integer_range(packed_values, felt_to_usize(&packed_values_len)?)?;
+    Ok((unpacked_u32s, vals))
+}
+
 /// Unpacks felt values into u32 arrays for Blake2s processing.
 /// This implements the Cairo hint that converts felt values to u32 arrays
 /// following the Blake2s encoding scheme.
 pub(crate) fn unpack_felts_to_u32s(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let packed_values_len =
-        get_integer_from_var_name(Ids::PackedValuesLen.into(), vm, ids_data, ap_tracking)?;
-    let packed_values = get_ptr_from_var_name(Ids::PackedValues.into(), vm, ids_data, ap_tracking)?;
-    let unpacked_u32s = get_ptr_from_var_name(Ids::UnpackedU32s.into(), vm, ids_data, ap_tracking)?;
-
-    let vals = vm.get_integer_range(packed_values, felt_to_usize(&packed_values_len)?)?;
-
+    let (unpacked_u32s, vals) = unpack_setup(vm, ids_data, ap_tracking)?;
     // Split value into either 2 or 8 32-bit limbs.
     let out: Vec<MaybeRelocatable> = vals
         .into_iter()
@@ -76,5 +88,32 @@ pub(crate) fn check_packed_values_end_and_size(
     };
 
     insert_value_into_ap(vm, reached_end)?;
+    Ok(())
+}
+
+// TODO(Einat): remove allow(unused) once hint is added to enum definition file.
+#[allow(unused)]
+pub(crate) fn naive_unpack_felt252s_to_u32s(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let (unpacked_u32s, vals) = unpack_setup(vm, ids_data, ap_tracking)?;
+
+    let out: Vec<MaybeRelocatable> = vals
+        .into_iter()
+        .map(|mut val| val.to_biguint())
+        .flat_map(|mut val| {
+            let mut limbs = vec![BigUint::from(0_u32); 8];
+            for limb in limbs.iter_mut().rev() {
+                let (q, r) = val.div_rem(&POW2_32);
+                *limb = r;
+                val = q;
+            }
+            limbs
+        })
+        .map(Felt::from)
+        .map(MaybeRelocatable::from)
+        .collect();
+
+    vm.load_data(unpacked_u32s, &out).map_err(HintError::Memory)?;
     Ok(())
 }
