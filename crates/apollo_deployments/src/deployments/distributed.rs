@@ -828,7 +828,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
-                        | ComponentConfigInService::StateSync => {}
+                        | ComponentConfigInService::StateSync
+                        | ComponentConfigInService::ConfigManager => {}
                     }
                 }
             }
