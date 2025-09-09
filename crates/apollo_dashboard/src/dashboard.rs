@@ -210,32 +210,26 @@ impl Panel {
 
         Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
-}
 
-impl From<&MetricCounter> for Panel {
-    fn from(metric: &MetricCounter) -> Self {
+    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
             vec![metric.get_name_with_filter().to_string()],
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
-}
 
-impl From<&MetricGauge> for Panel {
-    fn from(metric: &MetricGauge) -> Self {
+    pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
             vec![metric.get_name_with_filter().to_string()],
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
-}
 
-impl From<&MetricHistogram> for Panel {
-    fn from(metric: &MetricHistogram) -> Self {
+    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -268,14 +262,16 @@ impl From<&LocalClientMetrics> for UnlabeledPanels {
 
 impl From<&RemoteClientMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteClientMetrics) -> Self {
-        Self(vec![Panel::from(metrics.get_attempts_metric())])
+        Self(vec![Panel::from_hist(metrics.get_attempts_metric(), PanelType::TimeSeries)])
     }
 }
 
 impl From<&LocalServerMetrics> for UnlabeledPanels {
     fn from(metrics: &LocalServerMetrics) -> Self {
-        let received_msgs_panel = Panel::from(metrics.get_received_metric());
-        let processed_msgs_panel = Panel::from(metrics.get_processed_metric());
+        let received_msgs_panel =
+            Panel::from_counter(metrics.get_received_metric(), PanelType::TimeSeries);
+        let processed_msgs_panel =
+            Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
         let queue_depth_panel = Panel::new(
             "local_queue_depth",
             "The depth of the local priority queues",
@@ -292,10 +288,14 @@ impl From<&LocalServerMetrics> for UnlabeledPanels {
 
 impl From<&RemoteServerMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteServerMetrics) -> Self {
-        let total_received_msgs_panel = Panel::from(metrics.get_total_received_metric());
-        let valid_received_msgs_panel = Panel::from(metrics.get_valid_received_metric());
-        let processed_msgs_panel = Panel::from(metrics.get_processed_metric());
-        let number_of_connections_panel = Panel::from(metrics.get_number_of_connections_metric());
+        let total_received_msgs_panel =
+            Panel::from_counter(metrics.get_total_received_metric(), PanelType::TimeSeries);
+        let valid_received_msgs_panel =
+            Panel::from_counter(metrics.get_valid_received_metric(), PanelType::TimeSeries);
+        let processed_msgs_panel =
+            Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
+        let number_of_connections_panel =
+            Panel::from_gauge(metrics.get_number_of_connections_metric(), PanelType::TimeSeries);
 
         Self(vec![
             total_received_msgs_panel,
