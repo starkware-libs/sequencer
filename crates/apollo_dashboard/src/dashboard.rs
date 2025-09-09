@@ -142,6 +142,11 @@ impl Panel {
     }
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn show_percent_change(mut self) -> Self {
+        assert!(
+            matches!(self.panel_type, PanelType::Stat),
+            "showPercentChange is only supported on Stat panels; got {:?}",
+            self.panel_type
+        );
         self.extra.show_percent_change = true;
         self
     }
