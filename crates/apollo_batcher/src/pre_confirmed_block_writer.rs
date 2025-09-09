@@ -90,7 +90,7 @@ impl PreconfirmedBlockWriter {
         }
     }
 
-    fn create_pre_confirmed_block(
+    pub(crate) fn create_pre_confirmed_block(
         &self,
         transactions_map: &IndexMap<
             TransactionHash,
