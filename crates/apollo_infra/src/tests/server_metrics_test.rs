@@ -225,23 +225,14 @@ fn assert_server_metrics(
          {processed_msgs:?}"
     );
     assert_eq!(
-<<<<<<< HEAD
-        queue_depth, expected_queue_depth,
-        "unexpected value for queue_depth, expected {expected_queue_depth} got {queue_depth:?}"
-||||||| 6051e5ea9
-        queue_depth, expected_queue_depth,
-        "unexpected value for queue_depth, expected {} got {:?}",
-        expected_queue_depth, queue_depth,
-=======
         high_priority_queue_depth, expected_queue_depth,
-        "unexpected value for high_priority_queue_depth, expected {} got {:?}",
-        expected_queue_depth, high_priority_queue_depth,
+        "unexpected value for high_priority_queue_depth, expected {expected_queue_depth} got \
+         {high_priority_queue_depth:?}",
     );
     assert_eq!(
         normal_priority_queue_depth, expected_queue_depth,
-        "unexpected value for normal_priority_queue_depth, expected {} got {:?}",
-        expected_queue_depth, normal_priority_queue_depth,
->>>>>>> origin/main-v0.14.0
+        "unexpected value for normal_priority_queue_depth, expected {expected_queue_depth} got \
+         {normal_priority_queue_depth:?}",
     );
 }
 

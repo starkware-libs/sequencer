@@ -2717,26 +2717,8 @@
         "extra_params": {}
       },
       {
-<<<<<<< HEAD
-        "title": "class_manager_labeled_processing_times_secs get_executable_class_hash_v2",
-        "description": "Request processing times of the class manager, per label (secs): get_executable_class_hash_v2",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_processing_times_secs get_sierra",
-        "description": "Request processing times of the class manager, per label (secs): get_sierra",
-||||||| 6051e5ea9
-        "title": "class_manager_labeled_processing_times_secs get_sierra",
-        "description": "Request processing times of the class manager, per label (secs): get_sierra",
-=======
         "title": "class_manager_remote_valid_msgs_received",
         "description": "Counter of valid messages received by class_manager remote server",
->>>>>>> origin/main-v0.14.0
         "type": "timeseries",
         "exprs": [
           "class_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -2790,26 +2772,8 @@
         "extra_params": {}
       },
       {
-<<<<<<< HEAD
-        "title": "class_manager_labeled_queueing_times_secs get_executable_class_hash_v2",
-        "description": "Request queueing times of the class manager, per label (secs): get_executable_class_hash_v2",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_queueing_times_secs get_sierra",
-        "description": "Request queueing times of the class manager, per label (secs): get_sierra",
-||||||| 6051e5ea9
-        "title": "class_manager_labeled_queueing_times_secs get_sierra",
-        "description": "Request queueing times of the class manager, per label (secs): get_sierra",
-=======
         "title": "add_deprecated_class (client)",
         "description": "client infra metrics for request type add_deprecated_class",
->>>>>>> origin/main-v0.14.0
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_local_response_times_secs\", \"le\", \".*\"))",
@@ -2832,6 +2796,20 @@
           "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_remote_response_times_secs\", \"le\", \".*\"))",
           "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
           "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "get_executable_class_hash_v2 (client)",
+        "description": "client infra metrics for request type get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_local_response_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_local_response_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_remote_response_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_remote_response_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
         ],
         "extra_params": {}
       },
@@ -2874,26 +2852,8 @@
         "extra_params": {}
       },
       {
-<<<<<<< HEAD
-        "title": "class_manager_labeled_local_response_times_secs get_executable_class_hash_v2",
-        "description": "Request local response times of the class manager, per label (secs): get_executable_class_hash_v2",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_local_response_times_secs get_sierra",
-        "description": "Request local response times of the class manager, per label (secs): get_sierra",
-||||||| 6051e5ea9
-        "title": "class_manager_labeled_local_response_times_secs get_sierra",
-        "description": "Request local response times of the class manager, per label (secs): get_sierra",
-=======
         "title": "add_deprecated_class (server)",
         "description": "server infra metrics for request type add_deprecated_class",
->>>>>>> origin/main-v0.14.0
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_processing_times_secs\", \"le\", \".*\"))",
@@ -2916,202 +2876,26 @@
         "extra_params": {}
       },
       {
+        "title": "get_executable_class_hash_v2 (server)",
+        "description": "server infra metrics for request type get_executable_class_hash_v2",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_processing_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_processing_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_queueing_times_secs\", \"le\", \".*\"))",
+          "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_queueing_times_secs\", \"le\", \".*\"))"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "get_sierra (server)",
         "description": "server infra metrics for request type get_sierra",
         "type": "timeseries",
         "exprs": [
-<<<<<<< HEAD
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs add_deprecated_class",
-        "description": "Request remote response times of the class manager, per label (secs): add_deprecated_class",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs get_executable",
-        "description": "Request remote response times of the class manager, per label (secs): get_executable",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs get_executable_class_hash_v2",
-        "description": "Request remote response times of the class manager, per label (secs): get_executable_class_hash_v2",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs get_sierra",
-        "description": "Request remote response times of the class manager, per label (secs): get_sierra",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_class",
-        "description": "Request communication failure times of the class manager, per label (secs): add_class",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_class_and_executable_unsafe",
-        "description": "Request communication failure times of the class manager, per label (secs): add_class_and_executable_unsafe",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_deprecated_class",
-        "description": "Request communication failure times of the class manager, per label (secs): add_deprecated_class",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_executable",
-        "description": "Request communication failure times of the class manager, per label (secs): get_executable",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_executable_class_hash_v2",
-        "description": "Request communication failure times of the class manager, per label (secs): get_executable_class_hash_v2",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_sierra",
-        "description": "Request communication failure times of the class manager, per label (secs): get_sierra",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
-||||||| 6051e5ea9
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs add_deprecated_class",
-        "description": "Request remote response times of the class manager, per label (secs): add_deprecated_class",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs get_executable",
-        "description": "Request remote response times of the class manager, per label (secs): get_executable",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_response_times_secs get_sierra",
-        "description": "Request remote response times of the class manager, per label (secs): get_sierra",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_class",
-        "description": "Request communication failure times of the class manager, per label (secs): add_class",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_class_and_executable_unsafe",
-        "description": "Request communication failure times of the class manager, per label (secs): add_class_and_executable_unsafe",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs add_deprecated_class",
-        "description": "Request communication failure times of the class manager, per label (secs): add_deprecated_class",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_executable",
-        "description": "Request communication failure times of the class manager, per label (secs): get_executable",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_labeled_remote_client_communication_failure_times_secs get_sierra",
-        "description": "Request communication failure times of the class manager, per label (secs): get_sierra",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(class_manager_labeled_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])))"
-=======
           "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_processing_times_secs\", \"le\", \".*\"))",
           "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_processing_times_secs\", \"le\", \".*\"))",
           "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.50 class_manager_labeled_queueing_times_secs\", \"le\", \".*\"))",
           "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_labeled_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.95 class_manager_labeled_queueing_times_secs\", \"le\", \".*\"))"
->>>>>>> origin/main-v0.14.0
         ],
         "extra_params": {}
       }

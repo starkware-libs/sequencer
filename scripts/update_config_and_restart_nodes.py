@@ -3,16 +3,10 @@
 import argparse
 from enum import Enum
 import json
-import os
-import re
 import subprocess
 import sys
-import tempfile
-from difflib import unified_diff
-from pathlib import Path
 from typing import Optional
 
-from urllib import request, error
 import yaml
 
 
@@ -216,7 +210,7 @@ def main():
         print_colored(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = get_configmap(args.namespace, node_id, args.cluster)
+        get_configmap(args.namespace, node_id, args.cluster)
 
 
 if __name__ == "__main__":
