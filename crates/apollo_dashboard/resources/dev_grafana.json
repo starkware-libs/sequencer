@@ -388,11 +388,47 @@
         "extra_params": {}
       },
       {
-        "title": "batcher_last_batched_block",
-        "description": "The last block received by batching",
+        "title": "batcher_last_batched_block_height",
+        "description": "The height of the last block received by batching",
         "type": "stat",
         "exprs": [
-          "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_last_batched_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_storage_height",
+        "description": "The height of the batcher's storage",
+        "type": "stat",
+        "exprs": [
+          "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_last_synced_block_height",
+        "description": "The height of the last block received by syncing",
+        "type": "stat",
+        "exprs": [
+          "batcher_last_synced_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_last_proposed_block_height",
+        "description": "The height of the last block proposed by this sequencer",
+        "type": "stat",
+        "exprs": [
+          "batcher_last_proposed_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_reverted_blocks",
+        "description": "Counter of reverted blocks",
+        "type": "stat",
+        "exprs": [
+          "batcher_reverted_blocks{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },

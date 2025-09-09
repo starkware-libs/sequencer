@@ -1,11 +1,15 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
-    LAST_BATCHED_BLOCK,
+    LAST_BATCHED_BLOCK_HEIGHT,
+    LAST_PROPOSED_BLOCK_HEIGHT,
+    LAST_SYNCED_BLOCK_HEIGHT,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
+    REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
@@ -22,8 +26,20 @@ fn get_panel_proposal_failed() -> Panel {
 fn get_panel_batched_transactions() -> Panel {
     Panel::from_counter(&BATCHED_TRANSACTIONS, PanelType::Stat)
 }
+fn get_panel_storage_height() -> Panel {
+    Panel::from_gauge(&STORAGE_HEIGHT, PanelType::Stat)
+}
 fn get_panel_last_batched_block() -> Panel {
-    Panel::from_gauge(&LAST_BATCHED_BLOCK, PanelType::Stat)
+    Panel::from_gauge(&LAST_BATCHED_BLOCK_HEIGHT, PanelType::Stat)
+}
+fn get_panel_last_synced_block() -> Panel {
+    Panel::from_gauge(&LAST_SYNCED_BLOCK_HEIGHT, PanelType::Stat)
+}
+fn get_panel_last_proposed_block() -> Panel {
+    Panel::from_gauge(&LAST_PROPOSED_BLOCK_HEIGHT, PanelType::Stat)
+}
+fn get_panel_reverted_blocks() -> Panel {
+    Panel::from_counter(&REVERTED_BLOCKS, PanelType::Stat)
 }
 fn get_panel_rejection_ratio() -> Panel {
     Panel::ratio_time_series(
@@ -66,6 +82,10 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_proposal_failed(),
             get_panel_batched_transactions(),
             get_panel_last_batched_block(),
+            get_panel_storage_height(),
+            get_panel_last_synced_block(),
+            get_panel_last_proposed_block(),
+            get_panel_reverted_blocks(),
             get_panel_rejection_ratio(),
             get_panel_reverted_transaction_ratio(),
         ],
