@@ -69,7 +69,7 @@ pub trait StateReader {
     fn get_compiled_class_hash_v2(
         &self,
         _class_hash: ClassHash,
-        _compiled_class: RunnableCompiledClass,
+        _compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
         unimplemented!(
             "get_compiled_class_hash_v2 is not implemented in StateReader trait.

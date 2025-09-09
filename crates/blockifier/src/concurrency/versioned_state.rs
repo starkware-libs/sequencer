@@ -391,7 +391,7 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        compiled_class: RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
         let mut state_opt = self.state();
         let state = state_opt.inner_mut()?;

@@ -107,7 +107,7 @@ impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        compiled_class: RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
         // First, try getting from class manager cache.
         match self.contract_class_manager.get_compiled_class_hash_v2(&class_hash) {
