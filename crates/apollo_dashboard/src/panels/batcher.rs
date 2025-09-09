@@ -65,7 +65,7 @@ fn get_panel_batched_transactions_rate() -> Panel {
         "batched_transactions_rate (TPS)",
         "The rate of transactions batched by the Batcher during the last minute",
         vec![format!(
-            "min(rate({}[1m])) or vector(0)",
+            "sum(rate({}[20m])) or vector(0)",
             BATCHED_TRANSACTIONS.get_name_with_filter()
         )],
         PanelType::TimeSeries,

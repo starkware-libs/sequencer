@@ -86,9 +86,9 @@ pub(crate) fn get_gateway_row() -> Row {
     Row::new(
         "Gateway",
         vec![
+            get_panel_gateway_transactions_received_rate(),
             get_panel_gateway_transactions_received_by_type(),
             get_panel_gateway_transactions_received_by_source(),
-            get_panel_gateway_transactions_received_rate(),
             get_panel_gateway_add_tx_latency(),
             get_panel_gateway_validate_tx_latency(),
             get_panel_gateway_transactions_failed(),

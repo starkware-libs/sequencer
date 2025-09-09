@@ -364,7 +364,7 @@
         "description": "The rate of transactions batched by the Batcher during the last minute",
         "type": "timeseries",
         "exprs": [
-          "min(rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
+          "sum(rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
         ],
         "extra_params": {}
       },
@@ -539,20 +539,20 @@
     ],
     "Http Server": [
       {
+        "title": "http_server_transactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the HTTP Server during the last minute",
+        "type": "timeseries",
+        "exprs": [
+          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "http_server_added_transactions_total",
         "description": "Total number of transactions added",
         "type": "timeseries",
         "exprs": [
           "http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "http_server_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the HTTP Server during the last minute",
-        "type": "timeseries",
-        "exprs": [
-          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
         ],
         "extra_params": {}
       },
@@ -605,6 +605,15 @@
     ],
     "Gateway": [
       {
+        "title": "gateway_transactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the gateway during the last 20 minutes",
+        "type": "timeseries",
+        "exprs": [
+          "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "gateway_transactions_received",
         "description": "Counter of transactions received",
         "type": "stat",
@@ -619,15 +628,6 @@
         "type": "stat",
         "exprs": [
           "sum  by (source) (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}) "
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "gateway_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the gateway during the last 20 minutes",
-        "type": "timeseries",
-        "exprs": [
-          "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
         ],
         "extra_params": {}
       },
@@ -672,20 +672,20 @@
     ],
     "Mempool": [
       {
-        "title": "mempool_transactions_received",
-        "description": "Counter of transactions received by the mempool",
-        "type": "stat",
-        "exprs": [
-          "sum  by (tx_type) (mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
-        ],
-        "extra_params": {}
-      },
-      {
         "title": "mempool_transactions_received_rate (TPS)",
         "description": "The rate of transactions received by the mempool during the last 20 minutes",
         "type": "timeseries",
         "exprs": [
           "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transactions_received",
+        "description": "Counter of transactions received by the mempool",
+        "type": "stat",
+        "exprs": [
+          "sum  by (tx_type) (mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
         ],
         "extra_params": {}
       },
