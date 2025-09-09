@@ -801,9 +801,9 @@ checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 name = "apollo_batcher"
 version = "0.15.0-rc.4"
 dependencies = [
+ "apollo_batcher_config",
  "apollo_batcher_types",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_provider_types",
@@ -837,6 +837,18 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_batcher_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_storage",
+ "blockifier",
+ "serde",
  "url",
  "validator",
 ]
@@ -1436,6 +1448,7 @@ dependencies = [
  "alloy",
  "anyhow",
  "apollo_batcher",
+ "apollo_batcher_config",
  "apollo_class_manager",
  "apollo_compile_to_casm",
  "apollo_config",
@@ -1821,6 +1834,7 @@ version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_batcher",
+ "apollo_batcher_config",
  "apollo_batcher_types",
  "apollo_class_manager",
  "apollo_class_manager_types",
