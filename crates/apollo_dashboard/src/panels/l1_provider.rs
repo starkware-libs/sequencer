@@ -4,16 +4,16 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
-use crate::dashboard::{Panel, Row};
+use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT)
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT)
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_REORG_DETECTED)
+    Panel::from_counter(&L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
 }
 
 // TODO(noamsp): rename to l1_event_row
