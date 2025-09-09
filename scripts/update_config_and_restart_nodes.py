@@ -1,26 +1,129 @@
 #!/usr/bin/env python3
 
-
+import json
 import sys
 
 import os
 
 from update_config_and_restart_nodes_lib import (
-    build_args_parser,
-    validate_arguments,
-    parse_config_overrides,
+    ArgsParserBuilder,
     update_config_and_restart_nodes,
     print_colored,
     print_error,
+    Job,
+    Colors,
 )
 
 
-def main():
-    parser = build_args_parser()
-    args = parser.parse_args()
-    validate_arguments(args)
+def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
+    """Parse config override strings in key=value format.
 
+    Args:
+        config_overrides: List of strings in "key=value" format
+
+    Returns:
+        dict: Dictionary mapping config keys to their values
+    """
+    if not config_overrides:
+        return {}
+
+    overrides = {}
+    for override in config_overrides:
+        if "=" not in override:
+            print_colored(
+                f"Error: Invalid config override format '{override}'. Expected 'key=value'",
+                Colors.RED,
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Split only on first '=' in case value contains '='
+        key, value = override.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        if not key:
+            print_error(f"Error: Empty key in config override '{override}'")
+            sys.exit(1)
+
+        # Try to convert value to appropriate type
+        try:
+            overrides[key] = json.loads(value)
+        except (json.JSONDecodeError, TypeError) as e:
+            print_error(
+                f"Error: Invalid value '{value}' for key '{key}': {e}\n"
+                'Did you remember to wrap string values in \\" ?'
+            )
+            sys.exit(1)
+
+    if not overrides:
+        print_error("Error: No valid config overrides found")
+        sys.exit(1)
+
+    return overrides
+
+
+def job_type_converter(job_name: str) -> Job:
+    """Convert string to Job enum with informative error message"""
+    try:
+        return Job[job_name]
+    except KeyError:
+        valid_jobs = ", ".join([job.name for job in Job])
+        raise argparse.ArgumentTypeError(
+            f"Invalid job type '{job_name}'. Valid options are: {valid_jobs}"
+        )
+
+
+def main():
+    usage_example = """
+Examples:
+  # Update sequencer core configuration (default job)
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  
+  # Update gateway configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerGateway --config-overrides gateway_config.port=8080
+  
+  # Update mempool configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerMempool --config-overrides mempool_config.max_size=1000
+  
+  # Update L1 provider configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerL1 --config-overrides l1_config.endpoint=https://eth-mainnet.alchemyapi.io/v2/your-key
+  
+  # Update without restart
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
+  
+  # Update with explicit restart
+  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
+  
+  # Update starting from specific node index
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --config-overrides validator_id=0x42
+        """
+
+    args_builder = ArgsParserBuilder(
+        "Update configuration for Apollo sequencer nodes and (optionally) restart them",
+        usage_example,
+    )
+    args_builder.add_argument(
+        "-j",
+        "--job",
+        type=job_type_converter,
+        choices=list(Job),
+        default=Job.SequencerCore,
+        help="Job type to operate on; determines configmap and pod names (default: sequencer-core)",
+    )
+    args_builder.add_argument(
+        "-o",
+        "--config-overrides",
+        action="append",
+        help="Configuration overrides in key=value format. Can be specified multiple times. "
+        "Example: --config-overrides consensus_manager_config.timeout=5000 "
+        '--config-overrides components.gateway.url=\\"localhost\\" (note the escaping of the ")',
+    )
+
+    args = args_builder.build()
     config_overrides = parse_config_overrides(args.config_overrides)
+
     if config_overrides:
         print_colored(f"\nConfig overrides to apply:")
         for key, value in config_overrides.items():
