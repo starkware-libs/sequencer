@@ -43,8 +43,10 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
+    CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
+    LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
@@ -226,9 +228,24 @@ fn get_panel_build_proposal_failure() -> Panel {
             LABEL_BUILD_PROPOSAL_FAILURE_REASON,
             CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
         )],
+        // TODO(Dafna): change to TimeSeries if needed
         PanelType::BarGauge,
     )
     .with_log_query("\"PROPOSAL_FAILED: Proposal failed as proposer\"")
+}
+fn get_panel_validate_proposal_failure() -> Panel {
+    Panel::new(
+        "Validate Proposal Failure by Reason",
+        "The number of validate proposal failures",
+        vec![format!(
+            "sum by ({}) (increase({}[10m]))",
+            LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
+            CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
+        )],
+        // TODO(Dafna): change to TimeSeries if needed
+        PanelType::BarGauge,
+    )
+    .with_log_query("\"PROPOSAL_FAILED: Proposal failed as validator\"")
 }
 fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
     Panel::from_counter(&CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::TimeSeries)
@@ -276,6 +293,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_cende_write_blob_success(),
             get_panel_cende_write_blob_failure(),
             get_panel_build_proposal_failure(),
+            get_panel_validate_proposal_failure(),
             get_panel_consensus_l1_data_gas_mismatch(),
             get_panel_consensus_l1_gas_mismatch(),
         ],
