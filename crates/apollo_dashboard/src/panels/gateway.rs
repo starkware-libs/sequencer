@@ -43,9 +43,9 @@ fn get_panel_gateway_transactions_received_by_source() -> Panel {
 fn get_panel_gateway_transactions_received_rate() -> Panel {
     Panel::new(
         "Transactions Received Rate (TPS)",
-        "The rate of transactions received by the gateway (10m window)",
+        "The rate of transactions received by the gateway (1m window)",
         vec![format!(
-            "sum(rate({}[10m])) or vector(0)",
+            "sum(rate({}[1m])) or vector(0)",
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         )],
         PanelType::TimeSeries,

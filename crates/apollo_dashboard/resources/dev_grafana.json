@@ -208,20 +208,20 @@
     "Batcher": {
       "panels": [
         {
-          "title": "Storage Height",
-          "description": "The height of the batcher's storage",
-          "type": "stat",
-          "exprs": [
-            "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Batched Transactions Rate (TPS)",
           "description": "The rate of transactions batched by the Batcher (1m window)",
           "type": "timeseries",
           "exprs": [
             "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Storage Height",
+          "description": "The height of the batcher's storage",
+          "type": "stat",
+          "exprs": [
+            "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         },
@@ -317,7 +317,7 @@
     "Http Server": {
       "panels": [
         {
-          "title": "Transactions Received Rate (TPS)",
+          "title": "HTTP Server Transactions Received Rate (TPS)",
           "description": "The rate of transactions received by the HTTP Server (1m window)",
           "type": "timeseries",
           "exprs": [
@@ -382,10 +382,10 @@
       "panels": [
         {
           "title": "Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the gateway (10m window)",
+          "description": "The rate of transactions received by the gateway (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)"
+            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
           ],
           "extra_params": {}
         },
@@ -470,7 +470,7 @@
     "Mempool": {
       "panels": [
         {
-          "title": "Transactions Received Rate (TPS)",
+          "title": "Mempool Transactions Received Rate (TPS)",
           "description": "The rate of transactions received by the mempool (1m window)",
           "type": "timeseries",
           "exprs": [

@@ -33,7 +33,7 @@ fn get_panel_transaction_success_rate() -> Panel {
 }
 fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
-        "Transactions Received Rate (TPS)",
+        "HTTP Server Transactions Received Rate (TPS)",
         "The rate of transactions received by the HTTP Server (1m window)",
         vec![format!("rate({}[1m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter())],
         PanelType::TimeSeries,

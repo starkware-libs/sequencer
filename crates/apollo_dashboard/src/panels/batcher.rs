@@ -91,8 +91,8 @@ pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
         vec![
-            get_panel_storage_height(),
             get_panel_batched_transactions_rate(),
+            get_panel_storage_height(),
             get_panel_proposer_deferred_txs(),
             get_panel_validator_wasted_txs(),
             get_panel_rejection_reverted_ratio(),
