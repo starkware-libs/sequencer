@@ -210,32 +210,26 @@ impl Panel {
 
         Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
-}
 
-impl From<&MetricCounter> for Panel {
-    fn from(metric: &MetricCounter) -> Self {
+    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
             vec![metric.get_name_with_filter().to_string()],
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
-}
 
-impl From<&MetricGauge> for Panel {
-    fn from(metric: &MetricGauge) -> Self {
+    pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
             vec![metric.get_name_with_filter().to_string()],
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
-}
 
-impl From<&MetricHistogram> for Panel {
-    fn from(metric: &MetricHistogram) -> Self {
+    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),

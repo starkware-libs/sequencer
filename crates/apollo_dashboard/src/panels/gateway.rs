@@ -51,11 +51,11 @@ fn get_panel_gateway_transactions_received_rate() -> Panel {
 }
 
 fn get_panel_gateway_add_tx_latency() -> Panel {
-    Panel::from(&GATEWAY_ADD_TX_LATENCY)
+    Panel::from_hist(&GATEWAY_ADD_TX_LATENCY, PanelType::TimeSeries)
 }
 
 fn get_panel_gateway_validate_tx_latency() -> Panel {
-    Panel::from(&GATEWAY_VALIDATE_TX_LATENCY)
+    Panel::from_hist(&GATEWAY_VALIDATE_TX_LATENCY, PanelType::TimeSeries)
 }
 
 fn get_panel_gateway_transactions_failed() -> Panel {

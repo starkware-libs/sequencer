@@ -8,41 +8,55 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 
-use crate::dashboard::{Panel, Row};
+use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_insufficient_history() -> Panel {
-    Panel::from(&L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY)
+    Panel::from_counter(&L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat)
 }
 fn get_panel_l1_gas_price_scraper_success_count() -> Panel {
-    Panel::from(&L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT)
+    Panel::from_counter(&L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT, PanelType::Stat)
 }
 fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
-    Panel::from(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT)
+    Panel::from_counter(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Stat)
 }
 fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
-    Panel::from(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED)
+    Panel::from_counter(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED, PanelType::Stat)
 }
 fn get_panel_eth_to_strk_error_count() -> Panel {
-    Panel::from(&ETH_TO_STRK_ERROR_COUNT)
+    Panel::from_counter(&ETH_TO_STRK_ERROR_COUNT, PanelType::Stat)
 }
 fn get_panel_eth_to_strk_success_count() -> Panel {
-    Panel::from(&ETH_TO_STRK_SUCCESS_COUNT)
+    Panel::from_counter(&ETH_TO_STRK_SUCCESS_COUNT, PanelType::Stat)
 }
 
 fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {
-    Panel::from(&apollo_l1_gas_price::metrics::L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK)
+    Panel::from_gauge(
+        &apollo_l1_gas_price::metrics::L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_eth_to_strk_rate() -> Panel {
-    Panel::from(&ETH_TO_STRK_RATE)
+    Panel::new(
+        ETH_TO_STRK_RATE.get_name(),
+        format!("ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE={})", "a"),
+        vec![format!("{} / {}", ETH_TO_STRK_RATE.get_name_with_filter(), "100".to_string())],
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_l1_gas_price_latest_mean_value() -> Panel {
-    Panel::from(&apollo_l1_gas_price::metrics::L1_GAS_PRICE_LATEST_MEAN_VALUE)
+    Panel::from_gauge(
+        &apollo_l1_gas_price::metrics::L1_GAS_PRICE_LATEST_MEAN_VALUE,
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_l1_data_gas_price_latest_mean_value() -> Panel {
-    Panel::from(&apollo_l1_gas_price::metrics::L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE)
+    Panel::from_gauge(
+        &apollo_l1_gas_price::metrics::L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
+        PanelType::TimeSeries,
+    )
 }
 
 pub(crate) fn get_l1_gas_price_row() -> Row {
