@@ -34,16 +34,53 @@ def print_error(message: str) -> None:
     print_colored(message, color=Colors.RED, file=sys.stderr)
 
 
+class Job(Enum):
+    """Job types mapping to their configmap and pod names."""
+
+    SequencerCore = ("sequencer-core-config", "sequencer-core-statefulset-0")
+    SequencerGateway = ("sequencer-gateway-config", "sequencer-gateway-deployment")
+    SequencerHttpserver = (
+        "sequencer-httpserver-config",
+        "sequencer-httpserver-deployment",
+    )
+    SequencerL1 = ("sequencer-l1-config", "sequencer-l1-deployment")
+    SequencerMempool = ("sequencer-mempool-config", "sequencer-mempool-deployment")
+    SequencerSierracompiler = (
+        "sequencer-sierracompiler-config",
+        "sequencer-sierracompiler-deployment",
+    )
+
+    def __init__(self, config_map_name: str, pod_name: str) -> None:
+        self.config_map_name = config_map_name
+        self.pod_name = pod_name
+
+
 def build_args_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Update configuration for Apollo sequencer nodes and (optionally) restart them",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Update sequencer core configuration (default job)
   %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  
+  # Update gateway configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerGateway --config-overrides gateway_config.port=8080
+  
+  # Update mempool configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerMempool --config-overrides mempool_config.max_size=1000
+  
+  # Update L1 provider configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerL1 --config-overrides l1_config.endpoint=https://eth-mainnet.alchemyapi.io/v2/your-key
+  
+  # Update without restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
+  
+  # Update with explicit restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
+  
+  # Update starting from specific node index
   %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --config-overrides validator_id=0x42
         """,
     )
@@ -73,6 +110,15 @@ Examples:
 
     parser.add_argument(
         "-c", "--cluster", help="Optional cluster prefix for kubectl context"
+    )
+
+    parser.add_argument(
+        "-j",
+        "--job",
+        type=lambda x: Job[x],  # Convert string to enum instance
+        choices=list(Job),
+        default=Job.SequencerCore,
+        help="Job type to operate on; determines configmap and pod names (default: sequencer-core)",
     )
 
     parser.add_argument(
@@ -204,14 +250,17 @@ def get_namespace_params(
 
 
 def get_configmap(
-    namespace: str, node_id: int, cluster_prefix: Optional[str] = None
+    namespace: str,
+    node_id: int,
+    job: Job,
+    cluster_prefix: Optional[str] = None,
 ) -> str:
     """Get configmap YAML for a specific node"""
     # TODO(guy.f): See if we can get the output as JSON and apply as JSON without going through YAML.
     kubectl_args = [
         "get",
         "cm",
-        "sequencer-core-config",
+        job.config_map_name,
         "-o",
         "yaml",
     ]
@@ -379,13 +428,16 @@ def apply_configmap(
 
 
 def restart_pod(
-    namespace: str, node_id: int, cluster_prefix: Optional[str] = None
+    namespace: str,
+    node_id: int,
+    cluster_prefix: Optional[str] = None,
+    job: Job = Job.SequencerCore,
 ) -> None:
     """Restart pod by deleting it"""
     kubectl_args = [
         "delete",
         "pod",
-        "sequencer-core-statefulset-0",
+        job.pod_name,
         "-n",
         f"{namespace}-{node_id}",
     ]
@@ -405,6 +457,7 @@ def update_config_and_restart_nodes(
     namespace: str,
     num_nodes: int,
     start_index: int,
+    job: Job,
     cluster_prefix: Optional[str] = None,
     restart_nodes: bool = True,
 ) -> None:
@@ -431,7 +484,7 @@ def update_config_and_restart_nodes(
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
         original_config = normalize_config(
-            get_configmap(namespace, node_id, cluster_prefix)
+            get_configmap(namespace, node_id, job, cluster_prefix)
         )
 
         # Update config
@@ -459,7 +512,7 @@ def update_config_and_restart_nodes(
         print("\nRestarting pods...")
         for node_id in node_ids:
             print(f"Restarting pod for node {node_id}...")
-            restart_pod(namespace, node_id, cluster_prefix)
+            restart_pod(namespace, node_id, job, cluster_prefix)
         print("\nAll nodes have been successfully restarted!")
     else:
         print("\nSkipping pod restart (--no-restart was specified)")
