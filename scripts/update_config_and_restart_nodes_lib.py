@@ -16,6 +16,7 @@ class Colors(Enum):
     """ANSI color codes for terminal output"""
 
     RED = "\033[1;31m"
+    GREEN = "\033[1;32m"
     YELLOW = "\033[1;33m"
     BLUE = "\033[1;34m"
     RESET = "\033[0m"
@@ -30,16 +31,64 @@ def print_error(message: str) -> None:
     print_colored(message, color=Colors.RED, file=sys.stderr)
 
 
+class Service(Enum):
+    """Service types mapping to their configmap and pod names."""
+
+    Core = ("sequencer-core-config", "sequencer-core-statefulset-0")
+    Gateway = ("sequencer-gateway-config", "sequencer-gateway-deployment")
+    HttpServer = (
+        "sequencer-httpserver-config",
+        "sequencer-httpserver-deployment",
+    )
+    L1 = ("sequencer-l1-config", "sequencer-l1-deployment")
+    Mempool = ("sequencer-mempool-config", "sequencer-mempool-deployment")
+    SierraCompiler = (
+        "sequencer-sierracompiler-config",
+        "sequencer-sierracompiler-deployment",
+    )
+
+    def __init__(self, config_map_name: str, pod_name: str) -> None:
+        self.config_map_name = config_map_name
+        self.pod_name = pod_name
+
+
+def service_type_converter(service_name: str) -> Service:
+    """Convert string to Service enum with informative error message"""
+    try:
+        return Service[service_name]
+    except KeyError:
+        valid_services = ", ".join([service.name for service in Service])
+        raise argparse.ArgumentTypeError(
+            f"Invalid service type '{service_name}'. Valid options are: {valid_services}"
+        )
+
+
 def build_args_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Update configuration for Apollo sequencer nodes and (optionally) restart them",
+        description="Update configuration for the services and (optionally) restart them",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Update sequencer core configuration (default service)
   %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  
+  # Update gateway configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j Gateway --config-overrides gateway_config.port=8080
+  
+  # Update mempool configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j Mempool --config-overrides mempool_config.max_size=1000
+  
+  # Update L1 provider configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j L1 --config-overrides l1_config.endpoint=https://eth-mainnet.alchemyapi.io/v2/your-key
+  
+  # Update without restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
+  
+  # Update with explicit restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
+  
+  # Update starting from specific node index
   %(prog)s -n apollo-sepolia-integration -N 3 -s 5 --config-overrides validator_id=0x42
         """,
     )
@@ -68,6 +117,15 @@ Examples:
     )
 
     parser.add_argument("-c", "--cluster", help="Optional cluster prefix for kubectl context")
+
+    parser.add_argument(
+        "-j",
+        "--service",
+        type=service_type_converter,
+        choices=list(Service),
+        default=Service.Core,
+        help="Service type to operate on; determines configmap and pod names (default: Core)",
+    )
 
     parser.add_argument(
         "-o",
@@ -173,12 +231,17 @@ def get_namespace_args(
     return ret
 
 
-def get_configmap(namespace: str, node_id: int, cluster_prefix: Optional[str] = None) -> str:
+def get_configmap(
+    namespace: str,
+    node_id: int,
+    cluster_prefix: Optional[str] = None,
+    service: Service = Service.Core,
+) -> str:
     """Get configmap YAML for a specific node"""
     kubectl_args = [
         "get",
         "cm",
-        "sequencer-core-config",
+        service.config_map_name,
         "-o",
         "yaml",
     ]
@@ -334,24 +397,41 @@ def apply_configmap(
             sys.exit(1)
 
 
-def restart_pod(namespace: str, node_id: int, cluster_prefix: Optional[str] = None) -> None:
+def restart_pod(
+    namespace: str, node_id: int, service: Service, cluster_prefix: Optional[str] = None
+) -> None:
     """Restart pod by deleting it"""
+    # Get the list of pods (one string per line).
     kubectl_args = [
-        "delete",
-        "pod",
-        "sequencer-core-statefulset-0",
-        "-n",
-        f"{namespace}-{node_id}",
+        "get",
+        "pods",
+        "-o",
+        "name",
     ]
+    pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
 
-    if cluster_prefix:
-        kubectl_args.extend(["--context", f"{cluster_prefix}-{node_id}"])
+    # Filter the list of pods to only include the ones that match the service and extract the pod name.
+    pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
 
-    try:
-        run_kubectl_command(kubectl_args, capture_output=False)
-    except Exception as e:
-        print_error(f"Failed restarting core pod for node {node_id}: {e}")
+    if not pods:
+        print_error(f"Could not find pods for service {service.pod_name}.")
         sys.exit(1)
+
+    # Go over each pod and delete it.
+    for pod in pods:
+        kubectl_args = [
+            "delete",
+            "pod",
+            pod,
+        ]
+        kubectl_args.extend(get_namespace_args(namespace, node_id, cluster_prefix))
+
+        try:
+            run_kubectl_command(kubectl_args, capture_output=False)
+            print_colored(f"Restarted {pod} for node {node_id}")
+        except Exception as e:
+            print_error(f"Failed restarting {pod} for node {node_id}: {e}")
+            sys.exit(1)
 
 
 def update_config_and_restart_nodes(
@@ -359,6 +439,7 @@ def update_config_and_restart_nodes(
     namespace: str,
     num_nodes: int,
     start_index: int,
+    service: Service,
     cluster_prefix: Optional[str] = None,
     restart_nodes: bool = True,
 ) -> None:
@@ -384,7 +465,9 @@ def update_config_and_restart_nodes(
         print_colored(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = normalize_config(get_configmap(namespace, node_id, cluster_prefix))
+        original_config = normalize_config(
+            get_configmap(namespace, node_id, cluster_prefix, service)
+        )
 
         # Update config
         updated_config = update_config_values(original_config, node_id, config_overrides)
@@ -407,9 +490,8 @@ def update_config_and_restart_nodes(
 
     if restart_nodes:
         for node_id in node_ids:
-            print_colored(f"Restarting pod for node {node_id}...")
-            restart_pod(namespace, node_id, cluster_prefix)
-        print_colored("\nAll nodes have been successfully restarted!", Colors.GREEN)
+            restart_pod(namespace, node_id, service, cluster_prefix)
+        print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
     else:
         print_colored("\nSkipping pod restart (--no-restart was specified)")
 
