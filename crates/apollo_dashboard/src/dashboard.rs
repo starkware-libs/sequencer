@@ -22,8 +22,8 @@ use serde::{Serialize, Serializer};
 #[path = "dashboard_test.rs"]
 mod dashboard_test;
 
-const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
-const HISTOGRAM_TIME_RANGE: &str = "5m";
+pub const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
+pub const HISTOGRAM_TIME_RANGE: &str = "5m";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dashboard {
