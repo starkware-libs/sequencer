@@ -3124,6 +3124,35 @@
         ],
         "extra_params": {}
       }
+    ],
+    "Pod Metrics": [
+      {
+        "title": "pod_memory_utilization",
+        "description": "Pod Memory Utilization",
+        "type": "timeseries",
+        "exprs": [
+          "container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "pod_disk_utilization",
+        "description": "Pod Disk Utilization",
+        "type": "timeseries",
+        "exprs": [
+          "kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "pod_cpu_utilization",
+        "description": "Pod CPU Utilization",
+        "type": "timeseries",
+        "exprs": [
+          "container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      }
     ]
   }
 }
