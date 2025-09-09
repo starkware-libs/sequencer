@@ -464,7 +464,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.batcher.remote_client_config.log_attempt_interval_ms": {
+  "components.batcher.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -549,7 +549,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.class_manager.remote_client_config.log_attempt_interval_ms": {
+  "components.class_manager.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -634,7 +634,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.config_manager.remote_client_config.log_attempt_interval_ms": {
+  "components.config_manager.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -724,7 +724,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.gateway.remote_client_config.log_attempt_interval_ms": {
+  "components.gateway.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -814,7 +814,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": {
+  "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -899,7 +899,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": {
+  "components.l1_gas_price_provider.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -989,7 +989,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.l1_provider.remote_client_config.log_attempt_interval_ms": {
+  "components.l1_provider.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -1079,7 +1079,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.mempool.remote_client_config.log_attempt_interval_ms": {
+  "components.mempool.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -1164,7 +1164,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": {
+  "components.mempool_p2p.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -1254,7 +1254,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": {
+  "components.sierra_compiler.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10
@@ -1339,7 +1339,7 @@
     "privacy": "Public",
     "value": 1
   },
-  "components.state_sync.remote_client_config.log_attempt_interval_ms": {
+  "components.state_sync.remote_client_config.log_attempt_interval": {
     "description": "Number of attempts between failure log messages",
     "privacy": "Public",
     "value": 10

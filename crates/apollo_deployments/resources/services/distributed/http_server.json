@@ -33,7 +33,7 @@
   "components.gateway.remote_client_config.idle_connections": 0,
   "components.gateway.remote_client_config.idle_timeout_ms": 30000,
   "components.gateway.remote_client_config.initial_retry_delay_ms": 1,
-  "components.gateway.remote_client_config.log_attempt_interval_ms": 10,
+  "components.gateway.remote_client_config.log_attempt_interval": 10,
   "components.gateway.remote_client_config.max_retry_interval_ms": 1000,
   "components.gateway.remote_client_config.retries": 150,
   "components.gateway.url": "sequencer-gateway-service",

@@ -83,7 +83,7 @@
   "components.sierra_compiler.remote_client_config.idle_connections": 0,
   "components.sierra_compiler.remote_client_config.idle_timeout_ms": 30000,
   "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": 1,
-  "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": 10,
+  "components.sierra_compiler.remote_client_config.log_attempt_interval": 10,
   "components.sierra_compiler.remote_client_config.max_retry_interval_ms": 1000,
   "components.sierra_compiler.remote_client_config.retries": 150,
   "components.sierra_compiler.url": "sequencer-sierracompiler-service",
