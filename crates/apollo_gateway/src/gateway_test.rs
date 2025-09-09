@@ -388,7 +388,6 @@ fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
         stateful_tx_validator_factory: Arc::new(mock_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
-        chain_info: Arc::new(ChainInfo::create_for_testing()),
         tx: invoke_args().get_rpc_tx(),
         transaction_converter: Arc::new(mock_transaction_converter),
         runtime: tokio::runtime::Handle::current(),
@@ -648,7 +647,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let overrides = ProcessTxOverrides {
         mock_stateful_transaction_validator_factory: Some(
@@ -704,7 +703,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_, _| Err(expected_error));
+        .return_once(|_| Err(expected_error));
 
     let overrides = ProcessTxOverrides {
         mock_stateful_transaction_validator_factory: Some(
