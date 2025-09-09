@@ -56,32 +56,14 @@ pub(crate) const PEER_IDS: [&str; 40] = [
     "12D3KooWFsQnPdqpbKDRpXxhTzDSHHb5QkzP1me3PGeoML6nHNgt",
 ];
 
-<<<<<<< HEAD
-pub(crate) fn get_peer_id(node_id: usize) -> String {
-    assert!(node_id < PEER_IDS.len(), "Node index out of bounds: {node_id}");
-    PEER_IDS[node_id].to_string()
-||||||| 6051e5ea9
-pub(crate) fn get_peer_id(node_id: usize) -> String {
-    assert!(node_id < PEER_IDS.len(), "Node index out of bounds: {}", node_id);
-    PEER_IDS[node_id].to_string()
-=======
 pub(crate) fn get_peer_id(node_id: usize) -> PeerId {
-    assert!(node_id < PEER_IDS.len(), "Node index out of bounds: {}", node_id);
+    assert!(node_id < PEER_IDS.len(), "Node index out of bounds: {node_id}");
     PeerId::from_str(PEER_IDS[node_id]).unwrap()
->>>>>>> origin/main-v0.14.0
 }
 
-<<<<<<< HEAD
-pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{dns}/tcp/{port}/p2p/{peer_id}")
-||||||| 6051e5ea9
-pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{}/tcp/{}/p2p/{}", dns, port, peer_id)
-=======
 pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &PeerId) -> Multiaddr {
     Multiaddr::from_str(format!("/dns/{dns}").as_str())
         .unwrap()
         .with(Protocol::Tcp(port))
         .with(Protocol::P2p(*peer_id))
->>>>>>> origin/main-v0.14.0
 }
