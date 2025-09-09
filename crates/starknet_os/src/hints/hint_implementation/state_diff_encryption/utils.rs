@@ -1,4 +1,4 @@
-use blake2s::encode_felt252_data_and_calc_blake_hash;
+use blake2s::blake2s_to_felt;
 use lambdaworks_math::elliptic_curve::short_weierstrass::curves::stark_curve::StarkCurve;
 use lambdaworks_math::elliptic_curve::short_weierstrass::traits::IsShortWeierstrass;
 use starknet_types_core::curve::AffinePoint;
@@ -33,18 +33,16 @@ pub fn decrypt_state_diff(
     let shared_secret = shared_secret_point.x();
 
     // Decrypt the symmetric key using the shared secret.
-    // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
     let symmetric_key =
-        encrypted_symmetric_key - encode_felt252_data_and_calc_blake_hash(&[shared_secret]);
+        encrypted_symmetric_key - naive_encode_felt252_data_and_calc_blake_hash(&[shared_secret]);
 
     // Decrypt the state diff using the symmetric key.
-    // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
     encrypted_state_diff
         .iter()
         .enumerate()
         .map(|(i, encrypted_felt)| {
             encrypted_felt
-                - encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
+                - naive_encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
         })
         .collect()
 }
@@ -61,7 +59,7 @@ pub fn encrypt_state_diff(
         .iter()
         .enumerate()
         .map(|(i, felt)| {
-            felt + encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
+            felt + naive_encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
         })
         .collect();
 
@@ -78,9 +76,8 @@ pub fn encrypt_state_diff(
         let shared_secret = shared_secret_point.x();
 
         // Encrypt the symmetric key using the shared secret.
-        // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
         symmetric_key_encryptions
-            .push(symmetric_key + encode_felt252_data_and_calc_blake_hash(&[shared_secret]));
+            .push(symmetric_key + naive_encode_felt252_data_and_calc_blake_hash(&[shared_secret]));
 
         // Compute the starknet public key.
         sn_public_keys.push((&AffinePoint::generator() * sn_private_key).x());
@@ -89,4 +86,34 @@ pub fn encrypt_state_diff(
     let n_keys = vec![Felt::from(public_keys.len())];
 
     [n_keys, sn_public_keys, symmetric_key_encryptions, encrypted_state_diff].concat()
+}
+
+/// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
+/// `naive_encode_felt252s_to_u32s` hint does, then hashes the resulting byte stream
+/// with Blake2s-256 and returns the 256-bit digest to a
+/// 252-bit field element `Felt`.
+fn naive_encode_felt252_data_and_calc_blake_hash(data: &[Felt]) -> Felt {
+    // 1) Unpack each Felt into 2 or 8 u32 limbs.
+    let u32_words = naive_encode_felts_to_u32s(data.to_vec());
+
+    // 2) Serialize the u32 limbs into a little-endian byte stream.
+    let mut byte_stream = Vec::with_capacity(u32_words.len() * 4);
+    for word in u32_words {
+        byte_stream.extend_from_slice(&word.to_le_bytes());
+    }
+
+    // 3) Compute Blake2s-256 over the bytes and pack the result into a Felt.
+    blake2s_to_felt(&byte_stream)
+}
+
+pub fn naive_encode_felts_to_u32s(felts: Vec<Felt>) -> Vec<u32> {
+    let mut unpacked_u32s = Vec::new();
+    for felt in felts {
+        let felt_as_be_bytes = felt.to_bytes_be();
+        // big: 8 limbs, big‐endian order.
+        for chunk in felt_as_be_bytes.chunks_exact(4) {
+            unpacked_u32s.push(u32::from_be_bytes(chunk.try_into().unwrap()));
+        }
+    }
+    unpacked_u32s
 }
