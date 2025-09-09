@@ -129,7 +129,7 @@ async fn events_from_other_contract() {
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
     let (this_config, this_url) = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_url(&this_url);
+    anvil_instance_from_url(&this_url);
     let this_contract = EthereumBaseLayerContract::new(this_config.clone(), this_url.clone());
 
     // Test: get_proved_block_at_unknown_block_number.
