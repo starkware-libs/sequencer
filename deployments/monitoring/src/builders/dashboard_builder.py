@@ -37,8 +37,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     link = "\n".join([
         "https://console.cloud.google.com/logs/query;",
         f"query=resource.labels.namespace_name=~%22^%28${{namespace:pipe}}%29$%22%0A{quote(log_query)};",
-        "minLogTime=${_from:date:iso};",
-        "maxLogTime=${_to:date:iso};",
+        "timeRange=${__from:date:iso}%2F${__to:date:iso}",
         "?project=${gcp_project}",
     ])
 
