@@ -47,6 +47,16 @@ macro_rules! impl_checked_ops {
                 }
             )
         }
+
+        pub fn get_failed_weights(self: Self, other: Self) -> String {
+            let mut failed = Vec::new();
+            $(
+                if self.$field < other.$field {
+                    failed.push(stringify!($field));
+                }
+            )+
+            failed.join(", ")
+        }
     };
 }
 
@@ -73,6 +83,10 @@ impl BouncerConfig {
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
         self.block_max_capacity.has_room(weights)
+    }
+
+    pub fn get_failed_weights(&self, weights: BouncerWeights) -> String {
+        self.block_max_capacity.get_failed_weights(weights)
     }
 
     #[allow(clippy::result_large_err)]
@@ -544,9 +558,13 @@ impl Bouncer {
         {
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
-                 transaction weights: {:?}, block weights: {:?}.",
+                 transaction weights: {:?}, block weights: {:?}. Block max capacity reached on \
+                 fields: {}",
                 tx_weights.bouncer_weights,
-                self.accumulated_weights
+                self.accumulated_weights,
+                self.bouncer_config.get_failed_weights(
+                    self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg)
+                )
             );
             Err(TransactionExecutorError::BlockFull)?
         }
