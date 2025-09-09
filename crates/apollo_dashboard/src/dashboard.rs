@@ -79,7 +79,7 @@ impl Unit {
         match self {
             Unit::Bytes => "bytes",
             Unit::Seconds => "s",
-            Unit::Percent => "percent",
+            Unit::Percent => "percentunit",
         }
     }
 }
@@ -233,9 +233,9 @@ impl Panel {
             .collect::<Vec<_>>()
             .join(" + ");
 
-        let expr = format!("100 * ({} / ({}))", numerator_expr, denominator_expr);
+        let expr = format!("({} / ({}))", numerator_expr, denominator_expr);
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries)
+        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::Percent)
     }
 }
 
