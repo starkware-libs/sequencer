@@ -25,6 +25,8 @@ define_metrics!(
 
         // Proposal build failure metrics
         LabeledMetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILURE , "consensus_build_proposal_failure", "Number of failures while building a proposal", init = 0, labels = BUILD_PROPOSAL_FAILURE_REASON },
+        // Proposal validation failure metrics
+        LabeledMetricCounter { CONSENSUS_VALIDATE_PROPOSAL_FAILURE , "consensus_validate_proposal_failure", "Number of failures while validating a proposal", init = 0, labels = VALIDATE_PROPOSAL_FAILURE_REASON },
     }
 );
 
@@ -98,6 +100,67 @@ where
         .increment(1, &[(LABEL_BUILD_PROPOSAL_FAILURE_REASON, reason.into())]);
 }
 
+// Validate proposal failure reasons
+pub const LABEL_VALIDATE_PROPOSAL_FAILURE_REASON: &str = "validate_proposal_failure_reason";
+
+#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum ValidateProposalFailureReason {
+    BatcherError,
+    StateSyncClientError,
+    StateSyncNotReady,
+    SendError,
+    EthToStrkOracleError,
+    L1GasPriceProviderError,
+    InvalidBlockInfo,
+    BlockInfoConversionError,
+    ValidationTimeout,
+    ProposalInterrupted,
+    InvalidSecondProposalPart,
+    InvalidProposal,
+    ProposalPartFailed,
+    ProposalFinMismatch,
+    CannotCalculateDeadline,
+}
+
+generate_permutation_labels! {
+    VALIDATE_PROPOSAL_FAILURE_REASON,
+    (LABEL_VALIDATE_PROPOSAL_FAILURE_REASON, ValidateProposalFailureReason),
+}
+
+use crate::validate_proposal::ValidateProposalError;
+
+impl From<&ValidateProposalError> for ValidateProposalFailureReason {
+    fn from(e: &ValidateProposalError) -> Self {
+        match e {
+            ValidateProposalError::Batcher(_, _) => Self::BatcherError,
+            ValidateProposalError::StateSyncClientError(_) => Self::StateSyncClientError,
+            ValidateProposalError::StateSyncNotReady(_) => Self::StateSyncNotReady,
+            ValidateProposalError::SendError(_) => Self::SendError,
+            ValidateProposalError::EthToStrkOracle(_) => Self::EthToStrkOracleError,
+            ValidateProposalError::L1GasPriceProvider(_) => Self::L1GasPriceProviderError,
+            ValidateProposalError::InvalidBlockInfo(_, _, _) => Self::InvalidBlockInfo,
+            ValidateProposalError::BlockInfoConversion(_) => Self::BlockInfoConversionError,
+            ValidateProposalError::ValidationTimeout(_) => Self::ValidationTimeout,
+            ValidateProposalError::ProposalInterrupted(_) => Self::ProposalInterrupted,
+            ValidateProposalError::InvalidSecondProposalPart(_) => Self::InvalidSecondProposalPart,
+            ValidateProposalError::InvalidProposal(_) => Self::InvalidProposal,
+            ValidateProposalError::ProposalPartFailed(_, _) => Self::ProposalPartFailed,
+            ValidateProposalError::ProposalFinMismatch => Self::ProposalFinMismatch,
+            ValidateProposalError::CannotCalculateDeadline { .. } => Self::CannotCalculateDeadline,
+        }
+    }
+}
+
+pub(crate) fn record_validate_proposal_failure<R>(reason: R)
+where
+    R: Into<ValidateProposalFailureReason>,
+{
+    let reason = reason.into();
+    CONSENSUS_VALIDATE_PROPOSAL_FAILURE
+        .increment(1, &[(LABEL_VALIDATE_PROPOSAL_FAILURE_REASON, reason.into())]);
+}
+
 pub(crate) fn register_metrics() {
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL.register();
     CONSENSUS_NUM_TXS_IN_PROPOSAL.register();
@@ -112,4 +175,5 @@ pub(crate) fn register_metrics() {
     CENDE_WRITE_BLOB_SUCCESS.register();
     CENDE_WRITE_BLOB_FAILURE.register();
     CONSENSUS_BUILD_PROPOSAL_FAILURE.register();
+    CONSENSUS_VALIDATE_PROPOSAL_FAILURE.register();
 }
