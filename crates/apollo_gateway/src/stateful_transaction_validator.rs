@@ -242,12 +242,7 @@ fn skip_stateful_validations(
             // validations.
             return runtime
                 .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
-<<<<<<< HEAD
-                .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err));
-||||||| 6051e5ea9
-                .map_err(mempool_client_err_to_deprecated_gw_err);
-=======
-                .map_err(mempool_client_err_to_deprecated_gw_err)
+                .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err))
                 .inspect(|exists| {
                     if *exists {
                         debug!("Found deploy_account transaction for account {account_address}.");
@@ -257,7 +252,6 @@ fn skip_stateful_validations(
                         );
                     }
                 });
->>>>>>> origin/main-v0.14.0
         }
     }
 

@@ -817,6 +817,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
