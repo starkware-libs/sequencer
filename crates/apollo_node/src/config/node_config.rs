@@ -3,8 +3,8 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
-use apollo_batcher::config::BatcherConfig;
 use apollo_batcher::VersionedConstantsOverrides;
+use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager::config::FsClassManagerConfig;
 use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{

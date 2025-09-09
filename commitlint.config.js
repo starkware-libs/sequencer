@@ -1,4 +1,5 @@
 const AllowedScopes = ['apollo_batcher',
+    'apollo_batcher_config',
     'apollo_batcher_types',
     'apollo_central_sync',
     'apollo_class_manager',
