@@ -47,14 +47,13 @@ use validator::Validate;
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
     AbortSignalSender,
-    BlockBuilderConfig,
     BlockBuilderError,
     BlockBuilderResult,
     BlockExecutionArtifacts,
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
-use crate::config::BatcherConfig;
+use crate::config::{BatcherConfig, BlockBuilderConfig};
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_SYNCED_BLOCK,

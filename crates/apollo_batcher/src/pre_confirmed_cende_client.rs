@@ -1,11 +1,8 @@
-use std::collections::BTreeMap;
-
+use apollo_batcher_config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
 use tracing::{debug, error, trace, warn};
@@ -65,33 +62,7 @@ impl PreconfirmedCendeClient {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PreconfirmedCendeConfig {
-    pub recorder_url: Url,
-}
-
-impl Default for PreconfirmedCendeConfig {
-    fn default() -> Self {
-        Self {
-            recorder_url: "https://recorder_url"
-                .parse()
-                .expect("recorder_url must be a valid Recorder URL"),
-        }
-    }
-}
-
-impl SerializeConfig for PreconfirmedCendeConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "The URL of the Pythonic cende_recorder",
-            ParamPrivacyInput::Private,
-        )])
-    }
-}
-
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct CendeWritePreconfirmedBlock {
     pub block_number: BlockNumber,
     pub round: Round,

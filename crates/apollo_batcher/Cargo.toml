@@ -13,6 +13,7 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_batcher_config.workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
