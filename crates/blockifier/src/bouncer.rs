@@ -125,6 +125,7 @@ pub struct BouncerWeights {
     pub message_segment_length: usize,
     pub n_events: usize,
     pub state_diff_size: usize,
+    // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
     pub sierra_gas: GasAmount,
     pub n_txs: usize,
     pub proving_gas: GasAmount,
@@ -179,6 +180,8 @@ impl Default for BouncerWeights {
             n_events: 5000,
             n_txs: 600,
             state_diff_size: 4000,
+            // NOTE: update `max_block_size` in `apollo_consensus_orchestrator` when `sierra_gas`
+            // changes.
             sierra_gas: GasAmount(5000000000),
             proving_gas: GasAmount(5000000000),
         }
