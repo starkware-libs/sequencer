@@ -11,7 +11,7 @@ use crate::alerts::{
     AlertSeverity,
     ObserverApplicability,
 };
-use crate::dashboard::{Panel, Unit};
+use crate::dashboard::{Panel, PanelType, Unit};
 
 #[test]
 fn serialize_alert() {
@@ -64,7 +64,6 @@ fn test_ratio_time_series() {
     let panel =
         Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration)
             .with_unit(Unit::Percent)
-            .show_percent_change()
             .with_log_query("Query");
 
     let expected = format!(
@@ -78,7 +77,6 @@ fn test_ratio_time_series() {
 
     assert_eq!(panel.exprs, vec![expected]);
     assert_eq!(panel.extra.unit, Some(Unit::Percent));
-    assert!(panel.extra.show_percent_change);
     assert_eq!(panel.extra.log_query, Some("Query".to_string()));
 
     let expected = format!(
@@ -91,4 +89,21 @@ fn test_ratio_time_series() {
     assert!(panel.extra.unit.is_none());
     assert!(!panel.extra.show_percent_change);
     assert!(panel.extra.log_query.is_none());
+}
+
+#[test]
+fn test_extra_params() {
+    let panel_with_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat)
+        .with_unit(Unit::Bytes)
+        .show_percent_change()
+        .with_log_query("Query");
+
+    assert_eq!(panel_with_extra_params.extra.unit, Some(Unit::Bytes));
+    assert!(panel_with_extra_params.extra.show_percent_change);
+    assert_eq!(panel_with_extra_params.extra.log_query, Some("Query".to_string()));
+
+    let panel_without_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat);
+    assert!(panel_without_extra_params.extra.unit.is_none());
+    assert!(!panel_without_extra_params.extra.show_percent_change);
+    assert!(panel_without_extra_params.extra.log_query.is_none());
 }
