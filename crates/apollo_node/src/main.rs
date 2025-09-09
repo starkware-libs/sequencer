@@ -23,11 +23,12 @@ async fn main() -> anyhow::Result<()> {
 
     set_exit_process_on_panic();
 
+    let node_args: Vec<String> = args().collect();
     let config =
-        load_and_validate_config(args().collect()).expect("Failed to load and validate config");
+        load_and_validate_config(node_args.clone()).expect("Failed to load and validate config");
 
     // Clients are currently unused, but should not be dropped.
-    let (_clients, servers) = create_node_modules(&config).await;
+    let (_clients, servers) = create_node_modules(&config, node_args).await;
 
     info!("START_UP: Starting components!");
     run_component_servers(servers).await;

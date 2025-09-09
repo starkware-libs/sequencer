@@ -10,12 +10,13 @@ use crate::servers::{create_node_servers, SequencerNodeServers};
 
 pub async fn create_node_modules(
     config: &SequencerNodeConfig,
+    node_args: Vec<String>,
 ) -> (SequencerNodeClients, SequencerNodeServers) {
     info!("Creating node modules.");
 
     let mut channels = create_node_channels(config);
     let clients = create_node_clients(config, &mut channels);
-    let components = create_node_components(config, &clients).await;
+    let components = create_node_components(config, &clients, node_args).await;
     let servers = create_node_servers(config, &mut channels, components, &clients);
 
     (clients, servers)
