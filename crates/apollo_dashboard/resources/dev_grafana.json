@@ -323,6 +323,17 @@
         }
       },
       {
+        "title": "Validate Proposal Failure by Reason",
+        "description": "The number of validate proposal failures",
+        "type": "bargauge",
+        "exprs": [
+          "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+        ],
+        "extra_params": {
+          "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\""
+        }
+      },
+      {
         "title": "consensus_l1_data_gas_mismatch",
         "description": "The number of times the L1 data gas in a proposal does not match the value expected by this validator",
         "type": "timeseries",
