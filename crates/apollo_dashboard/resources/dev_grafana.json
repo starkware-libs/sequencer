@@ -398,18 +398,54 @@
       {
         "title": "batcher_batched_transactions",
         "description": "Counter of batched transactions across all forks",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "batcher_last_batched_block",
-        "description": "The last block received by batching",
-        "type": "timeseries",
+        "title": "batcher_last_batched_block_height",
+        "description": "The height of the last block received by batching",
+        "type": "stat",
         "exprs": [
-          "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_last_batched_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_storage_height",
+        "description": "The height of the batcher's storage",
+        "type": "stat",
+        "exprs": [
+          "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_last_synced_block_height",
+        "description": "The height of the last block received by syncing",
+        "type": "stat",
+        "exprs": [
+          "batcher_last_synced_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_last_proposed_block_height",
+        "description": "The height of the last block proposed by this sequencer",
+        "type": "stat",
+        "exprs": [
+          "batcher_last_proposed_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_reverted_blocks",
+        "description": "Counter of reverted blocks",
+        "type": "stat",
+        "exprs": [
+          "batcher_reverted_blocks{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -440,7 +476,7 @@
       {
         "title": "apollo_state_sync_processed_transactions",
         "description": "The number of transactions processed by the state sync component since its last restart",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_state_sync_processed_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -449,7 +485,7 @@
       {
         "title": "apollo_state_sync_reverted_transactions",
         "description": "The number of transactions reverted by the state sync component",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_state_sync_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -458,7 +494,7 @@
       {
         "title": "apollo_central_sync_central_block_marker",
         "description": "The first block number that doesn't exist yet",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -467,7 +503,7 @@
       {
         "title": "apollo_state_sync_body_marker",
         "description": "The first block number for which the state sync component does not have a body",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -476,7 +512,7 @@
       {
         "title": "apollo_state_sync_class_manager_marker",
         "description": "The first block number for which the state sync component does not guarantee all of the corresponding classes are stored in the class manager component",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -485,7 +521,7 @@
       {
         "title": "apollo_state_sync_header_marker",
         "description": "The first block number for which the state sync component does not have a header",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_state_sync_header_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -494,7 +530,7 @@
       {
         "title": "apollo_state_sync_state_marker",
         "description": "The first block number for which the state sync component does not have a state body",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_state_sync_state_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -685,7 +721,7 @@
       {
         "title": "mempool_txs_committed",
         "description": "The number of transactions that were committed to block",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -799,7 +835,7 @@
       {
         "title": "eth_to_strk_error_count",
         "description": "Number of times the query to the Eth to Strk oracle failed due to an error or timeout",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -808,7 +844,7 @@
       {
         "title": "eth_to_strk_success_count",
         "description": "Number of times the query to the Eth to Strk oracle succeeded",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -816,17 +852,17 @@
       },
       {
         "title": "eth_to_strk_rate",
-        "description": "The current rate of ETH to STRK conversion",
+        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=a)",
         "type": "timeseries",
         "exprs": [
-          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 100"
         ],
         "extra_params": {}
       },
       {
         "title": "l1_gas_price_provider_insufficient_history",
         "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -835,7 +871,7 @@
       {
         "title": "l1_gas_price_scraper_success_count",
         "description": "Number of times the L1 gas price scraper successfully scraped and updated gas prices",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -844,7 +880,7 @@
       {
         "title": "l1_gas_price_scraper_baselayer_error_count",
         "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -853,7 +889,7 @@
       {
         "title": "l1_gas_price_scraper_reorg_detected",
         "description": "Number of times the L1 gas price scraper detected a reorganization in the base layer",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -870,10 +906,10 @@
       },
       {
         "title": "eth_to_strk_rate",
-        "description": "The current rate of ETH to STRK conversion",
+        "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=a)",
         "type": "timeseries",
         "exprs": [
-          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 100"
         ],
         "extra_params": {}
       },
@@ -922,7 +958,7 @@
       {
         "title": "native_compilation_error",
         "description": "Counter of Native compilation failures in the blockifier",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1039,7 +1075,7 @@
       {
         "title": "apollo_p2p_sync_num_connected_peers",
         "description": "The number of connected peers to the p2p sync component",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_p2p_sync_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1048,7 +1084,7 @@
       {
         "title": "apollo_p2p_sync_num_active_inbound_sessions",
         "description": "The number of inbound sessions to the p2p sync component",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_p2p_sync_num_active_inbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -1057,7 +1093,7 @@
       {
         "title": "apollo_p2p_sync_num_active_outbound_sessions",
         "description": "The number of outbound sessions to the p2p sync component",
-        "type": "timeseries",
+        "type": "stat",
         "exprs": [
           "apollo_p2p_sync_num_active_outbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
