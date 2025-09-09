@@ -55,94 +55,93 @@ class Job(Enum):
         self.pod_name = pod_name
 
 
-def build_args_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Update configuration for Apollo sequencer nodes and (optionally) restart them",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Update sequencer core configuration (default job)
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
-  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
-  
-  # Update gateway configuration
-  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerGateway --config-overrides gateway_config.port=8080
-  
-  # Update mempool configuration
-  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerMempool --config-overrides mempool_config.max_size=1000
-  
-  # Update L1 provider configuration
-  %(prog)s -n apollo-sepolia-integration -N 3 -j SequencerL1 --config-overrides l1_config.endpoint=https://eth-mainnet.alchemyapi.io/v2/your-key
-  
-  # Update without restart
-  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
-  
-  # Update with explicit restart
-  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
-  
-  # Update starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --config-overrides validator_id=0x42
-        """,
-    )
+class ArgsParserBuilder:
+    """Builder class for creating argument parsers with required flags and custom arguments."""
 
-    parser.add_argument(
-        "-n",
-        "--namespace",
-        required=True,
-        help="The Kubernetes namespace prefix (e.g., apollo-sepolia-integration)",
-    )
+    def __init__(self, usage_example: str):
+        """Initialize the builder with usage example for epilog.
 
-    parser.add_argument(
-        "-N",
-        "--num-nodes",
-        required=True,
-        type=int,
-        help="The number of nodes to restart (required)",
-    )
+        Args:
+            usage_example: String containing usage examples to be used as epilog
+        """
+        self.usage_example = usage_example
+        self.parser = argparse.ArgumentParser(
+            description="Update configuration for Apollo sequencer nodes and (optionally) restart them",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog=usage_example,
+        )
 
-    parser.add_argument(
-        "-i",
-        "--start-index",
-        type=int,
-        default=0,
-        help="The starting index for node IDs (default: 0)",
-    )
+        # Add all required flags immediately on creation
+        self._add_common_flags()
 
-    parser.add_argument(
-        "-c", "--cluster", help="Optional cluster prefix for kubectl context"
-    )
+    def _add_common_flags(self):
+        """Add all common flags."""
+        self.parser.add_argument(
+            "-n",
+            "--namespace",
+            required=True,
+            help="The Kubernetes namespace prefix (e.g., apollo-sepolia-integration)",
+        )
 
-    parser.add_argument(
-        "-j",
-        "--job",
-        type=lambda x: Job[x],  # Convert string to enum instance
-        choices=list(Job),
-        default=Job.SequencerCore,
-        help="Job type to operate on; determines configmap and pod names (default: sequencer-core)",
-    )
+        self.parser.add_argument(
+            "-N",
+            "--num-nodes",
+            required=True,
+            type=int,
+            help="The number of nodes to restart (required)",
+        )
 
-    parser.add_argument(
-        "-o",
-        "--config-overrides",
-        action="append",
-        help="Configuration overrides in key=value format. Can be specified multiple times. Example: --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42",
-    )
+        self.parser.add_argument(
+            "-i",
+            "--start-index",
+            type=int,
+            default=0,
+            help="The starting index for node IDs (default: 0)",
+        )
 
-    restart_group = parser.add_mutually_exclusive_group()
-    restart_group.add_argument(
-        "-r",
-        "--restart-nodes",
-        action="store_true",
-        default=None,
-        help="Restart the pods after updating configuration (default behavior)",
-    )
-    restart_group.add_argument(
-        "--no-restart",
-        action="store_true",
-        help="Do not restart the pods after updating configuration",
-    )
+        self.parser.add_argument(
+            "-c", "--cluster", help="Optional cluster prefix for kubectl context"
+        )
 
-    return parser
+        restart_group = self.parser.add_mutually_exclusive_group()
+        restart_group.add_argument(
+            "-r",
+            "--restart-nodes",
+            action="store_true",
+            default=None,
+            help="Restart the pods after updating configuration (default behavior)",
+        )
+        restart_group.add_argument(
+            "--no-restart",
+            action="store_true",
+            help="Do not restart the pods after updating configuration",
+        )
+
+    def add_argument(self, *args, **kwargs):
+        """Add a new argument to the parser.
+
+        Args:
+            *args: Positional arguments passed to parser.add_argument
+            **kwargs: Keyword arguments passed to parser.add_argument
+        """
+        self.parser.add_argument(*args, **kwargs)
+        return self
+
+    def build(self) -> argparse.Namespace:
+        """Build the argument parser, parse arguments, validate them, and return the result.
+
+        Returns:
+            argparse.Namespace: The parsed and validated arguments
+        """
+        args = self.parser.parse_args()
+        validate_arguments(args)
+        return args
+
+
+def build_args_parser(usage_example: str) -> argparse.ArgumentParser:
+    """Legacy function for backward compatibility. Use ArgsParserBuilder instead."""
+    builder = ArgsParserBuilder(usage_example)
+    return builder.parser
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
@@ -153,54 +152,6 @@ def validate_arguments(args: argparse.Namespace) -> None:
     if args.start_index < 0:
         print_error("Error: start-index must be a non-negative integer.")
         sys.exit(1)
-
-
-def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
-    """Parse config override strings in key=value format.
-
-    Args:
-        config_overrides: List of strings in "key=value" format
-
-    Returns:
-        dict: Dictionary mapping config keys to their values
-    """
-    if not config_overrides:
-        return {}
-
-    overrides = {}
-    for override in config_overrides:
-        if "=" not in override:
-            print_colored(
-                f"Error: Invalid config override format '{override}'. Expected 'key=value'",
-                Colors.RED,
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        # Split only on first '=' in case value contains '='
-        key, value = override.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-
-        if not key:
-            print_error(f"Error: Empty key in config override '{override}'")
-            sys.exit(1)
-
-        # Try to convert value to appropriate type
-        try:
-            overrides[key] = json.loads(value)
-        except (json.JSONDecodeError, TypeError) as e:
-            print_error(
-                f"Error: Invalid value '{value}' for key '{key}': {e}\n"
-                'Did you remember to wrap string values in \\" ?'
-            )
-            sys.exit(1)
-
-    if not overrides:
-        print_error("Error: No valid config overrides found")
-        sys.exit(1)
-
-    return overrides
 
 
 def run_kubectl_command(
