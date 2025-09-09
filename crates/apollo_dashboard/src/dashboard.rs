@@ -84,11 +84,33 @@ impl Unit {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThresholdMode {
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    Absolute,
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    Percentage,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ThresholdStep {
+    pub color: String,
+    pub value: Option<f64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Thresholds {
+    pub mode: ThresholdMode,
+    pub steps: Vec<ThresholdStep>,
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct ExtraParams {
     pub unit: Option<Unit>,
     pub show_percent_change: bool,
     pub log_query: Option<String>,
+    pub thresholds: Option<Thresholds>,
 }
 
 impl ExtraParams {
@@ -102,6 +124,10 @@ impl ExtraParams {
         }
         if let Some(lq) = &self.log_query {
             map.insert("log_query".to_string(), lq.clone());
+        }
+        if let Some(th) = &self.thresholds {
+            let json = serde_json::to_string(th).unwrap();
+            map.insert("thresholds".into(), json);
         }
         map
     }
@@ -155,6 +181,26 @@ impl Panel {
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
         self.extra.log_query = Some(log_query.into());
         self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_thresholds(mut self, mode: ThresholdMode, steps: Vec<(&str, Option<f64>)>) -> Self {
+        let steps = steps
+            .into_iter()
+            .map(|(color, value)| ThresholdStep { color: color.to_string(), value })
+            .collect();
+        self.extra.thresholds = Some(Thresholds { mode, steps });
+        self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_absolute_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+        self.with_thresholds(ThresholdMode::Absolute, steps)
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_percentage_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+        self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
