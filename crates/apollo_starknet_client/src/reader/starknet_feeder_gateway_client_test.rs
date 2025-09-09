@@ -50,20 +50,13 @@ use crate::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
 const NODE_VERSION: &str = "NODE VERSION";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
 
-// TODO(Ayelet): Remove old feeder gateway support once the version update to 0.14.0 is complete.
-fn get_block_url(
-    block_number_or_latest: Option<u64>,
-    use_deprecated_feeder_gateway: bool,
-) -> String {
-    let mut url = match block_number_or_latest {
-        Some(block_number) => format!("/feeder_gateway/get_block?blockNumber={block_number}"),
-        _ => "/feeder_gateway/get_block?blockNumber=latest".to_string(),
+fn get_block_url(block_number_or_latest: Option<u64>) -> String {
+    let url = match block_number_or_latest {
+        Some(block_number) => {
+            format!("/feeder_gateway/get_block?blockNumber={block_number}&withFeeMarketInfo=true")
+        }
+        _ => "/feeder_gateway/get_block?blockNumber=latest&withFeeMarketInfo=true".to_string(),
     };
-
-    if !use_deprecated_feeder_gateway {
-        url.push_str("&withFeeMarketInfo=true");
-    }
-
     url
 }
 
@@ -77,9 +70,8 @@ fn apollo_starknet_client() -> StarknetFeederGatewayClient {
 fn mock_successful_get_block_response(
     response_file: &str,
     request_param: Option<u64>,
-    use_deprecated_feeder_gateway: bool,
 ) -> mockito::Mock {
-    mock("GET", get_block_url(request_param, use_deprecated_feeder_gateway).as_str())
+    mock("GET", get_block_url(request_param).as_str())
         .with_status(200)
         .with_body(read_resource_file(response_file))
         .create()
@@ -89,30 +81,17 @@ fn mock_successful_get_block_response(
 fn mock_error_get_block_response(
     error_response_body: String,
     request_param: Option<u64>,
-    use_deprecated_feeder_gateway: bool,
 ) -> mockito::Mock {
-    mock("GET", get_block_url(request_param, use_deprecated_feeder_gateway).as_str())
+    mock("GET", get_block_url(request_param).as_str())
         .with_status(400)
         .with_body(error_response_body)
         .create()
-}
-
-fn mock_current_feeder_gateway_invalid_get_latest_block_response() -> mockito::Mock {
-    mock_error_get_block_response(malformed_error(), None, false)
 }
 
 fn block_not_found_error(block_number: i64) -> String {
     let error = StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
         message: format!("Block {block_number} was not found."),
-    };
-    serde_json::to_string(&error).unwrap()
-}
-
-fn malformed_error() -> String {
-    let error = StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        message: "Malformed request.".to_string(),
     };
     serde_json::to_string(&error).unwrap()
 }
@@ -136,41 +115,17 @@ fn new_urls() {
 #[tokio::test]
 async fn get_latest_block_when_blocks_exists() {
     let apollo_starknet_client = apollo_starknet_client();
-    let mock_block =
-        mock_successful_get_block_response("reader/block_post_0_14_0.json", None, false);
+    let mock_block = mock_successful_get_block_response("reader/block_post_0_14_0.json", None);
     let latest_block = apollo_starknet_client.latest_block().await.unwrap();
     mock_block.assert();
     assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329526));
 }
 
 #[tokio::test]
-async fn fallback_get_latest_block_when_blocks_exists() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_fallback_error = mock_current_feeder_gateway_invalid_get_latest_block_response();
-    let mock_block =
-        mock_successful_get_block_response("reader/block_post_0_13_1.json", None, true);
-    let latest_block = apollo_starknet_client.latest_block().await.unwrap();
-    mock_fallback_error.assert();
-    mock_block.assert();
-    assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329525));
-}
-
-#[tokio::test]
 async fn get_latest_block_when_no_blocks_exist() {
     let apollo_starknet_client = apollo_starknet_client();
-    let mock_no_block = mock_error_get_block_response(block_not_found_error(-1), None, false);
+    let mock_no_block = mock_error_get_block_response(block_not_found_error(-1), None);
     let latest_block = apollo_starknet_client.latest_block().await.unwrap();
-    mock_no_block.assert();
-    assert!(latest_block.is_none());
-}
-
-#[tokio::test]
-async fn fallback_get_latest_block_when_no_blocks_exist() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_fallback_error = mock_current_feeder_gateway_invalid_get_latest_block_response();
-    let mock_no_block = mock_error_get_block_response(block_not_found_error(-1), None, true);
-    let latest_block = apollo_starknet_client.latest_block().await.unwrap();
-    mock_fallback_error.assert();
     mock_no_block.assert();
     assert!(latest_block.is_none());
 }
@@ -415,23 +370,8 @@ async fn get_block() {
     let apollo_starknet_client = apollo_starknet_client();
     let json_filename = "reader/block_post_0_14_0.json";
 
-    let mock_block = mock_successful_get_block_response(json_filename, Some(20), false);
+    let mock_block = mock_successful_get_block_response(json_filename, Some(20));
     let block = apollo_starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
-    mock_block.assert();
-
-    let expected_block: Block = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
-    assert_eq!(block, expected_block);
-}
-
-#[tokio::test]
-async fn fallback_get_block() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let json_filename = "reader/block_post_0_13_1.json";
-
-    let mock_fallback_error = mock_error_get_block_response(malformed_error(), Some(20), false);
-    let mock_block = mock_successful_get_block_response(json_filename, Some(20), true);
-    let block = apollo_starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
-    mock_fallback_error.assert();
     mock_block.assert();
 
     let expected_block: Block = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
@@ -443,24 +383,9 @@ async fn fallback_get_block() {
 async fn get_block_not_found() {
     let apollo_starknet_client = apollo_starknet_client();
     let mock_no_block =
-        mock_error_get_block_response(block_not_found_error(9999999999), Some(9999999999), false);
+        mock_error_get_block_response(block_not_found_error(9999999999), Some(9999999999));
     let block = apollo_starknet_client.block(BlockNumber(9999999999)).await.unwrap();
     mock_no_block.assert();
-    assert!(block.is_none());
-}
-
-#[tokio::test]
-async fn fallback_get_block_not_found() {
-    let apollo_starknet_client = apollo_starknet_client();
-
-    let mock_fallback_error =
-        mock_error_get_block_response(malformed_error(), Some(9999999999), false);
-    let mock_no_block =
-        mock_error_get_block_response(block_not_found_error(9999999999), Some(9999999999), true);
-    let block = apollo_starknet_client.block(BlockNumber(9999999999)).await.unwrap();
-    mock_fallback_error.assert();
-    mock_no_block.assert();
-
     assert!(block.is_none());
 }
 
@@ -550,41 +475,9 @@ async fn test_unserializable<
     assert_matches!(error, ReaderClientError::SerdeError(_));
 }
 
-async fn fallback_test_unserializable<
-    Output: Send + Debug,
-    Fut: Future<Output = ReaderClientResult<Output>>,
-    F: FnOnce(StarknetFeederGatewayClient) -> Fut,
->(
-    block_number: Option<u64>,
-    call_method: F,
-) {
-    let apollo_starknet_client = apollo_starknet_client();
-
-    let mock_fallback_error = mock_error_get_block_response(malformed_error(), block_number, false);
-    let mock_success_response = mock("GET", get_block_url(block_number, true).as_str())
-        .with_status(200)
-        .with_body("body")
-        .create();
-
-    let error = call_method(apollo_starknet_client).await.unwrap_err();
-
-    mock_fallback_error.assert();
-    mock_success_response.assert();
-
-    assert_matches!(error, ReaderClientError::SerdeError(_));
-}
-
 #[tokio::test]
 async fn latest_block_unserializable() {
-    test_unserializable(&get_block_url(None, false), |apollo_starknet_client| async move {
-        apollo_starknet_client.latest_block().await
-    })
-    .await
-}
-
-#[tokio::test]
-async fn fallback_latest_block_unserializable() {
-    fallback_test_unserializable(None, |apollo_starknet_client| async move {
+    test_unserializable(&get_block_url(None), |apollo_starknet_client| async move {
         apollo_starknet_client.latest_block().await
     })
     .await
@@ -592,15 +485,7 @@ async fn fallback_latest_block_unserializable() {
 
 #[tokio::test]
 async fn block_unserializable() {
-    test_unserializable(&get_block_url(Some(20), false), |apollo_starknet_client| async move {
-        apollo_starknet_client.block(BlockNumber(20)).await
-    })
-    .await
-}
-
-#[tokio::test]
-async fn fallback_block_unserializable() {
-    fallback_test_unserializable(Some(20), |apollo_starknet_client| async move {
+    test_unserializable(&get_block_url(Some(20)), |apollo_starknet_client| async move {
         apollo_starknet_client.block(BlockNumber(20)).await
     })
     .await
