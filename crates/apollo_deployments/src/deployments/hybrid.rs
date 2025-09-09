@@ -9,6 +9,7 @@ use apollo_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use indexmap::IndexMap;
+use libp2p::{Multiaddr, PeerId};
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
@@ -28,6 +29,7 @@ use crate::deployment_definitions::{
     DeploymentInputs,
     Environment,
     InfraServicePort,
+    NodeAndValidatorId,
     ServicePort,
 };
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
@@ -45,15 +47,13 @@ use crate::k8s::{
 };
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
-use crate::utils::{determine_port_numbers, get_validator_id};
+use crate::utils::validate_ports;
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
 pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
-const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
 const TEST_CORE_STORAGE: usize = 1;
-const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -80,9 +80,10 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
-                let determined_ports =
-                    determine_port_numbers(Some(ports), HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
-                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                validate_ports(&ports, InfraServicePort::iter().count());
+                // TODO(Nadin): This should compare against HybridServicePort-specific infra ports,
+                // not all InfraServicePort variants.
+                for (service_port, port) in InfraServicePort::iter().zip(ports) {
                     service_ports.insert(service_port, port);
                 }
             }
@@ -521,6 +522,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::SignatureManager
@@ -544,7 +546,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::HttpServer => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -570,7 +573,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Gateway => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::Gateway
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::Gateway
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -603,6 +607,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
                         | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -625,6 +630,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::General
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -648,7 +654,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::SierraCompiler => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::SierraCompiler => {
                             components.insert(component_config_in_service);
@@ -849,9 +856,9 @@ pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deploy
 
 fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
     inputs
-        .node_ids
+        .node_and_validator_ids
         .iter()
-        .map(|&i| {
+        .map(|&(i, ref validator_id)| {
             let k8s_service_config_params = if inputs.requires_k8s_service_config_params {
                 Some(K8sServiceConfigParams::new(
                     inputs.node_namespace_format.format(&[&i]),
@@ -863,6 +870,8 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
             };
             hybrid_deployment(
                 i,
+                inputs.node_and_validator_ids.clone(),
+                validator_id.to_string(),
                 inputs.p2p_communication_type,
                 inputs.deployment_environment.clone(),
                 &Template::new(INSTANCE_NAME_FORMAT),
@@ -890,6 +899,8 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,
+    node_and_validator_ids: Vec<NodeAndValidatorId>,
+    validator_id: String,
     p2p_communication_type: P2PCommunicationType,
     environment: Environment,
     instance_name_format: &Template,
@@ -909,6 +920,8 @@ pub(crate) fn hybrid_deployment(
             deployment_config_override,
             create_hybrid_instance_config_override(
                 id,
+                node_and_validator_ids,
+                validator_id,
                 node_namespace_format,
                 p2p_communication_type,
                 ingress_domain,
@@ -922,62 +935,78 @@ pub(crate) fn hybrid_deployment(
     )
 }
 
-pub(crate) fn create_hybrid_instance_config_override(
+fn create_hybrid_instance_config_override(
     node_id: usize,
+    node_and_validator_ids: Vec<NodeAndValidatorId>,
+    validator_id: String,
     node_namespace_format: &Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
+<<<<<<< HEAD
     assert!(
         node_id < MAX_NODE_ID,
         "Node node_id {node_id} exceeds the number of nodes {MAX_NODE_ID}"
     );
 
+||||||| 6051e5ea9
+    assert!(
+        node_id < MAX_NODE_ID,
+        "Node node_id {} exceeds the number of nodes {}",
+        node_id,
+        MAX_NODE_ID
+    );
+
+=======
+>>>>>>> origin/main-v0.14.0
     // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
     // consistently throughout the code.
     const CORE_SERVICE_PORT: u16 = 53080;
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
-    let bootstrap_node_id = 0;
-    let bootstrap_peer_id = get_peer_id(bootstrap_node_id);
     let node_peer_id = get_peer_id(node_id);
 
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
 
     let build_peer_address =
-        |node_service: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &str| {
+        |node_service: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &PeerId| {
             let domain = build_service_namespace_domain_address(
                 &node_service.k8s_service_name(),
                 &node_namespace_format.format(&[&node_id]),
                 &sanitized_domain,
             );
-            Some(get_p2p_address(&domain, port, peer_id))
+            get_p2p_address(&domain, port, peer_id)
         };
 
-    let (consensus_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr) = match node_id {
-        0 => {
-            // First node does not have a bootstrap peer.
-            (None, None)
-        }
-        _ => {
-            // Other nodes have the first node as a bootstrap peer.
-            (
-                build_peer_address(
-                    HybridNodeServiceName::Core,
-                    CORE_SERVICE_PORT,
-                    bootstrap_node_id,
-                    &bootstrap_peer_id,
-                ),
-                build_peer_address(
-                    HybridNodeServiceName::Mempool,
-                    MEMPOOL_SERVICE_PORT,
-                    bootstrap_node_id,
-                    &bootstrap_peer_id,
-                ),
+    // TODO(Tsabary): both `consensus_bootstrap_peers_multiaddrs` and
+    // `mempool_bootstrap_peers_multiaddrs` can be moved to the deployment override module, which
+    // removed the need to re-compute this per node. Not urgent.
+    // List all nodes as respective bootstrap peers.
+    let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
+        .iter()
+        .map(|(node_id, _)| {
+            build_peer_address(
+                HybridNodeServiceName::Core,
+                CORE_SERVICE_PORT,
+                *node_id,
+                &get_peer_id(*node_id),
             )
-        }
-    };
+        })
+        .collect();
 
+    let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
+        .iter()
+        .map(|(node_id, _)| {
+            build_peer_address(
+                HybridNodeServiceName::Mempool,
+                MEMPOOL_SERVICE_PORT,
+                *node_id,
+                &get_peer_id(*node_id),
+            )
+        })
+        .collect();
+
+    // Set advertised addresses based on the P2P communication type.
     let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
         match p2p_communication_type {
             P2PCommunicationType::Internal =>
@@ -989,28 +1018,31 @@ pub(crate) fn create_hybrid_instance_config_override(
             // Advertised addresses for external communication.
             {
                 (
-                    build_peer_address(
+                    Some(build_peer_address(
                         HybridNodeServiceName::Core,
                         CORE_SERVICE_PORT,
                         node_id,
                         &node_peer_id,
-                    ),
-                    build_peer_address(
+                    )),
+                    Some(build_peer_address(
                         HybridNodeServiceName::Mempool,
                         MEMPOOL_SERVICE_PORT,
                         node_id,
                         &node_peer_id,
-                    ),
+                    )),
                 )
             }
         };
 
     InstanceConfigOverride::new(
         NetworkConfigOverride::new(
-            consensus_bootstrap_peer_multiaddr,
+            Some(consensus_bootstrap_peers_multiaddrs),
             consensus_advertised_multiaddr,
         ),
-        NetworkConfigOverride::new(mempool_bootstrap_peer_multiaddr, mempool_advertised_multiaddr),
-        get_validator_id(node_id),
+        NetworkConfigOverride::new(
+            Some(mempool_bootstrap_peers_multiaddrs),
+            mempool_advertised_multiaddr,
+        ),
+        validator_id,
     )
 }

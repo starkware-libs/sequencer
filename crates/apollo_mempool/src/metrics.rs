@@ -1,5 +1,12 @@
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+};
 use apollo_mempool_types::mempool_types::MEMPOOL_REQUEST_LABELS;
-use apollo_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,
@@ -7,10 +14,11 @@ use starknet_api::rpc_transaction::{
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
+define_infra_metrics!(mempool);
+
 define_metrics!(
     Mempool => {
         MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", init = 0 },
-        MetricCounter { MEMPOOL_EVICTIONS_COUNT, "mempool_evictions_count", "The number of transactions evicted due to capacity", init = 0 },
         LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0, labels = INTERNAL_RPC_TRANSACTION_LABELS },
         LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0, labels = DROP_REASON_LABELS },
         MetricGauge { MEMPOOL_POOL_SIZE, "mempool_pool_size", "The number of the transactions in the mempool's transaction pool" },
@@ -21,38 +29,6 @@ define_metrics!(
         MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
         MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)" },
         MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, "mempool_transaction_time_spent_until_committed", "The time (seconds) a transaction spent in the mempool until it was committed" },
-    },
-    Infra => {
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
-            "mempool_labeled_processing_times_secs",
-            "Request processing times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
-            "mempool_labeled_queueing_times_secs",
-            "Request queueing times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
-            "mempool_labeled_local_response_times_secs",
-            "Request local response times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
-            "mempool_labeled_remote_response_times_secs",
-            "Request remote response times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
-        LabeledMetricHistogram {
-            MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
-            "mempool_labeled_remote_client_communication_failure_times_secs",
-            "Request communication failure times of the mempool, per label (secs)",
-            labels = MEMPOOL_REQUEST_LABELS
-        },
     },
 );
 
@@ -76,10 +52,11 @@ enum TransactionStatus {
 
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum DropReason {
+pub enum DropReason {
     FailedAddTxChecks,
     Expired,
     Rejected,
+    Evicted,
 }
 
 pub(crate) struct MempoolMetricHandle {
@@ -130,6 +107,13 @@ pub(crate) fn metric_count_rejected_txs(n_txs: usize) {
     );
 }
 
+pub(crate) fn metric_count_evicted_txs(n_txs: usize) {
+    MEMPOOL_TRANSACTIONS_DROPPED.increment(
+        n_txs.try_into().expect("The number of evicted_txs should fit u64"),
+        &[(LABEL_NAME_DROP_REASON, DropReason::Evicted.into())],
+    );
+}
+
 pub(crate) fn metric_count_committed_txs(committed_txs: usize) {
     MEMPOOL_TRANSACTIONS_COMMITTED
         .increment(committed_txs.try_into().expect("The number of committed_txs should fit u64"));
@@ -144,7 +128,6 @@ pub(crate) fn register_metrics() {
     MEMPOOL_TRANSACTIONS_COMMITTED.register();
     MEMPOOL_TRANSACTIONS_RECEIVED.register();
     MEMPOOL_TRANSACTIONS_DROPPED.register();
-    MEMPOOL_EVICTIONS_COUNT.register();
     // Register Gauges.
     MEMPOOL_POOL_SIZE.register();
     MEMPOOL_PRIORITY_QUEUE_SIZE.register();

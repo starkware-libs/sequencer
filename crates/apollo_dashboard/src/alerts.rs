@@ -187,8 +187,28 @@ pub(crate) struct Alert {
     evaluation_interval_sec: u64,
     // The severity level of the alert.
     severity: AlertSeverity,
+    // Indicates if relevant for observer nodes.
+    observer_applicable: ObserverApplicability,
     #[serde(skip)]
     alert_env_filtering: AlertEnvFiltering,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ObserverApplicability {
+    Applicable,
+    NotApplicable,
+}
+
+impl Serialize for ObserverApplicability {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ObserverApplicability::Applicable => serializer.serialize_bool(true),
+            ObserverApplicability::NotApplicable => serializer.serialize_bool(false),
+        }
+    }
 }
 
 impl Alert {
@@ -202,6 +222,7 @@ impl Alert {
         pending_duration: impl ToString,
         evaluation_interval_sec: u64,
         severity: AlertSeverity,
+        observer_applicable: ObserverApplicability,
         alert_env_filtering: AlertEnvFiltering,
     ) -> Self {
         Self {
@@ -213,6 +234,7 @@ impl Alert {
             pending_duration: pending_duration.to_string(),
             evaluation_interval_sec,
             severity,
+            observer_applicable,
             alert_env_filtering,
         }
     }

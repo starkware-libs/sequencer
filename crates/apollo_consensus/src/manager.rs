@@ -12,6 +12,7 @@ mod manager_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
@@ -23,7 +24,6 @@ use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::config::TimeoutsConfig;
 use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,

@@ -14,6 +14,7 @@ use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumString};
 use url::Url;
 
+use crate::addresses::PEER_IDS;
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
@@ -66,9 +67,11 @@ const TESTNET_DEPLOYMENT_INPUTS_PATH: &str =
 const STRESS_TEST_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/stress_test.json";
 
+pub(crate) type NodeAndValidatorId = (usize, String);
+
 #[derive(Debug, Deserialize)]
 pub struct DeploymentInputs {
-    pub node_ids: Vec<usize>,
+    pub node_and_validator_ids: Vec<NodeAndValidatorId>,
     pub num_validators: usize,
     pub http_server_ingress_alternative_name: String,
     pub ingress_domain: String,
@@ -92,7 +95,18 @@ impl DeploymentInputs {
         let data = read_to_string(path).expect("Failed to read deployment input JSON file");
 
         // Parse JSON into the DeploymentInputs struct
-        from_str(&data).expect("Should be able to parse deployment input JSON")
+        let deployment_inputs: Self =
+            from_str(&data).expect("Should be able to parse deployment input JSON");
+
+        for (node_id, _) in &deployment_inputs.node_and_validator_ids {
+            assert!(
+                *node_id < PEER_IDS.len(),
+                "Node node_id {node_id} exceeds the number of nodes {}",
+                PEER_IDS.len()
+            );
+        }
+
+        deployment_inputs
     }
 }
 
@@ -259,6 +273,7 @@ pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
     ClassManager,
+    ConfigManager,
     Consensus,
     General, // General configs that are not specific to any service, e.g., pointer targets.
     Gateway,
@@ -282,6 +297,7 @@ impl ComponentConfigInService {
             ComponentConfigInService::BaseLayer => vec!["base_layer_config".to_string()],
             ComponentConfigInService::Batcher => vec!["batcher_config".to_string()],
             ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
+            ComponentConfigInService::ConfigManager => vec!["config_manager_config".to_string()],
             ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
             ComponentConfigInService::General => vec![
                 "revert_config".to_string(),

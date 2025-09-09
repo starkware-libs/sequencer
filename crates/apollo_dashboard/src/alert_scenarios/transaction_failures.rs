@@ -14,6 +14,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
@@ -38,6 +39,7 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -64,6 +66,7 @@ fn get_http_server_high_transaction_failure_ratio(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -102,6 +105,7 @@ fn get_http_server_internal_error_ratio(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -141,6 +145,7 @@ fn get_mempool_transaction_drop_ratio(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -175,6 +180,7 @@ pub(crate) fn get_http_server_internal_error_once() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }

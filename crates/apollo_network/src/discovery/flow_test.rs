@@ -27,13 +27,14 @@ struct DiscoveryMixedBehaviour {
 impl DiscoveryMixedBehaviour {
     pub fn new(key: Keypair, bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>) -> Self {
         let mixed_behaviour = MixedBehaviour::new(
-            key,
-            bootstrap_peer_multiaddr,
             Default::default(),
-            ChainId::Mainnet,
-            None,
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
+            None, // No event tracker for tests
+            key,
+            bootstrap_peer_multiaddr,
+            ChainId::Mainnet,
+            None,
         );
         Self {
             identify: mixed_behaviour.identify,

@@ -15,6 +15,7 @@ use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use tracing::{error, info, instrument};
 
 use crate::config::MonitoringEndpointConfig;
+use crate::tokio_metrics::setup_tokio_metrics;
 
 #[cfg(test)]
 #[path = "monitoring_endpoint_test.rs"]
@@ -124,13 +125,17 @@ impl MonitoringEndpoint {
     }
 }
 
+// TODO(tsabary): finalize the separation of the metrics recorder initialization and the monitoring
+// endpoint setup
 pub fn create_monitoring_endpoint(
     config: MonitoringEndpointConfig,
     version: &'static str,
     mempool_client: Option<SharedMempoolClient>,
     l1_provider_client: Option<SharedL1ProviderClient>,
 ) -> MonitoringEndpoint {
-    MonitoringEndpoint::new(config, version, mempool_client, l1_provider_client)
+    let result = MonitoringEndpoint::new(config, version, mempool_client, l1_provider_client);
+    setup_tokio_metrics();
+    result
 }
 
 #[async_trait]

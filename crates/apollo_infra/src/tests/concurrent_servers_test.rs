@@ -165,7 +165,7 @@ async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
         socket.ip(),
         socket.port(),
         max_concurrency,
-        TEST_REMOTE_SERVER_METRICS,
+        &TEST_REMOTE_SERVER_METRICS,
     );
     task::spawn(async move {
         let _ = concurrent_remote_server.start().await;

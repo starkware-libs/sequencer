@@ -17,6 +17,7 @@ required-features = ["clap", "statistical"]
 
 [dependencies]
 apollo_config.workspace = true
+apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 byteorder.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
