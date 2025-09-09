@@ -1222,7 +1222,10 @@ else:
     (
         SetSha256SegmentInSyscallHandler,
         set_sha256_segment_in_syscall_handler,
-        indoc! {r#"syscall_handler.sha256_segment = ids.sha256_ptr"#}
+        indoc! {r#"
+        syscall_handler.sha256_segment = ids.sha256_ptr
+        syscall_handler.sha256_block_count = 0
+        "#}
     ),
     (
         SetComponentHashes,

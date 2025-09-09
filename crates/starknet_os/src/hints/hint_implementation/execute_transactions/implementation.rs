@@ -28,8 +28,10 @@ pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let sha256_ptr = get_ptr_from_var_name(Ids::Sha256Ptr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor.get_mut_current_execution_helper()?.syscall_hint_processor.sha256_segment =
-        Some(sha256_ptr);
+    let syscall_hint_processor =
+        &mut hint_processor.get_mut_current_execution_helper()?.syscall_hint_processor;
+    syscall_hint_processor.sha256_segment = Some(sha256_ptr);
+    syscall_hint_processor.sha256_block_count = 0;
     Ok(())
 }
 
