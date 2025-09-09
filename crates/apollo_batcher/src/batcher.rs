@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherConfig;
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -57,7 +58,6 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
-use crate::config::BatcherConfig;
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -919,7 +919,7 @@ pub fn create_batcher(
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
     let pre_confirmed_block_writer_factory = Box::new(PreconfirmedBlockWriterFactory {
-        config: config.pre_confirmed_block_writer_config,
+        config: config.pre_confirmed_block_writer_config.clone(),
         cende_client: pre_confirmed_cende_client,
     });
     let block_builder_factory = Box::new(BlockBuilderFactory {

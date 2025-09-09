@@ -1,7 +1,8 @@
 use std::cmp::min;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
@@ -10,24 +11,21 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
-use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutionOutput,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
-use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
-use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -37,7 +35,6 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -608,56 +605,6 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct BlockBuilderConfig {
-    pub chain_info: ChainInfo,
-    pub execute_config: WorkerPoolConfig,
-    pub bouncer_config: BouncerConfig,
-    pub n_concurrent_txs: usize,
-    pub tx_polling_interval_millis: u64,
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
-}
-
-impl Default for BlockBuilderConfig {
-    fn default() -> Self {
-        Self {
-            // TODO(AlonH): update the default values once the actual values are known.
-            chain_info: ChainInfo::default(),
-            execute_config: WorkerPoolConfig::default(),
-            bouncer_config: BouncerConfig::default(),
-            n_concurrent_txs: 100,
-            tx_polling_interval_millis: 10,
-            versioned_constants_overrides: VersionedConstantsOverrides::default(),
-        }
-    }
-}
-
-impl SerializeConfig for BlockBuilderConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = prepend_sub_config_name(self.chain_info.dump(), "chain_info");
-        dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
-        dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_concurrent_txs",
-            &self.n_concurrent_txs,
-            "Number of transactions in each request from the tx_provider.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "tx_polling_interval_millis",
-            &self.tx_polling_interval_millis,
-            "Time to wait (in milliseconds) between transaction requests when the previous \
-             request returned no transactions.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.dump(),
-            "versioned_constants_overrides",
-        ));
-        dump
-    }
 }
 
 pub struct BlockBuilderFactory {
