@@ -33,7 +33,7 @@ use starknet_api::{declare_tx_args, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
-use crate::test_manager::{TestManager, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
 use crate::utils::{divide_vec_into_n_parts, get_class_info_of_cairo_1_feature_contract};
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
@@ -142,7 +142,10 @@ async fn declare_deploy_scenario(
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(initial_block_number, use_kzg_da, full_output)
+        .execute_test_with_default_block_contexts(
+            initial_block_number,
+            &TestParameters { use_kzg_da, full_output },
+        )
         .await;
 
     let partial_state_diff = StateMaps {
