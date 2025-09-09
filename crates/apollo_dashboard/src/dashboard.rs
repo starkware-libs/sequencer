@@ -65,13 +65,14 @@ pub(crate) enum PanelType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum Unit {
     #[allow(dead_code)] // TODO(Ron): use Bytes in panels
     Bytes,
     #[allow(dead_code)] // TODO(Ron): use Seconds in panels
     Seconds,
     #[allow(dead_code)] // TODO(Ron): use Percent in panels
-    Percent,
+    PercentUnit,
 }
 
 impl Unit {
@@ -79,7 +80,7 @@ impl Unit {
         match self {
             Unit::Bytes => "bytes",
             Unit::Seconds => "s",
-            Unit::Percent => "percent",
+            Unit::PercentUnit => "percentunit",
         }
     }
 }
@@ -233,9 +234,9 @@ impl Panel {
             .collect::<Vec<_>>()
             .join(" + ");
 
-        let expr = format!("100 * ({} / ({}))", numerator_expr, denominator_expr);
+        let expr = format!("({} / ({}))", numerator_expr, denominator_expr);
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries)
+        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
 }
 
