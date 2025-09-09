@@ -377,6 +377,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
         }
         return Ok(Some(ApiContractClass::DeprecatedContractClass(class)));
     }
+    drop(txn); // Drop txn so we don't unnecessarily hold it open while awaiting below.
 
     // Class not found in storage - download.
     trace!("Downloading class {:?}.", class_hash);
