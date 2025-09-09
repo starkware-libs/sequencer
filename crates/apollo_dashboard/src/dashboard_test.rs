@@ -11,7 +11,7 @@ use crate::alerts::{
     AlertSeverity,
     ObserverApplicability,
 };
-use crate::dashboard::{Panel, PanelType, Unit};
+use crate::dashboard::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
 
 #[test]
 fn serialize_alert() {
@@ -94,14 +94,31 @@ fn test_extra_params() {
     let panel_with_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat)
         .with_unit(Unit::Bytes)
         .show_percent_change()
-        .with_log_query("Query");
+        .with_log_query("Query")
+        .with_absolute_thresholds(vec![
+            ("green", None),
+            ("red", Some(80.0)),
+            ("yellow", Some(90.0)),
+        ]);
 
     assert_eq!(panel_with_extra_params.extra.unit, Some(Unit::Bytes));
     assert!(panel_with_extra_params.extra.show_percent_change);
     assert_eq!(panel_with_extra_params.extra.log_query, Some("Query".to_string()));
+    assert_eq!(
+        panel_with_extra_params.extra.thresholds,
+        Some(Thresholds {
+            mode: ThresholdMode::Absolute,
+            steps: vec![
+                ThresholdStep { color: "green".to_string(), value: None },
+                ThresholdStep { color: "red".to_string(), value: Some(80.0) },
+                ThresholdStep { color: "yellow".to_string(), value: Some(90.0) },
+            ],
+        })
+    );
 
     let panel_without_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat);
     assert!(panel_without_extra_params.extra.unit.is_none());
     assert!(!panel_without_extra_params.extra.show_percent_change);
     assert!(panel_without_extra_params.extra.log_query.is_none());
+    assert!(panel_without_extra_params.extra.thresholds.is_none());
 }
