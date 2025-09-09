@@ -722,55 +722,12 @@ impl NetworkManager {
             None => Keypair::generate_ed25519(),
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
-<<<<<<< HEAD
-            .with_tokio()
-            // TODO(AndrewL): .with_quic()
-            .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-            .expect("Error building TCP transport")
-            .with_dns()
-            .expect("Error building DNS transport")
-            .with_behaviour(|key| {
-                mixed_behaviour::MixedBehaviour::new(
-                    key.clone(),
-                    bootstrap_peer_multiaddr,
-                    sqmr::Config { session_timeout },
-                    chain_id,
-                    node_version,
-                    discovery_config,
-                    peer_manager_config,
-                )
-            })
-            .expect("Error while building the swarm")
-            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
-            .build();
-||||||| 6051e5ea9
         .with_tokio()
+        // TODO(AndrewL): .with_quic()
         .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
         .expect("Error building TCP transport")
         .with_dns()
         .expect("Error building DNS transport")
-        // TODO(Shahak): quic transpot does not work (failure appears in the command line when running in debug mode)
-        // .with_quic()
-        .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
-                key.clone(),
-                bootstrap_peer_multiaddr,
-                sqmr::Config { session_timeout },
-                chain_id,
-                node_version,
-                discovery_config,
-                peer_manager_config,
-            ))
-        .expect("Error while building the swarm")
-        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
-        .build();
-=======
-        .with_tokio()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-        .expect("Error building TCP transport")
-        .with_dns()
-        .expect("Error building DNS transport")
-        // TODO(Shahak): quic transpot does not work (failure appears in the command line when running in debug mode)
-        // .with_quic()
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
                 sqmr::Config { session_timeout },
                 discovery_config,
@@ -785,7 +742,6 @@ impl NetworkManager {
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
         .build();
->>>>>>> origin/main-v0.14.0
 
         swarm
             .listen_on(listen_address.clone())
