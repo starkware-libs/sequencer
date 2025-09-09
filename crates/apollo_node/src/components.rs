@@ -4,6 +4,7 @@ use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
+use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::ConsensusManager;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
@@ -41,6 +42,7 @@ pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
     pub config_manager: Option<ConfigManager>,
+    pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
@@ -62,6 +64,7 @@ pub struct SequencerNodeComponents {
 pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
+    cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
     // TODO(tsabary): consider moving ownership of component configs to the components themselves
     // instead of cloning them and retaining ownership. Alternatively, consider passing references
@@ -122,12 +125,22 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let config_manager = match config.components.config_manager.execution_mode {
+    let (config_manager, config_manager_runner) = match config
+        .components
+        .config_manager
+        .execution_mode
+    {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
             let config_manager_config =
                 config.config_manager_config.as_ref().expect("Config Manager config should be set");
-            Some(ConfigManager::new(config_manager_config.clone()))
+            let config_manger = ConfigManager::new(config_manager_config.clone());
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager shared client should be available");
+            let config_manager_runner = ConfigManagerRunner::new(config_manager_client, cli_args);
+            (Some(config_manger), Some(config_manager_runner))
         }
+
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
         | ReactiveComponentExecutionMode::Remote => {
             panic!(
@@ -137,7 +150,7 @@ pub async fn create_node_components(
         }
         ReactiveComponentExecutionMode::Disabled => {
             // TODO(tsabary): assert config is not set.
-            None
+            (None, None)
         }
     };
 
@@ -537,6 +550,7 @@ pub async fn create_node_components(
         batcher,
         class_manager,
         config_manager,
+        config_manager_runner,
         consensus_manager,
         gateway,
         http_server,

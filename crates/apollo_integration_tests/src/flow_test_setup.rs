@@ -287,7 +287,7 @@ impl FlowSequencerSetup {
             num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
-        let (clients, servers) = create_node_modules(&node_config).await;
+        let (clients, servers) = create_node_modules(&node_config, vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
