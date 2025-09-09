@@ -180,7 +180,7 @@ impl Default for BouncerWeights {
             n_txs: 600,
             state_diff_size: 4000,
             sierra_gas: GasAmount(5000000000),
-            proving_gas: GasAmount(5000000000),
+            proving_gas: GasAmount(5500000000),
         }
     }
 }
