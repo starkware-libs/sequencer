@@ -14,6 +14,9 @@ pub struct VersionedConstants {
     /// The minimum gas price in fri.
     pub min_gas_price: GasPrice,
     /// The maximum block size in gas units.
+    // Currently equal to `block_max_capacity.sierra_gas` in the blockifier. In the future, this
+    // value should also account for L2 gas.
+    // Note: When max_block_size is changed, update `gas_target` accordingly to maintain the ratio.
     pub max_block_size: GasAmount,
     /// The target gas usage per block (usually half of a block's gas limit).
     pub gas_target: GasAmount,
