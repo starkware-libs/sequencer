@@ -14,24 +14,6 @@ pub(crate) fn validate_ports(ports: &[u16], required_ports_num: usize) {
         "Expected vector of length {required_ports_num}, got {ports_len}",
     );
 
-<<<<<<< HEAD
-            let unique: HashSet<_> = v.iter().cloned().collect();
-            assert!(unique.len() == v.len(), "Vector contains duplicate values: {v:?}");
-
-            v
-        }
-        None => (base_port_for_generation..).take(required_ports_num).collect(),
-    }
-||||||| 6051e5ea9
-            let unique: HashSet<_> = v.iter().cloned().collect();
-            assert!(unique.len() == v.len(), "Vector contains duplicate values: {:?}", v);
-
-            v
-        }
-        None => (base_port_for_generation..).take(required_ports_num).collect(),
-    }
-=======
     let unique: HashSet<_> = ports.iter().cloned().collect();
     assert_eq!(unique.len(), ports_len, "Vector contains duplicate values: {ports:?}");
->>>>>>> origin/main-v0.14.0
 }

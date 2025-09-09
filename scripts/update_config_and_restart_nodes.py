@@ -3,16 +3,10 @@
 import argparse
 from enum import Enum
 import json
-import os
-import re
 import subprocess
 import sys
-import tempfile
-from difflib import unified_diff
-from pathlib import Path
 from typing import Optional
 
-from urllib import request, error
 import yaml
 
 
@@ -55,9 +49,7 @@ def parse_arguments() -> argparse.Namespace:
         help="The number of nodes to restart (required)",
     )
 
-    parser.add_argument(
-        "-c", "--cluster", help="Optional cluster prefix for kubectl context"
-    )
+    parser.add_argument("-c", "--cluster", help="Optional cluster prefix for kubectl context")
 
     parser.add_argument(
         "-o",
@@ -125,14 +117,10 @@ def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
     return overrides
 
 
-def run_kubectl_command(
-    args: list, capture_output: bool = True
-) -> subprocess.CompletedProcess:
+def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.CompletedProcess:
     full_command = ["kubectl"] + args
     try:
-        result = subprocess.run(
-            full_command, capture_output=capture_output, text=True, check=True
-        )
+        result = subprocess.run(full_command, capture_output=capture_output, text=True, check=True)
         return result
     except subprocess.CalledProcessError as e:
         print_error(f"kubectl command failed: {' '.join(full_command)}")
@@ -140,9 +128,7 @@ def run_kubectl_command(
         sys.exit(1)
 
 
-def get_configmap(
-    namespace: str, node_id: int, cluster_prefix: Optional[str] = None
-) -> str:
+def get_configmap(namespace: str, node_id: int, cluster_prefix: Optional[str] = None) -> str:
     """Get configmap YAML for a specific node"""
     kubectl_args = [
         "get",
@@ -216,7 +202,7 @@ def main():
         print_colored(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = get_configmap(args.namespace, node_id, args.cluster)
+        get_configmap(args.namespace, node_id, args.cluster)
 
 
 if __name__ == "__main__":
