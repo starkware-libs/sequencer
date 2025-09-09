@@ -77,8 +77,11 @@ pub enum OsHintError {
          is probably out of sync."
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
-    #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
-    InconsistentValue { actual: Felt, expected: Felt },
+    #[error(
+        "Inconsistent storage value. Contract address: {contract_address}, key: {key}, Actual: \
+         {actual}, expected: {expected}."
+    )]
+    InconsistentStorageValue { contract_address: Felt, key: Felt, actual: Felt, expected: Felt },
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]

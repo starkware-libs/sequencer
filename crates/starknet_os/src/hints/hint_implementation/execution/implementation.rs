@@ -936,7 +936,12 @@ fn assert_value_cached_by_reading<S: StateReader>(
     let ids_value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
 
     if value != ids_value {
-        return Err(OsHintError::InconsistentValue { expected: value, actual: ids_value });
+        return Err(OsHintError::InconsistentStorageValue {
+            contract_address,
+            key,
+            expected: value,
+            actual: ids_value,
+        });
     }
     Ok(())
 }
