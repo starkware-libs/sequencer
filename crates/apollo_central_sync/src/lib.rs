@@ -1005,6 +1005,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                     break;
                 }
             }
+            drop(txn); // Drop txn so we don't unnecessarily hold it open while sleeping.
 
             if from == state_marker {
                 debug!(
@@ -1059,8 +1060,8 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
     try_stream! {
         loop {
             tokio::time::sleep(base_layer_propagation_sleep_duration).await;
-            let txn = reader.begin_ro_txn()?;
-            let header_marker = txn.get_header_marker()?;
+            let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+
             match base_layer_source.latest_proved_block().await? {
                 Some((block_number, _block_hash)) if header_marker <= block_number => {
                     debug!(
@@ -1091,14 +1092,16 @@ fn check_sync_progress(
     store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
-        let mut txn=reader.begin_ro_txn()?;
+        let txn=reader.begin_ro_txn()?;
         let mut header_marker=txn.get_header_marker()?;
         let mut state_marker=txn.get_state_marker()?;
         let mut casm_marker=txn.get_compiled_class_marker()?;
+        drop(txn); // Drop txn so we don't unnecessarily hold it open while sleeping.
+
         loop{
             tokio::time::sleep(SLEEP_TIME_SYNC_PROGRESS).await;
             debug!("Checking if sync stopped progress.");
-            txn=reader.begin_ro_txn()?;
+            let txn=reader.begin_ro_txn()?;
             let new_header_marker=txn.get_header_marker()?;
             let new_state_marker=txn.get_state_marker()?;
             let new_casm_marker=txn.get_compiled_class_marker()?;
