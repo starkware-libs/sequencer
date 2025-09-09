@@ -120,7 +120,7 @@ impl StateReader for DictStateReader {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        compiled_class: RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
         let compiled_class_hash_opt =
             self.class_hash_to_compiled_class_hash_v2.lock().unwrap().get(&class_hash).copied();

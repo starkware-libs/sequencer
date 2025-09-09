@@ -124,7 +124,7 @@ pub fn should_migrate(
         state_compiled_class_hash => {
             let compiled_class_hash_v2 = state_reader.get_compiled_class_hash_v2(
                 class_hash,
-                state_reader.get_compiled_class(class_hash)?,
+                &state_reader.get_compiled_class(class_hash)?,
             )?;
             // If the state compiled class hash is compiled class hash v2, the class should not
             // migrate.
