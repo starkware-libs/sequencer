@@ -26,7 +26,7 @@ use apollo_gateway::config::{
 };
 use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
+use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
