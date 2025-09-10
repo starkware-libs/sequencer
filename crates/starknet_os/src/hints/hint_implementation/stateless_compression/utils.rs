@@ -441,13 +441,14 @@ pub(crate) fn compress(data: &[Felt]) -> Vec<Felt> {
         .collect()
 }
 
-/// Calculates the number of elements with the same bit length as the element bound, that can fit
-/// into a single felt value.
+/// Calculates how many instances of the largest element below the (non-inclusive) element bound can
+/// fit into the bit length of a single felt.
 pub fn get_n_elms_per_felt(elm_bound: u32) -> usize {
     if elm_bound <= 1 {
         return MAX_N_BITS;
     }
-    let n_bits_required = elm_bound.ilog2() + 1;
+    // Calculate: ceil(log2(elm_bound)).
+    let n_bits_required = u32::BITS - (elm_bound - 1).leading_zeros();
     MAX_N_BITS / usize::try_from(n_bits_required).expect("usize overflow")
 }
 
