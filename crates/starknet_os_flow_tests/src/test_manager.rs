@@ -6,7 +6,7 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -24,6 +24,7 @@ use starknet_api::executable_transaction::{
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::MessageToL1;
+use starknet_committer::block_committer::input::StateDiff;
 use starknet_os::io::os_input::{
     OsBlockInput,
     OsChainInfo,
@@ -99,6 +100,7 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) full_output: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
+    pub(crate) committed_state_diff: StateDiff,
 }
 
 pub(crate) struct OsTestOutput {
@@ -183,6 +185,17 @@ impl OsTestOutput {
         assert_eq!(
             self.runner_output.os_output.common_os_output.messages_to_l2,
             self.expected_values.messages_to_l2
+        );
+
+        // State diff.
+        let actual_diff = create_committer_state_diff(CommitmentStateDiff::from(
+            self.decompressed_state_diff.clone(),
+        ));
+        assert_eq!(
+            actual_diff, self.expected_values.committed_state_diff,
+            "Actual state diff does not match the expected one. \
+             Actual:\n{actual_diff:#?}\nExpected:\n{:#?}",
+            self.expected_values.committed_state_diff
         );
     }
 
@@ -403,6 +416,7 @@ impl<S: FlowTestState> TestManager<S> {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let mut cached_state_inputs = vec![];
+        let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
         let mut map_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
@@ -411,6 +425,7 @@ impl<S: FlowTestState> TestManager<S> {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let mut entire_state_diff = StateDiff::default();
         let expected_previous_global_root = previous_commitment.global_root();
         let previous_block_number =
             PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
@@ -437,6 +452,7 @@ impl<S: FlowTestState> TestManager<S> {
             state.apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
+            entire_state_diff.extend(committer_state_diff.clone());
             let new_commitment = commit_state_diff(
                 &mut map_storage,
                 previous_commitment.contracts_trie_root_hash,
@@ -516,7 +532,7 @@ impl<S: FlowTestState> TestManager<S> {
 
         OsTestOutput {
             runner_output: os_output,
-            decompressed_state_diff,
+            decompressed_state_diff: initial_state.nontrivial_diff_maps(decompressed_state_diff),
             expected_values: OsTestExpectedValues {
                 previous_global_root: expected_previous_global_root,
                 new_global_root: expected_new_global_root,
@@ -528,6 +544,7 @@ impl<S: FlowTestState> TestManager<S> {
                 use_kzg_da: use_kzg_da && !test_params.full_output,
                 messages_to_l1: test_params.messages_to_l1.clone(),
                 messages_to_l2: test_params.messages_to_l2.clone(),
+                committed_state_diff: initial_state.nontrivial_diff(entire_state_diff),
             },
         }
     }
