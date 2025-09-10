@@ -99,7 +99,8 @@ fn test_extra_params() {
             ("green", None),
             ("red", Some(80.0)),
             ("yellow", Some(90.0)),
-        ]);
+        ])
+        .with_legends(vec!["a"]);
 
     assert_eq!(panel_with_extra_params.extra.unit, Some(Unit::Bytes));
     assert!(panel_with_extra_params.extra.show_percent_change);
@@ -115,12 +116,14 @@ fn test_extra_params() {
             ],
         })
     );
+    assert_eq!(panel_with_extra_params.extra.legends, Some(vec!["a".to_string()]));
 
     let panel_without_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat);
     assert!(panel_without_extra_params.extra.unit.is_none());
     assert!(!panel_without_extra_params.extra.show_percent_change);
     assert!(panel_without_extra_params.extra.log_query.is_none());
     assert!(panel_without_extra_params.extra.thresholds.is_none());
+    assert!(panel_without_extra_params.extra.legends.is_none());
 }
 
 #[test]
@@ -140,4 +143,10 @@ fn thresholds_must_be_strictly_increasing() {
         ("red", Some(90.0)),
         ("yellow", Some(80.0)), // illegal: not increasing
     ]);
+}
+
+#[test]
+#[should_panic]
+fn amount_of_legends_must_match_amount_of_exprs() {
+    let _ = Panel::new("x", "x", vec!["y".into()], PanelType::Stat).with_legends(vec!["a", "b"]);
 }

@@ -21,15 +21,6 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         + "\n".join(f"{i + 1}. {expr}" for i, expr in enumerate(exprs))
     )
 
-    # Generate targets with unique refIds A–Z
-    targets = [
-        {
-            "expr": expr,
-            "refId": chr(ASCII_A + i),  # 'A' to 'Z'
-        }
-        for i, expr in enumerate(exprs)
-    ]
-
     extra = panel.get("extra_params", {})
     unit = extra.get("unit", "none")
     show_percent_change = extra.get("showPercentChange", False)
@@ -41,7 +32,17 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         "timeRange=${__from:date:iso}%2F${__to:date:iso}",
         "?project=${gcp_project}",
     ])
+    legends = json.loads(extra.get("legends", '[]'))
 
+    # Generate targets with unique refIds A–Z
+    targets = [
+        {
+            "expr": expr,
+            "refId": chr(ASCII_A + i),  # 'A' to 'Z'
+            **({"legendFormat": f"{legends[i]} " + "{{namespace}}"} if legends else {}),
+        }
+        for i, expr in enumerate(exprs)
+    ]
 
     grafana_panel = {
         "id": panel_id,
