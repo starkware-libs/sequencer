@@ -337,6 +337,8 @@ pub async fn create_node_components(
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+            // TODO(guyn): figure out how to start in case we can't reach L1 to get the start block.
+            // TODO(guyn): maybe put the fetch_start_block logic inside the scraper loop?
             let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
@@ -424,6 +426,8 @@ pub async fn create_node_components(
                 );
                 let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
                 let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+                // Which L2 block is already proved at the L1 height the scraper was initialized on.
+                // It is safe to start syncing the provider from this height.
                 let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
