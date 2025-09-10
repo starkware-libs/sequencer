@@ -42,6 +42,7 @@
   "batcher_config.pre_confirmed_block_writer_config.write_block_interval_millis": 50,
   "batcher_config.storage.db_config.enforce_file_exists": false,
   "batcher_config.storage.db_config.growth_step": 67108864,
+  "batcher_config.storage.db_config.max_readers": 8192,
   "batcher_config.storage.db_config.max_size": 1099511627776,
   "batcher_config.storage.db_config.min_size": 1048576,
   "batcher_config.storage.db_config.path_prefix": "/data/batcher",
