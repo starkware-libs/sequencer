@@ -267,3 +267,10 @@ fn test_compression_length(
     }
     assert_eq!(data, decompress(&mut compressed.into_iter()));
 }
+
+#[rstest]
+#[case(128, 35)]
+#[case(7, 83)]
+fn test_get_n_elms_per_felt(#[case] elm_bound: u32, #[case] expected_n_elems: usize) {
+    assert_eq!(get_n_elms_per_felt(elm_bound), expected_n_elems);
+}
