@@ -41,6 +41,7 @@ impl L1EndpointMonitor {
         for offset in 1..n_urls {
             let idx = (current_l1_endpoint_index + offset) % n_urls;
             if self.is_operational(idx).await {
+                // TODO(guyn): print the end point without the API key (use to_safe_string)
                 warn!(
                     "L1 endpoint {} down; switched to {}",
                     to_safe_string(self.get_node_url(current_l1_endpoint_index)),
