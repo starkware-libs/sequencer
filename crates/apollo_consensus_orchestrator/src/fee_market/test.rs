@@ -29,6 +29,21 @@ const INIT_PRICE: GasPrice = GasPrice(30_000_000_000);
     VERSIONED_CONSTANTS.max_block_size / 2,
     INIT_PRICE
 )]
+#[case::high_congestion_80(
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 9 / 10),
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4 / 5), // Gas target 80%
+    GasPrice(30078125000)
+)]
+#[case::low_congestion_80(
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 / 4),
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4 / 5), // Gas target 80%
+    GasPrice(29570312500)
+)]
+#[case::stable_80(
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4/5),
+    GasAmount(VERSIONED_CONSTANTS.max_block_size.0 * 4/5), // Gas target 80%
+    INIT_PRICE
+)]
 fn price_calculation_snapshot(
     #[case] gas_used: GasAmount,
     #[case] gas_target: GasAmount,
