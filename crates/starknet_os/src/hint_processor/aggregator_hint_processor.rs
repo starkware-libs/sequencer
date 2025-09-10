@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use cairo_lang_casm::hints::{Hint as Cairo1Hint, StarknetHint};
-use cairo_lang_runner::casm_run::execute_core_hint_base;
+use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
+use cairo_lang_runner::casm_run::{cell_ref_to_relocatable, execute_core_hint_base};
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData as Cairo0Hint,
@@ -15,8 +15,10 @@ use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use rand::{Rng, SeedableRng};
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 use tracing::level_filters::LevelFilter;
 
 use crate::hint_processor::common_hint_processor::{
@@ -67,6 +69,8 @@ pub struct AggregatorHintProcessor<'a> {
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
     builtin_hint_processor: BuiltinHintProcessor,
+    // The random number generator.
+    pub(crate) rng: rand::rngs::StdRng,
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<AllHints>,
@@ -74,6 +78,9 @@ pub struct AggregatorHintProcessor<'a> {
 
 impl<'a> AggregatorHintProcessor<'a> {
     pub fn new(program: &'a Program, input: AggregatorInput) -> Self {
+        let rng_seed = Poseidon::hash_array(input.bootloader_output.as_ref().expect(
+            "Bootloader output is required on initialization of the aggregator hint processor.",
+        ));
         Self {
             program,
             state_update_pointers: None,
@@ -81,6 +88,7 @@ impl<'a> AggregatorHintProcessor<'a> {
             input,
             serialize_data_availability_create_pages: false,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
+            rng: rand::rngs::StdRng::from_seed(rng_seed.to_bytes_be()),
             #[cfg(any(test, feature = "testing"))]
             unused_hints: AllHints::all_iter().collect(),
         }
