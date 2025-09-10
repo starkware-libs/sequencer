@@ -1,0 +1,24 @@
+[package]
+name = "apollo_gateway_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Configuration types for Apollo gateway"
+
+[dependencies]
+apollo_config.workspace = true
+apollo_compilation_utils.workspace = true
+blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
+validator.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true

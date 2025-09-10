@@ -15,6 +15,7 @@ testing = ["blockifier/testing", "blockifier_test_utils"]
 apollo_class_manager_types.workspace = true
 apollo_compilation_utils.workspace = true
 apollo_config.workspace = true
+apollo_gateway_config.workspace = true
 apollo_gateway_types.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_types.workspace = true

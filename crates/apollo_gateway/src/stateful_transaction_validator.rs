@@ -1,3 +1,4 @@
+use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -27,7 +28,6 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 use tracing::{debug, error};
 
-use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};

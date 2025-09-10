@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use apollo_gateway::config::RpcStateReaderConfig;
 use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
 use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
 use apollo_gateway::rpc_state_reader::RpcStateReader;
+use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
