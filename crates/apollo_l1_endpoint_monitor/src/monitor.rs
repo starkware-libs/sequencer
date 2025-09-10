@@ -1,22 +1,11 @@
-use std::collections::BTreeMap;
-use std::time::Duration;
-
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
-use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_vec,
-    serialize_slice,
-};
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n;
+use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
-use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use url::Url;
-use validator::Validate;
 #[cfg(test)]
 #[path = "l1_endpoint_monitor_tests.rs"]
 pub mod l1_endpoint_monitor_tests;
@@ -118,46 +107,6 @@ impl L1EndpointMonitor {
 }
 
 impl ComponentStarter for L1EndpointMonitor {}
-
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
-pub struct L1EndpointMonitorConfig {
-    #[serde(deserialize_with = "deserialize_vec")]
-    pub ordered_l1_endpoint_urls: Vec<Url>,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    pub timeout_millis: Duration,
-}
-
-impl Default for L1EndpointMonitorConfig {
-    fn default() -> Self {
-        Self {
-            ordered_l1_endpoint_urls: vec![
-                Url::parse("https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY").unwrap(),
-                Url::parse("https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY").unwrap(),
-            ],
-            timeout_millis: Duration::from_millis(1000),
-        }
-    }
-}
-
-impl SerializeConfig for L1EndpointMonitorConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "ordered_l1_endpoint_urls",
-                &serialize_slice(&self.ordered_l1_endpoint_urls),
-                "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the \
-                 current one is non-operational.",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
-                "timeout_millis",
-                &self.timeout_millis.as_millis(),
-                "The timeout (milliseconds) for a query of the L1 base layer",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
 
 // TODO(Arni): Move to apollo_infra_utils.
 fn to_safe_string(url: &Url) -> String {

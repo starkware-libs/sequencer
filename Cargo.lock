@@ -1446,6 +1446,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor",
+ "apollo_l1_endpoint_monitor_config",
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
@@ -1492,16 +1493,24 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor_config",
  "apollo_l1_endpoint_monitor_types",
  "async-trait",
  "mockito 1.6.1",
  "papyrus_base_layer",
- "serde",
  "tokio",
  "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_endpoint_monitor_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "url",
  "validator",
 ]
@@ -1828,6 +1837,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor",
+ "apollo_l1_endpoint_monitor_config",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
