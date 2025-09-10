@@ -25,6 +25,7 @@ impl ClassHashStorage {
                 max_size: 1 << 30,    // 1GB.
                 min_size: 1 << 10,    // 1KB.
                 growth_step: 1 << 26, // 64MB.
+                max_readers: 1 << 13, // 8K readers
             },
             ..Default::default()
         };

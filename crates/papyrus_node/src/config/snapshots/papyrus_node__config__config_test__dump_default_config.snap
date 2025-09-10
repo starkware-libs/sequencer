@@ -551,6 +551,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "storage.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "value": {
+      "$serde_json::private::Number": "8192"
+    },
+    "privacy": "Public"
+  },
   "storage.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
     "value": {
