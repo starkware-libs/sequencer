@@ -22,12 +22,16 @@ from starkware.starknet.core.os.state.output import (
     serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
+<<<<<<< HEAD
 from starkware.starknet.core.os.encrypt import (
     validate_private_keys,
     compute_public_keys,
     encrypt_symmetric_key,
     encrypt,
 )
+=======
+from starkware.starknet.core.os.naive_blake import calc_blake_hash
+>>>>>>> 6d41e264e (starknet_os: create blake function wiythout encoding)
 
 // Represents the output of the OS.
 struct OsOutput {
