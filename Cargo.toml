@@ -42,6 +42,7 @@ members = [
   "crates/apollo_l1_gas_price_provider_config",
   "crates/apollo_l1_gas_price_types",
   "crates/apollo_l1_provider",
+  "crates/apollo_l1_provider_config",
   "crates/apollo_l1_provider_types",
   "crates/apollo_l1_scraper_config",
   "crates/apollo_mempool",
@@ -150,6 +151,7 @@ apollo_l1_gas_price.path = "crates/apollo_l1_gas_price"
 apollo_l1_gas_price_provider_config.path = "crates/apollo_l1_gas_price_provider_config"
 apollo_l1_gas_price_types.path = "crates/apollo_l1_gas_price_types"
 apollo_l1_provider.path = "crates/apollo_l1_provider"
+apollo_l1_provider_config.path = "crates/apollo_l1_provider_config"
 apollo_l1_provider_types.path = "crates/apollo_l1_provider_types"
 apollo_l1_scraper_config.path = "crates/apollo_l1_scraper_config"
 apollo_mempool.path = "crates/apollo_mempool"
