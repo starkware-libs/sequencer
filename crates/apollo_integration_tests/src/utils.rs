@@ -5,8 +5,8 @@ use std::time::Duration;
 use apollo_batcher::block_builder::BlockBuilderConfig;
 use apollo_batcher::config::BatcherConfig;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
-use apollo_class_manager::class_storage::CachedClassStorageConfig;
-use apollo_class_manager::config::{
+use apollo_class_manager_config::config::{
+    CachedClassStorageConfig,
     ClassManagerConfig,
     FsClassManagerConfig,
     FsClassStorageConfig,
