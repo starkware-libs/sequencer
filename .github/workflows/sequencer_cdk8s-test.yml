@@ -27,7 +27,8 @@ jobs:
       cluster: test
       namespace: test
       deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_consolidated.json
-      monitoring_dashboard_file: ${{ github.workspace }}/deployments/monitoring/examples/output/dashboards/sequencer_node_dashboard.json
+      monitoring_dashboard_file: ${{ github.workspace }}/grafana_builder/dashboards/sequencer_node_dashboard.json
+      monitoring_alerts_folder: ${{ github.workspace }}/grafana_builder/alerts
 
     steps:
       - name: Checkout sequencer
@@ -56,13 +57,32 @@ jobs:
           options: "--check --verbose -l 100 -t py310 --diff --color --exclude imports"
           src: deployments/sequencer
 
+      - name: Create monitoring dashboard
+        run: |
+          pip install -r ./deployments/monitoring/src/requirements.txt
+          python ./deployments/monitoring/src/main.py \
+            --dev-dashboards-file ./crates/apollo_dashboard/resources/dev_grafana.json \
+            --dev-alerts-file ./crates/apollo_dashboard/resources/dev_grafana_alerts.json \
+            --cluster ${{ env.cluster }} \
+            --namespace ${{ env.namespace }} \
+            --out-dir ${{ github.workspace }}/grafana_builder \
+            --env integration \
+            --datasource-uid ABCDEF \
+            --dry-run
+
       # Synthesize the CDK8s Sequencer app.
       - name: CDk8s synth
         working-directory: deployments/sequencer
         run: |
           cdk8s import
           pipenv install
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}"
+          cdk8s synth --app \
+            "pipenv run python main.py \
+            --namespace ${{ env.namespace }} \
+            --deployment-config-file ${{ env.deployment_config_path }} \
+            --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} \
+            --monitoring-alerts-folder ${{ env.monitoring_alerts_folder }} \
+            --cluster ${{ env.cluster }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
