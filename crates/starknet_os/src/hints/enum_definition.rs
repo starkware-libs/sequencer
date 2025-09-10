@@ -26,6 +26,7 @@ use crate::hints::hint_implementation::aggregator::{
 };
 use crate::hints::hint_implementation::blake2s::implementation::{
     check_packed_values_end_and_size,
+    naive_unpack_felt252s_to_u32s,
     unpack_felts_to_u32s,
 };
 use crate::hints::hint_implementation::block_context::{
@@ -918,6 +919,7 @@ ids.initial_carried_outputs = segments.gen_arg(
         "memory[ap] = to_felt_or_relocatable((ids.end != ids.packed_values) and \
          (memory[ids.packed_values] < 2**63))"
     ),
+    (NaiveUnpackFelts252ToU32s, naive_unpack_felt252s_to_u32s, "NaiveUnpackFelts252ToU32s"),
     (
         UnpackFeltsToU32s,
         unpack_felts_to_u32s,
