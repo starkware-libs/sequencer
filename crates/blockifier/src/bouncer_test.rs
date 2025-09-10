@@ -712,3 +712,78 @@ fn class_hash_migration_data_from_state(
         assert_eq!(migration_proving_gas, GasAmount::ZERO);
     }
 }
+
+/// Ensures `get_tx_weights` adds the migration gas delta when (and only when) migration is
+/// applicable for the given Cairo version.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
+#[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[case(CairoVersion::Cairo0)]
+fn get_tx_weights_adds_migration_gas_delta(#[case] cairo_version: CairoVersion) {
+    // Prepare two identical contexts, differing only by the migration flag.
+    let mut ctx_migration_disabled = BlockContext::create_for_account_testing();
+    ctx_migration_disabled.versioned_constants.enable_casm_hash_migration = false;
+
+    let mut ctx_migration_enabled = ctx_migration_disabled.clone();
+    ctx_migration_enabled.versioned_constants.enable_casm_hash_migration = true;
+
+    // Build state with declarations under the chosen Cairo version (declared with V1).
+    let (state, executed) = build_state_and_executed(&ctx_migration_enabled, cairo_version, true);
+
+    let w0 = get_tx_weights(
+        &state,
+        &executed,
+        0,
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &ctx_migration_disabled.versioned_constants,
+        &BuiltinCounterMap::default(),
+        &ctx_migration_disabled.bouncer_config,
+    )
+    .unwrap();
+
+    let w1 = get_tx_weights(
+        &state,
+        &executed,
+        0,
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &ctx_migration_enabled.versioned_constants,
+        &BuiltinCounterMap::default(),
+        &ctx_migration_enabled.bouncer_config,
+    )
+    .unwrap();
+
+    let migration_data = CasmHashMigrationData::from_state(
+        &state,
+        &executed,
+        &ctx_migration_enabled.versioned_constants,
+    )
+    .unwrap();
+
+    let exp_sierra_delta = migration_data.to_gas(
+        &ctx_migration_enabled.versioned_constants.os_constants.gas_costs.builtins,
+        &ctx_migration_enabled.versioned_constants,
+        ctx_migration_enabled.bouncer_config.blake_weight,
+    );
+    let exp_proving_delta = migration_data.to_gas(
+        &ctx_migration_enabled.bouncer_config.builtin_weights.gas_costs,
+        &ctx_migration_enabled.versioned_constants,
+        ctx_migration_enabled.bouncer_config.blake_weight,
+    );
+
+    // Assert deltas exactly match expected migration gas.
+    assert_eq!(
+        w1.bouncer_weights.sierra_gas.0 - w0.bouncer_weights.sierra_gas.0,
+        exp_sierra_delta.0
+    );
+    assert_eq!(
+        w1.bouncer_weights.proving_gas.0 - w0.bouncer_weights.proving_gas.0,
+        exp_proving_delta.0
+    );
+
+    // Mapping propagation.
+    assert!(w0.class_hashes_to_migrate.is_empty());
+    assert!(!w1.class_hashes_to_migrate.is_empty());
+    assert_eq!(w1.class_hashes_to_migrate, migration_data.class_hashes_to_migrate);
+}
