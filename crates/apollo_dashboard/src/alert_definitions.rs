@@ -23,6 +23,11 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
+use apollo_storage::metrics::{
+    STORAGE_OPEN_BATCHER_READ_TRANSACTIONS,
+    STORAGE_OPEN_CLASS_MANAGER_READ_TRANSACTIONS,
+    STORAGE_OPEN_SYNC_READ_TRANSACTIONS,
+};
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
 use crate::alert_scenarios::block_production_delay::{
@@ -464,6 +469,48 @@ fn get_mempool_p2p_disconnections() -> Alert {
     )
 }
 
+const MAX_OPEN_READ_TRANSACTIONS: f64 = 7500.0;
+
+fn create_storage_open_read_transactions_alert(storage_type: &str, metric_name: &str) -> Alert {
+    Alert::new(
+        format!("storage_open_{storage_type}_read_transactions"),
+        format!("High number of open {storage_type} read transactions"),
+        AlertGroup::StateSync,
+        format!("max_over_time({}[1m])", metric_name),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: MAX_OPEN_READ_TRANSACTIONS,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::NotApplicable,
+        AlertEnvFiltering::All,
+    )
+}
+
+fn get_storage_open_sync_read_transactions_alert() -> Alert {
+    create_storage_open_read_transactions_alert(
+        "sync",
+        &STORAGE_OPEN_SYNC_READ_TRANSACTIONS.get_name_with_filter(),
+    )
+}
+
+fn get_storage_open_batcher_read_transactions_alert() -> Alert {
+    create_storage_open_read_transactions_alert(
+        "batcher",
+        &STORAGE_OPEN_BATCHER_READ_TRANSACTIONS.get_name_with_filter(),
+    )
+}
+
+fn get_storage_open_class_manager_read_transactions_alert() -> Alert {
+    create_storage_open_read_transactions_alert(
+        "class_manager",
+        &STORAGE_OPEN_CLASS_MANAGER_READ_TRANSACTIONS.get_name_with_filter(),
+    )
+}
+
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let mut alerts = vec![
         get_consensus_proposal_fin_mismatch_once(),
@@ -491,6 +538,9 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_mempool_add_tx_idle(),
         get_mempool_p2p_disconnections(),
         get_native_compilation_error_increase(),
+        get_storage_open_sync_read_transactions_alert(),
+        get_storage_open_batcher_read_transactions_alert(),
+        get_storage_open_class_manager_read_transactions_alert(),
     ];
 
     alerts.append(&mut get_batched_transactions_stuck_vec());

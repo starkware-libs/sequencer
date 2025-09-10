@@ -701,6 +701,90 @@
       "observer_applicable": false
     },
     {
+      "name": "storage_open_sync_read_transactions",
+      "title": "High number of open sync read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(storage_open_sync_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": false
+    },
+    {
+      "name": "storage_open_batcher_read_transactions",
+      "title": "High number of open batcher read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(storage_open_batcher_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": false
+    },
+    {
+      "name": "storage_open_class_manager_read_transactions",
+      "title": "High number of open class_manager read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(storage_open_class_manager_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": false
+    },
+    {
       "name": "batched_transactions_stuck",
       "title": "Batched transactions stuck",
       "ruleGroup": "batcher",
