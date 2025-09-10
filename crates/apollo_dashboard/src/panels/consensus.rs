@@ -102,7 +102,7 @@ fn get_panel_consensus_round() -> Panel {
 fn get_panel_consensus_round_avg() -> Panel {
     Panel::new(
         "Average Consensus Round",
-        "Average consensus round (10m)",
+        "Average consensus round (10m window)",
         vec![format!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -110,7 +110,7 @@ fn get_panel_consensus_round_avg() -> Panel {
 fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
         "Average Block Time",
-        "Average block time (10m)",
+        "Average block time (10m window)",
         vec![format!("1 / rate({}[10m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -119,7 +119,7 @@ fn get_panel_consensus_block_time_avg() -> Panel {
 fn get_panel_consensus_round_above_zero() -> Panel {
     Panel::new(
         "Consensus Rounds Above Zero",
-        "The number of times the consensus round has increased above zero",
+        "The number of times the consensus round has increased above zero (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -133,7 +133,7 @@ fn get_panel_consensus_cached_votes() -> Panel {
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
         "Decisions Reached By Consensus",
-        "The number of decisions reached by way of consensus",
+        "The number of decisions reached by way of consensus (10m window)",
         vec![format!(
             "increase({}[10m])",
             CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
@@ -144,7 +144,7 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
         "Decisions Reached By Sync",
-        "The number of decisions reached by way of sync",
+        "The number of decisions reached by way of sync (10m window)",
         vec![format!(
             "increase({}[10m])",
             CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
@@ -170,7 +170,7 @@ fn get_panel_consensus_outbound_stream_finished() -> Panel {
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
         "Proposals Received",
-        "The number of proposals received from the network",
+        "The number of proposals received from the network (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_RECEIVED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -178,7 +178,7 @@ fn get_panel_consensus_proposals_received() -> Panel {
 fn get_panel_consensus_proposals_validated() -> Panel {
     Panel::new(
         "Proposal Validation Success",
-        "The number of proposals received and validated successfully",
+        "The number of proposals received and validated successfully (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALIDATED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -186,39 +186,28 @@ fn get_panel_consensus_proposals_validated() -> Panel {
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
         "Proposal Validation Failed",
-        "The number of proposals received and failed validation",
+        "The number of proposals received and failed validation (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter())],
         PanelType::TimeSeries,
     )
 }
 fn get_panel_consensus_proposals_valid_init() -> Panel {
     Panel::new(
-        "Proposals Received - Valid Init",
-        "The number of proposals received with a valid init",
-        vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALID_INIT.get_name_with_filter())],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_l1_gas_mismatch() -> Panel {
-    Panel::new(
-        "Proposal Received - L1 Gas Mismatch",
-        "The number of proposals received with a L1 gas mismatch",
-        vec![format!("increase({}[10m])", CONSENSUS_L1_GAS_MISMATCH.get_name_with_filter())],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
-    Panel::new(
-        "Proposal Received - L1 Data Gas Mismatch",
-        "The number of proposals received with a L1 data gas mismatch",
-        vec![format!("increase({}[10m])", CONSENSUS_L1_DATA_GAS_MISMATCH.get_name_with_filter())],
+        "Proposal Validation Breakdown",
+        "Breakdown of proposals by validation result. There are more validations, but they are \
+         not reported here (10m window)",
+        vec![
+            format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALID_INIT.get_name_with_filter()),
+            format!("increase({}[10m])", CONSENSUS_L1_GAS_MISMATCH.get_name_with_filter()),
+            format!("increase({}[10m])", CONSENSUS_L1_DATA_GAS_MISMATCH.get_name_with_filter()),
+        ],
         PanelType::TimeSeries,
     )
 }
 fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
         "Proposal Build",
-        "The number of proposals that started building",
+        "The number of proposals that started building (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_BUILD_PROPOSAL_TOTAL.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -226,7 +215,7 @@ fn get_panel_consensus_build_proposal_total() -> Panel {
 fn get_panel_consensus_build_proposal_failed() -> Panel {
     Panel::new(
         "Proposal Build Failed",
-        "The number of proposals that failed to be built",
+        "The number of proposals that failed to be built (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -243,7 +232,7 @@ fn get_panel_consensus_held_locks() -> Panel {
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
         "Consensus Timeouts By Reason",
-        CONSENSUS_TIMEOUTS.get_description(),
+        "The number of times consensus has timed out (10m window)",
         vec![format!(
             "sum by ({}) (increase({}[10m]))",
             LABEL_NAME_TIMEOUT_REASON,
@@ -337,7 +326,7 @@ fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
 fn get_panel_cende_write_blob_success() -> Panel {
     Panel::new(
         "Write Blob Success",
-        "The number of successful blob writes to Cende",
+        "The number of successful blob writes to Cende (10m window)",
         vec![format!("increase({}[10m])", CENDE_WRITE_BLOB_SUCCESS.get_name_with_filter())],
         PanelType::TimeSeries,
     )
@@ -345,7 +334,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
 fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
-        "The number of failed blob writes to Cende",
+        "The number of failed blob writes to Cende (10m window)",
         vec![format!(
             "sum by ({}) (increase({}[10m]))",
             LABEL_CENDE_FAILURE_REASON,
@@ -357,28 +346,26 @@ fn get_panel_cende_write_blob_failure() -> Panel {
 fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
         "Build Proposal Failure by Reason",
-        "The number of build proposal failures",
+        "The number of build proposal failures (10m window)",
         vec![format!(
             "sum by ({}) (increase({}[10m]))",
             LABEL_BUILD_PROPOSAL_FAILURE_REASON,
             CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
         )],
-        // TODO(Dafna): change to TimeSeries if needed
-        PanelType::BarGauge,
+        PanelType::TimeSeries,
     )
     .with_log_query("\"PROPOSAL_FAILED: Proposal failed as proposer\"")
 }
 fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
         "Validate Proposal Failure by Reason",
-        "The number of validate proposal failures",
+        "The number of validate proposal failures (10m window)",
         vec![format!(
             "sum by ({}) (increase({}[10m]))",
             LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
             CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
         )],
-        // TODO(Dafna): change to TimeSeries if needed
-        PanelType::BarGauge,
+        PanelType::TimeSeries,
     )
     .with_log_query("\"PROPOSAL_FAILED: Proposal failed as validator\"")
 }
@@ -438,17 +425,15 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_proposals_received(),
             get_panel_consensus_proposals_validated(),
             get_panel_consensus_proposals_invalid(),
+            get_panel_validate_proposal_failure(),
             get_panel_consensus_proposals_valid_init(),
-            get_panel_consensus_l1_data_gas_mismatch(),
-            get_panel_consensus_l1_gas_mismatch(),
             get_panel_consensus_build_proposal_total(),
             get_panel_consensus_build_proposal_failed(),
+            get_panel_build_proposal_failure(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_num_batches_in_proposal(),
             get_panel_consensus_num_txs_in_proposal(),
             get_panel_consensus_l2_gas_price(),
-            get_panel_build_proposal_failure(),
-            get_panel_validate_proposal_failure(),
             // TODO(Dafna): Can we remove these panels below?
             get_panel_consensus_max_cached_block_number(),
             get_panel_consensus_cached_votes(),
