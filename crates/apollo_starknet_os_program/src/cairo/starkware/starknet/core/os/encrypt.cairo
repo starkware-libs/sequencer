@@ -1,9 +1,9 @@
-from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin
 from starkware.cairo.common.ec import ec_mul, recover_y, StarkCurve
 from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
+from starkware.starknet.core.os.naive_blake import calc_blake_hash
 
 // Validates that the private keys are within the range [1, StarkCurve.ORDER - 1] as required by
 // the Diffie-Hellman elliptic curve encryption scheme.
@@ -46,7 +46,7 @@ func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_d
     let (__fp__, _) = get_fp_and_pc();
     let (local shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
     // TODO(Avi, 10/9/2025): Switch to naive encoding once the function is available.
-    let (hash) = encode_felt252_data_and_calc_blake_hash(data_len=1, data=&shared_secret.x);
+    let (hash) = calc_blake_hash(data_len=1, data=&shared_secret.x);
 
     assert encrypted_dst[0] = symmetric_key + hash;
     let encrypted_dst = &encrypted_dst[1];
@@ -77,7 +77,7 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
     // TODO(Noa): prepare the entire input in a single array
     tempvar blake_input: felt* = new (symmetric_key, index);
     // Encrypt the current element.
-    let (hash: felt) = encode_felt252_data_and_calc_blake_hash(data_len=2, data=blake_input);
+    let (hash: felt) = calc_blake_hash(data_len=2, data=blake_input);
     assert encrypted_dst[0] = hash + data_start[0];
 
     let encrypted_dst = &encrypted_dst[1];

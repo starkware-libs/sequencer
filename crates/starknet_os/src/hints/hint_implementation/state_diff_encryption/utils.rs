@@ -1,4 +1,4 @@
-use blake2s::{blake2s_to_felt, encode_felt252_data_and_calc_blake_hash};
+use blake2s::blake2s_to_felt;
 use lambdaworks_math::elliptic_curve::short_weierstrass::curves::stark_curve::StarkCurve;
 use lambdaworks_math::elliptic_curve::short_weierstrass::traits::IsShortWeierstrass;
 use starknet_types_core::curve::AffinePoint;
@@ -52,7 +52,7 @@ pub fn encrypt_symmetric_key(
             let shared_secret = (&public_key_point * sn_private_key).x();
             // Encrypt the symmetric key using the shared secret.
             // TODO(Avi, 10/09/2025): Use the naive felt encoding once available.
-            symmetric_key + encode_felt252_data_and_calc_blake_hash(&[shared_secret])
+            symmetric_key + calc_blake_hash(&[shared_secret])
         })
         .collect()
 }
@@ -71,7 +71,7 @@ pub fn decrypt_symmetric_key(
 
     // Decrypt the symmetric key using the shared secret.
     // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
-    encrypted_symmetric_key - encode_felt252_data_and_calc_blake_hash(&[shared_secret])
+    encrypted_symmetric_key - calc_blake_hash(&[shared_secret])
 }
 
 #[allow(dead_code)]
@@ -89,14 +89,11 @@ pub fn decrypt_state_diff(
         .iter()
         .enumerate()
         .map(|(i, encrypted_felt)| {
-            encrypted_felt
-                - encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
+            encrypted_felt - calc_blake_hash(&[symmetric_key, Felt::from(i)])
         })
         .collect()
 }
 
-// TODO(Meshi): Remove allow(dead_code) once we use this function.
-#[allow(dead_code)]
 /// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
 /// `naive_encode_felt252s_to_u32s` hint does, then hashes the resulting byte stream
 /// with Blake2s-256 and returns the 256-bit digest to a
