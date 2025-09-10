@@ -53,6 +53,7 @@ impl From<&StarknetStorageKey> for NodeIndex {
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
@@ -111,6 +112,20 @@ pub struct Input<C: Config> {
 }
 
 impl StateDiff {
+    pub fn extend(&mut self, other: Self) {
+        self.address_to_class_hash.extend(other.address_to_class_hash);
+        self.address_to_nonce.extend(other.address_to_nonce);
+        self.class_hash_to_compiled_class_hash.extend(other.class_hash_to_compiled_class_hash);
+        for (address, updates) in other.storage_updates {
+            self.storage_updates
+                .entry(address)
+                .and_modify(|existing_updates| {
+                    existing_updates.extend(updates.clone());
+                })
+                .or_insert(updates);
+        }
+    }
+
     pub(crate) fn accessed_addresses(&self) -> HashSet<&ContractAddress> {
         HashSet::from_iter(
             self.address_to_class_hash
