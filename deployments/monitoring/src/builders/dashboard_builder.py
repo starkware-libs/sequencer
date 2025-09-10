@@ -89,9 +89,14 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
             }
         ]
     }
+
     if thresholds:
         grafana_panel["fieldConfig"]["defaults"]["thresholds"] = json.loads(thresholds)
         grafana_panel["fieldConfig"]["defaults"]["color"] = {"mode": "thresholds"}
+
+    if unit == "percentunit":
+        grafana_panel["fieldConfig"]["defaults"]["max"] = 1
+
     return grafana_panel
 
 
