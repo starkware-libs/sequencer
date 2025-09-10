@@ -10,7 +10,7 @@ use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(feature = "testing", derive(PartialEq))]
 pub enum VersionIdError {
     #[error("{message}")]
     InvalidVersion { message: String },

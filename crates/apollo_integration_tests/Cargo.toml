@@ -25,7 +25,7 @@ apollo_consensus_config.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_consensus_orchestrator.workspace = true
 apollo_deployments.workspace = true
-apollo_gateway = { workspace = true, features = ["testing"] }
+apollo_gateway_config.workspace = true
 apollo_http_server = { workspace = true, features = ["testing"] }
 apollo_http_server_config.workspace = true
 apollo_infra = { workspace = true, features = ["testing"] }

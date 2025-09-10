@@ -12,9 +12,9 @@
 use std::env;
 use std::sync::{Arc, Mutex};
 
-use apollo_gateway::config::RpcStateReaderConfig;
 use apollo_gateway::rpc_objects::BlockId;
 use apollo_gateway::rpc_state_reader::RpcStateReader;
+use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockInfo, BlockNumber};
