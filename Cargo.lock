@@ -437,7 +437,7 @@ dependencies = [
  "futures",
  "futures-utils-wasm",
  "lru 0.13.0",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pin-project",
  "reqwest 0.12.23",
  "serde",
@@ -678,7 +678,7 @@ dependencies = [
  "derive_more 2.0.1",
  "futures",
  "futures-utils-wasm",
- "parking_lot",
+ "parking_lot 0.12.4",
  "serde",
  "serde_json",
  "thiserror 2.0.16",
@@ -799,7 +799,7 @@ checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 
 [[package]]
 name = "apollo_batcher"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager_types",
@@ -829,7 +829,7 @@ dependencies = [
  "mockall",
  "mockito 1.7.0",
  "pretty_assertions",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "rstest",
  "serde",
  "starknet-types-core",
@@ -843,7 +843,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -864,7 +864,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_central_sync"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
@@ -888,7 +888,7 @@ dependencies = [
  "papyrus_base_layer",
  "papyrus_common",
  "pretty_assertions",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "simple_logger",
  "starknet-types-core",
@@ -903,7 +903,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_compile_to_casm_types",
@@ -928,7 +928,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
@@ -945,7 +945,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compilation_utils"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -964,7 +964,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_casm"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_casm_types",
@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_casm_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1005,7 +1005,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_native_types",
@@ -1021,7 +1021,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "serde",
@@ -1030,7 +1030,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_config"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "apollo_test_utils",
@@ -1051,10 +1051,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "apollo_consensus"
-version = "0.15.0-rc.3"
+name = "apollo_config_manager"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
+ "apollo_config_manager_types",
+ "apollo_consensus_config",
+ "apollo_infra",
+ "apollo_metrics",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_config_manager_types"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_consensus_config",
+ "apollo_infra",
+ "apollo_metrics",
+ "async-trait",
+ "mockall",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
+
+[[package]]
+name = "apollo_consensus"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_consensus_config",
  "apollo_metrics",
  "apollo_network",
  "apollo_network_types",
@@ -1078,17 +1109,28 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_consensus_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_protobuf",
+ "serde",
+ "starknet_api",
  "validator",
 ]
 
 [[package]]
 name = "apollo_consensus_manager"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus",
+ "apollo_consensus_config",
  "apollo_consensus_orchestrator",
  "apollo_infra",
  "apollo_infra_utils",
@@ -1113,7 +1155,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_orchestrator"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
@@ -1151,7 +1193,9 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-rational 0.4.2",
  "paste",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
+ "reqwest-middleware 0.4.2",
+ "reqwest-retry",
  "rstest",
  "serde",
  "serde_json",
@@ -1170,7 +1214,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_dashboard"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_batcher",
  "apollo_class_manager",
@@ -1182,12 +1226,16 @@ dependencies = [
  "apollo_http_server",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
  "apollo_l1_provider",
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_metrics",
+ "apollo_monitoring_endpoint",
+ "apollo_network",
  "apollo_state_sync_metrics",
+ "apollo_storage",
  "blockifier",
  "indexmap 2.11.0",
  "serde",
@@ -1198,16 +1246,18 @@ dependencies = [
 
 [[package]]
 name = "apollo_deployments"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "apollo_config",
  "apollo_http_server",
  "apollo_infra_utils",
  "apollo_monitoring_endpoint",
+ "apollo_network",
  "apollo_node",
  "apollo_protobuf",
  "indexmap 2.11.0",
+ "libp2p",
  "serde",
  "serde_json",
  "serde_with",
@@ -1220,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_compilation_utils",
@@ -1254,7 +1304,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-rational 0.4.2",
  "pretty_assertions",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "rstest",
  "serde",
  "serde_json",
@@ -1272,7 +1322,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_network_types",
@@ -1293,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_http_server"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_gateway_types",
@@ -1314,7 +1364,7 @@ dependencies = [
  "metrics 0.24.2",
  "metrics-exporter-prometheus",
  "regex",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "rstest",
  "serde",
  "serde_json",
@@ -1329,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_infra"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
@@ -1359,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_infra_utils"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_proc_macros",
  "assert-json-diff",
@@ -1381,7 +1431,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_integration_tests"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "anyhow",
@@ -1389,7 +1439,9 @@ dependencies = [
  "apollo_class_manager",
  "apollo_compile_to_casm",
  "apollo_config",
+ "apollo_config_manager",
  "apollo_consensus",
+ "apollo_consensus_config",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
  "apollo_deployments",
@@ -1441,7 +1493,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_endpoint_monitor"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "apollo_config",
@@ -1460,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_endpoint_monitor_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1476,7 +1528,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_gas_price"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_infra",
@@ -1489,7 +1541,7 @@ dependencies = [
  "mockall",
  "mockito 1.7.0",
  "papyrus_base_layer",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "rstest",
  "serde",
  "serde_json",
@@ -1504,7 +1556,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_gas_price_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1512,7 +1564,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "papyrus_base_layer",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "starknet_api",
  "strum 0.25.0",
@@ -1523,7 +1575,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_provider"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "apollo_batcher_types",
@@ -1554,7 +1606,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_provider_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1573,7 +1625,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_infra",
@@ -1608,7 +1660,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
@@ -1634,7 +1686,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1651,7 +1703,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1669,7 +1721,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_metrics"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "indexmap 2.11.0",
  "metrics 0.24.2",
@@ -1684,7 +1736,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_monitoring_endpoint"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_config",
@@ -1705,6 +1757,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-metrics",
  "tower 0.4.13",
  "tracing",
  "validator",
@@ -1712,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_network"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_metrics",
@@ -1737,6 +1790,8 @@ dependencies = [
  "rstest",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -1751,7 +1806,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_network_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_test_utils",
  "lazy_static",
@@ -1762,7 +1817,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_node"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_batcher",
@@ -1772,6 +1827,8 @@ dependencies = [
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
  "apollo_config",
+ "apollo_config_manager",
+ "apollo_config_manager_types",
  "apollo_consensus_manager",
  "apollo_gateway",
  "apollo_gateway_types",
@@ -1812,7 +1869,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_p2p_sync"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
@@ -1849,7 +1906,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "lazy_static",
  "proc-macro2",
@@ -1859,7 +1916,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros_tests"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
@@ -1873,7 +1930,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_protobuf"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_test_utils",
  "bytes",
@@ -1897,7 +1954,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_reverts"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_storage",
@@ -1910,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
@@ -1947,7 +2004,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "regex",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "starknet-core",
@@ -1963,7 +2020,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc_execution"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
@@ -1995,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_signature_manager"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2016,7 +2073,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_signature_manager_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2033,7 +2090,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_staking"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_consensus",
  "apollo_state_sync_types",
@@ -2051,7 +2108,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_starknet_client"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_test_utils",
@@ -2059,7 +2116,6 @@ dependencies = [
  "async-trait",
  "cairo-lang-starknet-classes",
  "enum-iterator",
- "http 0.2.12",
  "indexmap 2.11.0",
  "mockall",
  "mockito 0.31.1",
@@ -2068,7 +2124,7 @@ dependencies = [
  "pretty_assertions",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "serde_repr",
@@ -2086,7 +2142,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_starknet_os_program"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "blockifier",
@@ -2101,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_reader"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_storage",
@@ -2118,7 +2174,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_central_sync",
  "apollo_class_manager_types",
@@ -2149,8 +2205,9 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_metrics"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
+ "apollo_infra",
  "apollo_metrics",
  "apollo_state_sync_types",
  "apollo_storage",
@@ -2161,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_types"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2182,9 +2239,10 @@ dependencies = [
 
 [[package]]
 name = "apollo_storage"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "apollo_proc_macros",
  "apollo_test_utils",
  "assert_matches",
@@ -2234,7 +2292,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_task_executor"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "futures",
  "rstest",
@@ -2244,7 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_test_utils"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -2256,7 +2314,7 @@ dependencies = [
  "prometheus-parse",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -2265,7 +2323,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_time"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "chrono",
  "mockall",
@@ -3195,7 +3253,7 @@ dependencies = [
 
 [[package]]
 name = "blake2s"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "blake2",
  "digest 0.10.7",
@@ -3223,7 +3281,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_compilation_utils",
@@ -3283,7 +3341,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier_reexecution"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_gateway",
  "apollo_rpc_execution",
@@ -3309,7 +3367,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier_test_utils"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
@@ -4889,7 +4947,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "lock_api",
  "once_cell",
- "parking_lot_core",
+ "parking_lot_core 0.9.11",
 ]
 
 [[package]]
@@ -6353,7 +6411,7 @@ dependencies = [
  "pkcs8",
  "regex",
  "reqwest 0.12.23",
- "reqwest-middleware",
+ "reqwest-middleware 0.3.3",
  "ring 0.17.14",
  "serde",
  "serde_json",
@@ -6621,7 +6679,7 @@ dependencies = [
  "ipconfig",
  "moka",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.4",
  "rand 0.9.2",
  "resolv-conf",
  "smallvec",
@@ -6859,9 +6917,11 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "socket2 0.6.0",
+ "system-configuration 0.6.1",
  "tokio",
  "tower-service",
  "tracing",
+ "windows-registry",
 ]
 
 [[package]]
@@ -7235,6 +7295,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0242819d153cba4b4b05a5a8f2a7e9bbf97b6055b2a002b395c96b5ff3c0222"
 dependencies = [
  "cfg-if",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -7443,7 +7506,7 @@ dependencies = [
  "futures-util",
  "hyper 0.14.32",
  "jsonrpsee-types",
- "parking_lot",
+ "parking_lot 0.12.4",
  "rand 0.8.5",
  "rustc-hash 1.1.0",
  "serde",
@@ -7568,7 +7631,7 @@ dependencies = [
  "memchr",
  "num-cmp",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.4",
  "percent-encoding",
  "regex",
  "reqwest 0.11.27",
@@ -7777,7 +7840,7 @@ dependencies = [
  "libc",
  "lifetimed-bytes",
  "mdbx-sys",
- "parking_lot",
+ "parking_lot 0.12.4",
  "thiserror 1.0.69",
 ]
 
@@ -7850,7 +7913,7 @@ dependencies = [
  "multiaddr",
  "multihash",
  "multistream-select",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pin-project",
  "quick-protobuf",
  "rand 0.8.5",
@@ -7872,7 +7935,7 @@ dependencies = [
  "hickory-resolver",
  "libp2p-core",
  "libp2p-identity",
- "parking_lot",
+ "parking_lot 0.12.4",
  "smallvec",
  "tracing",
 ]
@@ -8209,7 +8272,7 @@ checksum = "391290121bad3d37fbddad76d8f5d1c1c314cfc646d143d7e07a3086ddff0ce3"
 dependencies = [
  "bitflags 2.9.3",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.5.17",
 ]
 
 [[package]]
@@ -8439,7 +8502,7 @@ dependencies = [
 
 [[package]]
 name = "mempool_test_utils"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -8662,7 +8725,7 @@ dependencies = [
  "crossbeam-epoch",
  "crossbeam-utils",
  "loom",
- "parking_lot",
+ "parking_lot 0.12.4",
  "portable-atomic",
  "rustc_version 0.4.1",
  "smallvec",
@@ -8760,7 +8823,7 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_compile_to_native_types",
  "apollo_state_reader",
@@ -9326,7 +9389,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "apollo_config",
@@ -9354,7 +9417,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_test_utils",
  "assert_matches",
@@ -9370,7 +9433,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_load_test"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -9379,7 +9442,7 @@ dependencies = [
  "once_cell",
  "pretty_assertions",
  "rand 0.8.5",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "starknet_api",
@@ -9388,7 +9451,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_monitoring_gateway"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "apollo_starknet_client",
@@ -9411,13 +9474,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_node"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_central_sync",
  "apollo_class_manager_types",
  "apollo_config",
- "apollo_consensus",
+ "apollo_consensus_config",
  "apollo_consensus_orchestrator",
  "apollo_infra_utils",
  "apollo_network",
@@ -9439,7 +9502,7 @@ dependencies = [
  "papyrus_common",
  "papyrus_monitoring_gateway",
  "pretty_assertions",
- "reqwest 0.11.27",
+ "reqwest 0.12.23",
  "serde",
  "serde_json",
  "starknet_api",
@@ -9488,12 +9551,37 @@ checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
 
 [[package]]
 name = "parking_lot"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
+dependencies = [
+ "instant",
+ "lock_api",
+ "parking_lot_core 0.8.6",
+]
+
+[[package]]
+name = "parking_lot"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70d58bf43669b5795d1576d0641cfb6fbb2057bf629506267a92807158584a13"
 dependencies = [
  "lock_api",
- "parking_lot_core",
+ "parking_lot_core 0.9.11",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a2cfe6f0ad2bfc16aefa463b497d5c7a5ecd44a23efa72aa342d90177356dc"
+dependencies = [
+ "cfg-if",
+ "instant",
+ "libc",
+ "redox_syscall 0.2.16",
+ "smallvec",
+ "winapi",
 ]
 
 [[package]]
@@ -9504,7 +9592,7 @@ checksum = "bc838d2a56b5b1a6c25f55575dfc605fabb63bb2365f6c2353ef9159aa69e4a5"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.5.17",
  "smallvec",
  "windows-targets 0.52.6",
 ]
@@ -10025,7 +10113,7 @@ checksum = "cf41c1a7c32ed72abe5082fb19505b969095c12da9f5732a4bc9878757fd087c"
 dependencies = [
  "dtoa",
  "itoa",
- "parking_lot",
+ "parking_lot 0.12.4",
  "prometheus-client-derive-encode",
 ]
 
@@ -10163,7 +10251,7 @@ dependencies = [
  "libc",
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pyo3-build-config",
  "pyo3-ffi",
  "pyo3-macros",
@@ -10606,6 +10694,15 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb5a58c1855b4b6819d59012155603f0b22ad30cad752600aadfcb695265519a"
+dependencies = [
+ "bitflags 1.2.1",
+]
+
+[[package]]
+name = "redox_syscall"
 version = "0.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5407465600fb0548f1442edf71dd20683c6ed326200ace4b1ef0763521bb3b77"
@@ -10763,12 +10860,15 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
+ "futures-channel",
  "futures-core",
  "futures-util",
+ "h2 0.4.12",
  "http 1.3.1",
  "http-body 1.0.1",
  "http-body-util",
  "hyper 1.7.0",
+ "hyper-rustls 0.27.7",
  "hyper-tls 0.6.0",
  "hyper-util",
  "js-sys",
@@ -10812,6 +10912,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "reqwest-middleware"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57f17d28a6e6acfe1733fe24bcd30774d13bffa4b8a22535b4c8c98423088d4e"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http 1.3.1",
+ "reqwest 0.12.23",
+ "serde",
+ "thiserror 1.0.69",
+ "tower-service",
+]
+
+[[package]]
+name = "reqwest-retry"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29c73e4195a6bfbcb174b790d9b3407ab90646976c55de58a6515da25d851178"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures",
+ "getrandom 0.2.16",
+ "http 1.3.1",
+ "hyper 1.7.0",
+ "parking_lot 0.11.2",
+ "reqwest 0.12.23",
+ "reqwest-middleware 0.4.2",
+ "retry-policies",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "wasm-timer",
+]
+
+[[package]]
 name = "resolv-conf"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10824,6 +10961,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1e211f878258887b3e65dd3c8ff9f530fe109f441a117ee0cdc27f341355032"
 dependencies = [
  "rand 0.9.2",
+]
+
+[[package]]
+name = "retry-policies"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5875471e6cab2871bc150ecb8c727db5113c9338cc3354dc5ee3425b6aa40a1c"
+dependencies = [
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -11008,7 +11154,7 @@ dependencies = [
  "indexmap 2.11.0",
  "lock_api",
  "oorandom",
- "parking_lot",
+ "parking_lot 0.12.4",
  "rust-analyzer-salsa-macros",
  "rustc-hash 1.1.0",
  "smallvec",
@@ -11671,7 +11817,7 @@ dependencies = [
 
 [[package]]
 name = "shared_execution_objects"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "blockifier",
  "rstest",
@@ -11773,7 +11919,7 @@ dependencies = [
 
 [[package]]
 name = "sizeof_internal"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "starknet-types-core",
 ]
@@ -12010,7 +12156,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -12047,7 +12193,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "hex",
  "pretty_assertions",
@@ -12064,7 +12210,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer_and_os_cli"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_starknet_os_program",
  "assert_matches",
@@ -12101,7 +12247,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_os"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
@@ -12151,7 +12297,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_os_flow_tests"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "blockifier",
  "blockifier_test_utils",
@@ -12162,7 +12308,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "async-recursion",
  "derive_more 0.99.20",
@@ -12184,7 +12330,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia_storage"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "hex",
  "serde",
@@ -12223,7 +12369,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf776ba3fa74f83bf4b63c3dcbbf82173db2632ed8452cb2d891d33f459de70f"
 dependencies = [
  "new_debug_unreachable",
- "parking_lot",
+ "parking_lot 0.12.4",
  "phf_shared",
  "precomputed-hash",
 ]
@@ -12743,7 +12889,7 @@ dependencies = [
  "io-uring",
  "libc",
  "mio",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pin-project-lite",
  "signal-hook-registry",
  "slab",
@@ -12761,6 +12907,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
+]
+
+[[package]]
+name = "tokio-metrics"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f960dc1df82e5a0cff5a77e986a10ec7bfabf23ff2377922e012af742878e12"
+dependencies = [
+ "futures-util",
+ "metrics 0.24.2",
+ "pin-project-lite",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
@@ -12907,7 +13066,7 @@ dependencies = [
 
 [[package]]
 name = "toml_test_utils"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "serde",
  "toml",
@@ -13583,6 +13742,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-timer"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be0ecb0db480561e9a7642b5d3e4187c128914e58aa84330b9493e3eb68c5e7f"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot 0.11.2",
+ "pin-utils",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "wasmtimer"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13590,7 +13764,7 @@ checksum = "d8d49b5d6c64e8558d9b1b065014426f35c18de636895d24893dbbd329743446"
 dependencies = [
  "futures",
  "js-sys",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pin-utils",
  "slab",
  "wasm-bindgen",
@@ -13811,6 +13985,17 @@ checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
 dependencies = [
  "windows-core 0.61.2",
  "windows-link",
+]
+
+[[package]]
+name = "windows-registry"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b8a9ed28765efc97bbc954883f4e6796c33a06546ebafacbabee9696967499e"
+dependencies = [
+ "windows-link",
+ "windows-result 0.3.4",
+ "windows-strings",
 ]
 
 [[package]]
@@ -14110,7 +14295,7 @@ dependencies = [
 
 [[package]]
 name = "workspace_tests"
-version = "0.15.0-rc.3"
+version = "0.15.0-rc.4"
 dependencies = [
  "toml_test_utils",
 ]
@@ -14227,7 +14412,7 @@ dependencies = [
  "futures",
  "log",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pin-project",
  "rand 0.8.5",
  "static_assertions",
@@ -14242,7 +14427,7 @@ dependencies = [
  "futures",
  "log",
  "nohash-hasher",
- "parking_lot",
+ "parking_lot 0.12.4",
  "pin-project",
  "rand 0.9.2",
  "static_assertions",
