@@ -113,6 +113,7 @@ pub struct ExtraParams {
     pub show_percent_change: bool,
     pub log_query: Option<String>,
     pub thresholds: Option<Thresholds>,
+    pub legends: Option<Vec<String>>,
 }
 
 impl ExtraParams {
@@ -130,6 +131,10 @@ impl ExtraParams {
         if let Some(th) = &self.thresholds {
             let json = serde_json::to_string(th).unwrap();
             map.insert("thresholds".into(), json);
+        }
+        if let Some(legends) = &self.legends {
+            let json = serde_json::to_string(legends).unwrap();
+            map.insert("legends".into(), json);
         }
         map
     }
@@ -182,6 +187,17 @@ impl Panel {
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
         self.extra.log_query = Some(log_query.into());
+        self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_legends<S: Into<String>>(mut self, legends: Vec<S>) -> Self {
+        assert_eq!(
+            legends.len(),
+            self.exprs.len(),
+            "Number of legends must match number of expressions"
+        );
+        self.extra.legends = Some(legends.into_iter().map(|s| s.into()).collect());
         self
     }
 
