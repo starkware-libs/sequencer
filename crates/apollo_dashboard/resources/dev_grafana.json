@@ -21,7 +21,7 @@
       },
       {
         "title": "Average Consensus Round",
-        "description": "Average consensus round (10m)",
+        "description": "Average consensus round (10m window)",
         "type": "timeseries",
         "exprs": [
           "avg_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -30,7 +30,7 @@
       },
       {
         "title": "Average Block Time",
-        "description": "Average block time (10m)",
+        "description": "Average block time (10m window)",
         "type": "timeseries",
         "exprs": [
           "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -41,7 +41,7 @@
       },
       {
         "title": "Consensus Rounds Above Zero",
-        "description": "The number of times the consensus round has increased above zero",
+        "description": "The number of times the consensus round has increased above zero (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -68,7 +68,7 @@
       },
       {
         "title": "Decisions Reached By Consensus",
-        "description": "The number of decisions reached by way of consensus",
+        "description": "The number of decisions reached by way of consensus (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -77,7 +77,7 @@
       },
       {
         "title": "Decisions Reached By Sync",
-        "description": "The number of decisions reached by way of sync",
+        "description": "The number of decisions reached by way of sync (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -86,7 +86,7 @@
       },
       {
         "title": "Proposals Received",
-        "description": "The number of proposals received from the network",
+        "description": "The number of proposals received from the network (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_proposals_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -95,7 +95,7 @@
       },
       {
         "title": "Proposal Validation Success",
-        "description": "The number of proposals received and validated successfully",
+        "description": "The number of proposals received and validated successfully (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_proposals_validated{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -104,7 +104,7 @@
       },
       {
         "title": "Proposal Validation Failed",
-        "description": "The number of proposals received and failed validation",
+        "description": "The number of proposals received and failed validation (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -112,35 +112,30 @@
         "extra_params": {}
       },
       {
-        "title": "Proposals Received - Valid Init",
-        "description": "The number of proposals received with a valid init",
+        "title": "Validate Proposal Failure by Reason",
+        "description": "The number of validate proposal failures (10m window)",
         "type": "timeseries",
         "exprs": [
-          "increase(consensus_proposals_valid_init{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\""
+        }
       },
       {
-        "title": "Proposal Received - L1 Data Gas Mismatch",
-        "description": "The number of proposals received with a L1 data gas mismatch",
+        "title": "Proposal Validation Breakdown",
+        "description": "Breakdown of proposals by validation result. There are more validations, but they are not reported here (10m window)",
         "type": "timeseries",
         "exprs": [
+          "increase(consensus_proposals_valid_init{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+          "increase(consensus_l1_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
           "increase(consensus_l1_data_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "Proposal Received - L1 Gas Mismatch",
-        "description": "The number of proposals received with a L1 gas mismatch",
-        "type": "timeseries",
-        "exprs": [
-          "increase(consensus_l1_gas_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
-        ],
-        "extra_params": {}
-      },
-      {
         "title": "Proposal Build",
-        "description": "The number of proposals that started building",
+        "description": "The number of proposals that started building (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_build_proposal_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -149,7 +144,7 @@
       },
       {
         "title": "Proposal Build Failed",
-        "description": "The number of proposals that failed to be built",
+        "description": "The number of proposals that failed to be built (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -157,8 +152,19 @@
         "extra_params": {}
       },
       {
+        "title": "Build Proposal Failure by Reason",
+        "description": "The number of build proposal failures (10m window)",
+        "type": "timeseries",
+        "exprs": [
+          "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+        ],
+        "extra_params": {
+          "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\""
+        }
+      },
+      {
         "title": "Consensus Timeouts By Reason",
-        "description": "The number of times consensus has timed out",
+        "description": "The number of times consensus has timed out (10m window)",
         "type": "timeseries",
         "exprs": [
           "sum by (timeout_reason) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
@@ -191,28 +197,6 @@
           "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
-      },
-      {
-        "title": "Build Proposal Failure by Reason",
-        "description": "The number of build proposal failures",
-        "type": "bargauge",
-        "exprs": [
-          "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
-        ],
-        "extra_params": {
-          "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\""
-        }
-      },
-      {
-        "title": "Validate Proposal Failure by Reason",
-        "description": "The number of validate proposal failures",
-        "type": "bargauge",
-        "exprs": [
-          "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
-        ],
-        "extra_params": {
-          "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\""
-        }
       },
       {
         "title": "consensus_max_cached_block_number",
@@ -308,7 +292,7 @@
     "Cende": [
       {
         "title": "Write Blob Success",
-        "description": "The number of successful blob writes to Cende",
+        "description": "The number of successful blob writes to Cende (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(cende_write_blob_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -317,7 +301,7 @@
       },
       {
         "title": "Write Blob Failure by Reason",
-        "description": "The number of failed blob writes to Cende",
+        "description": "The number of failed blob writes to Cende (10m window)",
         "type": "timeseries",
         "exprs": [
           "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
