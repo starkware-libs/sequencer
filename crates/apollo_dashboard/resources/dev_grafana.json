@@ -550,68 +550,86 @@
     ],
     "Http Server": [
       {
-        "title": "http_server_added_transactions_total",
-        "description": "Total number of transactions added",
+        "title": "Transactions Received Rate (TPS)",
+        "description": "The rate of transactions received by the HTTP Server (1m window)",
         "type": "timeseries",
         "exprs": [
-          "http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the HTTP Server during the last minute",
-        "type": "timeseries",
+        "title": "Number of Total Transactions Received",
+        "description": "Number of total transactions received (10m window)",
+        "type": "stat",
         "exprs": [
-          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
+          "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {
+          "log_query": "\"ADD_TX_START\""
+        }
+      },
+      {
+        "title": "Number of Transactions Successfully Added",
+        "description": "Number of transactions successfully added (10m window)",
+        "type": "stat",
+        "exprs": [
+          "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {
+          "log_query": "\"Recorded transaction\""
+        }
+      },
+      {
+        "title": "Number of Transactions Failed to be Added",
+        "description": "Number of transactions that failed to be added (10m window)",
+        "type": "stat",
+        "exprs": [
+          "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) - increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_added_transactions_success",
-        "description": "Number of successfully added transactions",
-        "type": "timeseries",
+        "title": "Number of Transactions Failed to be Added Due to Internal Error",
+        "description": "Number of transactions that failed to be added due to an internal error (10m window)",
+        "type": "stat",
         "exprs": [
-          "http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_added_transactions_failure",
-        "description": "Number of faulty added transactions",
-        "type": "timeseries",
+        "title": "Number of Transactions Failed to be Added Due to Deprecated Error",
+        "description": "Number of transactions that failed to be added due to a deprecated error (10m window)",
+        "type": "stat",
         "exprs": [
-          "http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_added_transactions_internal_error",
-        "description": "Number of faulty added transactions failing on internal error",
-        "type": "timeseries",
-        "exprs": [
-          "http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "http_server_added_transactions_deprecated_error",
-        "description": "Number of faulty added transactions failing on deprecated error",
-        "type": "timeseries",
-        "exprs": [
-          "http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "http_server_add_tx_latency",
-        "description": "Latency of HTTP add_tx endpoint in secs",
+        "title": "HTTP Server Add Tx Latency",
+        "description": "The time it takes to add a transaction to the HTTP Server",
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "s"
+        }
+      },
+      {
+        "title": "Number of Transactions Failed to be Added (by reason)",
+        "description": "Number of transactions that failed to be added by reason (10m window)",
+        "type": "timeseries",
+        "exprs": [
+          "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+          "increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+        ],
+        "extra_params": {
+          "legends": "[\"internal error\",\"deprecated error\"]"
+        }
       }
     ],
     "Gateway": [
