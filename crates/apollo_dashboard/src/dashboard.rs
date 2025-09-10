@@ -86,11 +86,33 @@ impl Unit {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThresholdMode {
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    Absolute,
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    Percentage,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ThresholdStep {
+    pub color: String,
+    pub value: Option<f64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Thresholds {
+    pub mode: ThresholdMode,
+    pub steps: Vec<ThresholdStep>,
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct ExtraParams {
     pub unit: Option<Unit>,
     pub show_percent_change: bool,
     pub log_query: Option<String>,
+    pub thresholds: Option<Thresholds>,
 }
 
 impl ExtraParams {
@@ -104,6 +126,10 @@ impl ExtraParams {
         }
         if let Some(lq) = &self.log_query {
             map.insert("log_query".to_string(), lq.clone());
+        }
+        if let Some(th) = &self.thresholds {
+            let json = serde_json::to_string(th).unwrap();
+            map.insert("thresholds".into(), json);
         }
         map
     }
@@ -157,6 +183,46 @@ impl Panel {
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
         self.extra.log_query = Some(log_query.into());
         self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    fn with_thresholds(mut self, mode: ThresholdMode, steps: Vec<(&str, Option<f64>)>) -> Self {
+        assert!(!steps.is_empty(), "thresholds must include at least one step");
+        assert!(steps[0].1.is_none(), "first threshold step must have value=null");
+        for w in steps.windows(2).skip(1) {
+            let prev = w[0].1.unwrap();
+            let next = w[1].1.unwrap();
+            assert!(
+                next > prev,
+                "threshold values must be strictly increasing: {} then {}",
+                prev,
+                next
+            );
+        }
+        let steps = steps
+            .into_iter()
+            .map(|(color, value)| ThresholdStep { color: color.to_string(), value })
+            .collect();
+        self.extra.thresholds = Some(Thresholds { mode, steps });
+        self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    /// - The first step must have `value = None` → becomes `null` in Grafana. This defines the base
+    ///   color for all values below the first numeric threshold.
+    /// - All following steps must be `Some(number)` with **strictly increasing values**. Grafana
+    ///   chooses the color of the last threshold whose value ≤ datapoint.
+    /// - Colors may be any valid CSS color string:
+    /// - Named: "green", "red": <https://developer.mozilla.org/en-US/docs/Web/CSS/named-color>.
+    /// - Hex: "#FF0000", "#00ff00".
+    /// - RGB/HSL: "rgb(255,0,0)", "hsl(120,100%,50%)", etc.
+    pub fn with_absolute_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+        self.with_thresholds(ThresholdMode::Absolute, steps)
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_percentage_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+        self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
     // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
@@ -246,6 +312,11 @@ impl Panel {
             PanelType::TimeSeries,
         )
     }
+}
+
+#[allow(dead_code)] // TODO(Ron): use in panels
+pub fn traffic_light_thresholds(yellow: f64, red: f64) -> Vec<(&'static str, Option<f64>)> {
+    vec![("green", None), ("yellow", Some(yellow)), ("red", Some(red))]
 }
 
 // There is no equivalent for LabeledPanels because they are less straightforward than
