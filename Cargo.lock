@@ -7722,6 +7722,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1bd2632acbd9957afc5aeec07ad39f078ae38656654043bf16e046fa2730e23"
 dependencies = [
+ "rayon",
  "serde",
  "serde_json",
 ]
@@ -12123,6 +12124,7 @@ dependencies = [
  "expect-test",
  "indexmap 2.11.0",
  "indoc 2.0.6",
+ "lambdaworks-math",
  "log",
  "num-bigint 0.4.6",
  "num-integer",
