@@ -15,7 +15,6 @@ use apollo_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use hyper::StatusCode;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::test_utils::read_json_file;
@@ -77,7 +76,7 @@ async fn gateway_output_json_conversion(
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
 
-    assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
+    assert_eq!(status_code, hyper::StatusCode::OK, "{response_bytes:?}");
     let gateway_response: GatewayOutput = serde_json::from_slice(response_bytes).unwrap();
 
     let expected_gateway_response = read_json_file(expected_serialized_response_path);
@@ -215,11 +214,13 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(tx_hash, EXPECTED_TX_HASH);
 
     // Test a failed bad request response.
-    let error_str = http_client.assert_add_tx_error(tx.clone(), StatusCode::BAD_REQUEST).await;
+    let error_str =
+        http_client.assert_add_tx_error(tx.clone(), reqwest::StatusCode::BAD_REQUEST).await;
     assert_eq!(error_str, expected_err_str);
 
     // Test a failed internal server error response.
-    let error_str = http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
+    let error_str =
+        http_client.assert_add_tx_error(tx, reqwest::StatusCode::INTERNAL_SERVER_ERROR).await;
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
@@ -275,7 +276,8 @@ async fn test_unsupported_tx_version(
     let mock_gateway_client = MockGatewayClient::new();
     let http_client = add_tx_http_client(mock_gateway_client, 9 + index).await;
 
-    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
+    let serialized_err =
+        http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
     let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
     assert_eq!(starknet_error, expected_err);
 }
@@ -292,7 +294,8 @@ async fn sanitizing_error_message() {
     let mock_gateway_client = MockGatewayClient::new();
     let http_client = add_tx_http_client(mock_gateway_client, 13).await;
 
-    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
+    let serialized_err =
+        http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
     let starknet_error: StarknetError =
         serde_json::from_str(&serialized_err).expect("Expected valid StarknetError JSON");
 

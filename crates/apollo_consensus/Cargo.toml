@@ -10,7 +10,7 @@ description = "Reach consensus for Starknet"
 testing = []
 
 [dependencies]
-apollo_config.workspace = true
+apollo_consensus_config.workspace = true
 apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
@@ -29,7 +29,6 @@ strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_network = { workspace = true, features = ["testing"] }

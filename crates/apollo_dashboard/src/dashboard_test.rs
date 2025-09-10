@@ -9,6 +9,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
 };
 use crate::dashboard::Panel;
 
@@ -27,6 +28,7 @@ fn serialize_alert() {
         "5m",
         20,
         AlertSeverity::Sos,
+        ObserverApplicability::Applicable,
         AlertEnvFiltering::All,
     );
 
@@ -46,7 +48,8 @@ fn serialize_alert() {
         ],
         "for": "5m",
         "intervalSec": 20,
-        "severity": "p1"
+        "severity": "p1",
+        "observer_applicable": true
     });
     assert_json_eq(&serialized, &expected, "Json Comparison failed".to_string());
 }
@@ -62,25 +65,20 @@ fn test_ratio_time_series() {
         Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
 
     let expected = format!(
-        "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}]) + increase({}[{}])))",
+        "100 * (increase({}[{duration}]) / (increase({}[{duration}]) + increase({}[{duration}]) + \
+         increase({}[{duration}])))",
         metric_1.get_name_with_filter(),
-        duration,
         metric_1.get_name_with_filter(),
-        duration,
         metric_2.get_name_with_filter(),
-        duration,
         metric_3.get_name_with_filter(),
-        duration,
     );
 
     assert_eq!(panel.exprs, vec![expected]);
 
     let expected = format!(
-        "100 * (increase({}[{}]) / (increase({}[{}])))",
+        "100 * (increase({}[{duration}]) / (increase({}[{duration}])))",
         metric_1.get_name_with_filter(),
-        duration,
         metric_2.get_name_with_filter(),
-        duration,
     );
     let panel = Panel::ratio_time_series("y", "y", &metric_1, &[&metric_2], duration);
     assert_eq!(panel.exprs, vec![expected]);

@@ -164,7 +164,13 @@ fn get_consolidated_config() -> ComponentConfig {
     ComponentConfig {
         batcher: base.clone(),
         class_manager: base.clone(),
+<<<<<<< HEAD
         consensus_manager: ActiveComponentExecutionConfig::enabled(),
+||||||| 6051e5ea9
+=======
+        // TODO(Nadin): use base.clone() once config manager is ready.
+        config_manager: ReactiveComponentExecutionConfig::disabled(),
+>>>>>>> origin/main-v0.14.0
         gateway: base.clone(),
         http_server: ActiveComponentExecutionConfig::enabled(),
         l1_endpoint_monitor: base.clone(),

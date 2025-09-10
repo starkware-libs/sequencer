@@ -15,7 +15,6 @@ use crate::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
-    MEMPOOL_EVICTIONS_COUNT,
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -290,6 +289,7 @@ pub struct MempoolMetrics {
     pub txs_dropped_expired: u64,
     pub txs_dropped_failed_add_tx_checks: u64,
     pub txs_dropped_rejected: u64,
+    pub txs_dropped_evicted: u64,
     pub pool_size: u64,
     pub priority_queue_size: u64,
     pub pending_queue_size: u64,
@@ -304,7 +304,6 @@ pub struct MempoolMetrics {
 impl MempoolMetrics {
     pub fn verify_metrics(&self, recorder: &PrometheusRecorder) {
         let metrics = &recorder.handle().render();
-        MEMPOOL_EVICTIONS_COUNT.assert_eq(metrics, self.evictions_count);
         MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
             metrics,
             self.txs_received_invoke,
@@ -335,6 +334,11 @@ impl MempoolMetrics {
             metrics,
             self.txs_dropped_rejected,
             &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())],
+        );
+        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
+            metrics,
+            self.txs_dropped_evicted,
+            &[(LABEL_NAME_DROP_REASON, DropReason::Evicted.into())],
         );
         MEMPOOL_POOL_SIZE.assert_eq(metrics, self.pool_size);
         MEMPOOL_PRIORITY_QUEUE_SIZE.assert_eq(metrics, self.priority_queue_size);

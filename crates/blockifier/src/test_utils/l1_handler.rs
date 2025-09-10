@@ -21,3 +21,22 @@ pub fn l1handler_tx(l1_fee: Fee, contract_address: ContractAddress) -> L1Handler
         ..Default::default()
     })
 }
+
+pub fn l1_handler_set_value_and_revert(
+    l1_fee: Fee,
+    contract_address: ContractAddress,
+) -> L1HandlerTransaction {
+    let calldata = calldata![
+        Felt::from(0x123), // from_address.
+        Felt::from(0x876), // key.
+        Felt::from(0x55)   // value.
+    ];
+
+    executable_l1_handler_tx(L1HandlerTxArgs {
+        contract_address,
+        entry_point_selector: selector_from_name("l1_handler_set_value_and_revert"),
+        calldata,
+        paid_fee_on_l1: l1_fee,
+        ..Default::default()
+    })
+}

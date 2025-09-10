@@ -21,7 +21,11 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -35,10 +39,13 @@ use tracing::{info, info_span, Instrument};
 
 use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
+    CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
@@ -83,6 +90,7 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+                num_dropped_broadcast_messages: CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
             },
         );
         broadcast_metrics_by_topic.insert(
@@ -90,6 +98,7 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+                num_dropped_broadcast_messages: CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {
@@ -97,6 +106,7 @@ impl ConsensusManager {
             num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
+            event_metrics: Some(EventMetrics { event_counter: CONSENSUS_NETWORK_EVENTS }),
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
@@ -179,10 +189,14 @@ impl ConsensusManager {
         let run_consensus_args = apollo_consensus::RunConsensusArguments {
             start_active_height: active_height,
             start_observe_height: observer_height,
-            validator_id: self.config.consensus_manager_config.validator_id,
-            consensus_delay: self.config.consensus_manager_config.startup_delay,
-            timeouts: self.config.consensus_manager_config.timeouts.clone(),
-            sync_retry_interval: self.config.consensus_manager_config.sync_retry_interval,
+            validator_id: self.config.consensus_manager_config.dynamic_config.validator_id,
+            consensus_delay: self.config.consensus_manager_config.static_config.startup_delay,
+            timeouts: self.config.consensus_manager_config.static_config.timeouts.clone(),
+            sync_retry_interval: self
+                .config
+                .consensus_manager_config
+                .static_config
+                .sync_retry_interval,
             quorum_type,
         };
         let consensus_fut = apollo_consensus::run_consensus(
