@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 apollo_class_manager_types.workspace = true
+apollo_class_manager_config.workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
