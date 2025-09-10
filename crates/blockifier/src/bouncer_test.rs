@@ -720,3 +720,103 @@ fn class_hash_migration_data_from_state(
         assert_eq!(migration_proving_gas, GasAmount::ZERO);
     }
 }
+
+/// Ensures `get_tx_weights` adds the migration gas when (and only when) migration is applicable.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
+#[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[case(CairoVersion::Cairo0)]
+fn get_tx_weights_applies_migration_gas_delta(
+    #[case] cairo_version: CairoVersion,
+    #[values(true, false)] declare_with_casm_hash_v1: bool,
+) {
+    // Two identical contexts; only the migration flag differs.
+    let mut ctx_baseline = BlockContext::create_for_account_testing();
+    ctx_baseline.versioned_constants.enable_casm_hash_migration = false;
+
+    let mut ctx_with_migration = ctx_baseline.clone();
+    ctx_with_migration.versioned_constants.enable_casm_hash_migration = true;
+
+    // Build state once (declarations controlled by `declare_with_casm_hash_v1`).
+    let (state, executed) =
+        build_state_and_executed(&ctx_with_migration, cairo_version, declare_with_casm_hash_v1);
+
+    // Expected migration gas computed directly from state.
+    let migration_data = CasmHashMigrationData::from_state(
+        &state,
+        &executed,
+        &ctx_with_migration.versioned_constants,
+    )
+    .unwrap();
+
+    let migration_applicable = !cairo_version.is_cairo0() && declare_with_casm_hash_v1;
+
+    // Sanity check - class hashes to migrate empty only when migration is not applicable.
+    if !migration_applicable {
+        assert!(migration_data.class_hashes_to_migrate.is_empty());
+    } else {
+        assert!(!migration_data.class_hashes_to_migrate.is_empty());
+    }
+
+    let expected_migration_sierra_gas = migration_data.to_gas(
+        &ctx_with_migration.versioned_constants.os_constants.gas_costs.builtins,
+        &ctx_with_migration.versioned_constants,
+        ctx_with_migration.bouncer_config.blake_weight,
+    );
+    let expected_migration_proving_gas = migration_data.to_gas(
+        &ctx_with_migration.bouncer_config.builtin_weights.gas_costs,
+        &ctx_with_migration.versioned_constants,
+        ctx_with_migration.bouncer_config.blake_weight,
+    );
+
+    // Sanity check - migration gas is zero when not applicable.
+    if !migration_applicable {
+        assert_eq!(expected_migration_sierra_gas, GasAmount::ZERO);
+        assert_eq!(expected_migration_proving_gas, GasAmount::ZERO);
+    }
+
+    // Actual weights - migration disabled.
+    let weights_baseline = get_tx_weights(
+        &state,
+        &executed,
+        0,
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &ctx_baseline.versioned_constants,
+        &BuiltinCounterMap::default(),
+        &ctx_baseline.bouncer_config,
+    )
+    .unwrap();
+
+    // Sanity check - class hashes to migrate are empty when migration is disabled.
+    assert!(weights_baseline.class_hashes_to_migrate.is_empty());
+
+    // Actual weights - migration enabled.
+    let weights_with_migration = get_tx_weights(
+        &state,
+        &executed,
+        0,
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &ctx_with_migration.versioned_constants,
+        &BuiltinCounterMap::default(),
+        &ctx_with_migration.bouncer_config,
+    )
+    .unwrap();
+
+    // Class-hash mapping propagates only when migration is applicable.
+    assert_eq!(
+        weights_with_migration.class_hashes_to_migrate,
+        migration_data.class_hashes_to_migrate
+    );
+
+    // Delta(with_migration − baseline) must equal computed migration gas.
+    let sierra_migration_delta = weights_with_migration.bouncer_weights.sierra_gas
+        - weights_baseline.bouncer_weights.sierra_gas;
+
+    let proving_migration_delta = weights_with_migration.bouncer_weights.proving_gas
+        - weights_baseline.bouncer_weights.proving_gas;
+
+    assert_eq!(sierra_migration_delta, expected_migration_sierra_gas);
+    assert_eq!(proving_migration_delta, expected_migration_proving_gas);
+}
