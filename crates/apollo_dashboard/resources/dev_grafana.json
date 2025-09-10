@@ -1015,6 +1015,33 @@
           "histogram_quantile(0.95, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "storage_open_sync_read_transactions",
+        "description": "The number of open sync  read transactions",
+        "type": "timeseries",
+        "exprs": [
+          "storage_open_sync_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "storage_open_batcher_read_transactions",
+        "description": "The number of open batcher read transactions",
+        "type": "timeseries",
+        "exprs": [
+          "storage_open_batcher_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "storage_open_class_manager_read_transactions",
+        "description": "The number of open class manager read transactions",
+        "type": "timeseries",
+        "exprs": [
+          "storage_open_class_manager_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
       }
     ],
     "MempoolP2p": [
