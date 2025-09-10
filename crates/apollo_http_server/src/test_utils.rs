@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
+use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
@@ -11,7 +12,6 @@ use serde::Serialize;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::config::HttpServerConfig;
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::http_server::HttpServer;
 

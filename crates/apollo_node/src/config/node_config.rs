@@ -23,7 +23,7 @@ use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager::config::ConfigManagerConfig;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway::config::GatewayConfig;
-use apollo_http_server::config::HttpServerConfig;
+use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
