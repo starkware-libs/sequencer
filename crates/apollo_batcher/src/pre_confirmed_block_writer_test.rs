@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
@@ -460,4 +461,77 @@ fn test_create_pre_confirmed_block() {
     assert_eq!(result.pre_confirmed_block.transactions[1], tx2_pre_confirmed);
     assert_eq!(result.pre_confirmed_block.transaction_receipts[1], None);
     assert_eq!(result.pre_confirmed_block.transaction_state_diffs[1], None);
+}
+
+#[tokio::test]
+async fn test_channels_closed_with_pending_changes() {
+    let tx_hash = tx_hash!(1);
+    let internal_consensus_tx = create_test_internal_consensus_tx(tx_hash);
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+
+    // Expect first call with empty transactions (write_iteration 0)
+    let (iter_0_done_sender, iter_0_done_receiver) = tokio::sync::oneshot::channel::<()>();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(|block| {
+            block.write_iteration == 0 && block.pre_confirmed_block.transactions.is_empty()
+        })
+        .return_once(move |_| {
+            Box::pin(async move {
+                let _ = iter_0_done_sender.send(());
+                Ok(())
+            })
+        });
+
+    let expected_candidate_tx = CendePreconfirmedTransaction::from(internal_consensus_tx.clone());
+    let (iter_1_done_sender, iter_1_done_receiver) = tokio::sync::oneshot::channel::<()>();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(move |block| {
+            block.write_iteration == 1
+                && block.pre_confirmed_block.transactions.len() == 1
+                && block.pre_confirmed_block.transactions[0] == expected_candidate_tx
+                && block.pre_confirmed_block.transaction_receipts.len() == 1
+                && block.pre_confirmed_block.transaction_receipts[0].is_none()
+                && block.pre_confirmed_block.transaction_state_diffs.len() == 1
+                && block.pre_confirmed_block.transaction_state_diffs[0].is_none()
+        })
+        .return_once(move |_| {
+            Box::pin(async move {
+                let _ = iter_1_done_sender.send(());
+                Ok(())
+            })
+        });
+
+    // Use large write interval to prevent timer-triggered writes
+    let config = PreconfirmedBlockWriterConfig {
+        channel_buffer_capacity: 10,
+        write_block_interval_millis: u64::MAX,
+    };
+
+    let factory = PreconfirmedBlockWriterFactory { config, cende_client: Arc::new(mock_client) };
+
+    let (mut writer, candidate_tx_sender, preconfirmed_tx_sender) =
+        factory.create(BlockNumber(TEST_BLOCK_NUMBER), TEST_ROUND, create_test_block_metadata());
+
+    let writer_task = task::spawn(async move { writer.run().await });
+
+    // Wait for initial empty write
+    iter_0_done_receiver.await.unwrap();
+
+    // Send candidate transaction and close channels to signal that current block build is complete
+    // and it should exit.
+    candidate_tx_sender.send(vec![internal_consensus_tx]).await.unwrap();
+    // TODO(noamsp): Remove this sleep and use a channel to signal that the transaction was received
+    // before closing the channels.
+    tokio::time::sleep(Duration::from_millis(1)).await;
+    drop(candidate_tx_sender);
+    drop(preconfirmed_tx_sender);
+    // Wait for second write to complete - this should only happen if there was unwritten pending
+    // data and the channels were closed before the write interval.
+    iter_1_done_receiver.await.unwrap();
+
+    assert_matches!(writer_task.await, Ok(Ok(())));
 }
