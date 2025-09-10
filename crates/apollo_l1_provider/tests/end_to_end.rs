@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_l1_provider::l1_provider::L1ProviderBuilder;
-use apollo_l1_provider::L1ProviderConfig;
+use apollo_l1_provider_config::L1ProviderConfig;
 use apollo_l1_provider_types::InvalidValidationStatus::*;
 use apollo_l1_provider_types::ValidationStatus::*;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient, SessionState};

@@ -29,7 +29,7 @@ use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
-use apollo_l1_provider::L1ProviderConfig;
+use apollo_l1_provider_config::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
