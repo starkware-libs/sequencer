@@ -91,8 +91,6 @@ pub(crate) fn check_packed_values_end_and_size(
     Ok(())
 }
 
-// TODO(Einat): remove allow(unused) once hint is added to enum definition file.
-#[allow(unused)]
 pub(crate) fn naive_unpack_felt252s_to_u32s(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -100,7 +98,7 @@ pub(crate) fn naive_unpack_felt252s_to_u32s(
 
     let out: Vec<MaybeRelocatable> = vals
         .into_iter()
-        .map(|mut val| val.to_biguint())
+        .map(|val| val.to_biguint())
         .flat_map(|mut val| {
             let mut limbs = vec![BigUint::from(0_u32); 8];
             for limb in limbs.iter_mut().rev() {
