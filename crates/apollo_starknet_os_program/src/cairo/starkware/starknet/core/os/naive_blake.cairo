@@ -1,3 +1,6 @@
+from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
+
 // / Encodes a list of felt252s to a list of u32s, each felt is mapped to eight u32s.
 func naive_encode_felt252s_to_u32s{range_check_ptr: felt}(
     packed_values_len: felt, packed_values: felt*, unpacked_u32s: felt*
@@ -7,7 +10,7 @@ func naive_encode_felt252s_to_u32s{range_check_ptr: felt}(
     local end = cast(packed_values, felt) + packed_values_len;
 
     // TODO(Einat): add this hint to the enum definition file once function is used in the OS.
-    %{ naive_encode_felt252s_to_u32s(ids.packed_values_len, ids.packed_values, ids.unpacked_u32s) %}
+    %{ NaiveUnpackFelts252ToU32s %}
     tempvar out = unpacked_u32s;
     tempvar packed_values = packed_values;
     tempvar range_check_ptr = range_check_ptr;
@@ -29,4 +32,21 @@ func naive_encode_felt252s_to_u32s{range_check_ptr: felt}(
     tempvar packed_values = &packed_values[1];
     tempvar range_check_ptr = range_check_ptr + 1;
     jmp loop;
+}
+
+func calc_blake_hash_without_encoding{range_check_ptr: felt}(data_len: felt, data: felt*) -> (
+    hash: felt
+) {
+    alloc_locals;
+    let (local encoded_data: felt*) = alloc();
+    let encoded_data_len = naive_encode_felt252s_to_u32s(
+        packed_values_len=data_len, packed_values=data, unpacked_u32s=encoded_data
+    );
+    let (local blake_output: felt*) = alloc();
+    blake_with_opcode(len=encoded_data_len, data=encoded_data, out=blake_output);
+    return (
+        hash=blake_output[7] * 2 ** 224 + blake_output[6] * 2 ** 192 + blake_output[5] * 2 ** 160 +
+        blake_output[4] * 2 ** 128 + blake_output[3] * 2 ** 96 + blake_output[2] * 2 ** 64 +
+        blake_output[1] * 2 ** 32 + blake_output[0],
+    );
 }
