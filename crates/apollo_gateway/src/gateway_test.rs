@@ -6,6 +6,11 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
+use apollo_gateway_config::config::{
+    GatewayConfig,
+    StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
+};
 use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
@@ -65,11 +70,6 @@ use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;
 
-use crate::config::{
-    GatewayConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
-};
 use crate::errors::GatewayResult;
 use crate::gateway::Gateway;
 use crate::metrics::{
