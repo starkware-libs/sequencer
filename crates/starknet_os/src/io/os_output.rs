@@ -100,6 +100,7 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
 
 // TODO(Tzahi): Replace with starknet_api struct after it is updated.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "testing", derive(Clone, PartialEq))]
 #[derive(Debug)]
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
 pub struct MessageToL2 {
