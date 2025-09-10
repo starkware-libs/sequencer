@@ -1250,7 +1250,7 @@ version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "apollo_config",
- "apollo_http_server",
+ "apollo_http_server_config",
  "apollo_infra_utils",
  "apollo_monitoring_endpoint",
  "apollo_network",
@@ -1345,8 +1345,8 @@ dependencies = [
 name = "apollo_http_server"
 version = "0.15.0-rc.4"
 dependencies = [
- "apollo_config",
  "apollo_gateway_types",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_metrics",
@@ -1374,6 +1374,14 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+]
+
+[[package]]
+name = "apollo_http_server_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1447,6 +1455,7 @@ dependencies = [
  "apollo_deployments",
  "apollo_gateway",
  "apollo_http_server",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor",
@@ -1833,6 +1842,7 @@ dependencies = [
  "apollo_gateway",
  "apollo_gateway_types",
  "apollo_http_server",
+ "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor",

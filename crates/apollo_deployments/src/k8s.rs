@@ -1,4 +1,4 @@
-use apollo_http_server::config::HTTP_SERVER_PORT;
+use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use serde::{Serialize, Serializer};
 
 use crate::deployment::P2PCommunicationType;
