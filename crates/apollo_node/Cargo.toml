@@ -25,6 +25,7 @@ apollo_compile_to_casm_types.workspace = true
 apollo_config.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_gateway.workspace = true
+apollo_gateway_config.workspace = true
 apollo_gateway_types.workspace = true
 apollo_http_server.workspace = true
 apollo_infra.workspace = true

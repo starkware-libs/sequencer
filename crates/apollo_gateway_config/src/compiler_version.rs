@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, Error, PartialEq)]
 pub enum VersionIdError {
     #[error("{message}")]
     InvalidVersion { message: String },

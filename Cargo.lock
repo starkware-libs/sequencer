@@ -1273,8 +1273,8 @@ name = "apollo_gateway"
 version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
- "apollo_compilation_utils",
  "apollo_config",
+ "apollo_gateway_config",
  "apollo_gateway_types",
  "apollo_infra",
  "apollo_mempool",
@@ -1317,6 +1317,20 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+]
+
+[[package]]
+name = "apollo_gateway_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_compilation_utils",
+ "apollo_config",
+ "blockifier",
+ "cairo-lang-starknet-classes",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
  "validator",
 ]
 
@@ -1445,7 +1459,7 @@ dependencies = [
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
  "apollo_deployments",
- "apollo_gateway",
+ "apollo_gateway_config",
  "apollo_http_server",
  "apollo_infra",
  "apollo_infra_utils",
@@ -1831,6 +1845,7 @@ dependencies = [
  "apollo_config_manager_types",
  "apollo_consensus_manager",
  "apollo_gateway",
+ "apollo_gateway_config",
  "apollo_gateway_types",
  "apollo_http_server",
  "apollo_infra",
@@ -3344,6 +3359,7 @@ name = "blockifier_reexecution"
 version = "0.15.0-rc.4"
 dependencies = [
  "apollo_gateway",
+ "apollo_gateway_config",
  "apollo_rpc_execution",
  "assert_matches",
  "blockifier",
