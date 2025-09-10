@@ -1447,6 +1447,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor",
  "apollo_l1_gas_price",
+ "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
  "apollo_mempool",
@@ -1529,6 +1530,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "async-trait",
@@ -1547,6 +1549,15 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_l1_gas_price_provider_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1830,6 +1841,7 @@ dependencies = [
  "apollo_l1_endpoint_monitor",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
+ "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
  "apollo_l1_provider_types",

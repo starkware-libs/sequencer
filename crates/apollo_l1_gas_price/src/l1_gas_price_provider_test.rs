@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
+use apollo_l1_gas_price_provider_config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::{GasPriceData, MockEthToStrkOracleClientTrait, PriceInfo};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 
-use crate::l1_gas_price_provider::{
-    L1GasPriceProvider,
-    L1GasPriceProviderConfig,
-    L1GasPriceProviderError,
-};
+use crate::l1_gas_price_provider::{L1GasPriceProvider, L1GasPriceProviderError};
 
 // Make a provider with five block prices. Timestamps are 2 seconds apart, starting from 0.
 // To get the prices for the middle three blocks use the timestamp for block[3].
