@@ -107,7 +107,7 @@ fn version_migration() {
     drop(writer);
 
     // Reopen the storage and verify the version.
-    let (reader, _) = open_storage(config).unwrap();
+    let (reader, _) = open_storage(config, None).unwrap();
 
     let version_state = reader.begin_ro_txn().unwrap().get_state_version().unwrap();
     assert_eq!(version_state.unwrap(), STORAGE_VERSION_STATE);
@@ -126,7 +126,7 @@ fn open_storage_full_archive_different_state_major_versions() {
     drop(writer);
 
     // Reopen the storage and verify the version.
-    let Err(err) = open_storage(config) else {
+    let Err(err) = open_storage(config, None) else {
         panic!("Unexpected Ok.");
     };
     assert_matches!(
@@ -150,7 +150,7 @@ fn open_storage_full_archive_different_blocks_major_versions() {
     drop(writer);
 
     // Reopen the storage and verify the version.
-    let Err(err) = open_storage(config) else {
+    let Err(err) = open_storage(config, None) else {
         panic!("Unexpected Ok.");
     };
     assert_matches!(
@@ -174,7 +174,7 @@ fn open_storage_state_only_different_state_major_versions() {
     drop(writer);
 
     // Reopen the storage and verify the version.
-    let Err(err) = open_storage(config) else {
+    let Err(err) = open_storage(config, None) else {
         panic!("Unexpected Ok.");
     };
     assert_matches!(
@@ -198,7 +198,7 @@ fn open_storage_state_only_different_blocks_major_versions() {
     drop(writer);
 
     // Reopen the storage and verify the version.
-    assert!(open_storage(config.clone()).is_ok());
+    assert!(open_storage(config.clone(), None).is_ok());
 }
 
 // Changes the storage version with version_key to the given version.

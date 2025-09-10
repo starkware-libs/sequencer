@@ -30,13 +30,14 @@
 //! #     min_size: 1 << 20,    // 1MB
 //! #     max_size: 1 << 35,    // 32GB
 //! #     growth_step: 1 << 26, // 64MB
+//! #     max_readers: 1 << 13, // 8K readers
 //! # };
 //! # let storage_config = StorageConfig{db_config, ..Default::default()};
 //! let class_hash = ClassHash::default();
 //! let class = SierraContractClass::default();
 //! let deprecated_class_hash = ClassHash(StarkHash::ONE);
 //! let deprecated_class = DeprecatedContractClass::default();
-//! let (reader, mut writer) = open_storage(storage_config)?;
+//! let (reader, mut writer) = open_storage(storage_config, None)?;
 //! writer
 //!     .begin_rw_txn()? // Start a RW transaction.
 //!     .append_state_diff(

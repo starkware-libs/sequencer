@@ -24,10 +24,11 @@
 //! #     min_size: 1 << 20,    // 1MB
 //! #     max_size: 1 << 35,    // 32GB
 //! #     growth_step: 1 << 26, // 64MB
+//! #     max_readers: 1 << 13, // 8K readers
 //! # };
 //! let block = Block::default();
 //! # let storage_config = StorageConfig{db_config, ..Default::default()};
-//! let (reader, mut writer) = open_storage(storage_config)?;
+//! let (reader, mut writer) = open_storage(storage_config, None)?;
 //! writer
 //!     .begin_rw_txn()?                                // Start a RW transaction.
 //!     .append_body(BlockNumber(0), block.body)?       // Append the block body (consumes the body at the current version).

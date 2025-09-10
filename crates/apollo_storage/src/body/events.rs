@@ -24,10 +24,11 @@
 //! #     min_size: 1 << 20,    // 1MB
 //! #     max_size: 1 << 35,    // 32GB
 //! #     growth_step: 1 << 26, // 64MB
+//! #     max_readers: 1 << 13, // 8K readers
 //! # };
 //! # let storage_config = StorageConfig{db_config, ..Default::default()};
 //! // The API allows read-only interactions with the events. To write events, use the body writer.
-//! let (reader, mut writer) = open_storage(storage_config)?;
+//! let (reader, mut writer) = open_storage(storage_config, None)?;
 //! // iterate events from all contracts, starting from the first event in the first transaction.
 //! let event_index = EventIndex(
 //!     TransactionIndex(BlockNumber(0), TransactionOffsetInBlock(0)),

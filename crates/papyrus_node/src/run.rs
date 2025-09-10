@@ -84,7 +84,7 @@ pub struct PapyrusTaskHandles {
 
 impl PapyrusResources {
     pub fn new(config: &NodeConfig) -> anyhow::Result<Self> {
-        let (storage_reader, storage_writer) = open_storage(config.storage.clone())?;
+        let (storage_reader, storage_writer) = open_storage(config.storage.clone(), None)?;
         let (maybe_network_manager, local_peer_id) = build_network_manager(config.network.clone())?;
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
