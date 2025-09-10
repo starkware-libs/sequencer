@@ -45,7 +45,7 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
 #[test]
 fn gas_price_provider_mean_prices() {
     let (provider, block_prices, timestamp3) = make_provider();
-    let lag = provider.config.lag_margin_seconds;
+    let lag = provider.config.lag_margin_seconds.as_secs();
     let num_blocks: u128 = provider.config.number_of_blocks_for_mean.into();
 
     // This calculation will grab config.number_of_blocks_for_mean prices from the middle of the
@@ -73,7 +73,7 @@ fn gas_price_provider_mean_prices() {
 #[test]
 fn gas_price_provider_adding_blocks() {
     let (mut provider, _block_prices, timestamp3) = make_provider();
-    let lag = provider.config.lag_margin_seconds;
+    let lag = provider.config.lag_margin_seconds.as_secs();
 
     // timestamp3 is used to define the interval of blocks 1 to 3.
     let PriceInfo { base_fee_per_gas: gas_price, blob_fee: data_gas_price } =
@@ -104,7 +104,7 @@ fn gas_price_provider_adding_blocks() {
 #[test]
 fn gas_price_provider_timestamp_changes_mean() {
     let (provider, _block_prices, timestamp3) = make_provider();
-    let lag = provider.config.lag_margin_seconds;
+    let lag = provider.config.lag_margin_seconds.as_secs();
 
     // timestamp3 is used to define the interval of blocks 1 to 3.
     let PriceInfo { base_fee_per_gas: gas_price, blob_fee: data_gas_price } =
