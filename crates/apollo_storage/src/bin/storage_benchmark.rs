@@ -38,7 +38,7 @@ pub fn main() {
     let config = StorageConfig { db_config, ..Default::default() };
 
     let (reader, mut _writer) =
-        apollo_storage::open_storage(config).expect("Should be able to open storage");
+        apollo_storage::open_storage(config, None).expect("Should be able to open storage");
     let txn = reader.begin_ro_txn().expect("Should be able to begin read only transaction");
     let state_reader = txn.get_state_reader().expect("Should be able to get state reader");
 

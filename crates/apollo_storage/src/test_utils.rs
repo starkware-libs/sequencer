@@ -57,7 +57,7 @@ pub(crate) fn get_test_config_with_path(
 /// testing purposes.
 pub fn get_test_storage() -> ((StorageReader, StorageWriter), TempDir) {
     let (config, temp_dir) = get_test_config(None);
-    ((open_storage(config).unwrap()), temp_dir)
+    ((open_storage(config, None).unwrap()), temp_dir)
 }
 
 /// Returns a [`MmapFileConfig`] for testing purposes.
@@ -86,7 +86,7 @@ pub fn get_test_storage_with_config_by_scope(
     scope: StorageScope,
 ) -> ((StorageReader, StorageWriter), StorageConfig, TempDir) {
     let (mut config, temp_dir) = get_test_config(Some(scope));
-    let (reader, writer) = open_storage(config.clone()).unwrap();
+    let (reader, writer) = open_storage(config.clone(), None).unwrap();
     config.db_config.path_prefix = temp_dir.path().to_path_buf();
     config.scope = scope;
 
@@ -118,7 +118,7 @@ impl TestStorageBuilder {
     /// returned [`StorageConfig`] can be used to open the exact same storage again (same DB
     /// file).
     pub fn build(self) -> ((StorageReader, StorageWriter), StorageConfig, Option<TempDir>) {
-        let (reader, writer) = open_storage(self.config.clone()).unwrap();
+        let (reader, writer) = open_storage(self.config.clone(), None).unwrap();
         ((reader, writer), self.config, self.handle)
     }
 

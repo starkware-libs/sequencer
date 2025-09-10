@@ -41,7 +41,7 @@ async fn storage_metrics_collector() {
     let mut storage_config = StorageConfig::default();
     let temp_dir = TempDir::new().unwrap();
     storage_config.db_config.path_prefix = temp_dir.path().into();
-    let (storage_reader, _storage_writer) = open_storage(storage_config).unwrap();
+    let (storage_reader, _storage_writer) = open_storage(storage_config, None).unwrap();
     let handle = PrometheusBuilder::new().install_recorder().unwrap();
 
     assert!(prometheus_is_contained(handle.render(), "storage_free_pages_number", &[]).is_none());
