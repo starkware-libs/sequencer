@@ -49,7 +49,7 @@ fn serialize_alert() {
         "for": "5m",
         "intervalSec": 20,
         "severity": "p1",
-        "observer_applicable": true
+        "observer_applicable": "true"
     });
     assert_json_eq(&serialized, &expected, "Json Comparison failed".to_string());
 }
