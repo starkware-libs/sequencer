@@ -1,9 +1,13 @@
 use std::path::PathBuf;
 
+use apollo_class_manager_config::config::{
+    ClassHashDbConfig,
+    ClassHashStorageConfig,
+    FsClassStorageConfig,
+};
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
-use crate::config::{ClassHashDbConfig, ClassHashStorageConfig, FsClassStorageConfig};
 
 pub type FileHandles = (TempDir, TempDir);
 
