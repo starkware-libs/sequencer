@@ -399,3 +399,9 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
         n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1, sn_public_keys=sn_public_keys + 1
     );
 }
+
+func encrypt{range_check_ptr, encrypted_dst: felt*}(
+    n_keys: felt, public_keys: felt*, data_start: felt*, data_end: felt*
+) {
+    return ();
+}
