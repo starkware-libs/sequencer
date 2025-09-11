@@ -1486,6 +1486,7 @@ dependencies = [
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
+ "apollo_l1_scraper_config",
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_monitoring_endpoint",
@@ -1625,6 +1626,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_provider_types",
+ "apollo_l1_scraper_config",
  "apollo_metrics",
  "apollo_state_sync_types",
  "apollo_time",
@@ -1662,6 +1664,16 @@ dependencies = [
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
+]
+
+[[package]]
+name = "apollo_l1_scraper_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
+ "validator",
 ]
 
 [[package]]
@@ -1886,6 +1898,7 @@ dependencies = [
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
  "apollo_l1_provider_types",
+ "apollo_l1_scraper_config",
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_mempool_p2p_types",

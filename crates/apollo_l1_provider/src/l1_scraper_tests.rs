@@ -8,6 +8,7 @@ use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
+use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -40,7 +41,7 @@ use starknet_api::transaction::{
 
 use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::{L1Provider, L1ProviderBuilder};
-use crate::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig, L1ScraperError};
+use crate::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperError};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
 

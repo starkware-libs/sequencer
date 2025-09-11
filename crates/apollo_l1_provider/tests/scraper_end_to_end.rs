@@ -3,8 +3,9 @@ use std::time::Duration;
 
 use alloy::primitives::U256;
 use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig};
+use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
+use apollo_l1_scraper_config::config::L1ScraperConfig;
 use mockall::predicate::eq;
 use mockall::Sequence;
 use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
