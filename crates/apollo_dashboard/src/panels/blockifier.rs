@@ -6,6 +6,8 @@ use blockifier::metrics::{
     NATIVE_CLASS_RETURNED,
     NATIVE_COMPILATION_ERROR,
     TOTAL_CALLS,
+    N_MIGRATIONS,
+    N_BLOCKS,
 };
 
 use crate::dashboard::{Panel, Row};
@@ -47,6 +49,20 @@ fn get_panel_native_execution_ratio() -> Panel {
     )
 }
 
+fn get_panel_number_of_migrations() -> Panel {
+    Panel::from(&N_MIGRATIONS)
+}
+
+fn get_panel_avg_migrations_per_block() -> Panel {
+    Panel::ratio_time_series(
+        "avg_migrations_per_block",
+        "The average number of state migrations performed per block",
+        &N_MIGRATIONS,
+        &[&N_BLOCKS],
+        BLOCKIFIER_METRIC_RATE_DURATION,
+    )
+}
+
 pub(crate) fn get_blockifier_row() -> Row {
     Row::new(
         "Blockifier",
@@ -55,6 +71,7 @@ pub(crate) fn get_blockifier_row() -> Row {
             get_panel_blockifier_state_reader_native_class_returned_ratio(),
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
+            get_panel_number_of_migrations(),
         ],
     )
 }

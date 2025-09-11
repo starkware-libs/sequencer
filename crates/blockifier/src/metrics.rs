@@ -24,6 +24,18 @@ define_metrics!(
             "number_of_total_calls",
             "Counter of the total number of calls",
             init=0
+        },
+        MetricCounter {
+            N_MIGRATIONS,
+            "number_of_migrations",
+            "Counter of the number of state migrations performed",
+            init=0
+        },
+        MetricCounter {
+            N_BLOCKS,
+            "number_of_blocks",
+            "Counter of the number of blocks processed",
+            init=0
         }
     }
 );
