@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
@@ -878,57 +877,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::SignatureManager => UpdateStrategy::Recreate,
             DistributedNodeServiceName::StateSync => UpdateStrategy::Recreate,
         }
-    }
-}
-
-impl DistributedNodeServiceName {
-    // TODO(Tsabary): there's code duplication here that needs to be removed, especially with
-    // respect of the hybrid node.
-
-    /// Returns a component execution config for a component that runs locally, and accepts inbound
-    /// connections from remote components.
-    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-    }
-
-    /// Returns a component execution config for a component that is accessed remotely.
-    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        let idle_connections = self.get_scale_policy().idle_connections();
-        ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-        .with_idle_connections(idle_connections)
-    }
-
-    fn component_config_pair(&self, port: u16) -> DistributedNodeServiceConfigPair {
-        DistributedNodeServiceConfigPair {
-            local: self.component_config_for_local_service(port),
-            remote: self.component_config_for_remote_service(port),
-        }
-    }
-}
-
-/// Component config bundling for services of a distributed node: a config to run a component
-/// locally while being accessible to other services, and a suitable config enabling such services
-/// the access.
-struct DistributedNodeServiceConfigPair {
-    local: ReactiveComponentExecutionConfig,
-    remote: ReactiveComponentExecutionConfig,
-}
-
-impl DistributedNodeServiceConfigPair {
-    fn local(&self) -> ReactiveComponentExecutionConfig {
-        self.local.clone()
-    }
-
-    fn remote(&self) -> ReactiveComponentExecutionConfig {
-        self.remote.clone()
     }
 }
 
