@@ -32,7 +32,6 @@ use crate::deployment_definitions::{
     NodeAndValidatorId,
     ServicePort,
 };
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -45,6 +44,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::scale_policy::{ScalePolicy, IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES};
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
@@ -174,14 +174,16 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-    fn get_autoscale(&self) -> bool {
+    fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            HybridNodeServiceName::Core => false,
-            HybridNodeServiceName::HttpServer => false,
-            HybridNodeServiceName::Gateway => true,
-            HybridNodeServiceName::L1 => false,
-            HybridNodeServiceName::Mempool => false,
-            HybridNodeServiceName::SierraCompiler => true,
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::L1
+            | HybridNodeServiceName::Mempool => ScalePolicy::StaticallyScaled,
+
+            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
+                ScalePolicy::AutoScaled
+            }
         }
     }
 
