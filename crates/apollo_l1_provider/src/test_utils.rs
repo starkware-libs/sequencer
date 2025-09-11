@@ -552,18 +552,21 @@ fn assert_event_almost_eq(received: &Event, expected: &Event) {
         Event::L1HandlerTransaction {
             l1_handler_tx: received_l1_handler_tx,
             block_timestamp: received_block_timestamp,
-            scrape_timestamp: _,
+            scrape_timestamp: received_scrape_timestamp,
         },
         Event::L1HandlerTransaction {
             l1_handler_tx: expected_l1_handler_tx,
             block_timestamp: expected_block_timestamp,
-            scrape_timestamp: _,
+            scrape_timestamp: expected_scrape_timestamp,
         },
     ) = (received, expected)
     {
         // Skip the assertion on scrape_timestamp.
         assert_eq!(received_l1_handler_tx, expected_l1_handler_tx);
         assert_eq!(received_block_timestamp, expected_block_timestamp);
+        assert!(*received_scrape_timestamp >= *expected_scrape_timestamp);
+        const SCRAPE_TIMESTAMP_MARGIN: u64 = 100;
+        assert!(*received_scrape_timestamp <= *expected_scrape_timestamp + SCRAPE_TIMESTAMP_MARGIN);
     } else {
         assert_eq!(received, expected);
     }
