@@ -317,6 +317,7 @@ define_string_enum! {
         (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.output.N_UPDATES_SMALL_PACKING_BOUND"),
         (ShaBatchSize, "starkware.cairo.common.cairo_sha256.sha256_utils.BATCH_SIZE"),
         (Sha256InputChunkSize, "starkware.cairo.common.cairo_sha256.sha256_utils.SHA256_INPUT_CHUNK_SIZE_FELTS"),
+        (Sha256StateSizeFelts, "starkware.cairo.common.cairo_sha256.sha256_utils.SHA256_STATE_SIZE_FELTS"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
         (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
     }
@@ -418,7 +419,6 @@ define_string_enum! {
         (ResourceBounds, "starkware.starknet.common.new_syscalls.ResourceBounds"),
         (SecpNewResponsePtr, "starkware.starknet.common.new_syscalls.SecpNewResponse*"),
         (SelectableBuiltins, "starkware.starknet.core.os.builtins.SelectableBuiltins"),
-        (Sha256ProcessBlock, "starkware.cairo.common.sha256_state.Sha256ProcessBlock"),
         (SpongeHashBuiltin, "starkware.cairo.common.sponge_as_hash.SpongeHashBuiltin"),
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
