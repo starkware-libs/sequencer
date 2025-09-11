@@ -287,6 +287,33 @@ impl Event {
             }
         })
     }
+    /// Asserts event matches other, allowing for a small margin in scrape time.
+    pub fn assert_event_almost_eq(&self, other: &Event) {
+        if let (
+            Event::L1HandlerTransaction {
+                l1_handler_tx: self_l1_handler_tx,
+                block_timestamp: self_block_timestamp,
+                scrape_timestamp: self_scrape_timestamp,
+            },
+            Event::L1HandlerTransaction {
+                l1_handler_tx: other_l1_handler_tx,
+                block_timestamp: other_block_timestamp,
+                scrape_timestamp: other_scrape_timestamp,
+            },
+        ) = (self, other)
+        {
+            assert_eq!(self_l1_handler_tx, other_l1_handler_tx);
+            assert_eq!(self_block_timestamp, other_block_timestamp);
+
+            const SCRAPE_TIMESTAMP_MARGIN: u64 = 5;
+            assert!(
+                self_scrape_timestamp.abs_diff(*other_scrape_timestamp) <= SCRAPE_TIMESTAMP_MARGIN
+            );
+        // Other types of Event are compared using regular equality.
+        } else {
+            assert_eq!(self, other);
+        }
+    }
 }
 
 impl Display for Event {

@@ -535,37 +535,8 @@ impl FakeL1ProviderClient {
     pub fn assert_add_events_received_with(&self, expected: &[Event]) {
         let events_received = mem::take(&mut *self.events_received.lock().unwrap());
         for (received, expected) in events_received.iter().zip_eq(expected) {
-            assert_event_almost_eq(received, expected);
+            received.assert_event_almost_eq(expected);
         }
-    }
-}
-
-/// Asserts that the received event matches the expected event, allowing for a small margin in
-/// scrape time.
-fn assert_event_almost_eq(received: &Event, expected: &Event) {
-    if let (
-        Event::L1HandlerTransaction {
-            l1_handler_tx: received_l1_handler_tx,
-            block_timestamp: received_block_timestamp,
-            scrape_timestamp: received_scrape_timestamp,
-        },
-        Event::L1HandlerTransaction {
-            l1_handler_tx: expected_l1_handler_tx,
-            block_timestamp: expected_block_timestamp,
-            scrape_timestamp: expected_scrape_timestamp,
-        },
-    ) = (received, expected)
-    {
-        assert_eq!(received_l1_handler_tx, expected_l1_handler_tx);
-        assert_eq!(received_block_timestamp, expected_block_timestamp);
-
-        const SCRAPE_TIMESTAMP_MARGIN: u64 = 5;
-        assert!(
-            received_scrape_timestamp.abs_diff(*expected_scrape_timestamp)
-                <= SCRAPE_TIMESTAMP_MARGIN
-        );
-    } else {
-        assert_eq!(received, expected);
     }
 }
 
