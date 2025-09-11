@@ -1274,7 +1274,7 @@ dependencies = [
  "apollo_config",
  "apollo_http_server_config",
  "apollo_infra_utils",
- "apollo_monitoring_endpoint",
+ "apollo_monitoring_endpoint_config",
  "apollo_network",
  "apollo_node",
  "apollo_protobuf",
@@ -1504,6 +1504,7 @@ dependencies = [
  "apollo_mempool_config",
  "apollo_mempool_p2p",
  "apollo_monitoring_endpoint",
+ "apollo_monitoring_endpoint_config",
  "apollo_network",
  "apollo_node",
  "apollo_protobuf",
@@ -1813,19 +1814,18 @@ name = "apollo_monitoring_endpoint"
 version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_provider_types",
  "apollo_mempool_types",
  "apollo_metrics",
+ "apollo_monitoring_endpoint_config",
  "axum",
  "hyper 0.14.32",
  "metrics 0.24.2",
  "metrics-exporter-prometheus",
  "num-traits",
  "pretty_assertions",
- "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -1834,6 +1834,14 @@ dependencies = [
  "tokio-metrics",
  "tower 0.4.13",
  "tracing",
+]
+
+[[package]]
+name = "apollo_monitoring_endpoint_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1927,6 +1935,7 @@ dependencies = [
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",
+ "apollo_monitoring_endpoint_config",
  "apollo_reverts",
  "apollo_signature_manager",
  "apollo_signature_manager_types",
