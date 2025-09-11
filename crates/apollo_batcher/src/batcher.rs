@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherConfig;
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -57,7 +58,6 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
-use crate::config::BatcherConfig;
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
