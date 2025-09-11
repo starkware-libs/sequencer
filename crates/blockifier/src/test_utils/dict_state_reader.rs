@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -25,7 +25,7 @@ pub struct DictStateReader {
     // A mapping: class hash to compiled class hash, part of the state.
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
     // A mapping: class hash to compiled class hash v2, **not** part of the state.
-    pub class_hash_to_compiled_class_hash_v2: HashMap<ClassHash, CompiledClassHash>,
+    pub class_hash_to_compiled_class_hash_v2: Arc<Mutex<HashMap<ClassHash, CompiledClassHash>>>,
 }
 
 impl DictStateReader {
@@ -63,6 +63,8 @@ impl DictStateReader {
     ) {
         // Always add compiled class hash v2 as it is used for migration.
         self.class_hash_to_compiled_class_hash_v2
+            .lock()
+            .unwrap()
             .insert(contract.class_hash, contract.compiled_class_hash_v2);
 
         // Add to the sate compiled class hash mapping according to the hash version.
@@ -115,10 +117,32 @@ impl StateReader for DictStateReader {
         Ok(compiled_class_hash)
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        let compiled_class_hash =
-            self.class_hash_to_compiled_class_hash_v2.get(&class_hash).copied().unwrap_or_default();
-        Ok(compiled_class_hash)
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        let compiled_class_hash_opt =
+            self.class_hash_to_compiled_class_hash_v2.lock().unwrap().get(&class_hash).copied();
+        match compiled_class_hash_opt {
+            Some(compiled_class_hash) => Ok(compiled_class_hash),
+            None => {
+                let compiled_class_hash = match compiled_class {
+                    RunnableCompiledClass::V0(_) => {
+                        panic!("Cairo0 classes should not have compiled class hash v2")
+                    }
+                    RunnableCompiledClass::V1(casm) => casm.hash(&HashVersion::V2),
+                    #[cfg(feature = "cairo_native")]
+                    RunnableCompiledClass::V1Native(casm) => casm.hash(&HashVersion::V2),
+                };
+                self.class_hash_to_compiled_class_hash_v2
+                    .lock()
+                    .unwrap()
+                    .insert(class_hash, compiled_class_hash);
+
+                Ok(compiled_class_hash)
+            }
+        }
     }
 }
 

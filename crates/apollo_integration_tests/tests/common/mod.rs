@@ -31,7 +31,7 @@ use tracing::info;
 pub async fn end_to_end_flow(
     test_identifier: TestIdentifier,
     test_blocks_scenarios: Vec<TestScenario>,
-    block_max_capacity_sierra_gas: GasAmount,
+    block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     expecting_full_blocks: bool,
     allow_bootstrap_txs: bool,
 ) {
@@ -46,7 +46,7 @@ pub async fn end_to_end_flow(
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
         test_identifier.into(),
-        block_max_capacity_sierra_gas,
+        block_max_capacity_gas,
         allow_bootstrap_txs,
     )
     .await;

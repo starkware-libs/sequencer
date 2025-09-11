@@ -125,6 +125,6 @@ where
 }
 
 generate_permutation_labels! {
-    MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS,
+    MEMPOOL_P2P_REQUEST_LABELS,
     (LABEL_NAME_REQUEST_VARIANT, MempoolP2pPropagatorRequestLabelValue),
 }

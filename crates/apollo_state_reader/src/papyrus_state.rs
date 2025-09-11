@@ -251,8 +251,13 @@ impl StateReader for PapyrusReader {
         }
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        Ok(self.read_compiled_class_hash_v2(class_hash)?.unwrap_or_default())
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.read_compiled_class_hash_v2(class_hash)?
+            .ok_or(StateError::MissingCompiledClassHashV2(class_hash))
     }
 }
 

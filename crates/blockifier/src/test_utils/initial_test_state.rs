@@ -1,4 +1,4 @@
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::FeeType;
@@ -10,7 +10,6 @@ use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
-use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -86,36 +85,26 @@ pub fn test_state(
     initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
 ) -> CachedState<DictStateReader> {
+    // Prefer the first ERC20's Cairo version; otherwise fall back to the first contract's version;
+    // and if there are no contracts at all, default to Cairo0.
+    let erc20_version = contract_instances
+        .iter()
+        .find_map(|(contract, _)| match contract {
+            FeatureContract::ERC20(v) => Some(*v),
+            _ => None,
+        })
+        .or_else(|| contract_instances.first().map(|(contract, _)| contract.cairo_version()))
+        .unwrap_or(CairoVersion::Cairo0);
+
     let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    test_state_ex(chain_info, initial_balances, &contract_instances_vec[..], &HashVersion::V2)
-}
-
-pub fn test_state_ex(
-    chain_info: &ChainInfo,
-    initial_balances: Fee,
-    contract_instances: &[(FeatureContractData, u16)],
-    compiled_classes_hash_version: &HashVersion,
-) -> CachedState<DictStateReader> {
-    // Here we assume that the first contract in the list is the account contract.
-    // TODO(YonatanK): Find a way to avoid this assumption.
-    let erc20_version = contract_instances
-        .first()
-        .map(|(contract_data, _)| match &contract_data.runnable_class {
-            RunnableCompiledClass::V0(_) => CairoVersion::Cairo0,
-            RunnableCompiledClass::V1(_) => CairoVersion::Cairo1(RunnableCairo1::Casm),
-            #[cfg(feature = "cairo_native")]
-            RunnableCompiledClass::V1Native(_) => CairoVersion::Cairo1(RunnableCairo1::Native),
-        })
-        .unwrap_or(CairoVersion::Cairo0);
-
     test_state_inner(
         chain_info,
         initial_balances,
-        contract_instances,
-        compiled_classes_hash_version,
+        &contract_instances_vec[..],
+        &HashVersion::V2,
         erc20_version,
     )
 }

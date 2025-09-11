@@ -11,8 +11,9 @@ use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::TransactionType;
+use starknet_api::state::StorageKey;
 use starknet_api::StarknetApiError;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{
@@ -78,8 +79,11 @@ pub enum OsHintError {
          is probably out of sync."
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
-    #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
-    InconsistentValue { actual: Felt, expected: Felt },
+    #[error(
+        "Inconsistent storage value for contract address: {}, key: {}. Expected: {}, actual: {}.", 
+        .0.contract_address.0.key(), .0.key.0.key(), .0.expected, .0.actual
+    )]
+    InconsistentStorageValue(Box<InnerInconsistentStorageValueError>),
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
@@ -136,6 +140,14 @@ pub enum OsHintError {
     VmHint(#[from] VmHintError),
     #[error(transparent)]
     VmUtils(#[from] VmUtilsError),
+}
+
+#[derive(Debug)]
+pub struct InnerInconsistentStorageValueError {
+    pub contract_address: ContractAddress,
+    pub key: StorageKey,
+    pub actual: Felt,
+    pub expected: Felt,
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution

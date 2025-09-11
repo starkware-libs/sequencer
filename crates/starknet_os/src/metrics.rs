@@ -8,14 +8,14 @@ use serde::Serialize;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[derive(Debug, Serialize)]
-pub struct OsRunInfo {
+pub struct ProgramRunInfo {
     pub pc: MaybeRelocatable,
     pub ap: MaybeRelocatable,
     pub fp: MaybeRelocatable,
     pub used_memory_cells: usize,
 }
 
-impl OsRunInfo {
+impl ProgramRunInfo {
     pub fn new(runner: &mut CairoRunner) -> Self {
         Self {
             pc: runner.vm.get_pc().into(),
@@ -30,7 +30,13 @@ impl OsRunInfo {
 pub struct OsMetrics {
     pub syscall_usages: Vec<SyscallUsageMap>,
     pub deprecated_syscall_usages: Vec<SyscallUsageMap>,
-    pub run_info: OsRunInfo,
+    pub run_info: ProgramRunInfo,
+    pub execution_resources: ExecutionResources,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AggregatorMetrics {
+    pub run_info: ProgramRunInfo,
     pub execution_resources: ExecutionResources,
 }
 
@@ -44,7 +50,16 @@ impl OsMetrics {
             deprecated_syscall_usages: hint_processor
                 .execution_helpers_manager
                 .get_deprecated_syscall_usages(),
-            run_info: OsRunInfo::new(runner),
+            run_info: ProgramRunInfo::new(runner),
+            execution_resources: runner.get_execution_resources()?,
+        })
+    }
+}
+
+impl AggregatorMetrics {
+    pub fn new(runner: &mut CairoRunner) -> Result<Self, RunnerError> {
+        Ok(Self {
+            run_info: ProgramRunInfo::new(runner),
             execution_resources: runner.get_execution_resources()?,
         })
     }

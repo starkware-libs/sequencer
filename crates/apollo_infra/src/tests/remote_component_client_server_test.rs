@@ -366,14 +366,14 @@ async fn setup_for_tests(
         a_socket.ip(),
         a_socket.port(),
         max_concurrency,
-        TEST_REMOTE_SERVER_METRICS,
+        &TEST_REMOTE_SERVER_METRICS,
     );
     let mut component_b_remote_server = RemoteComponentServer::new(
         b_local_client,
         b_socket.ip(),
         b_socket.port(),
         max_concurrency,
-        TEST_REMOTE_SERVER_METRICS,
+        &TEST_REMOTE_SERVER_METRICS,
     );
 
     task::spawn(async move {

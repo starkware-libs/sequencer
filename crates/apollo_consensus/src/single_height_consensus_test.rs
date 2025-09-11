@@ -1,3 +1,4 @@
+use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
@@ -7,7 +8,6 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use super::SingleHeightConsensus;
-use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};

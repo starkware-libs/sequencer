@@ -45,7 +45,7 @@ use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
-use crate::test_utils::initial_test_state::{test_state, test_state_ex};
+use crate::test_utils::initial_test_state::{test_state, test_state_inner};
 use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
@@ -167,20 +167,33 @@ pub fn create_test_init_data(chain_info: &ChainInfo, cairo_version: CairoVersion
 }
 
 /// Initializes a state before the compiled class hash migration.
-/// The classes are declared with the old hash version.
+/// if `declare_with_casm_hash_v1` is true, the classes are declared with the old hash version.
 pub fn create_init_data_for_compiled_class_hash_migration_test(
     chain_info: &ChainInfo,
     cairo_version: CairoVersion,
+    declare_with_casm_hash_v1: bool,
 ) -> TestInitData {
+    // If the classes are not declared with the old hash version, return the test init data for the
+    // new hash version.
+    if !declare_with_casm_hash_v1 {
+        return create_test_init_data(chain_info, cairo_version);
+    }
+
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
-    let contract_instances = [(account, 1), (erc20, 1), (test_contract, 1)];
+    let contract_instances = [(erc20, 1), (account, 1), (test_contract, 1)];
     let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
         .collect();
-    let state = test_state_ex(chain_info, BALANCE, &contract_instances_vec[..], &HashVersion::V1);
+    let state = test_state_inner(
+        chain_info,
+        BALANCE,
+        &contract_instances_vec[..],
+        &HashVersion::V1,
+        CairoVersion::Cairo0,
+    );
     TestInitData {
         state,
         account_address: account.get_instance_address(0),

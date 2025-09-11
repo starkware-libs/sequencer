@@ -8,6 +8,7 @@ from imports.com.google.cloud import (
     BackendConfig,
     BackendConfigSpec,
     BackendConfigSpecConnectionDraining,
+    BackendConfigSpecCustomRequestHeaders,
     BackendConfigSpecHealthCheck,
     BackendConfigSpecSecurityPolicy,
 )
@@ -622,6 +623,9 @@ class ServiceApp(Construct):
                 labels=self.labels,
             ),
             spec=BackendConfigSpec(
+                custom_request_headers=BackendConfigSpecCustomRequestHeaders(
+                    headers=const.BACKEND_CONFIG_HEADERS,
+                ),
                 connection_draining=BackendConfigSpecConnectionDraining(
                     draining_timeout_sec=const.BACKEND_CONFIG_CONNECTION_DRAINING_SECONDS
                 ),

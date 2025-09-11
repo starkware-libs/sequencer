@@ -18,8 +18,8 @@ testing = [
 workspace = true
 
 [dependencies]
-apollo_config.workspace = true
 apollo_gateway_types.workspace = true
+apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
@@ -38,7 +38,6 @@ starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_gateway_types = { workspace = true, features = ["testing"] }

@@ -30,7 +30,7 @@ fn append_classes_writes_correct_data() {
         .append_state_diff(
             BlockNumber(0),
             ThinStateDiff {
-                declared_classes: indexmap! { class_hash => compiled_class_hash!(1_u8) },
+                class_hash_to_compiled_class_hash: indexmap! { class_hash => compiled_class_hash!(1_u8) },
                 deprecated_declared_classes: vec![deprecated_class_hash],
                 ..Default::default()
             },

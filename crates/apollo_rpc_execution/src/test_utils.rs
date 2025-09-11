@@ -136,7 +136,7 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
                         minter_var_address => *ACCOUNT_ADDRESS.0.key()
                     ),
                 ),
-                declared_classes: indexmap!(
+                class_hash_to_compiled_class_hash: indexmap!(
                     // The class is not used in the execution, so it can be default.
                     class_hash0 => compiled_class_hash!(1_u8)
                 ),

@@ -298,6 +298,9 @@ fn client_to_central_state_update(
                         (class_hash, (compiled_class_hash, class))
                     })
                     .collect(),
+                // TODO(Aviv): Use the starknet client migrated compiled class hashes after its
+                // added.
+                migrated_compiled_classes: IndexMap::new(),
                 deprecated_declared_classes: deprecated_classes
                     .into_iter()
                     .map(|(class_hash, generic_class)| {
@@ -377,6 +380,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
         }
         return Ok(Some(ApiContractClass::DeprecatedContractClass(class)));
     }
+    drop(txn); // Drop txn so we don't unnecessarily hold it open while awaiting below.
 
     // Class not found in storage - download.
     trace!("Downloading class {class_hash:?}.");

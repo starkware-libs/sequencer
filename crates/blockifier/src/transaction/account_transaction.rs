@@ -936,6 +936,7 @@ impl ValidatableTransaction for AccountTransaction {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![*constants::VALIDATE_RETDATA];
+            println!("validate call info: {:?}", validate_call_info);
 
             if validate_call_info.execution.failed {
                 return Err(TransactionExecutionError::PanicInValidate {

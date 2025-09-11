@@ -1241,6 +1241,7 @@ fn metrics_correctness() {
         txs_dropped_expired: 1,
         txs_dropped_failed_add_tx_checks: 1,
         txs_dropped_rejected: 1,
+        txs_dropped_evicted: 1,
         pool_size: 4,
         priority_queue_size: 3,
         pending_queue_size: 1,

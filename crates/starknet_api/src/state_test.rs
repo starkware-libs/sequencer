@@ -43,7 +43,7 @@ fn thin_state_diff_len() {
                 0u64.into() => 0u64.into(),
             },
         },
-        declared_classes: indexmap! {
+        class_hash_to_compiled_class_hash: indexmap! {
             ClassHash(4u64.into()) => CompiledClassHash(9u64.into()),
             ClassHash(5u64.into()) => CompiledClassHash(10u64.into()),
         },
@@ -87,7 +87,7 @@ fn thin_state_diff_is_empty() {
     );
     assert!(
         !ThinStateDiff {
-            declared_classes: indexmap! { Default::default() => Default::default() },
+            class_hash_to_compiled_class_hash: indexmap! { Default::default() => Default::default() },
             ..Default::default()
         }
         .is_empty()

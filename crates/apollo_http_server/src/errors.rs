@@ -70,10 +70,10 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
 
 fn gw_client_err_into_response(err: GatewayClientError) -> Response {
     let (response_code, deprecated_gateway_error) = match err {
-        GatewayClientError::ClientError(e) => {
-            error!("Encountered a ClientError: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, StarknetError::internal("Internal error"))
-        }
+        GatewayClientError::ClientError(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            StarknetError::internal_with_logging("Failed to process client request", e),
+        ),
         GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
             source,
             p2p_message_metadata: _,

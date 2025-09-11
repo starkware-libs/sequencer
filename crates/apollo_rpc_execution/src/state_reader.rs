@@ -196,17 +196,22 @@ impl BlockifierStateReader for ExecutionStateReader {
                 "Inner storage error. Missing state diff at block {block_number}."
             )))?;
 
-        let compiled_class_hash = state_diff.declared_classes.get(&class_hash).ok_or(
-            StateError::StateReadError(format!(
+        let compiled_class_hash = state_diff
+            .class_hash_to_compiled_class_hash
+            .get(&class_hash)
+            .ok_or(StateError::StateReadError(format!(
                 "Inner storage error. Missing class declaration at block {block_number}, class \
                  {class_hash}."
-            )),
-        )?;
+            )))?;
 
         Ok(*compiled_class_hash)
     }
 
-    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        _compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
         // Try to read the compiled class hash v2 from the dedicated stateless table.
         // If it's missing (e.g., class not declared/Cairo0), return the default value.
         let maybe_hash = self
@@ -216,11 +221,11 @@ impl BlockifierStateReader for ExecutionStateReader {
             .get_executable_class_hash_v2(&class_hash)
             .map_err(storage_err_to_state_err)?;
 
-        Ok(maybe_hash.unwrap_or_default())
+        maybe_hash.ok_or(StateError::MissingCompiledClassHashV2(class_hash))
     }
 }
 
-// Converts a storage error to the error type of the state reader.
+/// Converts a storage error to the error type of the state reader.
 fn storage_err_to_state_err(err: StorageError) -> StateError {
     StateError::StateReadError(err.to_string())
 }

@@ -152,7 +152,7 @@ fn update_marker<'env>(
         };
         if let Some((last_class_hash, _)) = file_handlers
             .get_thin_state_diff_unchecked(state_diff_location)?
-            .declared_classes
+            .class_hash_to_compiled_class_hash
             .last()
         {
             // Not the last class in the state diff, keep the current marker.

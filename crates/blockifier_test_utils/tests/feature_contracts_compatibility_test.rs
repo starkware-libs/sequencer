@@ -7,15 +7,19 @@ use blockifier_test_utils::contracts::{
     CAIRO1_FEATURE_CONTRACTS_DIR,
     SIERRA_CONTRACTS_SUBDIR,
 };
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::core::CompiledClassHash;
 use tracing::info;
 use tracing_test::traced_test;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
-const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier_test_utils --test \
-                           feature_contracts_compatibility_test -- --include-ignored";
+const FIX_COMMAND: &str = "env UPDATE_EXPECT=1 FIX_FEATURE_TEST=1 cargo test -p \
+                           blockifier_test_utils --test feature_contracts_compatibility_test -- \
+                           --include-ignored";
 
 pub enum FeatureContractMetadata {
     Cairo0(Cairo0FeatureContractMetadata),
@@ -137,6 +141,11 @@ fn compare_compilation_data(contract: &FeatureContract) {
                 &existing_compiled_path,
                 contract.get_source_path(),
             );
+            // Compiled class hash of cairo 0 contract is defined as CompiledClassHash::default()
+            assert_eq!(
+                contract.get_compiled_class_hash(&HashVersion::V2),
+                CompiledClassHash::default()
+            );
         }
         CompilationArtifacts::Cairo1 { casm, sierra } => {
             // TODO(Aviv): Remove this if after fixing sierra file of cairo steps contract.
@@ -158,6 +167,7 @@ fn compare_compilation_data(contract: &FeatureContract) {
                     contract.get_source_path(),
                 );
             }
+            verify_contract_casm_hashes(contract, Some(&existing_compiled_contents));
         }
     }
 }
@@ -310,6 +320,21 @@ async fn verify_feature_contracts_test_body(cairo_version: CairoVersion) {
     verify_feature_contracts_compatibility(fix_features, cairo_version).await;
 }
 
+// Verified that the constant casm hashes V1 an V2 in the FeatureContract enum are correct.
+// In case of a mismatch, run the FIX_COMMAND above to fix the constant values.
+fn verify_contract_casm_hashes(contract: &FeatureContract, casm_json: Option<&str>) {
+    let casm_json = match casm_json {
+        Some(casm_json) => casm_json,
+        None => &std::fs::read_to_string(contract.get_compiled_path())
+            .expect("Failed to read CASM contract file"),
+    };
+    let casm: CasmContractClass =
+        serde_json::from_str(casm_json).expect("Failed to deserialize CASM contract class");
+    let (casm_hash_v1, casm_hash_v2) = contract.get_compiled_class_hashes_constants();
+    casm_hash_v1.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V1).0));
+    casm_hash_v2.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V2).0));
+}
+
 // Native and Casm have the same contracts and compiled files, as we only save the sierra for
 // Native, so we exclude Native CairoVersion from these tests.
 #[ignore]
@@ -324,4 +349,8 @@ async fn verify_feature_contracts_cairo0() {
 #[tokio::test(flavor = "multi_thread")]
 async fn verify_feature_contracts_cairo1() {
     verify_feature_contracts_test_body(CairoVersion::Cairo1(RunnableCairo1::Casm)).await;
+    verify_contract_casm_hashes(
+        &FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        None,
+    );
 }

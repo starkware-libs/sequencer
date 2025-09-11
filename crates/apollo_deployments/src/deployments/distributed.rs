@@ -31,11 +31,10 @@ use crate::k8s::{
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
-use crate::utils::determine_port_numbers;
+use crate::utils::validate_ports;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
 
-const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
 const STATE_SYNC_STORAGE: usize = 500;
@@ -69,12 +68,10 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
-                let determined_ports = determine_port_numbers(
-                    Some(ports),
-                    DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
-                    BASE_PORT,
-                );
-                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                // TODO(Nadin): This should compare against DistributedServicePort-specific infra
+                // ports, not all InfraServicePort variants.
+                validate_ports(&ports, InfraServicePort::iter().count());
+                for (service_port, port) in InfraServicePort::iter().zip(ports) {
                     service_ports.insert(service_port, port);
                 }
             }
@@ -597,6 +594,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -623,6 +621,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -649,6 +648,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
                         ComponentConfigInService::Consensus
+                        | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -674,7 +674,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::HttpServer => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -700,7 +701,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Gateway => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::Gateway
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::Gateway
                         | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -726,7 +728,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::L1 => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -752,7 +755,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Mempool => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::MonitoringEndpoint => {
@@ -778,7 +782,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::SierraCompiler => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::SierraCompiler => {
                             components.insert(component_config_in_service);
@@ -804,7 +809,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::SignatureManager => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::SignatureManager => {
                             components.insert(component_config_in_service);
@@ -830,7 +836,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::StateSync => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::MonitoringEndpoint
                         | ComponentConfigInService::StateSync => {
                             components.insert(component_config_in_service);
@@ -949,6 +956,7 @@ fn get_batcher_component_config(
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.l1_provider = l1_provider_remote_config;
     config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
@@ -961,6 +969,7 @@ fn get_class_manager_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.class_manager = class_manager_local_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.sierra_compiler = sierra_compiler_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -971,6 +980,7 @@ fn get_signature_manager_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.signature_manager = signature_manager_local_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -984,6 +994,7 @@ fn get_gateway_component_config(
     let mut config = ComponentConfig::disabled();
     config.gateway = gateway_local_config;
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.mempool = mempool_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
@@ -999,6 +1010,7 @@ fn get_mempool_component_config(
     config.mempool = mempool_local_config;
     config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -1009,6 +1021,7 @@ fn get_sierra_compiler_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.sierra_compiler = sierra_compiler_local_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -1020,6 +1033,7 @@ fn get_state_sync_component_config(
     let mut config = ComponentConfig::disabled();
     config.state_sync = state_sync_local_config;
     config.class_manager = class_manager_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -1032,6 +1046,7 @@ fn get_consensus_manager_component_config(
     signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
@@ -1048,6 +1063,7 @@ fn get_http_server_component_config(
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::enabled();
     config.gateway = gateway_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -1060,13 +1076,13 @@ fn get_l1_component_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
-
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
     config.state_sync = state_sync_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config

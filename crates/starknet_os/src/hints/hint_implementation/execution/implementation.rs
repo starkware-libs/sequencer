@@ -23,7 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint};
-use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::error::{InnerInconsistentStorageValueError, OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
     assert_retdata_as_expected,
     compare_retdata,
@@ -936,7 +936,14 @@ fn assert_value_cached_by_reading<S: StateReader>(
     let ids_value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
 
     if value != ids_value {
-        return Err(OsHintError::InconsistentValue { expected: value, actual: ids_value });
+        return Err(OsHintError::InconsistentStorageValue(Box::new(
+            InnerInconsistentStorageValueError {
+                contract_address,
+                key,
+                expected: value,
+                actual: ids_value,
+            },
+        )));
     }
     Ok(())
 }

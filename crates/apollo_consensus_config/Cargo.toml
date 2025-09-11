@@ -1,0 +1,17 @@
+[package]
+name = "apollo_consensus_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Configuration types for Apollo consensus"
+
+[dependencies]
+apollo_config.workspace = true
+apollo_protobuf.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+validator.workspace = true
+
+[lints]
+workspace = true

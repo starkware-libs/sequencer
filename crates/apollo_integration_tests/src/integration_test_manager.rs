@@ -5,8 +5,8 @@ use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
+use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -80,7 +80,7 @@ use crate::utils::{
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(80000000); // Capacity allows multiple transactions per block.
+const BLOCK_MAX_CAPACITY_GAS: GasAmount = GasAmount(80000000); // Capacity allows multiple transactions per block.
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
@@ -944,7 +944,7 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
-                BLOCK_MAX_CAPACITY_N_STEPS,
+                BLOCK_MAX_CAPACITY_GAS,
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
             );

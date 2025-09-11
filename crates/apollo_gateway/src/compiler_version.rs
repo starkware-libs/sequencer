@@ -12,8 +12,6 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum VersionIdError {
-    // TODO(Arni): Consider removing the error message from VersionIdError::InvalidVersion.
-    // Error messages should be handled or cause a painc. Talk to product.
     #[error("{message}")]
     InvalidVersion { message: String },
 }

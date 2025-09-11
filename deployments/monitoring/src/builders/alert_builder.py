@@ -233,7 +233,11 @@ def alert_builder(args: argparse.Namespace):
                 expr=expr,
                 conditions=dev_alert["conditions"],
                 datasource_uid=args.datasource_uid,
-                labels={"og_priority": dev_alert["severity"], "environment": args.env},
+                labels={
+                    "og_priority": dev_alert["severity"],
+                    "environment": args.env,
+                    "observer_applicable": dev_alert["observer_applicable"],
+                },
             )
         )
 

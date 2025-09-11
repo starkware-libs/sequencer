@@ -112,7 +112,7 @@ pub(crate) struct CentralStateDiff {
     nonces: IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, Nonce>>,
     storage_updates:
         IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>>,
-    declared_classes: IndexMap<ClassHash, CompiledClassHash>,
+    class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
     block_info: CentralBlockInfo,
 }
 
@@ -131,7 +131,7 @@ impl From<(ThinStateDiff, CentralBlockInfo)> for CentralStateDiff {
             address_to_class_hash: state_diff.deployed_contracts,
             nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.nonces),
             storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_diffs),
-            declared_classes: state_diff.declared_classes,
+            class_hash_to_compiled_class_hash: state_diff.class_hash_to_compiled_class_hash,
             block_info: central_block_info,
         }
     }
@@ -145,7 +145,7 @@ impl From<(CommitmentStateDiff, CentralBlockInfo)> for CentralStateDiff {
             address_to_class_hash: state_diff.address_to_class_hash,
             nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.address_to_nonce),
             storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_updates),
-            declared_classes: state_diff.class_hash_to_compiled_class_hash,
+            class_hash_to_compiled_class_hash: state_diff.class_hash_to_compiled_class_hash,
             block_info: central_block_info,
         }
     }

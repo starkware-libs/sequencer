@@ -137,7 +137,7 @@ pub fn induced_state_diff(
     Ok(ThinStateDiff {
         deployed_contracts: blockifier_state_diff.address_to_class_hash,
         storage_diffs: blockifier_state_diff.storage_updates,
-        declared_classes: blockifier_state_diff.class_hash_to_compiled_class_hash,
+        class_hash_to_compiled_class_hash: blockifier_state_diff.class_hash_to_compiled_class_hash,
         deprecated_declared_classes: deprecated_declared_class_hash
             .map_or_else(Vec::new, |class_hash| vec![class_hash]),
         nonces: blockifier_state_diff.address_to_nonce,

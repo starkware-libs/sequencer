@@ -544,7 +544,7 @@ lazy_static! {
             .iter()
             .map(|state_diff| {
                 let class_vec = state_diff
-                    .declared_classes
+                    .class_hash_to_compiled_class_hash
                     .iter()
                     .map(|(class_hash, _)| {
                         (*class_hash, SierraContractClass::get_test_instance(&mut get_rng()))

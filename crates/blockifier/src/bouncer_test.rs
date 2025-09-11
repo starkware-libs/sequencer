@@ -7,10 +7,10 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
-use starknet_api::{class_hash, contract_address, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key};
 
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
@@ -142,9 +142,12 @@ fn test_block_weights_has_room_n_txs(
         (class_hash!(0_u128), GasAmount(5))]),
         gas_without_casm_hash_computation: GasAmount(5),
     },
-    casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
-    // TODO(Meshi): Change to relevant test case when the migration is implemented.
-    class_hashes_to_migrate: HashMap::default(),
+    casm_hash_computation_data_proving_gas: CasmHashComputationData{class_hash_to_casm_hash_computation_gas: HashMap::from([
+        (class_hash!(0_u128), GasAmount(5))]),
+        gas_without_casm_hash_computation: GasAmount(5),},
+    class_hashes_to_migrate: HashMap::from([
+        (class_hash!(0_u128), (CompiledClassHash(felt!(2_u128)), CompiledClassHash(felt!(1_u128)))),
+    ]),
 }
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
@@ -172,18 +175,24 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         HashMap::from([(class_hash!(1_u128), GasAmount(1)), (class_hash!(2_u128), GasAmount(2))]);
 
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData {
+        class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update
+            .clone(),
+        gas_without_casm_hash_computation: GasAmount(6),
+    };
+    let casm_hash_computation_data_proving_gas = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
         gas_without_casm_hash_computation: GasAmount(6),
     };
-    let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
-    // TODO(Meshi): Change to relevant test case when the migration is implemented.
-    let class_hashes_to_migrate = HashMap::default();
+    let class_hashes_to_migrate = HashMap::from([
+        (class_hash!(2_u128), (CompiledClassHash(felt!(4_u128)), CompiledClassHash(felt!(3_u128)))),
+        (class_hash!(1_u128), (CompiledClassHash(felt!(6_u128)), CompiledClassHash(felt!(5_u128)))),
+    ]);
 
     let tx_weights = TxWeights {
         bouncer_weights: weights_to_update,
         casm_hash_computation_data_sierra_gas: casm_hash_computation_data_sierra_gas.clone(),
         casm_hash_computation_data_proving_gas: casm_hash_computation_data_proving_gas.clone(),
-        class_hashes_to_migrate,
+        class_hashes_to_migrate: class_hashes_to_migrate.clone(),
     };
 
     let state_changes_keys_to_update =
@@ -206,6 +215,10 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         .accumulated_weights
         .casm_hash_computation_data_proving_gas
         .extend(casm_hash_computation_data_proving_gas.clone());
+    expected_bouncer
+        .accumulated_weights
+        .class_hashes_to_migrate
+        .extend(class_hashes_to_migrate.clone());
 
     assert_eq!(updated_bouncer, expected_bouncer);
 }
@@ -240,7 +253,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.weights);
+        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
@@ -586,7 +599,12 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let expected_builtin_gas_delta = tx_builtin_counters
         .iter()
         .map(|(name, count)| {
-            let stwo_gas = block_context.bouncer_config.builtin_weights.builtin_weight(name);
+            let stwo_gas = block_context
+                .bouncer_config
+                .builtin_weights
+                .gas_costs
+                .get_builtin_gas_cost(name)
+                .unwrap_or_else(|_| panic!("Builtin name {:?} is not supported in the bouncer weights.", name));
             let stone_gas = block_context
                 .versioned_constants
                 .os_constants

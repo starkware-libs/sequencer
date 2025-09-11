@@ -52,6 +52,7 @@ pub struct StateDiff {
     pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
     pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
     pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, SierraContractClass)>,
+    pub migrated_compiled_classes: IndexMap<ClassHash, CompiledClassHash>,
     pub deprecated_declared_classes: IndexMap<ClassHash, DeprecatedContractClass>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
 }
@@ -63,7 +64,9 @@ pub struct StateDiff {
 pub struct ThinStateDiff {
     pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
     pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
-    pub declared_classes: IndexMap<ClassHash, CompiledClassHash>,
+    // class hash to compiled class hash is affected by both declared_classes and
+    // migrated_compiled_classes.
+    pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
     pub deprecated_declared_classes: Vec<ClassHash>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
 }
@@ -75,10 +78,15 @@ impl ThinStateDiff {
             Self {
                 deployed_contracts: diff.deployed_contracts,
                 storage_diffs: diff.storage_diffs,
-                declared_classes: diff
+                class_hash_to_compiled_class_hash: diff
                     .declared_classes
                     .iter()
                     .map(|(class_hash, (compiled_hash, _class))| (*class_hash, *compiled_hash))
+                    .chain(
+                        diff.migrated_compiled_classes
+                            .iter()
+                            .map(|(class_hash, compiled_hash)| (*class_hash, *compiled_hash)),
+                    )
                     .collect(),
                 deprecated_declared_classes: diff
                     .deprecated_declared_classes
@@ -99,7 +107,7 @@ impl ThinStateDiff {
     pub fn len(&self) -> usize {
         let mut result = 0usize;
         result += self.deployed_contracts.len();
-        result += self.declared_classes.len();
+        result += self.class_hash_to_compiled_class_hash.len();
         result += self.deprecated_declared_classes.len();
         result += self.nonces.len();
 
@@ -111,7 +119,7 @@ impl ThinStateDiff {
 
     pub fn is_empty(&self) -> bool {
         self.deployed_contracts.is_empty()
-            && self.declared_classes.is_empty()
+            && self.class_hash_to_compiled_class_hash.is_empty()
             && self.deprecated_declared_classes.is_empty()
             && self.nonces.is_empty()
             && self

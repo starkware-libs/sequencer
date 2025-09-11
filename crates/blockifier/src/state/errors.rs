@@ -34,6 +34,8 @@ pub enum StateError {
     StateReadError(String),
     #[error("Missing Sierra class for CASM class with hash {:#064x}.", **.0)]
     MissingSierra(ClassHash),
+    #[error("Missing compiled class hash v2 for class with hash {:#064x}.", **.0)]
+    MissingCompiledClassHashV2(ClassHash),
 }
 
 /// Ensures that the CASM and Sierra classes are coupled - Meaning that they both exist or are

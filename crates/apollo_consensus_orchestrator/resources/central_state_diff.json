@@ -15,7 +15,7 @@
             }
         }
     },
-    "declared_classes": {
+    "class_hash_to_compiled_class_hash": {
         "0x4": "0x4"
     },
     "block_info": {

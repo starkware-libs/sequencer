@@ -37,6 +37,7 @@ cairo-vm = { workspace = true, features = [
 derive_more.workspace = true
 indexmap.workspace = true
 indoc.workspace = true
+lambdaworks-math.workspace = true
 log.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true

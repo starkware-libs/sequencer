@@ -10,7 +10,11 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
@@ -18,7 +22,9 @@ use tracing::{info_span, Instrument};
 
 use crate::config::MempoolP2pConfig;
 use crate::metrics::{
+    MEMPOOL_P2P_NETWORK_EVENTS,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
@@ -43,6 +49,7 @@ pub fn create_p2p_propagator_and_runner(
         BroadcastNetworkMetrics {
             num_sent_broadcast_messages: MEMPOOL_P2P_NUM_SENT_MESSAGES,
             num_received_broadcast_messages: MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
+            num_dropped_broadcast_messages: MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
         },
     );
     let network_manager_metrics = Some(NetworkMetrics {
@@ -50,6 +57,7 @@ pub fn create_p2p_propagator_and_runner(
         num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
+        event_metrics: Some(EventMetrics { event_counter: MEMPOOL_P2P_NETWORK_EVENTS }),
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,

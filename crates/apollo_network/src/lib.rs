@@ -7,6 +7,7 @@ mod config_test;
 mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
+mod event_tracker;
 pub mod gossipsub_impl;
 pub mod misconduct_score;
 mod mixed_behaviour;
@@ -74,7 +75,8 @@ where
     Ok(Some(vector))
 }
 
-fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
+// TODO(Tsabary): move to the config converter module.
+pub fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
     match multi_addrs {
         None => "".to_owned(),
         Some(multi_addrs) => multi_addrs
@@ -148,6 +150,8 @@ impl SerializeConfig for NetworkConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
+        // TODO(Tsabary): this is not the proper way to dump a config. Needs fixing, and
+        // specifically, need to move the condition to be part of the serialization fn.
         config.extend(ser_optional_param(
             &if self.bootstrap_peer_multiaddr.is_some(){
                 Some(serialize_multi_addrs(&self.bootstrap_peer_multiaddr))

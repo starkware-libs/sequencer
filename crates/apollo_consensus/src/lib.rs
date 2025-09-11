@@ -24,7 +24,6 @@
 //! 1. The outbound messages are not sent as responses to the inbound messages.
 //! 2. It generates and runs its own events (e.g. timeouts).
 
-pub mod config;
 #[allow(missing_docs)]
 pub mod types;
 pub use manager::{run_consensus, RunConsensusArguments};

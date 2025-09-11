@@ -73,3 +73,13 @@ fn test_gas_price_with_extreme_values() {
     let gas_used = max_block_size;
     calculate_next_base_gas_price(calculated_price, gas_used, gas_target); // Should not panic.
 }
+
+#[test]
+fn versioned_constants_gas_target_is_valid() {
+    // Arbitrary values.
+    let price = GasPrice(30_000_000_000);
+    let gas_used = GasAmount(100);
+
+    // If panics, VersionedConstants::gas_target is not set correctly.
+    calculate_next_base_gas_price(price, gas_used, VERSIONED_CONSTANTS.gas_target);
+}

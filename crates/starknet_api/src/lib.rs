@@ -30,8 +30,6 @@ pub mod versioned_constants_logic;
 
 use std::num::ParseIntError;
 
-use serde_utils::InnerDeserializationError;
-
 use crate::transaction::TransactionVersion;
 
 /// The error type returned by StarknetApi.
@@ -41,9 +39,6 @@ pub enum StarknetApiError {
     /// An error when a starknet version is out of range.
     #[error("Starknet version {version} is out of range for block hash calculation")]
     BlockHashVersion { version: String },
-    /// Error in the inner deserialization of the node.
-    #[error(transparent)]
-    InnerDeserialization(#[from] InnerDeserializationError),
     #[error("Out of range {string}.")]
     /// An error for when a value is out of range.
     OutOfRange { string: String },

@@ -72,7 +72,11 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         );
         let l1_handler_payload_size = self.payload_size();
 
-        let execution_result = self.run_execute(state, &mut context, &mut remaining_gas);
+        // Create a copy of the state for the execution. It will be rolled back if the execution is
+        // reverted or committed upon success.
+        let mut execution_state = TransactionalState::create_transactional(state);
+        let execution_result =
+            self.run_execute(&mut execution_state, &mut context, &mut remaining_gas);
         match execution_result {
             Ok(execute_call_info) => {
                 let receipt = TransactionReceipt::from_l1_handler(
@@ -82,7 +86,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                         execute_call_info.iter(),
                         &block_context.versioned_constants,
                     ),
-                    &state.to_state_diff()?,
+                    &execution_state.to_state_diff()?,
                 );
 
                 // Enforce resource bounds.
@@ -92,6 +96,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                 );
                 match fee_check_report {
                     Ok(()) => {
+                        // Post-execution check passed, commit the execution.
+                        execution_state.commit();
                         // TODO(Arni): Consider removing this check. It is covered by the starknet
                         // core contract.
                         let paid_fee = self.paid_fee_on_l1;
@@ -109,6 +115,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                         Ok(l1_handler_tx_execution_info(execute_call_info, receipt, None))
                     }
                     Err(fee_check_error) => {
+                        // Post-execution check failed. Revert the execution.
+                        execution_state.abort();
                         let receipt = TransactionReceipt::reverted_l1_handler(
                             &tx_context,
                             l1_handler_payload_size,
@@ -122,6 +130,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                 }
             }
             Err(execution_error) => {
+                execution_state.abort();
                 let receipt =
                     TransactionReceipt::reverted_l1_handler(&tx_context, l1_handler_payload_size);
                 Ok(l1_handler_tx_execution_info(

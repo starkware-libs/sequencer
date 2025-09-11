@@ -14,6 +14,7 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     SUPPORTED_TRANSACTION_VERSIONS,
 };
+use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -28,7 +29,6 @@ use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use tracing::{debug, info, instrument};
 
-use crate::config::HttpServerConfig;
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{
@@ -209,7 +209,6 @@ async fn add_tx_inner(
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
     match add_tx_result {
         Ok(gateway_output) => {
-            // TODO(Arni): Reconsider the tracing level for this log.
             info!(
                 transaction_hash = %gateway_output.transaction_hash(),
                 region = %region,

@@ -46,6 +46,8 @@ pub enum MetricScope {
     MempoolP2p,
     CompileToCasm,
     StateSync,
+    Storage,
+    Tokio,
 }
 
 pub struct MetricCounter {
@@ -100,6 +102,11 @@ impl MetricCounter {
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
         assert_equality(&metric_value, &expected_value, self.get_name(), None);
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_exists(&self, metrics_as_string: &str) {
+        assert_metric_exists(metrics_as_string, self.get_name(), "counter");
     }
 }
 
@@ -229,6 +236,11 @@ impl MetricGauge {
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
         assert_equality(&metric_value, &expected_value, self.get_name(), None);
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_exists(&self, metrics_as_string: &str) {
+        assert_metric_exists(metrics_as_string, self.get_name(), "gauge");
     }
 }
 
@@ -638,5 +650,15 @@ fn assert_equality<T: PartialEq + Debug>(
         value, expected_value,
         "Metric {metric_name}{label_msg} did not match the expected value. Expected value: \
          {expected_value:?}, metric value: {value:?}"
+    );
+}
+
+#[cfg(any(feature = "testing", test))]
+fn assert_metric_exists(metrics_as_string: &str, metric_name: &str, metric_type: &str) {
+    let expected_string = format!("# TYPE {metric_name} {metric_type}\n{metric_name}");
+    assert!(
+        metrics_as_string.contains(&expected_string),
+        "Metric {metric_name} of type {metric_type} does not exist in the provided metrics \
+         string:\n{metrics_as_string}"
     );
 }

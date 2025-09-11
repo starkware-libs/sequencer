@@ -46,6 +46,7 @@
   "state_sync_config.rpc_config.max_events_keys": 100,
   "state_sync_config.rpc_config.ip": "0.0.0.0",
   "state_sync_config.rpc_config.port": 8090,
+  "state_sync_config.should_replay_processed_txs_metric": false,
   "state_sync_config.storage_config.db_config.enforce_file_exists": false,
   "state_sync_config.storage_config.db_config.growth_step": 67108864,
   "state_sync_config.storage_config.db_config.max_size": 1099511627776,

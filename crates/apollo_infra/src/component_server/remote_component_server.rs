@@ -29,7 +29,6 @@ use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that receives requests and returns
 /// responses for a specified component, using HTTP connection.
-// TODO(alonl): change the metrics to a static reference.
 pub struct RemoteComponentServer<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Send + 'static,
@@ -38,7 +37,7 @@ where
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
     max_concurrency: usize,
-    metrics: Arc<RemoteServerMetrics>,
+    metrics: &'static RemoteServerMetrics,
 }
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
@@ -51,21 +50,16 @@ where
         ip: IpAddr,
         port: u16,
         max_concurrency: usize,
-        metrics: RemoteServerMetrics,
+        metrics: &'static RemoteServerMetrics,
     ) -> Self {
         metrics.register();
-        Self {
-            local_client,
-            socket: SocketAddr::new(ip, port),
-            max_concurrency,
-            metrics: Arc::new(metrics),
-        }
+        Self { local_client, socket: SocketAddr::new(ip, port), max_concurrency, metrics }
     }
 
     async fn remote_component_server_handler(
         http_request: HyperRequest<Body>,
         local_client: LocalComponentClient<Request, Response>,
-        metrics: Arc<RemoteServerMetrics>,
+        metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
@@ -140,20 +134,19 @@ where
         let make_svc = make_service_fn(|_conn| {
             let connection_semaphore = connection_semaphore.clone();
             let local_client = self.local_client.clone();
-            let metrics = self.metrics.clone();
+            let metrics = self.metrics;
 
             async move {
                 match connection_semaphore.try_acquire_owned() {
                     Ok(permit) => {
                         metrics.increment_number_of_connections();
-                        let remote_server_metrics = metrics.clone();
                         trace!("Acquired semaphore permit for connection");
                         let handle_request_service = service_fn(move |req| {
                             trace!("Received request: {:?}", req);
                             Self::remote_component_server_handler(
                                 req,
                                 local_client.clone(),
-                                remote_server_metrics.clone(),
+                                metrics,
                             )
                         })
                         .boxed();
@@ -232,7 +225,7 @@ where
 struct PermitGuardedService<S> {
     inner: S,
     _permit: Option<OwnedSemaphorePermit>,
-    remote_server_metrics: Arc<RemoteServerMetrics>,
+    remote_server_metrics: &'static RemoteServerMetrics,
 }
 
 impl<S, Req> Service<Req> for PermitGuardedService<S>

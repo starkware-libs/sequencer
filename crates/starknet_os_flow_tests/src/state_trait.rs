@@ -29,6 +29,8 @@ impl FlowTestState for DictStateReader {
                         let class_hash = declare_tx.class_hash();
                         let compiled_class_hash = declare_tx.compiled_class_hash();
                         self.class_hash_to_compiled_class_hash_v2
+                            .lock()
+                            .unwrap()
                             .insert(class_hash, compiled_class_hash);
                     }
                 }
