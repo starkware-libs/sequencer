@@ -30,6 +30,7 @@ use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlockOrDeprecated,
 };
 use apollo_starknet_client::reader::PendingData;
+use apollo_state_sync_config::config::{CentralSyncClientConfig, StateSyncConfig};
 use apollo_state_sync_metrics::metrics::{
     register_metrics,
     update_marker_metrics,
@@ -54,8 +55,6 @@ use starknet_api::felt;
 use tokio::sync::RwLock;
 use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
-
-use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
