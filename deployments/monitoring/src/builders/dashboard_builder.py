@@ -33,7 +33,11 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         "?project=${gcp_project}",
     ])
     legends = json.loads(extra.get("legends", '[]'))
-
+    display_name_override_value = (
+            "${__field.labels.namespace}"
+            if panel["type"] == "stat"
+            else "${__field.labels.namespace} | ${__field.labels.location}"
+        )
     # Generate targets with unique refIds A–Z
     targets = [
         {
@@ -57,7 +61,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                 "unit": unit,
             },
             "overrides": [
-            # Override the pod display name to show only namespace and location labels
+            # Override the pod display name to show only namespace (and sometimes location) labels
                 {
                     "matcher": {
                         "id": "byRegexp",
@@ -66,7 +70,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                     "properties": [
                         {
                             "id": "displayName",
-                            "value": "${__field.labels.namespace} | ${__field.labels.location}"
+                            "value": display_name_override_value
                         }
                     ]
                 }
@@ -86,7 +90,9 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                     "regex": "^\\{[^=]+=\\\"([^\\\"]+)\\\"\\}$",
                     "renamePattern": "$1"
                 }
-            }
+            },
+            remove_cluster_and_namespace_from_display_name(),
+            remove_cluster_and_namespace_from_display_name(),
         ]
     }
 
@@ -99,6 +105,16 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 
     return grafana_panel
 
+def remove_cluster_and_namespace_from_display_name():
+    return {
+            "id": "renameByRegex",
+            "options": {
+                # Remove 'cluster' and 'namespace' label from display name if it is a panel with
+                # combined namespaces (meaning it contains 'cluster' but not 'location').
+                "regex": "^(.*)\{(?=[^}]*cluster)(?![^}]*location)[^}]*\}(.*)$",
+                "renamePattern": "$1$2",
+                },
+            }
 
 def get_next_position(x_position, y_position):
     """Helper function to calculate next position for the panel."""
