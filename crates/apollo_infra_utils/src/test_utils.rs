@@ -27,6 +27,7 @@ pub enum TestIdentifier {
     EndToEndFlowTest,
     EndToEndFlowTestBootstrapDeclare,
     EndToEndFlowTestManyTxs,
+    EndToEndFlowTestCustomSyscallInvokeTxs,
     InfraUnitTests,
     PositiveFlowIntegrationTest,
     RestartFlowIntegrationTest,
