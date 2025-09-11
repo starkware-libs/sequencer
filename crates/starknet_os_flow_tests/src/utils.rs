@@ -310,7 +310,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
     contract_addresses: I,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
-    commitments: &MapStorage,
+    commitments: &mut MapStorage,
 ) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
     let mut contract_leaf_indices: Vec<NodeIndex> =
         contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();

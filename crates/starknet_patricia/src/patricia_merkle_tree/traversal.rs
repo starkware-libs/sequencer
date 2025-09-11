@@ -120,7 +120,7 @@ impl<'a> SubTree<'a> {
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
 pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[SubTree<'a>],
-    storage: &impl Storage,
+    storage: &mut impl Storage,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees

@@ -36,7 +36,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     fn fetch_nodes<L: Leaf>(
         &mut self,
         subtrees: Vec<SubTree<'a>>,
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -131,7 +131,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     }
 
     pub(crate) fn create_impl<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
@@ -161,7 +161,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     }
 
     pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
-        storage: &impl Storage,
+        storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         leaf_modifications: &LeafModifications<L>,
