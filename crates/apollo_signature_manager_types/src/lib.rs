@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_network_types::network_types::PeerId;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -12,9 +14,9 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
-use strum_macros::AsRefStr;
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
-
 pub type KeyStoreResult<T> = Result<T, KeyStoreError>;
 pub type SignatureManagerResult<T> = Result<T, SignatureManagerError>;
 pub type SignatureManagerClientResult<T> = Result<T, SignatureManagerClientError>;
@@ -23,10 +25,10 @@ pub type LocalSignatureManagerClient =
     LocalComponentClient<SignatureManagerRequest, SignatureManagerResponse>;
 pub type RemoteSignatureManagerClient =
     RemoteComponentClient<SignatureManagerRequest, SignatureManagerResponse>;
+pub type SignatureManagerRequestWrapper =
+    RequestWrapper<SignatureManagerRequest, SignatureManagerResponse>;
 
 pub type SharedSignatureManagerClient = Arc<dyn SignatureManagerClient>;
-pub type SignatureManagerRequestAndResponseSender =
-    ComponentRequestAndResponseSender<SignatureManagerRequest, SignatureManagerResponse>;
 
 /// A read-only key store that contains exactly one key.
 #[async_trait]
@@ -79,12 +81,23 @@ pub enum SignatureManagerClientError {
     SignatureManagerError(#[from] SignatureManagerError),
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(SignatureManagerRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum SignatureManagerRequest {
     Identify(PeerId, Nonce),
     SignPrecommitVote(BlockHash),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerRequest);
+impl_labeled_request!(SignatureManagerRequest, SignatureManagerRequestLabelValue);
+impl PrioritizedRequest for SignatureManagerRequest {}
+generate_permutation_labels! {
+    SIGNATURE_MANAGER_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, SignatureManagerRequestLabelValue),
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum SignatureManagerResponse {

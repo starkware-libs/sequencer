@@ -2,18 +2,20 @@
 set -e
 
 usage() {
-    echo "Usage: $0 -f <FEEDER_URL> -n <NAMESPACE_PREFIX> -N <NUM_NODES> [-c <CLUSTER_PREFIX>] [-h]"
+    echo "Usage: $0 -f <FEEDER_URL> -n <NAMESPACE_PREFIX> -N <NUM_NODES> [-s <START_INDEX>] [-c <CLUSTER_PREFIX>] [-h]"
     echo ""
     echo "Options:"
     echo "  -f, --feeder-url      The feeder gateway URL (e.g., feeder.integration-sepolia.starknet.io)"
     echo "  -n, --namespace       The Kubernetes namespace prefix (e.g., apollo-sepolia-integration)"
     echo "  -N, --num-nodes       The number of nodes to restart (required)"
+    echo "  -s, --start-index     The starting index for the nodes (default: 0)"
     echo "  -c, --cluster         Optional cluster prefix for kubectl context"
     echo "  -h, --help            Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0 -f feeder.integration-sepolia.starknet.io -n apollo-sepolia-integration -N 3"
-    echo "  $0 --feeder-url feeder.integration-sepolia.starknet.io --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster"
+    echo "  $0 -f feeder.integration-sepolia.starknet.io -n apollo-sepolia-integration -N 3 -s 2"
+    echo "  $0 --feeder-url feeder.integration-sepolia.starknet.io --namespace apollo-sepolia-integration --num-nodes 3 --start-index 1 --cluster my-cluster"
     exit 1
 }
 
@@ -21,10 +23,11 @@ usage() {
 FEEDER_URL=""
 NAMESPACE_PREFIX=""
 NUM_NODES=""
+START_INDEX="0"
 CLUSTER_PREFIX=""
 
 # Parse command line options using getopt
-TEMP_ARGS=$(getopt -o f:n:N:c:h --long feeder-url:,namespace:,num-nodes:,cluster:,help -n "$0" -- "$@")
+TEMP_ARGS=$(getopt -o f:n:N:s:c:h --long feeder-url:,namespace:,num-nodes:,start-index:,cluster:,help -n "$0" -- "$@")
 
 if [ $? != 0 ]; then
     echo "Error: Failed to parse arguments" >&2
@@ -46,6 +49,10 @@ while true; do
             ;;
         -N|--num-nodes)
             NUM_NODES="$2"
+            shift 2
+            ;;
+        -s|--start-index)
+            START_INDEX="$2"
             shift 2
             ;;
         -c|--cluster)
@@ -88,6 +95,12 @@ if ! [[ "$NUM_NODES" =~ ^[1-9][0-9]*$ ]]; then
     usage
 fi
 
+# Validate START_INDEX is a non-negative integer
+if ! [[ "$START_INDEX" =~ ^[0-9]+$ ]]; then
+    echo "Error: START_INDEX must be a non-negative integer."
+    usage
+fi
+
 # Inform about cluster context
 if [ -z "$CLUSTER_PREFIX" ]; then
     echo -e "\033[1;31mCLUSTER_PREFIX not provided. Assuming all nodes are on the current cluster\033[0m"
@@ -95,7 +108,7 @@ fi
 
 CURRENT_BLOCK_NUMBER=$(curl https://${FEEDER_URL}/feeder_gateway/get_block | jq .block_number)
 NEXT_BLOCK_NUMBER=$((CURRENT_BLOCK_NUMBER + 1))
-for i in $(seq 0 $((NUM_NODES - 1))); do
+for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     filename=config${i}.yaml
     command="kubectl get cm sequencer-core-config -n ${NAMESPACE_PREFIX}-${i} -o yaml"
     if [ -n "${CLUSTER_PREFIX}" ]; then
@@ -106,7 +119,7 @@ for i in $(seq 0 $((NUM_NODES - 1))); do
     for key in consensus_manager_config.immediate_active_height consensus_manager_config.cende_config.skip_write_height; do
         sed "s/\"${key}\": [0-9]\+/\"${key}\": ${NEXT_BLOCK_NUMBER}/" -i ${filename}
     done
-    sed "s/\"validator_id\": \"0x[0-9]\+\"/\"validator_id\": \"0x$((${i} + 64))\"/" -i ${filename}
+    sed "s/\"validator_id\": \"0x[0-9]\+\"/\"validator_id\": \"0x$(($i - $START_INDEX + 64))\"/" -i ${filename}
     echo -e "\033[1;33m--------------------- Config changes to node no. ${i}'s core service --------------------\033[0m"
     # If diffs are found diff wil return a non zero code which will cause the script to fail.
     # To prevent this we use || true.
@@ -116,14 +129,14 @@ read -p "$(echo -e "\033[1;34mDo you approve these changes? (y/n)\033[0m")" yes_
 if [[ "${yes_or_no}" != "y" ]]; then
     exit 1
 fi
-for i in $(seq 0 $((NUM_NODES - 1))); do
+for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     command="kubectl apply -f config${i}.yaml -n ${NAMESPACE_PREFIX}-${i}"
     if [ -n "${CLUSTER_PREFIX}" ]; then
         command="${command} --context=${CLUSTER_PREFIX}-${i}"
     fi
     bash -c "${command}" || { echo "Failed applying config for node ${i}"; exit 1; }
 done
-for i in $(seq 0 $((NUM_NODES - 1))); do
+for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     command="kubectl delete pod sequencer-core-statefulset-0 -n ${NAMESPACE_PREFIX}-${i}"
     if [ -n "${CLUSTER_PREFIX}" ]; then
         command="${command} --context=${CLUSTER_PREFIX}-${i}"

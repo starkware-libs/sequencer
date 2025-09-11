@@ -10,7 +10,8 @@ use blockifier::state::cached_state::StateMaps;
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -30,7 +31,7 @@ use starknet_os::io::os_input::{
     StarknetOsInput,
 };
 use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
-use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
+use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
@@ -75,8 +76,7 @@ pub(crate) struct TestManager<S: FlowTestState> {
 pub(crate) struct OsTestExpectedValues {
     pub(crate) previous_global_root: HashOutput,
     pub(crate) new_global_root: HashOutput,
-    // TODO(Dori): Change type to PreviousBlockNumber once it exists.
-    pub(crate) previous_block_number: Option<BlockNumber>,
+    pub(crate) previous_block_number: PreviousBlockNumber,
     pub(crate) new_block_number: BlockNumber,
     pub(crate) config_hash: Felt,
     pub(crate) use_kzg_da: bool,
@@ -119,7 +119,7 @@ impl OsTestOutput {
 
         // Block numbers.
         assert_eq!(
-            Some(self.os_output.os_output.common_os_output.prev_block_number),
+            self.os_output.os_output.common_os_output.prev_block_number,
             self.expected_values.previous_block_number
         );
         assert_eq!(
@@ -210,7 +210,7 @@ impl<S: FlowTestState> TestManager<S> {
         self.execution_contracts
             .declared_class_hash_to_component_hashes
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
-        let compiled_class_hash = CompiledClassHash(casm.compiled_class_hash());
+        let compiled_class_hash = casm.hash(&HashVersion::V2);
         self.execution_contracts
             .executed_contracts
             .contracts
@@ -345,7 +345,7 @@ impl<S: FlowTestState> TestManager<S> {
         };
         let expected_previous_global_root = previous_commitment.global_root();
         let previous_block_number =
-            block_contexts.first().unwrap().block_info().block_number.prev();
+            PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
         let new_block_number = block_contexts.last().unwrap().block_info().block_number;
         let chain_info = Self::verify_chain_infos_and_get_one(&block_contexts);
         let use_kzg_da = Self::verify_kzg_da_flag_and_get(&block_contexts);
@@ -433,7 +433,7 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
-        let os_output = run_os_stateless(layout, os_hints).unwrap();
+        let (os_output, _) = run_os_stateless_for_testing(layout, os_hints).unwrap();
         let decompressed_state_diff =
             Self::get_decompressed_state_diff(&os_output.os_output.state_diff, &state, alias_keys);
 

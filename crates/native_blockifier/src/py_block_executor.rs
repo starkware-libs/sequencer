@@ -14,6 +14,7 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use pyo3::prelude::*;
@@ -21,8 +22,10 @@ use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::executable_transaction::AccountTransaction as ExecTx;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -182,6 +185,9 @@ impl PyBlockExecutor {
             })
             .collect();
 
+        // store compiled_class_hash_v2 for every declared class.
+        self.store_declared_compiled_class_hashes_v2(&txs);
+
         // Run.
         let results =
             Python::with_gil(|py| py.allow_threads(|| self.tx_executor().execute_txs(&txs, None)));
@@ -328,8 +334,14 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
-    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version))]
+    #[pyo3(signature = (enable_casm_hash_migration))]
+    pub fn set_enable_casm_hash_migration_in_vc(&mut self, enable_casm_hash_migration: bool) {
+        self.versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
+    }
+
+    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version, enable_casm_hash_migration))]
     #[staticmethod]
+    #[allow(clippy::too_many_arguments)]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
         contract_class_manager_config: PyContractClassManagerConfig,
@@ -338,6 +350,7 @@ impl PyBlockExecutor {
         max_state_diff_size: usize,
         stack_size: usize,
         min_sierra_version: Option<String>,
+        enable_casm_hash_migration: Option<bool>,
     ) -> Self {
         use blockifier::bouncer::BouncerWeights;
         // TODO(Meshi, 01/01/2025): Remove this once we fix all python tests that re-declare cairo0
@@ -349,6 +362,10 @@ impl PyBlockExecutor {
             versioned_constants.min_sierra_version_for_sierra_gas =
                 SierraVersion::from_str(&min_sierra_version)
                     .expect("failed to parse sierra version.");
+        }
+
+        if let Some(enable_casm_hash_migration) = enable_casm_hash_migration {
+            versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
         }
 
         Self {
@@ -409,6 +426,28 @@ impl PyBlockExecutor {
         }
     }
 
+    fn store_declared_compiled_class_hashes_v2(&mut self, txs: &[Transaction]) {
+        txs.iter()
+            .filter_map(|tx| {
+                let Transaction::Account(AccountTransaction {
+                    tx: ExecTx::Declare(declare_tx),
+                    ..
+                }) = tx
+                else {
+                    return None;
+                };
+                let ContractClass::V1((casm, _)) = &declare_tx.class_info.contract_class else {
+                    return None;
+                };
+                Some((declare_tx.class_hash(), casm.hash(&HashVersion::V2)))
+            })
+            .for_each(|(class_hash, compiled_v2)| {
+                self.storage.set_executable_class_hash_v2(&class_hash, compiled_v2).unwrap_or_else(
+                    |e| panic!("set_executable_class_hash_v2 failed for {class_hash:?}: {e}"),
+                );
+            });
+    }
+
     #[cfg(test)]
     pub(crate) fn native_create_for_testing(
         concurrency_config: PyConcurrencyConfig,
@@ -425,6 +464,7 @@ impl PyBlockExecutor {
             path,
             max_state_diff_size,
             stack_size,
+            None,
             None,
         )
     }

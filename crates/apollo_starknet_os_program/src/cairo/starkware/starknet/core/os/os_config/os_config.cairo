@@ -1,8 +1,15 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.hash_state import hash_finalize, hash_init, hash_update_single
+from starkware.cairo.common.hash_state import (
+    hash_finalize,
+    hash_init,
+    hash_update,
+    hash_update_single,
+)
 from starkware.cairo.common.registers import get_fp_and_pc
 
 const STARKNET_OS_CONFIG_VERSION = 'StarknetOsConfig3';
+
+const DEFAULT_PUBLIC_KEYS_HASH = 0;
 
 struct StarknetOsConfig {
     // The identifier of the chain.
@@ -10,6 +17,9 @@ struct StarknetOsConfig {
     chain_id: felt,
     // The (L2) address of the fee token contract.
     fee_token_address: felt,
+    // The hash of the public keys used to encrypt the state diff.
+    // The default hash is 0, as used in Starknet environments.
+    public_keys_hash: felt,
 }
 
 // Calculates the hash of StarkNet OS config.
@@ -26,8 +36,30 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     let (hash_state_ptr) = hash_update_single(
         hash_state_ptr=hash_state_ptr, item=starknet_os_config.fee_token_address
     );
-
+    if (starknet_os_config.public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH) {
+        let (hash_state_ptr) = hash_update_single(
+            hash_state_ptr=hash_state_ptr, item=starknet_os_config.public_keys_hash
+        );
+    } else {
+        // align the stack.
+        tempvar hash_ptr = hash_ptr;
+        tempvar hash_state_ptr = hash_state_ptr;
+    }
     let (starknet_os_config_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
 
     return (starknet_os_config_hash=starknet_os_config_hash);
+}
+
+func get_public_keys_hash{hash_ptr: HashBuiltin*}(public_keys_start: felt*, n_keys: felt) -> (
+    public_keys_hash: felt
+) {
+    if (n_keys == 0) {
+        return (public_keys_hash=0);
+    }
+    let (hash_state_ptr) = hash_init();
+    let (hash_state_ptr) = hash_update(
+        hash_state_ptr=hash_state_ptr, data_ptr=public_keys_start, data_length=n_keys
+    );
+    let (public_keys_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
+    return (public_keys_hash=public_keys_hash);
 }

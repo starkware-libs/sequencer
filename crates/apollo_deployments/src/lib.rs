@@ -8,4 +8,5 @@ pub(crate) mod k8s;
 pub mod service;
 #[cfg(test)]
 pub mod test_utils;
+pub(crate) mod update_strategy;
 pub(crate) mod utils;

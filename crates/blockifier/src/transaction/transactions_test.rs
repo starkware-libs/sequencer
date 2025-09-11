@@ -19,6 +19,7 @@ use starknet_api::abi::abi_utils::{
 };
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -200,7 +201,7 @@ static DECLARE_REDEPOSIT_AMOUNT: LazyLock<u64> = LazyLock::new(|| {
             version: TransactionVersion::THREE,
             resource_bounds,
             class_hash: empty_contract.get_class_hash(),
-            compiled_class_hash: empty_contract.get_compiled_class_hash(),
+            compiled_class_hash: empty_contract.get_compiled_class_hash(&HashVersion::V2),
             nonce: Nonce(Felt::ZERO),
         },
         calculate_class_info_for_testing(empty_contract.get_class()).clone(),
@@ -1182,7 +1183,7 @@ fn test_max_fee_exceeds_balance(
             let invalid_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
                 declare_tx_args! {
                     class_hash: contract_to_declare.get_class_hash(),
-                    compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
+                    compiled_class_hash: contract_to_declare.get_compiled_class_hash(&HashVersion::V2),
                     sender_address: account_address,
                     resource_bounds: $invalid_resource_bounds,
                 },
@@ -1806,7 +1807,7 @@ fn test_declare_tx(
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
-    let compiled_class_hash = empty_contract.get_compiled_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash(&HashVersion::V2);
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
@@ -1990,7 +1991,7 @@ fn test_declare_tx_v0(
     );
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
     let class_hash = empty_contract.get_class_hash();
-    let compiled_class_hash = empty_contract.get_compiled_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash(&HashVersion::V2);
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
 
     let tx = executable_declare_tx(

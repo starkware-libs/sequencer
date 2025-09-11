@@ -17,7 +17,7 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::entry_point::{call_view_entry_point, CallEntryPoint};
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR_FELT;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::dict_state_reader::DictStateReader;
@@ -583,5 +583,5 @@ fn test_call_view_entry_point_non_existing_function() {
     let EntryPointExecutionError::ExecutionFailed { error_trace } = call_info.unwrap_err() else {
         panic!("Expected ExecutionFailed error");
     };
-    assert_eq!(error_trace.last_retdata.0, vec![felt!(ENTRYPOINT_NOT_FOUND_ERROR)]);
+    assert_eq!(error_trace.last_retdata.0, vec![ENTRYPOINT_NOT_FOUND_ERROR_FELT]);
 }

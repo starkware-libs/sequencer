@@ -27,6 +27,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::update_strategy::UpdateStrategy;
 
 const NODE_STORAGE: usize = 1000;
 const TESTING_NODE_STORAGE: usize = 1;
@@ -147,6 +148,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         match self {
             ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
+        }
+    }
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
         }
     }
 }

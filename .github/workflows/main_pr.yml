@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   commitlint:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,7 +46,7 @@ jobs:
         run: echo "$TITLE" | commitlint --verbose
 
   merge-gatekeeper:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: ubuntu-24.04
     # Restrict permissions of the GITHUB_TOKEN.
     # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
     permissions:
@@ -60,7 +60,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 3600
           interval: 30
-          ignored: "code-review/reviewable"
+          ignored: code-review/reviewable,build_docker_images
 
       - name: Run Merge Gatekeeper on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'

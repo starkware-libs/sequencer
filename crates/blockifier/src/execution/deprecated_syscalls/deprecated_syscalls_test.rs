@@ -7,6 +7,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::calculate_contract_address;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{
@@ -529,8 +530,12 @@ fn test_tx_info(
             *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
     }
 
-    let mut state =
-        test_state_ex(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract_data, 1)]);
+    let mut state = test_state_ex(
+        &ChainInfo::create_for_testing(),
+        Fee(0),
+        &[(test_contract_data, 1)],
+        &HashVersion::V2,
+    );
     let mut version = felt!(3_u8);
     let mut expected_version = if v1_bound_account && !high_tip { felt!(1_u8) } else { version };
     if only_query {

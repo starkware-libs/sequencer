@@ -1,17 +1,23 @@
 use std::collections::HashSet;
+use std::iter::repeat_n;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blake2s::encode_felts_to_u32s;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
     ContractClassV1Inner,
+    FeltSizeCount,
+    NestedFeltCounts,
     RunnableCompiledClass,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
@@ -24,17 +30,23 @@ fn test_get_visited_segments() {
         entry_points_by_type: Default::default(),
         hints: Default::default(),
         sierra_version: Default::default(),
-        bytecode_segment_lengths: NestedIntList::Node(vec![
-            NestedIntList::Leaf(151),
-            NestedIntList::Leaf(104),
-            NestedIntList::Node(vec![NestedIntList::Leaf(170), NestedIntList::Leaf(225)]),
-            NestedIntList::Leaf(157),
-            NestedIntList::Node(vec![NestedIntList::Node(vec![
-                NestedIntList::Node(vec![NestedIntList::Leaf(101)]),
-                NestedIntList::Leaf(195),
-                NestedIntList::Leaf(125),
+        bytecode_segment_felt_sizes: NestedFeltCounts::Node(vec![
+            NestedFeltCounts::Leaf(151, FeltSizeCount { small: 151, large: 0 }),
+            NestedFeltCounts::Leaf(104, FeltSizeCount { small: 104, large: 0 }),
+            NestedFeltCounts::Node(vec![
+                NestedFeltCounts::Leaf(170, FeltSizeCount { small: 170, large: 0 }),
+                NestedFeltCounts::Leaf(225, FeltSizeCount { small: 225, large: 0 }),
+            ]),
+            NestedFeltCounts::Leaf(157, FeltSizeCount { small: 157, large: 0 }),
+            NestedFeltCounts::Node(vec![NestedFeltCounts::Node(vec![
+                NestedFeltCounts::Node(vec![NestedFeltCounts::Leaf(
+                    101,
+                    FeltSizeCount { small: 101, large: 0 },
+                )]),
+                NestedFeltCounts::Leaf(195, FeltSizeCount { small: 195, large: 0 }),
+                NestedFeltCounts::Leaf(125, FeltSizeCount { small: 125, large: 0 }),
             ])]),
-            NestedIntList::Leaf(162),
+            NestedFeltCounts::Leaf(162, FeltSizeCount { small: 162, large: 0 }),
         ]),
     }));
 
@@ -87,4 +99,84 @@ fn test_compiled_class_hash(
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
+}
+
+#[rstest]
+#[case::empty(
+    NestedIntList::Leaf(0),
+    vec![],
+    NestedFeltCounts::Leaf(0, FeltSizeCount::default())
+)]
+#[case::leaf(
+    NestedIntList::Leaf(3),
+    vec![
+        BigUintAsHex::from(1u64),
+        BigUintAsHex::from(1u64 << 63),
+        BigUintAsHex::from(1u64 << 63),
+    ],
+    NestedFeltCounts::Leaf(3, FeltSizeCount { small: 1, large: 2 })
+)]
+#[case::node(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(1),
+        NestedIntList::Leaf(2),
+    ]),
+    vec![
+        BigUintAsHex::from(1u64),
+        BigUintAsHex::from(1u64),
+        BigUintAsHex::from(1u64 << 63),
+    ],
+    NestedFeltCounts::Node(vec![
+        NestedFeltCounts::Leaf(1, FeltSizeCount { small: 1, large: 0 }),
+        NestedFeltCounts::Leaf(2, FeltSizeCount { small: 1, large: 1 }),
+    ])
+)]
+fn test_create_bytecode_segment_felt_sizes(
+    #[case] bytecode_segment_lengths: NestedIntList,
+    #[case] bytecode: Vec<BigUintAsHex>,
+    #[case] expected_structure: NestedFeltCounts,
+) {
+    let result = NestedFeltCounts::new(&bytecode_segment_lengths, &bytecode);
+    assert_eq!(result, expected_structure);
+}
+
+#[rstest]
+#[case::empty(0, 0)]
+#[case::small_and_large(2, 3)]
+/// Test that the `FeltSizeCount` constructor works as expected.
+/// For both Felt and BigUintAsHex slices.
+fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_large: usize) {
+    // Build inputs inline: values straddling the threshold.
+    let small_felt = FeltSizeCount::SMALL_THRESHOLD - 1_u64;
+    let large_felt = FeltSizeCount::SMALL_THRESHOLD;
+
+    let items: Vec<Felt> =
+        repeat_n(small_felt, expected_small).chain(repeat_n(large_felt, expected_large)).collect();
+
+    // Case 1: directly from Felt slice
+    let count_from_felts = FeltSizeCount::from(&items[..]);
+    assert_eq!(count_from_felts.small, expected_small);
+    assert_eq!(count_from_felts.large, expected_large);
+
+    // Case 2: from BigUintAsHex slice
+    let biguint_items: Vec<BigUintAsHex> =
+        items.iter().map(|x| BigUintAsHex::from(x.to_biguint())).collect();
+    let count_from_biguints = FeltSizeCount::from(&biguint_items[..]);
+    assert_eq!(count_from_biguints.small, expected_small);
+    assert_eq!(count_from_biguints.large, expected_large);
+}
+
+#[rstest]
+#[case::boundary_small_felt(&[Felt::from((1u64 << 63) - 1)])]
+#[case::boundary_large_felt(&[Felt::from(1u64 << 63)])]
+#[case::very_small_felt(&[Felt::from(1u64)])]
+#[case::very_large_felt(&[Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
+#[case::many_small(&[Felt::from(1u64); 100])]
+#[case::many_large(&[Felt::from(1u64 << 63); 100])]
+#[case::mixed_small_large(&[Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
+fn test_encoded_u32_len(#[case] test_data: &[Felt]) {
+    let estimated_u32_len = FeltSizeCount::from(test_data).encoded_u32_len();
+    let actual_u32_len = encode_felts_to_u32s(test_data.to_vec()).len();
+
+    assert_eq!(actual_u32_len, estimated_u32_len);
 }

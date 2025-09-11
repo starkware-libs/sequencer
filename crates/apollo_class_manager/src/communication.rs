@@ -1,8 +1,15 @@
-use apollo_class_manager_types::{ClassManagerRequest, ClassManagerResponse};
+use apollo_class_manager_types::{
+    ClassManagerRequest,
+    ClassManagerRequestLabelValue,
+    ClassManagerResponse,
+};
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;
 use starknet_api::contract_class::ContractClass;
+use strum::VariantNames;
 
 use crate::ClassManager;
 
@@ -59,4 +66,9 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
             }
         }
     }
+}
+
+generate_permutation_labels! {
+    CLASS_MANAGER_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, ClassManagerRequestLabelValue),
 }

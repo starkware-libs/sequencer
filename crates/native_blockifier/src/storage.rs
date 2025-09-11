@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::class_hash::ClassHashStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -12,6 +13,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -151,10 +153,22 @@ impl Storage for PapyrusStorage {
                 deprecated_declared_classes.insert(class_hash, deprecated_contract_class);
             }
         }
+        // Migrated class hash are class hash in class hash to compiled class hash mapping,
+        // but not in the declared classes.
+        let migrated_class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash> =
+            py_state_diff
+                .class_hash_to_compiled_class_hash
+                .iter()
+                .filter(|(class_hash, _)| !declared_class_hash_to_class.contains_key(*class_hash))
+                .map(|(class_hash, compiled_class_hash)| {
+                    (ClassHash(class_hash.0), CompiledClassHash(compiled_class_hash.0))
+                })
+                .collect();
 
         let mut declared_classes =
             IndexMap::<ClassHash, (CompiledClassHash, SierraContractClass)>::new();
-        let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
+        let mut undeclared_casm_contracts =
+            Vec::<(ClassHash, CasmContractClass, CompiledClassHash)>::new();
         for (class_hash, (raw_sierra, (compiled_class_hash, raw_casm))) in
             declared_class_hash_to_class
         {
@@ -173,13 +187,20 @@ impl Storage for PapyrusStorage {
                     (CompiledClassHash(compiled_class_hash.0), sierra_contract_class),
                 );
                 let casm_contract_class: CasmContractClass = serde_json::from_str(&raw_casm)?;
-                undeclared_casm_contracts.push((class_hash, casm_contract_class));
+                let compiled_class_hash_v2 = casm_contract_class.hash(&HashVersion::V2);
+                undeclared_casm_contracts.push((
+                    class_hash,
+                    casm_contract_class,
+                    compiled_class_hash_v2,
+                ));
             }
         }
 
         let mut append_txn = self.writer().begin_rw_txn()?;
-        for (class_hash, contract_class) in undeclared_casm_contracts {
-            append_txn = append_txn.append_casm(&class_hash, &contract_class)?;
+        for (class_hash, casm_contract_class, compiled_class_hash_v2) in undeclared_casm_contracts {
+            append_txn = append_txn.append_casm(&class_hash, &casm_contract_class)?;
+            append_txn =
+                append_txn.set_executable_class_hash_v2(&class_hash, compiled_class_hash_v2)?;
         }
 
         // Construct state diff; manually add declared classes.
@@ -187,8 +208,12 @@ impl Storage for PapyrusStorage {
         state_diff.deprecated_declared_classes = deprecated_declared_classes;
         state_diff.declared_classes = declared_classes;
 
-        let (thin_state_diff, declared_classes, deprecated_declared_classes) =
+        let (mut thin_state_diff, declared_classes, deprecated_declared_classes) =
             ThinStateDiff::from_state_diff(state_diff);
+        // Add the migrated class hash to the state diff.
+        for (class_hash, compiled_class_hash) in migrated_class_hash_to_compiled_class_hash {
+            thin_state_diff.declared_classes.insert(class_hash, compiled_class_hash);
+        }
 
         append_txn = append_txn.append_state_diff(block_number, thin_state_diff)?.append_classes(
             block_number,
@@ -215,6 +240,18 @@ impl Storage for PapyrusStorage {
         append_txn = append_txn.append_header(block_number, &block_header)?;
 
         append_txn.commit()?;
+        Ok(())
+    }
+
+    fn set_executable_class_hash_v2(
+        &mut self,
+        class_hash: &ClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    ) -> NativeBlockifierResult<()> {
+        self.writer()
+            .begin_rw_txn()?
+            .set_executable_class_hash_v2(class_hash, compiled_class_hash_v2)?
+            .commit()?;
         Ok(())
     }
 
@@ -295,4 +332,10 @@ pub trait Storage {
     fn writer(&mut self) -> &mut apollo_storage::StorageWriter;
 
     fn close(&mut self);
+
+    fn set_executable_class_hash_v2(
+        &mut self,
+        class_hash: &ClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    ) -> NativeBlockifierResult<()>;
 }

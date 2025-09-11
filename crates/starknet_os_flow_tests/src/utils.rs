@@ -82,13 +82,17 @@ impl CommitmentOutput {
 /// Executes the given transactions on the given state and block context with default execution
 /// configuration.
 pub(crate) fn execute_transactions<S: FlowTestState>(
-    initial_state: S,
+    mut initial_state: S,
     txs: &[Transaction],
     block_context: BlockContext,
 ) -> ExecutionOutput<S> {
     let block_number_hash_pair =
         maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
     let config = TransactionExecutorConfig::default();
+
+    initial_state.preprocess_before_execution(txs);
+
+    // Execute.
     let mut executor = TransactionExecutor::pre_process_and_create(
         initial_state,
         block_context,

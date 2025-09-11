@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
-    TransactionConverterError,
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -20,13 +19,12 @@ use apollo_gateway_types::gateway_types::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
-use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_mempool_types::mempool_types::AddTransactionArgs;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -36,11 +34,21 @@ use starknet_api::rpc_transaction::{
 use tracing::{debug, error, info, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
-use crate::errors::{mempool_client_result_to_deprecated_gw_result, GatewayResult};
+use crate::errors::{
+    mempool_client_result_to_deprecated_gw_result,
+    transaction_converter_err_to_deprecated_gw_err,
+    GatewayResult,
+};
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
 use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::StatefulTransactionValidator;
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::stateful_transaction_validator::{
+    StatefulTransactionValidatorFactory,
+    StatefulTransactionValidatorFactoryTrait,
+};
+use crate::stateless_transaction_validator::{
+    StatelessTransactionValidator,
+    StatelessTransactionValidatorTrait,
+};
 use crate::sync_state_reader::SyncStateReaderFactory;
 
 #[cfg(test)]
@@ -51,7 +59,7 @@ pub mod gateway_test;
 pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
+    pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<TransactionConverter>,
@@ -70,7 +78,7 @@ impl Gateway {
             stateless_tx_validator: Arc::new(StatelessTransactionValidator {
                 config: config.stateless_tx_validator_config.clone(),
             }),
-            stateful_tx_validator: Arc::new(StatefulTransactionValidator {
+            stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
             }),
             state_reader_factory,
@@ -158,13 +166,13 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    stateful_tx_validator: Arc<StatefulTransactionValidator>,
+    stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
+    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
     chain_info: Arc<ChainInfo>,
     tx: RpcTransaction,
-    transaction_converter: Arc<TransactionConverter>,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     runtime: tokio::runtime::Handle,
 }
 
@@ -172,7 +180,7 @@ impl ProcessTxBlockingTask {
     pub fn new(gateway: &Gateway, tx: RpcTransaction, runtime: tokio::runtime::Handle) -> Self {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
-            stateful_tx_validator: gateway.stateful_tx_validator.clone(),
+            stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
@@ -185,8 +193,6 @@ impl ProcessTxBlockingTask {
     // TODO(Arni): Make into async function and remove all block_on calls once we manage removing
     // the spawn_blocking call.
     fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
-        // TODO(Arni, 1/5/2024): Perform congestion control.
-
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
@@ -195,15 +201,7 @@ impl ProcessTxBlockingTask {
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
             .map_err(|e| {
                 warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                match e {
-                    TransactionConverterError::ValidateCompiledClassHashError(err) => {
-                        convert_compiled_class_hash_error(err)
-                    }
-                    other => {
-                        // TODO(yair): Fix this. Need to map the errors better.
-                        StarknetError::internal(&other.to_string())
-                    }
-                }
+                transaction_converter_err_to_deprecated_gw_err(e)
             })?;
 
         let executable_tx = self
@@ -217,41 +215,20 @@ impl ProcessTxBlockingTask {
                     "Failed to convert internal RPC transaction to executable transaction: {}",
                     e
                 );
-                // TODO(yair): Fix this.
-                StarknetError::internal(&e.to_string())
+                transaction_converter_err_to_deprecated_gw_err(e)
             })?;
 
-        let validator = self
-            .stateful_tx_validator
+        let mut stateful_transaction_validator = self
+            .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
-        let nonce = self
-            .stateful_tx_validator
-            .extract_state_nonce_and_run_validations(
-                &executable_tx,
-                self.mempool_client,
-                validator,
-                self.runtime,
-            )
-            .map_err(|e| StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
-                message: e.to_string(),
-            })?;
+        let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
+            &executable_tx,
+            self.mempool_client,
+            self.runtime,
+        )?;
 
-        // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        Ok(AddTransactionArgs {
-            tx: internal_tx,
-            account_state: AccountState { address: executable_tx.contract_address(), nonce },
-        })
-    }
-}
-
-fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {
-    StarknetError {
-        code: StarknetErrorCode::UnknownErrorCode(
-            "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
-        ),
-        message: error.to_string(),
+        Ok(AddTransactionArgs::new(internal_tx, nonce))
     }
 }
 

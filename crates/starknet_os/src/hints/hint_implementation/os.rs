@@ -3,6 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -12,6 +13,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
@@ -119,6 +121,21 @@ pub(crate) fn get_n_blocks<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
+pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let n_classes =
+        hint_processor.get_current_execution_helper()?.os_block_input.class_hashes_to_migrate.len();
+    insert_value_from_var_name(
+        Ids::NClassesToMigrate.into(),
+        n_classes,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
+}
 pub(crate) fn log_remaining_blocks(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -132,5 +149,14 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor.execution_helpers_manager.increment_current_helper_index();
+    Ok(())
+}
+
+pub(crate) fn get_public_keys<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let public_keys = hint_processor.os_hints_config.public_keys.clone();
+    load_public_keys_into_memory(vm, ids_data, ap_tracking, public_keys)?;
     Ok(())
 }

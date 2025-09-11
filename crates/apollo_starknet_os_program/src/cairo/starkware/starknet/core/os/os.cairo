@@ -4,13 +4,16 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
+    EcOpBuiltin,
     HashBuiltin,
     KeccakBuiltin,
     ModBuiltin,
     PoseidonBuiltin,
 )
+from starkware.cairo.common.find_element import find_element
 from starkware.cairo.common.dict import dict_new, dict_update
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.registers import get_label_location
@@ -30,6 +33,7 @@ from starkware.starknet.core.os.contract_class.compiled_class import (
     guess_compiled_class_facts,
     validate_compiled_class_facts_post_execution,
 )
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClass
 from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
     DeprecatedCompiledClassFact,
     deprecated_load_compiled_class_facts,
@@ -39,7 +43,11 @@ from starkware.starknet.core.os.execution.deprecated_execute_syscalls import (
 )
 from starkware.starknet.core.os.execution.execute_syscalls import execute_syscalls
 from starkware.starknet.core.os.execution.execute_transactions import execute_transactions
-from starkware.starknet.core.os.os_config.os_config import get_starknet_os_config_hash
+from starkware.starknet.core.os.os_config.os_config import (
+    get_starknet_os_config_hash,
+    get_public_keys_hash,
+    StarknetOsConfig,
+)
 from starkware.starknet.core.os.output import (
     MessageToL1Header,
     MessageToL2Header,
@@ -50,6 +58,12 @@ from starkware.starknet.core.os.output import (
 )
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
+from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
+    compiled_class_hash as poseidon_compiled_class_hash,
+)
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
+    compiled_class_hash as blake_compiled_class_hash,
+)
 
 // Executes transactions on Starknet.
 func main{
@@ -58,7 +72,7 @@ func main{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -103,11 +117,23 @@ func main{
         n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
         deprecated_compiled_class_facts=deprecated_compiled_class_facts,
     );
+
+    local public_keys_start: felt*;
+    local n_keys: felt;
+    %{ fill_public_keys_array(os_hints['public_keys'], public_keys_start, n_keys) %}
+    let hash_ptr = pedersen_ptr;
+    with hash_ptr {
+        let (public_keys_hash) = get_public_keys_hash(
+            public_keys_start=public_keys_start, n_keys=n_keys
+        );
+    }
+    let pedersen_ptr = hash_ptr;
     with txs_range_check_ptr {
         execute_blocks(
             n_blocks=n_blocks,
             os_output_per_block_dst=os_outputs,
             compiled_class_facts_bundle=compiled_class_facts_bundle,
+            public_keys_hash=public_keys_hash,
         );
     }
 
@@ -148,7 +174,12 @@ func main{
 
     // Currently, the block hash is not enforced by the OS.
     // TODO(Yoni, 1/1/2026): compute the block hash.
-    serialize_os_output(os_output=final_os_output, replace_keys_with_aliases=TRUE);
+    serialize_os_output(
+        os_output=final_os_output,
+        replace_keys_with_aliases=TRUE,
+        public_keys_start=public_keys_start,
+        n_keys=n_keys,
+    );
 
     // The following code deals with the problem that untrusted code (contract code) could
     // potentially move builtin pointers backward, compromising the soundness of those builtins.
@@ -205,7 +236,7 @@ func execute_blocks{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -216,6 +247,7 @@ func execute_blocks{
     n_blocks: felt,
     os_output_per_block_dst: OsOutput*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
+    public_keys_hash: felt,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -259,11 +291,23 @@ func execute_blocks{
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
         compiled_class_facts_bundle=compiled_class_facts_bundle,
+        public_keys_hash=public_keys_hash,
     );
 
     // Pre-process block.
     with contract_state_changes {
         write_block_number_to_block_hash_mapping(block_context=block_context);
+    }
+
+    // Update the contract class changes according to the migration.
+
+    local n_classes_to_migrate;
+    // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
+    %{ ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate) %}
+    with contract_class_changes {
+        migrate_classes_to_v2_casm_hash(
+            n_classes=n_classes_to_migrate, block_context=block_context
+        );
     }
 
     // Execute transactions.
@@ -285,7 +329,6 @@ func execute_blocks{
             block_input=block_input,
         ))
     %}
-
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
             contract_state_changes_start=contract_state_changes_start,
@@ -305,6 +348,7 @@ func execute_blocks{
             starknet_os_config=&block_context.starknet_os_config
         );
     }
+
     let pedersen_ptr = hash_ptr;
 
     // All blocks inside of a multi block should be off-chain and therefore
@@ -330,6 +374,7 @@ func execute_blocks{
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
         compiled_class_facts_bundle=compiled_class_facts_bundle,
+        public_keys_hash=public_keys_hash,
     );
 }
 
@@ -416,5 +461,53 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
         prev_value=cast(state_entry, felt),
         new_value=cast(new_state_entry, felt),
     );
+    return ();
+}
+
+// Migrates contract classes from v1 (Poseidon-based CASM hash) to v2 (Blake-based CASM hash).
+// The class hashes are guessed, and should at least cover the non-migrated classes that
+// will be executed by the block.
+// Hint arguments:
+// block_input - The block input containing the class hashes to migrate.
+// class_hashes_to_migrate_iterator - An iterator over the class hashes to migrate.
+func migrate_classes_to_v2_casm_hash{
+    poseidon_ptr: PoseidonBuiltin*, range_check_ptr, contract_class_changes: DictAccess*
+}(n_classes: felt, block_context: BlockContext*) {
+    alloc_locals;
+    if (n_classes == 0) {
+        return ();
+    }
+    // Guess the class hash and compiled class hash v2.
+    local class_hash;
+    local expected_casm_hash_v2;
+    %{ GetClassHashAndCompiledClassHashV2 %}
+
+    // Find the compiled class fact using the guessed v2 hash.
+    static_assert CompiledClassFact.hash == 0;
+    let (compiled_class_fact: CompiledClassFact*) = find_element(
+        array_ptr=block_context.compiled_class_facts,
+        elm_size=CompiledClassFact.SIZE,
+        n_elms=block_context.n_compiled_class_facts,
+        key=expected_casm_hash_v2,
+    );
+    let compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
+    // Compute the full compiled class hash, both v1 and v2,
+    // using the compiled class from the block context:
+    // The full hash is needed to verify the migration;
+    // taking the class from the block context is not necessary,
+    // it's for future optimization (to skip the additional hash on these classes at the end).
+
+    // This hint enters a new scope that contains the bytecode segment structure of the class.
+    %{ EnterScopeWithBytecodeSegmentStructure %}
+    let (casm_hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
+    let (casm_hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
+    %{ vm_exit_scope() %}
+    // Verify the guessed v2 hash.
+    assert expected_casm_hash_v2 = casm_hash_v2;
+    // Update the casm hash from v1 to v2.
+    dict_update{dict_ptr=contract_class_changes}(
+        key=class_hash, prev_value=casm_hash_v1, new_value=casm_hash_v2
+    );
+    migrate_classes_to_v2_casm_hash(n_classes=n_classes - 1, block_context=block_context);
     return ();
 }

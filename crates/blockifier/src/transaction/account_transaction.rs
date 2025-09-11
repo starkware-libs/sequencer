@@ -951,6 +951,10 @@ impl ValidatableTransaction for AccountTransaction {
                     actual: validate_call_info.execution.retdata,
                 });
             }
+        } else if validate_call_info.execution.failed {
+            return Err(TransactionExecutionError::ValidateCairo0Error(
+                validate_call_info.execution.retdata,
+            ));
         }
         remaining_gas.subtract_used_gas(&validate_call_info);
         Ok(Some(validate_call_info))
