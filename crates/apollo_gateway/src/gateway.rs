@@ -228,30 +228,11 @@ impl ProcessTxBlockingTask {
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
-<<<<<<< HEAD
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &executable_tx,
             self.mempool_client,
             self.runtime,
         )?;
-||||||| 64e642077
-        let address = executable_tx.contract_address();
-        let nonce = validator.get_nonce(address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", address, e);
-            // TODO(yair): Fix this. Need to map the errors better.
-            StarknetError::internal(&e.to_string())
-        })?;
-=======
-        let address = executable_tx.contract_address();
-        let nonce = validator.get_nonce(address).map_err(|e| {
-            // TODO(noamsp): Fix this. Need to map the errors better.
-            StarknetError::internal_with_signature_logging(
-                "Failed to get nonce for sender address {address}",
-                &tx_signature,
-                e,
-            )
-        })?;
->>>>>>> origin/main-v0.14.1
 
         Ok(AddTransactionArgs::new(internal_tx, nonce))
     }

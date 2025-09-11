@@ -20,13 +20,7 @@ async fn test_end_to_end_flow() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTest,
         create_test_scenarios(),
-<<<<<<< HEAD
-        GasAmount(86000000),
-||||||| 64e642077
-        GasAmount(59000000),
-=======
-        GasAmount(65000000),
->>>>>>> origin/main-v0.14.1
+        GasAmount(93000000),
         false,
         false,
     )
