@@ -38,11 +38,7 @@ use blockifier::fee::resources::{
     StateResources,
     TransactionResources,
 };
-use blockifier::state::cached_state::{
-    CommitmentStateDiff,
-    StateChangesCount,
-    StateChangesCountForFee,
-};
+use blockifier::state::cached_state::{StateChangesCount, StateChangesCountForFee};
 use blockifier::transaction::objects::{
     ExecutionResourcesTraits,
     RevertError,
@@ -95,6 +91,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
 };
 use starknet_api::state::{
+    CommitmentStateDiff,
     EntryPoint,
     FunctionIndex,
     SierraContractClass,
