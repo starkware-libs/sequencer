@@ -21,7 +21,7 @@ pub fn filter_inner_nodes_from_commitments<L: Leaf>(
 ) -> HashMap<HashOutput, Vec<Felt>> {
     let mut inner_nodes: HashMap<HashOutput, Vec<Felt>> = HashMap::new();
     let inner_node_prefix = DbKeyPrefix::from(PatriciaPrefix::InnerNode);
-    for (key, value) in commitments.iter() {
+    for (key, value) in commitments.0.iter() {
         if let Some(suffix) = try_extract_suffix_from_db_key(key, &inner_node_prefix) {
             let is_leaf = false;
             let hash = HashOutput(Felt::from_bytes_be_slice(suffix));

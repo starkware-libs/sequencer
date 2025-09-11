@@ -51,9 +51,9 @@ pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>
     let raw_storage =
         serde_json::from_str::<Vec<RawStorageEntry>>(input.get("storage").unwrap()).unwrap();
 
-    let mut storage = HashMap::new();
+    let mut storage = MapStorage::default();
     for entry in raw_storage {
-        add_unique(&mut storage, "storage", DbKey(entry.key), DbValue(entry.value)).unwrap();
+        add_unique(&mut storage.0, "storage", DbKey(entry.key), DbValue(entry.value)).unwrap();
     }
 
     // Fetch root_hash.

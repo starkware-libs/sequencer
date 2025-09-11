@@ -13,7 +13,8 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
@@ -89,7 +90,7 @@ fn test_simple_input_parsing() {
 ]
 
 "#;
-    let expected_storage = HashMap::from([
+    let expected_storage = DbHashMap::from([
         (DbKey([14, 6, 78, 90].to_vec()), DbValue([245, 90, 0, 0, 1].to_vec())),
         (DbKey([14, 6, 43, 90].to_vec()), DbValue([9, 0, 0, 0, 1].to_vec())),
     ]);
@@ -220,7 +221,7 @@ fn test_simple_input_parsing() {
     };
     assert_eq!(
         parse_input(input).unwrap(),
-        CommitterInputImpl { input: expected_input, storage: expected_storage }
+        CommitterInputImpl { input: expected_input, storage: MapStorage(expected_storage) }
     );
 }
 

@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use clap::Args;
 use starknet_os::errors::StarknetOsError;
+use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 
 use crate::shared_utils::read::{read_input, write_to_file};
 
@@ -38,6 +39,8 @@ pub enum PythonTestError<E> {
     ParseInputError(#[from] serde_json::Error),
     #[error("None value found in input.")]
     NoneInputError,
+    #[error(transparent)]
+    PatriciaStorage(#[from] PatriciaStorageError),
     #[error(transparent)]
     SpecificError(E),
     #[error(transparent)]
