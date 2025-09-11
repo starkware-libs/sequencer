@@ -36,7 +36,7 @@ use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_mempool_config::config::MempoolConfig;
-use apollo_mempool_p2p::config::MempoolP2pConfig;
+use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
