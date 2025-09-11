@@ -10,7 +10,6 @@ use apollo_class_manager_config::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
-use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
@@ -46,6 +45,7 @@ use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
+use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;

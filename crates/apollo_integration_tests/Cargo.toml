@@ -18,7 +18,6 @@ apollo_batcher.workspace = true
 apollo_batcher_config.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
 apollo_class_manager_config.workspace = true
-apollo_compile_to_casm.workspace = true
 apollo_config.workspace = true
 apollo_config_manager.workspace = true
 apollo_consensus.workspace = true
@@ -44,6 +43,7 @@ apollo_network = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true
 apollo_rpc.workspace = true
+apollo_sierra_compilation_config.workspace = true
 apollo_state_sync.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
