@@ -344,17 +344,17 @@
     ],
     "Batcher": [
       {
-        "title": "batched_transactions_rate (TPS)",
-        "description": "The rate of transactions batched by the Batcher during the last minute",
+        "title": "Batched Transactions Rate (TPS)",
+        "description": "The rate of transactions batched by the Batcher (1m window)",
         "type": "timeseries",
         "exprs": [
-          "min(rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
+          "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
         ],
         "extra_params": {}
       },
       {
         "title": "Proposal Started",
-        "description": "Number of proposals started over the last 10 minutes",
+        "description": "Number of proposals started (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -363,7 +363,7 @@
       },
       {
         "title": "Proposal Succeeded",
-        "description": "Number of proposals succeeded over the last 10 minutes",
+        "description": "Number of proposals succeeded (10m window)",
         "type": "timeseries",
         "exprs": [
           "increase(batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -371,61 +371,37 @@
         "extra_params": {}
       },
       {
-        "title": "Proposal Failed",
-        "description": "Number of proposals failed over the last 10 minutes",
+        "title": "Proposal Failed / Aborted",
+        "description": "Number of proposals failed / aborted (10m window)",
         "type": "timeseries",
         "exprs": [
-          "increase(batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "Proposal Aborted",
-        "description": "Number of proposals aborted over the last 10 minutes",
-        "type": "timeseries",
-        "exprs": [
+          "increase(batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
           "increase(batcher_proposal_aborted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "legends": "[\"Failed\",\"Aborted\"]"
+        }
       },
       {
-        "title": "batcher_validator_wasted_txs",
-        "description": "Number of txs executed by validator but not included in the block",
+        "title": "Proposal Validation: Wasted TXs",
+        "description": "Number of txs executed by the validator but excluded from the block (10m window)",
         "type": "timeseries",
         "exprs": [
-          "batcher_validator_wasted_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_validator_wasted_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "batcher_proposer_deferred_txs",
-        "description": "Number of txs started execution but not finished by end of proposal by proposer",
+        "title": "Proposal Build: Deferred TXs",
+        "description": "Number of txs started execution by the proposer but excluded from the block (10m window)",
         "type": "timeseries",
         "exprs": [
-          "batcher_proposer_deferred_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "increase(batcher_proposer_deferred_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "batcher_batched_transactions",
-        "description": "Counter of batched transactions across all forks",
-        "type": "stat",
-        "exprs": [
-          "batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_last_batched_block_height",
-        "description": "The height of the last block received by batching",
-        "type": "stat",
-        "exprs": [
-          "batcher_last_batched_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_storage_height",
+        "title": "Storage Height",
         "description": "The height of the batcher's storage",
         "type": "stat",
         "exprs": [
@@ -434,53 +410,26 @@
         "extra_params": {}
       },
       {
-        "title": "batcher_last_synced_block_height",
-        "description": "The height of the last block received by syncing",
-        "type": "stat",
-        "exprs": [
-          "batcher_last_synced_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_last_proposed_block_height",
-        "description": "The height of the last block proposed by this sequencer",
-        "type": "stat",
-        "exprs": [
-          "batcher_last_proposed_block_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_reverted_blocks",
-        "description": "Counter of reverted blocks",
-        "type": "stat",
-        "exprs": [
-          "batcher_reverted_blocks{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "rejection_ratio",
-        "description": "Ratio of rejected transactions out of all processed, over the last 5 minutes",
+        "title": "Rejected / Reverted TXs Ratio",
+        "description": "Ratio of rejected / reverted transactions out of all processed txs (10m window)",
         "type": "timeseries",
         "exprs": [
-          "(increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          "increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))",
+          "increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
         ],
         "extra_params": {
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "legends": "[\"Rejected\",\"Reverted\"]"
         }
       },
       {
-        "title": "reverted_transactions_ratio",
-        "description": "Ratio of reverted transactions out of all processed, over the last 5 minutes",
+        "title": "Reverted Blocks",
+        "description": "Number of blocks reverted (10m window)",
         "type": "timeseries",
         "exprs": [
-          "(increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          "increase(batcher_reverted_blocks{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
-        "extra_params": {
-          "unit": "percentunit"
-        }
+        "extra_params": {}
       }
     ],
     "State Sync": [
