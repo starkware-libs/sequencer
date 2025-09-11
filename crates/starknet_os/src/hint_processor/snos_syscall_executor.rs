@@ -355,26 +355,14 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         VersionedConstants::latest_constants()
     }
 
-    fn write_sha256_state(
+    fn write_sha256_out_state(
         &mut self,
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
     ) -> Result<Relocatable, Self::Error> {
-        let block_size = get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?;
-        let out_state_offset =
-            get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.program)?;
-        let syscall_hint_processor =
-            &mut self.get_mut_current_execution_helper()?.syscall_hint_processor;
-        let segment_start =
-            syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
-        let entries_offset = block_size * syscall_hint_processor.sha256_block_count;
-        let total_offset = entries_offset + out_state_offset;
-        let state_start = (segment_start + total_offset)?;
-        vm.load_data(state_start, state)?;
-
-        // Increment the block count for the next call.
-        syscall_hint_processor.sha256_block_count += 1;
-        Ok(state_start)
+        let temp_segment = vm.add_temporary_segment();
+        vm.load_data(temp_segment, state)?;
+        Ok(temp_segment)
     }
 }
 
