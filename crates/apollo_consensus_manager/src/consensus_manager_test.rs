@@ -4,6 +4,7 @@ use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
@@ -12,7 +13,6 @@ use mockall::predicate::eq;
 use starknet_api::block::BlockNumber;
 use tokio::time::{timeout, Duration};
 
-use crate::config::ConsensusManagerConfig;
 use crate::consensus_manager::ConsensusManager;
 
 const BATCHER_HEIGHT: BlockNumber = BlockNumber(10);
