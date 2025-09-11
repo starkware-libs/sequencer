@@ -26,6 +26,7 @@ from starkware.cairo.common.cairo_secp.field import (
 from starkware.cairo.common.cairo_secp.signature import (
     try_get_point_from_x as secp256k1_try_get_point_from_x,
 )
+from starkware.cairo.common.cairo_sha256.sha256_utils import SHA256_STATE_SIZE_FELTS
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import (
@@ -1375,6 +1376,13 @@ func execute_sha256_process_block{
     assert [state] = [request.state_ptr];
 
     let res: Sha256State* = &sha256_ptr.out_state;
+    %{
+        for i in range(ids.SHA256_STATE_SIZE_FELTS):
+            memory[ids.res.address_ + i] = memory[memory[ids.syscall_ptr] + i]
+
+        memory.add_relocation_rule(src_ptr=memory[ids.syscall_ptr], dest_ptr=ids.res.address_)
+    %}
+
     let sha256_ptr = &sha256_ptr[1];
 
     assert [cast(syscall_ptr, Sha256ProcessBlockResponse*)] = Sha256ProcessBlockResponse(
