@@ -32,7 +32,7 @@ use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;

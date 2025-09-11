@@ -37,7 +37,7 @@ use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
