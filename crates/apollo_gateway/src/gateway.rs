@@ -39,7 +39,12 @@ use crate::errors::{
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
 };
-use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    GatewayAddTxFailureReason,
+    GatewayMetricHandle,
+    GATEWAY_ADD_TX_LATENCY,
+};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
@@ -102,26 +107,36 @@ impl Gateway {
             ProcessTxBlockingTask::new(self, tx.clone(), tokio::runtime::Handle::current());
         // Run the blocking task in the current span.
         let curr_span = Span::current();
-        let add_tx_args =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
-                .await
-                .map_err(|join_err| {
-                    error!("Failed to process tx: {}", join_err);
-                    StarknetError::internal(&join_err.to_string())
-                })?
-                .inspect_err(|starknet_error| {
-                    info!(
-                        "Gateway validation failed for tx: {:?} with error: {}",
-                        tx, starknet_error
-                    );
-                })?;
+        let add_tx_args = match tokio::task::spawn_blocking(move || {
+            curr_span.in_scope(|| blocking_task.process_tx())
+        })
+        .await
+        {
+            Ok(Ok(v)) => v,
+            Ok(Err(starknet_err)) => {
+                info!("Gateway validation failed for tx: {:?} with error: {}", tx, starknet_err);
+                metric_counters.record_add_tx_failure(GatewayAddTxFailureReason::Validation);
+                return Err(starknet_err);
+            }
+            Err(join_err) => {
+                error!("Failed to process tx: {}", join_err);
+                metric_counters.record_add_tx_failure(GatewayAddTxFailureReason::JoinError);
+                return Err(StarknetError::internal(&join_err.to_string()));
+            }
+        };
 
         let gateway_output = create_gateway_output(&add_tx_args.tx);
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        mempool_client_result_to_deprecated_gw_result(
-            self.mempool_client.add_tx(add_tx_args).await,
-        )?;
+        match self.mempool_client.add_tx(add_tx_args).await {
+            Ok(res) => {
+                mempool_client_result_to_deprecated_gw_result(Ok(res))?;
+            }
+            Err(e) => {
+                metric_counters.record_add_tx_failure(GatewayAddTxFailureReason::MempoolClient);
+                mempool_client_result_to_deprecated_gw_result(Err(e))?;
+            }
+        }
 
         metric_counters.transaction_sent_to_mempool();
 

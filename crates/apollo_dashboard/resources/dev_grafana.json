@@ -616,26 +616,8 @@
     ],
     "Gateway": [
       {
-        "title": "gateway_transactions_received",
-        "description": "Counter of transactions received",
-        "type": "stat",
-        "exprs": [
-          "sum  by (tx_type) (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}) "
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "gateway_transactions_received",
-        "description": "Counter of transactions received",
-        "type": "stat",
-        "exprs": [
-          "sum  by (source) (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}) "
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "gateway_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the gateway during the last 20 minutes",
+        "title": "Transactions Received Rate (TPS)",
+        "description": "The rate of transactions received by the gateway (20m window)",
         "type": "timeseries",
         "exprs": [
           "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
@@ -643,40 +625,86 @@
         "extra_params": {}
       },
       {
-        "title": "gateway_add_tx_latency",
-        "description": "Latency of gateway add_tx function in secs",
+        "title": "Add Tx Latency",
+        "description": "The time it takes to add a transaction to the gateway",
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "s"
+        }
       },
       {
-        "title": "gateway_validate_tx_latency",
-        "description": "Latency of gateway validate function in secs",
+        "title": "Validate Tx Latency",
+        "description": "The time it takes to validate a transaction",
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "s"
+        }
       },
       {
-        "title": "gateway_transactions_failed",
-        "description": "Counter of failed transactions",
+        "title": "Transactions Received by Source",
+        "description": "The number of transactions received by source (10m window)",
         "type": "stat",
         "exprs": [
-          "sum  by (tx_type) (gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          "sum  by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) "
+        ],
+        "extra_params": {
+          "log_query": "\"Processing tx\""
+        }
+      },
+      {
+        "title": "Transactions Received by Type",
+        "description": "The number of transactions received by type (10m window)",
+        "type": "stat",
+        "exprs": [
+          "sum  by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) "
+        ],
+        "extra_params": {
+          "log_query": "\"Processing tx\""
+        }
+      },
+      {
+        "title": "Transactions Failed by Type",
+        "description": "The number of transactions failed by type (10m window)",
+        "type": "stat",
+        "exprs": [
+          "sum  by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
         ],
         "extra_params": {}
       },
       {
-        "title": "gateway_transactions_sent_to_mempool",
-        "description": "Counter of transactions sent to the mempool",
+        "title": "Transaction Failure Rate by Type",
+        "description": "The rate of failed transactions vs received transactions by type (10m window)",
         "type": "stat",
         "exprs": [
-          "sum  by (tx_type) (gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])))"
+        ],
+        "extra_params": {
+          "unit": "percentunit"
+        }
+      },
+      {
+        "title": "Transactions Failed by Reason",
+        "description": "The number of transactions failed by reason (10m window)",
+        "type": "stat",
+        "exprs": [
+          "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Transactions Sent to Mempool by Type",
+        "description": "The number of transactions sent to mempool by type (10m window)",
+        "type": "stat",
+        "exprs": [
+          "sum  by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
         ],
         "extra_params": {}
       }

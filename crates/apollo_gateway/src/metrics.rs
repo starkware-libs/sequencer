@@ -17,11 +17,19 @@ use crate::communication::GATEWAY_REQUEST_LABELS;
 
 pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub const LABEL_NAME_SOURCE: &str = "source";
+pub const LABEL_NAME_ADD_TX_FAILURE_REASON: &str = "add_tx_failure_reason";
 
 generate_permutation_labels! {
     TRANSACTION_TYPE_AND_SOURCE_LABELS,
     (LABEL_NAME_TX_TYPE, RpcTransactionLabelValue),
     (LABEL_NAME_SOURCE, SourceLabelValue),
+}
+
+generate_permutation_labels! {
+    TRANSACTION_TYPE_AND_SOURCE_AND_ADD_TX_FAILURE_LABELS,
+    (LABEL_NAME_TX_TYPE, RpcTransactionLabelValue),
+    (LABEL_NAME_SOURCE, SourceLabelValue),
+    (LABEL_NAME_ADD_TX_FAILURE_REASON, GatewayAddTxFailureReason),
 }
 
 define_infra_metrics!(gateway);
@@ -31,6 +39,7 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { GATEWAY_ADD_TX_FAILURE, "gateway_add_tx_failure", "Counter of add_tx failures by reason", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_AND_ADD_TX_FAILURE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
     },
@@ -41,6 +50,14 @@ define_metrics!(
 pub enum SourceLabelValue {
     Http,
     P2p,
+}
+
+#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum GatewayAddTxFailureReason {
+    JoinError,
+    Validation,
+    MempoolClient,
 }
 
 enum TransactionStatus {
@@ -71,12 +88,27 @@ impl GatewayMetricHandle {
         vec![(LABEL_NAME_TX_TYPE, self.tx_type.into()), (LABEL_NAME_SOURCE, self.source.into())]
     }
 
+    fn failure_label(
+        &self,
+        reason: GatewayAddTxFailureReason,
+    ) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (LABEL_NAME_TX_TYPE, self.tx_type.into()),
+            (LABEL_NAME_SOURCE, self.source.into()),
+            (LABEL_NAME_ADD_TX_FAILURE_REASON, reason.into()),
+        ]
+    }
+
     pub fn count_transaction_received(&self) {
         GATEWAY_TRANSACTIONS_RECEIVED.increment(1, &self.label());
     }
 
     pub fn transaction_sent_to_mempool(&mut self) {
         self.tx_status = TransactionStatus::SentToMempool;
+    }
+
+    pub fn record_add_tx_failure(&self, reason: GatewayAddTxFailureReason) {
+        GATEWAY_ADD_TX_FAILURE.increment(1, &self.failure_label(reason));
     }
 
     #[cfg(test)]
@@ -100,6 +132,7 @@ pub(crate) fn register_metrics() {
     GATEWAY_TRANSACTIONS_RECEIVED.register();
     GATEWAY_TRANSACTIONS_FAILED.register();
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register();
+    GATEWAY_ADD_TX_FAILURE.register();
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
 }
