@@ -6,6 +6,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -33,7 +34,6 @@ use starknet_api::rpc_transaction::{
 };
 use tracing::{debug, info, instrument, warn, Span};
 
-use crate::config::GatewayConfig;
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
     transaction_converter_err_to_deprecated_gw_err,
