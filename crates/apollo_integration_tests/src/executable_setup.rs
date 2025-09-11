@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_node::config::config_utils::DeploymentBaseAppConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::SequencerNodeConfig;

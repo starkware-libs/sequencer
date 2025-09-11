@@ -39,6 +39,7 @@ apollo_l1_scraper_config.workspace = true
 apollo_mempool_config.workspace = true
 apollo_mempool_p2p_config.workspace = true
 apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
+apollo_monitoring_endpoint_config.workspace = true
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true

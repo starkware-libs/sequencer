@@ -50,6 +50,7 @@ members = [
   "crates/apollo_mempool_types",
   "crates/apollo_metrics",
   "crates/apollo_monitoring_endpoint",
+  "crates/apollo_monitoring_endpoint_config",
   "crates/apollo_network",
   "crates/apollo_network_types",
   "crates/apollo_node",
@@ -154,6 +155,7 @@ apollo_mempool_p2p_types.path = "crates/apollo_mempool_p2p_types"
 apollo_mempool_types.path = "crates/apollo_mempool_types"
 apollo_metrics = { path = "crates/apollo_metrics", version = "0.15.0-rc.4" }
 apollo_monitoring_endpoint.path = "crates/apollo_monitoring_endpoint"
+apollo_monitoring_endpoint_config.path = "crates/apollo_monitoring_endpoint_config"
 apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_node.path = "crates/apollo_node"
