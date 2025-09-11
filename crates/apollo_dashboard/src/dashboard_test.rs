@@ -76,7 +76,7 @@ fn test_ratio_time_series() {
 
     assert_eq!(panel.exprs, vec![expected]);
     assert_eq!(panel.extra.unit, Some(Unit::PercentUnit));
-    assert_eq!(panel.extra.log_query, Some("Query".to_string()));
+    assert_eq!(panel.extra.log_query, Some("\"Query\"".to_string()));
 
     let expected = format!(
         "(increase({}[{duration}]) / (increase({}[{duration}])))",
@@ -104,7 +104,7 @@ fn test_extra_params() {
 
     assert_eq!(panel_with_extra_params.extra.unit, Some(Unit::Bytes));
     assert!(panel_with_extra_params.extra.show_percent_change);
-    assert_eq!(panel_with_extra_params.extra.log_query, Some("Query".to_string()));
+    assert_eq!(panel_with_extra_params.extra.log_query, Some("\"Query\"".to_string()));
     assert_eq!(
         panel_with_extra_params.extra.thresholds,
         Some(Thresholds {
