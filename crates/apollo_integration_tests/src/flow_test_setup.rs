@@ -9,8 +9,8 @@ use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::network_manager::test_utils::{
     create_connected_network_configs,
