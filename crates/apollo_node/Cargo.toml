@@ -51,6 +51,7 @@ apollo_reverts.workspace = true
 apollo_signature_manager.workspace = true
 apollo_signature_manager_types.workspace = true
 apollo_state_sync.workspace = true
+apollo_state_sync_config.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 clap.workspace = true
