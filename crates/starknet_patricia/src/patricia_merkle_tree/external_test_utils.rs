@@ -7,6 +7,7 @@ use serde_json::json;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::StarkHash;
 
 use super::filled_tree::node_serde::PatriciaPrefix;
 use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
@@ -115,39 +116,57 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     serde_json::to_string(&result_map).expect("serialization failed")
 }
 
+pub struct AdditionHash;
+
+impl StarkHash for AdditionHash {
+    fn hash(felt_0: &Felt, felt_1: &Felt) -> Felt {
+        *felt_0 + *felt_1
+    }
+    fn hash_array(felts: &[Felt]) -> Felt {
+        felts.iter().fold(Felt::ZERO, |acc, felt| acc + *felt)
+    }
+    fn hash_single(felt: &Felt) -> Felt {
+        *felt
+    }
+}
+
+fn hash_edge<SH: StarkHash>(hash: &Felt, path: &Felt, length: &Felt) -> Felt {
+    SH::hash(hash, path) + *length
+}
+
 pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
     U256::from(simple_val).to_be_bytes()
 }
 
-fn create_inner_node_patricia_key(val: u128) -> DbKey {
-    create_db_key(PatriciaPrefix::InnerNode.into(), &U256::from(val).to_be_bytes())
+fn create_inner_node_patricia_key(val: Felt) -> DbKey {
+    create_db_key(PatriciaPrefix::InnerNode.into(), &val.to_bytes_be())
 }
 
-fn create_leaf_patricia_key<L: Leaf>(val: u128) -> DbKey {
+pub fn create_leaf_patricia_key<L: Leaf>(val: u128) -> DbKey {
     create_db_key(L::get_static_prefix(), &U256::from(val).to_be_bytes())
 }
 
-fn create_binary_val(left: u128, right: u128) -> DbValue {
-    DbValue((create_32_bytes_entry(left).into_iter().chain(create_32_bytes_entry(right))).collect())
+fn create_binary_val(left: Felt, right: Felt) -> DbValue {
+    DbValue((left.to_bytes_be().into_iter().chain(right.to_bytes_be())).collect())
 }
 
-fn create_edge_val(hash: u128, path: u128, length: u8) -> DbValue {
+fn create_edge_val(hash: Felt, path: u128, length: u8) -> DbValue {
     DbValue(
-        create_32_bytes_entry(hash)
-            .into_iter()
-            .chain(create_32_bytes_entry(path))
-            .chain([length])
-            .collect(),
+        hash.to_bytes_be().into_iter().chain(create_32_bytes_entry(path)).chain([length]).collect(),
     )
 }
 
-pub fn create_binary_entry(left: u128, right: u128) -> (DbKey, DbValue) {
-    (create_inner_node_patricia_key(left + right), create_binary_val(left, right))
+pub fn create_binary_entry<SH: StarkHash>(left: Felt, right: Felt) -> (DbKey, DbValue) {
+    (create_inner_node_patricia_key(SH::hash(&left, &right)), create_binary_val(left, right))
 }
 
-pub fn create_edge_entry(hash: u128, path: u128, length: u8) -> (DbKey, DbValue) {
+pub fn create_edge_entry<SH: StarkHash>(hash: Felt, path: u128, length: u8) -> (DbKey, DbValue) {
     (
-        create_inner_node_patricia_key(hash + path + u128::from(length)),
+        create_inner_node_patricia_key(hash_edge::<SH>(
+            &hash,
+            &Felt::from(path),
+            &Felt::from(length),
+        )),
         create_edge_val(hash, path, length),
     )
 }

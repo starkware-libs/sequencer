@@ -17,6 +17,7 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_expected_skeleton_nodes,
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
+    AdditionHash,
 };
 use crate::patricia_merkle_tree::internal_test_utils::{MockLeaf, OriginalSkeletonMockTrieConfig};
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -25,7 +26,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonT
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 
 #[rstest]
-// This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
+// This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
 ///                 Old tree structure:
 ///
 ///                             50
@@ -51,11 +52,11 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 #[case::simple_tree_of_height_3(
     HashMap::from([
     create_root_edge_entry(50, SubTreeHeight::new(3)),
-    create_binary_entry(8, 9),
-    create_edge_entry(11, 1, 1),
-    create_binary_entry(17, 13),
-    create_edge_entry(15, 3, 2),
-    create_binary_entry(30, 20),
+    create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
+    create_edge_entry::<AdditionHash>(Felt::from(11), 1, 1),
+    create_binary_entry::<AdditionHash>(Felt::from(17), Felt::from(13)),
+    create_edge_entry::<AdditionHash>(Felt::from(15), 3, 2),
+    create_binary_entry::<AdditionHash>(Felt::from(30), Felt::from(20)),
     create_mock_leaf_entry(8),
     create_mock_leaf_entry(9),
     create_mock_leaf_entry(11),
@@ -103,12 +104,12 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 #[case::another_simple_tree_of_height_3(
     HashMap::from([
     create_root_edge_entry(29, SubTreeHeight::new(3)),
-    create_binary_entry(10, 2),
-    create_edge_entry(3, 1, 1),
-    create_binary_entry(4, 7),
-    create_edge_entry(12, 0, 1),
-    create_binary_entry(5, 11),
-    create_binary_entry(13, 16),
+    create_binary_entry::<AdditionHash>(Felt::from(10), Felt::TWO),
+    create_edge_entry::<AdditionHash>(Felt::THREE, 1, 1),
+    create_binary_entry::<AdditionHash>(Felt::from(4), Felt::from(7)),
+    create_edge_entry::<AdditionHash>(Felt::from(12), 0, 1),
+    create_binary_entry::<AdditionHash>(Felt::from(5), Felt::from(11)),
+    create_binary_entry::<AdditionHash>(Felt::from(13), Felt::from(16)),
     create_mock_leaf_entry(10),
     create_mock_leaf_entry(2),
     create_mock_leaf_entry(3),
@@ -159,14 +160,14 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 #[case::tree_of_height_4_with_long_edge(
     HashMap::from([
     create_root_edge_entry(116, SubTreeHeight::new(4)),
-    create_binary_entry(11, 13),
-    create_edge_entry(5, 0, 1),
-    create_binary_entry(19, 40),
-    create_edge_entry(20, 3, 2),
-    create_binary_entry(6, 59),
-    create_edge_entry(24, 0, 2),
-    create_binary_entry(25, 65),
-    create_binary_entry(26, 90),
+    create_binary_entry::<AdditionHash>(Felt::from(11), Felt::from(13)),
+    create_edge_entry::<AdditionHash>(Felt::from(5), 0, 1),
+    create_binary_entry::<AdditionHash>(Felt::from(19), Felt::from(40)),
+    create_edge_entry::<AdditionHash>(Felt::from(20), 3, 2),
+    create_binary_entry::<AdditionHash>(Felt::from(6), Felt::from(59)),
+    create_edge_entry::<AdditionHash>(Felt::from(24), 0, 2),
+    create_binary_entry::<AdditionHash>(Felt::from(25), Felt::from(65)),
+    create_binary_entry::<AdditionHash>(Felt::from(26), Felt::from(90)),
     create_mock_leaf_entry(11),
     create_mock_leaf_entry(13),
     create_mock_leaf_entry(20),
