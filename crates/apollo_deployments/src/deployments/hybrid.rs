@@ -9,12 +9,12 @@ use apollo_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use indexmap::IndexMap;
-use libp2p::{Multiaddr, PeerId};
+use libp2p::Multiaddr;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::addresses::{get_p2p_address, get_peer_id};
+use crate::addresses::{get_peer_id, peer_address};
 use crate::config_override::{
     ConfigOverride,
     DeploymentConfigOverride,
@@ -22,7 +22,7 @@ use crate::config_override::{
     PeerToPeerAdvertisementConfig,
     PeerToPeerBootstrapConfig,
 };
-use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
+use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     CloudK8sEnvironment,
@@ -954,19 +954,7 @@ fn create_hybrid_instance_config_override(
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
-    let node_peer_id = get_peer_id(node_id);
-
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
-
-    let build_peer_address =
-        |node_service: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &PeerId| {
-            let domain = build_service_namespace_domain_address(
-                &node_service.k8s_service_name(),
-                &node_namespace_format.format(&[&node_id]),
-                &sanitized_domain,
-            );
-            get_p2p_address(&domain, port, peer_id)
-        };
 
     // TODO(Tsabary): both `consensus_bootstrap_peers_multiaddrs` and
     // `mempool_bootstrap_peers_multiaddrs` can be moved to the deployment override module, which
@@ -975,11 +963,12 @@ fn create_hybrid_instance_config_override(
     let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
         .iter()
         .map(|(node_id, _)| {
-            build_peer_address(
-                HybridNodeServiceName::Core,
+            peer_address(
+                NodeService::Hybrid(HybridNodeServiceName::Core),
                 CONSENSUS_P2P_PORT,
-                *node_id,
+                &node_namespace_format.format(&[&node_id]),
                 &get_peer_id(*node_id),
+                &sanitized_domain,
             )
         })
         .collect();
@@ -987,11 +976,12 @@ fn create_hybrid_instance_config_override(
     let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
         .iter()
         .map(|(node_id, _)| {
-            build_peer_address(
-                HybridNodeServiceName::Mempool,
+            peer_address(
+                NodeService::Hybrid(HybridNodeServiceName::Mempool),
                 MEMPOOL_P2P_PORT,
-                *node_id,
+                &node_namespace_format.format(&[&node_id]),
                 &get_peer_id(*node_id),
+                &sanitized_domain,
             )
         })
         .collect();
@@ -1008,17 +998,19 @@ fn create_hybrid_instance_config_override(
             // Advertised addresses for external communication.
             {
                 (
-                    Some(build_peer_address(
-                        HybridNodeServiceName::Core,
+                    Some(peer_address(
+                        NodeService::Hybrid(HybridNodeServiceName::Core),
                         CONSENSUS_P2P_PORT,
-                        node_id,
-                        &node_peer_id,
+                        &node_namespace_format.format(&[&node_id]),
+                        &get_peer_id(node_id),
+                        &sanitized_domain,
                     )),
-                    Some(build_peer_address(
-                        HybridNodeServiceName::Mempool,
+                    Some(peer_address(
+                        NodeService::Hybrid(HybridNodeServiceName::Mempool),
                         MEMPOOL_P2P_PORT,
-                        node_id,
-                        &node_peer_id,
+                        &node_namespace_format.format(&[&node_id]),
+                        &get_peer_id(node_id),
+                        &sanitized_domain,
                     )),
                 )
             }
