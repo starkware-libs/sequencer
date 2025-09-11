@@ -26,6 +26,8 @@ pub struct DeclaredClassHashEntry {
     pub compiled_class_hash: CompiledClassHash,
 }
 
+pub type MigratedCompiledClassHashEntry = DeclaredClassHashEntry;
+
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ReplacedClass {
     pub address: ContractAddress,
