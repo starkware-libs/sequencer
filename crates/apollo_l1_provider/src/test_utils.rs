@@ -546,24 +546,30 @@ impl FakeL1ProviderClient {
     }
 }
 
-/// Asserts that the received event matches the expected event, ignoring scrape time.
+/// Asserts that the received event matches the expected event, allowing for a small margin in
+/// scrape time.
 fn assert_event_almost_eq(received: &Event, expected: &Event) {
     if let (
         Event::L1HandlerTransaction {
             l1_handler_tx: received_l1_handler_tx,
             block_timestamp: received_block_timestamp,
-            scrape_timestamp: _,
+            scrape_timestamp: received_scrape_timestamp,
         },
         Event::L1HandlerTransaction {
             l1_handler_tx: expected_l1_handler_tx,
             block_timestamp: expected_block_timestamp,
-            scrape_timestamp: _,
+            scrape_timestamp: expected_scrape_timestamp,
         },
     ) = (received, expected)
     {
-        // Skip the assertion on scrape_timestamp.
         assert_eq!(received_l1_handler_tx, expected_l1_handler_tx);
         assert_eq!(received_block_timestamp, expected_block_timestamp);
+
+        const SCRAPE_TIMESTAMP_MARGIN: u64 = 5;
+        assert!(
+            received_scrape_timestamp.abs_diff(*expected_scrape_timestamp)
+                <= SCRAPE_TIMESTAMP_MARGIN
+        );
     } else {
         assert_eq!(received, expected);
     }
