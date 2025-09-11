@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::{Felt, FromStrError};
 
@@ -26,3 +27,14 @@ pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
 pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
+
+pub struct ContractsTrieProof {
+    pub nodes: PreimageMap,
+    pub leaves: HashMap<ContractAddress, ContractState>,
+}
+
+pub struct StarknetStorageProofs {
+    pub classes_trie_proof: PreimageMap,
+    pub contracts_trie_proof: ContractsTrieProof,
+    pub contracts_trie_storage_proofs: HashMap<ContractAddress, PreimageMap>,
+}
