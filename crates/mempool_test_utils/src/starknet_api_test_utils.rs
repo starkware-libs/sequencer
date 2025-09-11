@@ -425,6 +425,32 @@ impl AccountTransactionGenerator {
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
+    pub fn generate_call_contract_invoke_tx(
+        &mut self,
+        called_contract_address: ContractAddress,
+        test_contract: &FeatureContract,
+        fn_name: &str,
+        fn_args: &[Felt],
+        tip: u64,
+    ) -> RpcTransaction {
+        let call_contract_calldata = Calldata(
+            [
+                vec![*called_contract_address.0.key(), selector_from_name(fn_name).0],
+                fn_args.to_vec(),
+            ]
+            .concat()
+            .into(),
+        );
+        self.generate_rpc_invoke_tx(
+            tip,
+            create_calldata(
+                test_contract.get_instance_address(0),
+                "test_call_contract",
+                &call_contract_calldata.0,
+            ),
+        )
+    }
+
     pub fn generate_invoke_tx_library_call(
         &mut self,
         tip: u64,
