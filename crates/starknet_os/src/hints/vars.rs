@@ -418,7 +418,6 @@ define_string_enum! {
         (ResourceBounds, "starkware.starknet.common.new_syscalls.ResourceBounds"),
         (SecpNewResponsePtr, "starkware.starknet.common.new_syscalls.SecpNewResponse*"),
         (SelectableBuiltins, "starkware.starknet.core.os.builtins.SelectableBuiltins"),
-        (Sha256ProcessBlock, "starkware.cairo.common.sha256_state.Sha256ProcessBlock"),
         (SpongeHashBuiltin, "starkware.cairo.common.sponge_as_hash.SpongeHashBuiltin"),
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
