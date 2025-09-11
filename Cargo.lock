@@ -1503,6 +1503,7 @@ dependencies = [
  "apollo_l1_provider",
  "apollo_mempool",
  "apollo_mempool_p2p",
+ "apollo_mempool_p2p_config",
  "apollo_monitoring_endpoint",
  "apollo_network",
  "apollo_node",
@@ -1733,6 +1734,7 @@ dependencies = [
  "apollo_config",
  "apollo_gateway_types",
  "apollo_infra",
+ "apollo_mempool_p2p_config",
  "apollo_mempool_p2p_types",
  "apollo_metrics",
  "apollo_network",
@@ -1748,6 +1750,16 @@ dependencies = [
  "starknet_api",
  "tokio",
  "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_mempool_p2p_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_network",
+ "serde",
  "validator",
 ]
 
@@ -1916,6 +1928,7 @@ dependencies = [
  "apollo_l1_provider_types",
  "apollo_mempool",
  "apollo_mempool_p2p",
+ "apollo_mempool_p2p_config",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",
