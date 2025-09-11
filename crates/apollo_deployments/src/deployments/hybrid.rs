@@ -19,7 +19,8 @@ use crate::config_override::{
     ConfigOverride,
     DeploymentConfigOverride,
     InstanceConfigOverride,
-    NetworkConfigOverride,
+    PeerToPeerAdvertisementConfig,
+    PeerToPeerBootstrapConfig,
 };
 use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{
@@ -1012,14 +1013,10 @@ fn create_hybrid_instance_config_override(
         };
 
     InstanceConfigOverride::new(
-        NetworkConfigOverride::new(
-            Some(consensus_bootstrap_peers_multiaddrs),
-            consensus_advertised_multiaddr,
-        ),
-        NetworkConfigOverride::new(
-            Some(mempool_bootstrap_peers_multiaddrs),
-            mempool_advertised_multiaddr,
-        ),
+        PeerToPeerBootstrapConfig::new(Some(consensus_bootstrap_peers_multiaddrs)),
+        PeerToPeerAdvertisementConfig::new(consensus_advertised_multiaddr),
+        PeerToPeerBootstrapConfig::new(Some(mempool_bootstrap_peers_multiaddrs)),
+        PeerToPeerAdvertisementConfig::new(mempool_advertised_multiaddr),
         validator_id,
     )
 }
