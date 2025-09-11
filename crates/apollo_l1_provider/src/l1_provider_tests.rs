@@ -647,6 +647,7 @@ fn get_txs_timestamp_cutoff_some_eligible() {
 
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([tx_1.clone()])
+        .with_nonzero_timelock_setup()
         .with_timelocked_txs([tx_2, tx_3])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
@@ -662,6 +663,7 @@ fn get_txs_timestamp_cutoff_none_eligible() {
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_timelocked_txs([tx_1.clone(), tx_2.clone()])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
@@ -712,6 +714,7 @@ fn get_txs_excludes_cancellation_requested_and_returns_non_cancellation_requeste
     let tx_2 = l1_handler(2);
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([tx_2.clone()])
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([tx_1.clone()])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
@@ -725,6 +728,7 @@ fn get_txs_excludes_transaction_after_cancellation_expiry() {
     // Setup.
     let tx_1 = l1_handler(1);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_cancelled_txs([tx_1.clone()])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
@@ -738,6 +742,7 @@ fn validate_tx_cancellation_requested_not_expired_returns_validated() {
     // Setup.
     let tx_1 = l1_handler(1);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([tx_1.clone()])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -752,6 +757,7 @@ fn validate_tx_cancellation_requested_expired_returns_cancelled() {
     // Setup.
     let tx_1 = l1_handler(2);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_cancelled_txs([tx_1.clone()])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -772,6 +778,7 @@ fn validate_tx_cancellation_requested_validated_then_expired_returns_cancelled()
     let clock = Arc::new(FakeClock::new(5));
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_clock(clock.clone())
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([tx_1.clone()])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -796,6 +803,7 @@ fn commit_block_commits_cancellation_requested_tx_not_expired() {
     // Setup.
     let tx = l1_handler(1);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([tx.clone()])
         .build_into_l1_provider();
     let expected =
@@ -814,6 +822,7 @@ fn commit_block_commits_cancellation_requested_expired_and_fully_cancelled() {
     let tx_2 = l1_handler(2);
     let mut l1_provider = L1ProviderContentBuilder::new()
         // Both txs are passed cancellation request already, but still not in `Cancelled` state.
+        .with_nonzero_timelock_setup()
         .with_cancelled_txs([tx_1.clone(), tx_2.clone()])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -841,6 +850,7 @@ fn commit_block_commits_mixed_normal_and_cancellation_requested() {
     let tx_normal = l1_handler(1);
     let tx_cancel = l1_handler(2);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_txs([tx_normal.clone()])
         .with_cancel_requested_txs([tx_cancel.clone()])
         .with_state(ProviderState::Propose)
@@ -1055,6 +1065,7 @@ fn consuming_tx_marked_for_cancellation() {
     // Setup.
     let tx = l1_handler(1);
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([tx.clone()])
         .build_into_l1_provider();
     let expected = L1ProviderContentBuilder::new()
@@ -1076,8 +1087,10 @@ fn consuming_tx_marked_for_cancellation() {
 fn consuming_tx_cancelled_on_l2() {
     // Setup.
     let tx = l1_handler(1);
-    let mut l1_provider =
-        L1ProviderContentBuilder::new().with_cancelled_txs([tx.clone()]).build_into_l1_provider();
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
+        .with_cancelled_txs([tx.clone()])
+        .build_into_l1_provider();
 
     let expected = L1ProviderContentBuilder::new()
         .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
@@ -1191,6 +1204,7 @@ fn consuming_unknown_tx_does_not_change_the_provider_state() {
     // second. To override this, put with_config at the end.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_clock(clock)
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([cancellation_request_tx.clone()])
         .with_cancelled_txs([cancelled_on_l2_tx.clone()])
         .with_committed([committed_tx.clone()])
@@ -1203,6 +1217,7 @@ fn consuming_unknown_tx_does_not_change_the_provider_state() {
     // The expected provider still has all the txs, the consumed tx is marked as consumed, but not
     // deleted.
     let expected = L1ProviderContentBuilder::new()
+        .with_nonzero_timelock_setup()
         .with_cancel_requested_txs([cancellation_request_tx])
         .with_cancelled_txs([cancelled_on_l2_tx])
         .with_committed([committed_tx])
