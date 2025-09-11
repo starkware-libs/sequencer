@@ -38,6 +38,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
 use crate::update_strategy::UpdateStrategy;
@@ -53,7 +54,8 @@ pub struct Service {
     config_paths: Vec<String>,
     ingress: Option<Ingress>,
     k8s_service_config: Option<K8sServiceConfig>,
-    autoscale: bool,
+    #[serde(rename = "autoscale")]
+    scale_policy: ScalePolicy,
     replicas: usize,
     storage: Option<usize>,
     toleration: Option<Toleration>,
@@ -94,7 +96,7 @@ impl Service {
             .collect();
 
         let controller = node_service.get_controller();
-        let autoscale = node_service.get_autoscale();
+        let scale_policy = node_service.get_scale_policy();
         let toleration = node_service.get_toleration(&environment);
         let ingress = node_service.get_ingress(&environment, ingress_params);
         let k8s_service_config = node_service.get_k8s_service_config(k8s_service_config_params);
@@ -110,7 +112,7 @@ impl Service {
             controller,
             ingress,
             k8s_service_config,
-            autoscale,
+            scale_policy,
             replicas,
             storage,
             toleration,
@@ -195,8 +197,8 @@ impl NodeService {
         self.as_inner().get_controller()
     }
 
-    pub fn get_autoscale(&self) -> bool {
-        self.as_inner().get_autoscale()
+    pub fn get_scale_policy(&self) -> ScalePolicy {
+        self.as_inner().get_scale_policy()
     }
 
     pub fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
@@ -265,7 +267,7 @@ impl NodeService {
 pub(crate) trait ServiceNameInner: Display {
     fn get_controller(&self) -> Controller;
 
-    fn get_autoscale(&self) -> bool;
+    fn get_scale_policy(&self) -> ScalePolicy;
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration>;
 

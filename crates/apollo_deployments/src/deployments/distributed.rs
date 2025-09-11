@@ -18,7 +18,6 @@ use crate::deployment_definitions::{
     InfraServicePort,
     ServicePort,
 };
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -29,6 +28,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::scale_policy::{ScalePolicy, IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES};
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
@@ -183,18 +183,19 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
-    fn get_autoscale(&self) -> bool {
+    fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            DistributedNodeServiceName::Batcher => false,
-            DistributedNodeServiceName::ClassManager => false,
-            DistributedNodeServiceName::ConsensusManager => false,
-            DistributedNodeServiceName::HttpServer => false,
-            DistributedNodeServiceName::Gateway => true,
-            DistributedNodeServiceName::L1 => false,
-            DistributedNodeServiceName::Mempool => false,
-            DistributedNodeServiceName::SierraCompiler => true,
-            DistributedNodeServiceName::StateSync => false,
-            DistributedNodeServiceName::SignatureManager => false,
+            DistributedNodeServiceName::Batcher
+            | DistributedNodeServiceName::ClassManager
+            | DistributedNodeServiceName::ConsensusManager
+            | DistributedNodeServiceName::HttpServer
+            | DistributedNodeServiceName::L1
+            | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::StateSync
+            | DistributedNodeServiceName::SignatureManager => ScalePolicy::StaticallyScaled,
+            DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
+                ScalePolicy::AutoScaled
+            }
         }
     }
 
