@@ -167,13 +167,27 @@ impl DeploymentConfigOverride {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
-pub struct NetworkConfigOverride {
+pub struct PeerToPeerBootstrapConfig {
     // Bootstrap peer address.
     #[serde(rename = "bootstrap_peer_multiaddr", serialize_with = "serialize_multi_addrs_wrapper")]
     bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
     #[serde(rename = "bootstrap_peer_multiaddr.#is_none")]
     bootstrap_peer_multiaddr_is_none: bool,
+}
 
+impl PeerToPeerBootstrapConfig {
+    pub fn new(bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>) -> Self {
+        let (bootstrap_peers_multiaddrs, bootstrap_peer_multiaddr_is_none) =
+            match bootstrap_peers_multiaddrs {
+                Some(addrs) => (Some(addrs), false),
+                None => (Some(vec![]), true),
+            };
+        Self { bootstrap_peers_multiaddrs, bootstrap_peer_multiaddr_is_none }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PeerToPeerAdvertisementConfig {
     // Advertised self address.
     #[serde(rename = "advertised_multiaddr")]
     advertised_multiaddr: Multiaddr,
@@ -181,26 +195,13 @@ pub struct NetworkConfigOverride {
     advertised_multiaddr_is_none: bool,
 }
 
-impl NetworkConfigOverride {
-    pub fn new(
-        bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
-        advertised_multiaddr: Option<Multiaddr>,
-    ) -> Self {
-        let (bootstrap_peers_multiaddrs, bootstrap_peer_multiaddr_is_none) =
-            match bootstrap_peers_multiaddrs {
-                Some(addrs) => (Some(addrs), false),
-                None => (Some(vec![]), true),
-            };
+impl PeerToPeerAdvertisementConfig {
+    pub fn new(advertised_multiaddr: Option<Multiaddr>) -> Self {
         let (advertised_multiaddr, advertised_multiaddr_is_none) = match advertised_multiaddr {
             Some(addr) => (addr, false),
             None => (Multiaddr::empty(), true),
         };
-        Self {
-            bootstrap_peers_multiaddrs,
-            bootstrap_peer_multiaddr_is_none,
-            advertised_multiaddr,
-            advertised_multiaddr_is_none,
-        }
+        Self { advertised_multiaddr, advertised_multiaddr_is_none }
     }
 }
 
@@ -211,21 +212,29 @@ with_prefix!(mempool_prefix "mempool_p2p_config.network_config.");
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct InstanceConfigOverride {
     #[serde(flatten, with = "consensus_prefix")]
-    consensus_network_config_override: NetworkConfigOverride,
+    consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+    #[serde(flatten, with = "consensus_prefix")]
+    consensus_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
     #[serde(flatten, with = "mempool_prefix")]
-    mempool_network_config_override: NetworkConfigOverride,
+    mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+    #[serde(flatten, with = "mempool_prefix")]
+    mempool_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
     validator_id: String,
 }
 
 impl InstanceConfigOverride {
     pub fn new(
-        consensus_network_config_override: NetworkConfigOverride,
-        mempool_network_config_override: NetworkConfigOverride,
+        consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+        consensus_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
+        mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+        mempool_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
         validator_id: impl ToString,
     ) -> Self {
         Self {
-            consensus_network_config_override,
-            mempool_network_config_override,
+            consensus_p2p_bootstrap_config,
+            consensus_p2p_advertisement_config,
+            mempool_p2p_bootstrap_config,
+            mempool_p2p_advertisement_config,
             validator_id: validator_id.to_string(),
         }
     }
