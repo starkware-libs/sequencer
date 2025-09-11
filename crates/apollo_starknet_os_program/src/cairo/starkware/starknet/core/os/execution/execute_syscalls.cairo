@@ -1375,6 +1375,14 @@ func execute_sha256_process_block{
     assert [state] = [request.state_ptr];
 
     let res: Sha256State* = &sha256_ptr.out_state;
+    %{
+        state_ptr = ids.response.state_ptr.address_
+        actual_state_ptr = ids.actual_state_ptr.address_
+        for i in range(8):
+            memory[actual_state_ptr + i] = memory[state_ptr + i]
+        memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_state_ptr)
+    %}
+
     let sha256_ptr = &sha256_ptr[1];
 
     assert [cast(syscall_ptr, Sha256ProcessBlockResponse*)] = Sha256ProcessBlockResponse(
