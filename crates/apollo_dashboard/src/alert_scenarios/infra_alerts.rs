@@ -8,6 +8,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
@@ -28,6 +29,7 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -57,6 +59,7 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
+        ObserverApplicability::Applicable,
         AlertEnvFiltering::All,
     )
 }
@@ -88,6 +91,7 @@ fn get_general_pod_memory_utilization(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         severity,
+        ObserverApplicability::Applicable,
         AlertEnvFiltering::All,
     )
 }
@@ -129,6 +133,7 @@ pub(crate) fn get_general_pod_high_cpu_utilization() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
+        ObserverApplicability::Applicable,
         AlertEnvFiltering::All,
     )
 }
@@ -157,6 +162,7 @@ fn get_general_pod_disk_utilization(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         severity,
+        ObserverApplicability::Applicable,
         AlertEnvFiltering::All,
     )
 }

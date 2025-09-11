@@ -15,6 +15,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
     SECS_IN_MIN,
@@ -40,6 +41,7 @@ fn build_idle_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -94,6 +96,7 @@ fn get_gateway_low_successful_transaction_rate(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }

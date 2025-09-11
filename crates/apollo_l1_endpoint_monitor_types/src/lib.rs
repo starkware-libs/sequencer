@@ -2,9 +2,16 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
-use apollo_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::{define_infra_metrics, generate_permutation_labels};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -82,12 +89,4 @@ pub enum L1EndpointMonitorClientError {
     L1EndpointMonitorError(#[from] L1EndpointMonitorError),
 }
 
-define_metrics!(
-    Infra => {
-        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS, "l1_endpoint_monitor_processing_times_secs", "Request processing times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
-        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS, "l1_endpoint_monitor_queueing_times_secs", "Request queueing times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
-        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_local_response_times_secs", "Request local response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
-        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_remote_response_times_secs", "Request remote response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
-        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "l1_endpoint_monitor_remote_client_communication_failure_times_secs", "Request remote client communication failure times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
-    },
-);
+define_infra_metrics!(l1_endpoint_monitor);

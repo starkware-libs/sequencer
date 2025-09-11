@@ -199,7 +199,7 @@ fn hash_map_into_builtin_weights(
     assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
 
     Ok(BuiltinWeights {
-        weights: BuiltinGasCosts {
+        gas_costs: BuiltinGasCosts {
             pedersen,
             range_check,
             bitwise,

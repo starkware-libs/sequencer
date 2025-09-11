@@ -132,6 +132,7 @@ impl StateSync {
             let thin_state_diff = txn
                 .get_state_diff(block_number)?
                 .ok_or(StateSyncError::BlockNotFound(block_number))?;
+            drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
 
             let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
             let mut account_transaction_hashes: Vec<TransactionHash> = vec![];

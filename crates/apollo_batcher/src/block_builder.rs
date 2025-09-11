@@ -135,7 +135,8 @@ impl BlockExecutionArtifacts {
         ThinStateDiff {
             deployed_contracts: commitment_state_diff.address_to_class_hash,
             storage_diffs: commitment_state_diff.storage_updates,
-            declared_classes: commitment_state_diff.class_hash_to_compiled_class_hash,
+            class_hash_to_compiled_class_hash: commitment_state_diff
+                .class_hash_to_compiled_class_hash,
             nonces: commitment_state_diff.address_to_nonce,
             // TODO(AlonH): Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
@@ -383,7 +384,11 @@ impl BlockBuilder {
         }
 
         let n_txs = next_txs.len();
-        debug!("Got {} transactions from the transaction provider.", n_txs);
+        debug!(
+            "Got {} transactions from the transaction provider (aggregated: {}).",
+            n_txs,
+            self.block_txs.len() + n_txs
+        );
 
         self.send_candidate_txs(&next_txs);
 
@@ -417,10 +422,14 @@ impl BlockBuilder {
             return Ok(());
         }
 
-        info!("Finished execution of {} transactions.", results.len());
-
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
+
+        info!(
+            "Finished execution of {} transactions (aggregated: {}).",
+            results.len(),
+            self.n_executed_txs
+        );
 
         collect_execution_results_and_stream_txs(
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],

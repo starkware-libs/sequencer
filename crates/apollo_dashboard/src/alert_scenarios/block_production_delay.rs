@@ -10,6 +10,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
@@ -32,6 +33,7 @@ fn get_consensus_round_above_zero(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -67,6 +69,7 @@ fn get_consensus_round_above_zero_multiple_times(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -101,6 +104,7 @@ fn get_cende_write_blob_failure_alert(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
@@ -136,6 +140,7 @@ fn get_consensus_p2p_peer_down(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }
@@ -164,6 +169,7 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
 }
@@ -189,6 +195,7 @@ fn get_consensus_block_number_progress_is_slow(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }

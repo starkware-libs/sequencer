@@ -234,21 +234,9 @@ impl StarknetFeederGatewayClient {
         if only_header {
             get_block_url.query_pairs_mut().append_pair(HEADER_ONLY_QUERY, "true");
         }
-        let old_get_block_url = get_block_url.clone();
-        // For version >= 0.14.0
         get_block_url.query_pairs_mut().append_pair(FEE_MARKET_INFO_QUERY, "true");
 
-        let mut response = self.request_with_retry_url(get_block_url).await;
-        // TODO(Ayelet): Temporary fallback for backward compatibility. Remove once the version
-        // update to 0.14.0 is complete.
-        if let Err(ReaderClientError::ClientError(ClientError::StarknetError(StarknetError {
-            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-            ..
-        }))) = response
-        {
-            response = self.request_with_retry_url(old_get_block_url).await;
-        }
-        response
+        self.request_with_retry_url(get_block_url).await
     }
 
     async fn request_block(

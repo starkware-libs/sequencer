@@ -270,7 +270,7 @@ fn create_random_sync_block(
             .into_iter()
             .collect(),
         storage_diffs: IndexMap::new(),
-        declared_classes: IndexMap::new(),
+        class_hash_to_compiled_class_hash: IndexMap::new(),
         deprecated_declared_classes: vec![],
         nonces: IndexMap::new(),
     };

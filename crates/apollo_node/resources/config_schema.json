@@ -57,64 +57,64 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
-    "value": 5000000000
+    "value": 5500000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 4000000000
+    "value": 5000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
     "privacy": "Public",
     "value": 4000
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.add_mod": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
     "value": 312
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.bitwise": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
     "description": "Bitwise gas weight.",
     "privacy": "Public",
     "value": 583
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.ecdsa": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
     "description": "Ecdsa gas weight.",
     "privacy": "Public",
     "value": 1666666
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.ecop": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecop": {
     "description": "Ec_op gas weight.",
     "privacy": "Public",
     "value": 714875
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.keccak": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.keccak": {
     "description": "Keccak gas weight.",
     "privacy": "Public",
     "value": 510707
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.mul_mod": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
     "description": "Mul_mod gas weight.",
     "privacy": "Public",
     "value": 604
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.pedersen": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
     "value": 4769
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.poseidon": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
     "privacy": "Public",
     "value": 10000
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.range_check": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
     "description": "Range_check gas weight.",
     "privacy": "Public",
     "value": 70
   },
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.weights.range_check96": {
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": {
     "description": "range_check96 gas weight.",
     "privacy": "Public",
     "value": 56
@@ -180,7 +180,7 @@
     "value": 2000
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
-    "description": "Contracts for Cairo Specifies whether to execute all class hashes or only a limited selection using Cairo native contracts. If limited, a specific list of class hashes is provided. compilation.",
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "privacy": "Public",
     "value": "All"
   },
@@ -570,6 +570,91 @@
     "value": 150
   },
   "components.class_manager.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
+  },
+  "components.config_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.config_manager.ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.config_manager.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.config_manager.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.config_manager.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.config_manager.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.config_manager.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
+  },
+  "components.config_manager.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.config_manager.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.config_manager.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.config_manager.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.config_manager.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.config_manager.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.config_manager.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.config_manager.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "components.config_manager.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 150
+  },
+  "components.config_manager.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
     "value": "localhost"
@@ -1364,6 +1449,16 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "config_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "config_manager_config._placeholder": {
+    "description": "Placeholder field - config cannot be empty for proper deserialization",
+    "privacy": "Public",
+    "value": ""
+  },
   "consensus_manager_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1378,6 +1473,21 @@
     "description": "The buffer size for the broadcast channel.",
     "privacy": "Public",
     "value": 10000
+  },
+  "consensus_manager_config.cende_config.max_retry_duration_secs": {
+    "description": "The maximum duration (seconds) to retry the request to the recorder",
+    "privacy": "Public",
+    "value": 3
+  },
+  "consensus_manager_config.cende_config.max_retry_interval_ms": {
+    "description": "The maximum waiting time (milliseconds) between retries",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "consensus_manager_config.cende_config.min_retry_interval_ms": {
+    "description": "The minimum waiting time (milliseconds) between retries",
+    "privacy": "Public",
+    "value": 50
   },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
@@ -1394,50 +1504,68 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+<<<<<<< HEAD
   "consensus_manager_config.consensus_manager_config.future_msg_limit.future_height_limit": {
+||||||| 64e642077
+  "consensus_manager_config.consensus_manager_config.future_height_limit": {
+=======
+  "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id": {
+    "description": "The validator id of the node.",
+    "pointer_target": "validator_id",
+    "privacy": "Public"
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.future_height_limit": {
+>>>>>>> origin/main-v0.14.1
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
     "value": 10
   },
+<<<<<<< HEAD
   "consensus_manager_config.consensus_manager_config.future_msg_limit.future_height_round_limit": {
+||||||| 64e642077
+  "consensus_manager_config.consensus_manager_config.future_height_round_limit": {
+=======
+  "consensus_manager_config.consensus_manager_config.static_config.future_height_round_limit": {
+>>>>>>> origin/main-v0.14.1
     "description": "How many rounds should we cache for future heights.",
     "privacy": "Public",
     "value": 1
   },
+<<<<<<< HEAD
   "consensus_manager_config.consensus_manager_config.future_msg_limit.future_round_limit": {
+||||||| 64e642077
+  "consensus_manager_config.consensus_manager_config.future_round_limit": {
+=======
+  "consensus_manager_config.consensus_manager_config.static_config.future_round_limit": {
+>>>>>>> origin/main-v0.14.1
     "description": "How many rounds in the future (for current height) should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus_manager_config.consensus_manager_config.startup_delay": {
+  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
   },
-  "consensus_manager_config.consensus_manager_config.sync_retry_interval": {
+  "consensus_manager_config.consensus_manager_config.static_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.timeouts.precommit_timeout": {
+  "consensus_manager_config.consensus_manager_config.static_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.timeouts.prevote_timeout": {
+  "consensus_manager_config.consensus_manager_config.static_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.timeouts.proposal_timeout": {
+  "consensus_manager_config.consensus_manager_config.static_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
-  },
-  "consensus_manager_config.consensus_manager_config.validator_id": {
-    "description": "The validator id of the node.",
-    "pointer_target": "validator_id",
-    "privacy": "Public"
   },
   "consensus_manager_config.context_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
@@ -1677,7 +1805,7 @@
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
-    "value": 50
+    "value": 200
   },
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",
@@ -2280,7 +2408,7 @@
     "value": 1000
   },
   "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
-    "description": "Whether to store sierras and casms to the storage. This allows maintaining backward-compatibility with native-blockifier",
+    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
     "privacy": "Public",
     "value": false
   },
@@ -2493,6 +2621,11 @@
     "description": "URL for communicating with Starknet in write_api methods.",
     "pointer_target": "starknet_url",
     "privacy": "Public"
+  },
+  "state_sync_config.should_replay_processed_txs_metric": {
+    "description": "Whether to replay processed transactions.",
+    "privacy": "Public",
+    "value": false
   },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",

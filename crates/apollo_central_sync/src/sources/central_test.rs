@@ -465,7 +465,7 @@ async fn stream_compiled_classes() {
             ThinStateDiff {
                 deployed_contracts: indexmap! {},
                 storage_diffs: indexmap! {},
-                declared_classes: indexmap! {
+                class_hash_to_compiled_class_hash: indexmap! {
                     class_hash!("0x0") => CompiledClassHash(felt!("0x0")),
                     class_hash!("0x1") => CompiledClassHash(felt!("0x1")),
                 },
@@ -479,7 +479,7 @@ async fn stream_compiled_classes() {
             ThinStateDiff {
                 deployed_contracts: indexmap! {},
                 storage_diffs: indexmap! {},
-                declared_classes: indexmap! {
+                class_hash_to_compiled_class_hash: indexmap! {
                     class_hash!("0x2") => CompiledClassHash(felt!("0x2")),
                     class_hash!("0x3") => CompiledClassHash(felt!("0x3")),
                 },
