@@ -44,7 +44,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
-use crate::scale_policy::{ScalePolicy, IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES};
+use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
@@ -709,25 +709,13 @@ impl HybridNodeServiceName {
 
     /// Returns a component execution config for a component that is accessed remotely.
     fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        let mut base = ReactiveComponentExecutionConfig::remote(
+        let idle_connections = self.get_scale_policy().idle_connections();
+        ReactiveComponentExecutionConfig::remote(
             self.k8s_service_name(),
             IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
-        );
-        match self {
-            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                let remote_client_config_ref = base
-                    .remote_client_config
-                    .as_mut()
-                    .expect("Remote client config should be available");
-                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
-            }
-            HybridNodeServiceName::Core
-            | HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool => {}
-        };
-        base
+        )
+        .with_idle_connections(idle_connections)
     }
 
     fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
