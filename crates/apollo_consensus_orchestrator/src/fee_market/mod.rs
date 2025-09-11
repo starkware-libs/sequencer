@@ -42,6 +42,11 @@ pub fn calculate_next_base_gas_price(
         price >= versioned_constants.min_gas_price,
         "The gas price must be at least the minimum to prevent precision loss."
     );
+    assert!(gas_target.0 > 0, "Gas target must be greater than zero.");
+    assert!(
+        versioned_constants.gas_price_max_change_denominator > 0,
+        "Denominator constant must be greater than zero."
+    );
 
     // Use U256 to avoid overflow, as multiplying a u128 by a u64 remains within U256 bounds.
     let gas_delta = U256::from(gas_used.0.abs_diff(gas_target.0));
@@ -63,6 +68,11 @@ pub fn calculate_next_base_gas_price(
             || gas_used <= gas_target && adjusted_price_u256 <= price_u256
     );
 
-    let adjusted_price: u128 = adjusted_price_u256.try_into().expect("Failed to convert to u128");
+    // Price should not realistically exceed u128::MAX, bound to avoid theoretical overflow.
+    let adjusted_price = if adjusted_price_u256 > U256::from(u128::MAX) {
+        u128::MAX
+    } else {
+        adjusted_price_u256.try_into().expect("Failed to convert to u128")
+    };
     GasPrice(max(adjusted_price, versioned_constants.min_gas_price.0))
 }
