@@ -19,6 +19,7 @@ use crate::panels::l1_gas_price::get_l1_gas_price_row;
 use crate::panels::l1_provider::get_l1_provider_row;
 use crate::panels::mempool::get_mempool_row;
 use crate::panels::mempool_p2p::get_mempool_p2p_row;
+use crate::panels::pod_metrics::get_pod_metrics_row;
 use crate::panels::sierra_compiler::get_compile_to_casm_row;
 use crate::panels::state_sync::{get_state_sync_p2p_row, get_state_sync_row};
 use crate::panels::storage::get_storage_row;
@@ -62,6 +63,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
                 "L1 Endpoint Monitor Infra",
                 &L1_ENDPOINT_MONITOR_INFRA_METRICS,
             ),
+            get_pod_metrics_row(),
         ],
     )
 }
