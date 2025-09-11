@@ -200,7 +200,7 @@ impl PathToBottom {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Preimage {
     Binary(BinaryData),
     Edge(EdgeData),
@@ -250,4 +250,20 @@ impl TryFrom<&Vec<Felt>> for Preimage {
             _ => Err(PreimageError::InvalidRawPreimage(raw_preimage.clone())),
         }
     }
+}
+
+#[cfg(test)]
+pub(crate) fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
+    raw_preimages
+        .into_iter()
+        .map(|(hash, raw_preimage)| {
+            (
+                HashOutput(Felt::from(hash)),
+                Preimage::try_from(
+                    &raw_preimage.into_iter().map(Felt::from).collect::<Vec<Felt>>(),
+                )
+                .unwrap(),
+            )
+        })
+        .collect()
 }
