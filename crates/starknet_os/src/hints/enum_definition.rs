@@ -57,7 +57,10 @@ use crate::hints::hint_implementation::deprecated_compiled_class::implementation
     load_deprecated_class_facts,
     load_deprecated_class_inner,
 };
-use crate::hints::hint_implementation::execute_syscalls::is_block_number_in_block_hash_buffer;
+use crate::hints::hint_implementation::execute_syscalls::{
+    is_block_number_in_block_hash_buffer,
+    relocate_sha256_segment,
+};
 use crate::hints::hint_implementation::execute_transactions::implementation::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
@@ -66,7 +69,6 @@ use crate::hints::hint_implementation::execute_transactions::implementation::{
     segments_add_temp,
     set_ap_to_actual_fee,
     set_component_hashes,
-    set_sha256_segment_in_syscall_handler,
     sha2_finalize,
     skip_tx,
     start_tx,
@@ -1014,6 +1016,16 @@ define_hint_enum!(
         }
     ),
     (
+        RelocateSha256Segment,
+        relocate_sha256_segment,
+        indoc! {r#"
+    state_ptr = ids.response.state_ptr.address_
+    actual_out_state = ids.actual_out_state.address_
+    for i in range(8):
+        memory[actual_out_state + i] = memory[state_ptr + i]
+    memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)"#}
+    ),
+    (
         BytecodeSegmentStructure,
         bytecode_segment_structure,
         indoc! {r#"
@@ -1218,11 +1230,6 @@ else:
         skip_tx,
         indoc! {r#"execution_helper.skip_tx()"#
         }
-    ),
-    (
-        SetSha256SegmentInSyscallHandler,
-        set_sha256_segment_in_syscall_handler,
-        indoc! {r#"syscall_handler.sha256_segment = ids.sha256_ptr"#}
     ),
     (
         SetComponentHashes,
