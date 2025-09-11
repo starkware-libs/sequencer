@@ -13,6 +13,7 @@ use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus::votes_threshold::QuorumType;
+use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
     SequencerConsensusContext,
@@ -38,7 +39,6 @@ use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
 use tracing::{info, info_span, Instrument};
 
-use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
     CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,

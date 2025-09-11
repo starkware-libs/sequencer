@@ -20,7 +20,7 @@ use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager::config::ConfigManagerConfig;
-use apollo_consensus_manager::config::ConsensusManagerConfig;
+use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;

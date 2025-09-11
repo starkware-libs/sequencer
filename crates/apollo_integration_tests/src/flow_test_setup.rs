@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
-use apollo_consensus_manager::config::ConsensusManagerConfig;
+use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::test_utils::AvailablePorts;

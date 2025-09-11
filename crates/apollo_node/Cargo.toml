@@ -27,6 +27,7 @@ apollo_config.workspace = true
 apollo_sierra_compilation_config.workspace = true
 apollo_class_manager_config.workspace = true
 apollo_consensus_manager.workspace = true
+apollo_consensus_manager_config.workspace = true
 apollo_gateway.workspace = true
 apollo_gateway_config.workspace = true
 apollo_gateway_types.workspace = true
