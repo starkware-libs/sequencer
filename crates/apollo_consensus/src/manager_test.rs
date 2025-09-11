@@ -1,7 +1,7 @@
 use std::time::Duration;
 use std::vec;
 
-use apollo_consensus_config::config::TimeoutsConfig;
+use apollo_consensus_config::config::{FutureMsgLimitsConfig, TimeoutsConfig};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
@@ -17,12 +17,6 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
-<<<<<<< HEAD
-use crate::config::{FutureMsgLimitsConfig, TimeoutsConfig};
-||||||| 64e642077
-use crate::config::TimeoutsConfig;
-=======
->>>>>>> origin/main-v0.14.1
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
 use crate::types::ValidatorId;
 use crate::votes_threshold::QuorumType;

@@ -447,6 +447,7 @@ fn test_compiled_class_hash_migration(
         sender_address: account_address,
         calldata,
         version: TransactionVersion::THREE,
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     });
     let tx = AccountTransaction::new_for_sequencing(invoke_tx).into();
     let tx_exexution_result = tx_executor.execute_txs(&[tx], None);
@@ -456,6 +457,7 @@ fn test_compiled_class_hash_migration(
         "Expected 1 transaction execution result, got {}",
         tx_exexution_result.len()
     );
+
     let tx_execution_info = &tx_exexution_result[0].as_ref().unwrap().0;
 
     assert!(

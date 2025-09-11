@@ -115,9 +115,9 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
         let address = executable_tx.contract_address();
         let account_nonce =
             self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
-                error!("Failed to get nonce for sender address {}: {}", address, e);
                 // TODO(yair): Fix this. Need to map the errors better.
-                StarknetError::internal(&e.to_string())
+                let msg = format!("Failed to get nonce for sender address {}", address);
+                StarknetError::internal_with_logging(&msg, e)
             })?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)

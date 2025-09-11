@@ -101,44 +101,26 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-<<<<<<< HEAD
-  "consensus.future_msg_limit.future_height_limit": {
-||||||| 64e642077
-  "consensus.future_height_limit": {
-=======
   "consensus.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
     "value": "0x64",
     "privacy": "Public"
   },
   "consensus.static_config.future_height_limit": {
->>>>>>> origin/main-v0.14.1
     "description": "How many heights in the future should we cache.",
     "value": {
       "$serde_json::private::Number": "10"
     },
     "privacy": "Public"
   },
-<<<<<<< HEAD
-  "consensus.future_msg_limit.future_height_round_limit": {
-||||||| 64e642077
-  "consensus.future_height_round_limit": {
-=======
   "consensus.static_config.future_height_round_limit": {
->>>>>>> origin/main-v0.14.1
     "description": "How many rounds should we cache for future heights.",
     "value": {
       "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
-<<<<<<< HEAD
-  "consensus.future_msg_limit.future_round_limit": {
-||||||| 64e642077
-  "consensus.future_round_limit": {
-=======
   "consensus.static_config.future_round_limit": {
->>>>>>> origin/main-v0.14.1
     "description": "How many rounds in the future (for current height) should we cache.",
     "value": {
       "$serde_json::private::Number": "10"
