@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
-use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
+use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;

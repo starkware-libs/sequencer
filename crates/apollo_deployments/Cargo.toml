@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 alloy.workspace = true
 apollo_config.workspace = true
-apollo_http_server.workspace = true
+apollo_http_server_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_monitoring_endpoint.workspace = true
 apollo_network.workspace = true

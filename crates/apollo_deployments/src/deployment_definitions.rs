@@ -3,7 +3,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 use alloy::primitives::Address as EthereumContractAddress;
-use apollo_http_server::config::HTTP_SERVER_PORT;
+use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
