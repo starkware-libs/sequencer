@@ -869,6 +869,24 @@
           "100 * (increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "number_of_migrations",
+        "description": "Counter of the number of state migrations performed",
+        "type": "timeseries",
+        "exprs": [
+          "number_of_migrations{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "avg_migrations_per_block",
+        "description": "The average number of state migrations performed per block",
+        "type": "timeseries",
+        "exprs": [
+          "increase(number_of_migrations{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / increase(number_of_blocks{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])"
+        ],
+        "extra_params": {}
       }
     ],
     "Compile sierra to casm": [
