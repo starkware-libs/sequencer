@@ -31,6 +31,8 @@ use crate::deployment_definitions::{
     InfraServicePort,
     NodeAndValidatorId,
     ServicePort,
+    CONSENSUS_P2P_PORT,
+    MEMPOOL_P2P_PORT,
 };
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
@@ -949,11 +951,6 @@ fn create_hybrid_instance_config_override(
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
-    // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
-    // consistently throughout the code.
-    const CORE_SERVICE_PORT: u16 = 53080;
-    const MEMPOOL_SERVICE_PORT: u16 = 53200;
-
     let node_peer_id = get_peer_id(node_id);
 
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
@@ -977,7 +974,7 @@ fn create_hybrid_instance_config_override(
         .map(|(node_id, _)| {
             build_peer_address(
                 HybridNodeServiceName::Core,
-                CORE_SERVICE_PORT,
+                CONSENSUS_P2P_PORT,
                 *node_id,
                 &get_peer_id(*node_id),
             )
@@ -989,7 +986,7 @@ fn create_hybrid_instance_config_override(
         .map(|(node_id, _)| {
             build_peer_address(
                 HybridNodeServiceName::Mempool,
-                MEMPOOL_SERVICE_PORT,
+                MEMPOOL_P2P_PORT,
                 *node_id,
                 &get_peer_id(*node_id),
             )
@@ -1010,13 +1007,13 @@ fn create_hybrid_instance_config_override(
                 (
                     Some(build_peer_address(
                         HybridNodeServiceName::Core,
-                        CORE_SERVICE_PORT,
+                        CONSENSUS_P2P_PORT,
                         node_id,
                         &node_peer_id,
                     )),
                     Some(build_peer_address(
                         HybridNodeServiceName::Mempool,
-                        MEMPOOL_SERVICE_PORT,
+                        MEMPOOL_P2P_PORT,
                         node_id,
                         &node_peer_id,
                     )),
