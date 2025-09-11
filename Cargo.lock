@@ -1502,7 +1502,7 @@ dependencies = [
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
  "apollo_mempool_config",
- "apollo_mempool_p2p",
+ "apollo_mempool_p2p_config",
  "apollo_monitoring_endpoint",
  "apollo_network",
  "apollo_node",
@@ -1737,9 +1737,9 @@ name = "apollo_mempool_p2p"
 version = "0.15.0-rc.4"
 dependencies = [
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_gateway_types",
  "apollo_infra",
+ "apollo_mempool_p2p_config",
  "apollo_mempool_p2p_types",
  "apollo_metrics",
  "apollo_network",
@@ -1751,10 +1751,18 @@ dependencies = [
  "libp2p",
  "mockall",
  "rand_chacha 0.3.1",
- "serde",
  "starknet_api",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_mempool_p2p_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_network",
+ "serde",
  "validator",
 ]
 
@@ -1924,6 +1932,7 @@ dependencies = [
  "apollo_mempool",
  "apollo_mempool_config",
  "apollo_mempool_p2p",
+ "apollo_mempool_p2p_config",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",

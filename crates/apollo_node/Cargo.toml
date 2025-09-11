@@ -44,6 +44,7 @@ apollo_l1_provider_types.workspace = true
 apollo_mempool.workspace = true
 apollo_mempool_config.workspace = true
 apollo_mempool_p2p.workspace = true
+apollo_mempool_p2p_config.workspace = true
 apollo_mempool_p2p_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_monitoring_endpoint.workspace = true

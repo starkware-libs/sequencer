@@ -44,6 +44,7 @@ members = [
   "crates/apollo_mempool",
   "crates/apollo_mempool_config",
   "crates/apollo_mempool_p2p",
+  "crates/apollo_mempool_p2p_config",
   "crates/apollo_mempool_p2p_types",
   "crates/apollo_mempool_types",
   "crates/apollo_metrics",
@@ -145,6 +146,7 @@ apollo_l1_provider_types.path = "crates/apollo_l1_provider_types"
 apollo_mempool.path = "crates/apollo_mempool"
 apollo_mempool_config.path = "crates/apollo_mempool_config"
 apollo_mempool_p2p.path = "crates/apollo_mempool_p2p"
+apollo_mempool_p2p_config.path = "crates/apollo_mempool_p2p_config"
 apollo_mempool_p2p_types.path = "crates/apollo_mempool_p2p_types"
 apollo_mempool_types.path = "crates/apollo_mempool_types"
 apollo_metrics = { path = "crates/apollo_metrics", version = "0.15.0-rc.4" }
