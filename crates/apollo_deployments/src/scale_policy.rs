@@ -1,6 +1,7 @@
 use serde::{Serialize, Serializer};
 
-pub(crate) const IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES: usize = 0;
+const IDLE_CONNECTIONS_FOR_AUTO_SCALED_SERVICES: usize = 0;
+const IDLE_CONNECTIONS_FOR_STATICALLY_SCALED_SERVICES: usize = 10;
 
 /// Whether a service is autoscaled or not.
 #[derive(Clone, Debug, PartialEq)]
@@ -19,6 +20,15 @@ impl Serialize for ScalePolicy {
         match self {
             ScalePolicy::AutoScaled => serializer.serialize_bool(true),
             ScalePolicy::StaticallyScaled => serializer.serialize_bool(false),
+        }
+    }
+}
+
+impl ScalePolicy {
+    pub fn idle_connections(&self) -> usize {
+        match self {
+            ScalePolicy::AutoScaled => IDLE_CONNECTIONS_FOR_AUTO_SCALED_SERVICES,
+            ScalePolicy::StaticallyScaled => IDLE_CONNECTIONS_FOR_STATICALLY_SCALED_SERVICES,
         }
     }
 }
