@@ -905,9 +905,9 @@ dependencies = [
 name = "apollo_class_manager"
 version = "0.15.0-rc.4"
 dependencies = [
+ "apollo_class_manager_config",
  "apollo_class_manager_types",
  "apollo_compile_to_casm_types",
- "apollo_config",
  "apollo_infra",
  "apollo_metrics",
  "apollo_storage",
@@ -915,7 +915,6 @@ dependencies = [
  "async-trait",
  "hex",
  "mockall",
- "serde",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -923,6 +922,16 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_class_manager_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_storage",
+ "serde",
+ "starknet_api",
  "validator",
 ]
 
@@ -1446,6 +1455,7 @@ dependencies = [
  "anyhow",
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_class_manager_config",
  "apollo_compile_to_casm",
  "apollo_config",
  "apollo_config_manager",
@@ -1833,6 +1843,7 @@ dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
  "apollo_class_manager",
+ "apollo_class_manager_config",
  "apollo_class_manager_types",
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
