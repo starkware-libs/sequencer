@@ -43,10 +43,16 @@ impl Serialize for Dashboard {
     where
         S: Serializer,
     {
+        #[derive(Serialize)]
+        struct RowValue<'a> {
+            panels: &'a [Panel],
+            collapsed: bool,
+        }
+
         let mut map = serializer.serialize_map(Some(1))?;
         let mut row_map = IndexMap::new();
         for row in &self.rows {
-            row_map.insert(row.name, &row.panels);
+            row_map.insert(row.name, RowValue { panels: &row.panels, collapsed: row.collapsed });
         }
 
         map.serialize_entry(self.name, &row_map)?;
@@ -368,11 +374,16 @@ impl Serialize for Panel {
 pub(crate) struct Row {
     name: &'static str,
     panels: Vec<Panel>,
+    collapsed: bool,
 }
 
 impl Row {
     pub(crate) const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
-        Self { name, panels }
+        Self { name, panels, collapsed: true }
+    }
+    pub fn expand(mut self) -> Self {
+        self.collapsed = false;
+        self
     }
 }
 

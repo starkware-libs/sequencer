@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import os
 import time
@@ -135,20 +136,25 @@ def create_dashboard(dashboard_name: str, dev_dashboard: json, env: EnvironmentN
     dashboard["title"] = dashboard_name
     dashboard["templating"] = templating
 
-    for row_title, panels in dev_dashboard.items():
-        row_panel = row_object.copy()
+    for row_title, value in dev_dashboard.items():
+        panels = value.get("panels")
+        collapsed = bool(value.get("collapsed"))
+        row_panel = copy.deepcopy(row_object)
         row_panel["title"] = row_title
         row_panel["id"] = panel_id
         row_panel["gridPos"]["y"] = y_position
         row_panel["panels"] = []
+        row_panel["collapsed"] = collapsed
         panel_id += 1
         x_position = 0
         y_position += 1
         dashboard["panels"].append(row_panel)
+        # Expanded rows add panels directly to the dashboard
+        target = row_panel["panels"] if collapsed else dashboard["panels"]
 
         for panel in panels:
             grafana_panel = create_grafana_panel(panel, panel_id, y_position, x_position)
-            row_panel["panels"].append(grafana_panel)
+            target.append(grafana_panel)
             panel_id += 1
             x_position, y_position = get_next_position(x_position, y_position)
 
