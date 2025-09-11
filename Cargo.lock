@@ -1501,7 +1501,7 @@ dependencies = [
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
- "apollo_mempool",
+ "apollo_mempool_config",
  "apollo_mempool_p2p",
  "apollo_monitoring_endpoint",
  "apollo_network",
@@ -1694,8 +1694,8 @@ dependencies = [
 name = "apollo_mempool"
 version = "0.15.0-rc.4"
 dependencies = [
- "apollo_config",
  "apollo_infra",
+ "apollo_mempool_config",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_metrics",
@@ -1715,13 +1715,20 @@ dependencies = [
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
- "serde",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_mempool_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1915,6 +1922,7 @@ dependencies = [
  "apollo_l1_provider",
  "apollo_l1_provider_types",
  "apollo_mempool",
+ "apollo_mempool_config",
  "apollo_mempool_p2p",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
