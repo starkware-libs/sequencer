@@ -71,7 +71,6 @@ jobs:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
     needs: check-system-test-trigger
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
-<<<<<<< HEAD
     permissions:
       id-token: write
       contents: read
@@ -102,9 +101,8 @@ jobs:
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@v4
-
-      # 28-08-2025: Discovered a bug with that action. Namespace is working on a fix. For now, ignore errors.
-      # They also suggested to use it right after checkout, so moved it here.
+        # TODO(Idan): 28-08-2025: Discovered a bug with that action. Namespace is working on a fix.
+        # For now, ignore errors. They also suggested to use it right after checkout, so moved it here.
       - name: Set up Rust cache
         uses: namespacelabs/nscloud-cache-action@v1
         continue-on-error: true
@@ -130,65 +128,6 @@ jobs:
     needs:
       - build_docker_images
       - build_rust_tools
-||||||| 64e642077
-=======
-    permissions:
-      id-token: write
-      contents: read
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - svc: sequencer
-            dockerfile: Dockerfile
-          - svc: dummy_recorder
-            dockerfile: dummy_recorder.Dockerfile
-          - svc: dummy_eth_to_strk_oracle
-            dockerfile: dummy_eth_to_strk_oracle.Dockerfile
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build ${{ matrix.svc }} image remotely
-        uses: docker/build-push-action@v6.18.0
-        with:
-          context: .
-          file: ${{ env.dockerfile_base_path }}/${{ matrix.dockerfile }}
-          push: true
-          tags: ${{ env.NSC_CONTAINER_REGISTRY }}/${{ matrix.svc }}:${{ github.sha }}
-
-  build_rust_tools:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
-    needs: check-system-test-trigger
-    if: needs.check-system-test-trigger.outputs.should_run == 'true'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Rust cache
-        uses: namespacelabs/nscloud-cache-action@v1
-        continue-on-error: true
-        with:
-          cache: rust
-
-      # Install rust components.
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build binaries
-        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
-
-      - name: Upload Archive
-        uses: namespace-actions/upload-artifact@v1
-        with:
-          name: rust-target
-          path: ./target/debug
-          compression-level: 0
-
-  system_test_hybrid:
-    needs:
-      - build_docker_images
-      - build_rust_tools
->>>>>>> origin/main-v0.14.1
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - name: Checkout repository
