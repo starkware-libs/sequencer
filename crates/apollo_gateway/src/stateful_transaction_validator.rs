@@ -148,8 +148,15 @@ impl StatefulTransactionValidator {
     ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
+        let state_reader = state_reader_factory
+            .get_state_reader_from_latest_block()
+            .map_err(|err| {
+                error!("Failed to get state reader from latest block: {}", err);
+                GatewaySpecError::UnexpectedError { data: format!("Internal server error: {err}") }
+            })
+            .map_err(|e| StarknetError::internal(&e.to_string()))?;
+        let latest_block_info = get_latest_block_info(&state_reader)?;
+
         let state = CachedState::new(state_reader);
         let versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
@@ -257,15 +264,8 @@ fn skip_stateful_validations(
 }
 
 pub fn get_latest_block_info(
-    state_reader_factory: &dyn StateReaderFactory,
+    state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    let state_reader = state_reader_factory
-        .get_state_reader_from_latest_block()
-        .map_err(|e| {
-            error!("Failed to get state reader from latest block: {}", e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })
-        .map_err(|e| StarknetError::internal(&e.to_string()))?;
     state_reader.get_block_info().map_err(|e| {
         error!("Failed to get latest block info: {}", e);
         StarknetError::internal(&e.to_string())
