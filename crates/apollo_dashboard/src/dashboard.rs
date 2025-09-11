@@ -186,7 +186,14 @@ impl Panel {
     }
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
-        self.extra.log_query = Some(log_query.into());
+        let mut query = log_query.into();
+
+        // Add quotes if none are present.
+        if !query.contains('"') {
+            query = format!("\"{}\"", query);
+        }
+
+        self.extra.log_query = Some(query);
         self
     }
 
