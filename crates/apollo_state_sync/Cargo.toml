@@ -14,25 +14,23 @@ workspace = true
 [dependencies]
 apollo_central_sync.workspace = true
 apollo_class_manager_types.workspace = true
-apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync.workspace = true
 apollo_reverts.workspace = true
 apollo_rpc.workspace = true
 apollo_starknet_client.workspace = true
+apollo_state_sync_config.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 papyrus_common.workspace = true
-serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_storage = { workspace = true, features = ["testing"] }

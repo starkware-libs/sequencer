@@ -1507,7 +1507,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_rpc",
  "apollo_sierra_compilation_config",
- "apollo_state_sync",
+ "apollo_state_sync_config",
  "apollo_state_sync_metrics",
  "apollo_storage",
  "apollo_test_utils",
@@ -1961,6 +1961,7 @@ dependencies = [
  "apollo_signature_manager",
  "apollo_signature_manager_types",
  "apollo_state_sync",
+ "apollo_state_sync_config",
  "apollo_state_sync_metrics",
  "apollo_state_sync_types",
  "clap",
@@ -2298,13 +2299,13 @@ version = "0.15.0-rc.4"
 dependencies = [
  "apollo_central_sync",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_infra",
  "apollo_network",
  "apollo_p2p_sync",
  "apollo_reverts",
  "apollo_rpc",
  "apollo_starknet_client",
+ "apollo_state_sync_config",
  "apollo_state_sync_metrics",
  "apollo_state_sync_types",
  "apollo_storage",
@@ -2315,11 +2316,24 @@ dependencies = [
  "libp2p",
  "papyrus_common",
  "rand_chacha 0.3.1",
- "serde",
  "starknet-types-core",
  "starknet_api",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_state_sync_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_central_sync",
+ "apollo_config",
+ "apollo_network",
+ "apollo_p2p_sync",
+ "apollo_reverts",
+ "apollo_rpc",
+ "apollo_storage",
+ "serde",
  "validator",
 ]
 
