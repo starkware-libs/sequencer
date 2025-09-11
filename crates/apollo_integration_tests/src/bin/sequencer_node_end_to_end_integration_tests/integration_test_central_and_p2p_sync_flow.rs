@@ -6,7 +6,7 @@ use apollo_node::config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use apollo_node::config::node_config::SequencerNodeConfig;
-use apollo_state_sync::config::CentralSyncClientConfig;
+use apollo_state_sync_config::config::CentralSyncClientConfig;
 use starknet_api::block::BlockNumber;
 use tracing::info;
 
