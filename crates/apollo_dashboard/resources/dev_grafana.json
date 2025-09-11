@@ -683,114 +683,99 @@
     ],
     "Mempool": [
       {
-        "title": "mempool_transactions_received",
-        "description": "Counter of transactions received by the mempool",
+        "title": "Transactions Received Rate (TPS)",
+        "description": "The rate of transactions received by the mempool (1m window)",
+        "type": "timeseries",
+        "exprs": [
+          "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "Transactions Received by Type",
+        "description": "Number of transactions received by type",
         "type": "stat",
         "exprs": [
-          "sum  by (tx_type) (mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          "sum  by (tx_type) (increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the mempool during the last 20 minutes",
+        "title": "Transactions Committed",
+        "description": "Number of transactions committed to a block (10m window)",
         "type": "timeseries",
         "exprs": [
-          "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
+          "increase(mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_transactions_dropped",
-        "description": "Counter of transactions dropped from the mempool",
+        "title": "Dropped Transactions by Reason",
+        "description": "Number of transactions dropped from the mempool by reason",
         "type": "stat",
         "exprs": [
-          "sum  by (drop_reason) (mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          "sum  by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_txs_committed",
-        "description": "The number of transactions that were committed to block",
-        "type": "stat",
-        "exprs": [
-          "mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "mempool_pool_size",
-        "description": "The average size of the pool",
+        "title": "Pool Size",
+        "description": "Number of all the transactions in the mempool",
         "type": "timeseries",
         "exprs": [
-          "avg_over_time(mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
+          "mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_priority_queue_size",
-        "description": "The average size of the priority queue",
+        "title": "Mempool Total Size in Bytes",
+        "description": "Average size in bytes of the the transactions in the mempool (2m window)",
         "type": "timeseries",
         "exprs": [
-          "avg_over_time(mempool_priority_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
+          "mempool_total_size_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "bytes"
+        }
       },
       {
-        "title": "mempool_pending_queue_size",
-        "description": "The average size of the pending queue",
+        "title": "Prioritized Transactions",
+        "description": "Number of transactions prioritized for batching",
         "type": "timeseries",
         "exprs": [
-          "avg_over_time(mempool_pending_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
+          "mempool_priority_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_total_size_bytes",
-        "description": "The average total transaction size in bytes over time in the mempool",
+        "title": "Pending Transactions",
+        "description": "Number of transactions ready for batching but not prioritized",
         "type": "timeseries",
         "exprs": [
-          "avg_over_time(mempool_total_size_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
+          "mempool_pending_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_get_txs_size",
-        "description": "The average size of the get_txs",
+        "title": "Delayed Declare Transactions",
+        "description": "Number of delayed declare transactions",
         "type": "timeseries",
         "exprs": [
-          "avg_over_time(mempool_get_txs_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
+          "mempool_delayed_declare_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_delayed_declare_size",
-        "description": "The average number of delayed declare transactions",
-        "type": "timeseries",
-        "exprs": [
-          "avg_over_time(mempool_delayed_declare_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "mempool_transaction_time_spent",
-        "description": "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-          "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "mempool_transaction_time_spent_until_committed",
-        "description": "The time (seconds) a transaction spent in the mempool until it was committed",
+        "title": "Time Spent in Mempool Until Committed",
+        "description": "The time a transaction spends in the mempool until it is committed (5m window)",
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
           "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
-        "extra_params": {}
+        "extra_params": {
+          "unit": "s"
+        }
       }
     ],
     "L1 Provider": [
