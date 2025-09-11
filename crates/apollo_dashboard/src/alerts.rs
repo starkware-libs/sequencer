@@ -205,8 +205,8 @@ impl Serialize for ObserverApplicability {
         S: Serializer,
     {
         match self {
-            ObserverApplicability::Applicable => serializer.serialize_bool(true),
-            ObserverApplicability::NotApplicable => serializer.serialize_bool(false),
+            ObserverApplicability::Applicable => serializer.serialize_str("true"),
+            ObserverApplicability::NotApplicable => serializer.serialize_str("false"),
         }
     }
 }
