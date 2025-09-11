@@ -85,11 +85,11 @@ fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
 }
 
 fn get_panel_gateway_validate_stateful_tx_storage_micros() -> Panel {
-    Panel::from(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS)
+    Panel::from_hist(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS, PanelType::TimeSeries)
 }
 
 fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
-    Panel::from(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS)
+    Panel::from_hist(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_gateway_row() -> Row {
