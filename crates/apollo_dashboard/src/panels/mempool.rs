@@ -116,8 +116,8 @@ pub(crate) fn get_mempool_row() -> Row {
     Row::new(
         "Mempool",
         vec![
-            get_panel_mempool_transactions_received(),
             get_panel_mempool_transactions_received_rate(),
+            get_panel_mempool_transactions_received(),
             get_panel_mempool_transactions_dropped(),
             get_panel_mempool_transactions_committed(),
             get_panel_mempool_pool_size(),
