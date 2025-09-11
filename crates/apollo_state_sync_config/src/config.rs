@@ -20,7 +20,7 @@ use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-const STATE_SYNC_PORT: u16 = 12345;
+pub const STATE_SYNC_PORT: u16 = 12345;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 #[validate(schema(function = "validate_config"))]
