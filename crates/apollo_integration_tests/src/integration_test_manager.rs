@@ -49,6 +49,7 @@ use starknet_api::transaction::TransactionHash;
 use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
+use url::Url;
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
@@ -278,17 +279,26 @@ impl IntegrationTestManager {
         )
         .await;
 
-        fn get_base_layer_config(sequencers_setup: &NodeSetup) -> EthereumBaseLayerConfig {
+        fn get_base_layer_config(sequencers_setup: &NodeSetup) -> (EthereumBaseLayerConfig, Url) {
             // TODO(Tsabary): the pattern of iterating over executables to find the relevant config
             // should be unified and improved, throughout.
             for executable_setup in &sequencers_setup.executables {
-                if let Some(base_layer_config) = &executable_setup.get_config().base_layer_config {
-                    return base_layer_config.clone();
+                // Must find both base layer config and url in the same executable, then return
+                // them.
+                if let Some(config) = &executable_setup.get_config().base_layer_config {
+                    let base_layer_config = config;
+                    if let Some(l1_monitor_config) =
+                        &executable_setup.get_config().l1_endpoint_monitor_config
+                    {
+                        let base_layer_url = l1_monitor_config.ordered_l1_endpoint_urls[0].clone();
+                        return (base_layer_config.clone(), base_layer_url);
+                    }
                 }
             }
             unreachable!("No executable with a set base layer config.")
         }
-        let base_layer_config = get_base_layer_config(sequencers_setup.first().unwrap());
+        let (base_layer_config, base_layer_url) =
+            get_base_layer_config(sequencers_setup.first().unwrap());
 
         // TODO(Tsabary): these should be functions of `NodeSetup`.
         fn get_l1_gas_price_scraper_config(
@@ -308,7 +318,7 @@ impl IntegrationTestManager {
             get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
 
         let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
+            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality)
@@ -321,6 +331,7 @@ impl IntegrationTestManager {
             sender_address,
             receiver_address,
             base_layer_config.clone(),
+            &base_layer_url,
             num_blocks_needed_on_l1,
         )
         .await;
@@ -901,7 +912,7 @@ async fn get_sequencer_setup_configs(
     let mut base_layer_ports = available_ports_generator
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
-    let base_layer_config =
+    let (base_layer_config, base_layer_url) =
         ethereum_base_layer_config_for_anvil(Some(base_layer_ports.get_next_port()));
 
     let mut nodes = Vec::new();
@@ -971,6 +982,7 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
+                base_layer_url.clone(),
                 BLOCK_MAX_CAPACITY_GAS,
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,

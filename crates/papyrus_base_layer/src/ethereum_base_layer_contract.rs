@@ -95,16 +95,15 @@ impl StarknetL1Contract {
 
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
+    pub url: Url,
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
 }
 
 impl EthereumBaseLayerContract {
-    pub fn new(config: EthereumBaseLayerConfig) -> Self {
-        let current_node_url = config.node_url.clone();
-        let contract =
-            build_contract_instance(config.starknet_contract_address, current_node_url.clone());
-        Self { contract, config }
+    pub fn new(config: EthereumBaseLayerConfig, url: Url) -> Self {
+        let contract = build_contract_instance(config.starknet_contract_address, url.clone());
+        Self { url, contract, config }
     }
 }
 
@@ -263,6 +262,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         }))
     }
 
+    async fn get_url(&self) -> Result<Url, Self::Error> {
+        Ok(self.url.clone())
+    }
+
     /// Rebuilds the provider on the new url.
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
         self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
@@ -305,7 +308,6 @@ impl PartialEq for EthereumBaseLayerError {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct EthereumBaseLayerConfig {
-    pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
     pub prague_blob_gas_calc: bool,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
@@ -316,14 +318,6 @@ impl SerializeConfig for EthereumBaseLayerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "node_url",
-                &self.node_url.to_string(),
-                "Initial ethereum node URL. A schema to match to Infura node: \
-                 https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. \
-                 May be be replaced during runtime if becomes inoperative",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
                 "starknet_contract_address",
                 &self.starknet_contract_address.to_string(),
                 "Starknet contract address in ethereum.",
@@ -332,7 +326,8 @@ impl SerializeConfig for EthereumBaseLayerConfig {
             ser_param(
                 "prague_blob_gas_calc",
                 &self.prague_blob_gas_calc,
-                "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
+                "If true use the blob gas calculcation from the Pectra upgrade. If false use the \
+                 EIP 4844 calculation.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -351,7 +346,6 @@ impl Default for EthereumBaseLayerConfig {
             "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
 
         Self {
-            node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
             starknet_contract_address,
             prague_blob_gas_calc: true,
             timeout_millis: Duration::from_millis(1000),
