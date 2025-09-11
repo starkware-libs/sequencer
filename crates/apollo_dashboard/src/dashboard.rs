@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use apollo_infra::metrics::{
     InfraMetrics,
     LocalClientMetrics,
@@ -86,6 +84,12 @@ impl Unit {
     }
 }
 
+impl Serialize for Unit {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.grafana_id())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ThresholdMode {
@@ -107,37 +111,25 @@ pub struct Thresholds {
     pub steps: Vec<ThresholdStep>,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct ExtraParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<Unit>,
-    pub show_percent_change: bool,
-    pub log_query: Option<String>,
-    pub thresholds: Option<Thresholds>,
-    pub legends: Option<Vec<String>>,
-}
 
-impl ExtraParams {
-    fn to_string_map(&self) -> HashMap<String, String> {
-        let mut map = HashMap::new();
-        if let Some(u) = &self.unit {
-            map.insert("unit".into(), u.grafana_id().into());
-        }
-        if self.show_percent_change {
-            map.insert("showPercentChange".into(), "true".into());
-        }
-        if let Some(lq) = &self.log_query {
-            map.insert("log_query".to_string(), lq.clone());
-        }
-        if let Some(th) = &self.thresholds {
-            let json = serde_json::to_string(th).unwrap();
-            map.insert("thresholds".into(), json);
-        }
-        if let Some(legends) = &self.legends {
-            let json = serde_json::to_string(legends).unwrap();
-            map.insert("legends".into(), json);
-        }
-        map
-    }
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_percent_change: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_query: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thresholds: Option<Thresholds>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legends: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -178,10 +170,10 @@ impl Panel {
         assert_eq!(
             self.panel_type,
             PanelType::Stat,
-            "showPercentChange is only supported on Stat panels; got {:?}",
+            "show_percent_change is only supported on Stat panels; got {:?}",
             self.panel_type
         );
-        self.extra.show_percent_change = true;
+        self.extra.show_percent_change = Some(true);
         self
     }
     #[allow(dead_code)] // TODO(Ron): use in panels
@@ -358,7 +350,7 @@ impl Serialize for Panel {
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
         state.serialize_field("exprs", &self.exprs)?;
-        state.serialize_field("extra_params", &self.extra.to_string_map())?;
+        state.serialize_field("extra_params", &self.extra)?;
 
         state.end()
     }

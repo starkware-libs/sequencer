@@ -23,7 +23,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 
     extra = panel.get("extra_params", {})
     unit = extra.get("unit", "none")
-    show_percent_change = extra.get("showPercentChange", False)
+    show_percent_change = extra.get("show_percent_change", False)
     log_query = extra.get("log_query", "")
     thresholds = extra.get("thresholds", None)
     link = "\n".join([
@@ -32,7 +32,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         "timeRange=${__from:date:iso}%2F${__to:date:iso}",
         "?project=${gcp_project}",
     ])
-    legends = json.loads(extra.get("legends", '[]'))
+    legends = extra.get("legends", [])
 
     # Generate targets with unique refIds A–Z
     targets = [
@@ -56,6 +56,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                 "color": {"mode": "palette-classic"},
                 "unit": unit,
             },
+            **({"thresholds": thresholds} if thresholds else {}),
             "overrides": [
             # Override the pod display name to show only namespace and location labels
                 {
@@ -91,7 +92,6 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     }
 
     if thresholds:
-        grafana_panel["fieldConfig"]["defaults"]["thresholds"] = json.loads(thresholds)
         grafana_panel["fieldConfig"]["defaults"]["color"] = {"mode": "thresholds"}
 
     if unit == "percentunit":
