@@ -16,7 +16,6 @@ apollo_infra_utils.workspace = true
 apollo_monitoring_endpoint.workspace = true
 apollo_network.workspace = true
 apollo_node.workspace = true
-apollo_protobuf.workspace = true
 indexmap.workspace = true
 libp2p.workspace = true
 serde.workspace = true

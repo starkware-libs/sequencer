@@ -1265,7 +1265,6 @@ dependencies = [
  "apollo_monitoring_endpoint",
  "apollo_network",
  "apollo_node",
- "apollo_protobuf",
  "indexmap 2.11.0",
  "libp2p",
  "serde",
