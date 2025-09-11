@@ -10,11 +10,11 @@ use apollo_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
-    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
@@ -109,11 +109,13 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_mempool_transaction_time_spent() -> Panel {
-    Panel::from_hist(&TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
+fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {
+    Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_BATCHED, PanelType::TimeSeries)
+        .with_unit(Unit::Seconds)
 }
 fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
     Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, PanelType::TimeSeries)
+        .with_unit(Unit::Seconds)
 }
 
 pub(crate) fn get_mempool_row() -> Row {
@@ -130,7 +132,7 @@ pub(crate) fn get_mempool_row() -> Row {
             get_panel_mempool_total_size_in_bytes(),
             get_panel_mempool_get_txs_size(),
             get_panel_mempool_delayed_declares_size(),
-            get_panel_mempool_transaction_time_spent(),
+            get_panel_mempool_transaction_time_spent_until_batched(),
             get_panel_mempool_transaction_time_spent_until_committed(),
         ],
     )
