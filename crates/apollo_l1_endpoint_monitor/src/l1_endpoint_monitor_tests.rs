@@ -1,14 +1,11 @@
 use std::time::Duration;
 
+use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
+use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
 use mockito::{Matcher, Server, ServerGuard};
 use url::Url;
 
-use crate::monitor::{
-    L1EndpointMonitor,
-    L1EndpointMonitorConfig,
-    L1EndpointMonitorError,
-    HEALTH_CHECK_RPC_METHOD,
-};
+use crate::monitor::{L1EndpointMonitor, HEALTH_CHECK_RPC_METHOD};
 
 // Unreachable localhost endpoints for simulating failures.
 // Using localhost to prevent IO (so don't switch to example.com in order to avoid port issues).
