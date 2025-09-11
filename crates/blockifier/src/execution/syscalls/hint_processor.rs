@@ -703,7 +703,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.versioned_constants()
     }
 
-    fn write_sha256_state(
+    fn write_sha256_out_state(
         &mut self,
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,

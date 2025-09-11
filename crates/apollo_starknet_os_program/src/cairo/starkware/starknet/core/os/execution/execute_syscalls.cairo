@@ -1367,6 +1367,8 @@ func execute_sha256_process_block{
     }
 
     local sha256_ptr: Sha256ProcessBlock* = builtin_ptrs.non_selectable.sha256;
+    let response = cast(syscall_ptr, Sha256ProcessBlockResponse*);
+    let actual_state_ptr: Sha256State* = &sha256_ptr.out_state;
 
     let input: Sha256Input* = &sha256_ptr.input;
     assert [input] = [request.input_start];
@@ -1374,13 +1376,20 @@ func execute_sha256_process_block{
     let state: Sha256State* = &sha256_ptr.in_state;
     assert [state] = [request.state_ptr];
 
-    let res: Sha256State* = &sha256_ptr.out_state;
-    let sha256_ptr = &sha256_ptr[1];
+    // Relocate `response.state_ptr` to `actual_state_ptr` and assert that it has the same value.
+    // Also copy [state_ptr] into [actual_state_ptr] because finalize_sha256 will read it from
+    // [actual_state_ptr] and the allocation is in the opposite direction.
+    %{
+        state_ptr = ids.response.state_ptr.address_
+        actual_state_ptr = ids.actual_state_ptr.address_
+        for i in range(8):
+            memory[actual_state_ptr + i] = memory[state_ptr + i]
+        memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_state_ptr)
+    %}
 
-    assert [cast(syscall_ptr, Sha256ProcessBlockResponse*)] = Sha256ProcessBlockResponse(
-        state_ptr=res
-    );
+    assert [response] = Sha256ProcessBlockResponse(state_ptr=actual_state_ptr);
     let syscall_ptr = syscall_ptr + Sha256ProcessBlockResponse.SIZE;
+    let sha256_ptr = &sha256_ptr[1];
 
     tempvar builtin_ptrs = new BuiltinPointers(
         selectable=builtin_ptrs.selectable,
