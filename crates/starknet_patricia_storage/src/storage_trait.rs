@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 
-#[derive(Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -30,7 +29,7 @@ pub trait Storage {
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&mut self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
+    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Sets values in storage.
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
