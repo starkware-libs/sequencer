@@ -21,6 +21,7 @@ workspace = true
 [dependencies]
 apollo_config.workspace = true
 apollo_infra.workspace = true
+apollo_mempool_config.workspace = true
 apollo_mempool_p2p_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
