@@ -1,15 +1,21 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_metrics::metrics::MetricHistogram;
 use apollo_state_sync_types::communication::{
     SharedStateSyncClient,
+    StateSyncClient,
     StateSyncClientError,
     StateSyncClientResult,
 };
 use apollo_state_sync_types::errors::StateSyncError;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
+use async_trait::async_trait;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use futures::executor::block_on;
-use starknet_api::block::{BlockInfo, BlockNumber, GasPriceVector, GasPrices};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -18,9 +24,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
+/// A transaction should use a single instance of this struct rather than creating multiple ones to
+/// make sure metrics are accurate.
 pub(crate) struct SyncStateReader {
     block_number: BlockNumber,
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: SharedStateSyncClientMetricWrapper,
     class_manager_client: SharedClassManagerClient,
     runtime: tokio::runtime::Handle,
 }
@@ -32,7 +40,12 @@ impl SyncStateReader {
         block_number: BlockNumber,
         runtime: tokio::runtime::Handle,
     ) -> Self {
-        Self { block_number, state_sync_client, class_manager_client, runtime }
+        Self {
+            block_number,
+            state_sync_client: SharedStateSyncClientMetricWrapper::new(state_sync_client, None),
+            class_manager_client,
+            runtime,
+        }
     }
 }
 
@@ -151,18 +164,102 @@ impl BlockifierStateReader for SyncStateReader {
     }
 }
 
-pub struct SyncStateReaderFactory {
+struct SharedStateSyncClientMetricWrapper {
+    state_sync_client: SharedStateSyncClient,
+    num_storage_operations_histogram_metric: Option<&'static MetricHistogram>,
+    // TODO: Do we need atomic or do we know everything is thread-safe?
+    num_storage_operations: AtomicU32,
+    // TODO: Do we want time as well?
+}
+
+impl SharedStateSyncClientMetricWrapper {
+    fn new(
+        state_sync_client: SharedStateSyncClient,
+        num_storage_operations_histogram_metric: Option<&'static MetricHistogram>,
+    ) -> Self {
+        Self {
+            state_sync_client,
+            num_storage_operations_histogram_metric,
+            num_storage_operations: AtomicU32::new(0),
+        }
+    }
+}
+
+#[async_trait]
+impl StateSyncClient for SharedStateSyncClientMetricWrapper {
+    async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.get_block(block_number).await
+    }
+    async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.get_block_hash(block_number).await
+    }
+    async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.add_new_block(sync_block).await
+    }
+    async fn get_storage_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+        storage_key: StorageKey,
+    ) -> StateSyncClientResult<Felt> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.get_storage_at(block_number, contract_address, storage_key).await
+    }
+    async fn get_nonce_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<Nonce> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.get_nonce_at(block_number, contract_address).await
+    }
+    async fn get_class_hash_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<ClassHash> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.get_class_hash_at(block_number, contract_address).await
+    }
+    async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.get_latest_block_number().await
+    }
+    async fn is_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<bool> {
+        self.num_storage_operations.fetch_add(1, Ordering::Relaxed);
+        self.state_sync_client.is_class_declared_at(block_number, class_hash).await
+    }
+}
+
+impl Drop for SharedStateSyncClientMetricWrapper {
+    fn drop(&mut self) {
+        if let Some(histogram_metric) = self.num_storage_operations_histogram_metric {
+            histogram_metric.record(self.num_storage_operations.load(Ordering::Relaxed));
+        }
+    }
+}
+
+pub(crate) struct SyncStateReaderFactory {
     pub shared_state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
     pub runtime: tokio::runtime::Handle,
 }
 
+/// Use any of these factory methods only once per transaction to make sure metrics are accurate.
 impl StateReaderFactory for SyncStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
         let latest_block_number = self
             .runtime
+            // TODO: Is this ok not to count? It is always called since get_state_reader() is never used.
             .block_on(self.shared_state_sync_client.get_latest_block_number())?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
@@ -175,11 +272,6 @@ impl StateReaderFactory for SyncStateReaderFactory {
     }
 
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
-        Box::new(SyncStateReader::from_number(
-            self.shared_state_sync_client.clone(),
-            self.class_manager_client.clone(),
-            block_number,
-            self.runtime.clone(),
-        ))
+        unreachable!("get_state_reader() is not used");
     }
 }
