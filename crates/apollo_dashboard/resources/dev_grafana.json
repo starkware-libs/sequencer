@@ -705,6 +705,15 @@
     ],
     "L1 Provider": [
       {
+        "title": "l1_message_scraper_seconds_since_last_successful_scrape",
+        "description": "Number of seconds since the last successful scrape of the L1 message scraper",
+        "type": "timeseries",
+        "exprs": [
+          "l1_message_scraper_seconds_since_last_successful_scrape{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_message_scraper_success_count",
         "description": "Number of times the L1 message scraper successfully scraped messages and updated the provider",
         "type": "timeseries",
