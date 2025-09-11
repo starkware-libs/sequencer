@@ -5,14 +5,6 @@ use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
-<<<<<<< HEAD
-use apollo_http_server::config::HttpServerConfig;
-||||||| 64e642077
-use alloy::node_bindings::AnvilInstance;
-use apollo_http_server::config::HttpServerConfig;
-=======
-use alloy::node_bindings::AnvilInstance;
->>>>>>> origin/main-v0.14.1
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -88,13 +80,7 @@ use crate::utils::{
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-<<<<<<< HEAD
-const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(80000000); // Capacity allows multiple transactions per block.
-||||||| 64e642077
-const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
-=======
 const BLOCK_MAX_CAPACITY_GAS: GasAmount = GasAmount(30000000);
->>>>>>> origin/main-v0.14.1
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);

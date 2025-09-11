@@ -204,7 +204,7 @@ impl ConsensusManager {
                 .static_config
                 .sync_retry_interval,
             quorum_type,
-            future_msg_limit: self.config.consensus_manager_config.future_msg_limit,
+            future_msg_limit: self.config.consensus_manager_config.static_config.future_msg_limit,
         };
         let consensus_fut = apollo_consensus::run_consensus(
             run_consensus_args,
