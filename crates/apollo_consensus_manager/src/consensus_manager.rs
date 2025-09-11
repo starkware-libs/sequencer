@@ -9,6 +9,7 @@ use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus::votes_threshold::QuorumType;
@@ -57,6 +58,7 @@ pub struct ConsensusManager {
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
+    pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 }
 
@@ -67,6 +69,7 @@ impl ConsensusManager {
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
         signature_manager_client: SharedSignatureManagerClient,
+        config_manager_client: SharedConfigManagerClient,
         l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
         Self {
@@ -75,6 +78,7 @@ impl ConsensusManager {
             state_sync_client,
             class_manager_client,
             signature_manager_client,
+            config_manager_client,
             l1_gas_price_provider,
         }
     }
@@ -256,6 +260,7 @@ pub fn create_consensus_manager(
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
     signature_manager_client: SharedSignatureManagerClient,
+    config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 ) -> ConsensusManager {
     ConsensusManager::new(
@@ -264,6 +269,7 @@ pub fn create_consensus_manager(
         state_sync_client,
         class_manager_client,
         signature_manager_client,
+        config_manager_client,
         l1_gas_price_provider,
     )
 }
