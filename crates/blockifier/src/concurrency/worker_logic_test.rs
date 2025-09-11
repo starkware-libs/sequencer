@@ -450,17 +450,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
             (test_contract.get_class_hash(), true),
             (erc20.get_class_hash(), true),
         ]),
-        compiled_class_hashes: HashMap::from([
-            (
-                account_contract.get_class_hash(),
-                account_contract.get_compiled_class_hash(&HashVersion::V2),
-            ),
-            (
-                test_contract.get_class_hash(),
-                test_contract.get_compiled_class_hash(&HashVersion::V2),
-            ),
-            (erc20.get_class_hash(), erc20.get_compiled_class_hash(&HashVersion::V2)),
-        ]),
+        compiled_class_hashes: HashMap::new(),
     };
 
     assert_eq!(execution_output.state_diff, writes.diff(&reads));
