@@ -17,6 +17,10 @@ use crate::test_utils::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 
+// Serialization prefixes for p2p configs
+with_prefix!(consensus_prefix "consensus_manager_config.network_config.");
+with_prefix!(mempool_prefix "mempool_p2p_config.network_config.");
+
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ConfigOverride {
     deployment_config_override: DeploymentConfigOverride,
@@ -130,6 +134,10 @@ pub struct DeploymentConfigOverride {
     consensus_manager_config_context_config_num_validators: usize,
     #[serde(flatten)]
     state_sync_config: StateSyncConfig,
+    #[serde(flatten, with = "consensus_prefix")]
+    consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+    #[serde(flatten, with = "mempool_prefix")]
+    mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
 }
 
 impl DeploymentConfigOverride {
@@ -143,6 +151,8 @@ impl DeploymentConfigOverride {
         l1_startup_height_override: Option<BlockNumber>,
         consensus_manager_config_context_config_num_validators: usize,
         state_sync_type: StateSyncType,
+        consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+        mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -162,6 +172,8 @@ impl DeploymentConfigOverride {
             l1_provider_config_provider_startup_height_override_is_none,
             consensus_manager_config_context_config_num_validators,
             state_sync_config: state_sync_type.get_state_sync_config(),
+            consensus_p2p_bootstrap_config,
+            mempool_p2p_bootstrap_config,
         }
     }
 }
@@ -205,18 +217,10 @@ impl PeerToPeerAdvertisementConfig {
     }
 }
 
-// Serialization prefixes for the network config overrides
-with_prefix!(consensus_prefix "consensus_manager_config.network_config.");
-with_prefix!(mempool_prefix "mempool_p2p_config.network_config.");
-
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct InstanceConfigOverride {
     #[serde(flatten, with = "consensus_prefix")]
-    consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
-    #[serde(flatten, with = "consensus_prefix")]
     consensus_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
-    #[serde(flatten, with = "mempool_prefix")]
-    mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
     #[serde(flatten, with = "mempool_prefix")]
     mempool_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
     validator_id: String,
@@ -224,16 +228,12 @@ pub struct InstanceConfigOverride {
 
 impl InstanceConfigOverride {
     pub fn new(
-        consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
         consensus_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
-        mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
         mempool_p2p_advertisement_config: PeerToPeerAdvertisementConfig,
         validator_id: impl ToString,
     ) -> Self {
         Self {
-            consensus_p2p_bootstrap_config,
             consensus_p2p_advertisement_config,
-            mempool_p2p_bootstrap_config,
             mempool_p2p_advertisement_config,
             validator_id: validator_id.to_string(),
         }
