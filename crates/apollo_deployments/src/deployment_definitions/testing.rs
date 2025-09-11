@@ -5,7 +5,8 @@ use crate::config_override::{
     ConfigOverride,
     DeploymentConfigOverride,
     InstanceConfigOverride,
-    NetworkConfigOverride,
+    PeerToPeerAdvertisementConfig,
+    PeerToPeerBootstrapConfig,
 };
 use crate::deployment::Deployment;
 use crate::deployment_definitions::{Environment, StateSyncType};
@@ -38,8 +39,10 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
-        NetworkConfigOverride::new(None, None),
-        NetworkConfigOverride::new(None, None),
+        PeerToPeerBootstrapConfig::new(None),
+        PeerToPeerAdvertisementConfig::new(None),
+        PeerToPeerBootstrapConfig::new(None),
+        PeerToPeerAdvertisementConfig::new(None),
         "0x64",
     )
 }
