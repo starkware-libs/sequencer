@@ -216,7 +216,7 @@ pub fn create_node_config(
     let mempool_config = create_mempool_config(validate_resource_bounds);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
-        lag_margin_seconds: 0,
+        lag_margin_seconds: Duration::from_secs(0),
         eth_to_strk_oracle_config,
         ..Default::default()
     };

@@ -1,7 +1,9 @@
 use std::any::type_name;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
+use std::time::Duration;
 
+use apollo_config::converters::deserialize_float_seconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
@@ -37,7 +39,8 @@ pub struct L1GasPriceProviderConfig {
     pub number_of_blocks_for_mean: u64,
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
-    pub lag_margin_seconds: u64,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub lag_margin_seconds: Duration,
     pub storage_limit: usize,
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
@@ -50,7 +53,7 @@ impl Default for L1GasPriceProviderConfig {
         const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
         Self {
             number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
-            lag_margin_seconds: 60,
+            lag_margin_seconds: Duration::from_secs(60),
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
             eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
@@ -69,7 +72,7 @@ impl SerializeConfig for L1GasPriceProviderConfig {
             ),
             ser_param(
                 "lag_margin_seconds",
-                &self.lag_margin_seconds,
+                &self.lag_margin_seconds.as_secs(),
                 "Difference between the time of the block from L1 used to calculate the gas price \
                  and the time of the L2 block this price is used in",
                 ParamPrivacyInput::Public,
@@ -179,7 +182,7 @@ impl L1GasPriceProvider {
             .back()
             .ok_or(L1GasPriceProviderError::MissingDataError {
                 timestamp: timestamp.0,
-                lag: self.config.lag_margin_seconds,
+                lag: self.config.lag_margin_seconds.as_secs(),
             })?
             .timestamp;
 
@@ -193,14 +196,14 @@ impl L1GasPriceProvider {
 
         // This index is for the last block in the mean (inclusive).
         let index_last_timestamp_rev = samples.iter().rev().position(|data| {
-            data.timestamp <= timestamp.saturating_sub(&self.config.lag_margin_seconds)
+            data.timestamp <= timestamp.saturating_sub(&self.config.lag_margin_seconds.as_secs())
         });
 
         // Could not find a block with the requested timestamp and lag.
         let Some(last_index_rev) = index_last_timestamp_rev else {
             return Err(L1GasPriceProviderError::MissingDataError {
                 timestamp: timestamp.0,
-                lag: self.config.lag_margin_seconds,
+                lag: self.config.lag_margin_seconds.as_secs(),
             });
         };
         // Convert the index to the forward direction.
