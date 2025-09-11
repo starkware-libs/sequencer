@@ -418,14 +418,11 @@ fn test_compiled_class_hash_migration(
 
     // Prepare initial state depending on whether classes were declared with old hash versions.
     let TestInitData { state, account_address, contract_address, nonce_manager: _ } =
-        if declare_with_casm_hash_v1 {
-            create_init_data_for_compiled_class_hash_migration_test(
-                &block_context.chain_info,
-                cairo_version,
-            )
-        } else {
-            create_test_init_data(&block_context.chain_info, cairo_version)
-        };
+        create_init_data_for_compiled_class_hash_migration_test(
+            &block_context.chain_info,
+            cairo_version,
+            declare_with_casm_hash_v1,
+        );
 
     // Get the class hash to compiled class hash before migration.
     // The compiled class hash before migration is the compiled class hash v1.
