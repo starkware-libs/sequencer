@@ -75,7 +75,7 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio_vec() -> Vec<Alert>
     vec![
         get_http_server_high_transaction_failure_ratio(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
+            AlertSeverity::WorkingHours,
         ),
         get_http_server_high_transaction_failure_ratio(
             AlertEnvFiltering::TestnetStyleAlerts,

@@ -1145,7 +1145,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "p4",
       "observer_applicable": "false"
     },
     {
