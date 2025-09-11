@@ -13,6 +13,8 @@ use blockifier::metrics::{
     CLASS_CACHE_MISSES,
     NATIVE_CLASS_RETURNED,
     NATIVE_COMPILATION_ERROR,
+    N_BLOCKS,
+    N_MIGRATIONS,
     TOTAL_CALLS,
 };
 use starknet_api::block::BlockNumber;
@@ -71,6 +73,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     NATIVE_CLASS_RETURNED.register();
     NATIVE_COMPILATION_ERROR.register();
     TOTAL_CALLS.register();
+    N_MIGRATIONS.register();
+    N_BLOCKS.register();
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.

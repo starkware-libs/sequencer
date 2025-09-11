@@ -15,6 +15,7 @@ use crate::bouncer::{Bouncer, BouncerWeights, CasmHashComputationData};
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
+use crate::metrics::{N_BLOCKS, N_MIGRATIONS};
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
 use crate::state::compiled_class_hash_migration::CompiledClassHashMigrationUpdater;
 use crate::state::errors::StateError;
@@ -24,6 +25,7 @@ use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
@@ -289,6 +291,10 @@ pub(crate) fn finalize_block<S: StateReader>(
             .keys()
             .collect::<std::collections::HashSet<_>>()
     );
+
+    // Update migrations metrics.
+    N_MIGRATIONS.increment(u64_from_usize(class_hashes_to_migrate.len()));
+    N_BLOCKS.increment(1);
 
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
