@@ -13,7 +13,7 @@ pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 pub struct SierraCompilationConfig {
     /// CASM bytecode size limit (in felts).
     pub max_bytecode_size: usize,
-    /// Compilation process’s virtual memory (address space) byte limit.
+    /// Compilation process's virtual memory (address space) byte limit.
     pub max_memory_usage: Option<u64>,
 }
 

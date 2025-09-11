@@ -6,7 +6,6 @@ use std::vec::Vec;
 use apollo_batcher::VersionedConstantsOverrides;
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
-use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{
     generate_struct_pointer,
     prepend_sub_config_name,
@@ -34,6 +33,7 @@ use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
+use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;

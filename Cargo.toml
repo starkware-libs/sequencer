@@ -14,6 +14,7 @@ members = [
   "crates/apollo_compilation_utils",
   "crates/apollo_compile_to_casm",
   "crates/apollo_compile_to_casm_types",
+  "crates/apollo_sierra_compilation_config",
   "crates/apollo_compile_to_native",
   "crates/apollo_compile_to_native_types",
   "crates/apollo_config",
@@ -115,6 +116,7 @@ apollo_class_manager_types.path = "crates/apollo_class_manager_types"
 apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.15.0-rc.4" }
 apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
+apollo_sierra_compilation_config.path = "crates/apollo_sierra_compilation_config"
 apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.15.0-rc.4" }
 apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.15.0-rc.4" }
 apollo_config = { path = "crates/apollo_config", version = "0.15.0-rc.4" }

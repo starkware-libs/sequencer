@@ -15,19 +15,17 @@ workspace = true
 [dependencies]
 apollo_compilation_utils.workspace = true
 apollo_compile_to_casm_types.workspace = true
-apollo_config.workspace = true
 apollo_infra.workspace = true
+apollo_sierra_compilation_config.workspace = true
 apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
 pretty_assertions.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_compilation_utils = { workspace = true, features = ["testing"] }
