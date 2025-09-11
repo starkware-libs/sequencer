@@ -1,10 +1,3 @@
-use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
-};
 #[cfg(test)]
 use apollo_metrics::metrics::LabeledMetricCounter;
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};

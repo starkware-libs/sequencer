@@ -1,11 +1,4 @@
 use apollo_compile_to_casm_types::SerializedClass;
-use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
-};
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use strum::VariantNames;
 

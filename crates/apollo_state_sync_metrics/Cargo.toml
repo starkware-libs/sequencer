@@ -19,3 +19,7 @@ apollo_storage.workspace = true
 starknet_api.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+[package.metadata.cargo-machete]
+# `apollo_infra` is used in the `define_infra_metrics!` macro but may be falsely detected as unused.
+ignored = ["apollo_infra"]

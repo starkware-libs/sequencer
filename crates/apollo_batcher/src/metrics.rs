@@ -1,11 +1,4 @@
 use apollo_batcher_types::communication::BATCHER_REQUEST_LABELS;
-use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
-};
 use apollo_metrics::{define_infra_metrics, define_metrics};
 use blockifier::metrics::{
     CALLS_RUNNING_NATIVE,

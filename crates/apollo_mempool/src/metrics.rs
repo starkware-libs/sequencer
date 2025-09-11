@@ -1,10 +1,3 @@
-use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
-};
 use apollo_mempool_types::mempool_types::MEMPOOL_REQUEST_LABELS;
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{
