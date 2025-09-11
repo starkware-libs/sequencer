@@ -112,6 +112,38 @@ fn test_missing_key() {
     );
 }
 
+/// V1 bound accounts can only be added in later versions, not removed.
+#[test]
+fn test_v1_bound_accounts_increasing() {
+    let first_version = StarknetVersion::V0_13_0;
+    let mut prev_vc = VersionedConstants::get(&first_version).unwrap();
+    let mut prev_version = first_version;
+    for version in StarknetVersion::iter().filter(|v| v > &first_version) {
+        let current_vc = VersionedConstants::get(&version).unwrap();
+        assert!(
+            HashSet::<ClassHash>::from_iter(
+                current_vc.os_constants.v1_bound_accounts_cairo0.iter().cloned()
+            )
+            .is_superset(&HashSet::from_iter(
+                prev_vc.os_constants.v1_bound_accounts_cairo0.iter().cloned()
+            )),
+            "v1_bound_accounts_cairo0 is not a superset from version {prev_version} to {version}",
+        );
+        assert!(
+            HashSet::<ClassHash>::from_iter(
+                current_vc.os_constants.v1_bound_accounts_cairo1.iter().cloned()
+            )
+            .is_superset(&HashSet::from_iter(
+                prev_vc.os_constants.v1_bound_accounts_cairo1.iter().cloned()
+            )),
+            "v1_bound_accounts_cairo1 is not a superset from version {prev_version} to {version}",
+        );
+        // TODO(Dori): when this reaches main-v0.14.0, add a similar check for data_gas_accounts.
+        prev_version = version;
+        prev_vc = current_vc;
+    }
+}
+
 #[test]
 fn test_unhandled_value_type() {
     let json_data = r#"
