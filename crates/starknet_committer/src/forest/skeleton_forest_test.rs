@@ -14,6 +14,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_expected_skeleton_nodes,
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
+    AdditionHash,
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
@@ -66,7 +67,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
     (leaf.get_db_key(&felt.to_bytes_be()), leaf.serialize())
 }
 
-// This test assumes for simplicity that hash is addition (i.e hash(a,b) = a + b).
+// This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
 // I.e., the value of a binary node is the sum of its children's values, and the value of an edge
 // node is the sum of its path, bottom value and path length.
 ///                                Old forest structure:
@@ -151,31 +152,31 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         create_root_edge_entry(155, SubTreeHeight::new(3)),
         create_root_edge_entry(861, SubTreeHeight::new(3)),
         // Contracts trie inner nodes.
-        create_binary_entry(303, 1),
-        create_binary_entry(277, 277),
-        create_edge_entry(304, 0, 1),
-        create_edge_entry(554, 1, 1),
-        create_binary_entry(305, 556),
+        create_binary_entry::<AdditionHash>(Felt::from(303), Felt::ONE),
+        create_binary_entry::<AdditionHash>(Felt::from(277), Felt::from(277)),
+        create_edge_entry::<AdditionHash>(Felt::from(304), 0, 1),
+        create_edge_entry::<AdditionHash>(Felt::from(554), 1, 1),
+        create_binary_entry::<AdditionHash>(Felt::from(305), Felt::from(556)),
         // Contracts trie leaves.
         create_contract_state_leaf_entry(277),
         create_contract_state_leaf_entry(303),
         create_contract_state_leaf_entry(1),
         // Classes trie inner nodes.
-        create_binary_entry(33, 47),
-        create_edge_entry(72, 1, 1),
-        create_binary_entry(80, 74),
-        create_edge_entry(154, 0, 1),
+        create_binary_entry::<AdditionHash>(Felt::from(33), Felt::from(47)),
+        create_edge_entry::<AdditionHash>(Felt::from(72), 1, 1),
+        create_binary_entry::<AdditionHash>(Felt::from(80), Felt::from(74)),
+        create_edge_entry::<AdditionHash>(Felt::from(154), 0, 1),
         // Classes trie leaves.
         create_compiled_class_leaf_entry(33),
         create_compiled_class_leaf_entry(47),
         create_compiled_class_leaf_entry(72),
         // Storage tries #6, #7 inner nodes.
-        create_binary_entry(10, 2),
-        create_edge_entry(3, 1, 1),
-        create_binary_entry(4, 7),
-        create_edge_entry(12, 0, 1),
-        create_binary_entry(5, 11),
-        create_binary_entry(13, 16),
+        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::TWO),
+        create_edge_entry::<AdditionHash>(Felt::THREE, 1, 1),
+        create_binary_entry::<AdditionHash>(Felt::from(4), Felt::from(7)),
+        create_edge_entry::<AdditionHash>(Felt::from(12), 0, 1),
+        create_binary_entry::<AdditionHash>(Felt::from(5), Felt::from(11)),
+        create_binary_entry::<AdditionHash>(Felt::from(13), Felt::from(16)),
         // Storage tries #6, #7 leaves.
         create_storage_leaf_entry(2),
         create_storage_leaf_entry(3),
@@ -183,11 +184,11 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         create_storage_leaf_entry(7),
         create_storage_leaf_entry(10),
         // Storage trie #0 inner nodes.
-        create_binary_entry(8, 9),
-        create_edge_entry(16, 1, 1),
-        create_edge_entry(15, 3, 2),
-        create_binary_entry(17, 18),
-        create_binary_entry(35, 20),
+        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
+        create_edge_entry::<AdditionHash>(Felt::from(16), 1, 1),
+        create_edge_entry::<AdditionHash>(Felt::from(15), 3, 2),
+        create_binary_entry::<AdditionHash>(Felt::from(17), Felt::from(18)),
+        create_binary_entry::<AdditionHash>(Felt::from(35), Felt::from(20)),
         // Storage trie #0 leaves.
         create_storage_leaf_entry(8),
         create_storage_leaf_entry(9),
