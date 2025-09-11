@@ -36,6 +36,7 @@ members = [
   "crates/apollo_l1_endpoint_monitor_config",
   "crates/apollo_l1_endpoint_monitor_types",
   "crates/apollo_l1_gas_price",
+  "crates/apollo_l1_gas_price_provider_config",
   "crates/apollo_l1_gas_price_types",
   "crates/apollo_l1_provider",
   "crates/apollo_l1_provider_types",
@@ -134,6 +135,7 @@ apollo_l1_endpoint_monitor.path = "crates/apollo_l1_endpoint_monitor"
 apollo_l1_endpoint_monitor_config.path = "crates/apollo_l1_endpoint_monitor_config"
 apollo_l1_endpoint_monitor_types.path = "crates/apollo_l1_endpoint_monitor_types"
 apollo_l1_gas_price.path = "crates/apollo_l1_gas_price"
+apollo_l1_gas_price_provider_config.path = "crates/apollo_l1_gas_price_provider_config"
 apollo_l1_gas_price_types.path = "crates/apollo_l1_gas_price_types"
 apollo_l1_provider.path = "crates/apollo_l1_provider"
 apollo_l1_provider_types.path = "crates/apollo_l1_provider_types"

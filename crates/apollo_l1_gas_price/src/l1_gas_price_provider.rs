@@ -1,13 +1,10 @@
 use std::any::type_name;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::Duration;
 
-use apollo_config::converters::deserialize_float_seconds_to_duration;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
+use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
     EthToStrkOracleClientTrait,
@@ -16,12 +13,10 @@ use apollo_l1_gas_price_types::{
     PriceInfo,
 };
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
-use validator::Validate;
 
-use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
+use crate::eth_to_strk_oracle::EthToStrkOracleClient;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
@@ -32,72 +27,6 @@ use crate::metrics::{
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
 pub mod l1_gas_price_provider_test;
-
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct L1GasPriceProviderConfig {
-    // TODO(guyn): these two fields need to go into VersionedConstants.
-    pub number_of_blocks_for_mean: u64,
-    // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
-    // Ethereum.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub lag_margin_seconds: Duration,
-    pub storage_limit: usize,
-    // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
-    pub max_time_gap_seconds: u64,
-    #[validate]
-    pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
-}
-
-impl Default for L1GasPriceProviderConfig {
-    fn default() -> Self {
-        const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
-        Self {
-            number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
-            lag_margin_seconds: Duration::from_secs(60),
-            storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
-            max_time_gap_seconds: 900, // 15 minutes
-            eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
-        }
-    }
-}
-
-impl SerializeConfig for L1GasPriceProviderConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from([
-            ser_param(
-                "number_of_blocks_for_mean",
-                &self.number_of_blocks_for_mean,
-                "Number of blocks to use for the mean gas price calculation",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "lag_margin_seconds",
-                &self.lag_margin_seconds.as_secs(),
-                "Difference between the time of the block from L1 used to calculate the gas price \
-                 and the time of the L2 block this price is used in",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "storage_limit",
-                &self.storage_limit,
-                "Maximum number of L1 blocks to keep cached",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_time_gap_seconds",
-                &self.max_time_gap_seconds,
-                "Maximum valid time gap between the requested timestamp and the last price sample \
-                 in seconds",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        config.extend(prepend_sub_config_name(
-            self.eth_to_strk_oracle_config.dump(),
-            "eth_to_strk_oracle_config",
-        ));
-        config
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct RingBuffer<T>(VecDeque<T>);
