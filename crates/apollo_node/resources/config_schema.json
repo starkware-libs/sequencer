@@ -289,6 +289,11 @@
     "privacy": "Public",
     "value": 4294967296
   },
+  "batcher_config.storage.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
   "batcher_config.storage.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
     "privacy": "Public",
@@ -358,6 +363,11 @@
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
     "privacy": "Public",
     "value": 4294967296
+  },
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
   },
   "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
@@ -2528,6 +2538,11 @@
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
     "privacy": "Public",
     "value": 4294967296
+  },
+  "state_sync_config.storage_config.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
   },
   "state_sync_config.storage_config.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
