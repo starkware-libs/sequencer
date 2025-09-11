@@ -33,6 +33,7 @@ use crate::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TOTAL_SIZE_BYTES,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -300,6 +301,15 @@ impl Mempool {
                 "Returned mempool txs: {:?}",
                 eligible_tx_references.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
             );
+            for tx_ref in &eligible_tx_references {
+                let submission_time = self
+                    .tx_pool
+                    .get_submission_time(tx_ref.tx_hash)
+                    .expect("Transaction must still be in Mempool when recording batched latency");
+                let time_spent =
+                    (self.clock.now() - submission_time).to_std().unwrap().as_secs_f64();
+                TRANSACTION_TIME_SPENT_UNTIL_BATCHED.record(time_spent);
+            }
         }
 
         metric_set_get_txs_size(n_returned_txs);
