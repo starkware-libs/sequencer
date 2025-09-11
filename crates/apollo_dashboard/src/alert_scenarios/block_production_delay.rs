@@ -42,7 +42,7 @@ pub(crate) fn get_consensus_round_above_zero_vec() -> Vec<Alert> {
     vec![
         get_consensus_round_above_zero(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
+            AlertSeverity::WorkingHours,
         ),
         get_consensus_round_above_zero(
             AlertEnvFiltering::TestnetStyleAlerts,
