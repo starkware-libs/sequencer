@@ -8,6 +8,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
@@ -86,6 +87,10 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
         PanelType::TimeSeries,
     )
 }
+fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {
+    Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_BATCHED, PanelType::TimeSeries)
+        .with_unit(Unit::Seconds)
+}
 fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
     Panel::new(
         "Transaction Time Spent in Mempool Until Committed",
@@ -116,6 +121,7 @@ pub(crate) fn get_mempool_row() -> Row {
             get_panel_mempool_priority_queue_size(),
             get_panel_mempool_pending_queue_size(),
             get_panel_mempool_delayed_declares_size(),
+            get_panel_mempool_transaction_time_spent_until_batched(),
             get_panel_mempool_transaction_time_spent_until_committed(),
         ],
     )
