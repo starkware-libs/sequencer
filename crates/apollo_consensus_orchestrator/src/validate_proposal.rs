@@ -212,18 +212,23 @@ pub(crate) async fn validate_proposal(
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
-    let mut valid_proposals = args.valid_proposals.lock().unwrap();
-    valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
-        &built_block,
-        block_info,
-        content,
-        &args.proposal_id,
-    );
+    // Scope the lock so the guard is dropped before any await points below.
+    {
+        let mut valid_proposals = args.valid_proposals.lock().unwrap();
+        valid_proposals.insert_proposal_for_height(
+            &args.block_info_validation.height,
+            &built_block,
+            block_info,
+            content,
+            &args.proposal_id,
+        );
+    }
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
         CONSENSUS_PROPOSAL_FIN_MISMATCH.increment(1);
+        // Best-effort dump of the specific proposal's block to help debugging.
+        let _ = args.deps.batcher.dump_block(args.proposal_id).await;
         return Err(ValidateProposalError::ProposalFinMismatch);
     }
 
