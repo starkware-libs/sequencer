@@ -542,7 +542,7 @@ impl FakeL1ProviderClient {
 
 /// Asserts that the received event matches the expected event, allowing for a small margin in
 /// scrape time.
-fn assert_event_almost_eq(received: &Event, expected: &Event) {
+pub fn assert_event_almost_eq(received: &Event, expected: &Event) {
     if let (
         Event::L1HandlerTransaction {
             l1_handler_tx: received_l1_handler_tx,
