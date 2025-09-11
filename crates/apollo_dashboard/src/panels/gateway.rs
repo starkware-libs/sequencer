@@ -8,40 +8,42 @@ use apollo_gateway::metrics::{
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
 
 fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
-        GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
-        GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
+        "Transactions Received by Type",
+        "The number of transactions received by type (10m window)",
         vec![format!(
-            "sum  by ({}) ({}) ",
+            "sum  by ({}) (increase({}[10m])) ",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         )],
         PanelType::Stat,
     )
+    .with_log_query("\"Processing tx\"")
 }
 
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
     Panel::new(
-        GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
-        GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
+        "Transactions Received by Source",
+        "The number of transactions received by source (10m window)",
         vec![format!(
-            "sum  by ({}) ({}) ",
+            "sum  by ({}) (increase({}[10m])) ",
             LABEL_NAME_SOURCE,
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         )],
         PanelType::Stat,
     )
+    .with_log_query("\"Processing tx\" AND \"is_p2p=\"")
 }
 
 fn get_panel_gateway_transactions_received_rate() -> Panel {
     Panel::new(
-        "gateway_transactions_received_rate (TPS)",
-        "The rate of transactions received by the gateway during the last 20 minutes",
+        "Transactions Received Rate (TPS)",
+        "The rate of transactions received by the gateway (10m window)",
         vec![format!(
-            "sum(rate({}[20m])) or vector(0)",
+            "sum(rate({}[10m])) or vector(0)",
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         )],
         PanelType::TimeSeries,
@@ -49,19 +51,48 @@ fn get_panel_gateway_transactions_received_rate() -> Panel {
 }
 
 fn get_panel_gateway_add_tx_latency() -> Panel {
-    Panel::from_hist(&GATEWAY_ADD_TX_LATENCY, PanelType::TimeSeries)
+    // TODO(Asmaa): refactor Panel::from_hist to accept custom name and description parameters.
+    Panel::new(
+        "Add Tx Latency",
+        "The time it takes the gateway to add a transaction to the mempool",
+        HISTOGRAM_QUANTILES
+            .iter()
+            .map(|q| {
+                format!(
+                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                    GATEWAY_ADD_TX_LATENCY.get_name_with_filter(),
+                )
+            })
+            .collect(),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_gateway_validate_tx_latency() -> Panel {
-    Panel::from_hist(&GATEWAY_VALIDATE_TX_LATENCY, PanelType::TimeSeries)
+    Panel::new(
+        "Validate Tx Latency",
+        "The time it takes to validate a transaction",
+        HISTOGRAM_QUANTILES
+            .iter()
+            .map(|q| {
+                format!(
+                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                    GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter(),
+                )
+            })
+            .collect(),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_gateway_transactions_failed() -> Panel {
     Panel::new(
-        GATEWAY_TRANSACTIONS_FAILED.get_name(),
-        GATEWAY_TRANSACTIONS_FAILED.get_description(),
+        "Transactions Failed by Type",
+        "The number of transactions failed by type (10m window)",
         vec![format!(
-            "sum  by ({}) ({})",
+            "sum  by ({}) (increase({}[10m]))",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter()
         )],
@@ -69,12 +100,28 @@ fn get_panel_gateway_transactions_failed() -> Panel {
     )
 }
 
+fn get_panel_gateway_transactions_failure_rate() -> Panel {
+    Panel::new(
+        "Transaction Failure Rate by Type",
+        "The rate of failed transactions vs received transactions by type (10m window)",
+        vec![format!(
+            "(sum by ({}) (increase({}[10m])) / sum by ({}) (increase({}[10m])))",
+            GATEWAY_LABEL_NAME_TX_TYPE,
+            GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter(),
+            GATEWAY_LABEL_NAME_TX_TYPE,
+            GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
+        )],
+        PanelType::Stat,
+    )
+    .with_unit(Unit::PercentUnit)
+}
+
 fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
     Panel::new(
-        GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
-        GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
+        "Transactions Sent to Mempool by Type",
+        "The number of transactions sent to mempool by type (10m window)",
         vec![format!(
-            "sum  by ({}) ({})",
+            "sum  by ({}) (increase({}[10m]))",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
         )],
@@ -86,12 +133,13 @@ pub(crate) fn get_gateway_row() -> Row {
     Row::new(
         "Gateway",
         vec![
-            get_panel_gateway_transactions_received_by_type(),
-            get_panel_gateway_transactions_received_by_source(),
             get_panel_gateway_transactions_received_rate(),
             get_panel_gateway_add_tx_latency(),
             get_panel_gateway_validate_tx_latency(),
+            get_panel_gateway_transactions_received_by_source(),
+            get_panel_gateway_transactions_received_by_type(),
             get_panel_gateway_transactions_failed(),
+            get_panel_gateway_transactions_failure_rate(),
             get_panel_gateway_transactions_sent_to_mempool(),
         ],
     )
