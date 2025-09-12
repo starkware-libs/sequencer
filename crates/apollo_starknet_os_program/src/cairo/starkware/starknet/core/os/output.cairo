@@ -267,17 +267,71 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     }
 
     // Encrypt the compressed state updates.
+    // TODO(Noa): replace with encrypt function.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
     validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
     let (local sn_public_keys: felt*) = alloc();
     compute_public_keys(
-        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys=sn_public_keys
+        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys_dst=sn_public_keys
     );
 
     // TODO(Einat): encrypt the data with the symmetric key.
     return (da_start=compressed_start, da_end=compressed_dst);
+}
+
+func encrypt{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
+    data_start: felt*,
+    data_end: felt*,
+    n_keys: felt,
+    sn_public_keys_dst: felt*,
+    symmetric_key_encryptions_dst: felt*,
+) {
+    alloc_locals;
+
+    local symmetric_key: felt;
+    local sn_private_keys: felt*;
+    %{ generate_keys_from_hash(ids.data_start, ids.data_end, ids.n_keys) %}
+    validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+    compute_public_keys(
+        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys_dst=sn_public_keys_dst
+    );
+
+    let encrypted_symmetric_key = encrypt_symmetric_key(
+        n_keys=n_keys,
+        public_keys=sn_public_keys_dst,
+        symmetric_key=symmetric_key,
+        symmetric_key_encryptions_dst=symmetric_key_encryptions_dst,
+    );
+
+    encrypt_inner(
+        data_len=data_end - data_start, data_start=data_start, index=0, symmetric_key=symmetric_key
+    );
+    return ();
+}
+
+// A helper for encrypt.
+func encrypt_inner{encrypted_dst: felt*}(
+    data_len: felt, data_start: felt*, index: felt, symmetric_key: felt
+) {
+    if (data_len == 0) {
+        return ();
+    }
+
+    alloc_locals;
+
+    let (blake_input: felt*) = alloc();
+    assert blake_input[0] = symmetric_key;
+    assert blake_input[1] = index;
+    // Encrypt the current element.
+    assert encrypted_dst[0] = encode_felt252_data_and_calc_blake_hash(2, &blake_input) + data_start[
+        0
+    ];
+
+    let encrypted_dst = &encrypted_dst[1];
+
+    return encrypt_inner(data_len - 1, data_start + 1, index + 1, symmetric_key);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
@@ -393,7 +447,7 @@ func validate_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*
 
 // Computes the public keys from the private keys by multiplying by the EC group generator.
 func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    n_keys: felt, sn_private_keys: felt*, sn_public_keys: felt*
+    n_keys: felt, sn_private_keys: felt*, sn_public_keys_dst: felt*
 ) {
     if (n_keys == 0) {
         return ();
@@ -401,9 +455,11 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     let (sn_public_key) = ec_mul(
         m=sn_private_keys[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
     );
-    assert sn_public_keys[0] = sn_public_key.x;
+    assert sn_public_keys_dst[0] = sn_public_key.x;
     return compute_public_keys(
-        n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1], sn_public_keys=&sn_public_keys[1]
+        n_keys=n_keys - 1,
+        sn_private_keys=&sn_private_keys[1],
+        sn_public_keys_dst=&sn_public_keys_dst[1],
     );
 }
 
