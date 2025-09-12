@@ -280,6 +280,31 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     return (da_start=compressed_start, da_end=compressed_dst);
 }
 
+func encrypt{range_check_ptr, encrypted_dst: felt*}(data_start: felt*, data_end: felt*, symmetric_key: felt) {
+    encrypt_inner(data_start=data_start, data_end=data_end, symmetric_key=symmetric_key)
+    return ();
+}
+
+
+// A helper for `encrypt`.
+func encrypt_inner{encrypted_dst: felt*}(
+   data_start: felt*, data_end: felt*, symmetric_key: felt
+) {
+    if (data_start == data_end) {
+        return ();
+    }
+
+    // Derive the index.
+    let i = data_end - data_start
+
+    assert encrypted_dst[0] = encode_felt252_data_and_calc_blake_hash(data_len=2, data=&[symmetric_key, i]) + data_start[0];
+    let encrypted_dst = &data_dst[1];
+
+    return encrypt_inner(
+        data_start=data_start[1], data_end= data_end, symmetric_key= symmetric_key
+    );
+}
+
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
     // Relocate data availability segment to the correct place in the output segment.
     relocate_segment(src_ptr=da_start, dest_ptr=output_ptr);
