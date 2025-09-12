@@ -156,6 +156,7 @@ use crate::hints::hint_implementation::os_logger::{
 use crate::hints::hint_implementation::output::{
     calculate_keys_using_sha256_hash,
     set_compressed_start,
+    set_encrypted_start,
     set_n_updates_small,
     set_state_updates_start,
     set_tree_structure,
@@ -815,11 +816,20 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         SetCompressedStart,
         set_compressed_start,
-        indoc! {r#"if use_kzg_da:
+        indoc! {r#"if use_kzg_da or ids.n_keys > 0:
     ids.compressed_start = segments.add()
 else:
     # Assign a temporary segment, to be relocated into the output segment.
     ids.compressed_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetEncryptedStart,
+        set_encrypted_start,
+        indoc! {r#"if use_kzg_da:
+    ids.encrypted_start = segments.add()
+else:
+    # Assign a temporary segment, to be relocated into the output segment.
+    ids.encrypted_start = segments.add_temp_segment()"#}
     ),
     (
         SetNUpdatesSmall,
