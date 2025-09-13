@@ -137,6 +137,7 @@ pub(crate) fn set_state_updates_start(
 pub(crate) fn set_compressed_start(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
+    let n_keys = get_integer_from_var_name(Ids::NKeys.into(), vm, ids_data, ap_tracking)?;
     let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
     let use_kzg_da = match use_kzg_da_felt {
@@ -145,7 +146,7 @@ pub(crate) fn set_compressed_start(
         _ => Err(OsHintError::BooleanIdExpected { id: Ids::UseKzgDa, felt: use_kzg_da_felt }),
     }?;
 
-    if use_kzg_da {
+    if use_kzg_da || n_keys > Felt::ZERO {
         insert_value_from_var_name(
             Ids::CompressedStart.into(),
             vm.add_memory_segment(),
@@ -157,6 +158,39 @@ pub(crate) fn set_compressed_start(
         // Assign a temporary segment, to be relocated into the output segment.
         insert_value_from_var_name(
             Ids::CompressedStart.into(),
+            vm.add_temporary_segment(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn set_encrypted_start(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+
+    let use_kzg_da = match use_kzg_da_felt {
+        x if x == Felt::ONE => Ok(true),
+        x if x == Felt::ZERO => Ok(false),
+        _ => Err(OsHintError::BooleanIdExpected { id: Ids::UseKzgDa, felt: use_kzg_da_felt }),
+    }?;
+
+    if use_kzg_da {
+        insert_value_from_var_name(
+            Ids::EncryptedStart.into(),
+            vm.add_memory_segment(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+    } else {
+        // Assign a temporary segment, to be relocated into the output segment.
+        insert_value_from_var_name(
+            Ids::EncryptedStart.into(),
             vm.add_temporary_segment(),
             vm,
             ids_data,
