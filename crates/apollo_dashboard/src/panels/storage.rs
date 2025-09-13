@@ -6,22 +6,22 @@ use apollo_storage::metrics::{
     SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
 };
 
-use crate::dashboard::{Panel, Row};
+use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_storage_append_thin_state_diff_latency() -> Panel {
-    Panel::from(&STORAGE_APPEND_THIN_STATE_DIFF_LATENCY)
+    Panel::from_hist(&STORAGE_APPEND_THIN_STATE_DIFF_LATENCY, PanelType::TimeSeries)
 }
 fn get_storage_commit_latency() -> Panel {
-    Panel::from(&STORAGE_COMMIT_LATENCY)
+    Panel::from_hist(&STORAGE_COMMIT_LATENCY, PanelType::TimeSeries)
 }
 fn get_sync_storage_open_read_transactions() -> Panel {
-    Panel::from(&SYNC_STORAGE_OPEN_READ_TRANSACTIONS)
+    Panel::from_gauge(&SYNC_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
 fn get_batcher_storage_open_read_transactions() -> Panel {
-    Panel::from(&BATCHER_STORAGE_OPEN_READ_TRANSACTIONS)
+    Panel::from_gauge(&BATCHER_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
 fn get_class_manager_storage_open_read_transactions() -> Panel {
-    Panel::from(&CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS)
+    Panel::from_gauge(&CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_storage_row() -> Row {

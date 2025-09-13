@@ -1,29 +1,77 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
-    LAST_BATCHED_BLOCK,
+    LAST_BATCHED_BLOCK_HEIGHT,
+    LAST_PROPOSED_BLOCK_HEIGHT,
+    LAST_SYNCED_BLOCK_HEIGHT,
+    PROPOSAL_ABORTED,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
+    PROPOSER_DEFERRED_TXS,
     REJECTED_TRANSACTIONS,
+    REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
+    VALIDATOR_WASTED_TXS,
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_proposal_started() -> Panel {
-    Panel::from(&PROPOSAL_STARTED)
+    Panel::new(
+        "Proposal Started",
+        "Number of proposals started over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_STARTED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_proposal_succeeded() -> Panel {
-    Panel::from(&PROPOSAL_SUCCEEDED)
+    Panel::new(
+        "Proposal Succeeded",
+        "Number of proposals succeeded over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_SUCCEEDED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_proposal_failed() -> Panel {
-    Panel::from(&PROPOSAL_FAILED)
+    Panel::new(
+        "Proposal Failed",
+        "Number of proposals failed over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_FAILED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+}
+fn get_panel_proposal_aborted() -> Panel {
+    Panel::new(
+        "Proposal Aborted",
+        "Number of proposals aborted over the last 10 minutes",
+        vec![format!("increase({}[10m])", PROPOSAL_ABORTED.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+}
+fn get_panel_validator_wasted_txs() -> Panel {
+    Panel::from_gauge(&VALIDATOR_WASTED_TXS, PanelType::TimeSeries)
+}
+fn get_panel_proposer_deferred_txs() -> Panel {
+    Panel::from_gauge(&PROPOSER_DEFERRED_TXS, PanelType::TimeSeries)
 }
 fn get_panel_batched_transactions() -> Panel {
-    Panel::from(&BATCHED_TRANSACTIONS)
+    Panel::from_counter(&BATCHED_TRANSACTIONS, PanelType::Stat)
+}
+fn get_panel_storage_height() -> Panel {
+    Panel::from_gauge(&STORAGE_HEIGHT, PanelType::Stat)
 }
 fn get_panel_last_batched_block() -> Panel {
-    Panel::from(&LAST_BATCHED_BLOCK)
+    Panel::from_gauge(&LAST_BATCHED_BLOCK_HEIGHT, PanelType::Stat)
+}
+fn get_panel_last_synced_block() -> Panel {
+    Panel::from_gauge(&LAST_SYNCED_BLOCK_HEIGHT, PanelType::Stat)
+}
+fn get_panel_last_proposed_block() -> Panel {
+    Panel::from_gauge(&LAST_PROPOSED_BLOCK_HEIGHT, PanelType::Stat)
+}
+fn get_panel_reverted_blocks() -> Panel {
+    Panel::from_counter(&REVERTED_BLOCKS, PanelType::Stat)
 }
 fn get_panel_rejection_ratio() -> Panel {
     Panel::ratio_time_series(
@@ -64,8 +112,15 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_proposal_started(),
             get_panel_proposal_succeeded(),
             get_panel_proposal_failed(),
+            get_panel_proposal_aborted(),
+            get_panel_validator_wasted_txs(),
+            get_panel_proposer_deferred_txs(),
             get_panel_batched_transactions(),
             get_panel_last_batched_block(),
+            get_panel_storage_height(),
+            get_panel_last_synced_block(),
+            get_panel_last_proposed_block(),
+            get_panel_reverted_blocks(),
             get_panel_rejection_ratio(),
             get_panel_reverted_transaction_ratio(),
         ],

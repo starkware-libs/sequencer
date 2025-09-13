@@ -63,9 +63,9 @@ use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
-    LAST_BATCHED_BLOCK,
-    LAST_PROPOSED_BLOCK,
-    LAST_SYNCED_BLOCK,
+    LAST_BATCHED_BLOCK_HEIGHT,
+    LAST_PROPOSED_BLOCK_HEIGHT,
+    LAST_SYNCED_BLOCK_HEIGHT,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
@@ -288,7 +288,7 @@ impl Batcher {
             "Proposal {} already exists. This should have been checked when spawning the proposal.",
             propose_block_input.proposal_id
         );
-        LAST_PROPOSED_BLOCK.set_lossy(block_number.0);
+        LAST_PROPOSED_BLOCK_HEIGHT.set_lossy(block_number.0);
         Ok(())
     }
 
@@ -559,7 +559,7 @@ impl Batcher {
             Default::default(),
         )
         .await?;
-        LAST_SYNCED_BLOCK.set_lossy(block_number.0);
+        LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
             (account_transaction_hashes.len() + l1_transaction_hashes.len()).try_into().unwrap(),
         );
@@ -606,7 +606,7 @@ impl Batcher {
         .await?;
         let execution_infos = block_execution_artifacts.execution_data.execution_infos;
 
-        LAST_BATCHED_BLOCK.set_lossy(height.0);
+        LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         REVERTED_TRANSACTIONS.increment(n_reverted_count);
