@@ -4,7 +4,7 @@ use cached::proc_macro::cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
@@ -21,7 +21,6 @@ use crate::test_utils::struct_impls::LoadContractFromFile;
 
 pub trait FeatureContractTrait {
     fn get_class(&self) -> ContractClass;
-    fn get_real_compiled_class_hash(&self) -> CompiledClassHash;
     fn get_runnable_class(&self) -> RunnableCompiledClass;
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
@@ -93,18 +92,6 @@ fn get_class_for_feature_contract(feature_contract: FeatureContract) -> Contract
     }
 }
 
-#[cached]
-fn get_real_compiled_class_hash_for_feature_contract(
-    feature_contract: FeatureContract,
-) -> CompiledClassHash {
-    match get_class_for_feature_contract(feature_contract) {
-        ContractClass::V0(_) => {
-            panic!("V0 compiled class hash is not supported.")
-        }
-        ContractClass::V1((class, _)) => class.hash(&HashVersion::V2),
-    }
-}
-
 impl FeatureContractTrait for FeatureContract {
     fn get_class(&self) -> ContractClass {
         get_class_for_feature_contract(*self)
@@ -119,10 +106,6 @@ impl FeatureContractTrait for FeatureContract {
         }
 
         self.get_class().try_into().unwrap()
-    }
-
-    fn get_real_compiled_class_hash(&self) -> CompiledClassHash {
-        get_real_compiled_class_hash_for_feature_contract(*self)
     }
 }
 

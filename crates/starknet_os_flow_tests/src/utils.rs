@@ -16,6 +16,7 @@ use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
     ClassHash,
@@ -82,15 +83,13 @@ impl CommitmentOutput {
 /// Executes the given transactions on the given state and block context with default execution
 /// configuration.
 pub(crate) fn execute_transactions<S: FlowTestState>(
-    mut initial_state: S,
+    initial_state: S,
     txs: &[Transaction],
     block_context: BlockContext,
 ) -> ExecutionOutput<S> {
     let block_number_hash_pair =
         maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
     let config = TransactionExecutorConfig::default();
-
-    initial_state.preprocess_before_execution(txs);
 
     // Execute.
     let mut executor = TransactionExecutor::pre_process_and_create(
@@ -169,7 +168,7 @@ pub(crate) fn create_cairo1_bootstrap_declare_tx(
         panic!("Expected a Cairo 1 contract class.");
     };
     let class_hash = sierra.calculate_class_hash();
-    let compiled_class_hash = feature_contract.get_real_compiled_class_hash();
+    let compiled_class_hash = feature_contract.get_compiled_class_hash(&HashVersion::V2);
     execution_contracts.add_cairo1_contract(casm, &sierra);
     let declare_tx_args = declare_tx_args! {
         sender_address: DeclareTransaction::bootstrap_address(),

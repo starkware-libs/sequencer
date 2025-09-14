@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use blockifier::state::cached_state::StateMaps;
-use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_storage_var_address;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::calculate_contract_address;
 use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
 use starknet_api::execution_resources::GasAmount;
@@ -88,7 +88,7 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_contract_sierra = test_contract.get_sierra();
     let class_hash = test_contract_sierra.calculate_class_hash();
-    let compiled_class_hash = test_contract.get_real_compiled_class_hash();
+    let compiled_class_hash = test_contract.get_compiled_class_hash(&HashVersion::V2);
     let declare_tx_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         class_hash,
