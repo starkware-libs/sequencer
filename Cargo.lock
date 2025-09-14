@@ -878,6 +878,7 @@ dependencies = [
 name = "apollo_central_sync"
 version = "0.15.0-rc.4"
 dependencies = [
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_proc_macros",
@@ -909,6 +910,17 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_central_sync_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_starknet_client",
+ "serde",
  "url",
  "validator",
 ]
@@ -2297,6 +2309,7 @@ name = "apollo_state_sync"
 version = "0.15.0-rc.4"
 dependencies = [
  "apollo_central_sync",
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_infra",
@@ -9599,6 +9612,7 @@ version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_central_sync",
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus_config",

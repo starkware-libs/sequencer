@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::result;
 
-use apollo_central_sync::sources::central::CentralSourceConfig;
 use apollo_central_sync::SyncConfig;
+use apollo_central_sync_config::CentralSourceConfig;
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_sub_config,
