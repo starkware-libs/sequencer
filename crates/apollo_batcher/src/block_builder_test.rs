@@ -48,7 +48,7 @@ use crate::block_builder::{
     BlockTransactionExecutionData,
     FailOnErrorCause,
 };
-use crate::metrics::FULL_BLOCKS;
+use crate::metrics::{BlockCloseReason, BLOCK_CLOSE_REASON, LABEL_NAME_BLOCK_CLOSE_REASON};
 use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::TransactionProviderError::L1HandlerTransactionValidationFailed;
@@ -596,7 +596,11 @@ async fn verify_build_block_output(
     // Verify the block artifacts.
     assert_eq!(result_block_artifacts, expected_block_artifacts);
 
-    FULL_BLOCKS.assert_eq::<u64>(metrics, expected_full_blocks_metric);
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(
+        metrics,
+        expected_full_blocks_metric,
+        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::FullBlock.into())],
+    );
 }
 
 async fn run_build_block(
@@ -640,9 +644,13 @@ async fn run_build_block(
 async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    FULL_BLOCKS.register();
+    BLOCK_CLOSE_REASON.register();
     let metrics = recorder.handle().render();
-    FULL_BLOCKS.assert_eq::<u64>(&metrics, 0);
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(
+        &metrics,
+        0,
+        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::FullBlock.into())],
+    );
 
     let (output_tx_sender, output_tx_receiver) = output_channel();
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
