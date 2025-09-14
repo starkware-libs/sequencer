@@ -117,16 +117,13 @@ impl StateReader for DictStateReader {
         Ok(compiled_class_hash)
     }
 
-    fn get_compiled_class_hash_v2(
-        &self,
-        class_hash: ClassHash,
-        compiled_class: &RunnableCompiledClass,
-    ) -> StateResult<CompiledClassHash> {
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         let compiled_class_hash_opt =
             self.class_hash_to_compiled_class_hash_v2.lock().unwrap().get(&class_hash).copied();
         match compiled_class_hash_opt {
             Some(compiled_class_hash) => Ok(compiled_class_hash),
             None => {
+                let compiled_class = self.get_compiled_class(class_hash)?;
                 let compiled_class_hash = match compiled_class {
                     RunnableCompiledClass::V0(_) => {
                         panic!("Cairo0 classes should not have compiled class hash v2")

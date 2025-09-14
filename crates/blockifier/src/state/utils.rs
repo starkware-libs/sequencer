@@ -13,7 +13,6 @@ use crate::state::state_api::{StateReader, StateResult};
 pub fn get_compiled_class_hash_v2(
     state_reader: &impl StateReader,
     class_hash: ClassHash,
-    _compiled_class: &RunnableCompiledClass,
 ) -> StateResult<CompiledClassHash> {
     match state_reader.get_compiled_class(class_hash) {
         Ok(RunnableCompiledClass::V0(_)) | Err(StateError::UndeclaredClassHash(_)) => {

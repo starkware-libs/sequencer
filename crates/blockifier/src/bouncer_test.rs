@@ -686,8 +686,7 @@ fn class_hash_migration_data_from_state(
     let mut expected = HashMap::new();
     if should_migrate {
         for class_hash in &executed {
-            let compiled_class = state.get_compiled_class(*class_hash).unwrap();
-            let v2_hash = state.get_compiled_class_hash_v2(*class_hash, &compiled_class).unwrap();
+            let v2_hash = state.get_compiled_class_hash_v2(*class_hash).unwrap();
             let v1_hash = state.get_compiled_class_hash(*class_hash).unwrap();
             expected.insert(*class_hash, (v2_hash, v1_hash));
         }

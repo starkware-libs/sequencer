@@ -481,12 +481,7 @@ fn test_compiled_class_hash_migration(
             .iter()
             .map(|class_hash| {
                 (
-                    state
-                        .get_compiled_class_hash_v2(
-                            *class_hash,
-                            &state.get_compiled_class(*class_hash).unwrap(),
-                        )
-                        .unwrap(),
+                    state.get_compiled_class_hash_v2(*class_hash).unwrap(),
                     *class_hash_to_compiled_class_hash_before_migration.get(class_hash).unwrap(),
                 )
             })
