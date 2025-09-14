@@ -135,11 +135,11 @@
           "extra_params": {}
         },
         {
-          "title": "consensus_l2_gas_price",
-          "description": "The L2 gas price calculated in an accepted proposal",
+          "title": "L2 Gas Price (GFri)",
+          "description": "L2 gas price in GFri calculated in an accepted proposal",
           "type": "timeseries",
           "exprs": [
-            "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 1e9"
           ],
           "extra_params": {}
         },
