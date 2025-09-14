@@ -14,8 +14,8 @@ use apollo_state_sync_types::communication::StateSyncRequestWrapper;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 
-use crate::config::component_execution_config::ExpectedComponentConfig;
-use crate::config::node_config::SequencerNodeConfig;
+use apollo_node_config::ExpectedComponentConfig;
+use apollo_node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestWrapper>,
