@@ -27,6 +27,7 @@ fn get_panel_mempool_transactions_received() -> Panel {
         )],
         PanelType::Stat,
     )
+    .with_log_query("Adding transaction to mempool")
 }
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
@@ -38,9 +39,11 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Adding transaction to mempool")
 }
 fn get_panel_mempool_transactions_committed() -> Panel {
     Panel::from_counter(&MEMPOOL_TRANSACTIONS_COMMITTED, PanelType::Stat)
+        .with_log_query("Committing block with")
 }
 fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
@@ -93,6 +96,7 @@ fn get_panel_mempool_get_txs_size() -> Panel {
         vec![format!("avg_over_time({}[2m])", MEMPOOL_GET_TXS_SIZE.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("Returned mempool txs")
 }
 fn get_panel_mempool_delayed_declares_size() -> Panel {
     Panel::new(
