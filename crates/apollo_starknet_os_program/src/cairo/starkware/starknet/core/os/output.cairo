@@ -273,7 +273,16 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
     let (local sn_public_keys: felt*) = alloc();
     compute_public_keys(
-        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys=sn_public_keys
+        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys_dst=sn_public_keys
+    );
+
+    let (local symmetric_key_encryptions: felt*) = alloc();
+    encrypt_symmetric_key(
+        n_keys=n_keys,
+        public_keys=public_keys,
+        sn_private_keys=sn_private_keys,
+        symmetric_key=symmetric_key,
+        symmetric_key_encryptions_dst=symmetric_key_encryptions,
     );
 
     // TODO(Einat): encrypt the data with the symmetric key.
@@ -393,7 +402,7 @@ func validate_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*
 
 // Computes the public keys from the private keys by multiplying by the EC group generator.
 func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    n_keys: felt, sn_private_keys: felt*, sn_public_keys: felt*
+    n_keys: felt, sn_private_keys: felt*, sn_public_keys_dst: felt*
 ) {
     if (n_keys == 0) {
         return ();
@@ -401,9 +410,11 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     let (sn_public_key) = ec_mul(
         m=sn_private_keys[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
     );
-    assert sn_public_keys[0] = sn_public_key.x;
+    assert sn_public_keys_dst[0] = sn_public_key.x;
     return compute_public_keys(
-        n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1], sn_public_keys=&sn_public_keys[1]
+        n_keys=n_keys - 1,
+        sn_private_keys=&sn_private_keys[1],
+        sn_public_keys_dst=&sn_public_keys_dst[1],
     );
 }
 
@@ -417,11 +428,16 @@ func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     if (n_keys == 0) {
         return ();
     }
+
+    alloc_locals;
+
     let (public_key) = recover_y(public_keys[0]);
     let (shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
+    let data = [shared_secret.x];
     // TODO(Avi, 10/9/2025): Switch to naive encoding once the function is available.
-    assert symmetric_key_encryptions_dst[0] = symmetric_key +
-        encode_felt252_data_and_calc_blake_hash(data_len=1, data=&shared_secret.x);
+    let (local hash: felt) = encode_felt252_data_and_calc_blake_hash(data_len=1, data=&data);
+    assert symmetric_key_encryptions_dst[0] = symmetric_key + hash;
+
     return encrypt_symmetric_key(
         n_keys=n_keys - 1,
         public_keys=&public_keys[1],
