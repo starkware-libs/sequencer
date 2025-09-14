@@ -271,7 +271,7 @@ into_f64!(u64, usize, i64, u128);
 
 pub struct LabeledMetricGauge {
     scope: MetricScope,
-    name: &'static str, // TODO(Tsabary): remove the _name_with_filter field, it is not used.
+    name: &'static str,
     description: &'static str,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
@@ -410,7 +410,7 @@ impl MetricHistogram {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
+    pub(crate) fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), None)
     }
 
@@ -489,7 +489,7 @@ impl LabeledMetricHistogram {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn parse_histogram_metric(
+    pub(crate) fn parse_histogram_metric(
         &self,
         metrics_as_string: &str,
         labels: &[(&'static str, &'static str)],
@@ -499,7 +499,6 @@ impl LabeledMetricHistogram {
 
     #[cfg(any(feature = "testing", test))]
     #[track_caller]
-    // TODO(tsabary): unite the labeled and unlabeld assert_eq functions.
     pub fn assert_eq(
         &self,
         metrics_as_string: &str,
@@ -577,7 +576,7 @@ pub fn parse_numeric_metric<T: Num + FromStr>(
 /// - `Option<HistogramValue>`: Returns `Some(HistogramValue)` if the metric is found and
 ///   successfully parsed. Returns `None` if the metric is not found or if parsing fails.
 #[cfg(any(feature = "testing", test))]
-pub fn parse_histogram_metric(
+pub(crate) fn parse_histogram_metric(
     metrics_as_string: &str,
     metric_name: &str,
     labels: Option<&[(&'static str, &'static str)]>,

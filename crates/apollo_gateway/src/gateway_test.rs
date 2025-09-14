@@ -26,6 +26,7 @@ use apollo_mempool_types::communication::{
 };
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
@@ -450,6 +451,7 @@ fn test_register_metrics() {
             let labels: &[(&str, &str); 2] =
                 &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
 
+            // TODO(Tsabary): replace with assert_exists when available.
             assert_eq!(
                 GATEWAY_TRANSACTIONS_RECEIVED
                     .parse_numeric_metric::<u64>(&metrics, labels)
@@ -466,8 +468,7 @@ fn test_register_metrics() {
                     .unwrap(),
                 0
             );
-            assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().sum, 0.0);
-            assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().count, 0);
+            GATEWAY_ADD_TX_LATENCY.assert_eq(&metrics, &HistogramValue::default());
         }
     }
 }
