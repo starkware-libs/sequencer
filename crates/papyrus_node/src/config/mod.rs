@@ -12,8 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{env, fs, io};
 
-use apollo_central_sync::sources::central::CentralSourceConfig;
-use apollo_central_sync::SyncConfig;
+use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_sub_config,

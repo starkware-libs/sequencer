@@ -878,8 +878,8 @@ dependencies = [
 name = "apollo_central_sync"
 version = "0.15.0-rc.4"
 dependencies = [
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_proc_macros",
  "apollo_starknet_client",
  "apollo_state_sync_metrics",
@@ -893,7 +893,6 @@ dependencies = [
  "futures",
  "futures-util",
  "indexmap 2.11.0",
- "itertools 0.12.1",
  "lru 0.12.5",
  "metrics 0.24.2",
  "mockall",
@@ -901,7 +900,6 @@ dependencies = [
  "papyrus_common",
  "pretty_assertions",
  "reqwest 0.12.23",
- "serde",
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
@@ -909,6 +907,16 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "apollo_central_sync_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_starknet_client",
+ "itertools 0.12.1",
+ "serde",
  "url",
  "validator",
 ]
@@ -2306,6 +2314,7 @@ name = "apollo_state_sync"
 version = "0.15.0-rc.4"
 dependencies = [
  "apollo_central_sync",
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_infra",
@@ -9608,6 +9617,7 @@ version = "0.15.0-rc.4"
 dependencies = [
  "anyhow",
  "apollo_central_sync",
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus_config",
