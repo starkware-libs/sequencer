@@ -251,7 +251,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     // Compress the state updates.
     local compressed_start: felt*;
     %{
-        if use_kzg_da:
+        if use_kzg_da or ids.n_keys > 0:
             ids.compressed_start = segments.add()
         else:
             # Assign a temporary segment, to be relocated into the output segment.
@@ -267,6 +267,17 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     }
 
     // Encrypt the compressed state updates.
+    local encrypted_start: felt*;
+    let encrypted_dst = encrypted_start;
+    %{
+        if use_kzg_da:
+            ids.encrypted_start = segments.add()
+        else:
+            # Assign a temporary segment, to be relocated into the output segment.
+            ids.encrypted_start = segments.add_temp_segment()
+    %}
+
+    // Generate random symmetric key and random starknet private keys.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
@@ -285,8 +296,11 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
         symmetric_key_encryptions_dst=symmetric_key_encryptions,
     );
 
-    // TODO(Einat): encrypt the data with the symmetric key.
-    return (da_start=compressed_start, da_end=compressed_dst);
+    with encrypted_dst {
+        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
+    }
+
+    return (da_start=encrypted_start, da_end=encrypted_dst);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
