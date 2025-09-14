@@ -11,7 +11,11 @@ use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::metrics::{TRANSACTION_TIME_SPENT_IN_MEMPOOL, TRANSACTION_TIME_SPENT_UNTIL_COMMITTED};
+use crate::metrics::{
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
+};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -118,11 +122,17 @@ impl TransactionPool {
             let submission_time = self
                 .get_submission_time(tx_ref.tx_hash)
                 .expect("Transaction must still be in Mempool when recording commit latency");
-            let time_spent = (self.txs_by_submission_time.clock.now() - submission_time)
+            let time_spent_committed = (self.txs_by_submission_time.clock.now() - submission_time)
                 .to_std()
                 .unwrap()
                 .as_secs_f64();
-            TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.record(time_spent);
+            TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.record(time_spent_committed);
+
+            if let Some(batched_time) = self.get_last_batched_time(tx_ref.tx_hash) {
+                let time_spent_batched =
+                    (batched_time - submission_time).to_std().unwrap().as_secs_f64();
+                TRANSACTION_TIME_SPENT_UNTIL_BATCHED.record(time_spent_batched);
+            }
         }
 
         self.remove_from_main_mapping(&removed_txs);
@@ -189,6 +199,17 @@ impl TransactionPool {
 
     pub fn get_lowest_nonce(&self, address: ContractAddress) -> Option<Nonce> {
         self.account_txs_sorted_by_nonce(address).next().map(|tx_ref| tx_ref.nonce)
+    }
+
+    pub fn mark_batched(&mut self, tx_hash: TransactionHash) {
+        self.txs_by_submission_time.mark_batched(tx_hash);
+    }
+
+    pub fn get_last_batched_time(&self, tx_hash: TransactionHash) -> Option<DateTime> {
+        self.txs_by_submission_time
+            .hash_to_submission_id
+            .get(&tx_hash)
+            .and_then(|id| id.last_batched_time)
     }
 
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
@@ -326,11 +347,20 @@ impl PoolSize {
 }
 
 /// Uniquely identify a transaction submission.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 struct SubmissionID {
     submission_time: DateTime,
     tx_hash: TransactionHash,
+    last_batched_time: Option<DateTime>,
 }
+
+impl PartialEq for SubmissionID {
+    fn eq(&self, other: &Self) -> bool {
+        self.submission_time == other.submission_time && self.tx_hash == other.tx_hash
+    }
+}
+
+impl Eq for SubmissionID {}
 
 // Implementing the `Ord` trait based on the transaction's duration in the pool. I.e. a transaction
 // that has been in the pool for a longer time will be considered "greater" than a transaction that
@@ -368,7 +398,11 @@ impl TimedTransactionMap {
     /// If a transaction with the same transaction hash already exists in the mapping, the previous
     /// submission ID is returned.
     fn insert(&mut self, tx: TransactionReference) -> Option<SubmissionID> {
-        let submission_id = SubmissionID { submission_time: self.clock.now(), tx_hash: tx.tx_hash };
+        let submission_id = SubmissionID {
+            submission_time: self.clock.now(),
+            tx_hash: tx.tx_hash,
+            last_batched_time: None,
+        };
         self.txs_by_submission_time.insert(submission_id.clone(), tx);
         self.hash_to_submission_id.insert(tx.tx_hash, submission_id)
     }
@@ -394,6 +428,7 @@ impl TimedTransactionMap {
         let split_off_value = SubmissionID {
             submission_time: self.clock.now() - duration,
             tx_hash: Default::default(),
+            last_batched_time: None,
         };
         let old_txs = self.txs_by_submission_time.split_off(&split_off_value);
 
@@ -419,5 +454,11 @@ impl TimedTransactionMap {
         }
 
         removed_txs
+    }
+
+    fn mark_batched(&mut self, tx_hash: TransactionHash) {
+        if let Some(submission_id) = self.hash_to_submission_id.get_mut(&tx_hash) {
+            submission_id.last_batched_time = Some(self.clock.now());
+        }
     }
 }

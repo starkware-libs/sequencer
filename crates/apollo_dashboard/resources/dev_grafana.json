@@ -691,14 +691,16 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_transaction_time_spent",
-          "description": "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)",
+          "title": "mempool_transaction_time_spent_until_batched",
+          "description": "The time (seconds) a transaction spent in the mempool until it was batched",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         },
         {
           "title": "mempool_transaction_time_spent_until_committed",
@@ -708,7 +710,9 @@
             "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         }
       ],
       "collapsed": true

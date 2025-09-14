@@ -302,6 +302,10 @@ impl Mempool {
             );
         }
 
+        for tx_ref in &eligible_tx_references {
+            self.tx_pool.mark_batched(tx_ref.tx_hash);
+        }
+
         metric_set_get_txs_size(n_returned_txs);
         self.update_state_metrics();
         self.update_accounts_with_gap(account_nonce_updates);
