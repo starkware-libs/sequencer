@@ -204,6 +204,11 @@ impl TransactionManager {
             return Err(previously_consumed_at);
         }
 
+        // Consuming a pending transaction is a bug.
+        if record.state == TransactionState::Pending {
+            panic!("Consuming a pending transaction {tx_hash} at {consumed_at}.");
+        }
+
         // Mark the transaction as consumed.
         self.with_record(tx_hash, |record| record.mark_consumed(consumed_at));
 
