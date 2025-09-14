@@ -1224,6 +1224,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
+ "apollo_l1_gas_price_types",
  "apollo_l1_provider",
  "apollo_mempool",
  "apollo_mempool_p2p",
@@ -1236,6 +1237,7 @@ dependencies = [
  "indexmap 2.9.0",
  "serde",
  "serde_json",
+ "serde_with",
  "strum 0.25.0",
  "strum_macros 0.25.3",
 ]
