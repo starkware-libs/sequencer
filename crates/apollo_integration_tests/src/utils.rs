@@ -46,7 +46,7 @@ use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
-use apollo_state_sync::config::StateSyncConfig;
+use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
