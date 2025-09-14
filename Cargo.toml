@@ -72,6 +72,7 @@ members = [
   "crates/apollo_starknet_os_program",
   "crates/apollo_state_reader",
   "crates/apollo_state_sync",
+  "crates/apollo_state_sync_config",
   "crates/apollo_state_sync_metrics",
   "crates/apollo_state_sync_types",
   "crates/apollo_storage",
@@ -180,6 +181,7 @@ apollo_starknet_client.path = "crates/apollo_starknet_client"
 apollo_starknet_os_program = { path = "crates/apollo_starknet_os_program", version = "0.15.0-rc.4" }
 apollo_state_reader.path = "crates/apollo_state_reader"
 apollo_state_sync.path = "crates/apollo_state_sync"
+apollo_state_sync_config.path = "crates/apollo_state_sync_config"
 apollo_state_sync_metrics.path = "crates/apollo_state_sync_metrics"
 apollo_state_sync_types.path = "crates/apollo_state_sync_types"
 apollo_storage.path = "crates/apollo_storage"
