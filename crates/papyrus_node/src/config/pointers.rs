@@ -8,8 +8,7 @@ use std::sync::LazyLock;
 use std::time::Duration;
 use std::{env, fs, io};
 
-use apollo_central_sync::sources::central::CentralSourceConfig;
-use apollo_central_sync::SyncConfig;
+use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
 #[cfg(not(feature = "rpc"))]
 use apollo_config::dumping::ser_param;
 use apollo_config::dumping::{
