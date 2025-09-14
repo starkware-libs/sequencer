@@ -446,3 +446,34 @@ func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
         symmetric_key_encryptions_dst=&symmetric_key_encryptions_dst[1],
     );
 }
+
+func encrypt{range_check_ptr, encrypted_dst: felt*}(
+    data_start: felt*, data_end: felt*, symmetric_key: felt
+) {
+    encrypt_inner(
+        data_len=data_end - data_start, data_start=data_start, index=0, symmetric_key=symmetric_key
+    );
+    return ();
+}
+
+// A helper for encrypt.
+func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
+    data_len: felt, data_start: felt*, index: felt, symmetric_key: felt
+) {
+    if (data_len == 0) {
+        return ();
+    }
+
+    alloc_locals;
+
+    let (blake_input: felt*) = alloc();
+    assert blake_input[0] = symmetric_key;
+    assert blake_input[1] = index;
+    // Encrypt the current element.
+    let (hash: felt) = encode_felt252_data_and_calc_blake_hash(data_len=2, data=blake_input);
+    assert encrypted_dst[0] = hash + data_start[0];
+
+    let encrypted_dst = &encrypted_dst[1];
+
+    return encrypt_inner(data_len - 1, data_start + 1, index + 1, symmetric_key);
+}
