@@ -501,26 +501,8 @@
     "State Sync": {
       "panels": [
         {
-          "title": "apollo_state_sync_processed_transactions",
-          "description": "The number of transactions processed by the state sync component since its last restart",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_processed_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_state_sync_reverted_transactions",
-          "description": "The number of transactions reverted by the state sync component",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_central_sync_central_block_marker",
-          "description": "The first block number that doesn't exist yet",
+          "title": "Central Block Marker",
+          "description": "The first block that Central Starknet hasn't seen yet",
           "type": "stat",
           "exprs": [
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -528,40 +510,24 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_state_sync_body_marker",
-          "description": "The first block number for which the state sync component does not have a body",
-          "type": "stat",
+          "title": "Sync Diff From Central",
+          "description": "The number of blocks that were not fully synced yet",
+          "type": "timeseries",
           "exprs": [
-            "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         },
         {
-          "title": "apollo_state_sync_class_manager_marker",
-          "description": "The first block number for which the state sync component does not guarantee all of the corresponding classes are stored in the class manager component",
-          "type": "stat",
+          "title": "Sync Block Age",
+          "description": "The time from a block’s timestamp until its header is synced through the feeder-gateway.",
+          "type": "timeseries",
           "exprs": [
-            "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "apollo_state_sync_header_latency{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_state_sync_header_marker",
-          "description": "The first block number for which the state sync component does not have a header",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_header_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_state_sync_state_marker",
-          "description": "The first block number for which the state sync component does not have a state body",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_state_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         }
       ],
       "collapsed": true
