@@ -33,7 +33,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         "timeRange=${__from:date:iso}%2F${__to:date:iso}",
         "?project=${gcp_project}",
     ])
-    legends = json.loads(extra.get("legends", '[]'))
+    legends = extra.get("legends", [])
     display_name_override_value = (
         "${__field.labels.namespace}"
         if panel["type"] == "stat"
