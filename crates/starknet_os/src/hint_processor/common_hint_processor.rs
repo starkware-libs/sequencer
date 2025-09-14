@@ -106,6 +106,8 @@ macro_rules! impl_common_hint_processor_logic {
                 }
             }
 
+            // TODO(Dori): Consider moving cairo1 hint handling and the [get_rng] method to the
+            //   [SnosHintProcessor], as the aggregator should not use randomness.
             // Cairo1 syscall or Cairo1 core hint.
             match hint_data.downcast_ref::<Cairo1Hint>().ok_or(VmHintError::WrongHintData)? {
                 // Override the [CoreHint::RandomEcPoint] implementation to make the output
@@ -149,10 +151,6 @@ macro_rules! impl_common_hint_processor_logic {
 #[macro_export]
 macro_rules! impl_common_hint_processor_getters {
     () => {
-        fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
-            &mut self.rng
-        }
-
         fn get_program(&self) -> &'program Program {
             self.program
         }

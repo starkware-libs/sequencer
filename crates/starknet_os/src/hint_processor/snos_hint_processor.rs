@@ -301,6 +301,10 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
 impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
     impl_common_hint_processor_getters!();
 
+    fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
+        &mut self.rng
+    }
+
     fn execute_cairo0_unique_hint(
         &mut self,
         hint: &AllHints,
