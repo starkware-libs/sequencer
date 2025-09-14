@@ -1998,6 +1998,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_network",
+ "apollo_p2p_sync_config",
  "apollo_proc_macros",
  "apollo_protobuf",
  "apollo_state_sync_metrics",
@@ -2025,6 +2026,15 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_p2p_sync_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -2316,6 +2326,7 @@ dependencies = [
  "apollo_infra",
  "apollo_network",
  "apollo_p2p_sync",
+ "apollo_p2p_sync_config",
  "apollo_reverts",
  "apollo_rpc",
  "apollo_starknet_client",
@@ -9621,6 +9632,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_network",
  "apollo_p2p_sync",
+ "apollo_p2p_sync_config",
  "apollo_rpc",
  "apollo_starknet_client",
  "apollo_storage",
