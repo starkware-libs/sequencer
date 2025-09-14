@@ -33,6 +33,8 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
+        MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS, "gateway_validate_stateful_tx_storage_micros", "Total time spent in storage operations in micros during stateful tx validation" },
+        MetricCounter { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, "gateway_validate_stateful_tx_storage_operations", "Total number of storage operations during stateful tx validation", init = 0 },
     },
 );
 
@@ -102,4 +104,6 @@ pub(crate) fn register_metrics() {
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register();
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS.register();
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS.register();
 }
