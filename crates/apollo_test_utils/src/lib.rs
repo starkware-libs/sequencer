@@ -850,6 +850,7 @@ auto_impl_get_test_instance! {
         pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
         pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
         pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, SierraContractClass)>,
+        pub migrated_compiled_classes: IndexMap<ClassHash, CompiledClassHash>,
         pub deprecated_declared_classes: IndexMap<ClassHash, DeprecatedContractClass>,
         pub nonces: IndexMap<ContractAddress, Nonce>,
     }
@@ -865,7 +866,7 @@ auto_impl_get_test_instance! {
     pub struct ThinStateDiff {
         pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
         pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
-        pub declared_classes: IndexMap<ClassHash, CompiledClassHash>,
+        pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
         pub deprecated_declared_classes: Vec<ClassHash>,
         pub nonces: IndexMap<ContractAddress, Nonce>,
     }

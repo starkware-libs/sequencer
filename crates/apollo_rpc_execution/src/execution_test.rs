@@ -686,7 +686,7 @@ fn induced_state_diff() {
                 sequencer_balance_key => felt!(sequencer_balance),
             },
         },
-        declared_classes: indexmap! {},
+        class_hash_to_compiled_class_hash: indexmap! {},
         deprecated_declared_classes: vec![],
     };
     assert_eq!(simulation_results[0].induced_state_diff, expected_invoke_deprecated);
@@ -695,7 +695,7 @@ fn induced_state_diff() {
     sequencer_balance += simulation_results[1].fee_estimation.overall_fee.0;
     let expected_declare_class = ThinStateDiff {
         nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(2_u128)},
-        declared_classes: indexmap! {class_hash!(next_declared_class_hash) => compiled_class_hash!(123)},
+        class_hash_to_compiled_class_hash: indexmap! {class_hash!(next_declared_class_hash) => compiled_class_hash!(123)},
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
                 account_balance_key => felt!(account_balance),
@@ -719,7 +719,7 @@ fn induced_state_diff() {
                 sequencer_balance_key => felt!(sequencer_balance),
             },
         },
-        declared_classes: indexmap! {},
+        class_hash_to_compiled_class_hash: indexmap! {},
         deployed_contracts: indexmap! {},
     };
     assert_eq!(simulation_results[2].induced_state_diff, expected_declare_deprecated_class);
@@ -739,7 +739,7 @@ fn induced_state_diff() {
                 sequencer_balance_key => felt!(sequencer_balance),
             },
         },
-        declared_classes: indexmap! {},
+        class_hash_to_compiled_class_hash: indexmap! {},
         deployed_contracts: indexmap! {*NEW_ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH},
     };
     assert_eq!(simulation_results[3].induced_state_diff, expected_deploy_account);

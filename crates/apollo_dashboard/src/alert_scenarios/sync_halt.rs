@@ -13,6 +13,7 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
     SECS_IN_MIN,
@@ -39,6 +40,7 @@ fn get_state_sync_lag(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }
@@ -73,6 +75,7 @@ fn get_state_sync_stuck(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
+        ObserverApplicability::Applicable,
         alert_env_filtering,
     )
 }

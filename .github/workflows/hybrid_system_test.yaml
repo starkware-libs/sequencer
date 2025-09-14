@@ -101,9 +101,8 @@ jobs:
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@v4
-
-      # 28-08-2025: Discovered a bug with that action. Namespace is working on a fix. For now, ignore errors.
-      # They also suggested to use it right after checkout, so moved it here.
+        # TODO(Idan): 28-08-2025: Discovered a bug with that action. Namespace is working on a fix.
+        # For now, ignore errors. They also suggested to use it right after checkout, so moved it here.
       - name: Set up Rust cache
         uses: namespacelabs/nscloud-cache-action@v1
         continue-on-error: true

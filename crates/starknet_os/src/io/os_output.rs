@@ -20,7 +20,7 @@ use crate::io::os_output_types::{
     PartialOsStateDiff,
     TryFromOutputIter,
 };
-use crate::metrics::OsMetrics;
+use crate::metrics::{AggregatorMetrics, OsMetrics};
 
 // from_address, to_address, payload_size.
 pub(crate) const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3;
@@ -374,10 +374,10 @@ pub struct StarknetOsRunnerOutput {
 }
 
 pub struct StarknetAggregatorRunnerOutput {
-    // TODO(Tzahi): Define a struct for the output.
-    #[cfg(feature = "include_program_output")]
+    // TODO(Tzahi): Consider defining a struct for the output.
     pub aggregator_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
+    pub metrics: AggregatorMetrics,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
 }

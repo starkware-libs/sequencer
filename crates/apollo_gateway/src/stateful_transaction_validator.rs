@@ -3,7 +3,6 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetError,
     StarknetErrorCode,
 };
-use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
@@ -25,7 +24,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
@@ -116,9 +115,9 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
         let address = executable_tx.contract_address();
         let account_nonce =
             self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
-                error!("Failed to get nonce for sender address {}: {}", address, e);
                 // TODO(yair): Fix this. Need to map the errors better.
-                StarknetError::internal(&e.to_string())
+                let msg = format!("Failed to get nonce for sender address {address}");
+                StarknetError::internal_with_logging(&msg, e)
             })?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)
@@ -279,13 +278,24 @@ fn skip_stateful_validations(
         // check if the transaction nonce is 1, meaning it is post deploy_account, and the
         // account nonce is zero, meaning the account was not deployed yet.
         if tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO) {
+            let account_address = tx.sender_address();
+            debug!("Checking if deploy_account transaction exists for account {account_address}.");
             // We verify that a deploy_account transaction exists for this account. It is sufficient
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
             return runtime
                 .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
-                .map_err(mempool_client_err_to_deprecated_gw_err);
+                .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err))
+                .inspect(|exists| {
+                    if *exists {
+                        debug!("Found deploy_account transaction for account {account_address}.");
+                    } else {
+                        debug!(
+                            "No deploy_account transaction found for account {account_address}."
+                        );
+                    }
+                });
         }
     }
 
@@ -295,15 +305,10 @@ fn skip_stateful_validations(
 pub fn get_latest_block_info(
     state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    let state_reader = state_reader_factory
-        .get_state_reader_from_latest_block()
-        .map_err(|e| {
-            error!("Failed to get state reader from latest block: {}", e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })
-        .map_err(|e| StarknetError::internal(&e.to_string()))?;
-    state_reader.get_block_info().map_err(|e| {
-        error!("Failed to get latest block info: {}", e);
-        StarknetError::internal(&e.to_string())
-    })
+    let state_reader = state_reader_factory.get_state_reader_from_latest_block().map_err(|e| {
+        StarknetError::internal_with_logging("Failed to get state reader from latest block", e)
+    })?;
+    state_reader
+        .get_block_info()
+        .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }

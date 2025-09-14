@@ -1696,7 +1696,7 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
                         minter_var_address => *ACCOUNT_ADDRESS.0.key()
                     ),
                 ),
-                declared_classes: indexmap!(class_hash2 => compiled_class_hash),
+                class_hash_to_compiled_class_hash: indexmap!(class_hash2 => compiled_class_hash),
                 deprecated_declared_classes: vec![
                     class_hash1,
                     *ACCOUNT_CLASS_HASH,

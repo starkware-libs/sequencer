@@ -45,6 +45,8 @@ pub(crate) async fn sync_pending_data<
             .block_hash
         }
     };
+    drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
+
     let mut tasks = FuturesUnordered::new();
     tasks.push(
         get_pending_data(

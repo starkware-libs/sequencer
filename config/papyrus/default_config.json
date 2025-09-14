@@ -89,50 +89,50 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus.future_msg_limit.future_height_limit": {
+  "consensus.dynamic_config.validator_id": {
+    "description": "The validator id of the node.",
+    "privacy": "Public",
+    "value": "0x64"
+  },
+  "consensus.static_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus.future_msg_limit.future_height_round_limit": {
+  "consensus.static_config.future_msg_limit.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus.future_msg_limit.future_round_limit": {
+  "consensus.static_config.future_msg_limit.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus.startup_delay": {
+  "consensus.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
   },
-  "consensus.sync_retry_interval": {
+  "consensus.static_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus.timeouts.precommit_timeout": {
+  "consensus.static_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus.timeouts.prevote_timeout": {
+  "consensus.static_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus.timeouts.proposal_timeout": {
+  "consensus.static_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
-  },
-  "consensus.validator_id": {
-    "description": "The validator id of the node.",
-    "privacy": "Public",
-    "value": "0x64"
   },
   "context.#is_none": {
     "description": "Flag for an optional field.",
@@ -525,7 +525,7 @@
     "value": 1000
   },
   "sync.store_sierras_and_casms": {
-    "description": "Whether to store sierras and casms to the storage. This allows maintaining backward-compatibility with native-blockifier",
+    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
     "privacy": "Public",
     "value": true
   },

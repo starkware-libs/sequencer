@@ -48,21 +48,21 @@ func main{
     tempvar use_kzg_da = nondet %{ program_input["use_kzg_da"] %};
     tempvar full_output = nondet %{ program_input["full_output"] %};
 
-    // Guess POTC's public keys.
-    local public_keys_start: felt*;
+    // Guess the committee's public keys.
+    local public_keys: felt*;
     local n_keys: felt;
     %{
         public_keys = program_input["public_keys"] if program_input["public_keys"] is not None else []
         if len(public_keys) == 0:
-            ids.public_keys_start = 0
+            ids.public_keys = 0
         else:
-            ids.public_keys_start = segments.gen_arg(public_keys)
+            ids.public_keys = segments.gen_arg(public_keys)
         ids.n_keys = len(public_keys)
     %}
 
     check_public_keys{hash_ptr=pedersen_ptr}(
-        public_keys_start=public_keys_start,
         n_keys=n_keys,
+        public_keys=public_keys,
         starknet_os_config_hash=os_outputs[0].header.starknet_os_config_hash,
     );
 
@@ -87,8 +87,8 @@ func main{
         n_tasks=n_tasks,
         os_outputs=os_outputs,
         os_program_hash=os_program_hash,
-        public_keys_start=public_keys_start,
         n_keys=n_keys,
+        public_keys=public_keys,
     );
 
     // Output the combined result. This represents the "output" of the aggregator.
@@ -107,8 +107,8 @@ func main{
     serialize_os_output(
         os_output=combined_output,
         replace_keys_with_aliases=FALSE,
-        public_keys_start=public_keys_start,
         n_keys=n_keys,
+        public_keys=public_keys,
     );
 
     %{
@@ -128,13 +128,7 @@ func main{
 // (to match the bootloader output format).
 func output_blocks{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(
-    n_tasks: felt,
-    os_outputs: OsOutput*,
-    os_program_hash: felt,
-    public_keys_start: felt*,
-    n_keys: felt,
-) {
+}(n_tasks: felt, os_outputs: OsOutput*, os_program_hash: felt, n_keys: felt, public_keys: felt*) {
     if (n_tasks == 0) {
         return ();
     }
@@ -158,8 +152,8 @@ func output_blocks{
     serialize_os_output(
         os_output=&os_outputs[0],
         replace_keys_with_aliases=FALSE,
-        public_keys_start=public_keys_start,
         n_keys=n_keys,
+        public_keys=public_keys,
     );
 
     // Compute the size of the output, including the program hash and the output size fields.
@@ -169,29 +163,23 @@ func output_blocks{
         n_tasks=n_tasks - 1,
         os_outputs=&os_outputs[1],
         os_program_hash=os_program_hash,
-        public_keys_start=public_keys_start,
         n_keys=n_keys,
+        public_keys=public_keys,
     );
 }
 
 func check_public_keys{hash_ptr: HashBuiltin*}(
-    public_keys_start: felt*, n_keys: felt, starknet_os_config_hash: felt
+    n_keys: felt, public_keys: felt*, starknet_os_config_hash: felt
 ) {
-    with hash_ptr {
-        let (public_keys_hash) = get_public_keys_hash(
-            public_keys_start=public_keys_start, n_keys=n_keys
-        );
-    }
+    let (public_keys_hash) = get_public_keys_hash(n_keys=n_keys, public_keys=public_keys);
     tempvar chain_id = nondet %{ program_input["chain_id"] %};
     tempvar fee_token_address = nondet %{ program_input["fee_token_address"] %};
     tempvar guessed_starknet_os_config = new StarknetOsConfig(
         chain_id=chain_id, fee_token_address=fee_token_address, public_keys_hash=public_keys_hash
     );
-    with hash_ptr {
-        let (guessed_starknet_os_config_hash) = get_starknet_os_config_hash(
-            starknet_os_config=guessed_starknet_os_config
-        );
-    }
+    let (guessed_starknet_os_config_hash) = get_starknet_os_config_hash(
+        starknet_os_config=guessed_starknet_os_config
+    );
     assert guessed_starknet_os_config_hash = starknet_os_config_hash;
     return ();
 }

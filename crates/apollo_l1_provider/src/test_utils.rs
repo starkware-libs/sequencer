@@ -540,7 +540,32 @@ impl FakeL1ProviderClient {
     #[track_caller]
     pub fn assert_add_events_received_with(&self, expected: &[Event]) {
         let events_received = mem::take(&mut *self.events_received.lock().unwrap());
-        assert_eq!(events_received, expected);
+        for (received, expected) in events_received.iter().zip_eq(expected) {
+            assert_event_almost_eq(received, expected);
+        }
+    }
+}
+
+/// Asserts that the received event matches the expected event, ignoring scrape time.
+fn assert_event_almost_eq(received: &Event, expected: &Event) {
+    if let (
+        Event::L1HandlerTransaction {
+            l1_handler_tx: received_l1_handler_tx,
+            block_timestamp: received_block_timestamp,
+            scrape_timestamp: _,
+        },
+        Event::L1HandlerTransaction {
+            l1_handler_tx: expected_l1_handler_tx,
+            block_timestamp: expected_block_timestamp,
+            scrape_timestamp: _,
+        },
+    ) = (received, expected)
+    {
+        // Skip the assertion on scrape_timestamp.
+        assert_eq!(received_l1_handler_tx, expected_l1_handler_tx);
+        assert_eq!(received_block_timestamp, expected_block_timestamp);
+    } else {
+        assert_eq!(received, expected);
     }
 }
 

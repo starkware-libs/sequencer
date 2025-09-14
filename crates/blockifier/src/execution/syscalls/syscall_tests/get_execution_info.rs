@@ -35,7 +35,7 @@ use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContractData;
-use crate::test_utils::initial_test_state::test_state_ex;
+use crate::test_utils::initial_test_state::test_state_inner;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
 use crate::transaction::objects::{
     CommonAccountFields,
@@ -321,11 +321,14 @@ fn test_get_execution_info(
         test_contract_data.class_hash =
             *VersionedConstants::latest_constants().os_constants.data_gas_accounts.first().unwrap();
     }
-    let state = &mut test_state_ex(
+    // Set the erc20 version to be the same as the test contract version.
+    let erc20_version = test_contract.cairo_version();
+    let state = &mut test_state_inner(
         &ChainInfo::create_for_testing(),
         BALANCE,
         &[(test_contract_data, 1)],
         &HashVersion::V2,
+        erc20_version,
     );
     let expected_block_info = match execution_mode {
         ExecutionMode::Validate => [

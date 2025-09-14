@@ -101,65 +101,65 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "consensus.future_msg_limit.future_height_limit": {
+  "consensus.dynamic_config.validator_id": {
+    "description": "The validator id of the node.",
+    "value": "0x64",
+    "privacy": "Public"
+  },
+  "consensus.static_config.future_msg_limit.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "value": {
       "$serde_json::private::Number": "10"
     },
     "privacy": "Public"
   },
-  "consensus.future_msg_limit.future_height_round_limit": {
+  "consensus.static_config.future_msg_limit.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "value": {
       "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
-  "consensus.future_msg_limit.future_round_limit": {
+  "consensus.static_config.future_msg_limit.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "value": {
       "$serde_json::private::Number": "10"
     },
     "privacy": "Public"
   },
-  "consensus.startup_delay": {
+  "consensus.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "value": {
       "$serde_json::private::Number": "5"
     },
     "privacy": "Public"
   },
-  "consensus.sync_retry_interval": {
+  "consensus.static_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "value": {
       "$serde_json::private::Number": "1.0"
     },
     "privacy": "Public"
   },
-  "consensus.timeouts.precommit_timeout": {
+  "consensus.static_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "value": {
       "$serde_json::private::Number": "1.0"
     },
     "privacy": "Public"
   },
-  "consensus.timeouts.prevote_timeout": {
+  "consensus.static_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "value": {
       "$serde_json::private::Number": "1.0"
     },
     "privacy": "Public"
   },
-  "consensus.timeouts.proposal_timeout": {
+  "consensus.static_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "value": {
       "$serde_json::private::Number": "3.0"
     },
-    "privacy": "Public"
-  },
-  "consensus.validator_id": {
-    "description": "The validator id of the node.",
-    "value": "0x64",
     "privacy": "Public"
   },
   "context.#is_none": {
@@ -642,7 +642,7 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "sync.store_sierras_and_casms": {
-    "description": "Whether to store sierras and casms to the storage. This allows maintaining backward-compatibility with native-blockifier",
+    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
     "value": true,
     "privacy": "Public"
   },

@@ -51,7 +51,7 @@ async fn state_diff_basic_flow() {
             ThinStateDiff {
                 deployed_contracts: indexmap!(address0 => class_hash0),
                 storage_diffs: indexmap!(address0 => indexmap!(key0 => value0, key1 => value1)),
-                declared_classes: indexmap!(class_hash0 => casm_hash0),
+                class_hash_to_compiled_class_hash: indexmap!(class_hash0 => casm_hash0),
                 deprecated_declared_classes: vec![class_hash1],
                 nonces: indexmap!(address0 => nonce0),
             },

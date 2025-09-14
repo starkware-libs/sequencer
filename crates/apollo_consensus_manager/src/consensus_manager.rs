@@ -9,6 +9,7 @@ use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus::votes_threshold::QuorumType;
@@ -21,7 +22,11 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -35,10 +40,13 @@ use tracing::{info, info_span, Instrument};
 
 use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
+    CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
@@ -50,6 +58,7 @@ pub struct ConsensusManager {
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
+    pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 }
 
@@ -60,6 +69,7 @@ impl ConsensusManager {
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
         signature_manager_client: SharedSignatureManagerClient,
+        config_manager_client: SharedConfigManagerClient,
         l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
         Self {
@@ -68,6 +78,7 @@ impl ConsensusManager {
             state_sync_client,
             class_manager_client,
             signature_manager_client,
+            config_manager_client,
             l1_gas_price_provider,
         }
     }
@@ -83,6 +94,7 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+                num_dropped_broadcast_messages: CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
             },
         );
         broadcast_metrics_by_topic.insert(
@@ -90,6 +102,7 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+                num_dropped_broadcast_messages: CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {
@@ -97,6 +110,7 @@ impl ConsensusManager {
             num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
+            event_metrics: Some(EventMetrics { event_counter: CONSENSUS_NETWORK_EVENTS }),
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
@@ -181,12 +195,16 @@ impl ConsensusManager {
         let run_consensus_args = apollo_consensus::RunConsensusArguments {
             start_active_height: active_height,
             start_observe_height: observer_height,
-            validator_id: self.config.consensus_manager_config.validator_id,
-            consensus_delay: self.config.consensus_manager_config.startup_delay,
-            timeouts: self.config.consensus_manager_config.timeouts.clone(),
-            sync_retry_interval: self.config.consensus_manager_config.sync_retry_interval,
+            validator_id: self.config.consensus_manager_config.dynamic_config.validator_id,
+            consensus_delay: self.config.consensus_manager_config.static_config.startup_delay,
+            timeouts: self.config.consensus_manager_config.static_config.timeouts.clone(),
+            sync_retry_interval: self
+                .config
+                .consensus_manager_config
+                .static_config
+                .sync_retry_interval,
             quorum_type,
-            future_msg_limit: self.config.consensus_manager_config.future_msg_limit,
+            future_msg_limit: self.config.consensus_manager_config.static_config.future_msg_limit,
         };
         let consensus_fut = apollo_consensus::run_consensus(
             run_consensus_args,
@@ -245,6 +263,7 @@ pub fn create_consensus_manager(
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
     signature_manager_client: SharedSignatureManagerClient,
+    config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 ) -> ConsensusManager {
     ConsensusManager::new(
@@ -253,6 +272,7 @@ pub fn create_consensus_manager(
         state_sync_client,
         class_manager_client,
         signature_manager_client,
+        config_manager_client,
         l1_gas_price_provider,
     )
 }
