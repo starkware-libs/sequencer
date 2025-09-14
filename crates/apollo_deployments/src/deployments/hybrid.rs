@@ -30,7 +30,6 @@ use crate::deployment_definitions::{
     DeploymentInputs,
     Environment,
     InfraServicePort,
-    NodeAndValidatorId,
     ServicePort,
     CONSENSUS_P2P_PORT,
     MEMPOOL_P2P_PORT,
@@ -854,6 +853,42 @@ pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deploy
 }
 
 fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
+    // List all nodes as respective bootstrap peers.
+    let sanitized_domain = inputs.p2p_communication_type.get_p2p_domain(&inputs.ingress_domain);
+
+    let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = inputs
+        .node_and_validator_ids
+        .iter()
+        .map(|(node_id, _)| {
+            peer_address(
+                NodeService::Hybrid(HybridNodeServiceName::Core),
+                CONSENSUS_P2P_PORT,
+                &inputs.node_namespace_format.format(&[&node_id]),
+                &get_peer_id(*node_id),
+                &sanitized_domain,
+            )
+        })
+        .collect();
+
+    let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = inputs
+        .node_and_validator_ids
+        .iter()
+        .map(|(node_id, _)| {
+            peer_address(
+                NodeService::Hybrid(HybridNodeServiceName::Mempool),
+                MEMPOOL_P2P_PORT,
+                &inputs.node_namespace_format.format(&[&node_id]),
+                &get_peer_id(*node_id),
+                &sanitized_domain,
+            )
+        })
+        .collect();
+
+    let consensus_p2p_bootstrap_config =
+        PeerToPeerBootstrapConfig::new(Some(consensus_bootstrap_peers_multiaddrs));
+    let mempool_p2p_bootstrap_config =
+        PeerToPeerBootstrapConfig::new(Some(mempool_bootstrap_peers_multiaddrs));
+
     inputs
         .node_and_validator_ids
         .iter()
@@ -869,7 +904,6 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
             };
             hybrid_deployment(
                 i,
-                inputs.node_and_validator_ids.clone(),
                 validator_id.to_string(),
                 inputs.p2p_communication_type,
                 inputs.deployment_environment.clone(),
@@ -884,6 +918,8 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                     inputs.l1_startup_height_override,
                     inputs.num_validators,
                     inputs.state_sync_type.clone(),
+                    consensus_p2p_bootstrap_config.clone(),
+                    mempool_p2p_bootstrap_config.clone(),
                 ),
                 &inputs.node_namespace_format,
                 &inputs.ingress_domain,
@@ -898,7 +934,6 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,
-    node_and_validator_ids: Vec<NodeAndValidatorId>,
     validator_id: String,
     p2p_communication_type: P2PCommunicationType,
     environment: Environment,
@@ -919,7 +954,6 @@ pub(crate) fn hybrid_deployment(
             deployment_config_override,
             create_hybrid_instance_config_override(
                 id,
-                node_and_validator_ids,
                 validator_id,
                 node_namespace_format,
                 p2p_communication_type,
@@ -936,43 +970,12 @@ pub(crate) fn hybrid_deployment(
 
 fn create_hybrid_instance_config_override(
     node_id: usize,
-    node_and_validator_ids: Vec<NodeAndValidatorId>,
     validator_id: String,
     node_namespace_format: &Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
-
-    // TODO(Tsabary): both `consensus_bootstrap_peers_multiaddrs` and
-    // `mempool_bootstrap_peers_multiaddrs` can be moved to the deployment override module, which
-    // removed the need to re-compute this per node. Not urgent.
-    // List all nodes as respective bootstrap peers.
-    let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
-        .iter()
-        .map(|(node_id, _)| {
-            peer_address(
-                NodeService::Hybrid(HybridNodeServiceName::Core),
-                CONSENSUS_P2P_PORT,
-                &node_namespace_format.format(&[&node_id]),
-                &get_peer_id(*node_id),
-                &sanitized_domain,
-            )
-        })
-        .collect();
-
-    let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
-        .iter()
-        .map(|(node_id, _)| {
-            peer_address(
-                NodeService::Hybrid(HybridNodeServiceName::Mempool),
-                MEMPOOL_P2P_PORT,
-                &node_namespace_format.format(&[&node_id]),
-                &get_peer_id(*node_id),
-                &sanitized_domain,
-            )
-        })
-        .collect();
 
     // Set advertised addresses based on the P2P communication type.
     let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
@@ -1005,9 +1008,7 @@ fn create_hybrid_instance_config_override(
         };
 
     InstanceConfigOverride::new(
-        PeerToPeerBootstrapConfig::new(Some(consensus_bootstrap_peers_multiaddrs)),
         PeerToPeerAdvertisementConfig::new(consensus_advertised_multiaddr),
-        PeerToPeerBootstrapConfig::new(Some(mempool_bootstrap_peers_multiaddrs)),
         PeerToPeerAdvertisementConfig::new(mempool_advertised_multiaddr),
         validator_id,
     )

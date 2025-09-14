@@ -34,14 +34,14 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         Some(BlockNumber(1)),
         TESTING_NODE_IDS.len(),
         StateSyncType::P2P,
+        PeerToPeerBootstrapConfig::new(None),
+        PeerToPeerBootstrapConfig::new(None),
     )
 }
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
-        PeerToPeerBootstrapConfig::new(None),
         PeerToPeerAdvertisementConfig::new(None),
-        PeerToPeerBootstrapConfig::new(None),
         PeerToPeerAdvertisementConfig::new(None),
         "0x64",
     )
