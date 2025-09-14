@@ -21,6 +21,42 @@ fn recover_y(x: Felt) -> Felt {
     y_squared.sqrt().expect("{x} does not represent the x coordinate of a point on the curve.")
 }
 
+/// Computes elliptic curve public keys from private keys using the generator point.
+/// Returns only the x-coordinates of the resulting public key points.
+#[allow(dead_code)]
+pub fn compute_public_keys(private_keys: &[Felt]) -> Vec<Felt> {
+    let mut public_keys = Vec::with_capacity(private_keys.len());
+    for &private_key in private_keys {
+        let public_key_point = &AffinePoint::generator() * private_key;
+        public_keys.push(public_key_point.x());
+    }
+    public_keys
+}
+
+/// Encrypts a symmetric key for multiple recipients using Diffie-Hellman key exchange.
+/// Returns one encrypted version of the symmetric key for each recipient.
+#[allow(dead_code)]
+pub fn encrypt_symmetric_key(
+    sn_private_keys: &[Felt],
+    public_keys: &[Felt],
+    symmetric_key: Felt,
+) -> Vec<Felt> {
+    assert_eq!(sn_private_keys.len(), public_keys.len());
+
+    sn_private_keys
+        .iter()
+        .zip(public_keys)
+        .map(|(&sn_private_key, &public_key)| {
+            let y = recover_y(public_key);
+            let public_key_point = AffinePoint::new(public_key, y).expect("Invalid public key");
+            let shared_secret = (&public_key_point * sn_private_key).x();
+            // Encrypt the symmetric key using the shared secret.
+            // TODO(Avi, 10/09/2025): Use the naive felt encoding once available.
+            symmetric_key + encode_felt252_data_and_calc_blake_hash(&[shared_secret])
+        })
+        .collect()
+}
+
 #[allow(dead_code)]
 pub fn decrypt_state_diff(
     private_key: Felt,
