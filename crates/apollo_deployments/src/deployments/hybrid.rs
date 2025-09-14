@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::template::Template;
@@ -695,54 +694,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Mempool => UpdateStrategy::Recreate,
             HybridNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
         }
-    }
-}
-
-impl HybridNodeServiceName {
-    /// Returns a component execution config for a component that runs locally, and accepts inbound
-    /// connections from remote components.
-    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-    }
-
-    /// Returns a component execution config for a component that is accessed remotely.
-    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        let idle_connections = self.get_scale_policy().idle_connections();
-        ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-        .with_idle_connections(idle_connections)
-    }
-
-    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
-        HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(port),
-            remote: self.component_config_for_remote_service(port),
-        }
-    }
-}
-
-/// Component config bundling for services of a hybrid node: a config to run a component
-/// locally while being accessible to other services, and a suitable config enabling such services
-/// the access.
-struct HybridNodeServiceConfigPair {
-    local: ReactiveComponentExecutionConfig,
-    remote: ReactiveComponentExecutionConfig,
-}
-
-impl HybridNodeServiceConfigPair {
-    fn local(&self) -> ReactiveComponentExecutionConfig {
-        self.local.clone()
-    }
-
-    fn remote(&self) -> ReactiveComponentExecutionConfig {
-        self.remote.clone()
     }
 }
 
