@@ -10,7 +10,9 @@ use starknet_types_core::hash::Pedersen;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::{
     create_binary_entry,
+    create_binary_entry_from_u128,
     create_edge_entry,
+    create_edge_entry_from_u128,
     create_leaf_entry,
     create_leaf_patricia_key,
     AdditionHash,
@@ -240,13 +242,13 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[38, 29, 12]`
 #[case::binary_tree_one_leaf(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::from(11)),
-        create_binary_entry::<AdditionHash>(Felt::from(12), Felt::from(13)),
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(17), Felt::from(21)),
-        create_binary_entry::<AdditionHash>(Felt::from(25), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(38), Felt::from(54)),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_binary_entry_from_u128::<AdditionHash>(10, 11),
+        create_binary_entry_from_u128::<AdditionHash>(12, 13),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(17, 21),
+        create_binary_entry_from_u128::<AdditionHash>(25, 29),
+        create_binary_entry_from_u128::<AdditionHash>(38, 54),
         create_leaf_entry::<MockLeaf>(12),
         create_leaf_entry::<MockLeaf>(13),
     ]),
@@ -264,13 +266,13 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[38, 29]`
 #[case::binary_tree_two_siblings(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::from(11)),
-        create_binary_entry::<AdditionHash>(Felt::from(12), Felt::from(13)),
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(17), Felt::from(21)),
-        create_binary_entry::<AdditionHash>(Felt::from(25), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(38), Felt::from(54)),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_binary_entry_from_u128::<AdditionHash>(10, 11),
+        create_binary_entry_from_u128::<AdditionHash>(12, 13),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(17, 21),
+        create_binary_entry_from_u128::<AdditionHash>(25, 29),
+        create_binary_entry_from_u128::<AdditionHash>(38, 54),
         create_leaf_entry::<MockLeaf>(12),
         create_leaf_entry::<MockLeaf>(13),
     ]),
@@ -288,13 +290,13 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[17, 25, 10, 15]`
 #[case::binary_tree_two_leaves(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::from(11)),
-        create_binary_entry::<AdditionHash>(Felt::from(12), Felt::from(13)),
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(17), Felt::from(21)),
-        create_binary_entry::<AdditionHash>(Felt::from(25), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(38), Felt::from(54)),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_binary_entry_from_u128::<AdditionHash>(10, 11),
+        create_binary_entry_from_u128::<AdditionHash>(12, 13),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(17, 21),
+        create_binary_entry_from_u128::<AdditionHash>(25, 29),
+        create_binary_entry_from_u128::<AdditionHash>(38, 54),
         create_leaf_entry::<MockLeaf>(10),
         create_leaf_entry::<MockLeaf>(11),
         create_leaf_entry::<MockLeaf>(14),
@@ -316,13 +318,13 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[9, 10, 13, 15]`
 #[case::binary_many_leaves(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::from(11)),
-        create_binary_entry::<AdditionHash>(Felt::from(12), Felt::from(13)),
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(17), Felt::from(21)),
-        create_binary_entry::<AdditionHash>(Felt::from(25), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(38), Felt::from(54)),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_binary_entry_from_u128::<AdditionHash>(10, 11),
+        create_binary_entry_from_u128::<AdditionHash>(12, 13),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(17, 21),
+        create_binary_entry_from_u128::<AdditionHash>(25, 29),
+        create_binary_entry_from_u128::<AdditionHash>(38, 54),
         create_leaf_entry::<MockLeaf>(8),
         create_leaf_entry::<MockLeaf>(9),
         create_leaf_entry::<MockLeaf>(10),
@@ -360,12 +362,12 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[18, 29]`
 #[case::edge_one_leaf_edge(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(15), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(18), Felt::from(44)),
-        create_edge_entry::<AdditionHash>(Felt::from(17), 0, 1),
-        create_edge_entry::<AdditionHash>(Felt::from(13), 1, 1),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(15, 29),
+        create_binary_entry_from_u128::<AdditionHash>(18, 44),
+        create_edge_entry_from_u128::<AdditionHash>(17, 0, 1),
+        create_edge_entry_from_u128::<AdditionHash>(13, 1, 1),
         create_leaf_entry::<MockLeaf>(13),
     ]),
     HashOutput(Felt::from(62_u128)),
@@ -383,12 +385,12 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[18, 15 (inner node), 15 (leaf)]`
 #[case::edge_one_leaf_binary(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(15), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(18), Felt::from(44)),
-        create_edge_entry::<AdditionHash>(Felt::from(17), 0, 1),
-        create_edge_entry::<AdditionHash>(Felt::from(13), 1, 1),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(15, 29),
+        create_binary_entry_from_u128::<AdditionHash>(18, 44),
+        create_edge_entry_from_u128::<AdditionHash>(17, 0, 1),
+        create_edge_entry_from_u128::<AdditionHash>(13, 1, 1),
         create_leaf_entry::<MockLeaf>(14),
         create_leaf_entry::<MockLeaf>(15),
     ]),
@@ -416,11 +418,11 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[44]`
 #[case::long_edge_one_leaf_edge(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(14), Felt::from(15)),
-        create_binary_entry::<AdditionHash>(Felt::from(15), Felt::from(29)),
-        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::from(44)),
-        create_edge_entry::<AdditionHash>(Felt::from(8), 0, 2),
-        create_edge_entry::<AdditionHash>(Felt::from(13), 1, 1),
+        create_binary_entry_from_u128::<AdditionHash>(14, 15),
+        create_binary_entry_from_u128::<AdditionHash>(15, 29),
+        create_binary_entry_from_u128::<AdditionHash>(10, 44),
+        create_edge_entry_from_u128::<AdditionHash>(8, 0, 2),
+        create_edge_entry_from_u128::<AdditionHash>(13, 1, 1),
         create_leaf_entry::<MockLeaf>(8),
     ]),
     HashOutput(Felt::from(54_u128)),
@@ -448,10 +450,10 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[20, 9]`
 #[case::edge_and_binary(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(8), Felt::from(9)),
-        create_edge_entry::<AdditionHash>(Felt::from(17), 0, 1),
-        create_edge_entry::<AdditionHash>(Felt::from(15), 3, 2),
-        create_binary_entry::<AdditionHash>(Felt::from(18), Felt::from(20)),
+        create_binary_entry_from_u128::<AdditionHash>(8, 9),
+        create_edge_entry_from_u128::<AdditionHash>(17, 0, 1),
+        create_edge_entry_from_u128::<AdditionHash>(15, 3, 2),
+        create_binary_entry_from_u128::<AdditionHash>(18, 20),
         create_leaf_entry::<MockLeaf>(8),
         create_leaf_entry::<MockLeaf>(9),
     ]),
@@ -491,8 +493,8 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Siblings hashes (in preimage of nodes): `[21]`
 #[case::should_return_empty_leaves(
     HashMap::from([
-        create_binary_entry::<AdditionHash>(Felt::from(10), Felt::from(11)),
-        create_edge_entry::<AdditionHash>(Felt::from(21), 1, 2),
+        create_binary_entry_from_u128::<AdditionHash>(10, 11),
+        create_edge_entry_from_u128::<AdditionHash>(21, 1, 2),
         create_leaf_entry::<MockLeaf>(10),
         create_leaf_entry::<MockLeaf>(11),
     ]),
@@ -507,15 +509,15 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Python generated cases.
 #[case::python_sparse_tree_1(
     HashMap::from([
-    create_edge_entry::<AdditionHash>(Felt::from(1471), 447, 9),
-    create_edge_entry::<AdditionHash>(Felt::from(1645), 109, 7),
-    create_edge_entry::<AdditionHash>(Felt::from(1757), 93, 7),
-    create_edge_entry::<AdditionHash>(Felt::from(1853), 61, 7),
-    create_edge_entry::<AdditionHash>(Felt::from(2000), 80, 7),
-    create_binary_entry::<AdditionHash>(Felt::from(1761), Felt::from(1857)),
-    create_binary_entry::<AdditionHash>(Felt::from(1921), Felt::from(2087)),
-    create_binary_entry::<AdditionHash>(Felt::from(3618), Felt::from(4008)),
-    create_binary_entry::<AdditionHash>(Felt::from(1927), Felt::from(7626)),
+    create_edge_entry_from_u128::<AdditionHash>(1471, 447, 9),
+    create_edge_entry_from_u128::<AdditionHash>(1645, 109, 7),
+    create_edge_entry_from_u128::<AdditionHash>(1757, 93, 7),
+    create_edge_entry_from_u128::<AdditionHash>(1853, 61, 7),
+    create_edge_entry_from_u128::<AdditionHash>(2000, 80, 7),
+    create_binary_entry_from_u128::<AdditionHash>(1761, 1857),
+    create_binary_entry_from_u128::<AdditionHash>(1921, 2087),
+    create_binary_entry_from_u128::<AdditionHash>(3618, 4008),
+    create_binary_entry_from_u128::<AdditionHash>(1927, 7626),
     create_leaf_entry::<MockLeaf>(1471),
     create_leaf_entry::<MockLeaf>(1645),
     create_leaf_entry::<MockLeaf>(1757),
@@ -537,15 +539,15 @@ fn create_previously_empty_leaf_indices<'a>(
 )]
 #[case::python_sparse_tree_2(
     HashMap::from([
-    create_edge_entry::<AdditionHash>(Felt::from(1106), 82, 9),
-    create_edge_entry::<AdditionHash>(Felt::from(1554), 18, 8),
-    create_edge_entry::<AdditionHash>(Felt::from(2019), 99, 7),
-    create_edge_entry::<AdditionHash>(Felt::from(1812), 20, 6),
-    create_edge_entry::<AdditionHash>(Felt::from(1885), 29, 6),
-    create_binary_entry::<AdditionHash>(Felt::from(1838), Felt::from(1920)),
-    create_binary_entry::<AdditionHash>(Felt::from(3758), Felt::from(2125)),
-    create_binary_entry::<AdditionHash>(Felt::from(1580), Felt::from(5883)),
-    create_binary_entry::<AdditionHash>(Felt::from(1197), Felt::from(7463)),
+    create_edge_entry_from_u128::<AdditionHash>(1106, 82, 9),
+    create_edge_entry_from_u128::<AdditionHash>(1554, 18, 8),
+    create_edge_entry_from_u128::<AdditionHash>(2019, 99, 7),
+    create_edge_entry_from_u128::<AdditionHash>(1812, 20, 6),
+    create_edge_entry_from_u128::<AdditionHash>(1885, 29, 6),
+    create_binary_entry_from_u128::<AdditionHash>(1838, 1920),
+    create_binary_entry_from_u128::<AdditionHash>(3758, 2125),
+    create_binary_entry_from_u128::<AdditionHash>(1580, 5883),
+    create_binary_entry_from_u128::<AdditionHash>(1197, 7463),
     create_leaf_entry::<MockLeaf>(1812),
     create_leaf_entry::<MockLeaf>(1885),
     create_leaf_entry::<MockLeaf>(1106),
