@@ -56,6 +56,7 @@ members = [
   "crates/apollo_network_types",
   "crates/apollo_node",
   "crates/apollo_p2p_sync",
+  "crates/apollo_p2p_sync_config",
   "crates/apollo_proc_macros",
   "crates/apollo_proc_macros_tests",
   "crates/apollo_protobuf",
@@ -162,6 +163,7 @@ apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_node.path = "crates/apollo_node"
 apollo_p2p_sync.path = "crates/apollo_p2p_sync"
+apollo_p2p_sync_config.path = "crates/apollo_p2p_sync_config"
 apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.15.0-rc.4" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
 apollo_protobuf.path = "crates/apollo_protobuf"

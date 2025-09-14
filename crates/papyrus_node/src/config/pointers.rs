@@ -27,7 +27,8 @@ use apollo_config::loading::load_and_process_config;
 use apollo_config::ParamPrivacyInput;
 use apollo_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use apollo_network::NetworkConfig;
-use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use apollo_p2p_sync::client::P2pSyncClient;
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 #[cfg(feature = "rpc")]
 use apollo_rpc::RpcConfig;
 use apollo_starknet_client::RetryConfig;

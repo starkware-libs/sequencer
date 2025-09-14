@@ -8,6 +8,7 @@ license-file.workspace = true
 [dependencies]
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
+apollo_p2p_sync_config.workspace = true
 apollo_network.workspace = true
 apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
