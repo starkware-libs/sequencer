@@ -1,9 +1,14 @@
 use std::collections::HashMap;
+use std::env::current_dir;
+use std::fs::File;
+use std::io::Read;
 
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use serde::Deserialize;
 use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
@@ -655,4 +660,77 @@ fn test_fetch_patricia_paths_inner(
 
     assert_eq!(nodes, expected_nodes);
     assert_eq!(fetched_leaves, expected_fetched_leaves);
+}
+
+#[derive(Deserialize, Debug)]
+struct TestPatriciaPathsInput {
+    initial_preimages: HashMap<Felt, Vec<Felt>>,
+    initial_leaves: Vec<u128>,
+    root_hash: Felt,
+    leaf_indices: Vec<u128>,
+    height: u8,
+    expected_nodes: HashMap<Felt, Vec<Felt>>,
+}
+
+#[rstest]
+/// Test cases generated using Python `PatriciaTree.update()`.
+/// The files names indicate the tree height, number of initial leaves and number of modified
+/// leaves. The hash function used in the python tests is Pedersen.
+/// The leaves values are their NodeIndices.
+#[case("fetch_patricia_paths_test_10_200_50.json")]
+#[case("fetch_patricia_paths_test_10_5_2.json")]
+#[case("fetch_patricia_paths_test_10_100_30.json")]
+#[case("fetch_patricia_paths_test_8_120_70.json")]
+fn test_fetch_patricia_paths_inner_from_json(#[case] input_string: &str) {
+    let input_path = current_dir().unwrap().join(format!("resources/{input_string}"));
+    let mut data = String::new();
+    let mut file =
+        File::open(input_path).unwrap_or_else(|_| panic!("Unable to open file {input_string}"));
+    file.read_to_string(&mut data).unwrap_or_else(|_| panic!("Unable to read file {input_string}"));
+    let input: TestPatriciaPathsInput =
+        serde_json::from_str(&data).expect("JSON was not well-formatted");
+
+    let first_leaf = u128::from(2u32.pow(u32::from(input.height)));
+
+    let storage: HashMap<DbKey, DbValue> = input
+        .initial_preimages
+        .values()
+        .map(|preimage| match preimage.len() {
+            2 => create_binary_entry::<Pedersen>(preimage[0], preimage[1]),
+            3 => create_edge_entry::<Pedersen>(
+                preimage[2],
+                preimage[1].try_into().unwrap(),
+                preimage[0].try_into().unwrap(),
+            ),
+            _ => panic!("Preimage should be of length 2 or 3."),
+        })
+        .chain(
+            input
+                .initial_leaves
+                .iter()
+                .map(|&leaf_value| create_leaf_entry::<MockLeaf>(leaf_value + first_leaf)),
+        )
+        .collect();
+
+    // In Python the indices are relative to the first leaf (indices in the bottom layer).
+    // In Rust the indices are absolute (indices in the full tree).
+    let leaf_indices: Vec<u128> = input.leaf_indices.iter().map(|&idx| idx + first_leaf).collect();
+
+    let expected_nodes: PreimageMap = input
+        .expected_nodes
+        .iter()
+        .map(|(hash, preimage)| {
+            let hash = HashOutput(*hash);
+            let preimage = Preimage::try_from(preimage).unwrap();
+            (hash, preimage)
+        })
+        .collect();
+
+    test_fetch_patricia_paths_inner(
+        storage,
+        HashOutput(input.root_hash),
+        leaf_indices,
+        SubTreeHeight::new(input.height),
+        expected_nodes,
+    );
 }
