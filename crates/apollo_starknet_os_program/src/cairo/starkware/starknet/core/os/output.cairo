@@ -268,17 +268,6 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     }
 
     // Encrypt the compressed state updates.
-    local encrypted_start: felt*;
-    %{
-        if use_kzg_da:
-            ids.encrypted_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.encrypted_start = segments.add_temp_segment()
-    %}
-
-    let encrypted_dst = encrypted_start;
-
     // Generate random symmetric key and random starknet private keys.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
@@ -297,6 +286,17 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
         symmetric_key=symmetric_key,
         symmetric_key_encryptions_dst=symmetric_key_encryptions,
     );
+
+    local encrypted_start: felt*;
+    %{
+        if use_kzg_da:
+            ids.encrypted_start = segments.add()
+        else:
+            # Assign a temporary segment, to be relocated into the output segment.
+            ids.encrypted_start = segments.add_temp_segment()
+    %}
+
+    let encrypted_dst = encrypted_start;
 
     with encrypted_dst {
         encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
