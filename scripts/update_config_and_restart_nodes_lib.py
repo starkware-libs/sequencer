@@ -379,9 +379,7 @@ def update_config_and_restart_nodes(
         print_colored(f"\nProcessing node {node_id}...")
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = normalize_config(
-            get_configmap(namespace, node_id, job, cluster_prefix, job)
-        )
+        original_config = normalize_config(get_configmap(namespace, node_id, cluster_prefix, job))
 
         # Update config
         updated_config = update_config_values(original_config, node_id, config_overrides)
