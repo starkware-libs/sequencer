@@ -1,11 +1,9 @@
-use apollo_config::presentation::get_config_presentation;
 use apollo_config::ConfigError;
-use tracing::info;
+use crate::config::node_config::SequencerNodeConfig;
 
 use crate::clients::{create_node_clients, SequencerNodeClients};
 use crate::communication::create_node_channels;
 use crate::components::create_node_components;
-use crate::config::node_config::SequencerNodeConfig;
 use crate::servers::{create_node_servers, SequencerNodeServers};
 
 pub async fn create_node_modules(
@@ -23,23 +21,5 @@ pub async fn create_node_modules(
 }
 
 pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
-    let config_load_result = SequencerNodeConfig::load_and_process(args);
-    let loaded_config =
-        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
-    info!("Finished loading configuration.");
-
-    if let Err(error) = loaded_config.validate_node_config() {
-        panic!("Config validation failed: {error}");
-    }
-    info!("Finished validating configuration.");
-
-    info!("Config map:");
-    info!(
-        "{:#?}",
-        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
-            .expect("Should be able to get representation.")
-    );
-    info!("Finished dumping configuration.");
-
-    Ok(loaded_config)
+    SequencerNodeConfig::load_and_process(args)
 }

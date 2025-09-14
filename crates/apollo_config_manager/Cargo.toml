@@ -12,12 +12,31 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_batcher.workspace = true
+apollo_batcher_types.workspace = true
+apollo_class_manager.workspace = true
+apollo_compile_to_casm.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_consensus_config.workspace = true
+apollo_consensus_manager.workspace = true
+apollo_gateway.workspace = true
+apollo_http_server.workspace = true
 apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
+apollo_l1_endpoint_monitor.workspace = true
+apollo_l1_gas_price.workspace = true
+apollo_l1_provider.workspace = true
+apollo_mempool.workspace = true
+apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
+apollo_monitoring_endpoint.workspace = true
+apollo_reverts.workspace = true
+apollo_state_sync.workspace = true
 async-trait.workspace = true
+clap.workspace = true
+const_format.workspace = true
+papyrus_base_layer.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 tracing.workspace = true

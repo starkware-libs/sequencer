@@ -12,11 +12,14 @@ use clap::parser::Values;
 use clap::Command;
 use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use tracing::{error, info, instrument};
+use validator::Validate;
 
-use crate::validators::validate_path_exists;
+use crate::dumping::SerializeConfig;
+use crate::presentation::get_config_presentation;
+use crate::validators::{config_validate, validate_path_exists};
 use crate::{
     command,
     ConfigError,
@@ -279,4 +282,51 @@ pub(crate) fn update_config_map(
 
     config_map.insert(param_path.to_owned(), new_value);
     Ok(())
+}
+
+/// Generic function to load and validate any configuration type.
+///
+/// This breaks circular dependencies by providing config loading functionality
+/// in the apollo_config crate that any other crate can use.
+///
+/// # Type Parameters
+/// * `T` - Config type that implements the required traits
+///
+/// # Arguments
+/// * `config_schema_file` - Opened file handle to the config schema
+/// * `command` - Clap command for parsing arguments
+/// * `args` - Command-line arguments
+/// * `ignore_default_values` - Whether to ignore default values from schema
+/// * `show_config_presentation` - Whether to log the config presentation
+pub fn load_and_validate_config<T>(
+    config_schema_file: File,
+    command: Command,
+    args: Vec<String>,
+    ignore_default_values: bool,
+    show_config_presentation: bool,
+) -> Result<T, ConfigError>
+where
+    T: for<'a> Deserialize<'a> + Serialize + Validate + SerializeConfig,
+{
+    // Load config using existing function
+    let loaded_config: T =
+        load_and_process_config(config_schema_file, command, args, ignore_default_values)?;
+    info!("Finished loading configuration.");
+
+    // Validate config using the Validate trait
+    config_validate(&loaded_config)?;
+    info!("Finished validating configuration.");
+
+    // Show config presentation if requested
+    if show_config_presentation {
+        info!("Config map:");
+        info!(
+            "{:#?}",
+            get_config_presentation::<T>(&loaded_config, false)
+                .expect("Should be able to get representation.")
+        );
+        info!("Finished dumping configuration.");
+    }
+
+    Ok(loaded_config)
 }
