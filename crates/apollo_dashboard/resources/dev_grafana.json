@@ -636,7 +636,9 @@
           "exprs": [
             "sum  by (tx_type) (mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Adding transaction to mempool\""
+          }
         },
         {
           "title": "mempool_transactions_received_rate (TPS)",
@@ -645,7 +647,9 @@
           "exprs": [
             "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Adding transaction to mempool\""
+          }
         },
         {
           "title": "mempool_transactions_dropped",
@@ -663,7 +667,9 @@
           "exprs": [
             "mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Committing block with\""
+          }
         },
         {
           "title": "mempool_pool_size",
@@ -708,7 +714,9 @@
           "exprs": [
             "avg_over_time(mempool_get_txs_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Returned mempool txs\""
+          }
         },
         {
           "title": "mempool_delayed_declare_size",
