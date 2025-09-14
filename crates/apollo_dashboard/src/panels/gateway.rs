@@ -1,9 +1,11 @@
 use apollo_gateway::metrics::{
+    GATEWAY_ADD_TX_FAILURE,
     GATEWAY_ADD_TX_LATENCY,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     GATEWAY_VALIDATE_TX_LATENCY,
+    LABEL_NAME_ADD_TX_FAILURE_REASON,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
@@ -100,6 +102,19 @@ fn get_panel_gateway_transactions_failed() -> Panel {
     )
 }
 
+fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
+    Panel::new(
+        "Transactions Failed by Reason",
+        "The number of transactions failed by reason (10m window)",
+        vec![format!(
+            "sum by ({}) (increase({}[10m]))",
+            LABEL_NAME_ADD_TX_FAILURE_REASON,
+            GATEWAY_ADD_TX_FAILURE.get_name_with_filter()
+        )],
+        PanelType::Stat,
+    )
+}
+
 fn get_panel_gateway_transactions_failure_rate() -> Panel {
     Panel::new(
         "Transaction Failure Rate by Type",
@@ -140,6 +155,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_transactions_received_by_type(),
             get_panel_gateway_transactions_failed(),
             get_panel_gateway_transactions_failure_rate(),
+            get_panel_gateway_add_tx_failure_by_reason(),
             get_panel_gateway_transactions_sent_to_mempool(),
         ],
     )
