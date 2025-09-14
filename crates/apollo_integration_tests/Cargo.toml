@@ -23,6 +23,7 @@ apollo_config_manager.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_manager.workspace = true
+apollo_consensus_manager_config.workspace = true
 apollo_consensus_orchestrator.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
 apollo_deployments.workspace = true
