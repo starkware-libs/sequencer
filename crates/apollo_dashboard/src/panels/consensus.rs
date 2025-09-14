@@ -286,6 +286,7 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
         vec![CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.get_name_with_filter().to_string()],
         PanelType::Stat,
     )
+    .with_log_query("Blob for block number")
 }
 fn get_panel_cende_prepare_blob_for_next_height_latency() -> Panel {
     Panel::new(
@@ -324,12 +325,20 @@ fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
     .with_unit(Unit::Seconds)
 }
 fn get_panel_cende_write_blob_success() -> Panel {
+    let query_expression = [
+        "\"Blob for block number\"",
+        "\"Writing blob to Aerospike\"",
+        "\"transactions was written to Aerospike\"",
+    ]
+    .join(" OR ");
+
     Panel::new(
         "Write Blob Success",
         "The number of successful blob writes to Cende (10m window)",
         vec![format!("increase({}[10m])", CENDE_WRITE_BLOB_SUCCESS.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query(query_expression)
 }
 fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
@@ -342,6 +351,7 @@ fn get_panel_cende_write_blob_failure() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("CENDE_FAILURE")
 }
 fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
