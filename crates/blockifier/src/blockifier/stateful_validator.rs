@@ -47,16 +47,21 @@ pub trait StatefulValidatorTrait {
     #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()>;
     fn block_info(&self) -> &BlockInfo;
+    #[allow(clippy::result_large_err)]
+    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce>;
 }
 
 impl<S: StateReader> StatefulValidatorTrait for StatefulValidator<S> {
-    #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()> {
         self.perform_validations(account_tx)
     }
 
     fn block_info(&self) -> &BlockInfo {
         StatefulValidator::block_info(self)
+    }
+
+    fn get_nonce(&mut self, account_address: ContractAddress) -> StatefulValidatorResult<Nonce> {
+        StatefulValidator::get_nonce(self, account_address)
     }
 }
 
