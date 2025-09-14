@@ -23,7 +23,7 @@ use apollo_node::config::node_config::SequencerNodeConfig;
 use apollo_node::servers::run_component_servers;
 use apollo_node::utils::create_node_modules;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
-use apollo_state_sync::config::StateSyncConfig;
+use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
