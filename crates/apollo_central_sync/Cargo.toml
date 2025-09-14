@@ -9,6 +9,7 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+apollo_central_sync_config.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
 apollo_proc_macros.workspace = true

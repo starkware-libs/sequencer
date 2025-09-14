@@ -8,9 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_central_sync::sources::base_layer::EthereumBaseLayerSource;
-use apollo_central_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
+use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
-use apollo_central_sync::{StateSync as CentralStateSync, SyncConfig as CentralSyncConfig};
+use apollo_central_sync::StateSync as CentralStateSync;
+use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig as CentralSyncConfig};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_config::presentation::get_config_presentation;
 use apollo_config::validators::config_validate;
