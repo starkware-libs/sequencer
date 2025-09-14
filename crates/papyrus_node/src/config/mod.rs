@@ -25,7 +25,8 @@ use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus_config::config::ConsensusConfig;
 use apollo_consensus_orchestrator::config::ContextConfig;
 use apollo_network::NetworkConfig;
-use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use apollo_p2p_sync::client::P2pSyncClient;
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 #[cfg(feature = "rpc")]
 use apollo_rpc::RpcConfig;
 use apollo_starknet_client::RetryConfig;
