@@ -301,7 +301,9 @@
           "exprs": [
             "increase(cende_write_blob_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Blob for block number\" OR \"Writing blob to Aerospike\" OR \"transactions was written to Aerospike\""
+          }
         },
         {
           "title": "Write Blob Failure by Reason",
@@ -310,7 +312,9 @@
           "exprs": [
             "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"CENDE_FAILURE\""
+          }
         },
         {
           "title": "Write Blob Latency",
@@ -331,7 +335,9 @@
           "exprs": [
             "cende_last_prepared_blob_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Blob for block number\""
+          }
         },
         {
           "title": "Prepare Blob for Next Height Latency",
