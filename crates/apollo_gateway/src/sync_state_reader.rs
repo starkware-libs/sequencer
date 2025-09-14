@@ -285,7 +285,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
         let latest_block_number = self
             .runtime
-            // TODO(guy.f): Do we want to count this as well? It is always called since get_state_reader() is never used.
+            // TODO(guy.f): Do we want to count this as well?
             .block_on(self.shared_state_sync_client.get_latest_block_number())?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
@@ -295,9 +295,5 @@ impl StateReaderFactory for SyncStateReaderFactory {
             latest_block_number,
             self.runtime.clone(),
         )))
-    }
-
-    fn get_state_reader(&self, _block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
-        unreachable!("get_state_reader() is not used");
     }
 }
