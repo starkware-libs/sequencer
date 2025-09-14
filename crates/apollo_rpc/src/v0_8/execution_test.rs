@@ -49,6 +49,7 @@ use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingC
 use papyrus_common::state::{
     DeclaredClassHashEntry,
     DeployedContract as CommonDeployedContract,
+    MigratedCompiledClassHashEntry,
     StorageEntry as CommonStorageEntry,
 };
 use pretty_assertions::assert_eq;
@@ -1620,6 +1621,10 @@ async fn write_block_0_as_pending(
                 ),
                 declared_classes: vec![DeclaredClassHashEntry {
                     class_hash: class_hash2,
+                    compiled_class_hash,
+                }],
+                migrated_compiled_classes: vec![MigratedCompiledClassHashEntry {
+                    class_hash: class_hash1,
                     compiled_class_hash,
                 }],
                 old_declared_contracts: vec![
