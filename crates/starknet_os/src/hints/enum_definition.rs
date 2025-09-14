@@ -815,11 +815,20 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         SetCompressedStart,
         set_compressed_start,
-        indoc! {r#"if use_kzg_da:
+        indoc! {r#"if use_kzg_da or ids.n_keys > 0:
     ids.compressed_start = segments.add()
 else:
     # Assign a temporary segment, to be relocated into the output segment.
     ids.compressed_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetEncryptedStart,
+        set_encrypted_start,
+        indoc! {r#"if use_kzg_da:
+    ids.encrypted_start = segments.add()
+else:
+    # Assign a temporary segment, to be relocated into the output segment.
+    ids.encrypted_start = segments.add_temp_segment()"#}
     ),
     (
         SetNUpdatesSmall,
