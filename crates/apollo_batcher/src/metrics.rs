@@ -6,7 +6,7 @@ use apollo_infra::metrics::{
     RemoteClientMetrics,
     RemoteServerMetrics,
 };
-use apollo_metrics::{define_infra_metrics, define_metrics};
+use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use blockifier::metrics::{
     CALLS_RUNNING_NATIVE,
     CLASS_CACHE_HITS,
@@ -16,6 +16,8 @@ use blockifier::metrics::{
     TOTAL_CALLS,
 };
 use starknet_api::block::BlockNumber;
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::IntoStaticStr;
 
 define_infra_metrics!(batcher);
 
@@ -41,10 +43,25 @@ define_metrics!(
         MetricCounter { REVERTED_TRANSACTIONS, "batcher_reverted_transactions", "Counter of reverted transactions across all forks", init = 0 },
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
 
-        MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
         MetricCounter { PRECONFIRMED_BLOCK_WRITTEN, "batcher_preconfirmed_block_written", "Counter of preconfirmed blocks written to storage", init = 0 },
+        // Block close reason
+        LabeledMetricCounter { BLOCK_CLOSE_REASON, "batcher_block_close_reason", "Number of blocks closed by reason", init = 0 , labels = BLOCK_CLOSE_REASON_LABELS},
     },
 );
+
+pub const LABEL_NAME_BLOCK_CLOSE_REASON: &str = "block_close_reason";
+
+#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum BlockCloseReason {
+    FullBlock,
+    Deadline,
+}
+
+generate_permutation_labels! {
+    BLOCK_CLOSE_REASON_LABELS,
+    (LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason),
+}
 
 pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
@@ -66,8 +83,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     REVERTED_TRANSACTIONS.register();
     SYNCED_TRANSACTIONS.register();
 
-    FULL_BLOCKS.register();
     PRECONFIRMED_BLOCK_WRITTEN.register();
+    BLOCK_CLOSE_REASON.register();
 
     // Blockifier's metrics
     CALLS_RUNNING_NATIVE.register();
