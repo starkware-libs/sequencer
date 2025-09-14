@@ -258,8 +258,12 @@ fn get_panel_consensus_num_txs_in_proposal() -> Panel {
     )
 }
 fn get_panel_consensus_l2_gas_price() -> Panel {
-    // TODO(Dafna): Better presentation of the price units.
-    Panel::from_gauge(&CONSENSUS_L2_GAS_PRICE, PanelType::TimeSeries)
+    Panel::new(
+        "L2 Gas Price (GFri)",
+        "L2 gas price in GFri calculated in an accepted proposal",
+        vec![format!("({} / 1e9)", CONSENSUS_L2_GAS_PRICE.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_num_connected_peers() -> Panel {
     Panel::from_gauge(&CONSENSUS_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
