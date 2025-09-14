@@ -1,5 +1,7 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    BLOCK_CLOSE_REASON,
+    LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
@@ -66,6 +68,18 @@ fn get_panel_batched_transactions_rate() -> Panel {
         PanelType::TimeSeries,
     )
 }
+fn get_panel_block_close_reasons() -> Panel {
+    Panel::new(
+        "Block Close Reasons",
+        "Number of blocks closed by reason (10m window)",
+        vec![format!(
+            "sum by ({}) (increase({}[10m]))",
+            LABEL_NAME_BLOCK_CLOSE_REASON,
+            BLOCK_CLOSE_REASON.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
 
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
@@ -76,6 +90,7 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_proposer_deferred_txs(),
             get_panel_validator_wasted_txs(),
             get_panel_rejection_reverted_ratio(),
+            get_panel_block_close_reasons(),
         ],
     )
 }
