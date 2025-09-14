@@ -8,7 +8,13 @@ use apollo_deployments::deployments::hybrid::{
 };
 use apollo_deployments::service::{NodeService, NodeType};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
-use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
+use apollo_node_config::ComponentConfig;
+
+fn set_urls_to_localhost(component_configs: &mut [ComponentConfig]) {
+    for config in component_configs {
+        config.set_urls_to_localhost();
+    }
+}
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {

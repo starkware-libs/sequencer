@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use validator::{Validate, ValidationError};
 
-use crate::config::config_utils::create_validation_error;
-use crate::config::definitions::ConfigExpectation::{self, Redundant, Required};
-use crate::config::definitions::ConfigPresence::{self, Absent, Present};
+use crate::config_utils::create_validation_error;
+use crate::definitions::ConfigExpectation::{self, Redundant, Required};
+use crate::definitions::ConfigPresence::{self, Absent, Present};
 
 const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
@@ -189,7 +189,6 @@ impl ReactiveComponentExecutionConfig {
         self
     }
 
-    #[cfg(any(feature = "testing", test))]
     pub fn set_url_to_localhost(&mut self) {
         self.url = Ipv4Addr::LOCALHOST.to_string();
     }

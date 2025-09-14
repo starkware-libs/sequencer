@@ -92,8 +92,8 @@ use apollo_state_sync_types::communication::{
 use tracing::info;
 
 use crate::communication::SequencerNodeCommunication;
-use crate::config::component_execution_config::ReactiveComponentExecutionMode;
-use crate::config::node_config::SequencerNodeConfig;
+use apollo_node_config::ReactiveComponentExecutionMode;
+use apollo_node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,

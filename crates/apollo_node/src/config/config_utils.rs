@@ -6,17 +6,16 @@ use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, Serializ
 use apollo_config::{ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use serde_json::{Map, Value};
-use tracing::error;
-use validator::ValidationError;
-
-use crate::config::definitions::ConfigPointersMap;
-use crate::config::node_config::{
+use apollo_node_config::{
+    ConfigPointersMap,
     SequencerNodeConfig,
     CONFIG_POINTERS,
     CONFIG_SCHEMA_PATH,
     POINTER_TARGET_VALUE,
 };
+use serde_json::{Map, Value};
+use tracing::error;
+use validator::ValidationError;
 
 /// Returns the set of all non-pointer private parameters and all pointer target parameters pointed
 /// by private parameters.

@@ -5,7 +5,7 @@ use apollo_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::component_execution_config::{
+use crate::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
@@ -88,8 +88,8 @@ impl ComponentConfig {
             class_manager: ReactiveComponentExecutionConfig::disabled(),
             config_manager: ReactiveComponentExecutionConfig::disabled(),
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
-            http_server: ActiveComponentExecutionConfig::disabled(),
             gateway: ReactiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::disabled(),
             l1_endpoint_monitor: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
@@ -104,7 +104,6 @@ impl ComponentConfig {
         }
     }
 
-    #[cfg(any(feature = "testing", test))]
     pub fn set_urls_to_localhost(&mut self) {
         self.batcher.set_url_to_localhost();
         self.class_manager.set_url_to_localhost();
@@ -118,12 +117,5 @@ impl ComponentConfig {
         self.sierra_compiler.set_url_to_localhost();
         self.signature_manager.set_url_to_localhost();
         self.state_sync.set_url_to_localhost();
-    }
-}
-
-#[cfg(any(feature = "testing", test))]
-pub fn set_urls_to_localhost(component_configs: &mut [ComponentConfig]) {
-    for component_config in component_configs.iter_mut() {
-        component_config.set_urls_to_localhost();
     }
 }

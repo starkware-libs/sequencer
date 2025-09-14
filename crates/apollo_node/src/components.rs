@@ -31,11 +31,11 @@ use papyrus_base_layer::BaseLayerContract;
 use tracing::{debug, info};
 
 use crate::clients::SequencerNodeClients;
-use crate::config::component_execution_config::{
+use apollo_node_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
 };
-use crate::config::node_config::SequencerNodeConfig;
+use apollo_node_config::SequencerNodeConfig;
 use crate::version::VERSION_FULL;
 
 pub struct SequencerNodeComponents {
