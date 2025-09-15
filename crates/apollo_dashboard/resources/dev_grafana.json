@@ -451,15 +451,19 @@
           }
         },
         {
-          "title": "HTTP Server Add Tx Latency",
-          "description": "The time it takes to add a transaction to the HTTP Server",
+          "title": "HTTP Server Add Tx Latency (by type)",
+          "description": "The time it takes to add a transaction to the HTTP Server (by tx type)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le, tx_type) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le, tx_type) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "legends": [
+              "0.50 {{class_object_type}}",
+              "0.95 {{class_object_type}}"
+            ]
           }
         }
       ],

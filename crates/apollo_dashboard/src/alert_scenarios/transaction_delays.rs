@@ -55,8 +55,8 @@ fn get_http_server_avg_add_tx_latency_alert(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
-    let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_sum_with_filter();
-    let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
+    let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter();
+    let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter();
 
     Alert::new(
         "http_server_avg_add_tx_latency",

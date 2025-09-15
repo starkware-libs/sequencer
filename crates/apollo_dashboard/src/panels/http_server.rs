@@ -5,6 +5,7 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
+    LABEL_NAME_HTTP_TX_TYPE,
 };
 
 use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
@@ -43,18 +44,28 @@ pub(crate) fn get_panel_http_server_transactions_received_rate() -> Panel {
 }
 fn get_panel_http_add_tx_latency() -> Panel {
     Panel::new(
-        "HTTP Server Add Tx Latency",
-        "The time it takes to add a transaction to the HTTP Server",
+        "HTTP Server Add Tx Latency (by type)",
+        "The time it takes to add a transaction to the HTTP Server (by tx type)",
         HISTOGRAM_QUANTILES
             .iter()
             .map(|q| {
                 format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                    "histogram_quantile({q:.2}, sum by (le, {LABEL_NAME_HTTP_TX_TYPE}) \
+                     (rate({}[{HISTOGRAM_TIME_RANGE}])))",
                     HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter(),
                 )
             })
             .collect(),
         PanelType::TimeSeries,
+    )
+    .with_legends(
+        HISTOGRAM_QUANTILES
+            .iter()
+            .map(|q| {
+                let quantile = format!("{q:.2}");
+                format!("{} {}", quantile, "{{class_object_type}}")
+            })
+            .collect(),
     )
     .with_unit(Unit::Seconds)
 }

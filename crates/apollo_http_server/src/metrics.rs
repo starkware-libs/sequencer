@@ -1,4 +1,6 @@
-use apollo_metrics::define_metrics;
+use apollo_metrics::{define_metrics, generate_permutation_labels};
+use starknet_api::rpc_transaction::RpcTransactionLabelValue;
+use strum::VariantNames;
 use tracing::info;
 
 #[cfg(test)]
@@ -13,9 +15,16 @@ define_metrics!(
         MetricCounter { ADDED_TRANSACTIONS_FAILURE, "http_server_added_transactions_failure", "Number of transactions that failed to be added", init = 0 },
         MetricCounter { ADDED_TRANSACTIONS_INTERNAL_ERROR, "http_server_added_transactions_internal_error", "Number of transactions that failed to be added due to an internal error", init = 0 },
         MetricCounter { ADDED_TRANSACTIONS_DEPRECATED_ERROR, "http_server_added_transactions_deprecated_error", "Number of transactions that failed to be added due to a deprecated error", init = 0 },
-        MetricHistogram { HTTP_SERVER_ADD_TX_LATENCY, "http_server_add_tx_latency", "Latency of HTTP add_tx endpoint in secs" },
+        LabeledMetricHistogram { HTTP_SERVER_ADD_TX_LATENCY, "http_server_add_tx_latency", "Latency of HTTP add_tx endpoint in secs (by tx type)", labels = HTTP_SERVER_ADD_TX_LATENCY_LABELS },
     },
 );
+
+pub const LABEL_NAME_HTTP_TX_TYPE: &str = "tx_type";
+
+generate_permutation_labels! {
+    HTTP_SERVER_ADD_TX_LATENCY_LABELS,
+    (LABEL_NAME_HTTP_TX_TYPE, RpcTransactionLabelValue),
+}
 
 pub(crate) fn init_metrics() {
     info!("Initializing HTTP Server metrics");

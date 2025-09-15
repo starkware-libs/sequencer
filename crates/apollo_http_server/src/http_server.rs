@@ -16,14 +16,13 @@ use apollo_gateway_types::gateway_types::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_proc_macros::sequencer_latency_histogram;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use blockifier_reexecution::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use tracing::{debug, info, instrument};
@@ -39,6 +38,7 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
+    LABEL_NAME_HTTP_TX_TYPE,
 };
 
 #[cfg(test)]
@@ -110,16 +110,21 @@ async fn add_rpc_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     debug!("ADD_TX_START: Http server received a new transaction.");
     ADDED_TRANSACTIONS_TOTAL.increment(1);
-    add_tx_inner(app_state, headers, tx).await
+    let start = std::time::Instant::now();
+    let res = add_tx_inner(app_state, headers, tx.clone()).await;
+    let duration = start.elapsed().as_secs_f64();
+    let tx_type = RpcTransactionLabelValue::from(&tx);
+    HTTP_SERVER_ADD_TX_LATENCY.record(duration, &[(LABEL_NAME_HTTP_TX_TYPE, tx_type.into())]);
+    res
 }
 
 #[instrument(skip(app_state))]
-#[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
+    let start = std::time::Instant::now();
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     debug!("ADD_TX_START: Http server received a new transaction.");
     validate_supported_tx_version(&tx).inspect_err(|e| {
@@ -130,11 +135,15 @@ async fn add_tx(
         debug!("Error while parsing transaction: {}", e);
         check_supported_resource_bounds_and_increment_metrics(&tx);
     })?;
-    let rpc_tx = tx.try_into().inspect_err(|e| {
+    let rpc_tx: RpcTransaction = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
 
-    add_tx_inner(app_state, headers, rpc_tx).await
+    let res = add_tx_inner(app_state, headers, rpc_tx.clone()).await;
+    let duration = start.elapsed().as_secs_f64();
+    let tx_type = RpcTransactionLabelValue::from(&rpc_tx);
+    HTTP_SERVER_ADD_TX_LATENCY.record(duration, &[(LABEL_NAME_HTTP_TX_TYPE, tx_type.into())]);
+    res
 }
 
 #[allow(clippy::result_large_err)]
