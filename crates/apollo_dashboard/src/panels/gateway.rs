@@ -96,7 +96,7 @@ fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
         "Transactions Failed by Reason",
         "The number of transactions failed by reason (over the selected time range)",
         vec![format!(
-            "sum by ({}) (increase({}[$__range]))",
+            "sum by ({}) (increase({}[$__range])) > 0",
             LABEL_NAME_ADD_TX_FAILURE_REASON,
             GATEWAY_ADD_TX_FAILURE.get_name_with_filter()
         )],
