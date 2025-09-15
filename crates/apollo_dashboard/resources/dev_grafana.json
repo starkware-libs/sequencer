@@ -589,6 +589,26 @@
           "sum  by (tx_type) (gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "gateway_validate_stateful_tx_storage_micros",
+        "description": "Total time spent in storage operations in micros during stateful tx validation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_micros_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_micros_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_validate_stateful_tx_storage_operations",
+        "description": "Total number of storage operations during stateful tx validation",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
       }
     ],
     "Mempool": [

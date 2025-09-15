@@ -3,6 +3,8 @@ use apollo_gateway::metrics::{
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS,
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_TX_LATENCY,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
@@ -82,6 +84,14 @@ fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
     )
 }
 
+fn get_panel_gateway_validate_stateful_tx_storage_micros() -> Panel {
+    Panel::from(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS)
+}
+
+fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
+    Panel::from(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS)
+}
+
 pub(crate) fn get_gateway_row() -> Row {
     Row::new(
         "Gateway",
@@ -93,6 +103,8 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_validate_tx_latency(),
             get_panel_gateway_transactions_failed(),
             get_panel_gateway_transactions_sent_to_mempool(),
+            get_panel_gateway_validate_stateful_tx_storage_micros(),
+            get_panel_gateway_validate_stateful_tx_storage_operations(),
         ],
     )
 }
