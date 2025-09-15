@@ -400,10 +400,10 @@
       "panels": [
         {
           "title": "Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the gateway (10m window)",
+          "description": "The rate of transactions received by the gateway (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)"
+            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
           ],
           "extra_params": {}
         },
