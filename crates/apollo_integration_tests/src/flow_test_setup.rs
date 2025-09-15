@@ -36,6 +36,7 @@ use papyrus_base_layer::test_utils::{
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
+use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
@@ -120,20 +121,9 @@ impl FlowTestSetup {
             .try_into()
             .unwrap();
 
-<<<<<<< HEAD
         let anvil_base_layer = AnvilBaseLayer::new().await;
+        let base_layer_url = anvil_base_layer.get_url().await.unwrap();
         let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
-||||||| d18ef963d
-        let base_layer_config =
-            ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
-        let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
-=======
-        let (base_layer_config, base_layer_url) =
-            ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
-        let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
->>>>>>> origin/main-v0.14.1
 
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
