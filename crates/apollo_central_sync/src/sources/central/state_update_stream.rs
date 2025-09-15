@@ -261,6 +261,7 @@ fn client_to_central_state_update(
                 old_declared_contracts: old_declared_contract_hashes,
                 nonces,
                 replaced_classes,
+                migrated_compiled_classes,
             } = state_update.state_diff;
 
             // Separate the declared classes to new classes, old classes and classes of deployed
@@ -298,9 +299,10 @@ fn client_to_central_state_update(
                         (class_hash, (compiled_class_hash, class))
                     })
                     .collect(),
-                // TODO(Aviv): Use the starknet client migrated compiled class hashes after its
-                // added.
-                migrated_compiled_classes: IndexMap::new(),
+                migrated_compiled_classes: migrated_compiled_classes
+                    .into_iter()
+                    .map(|entry| (entry.class_hash, entry.compiled_class_hash))
+                    .collect(),
                 deprecated_declared_classes: deprecated_classes
                     .into_iter()
                     .map(|(class_hash, generic_class)| {

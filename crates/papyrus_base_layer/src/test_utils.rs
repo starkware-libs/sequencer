@@ -10,6 +10,7 @@ use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use tracing::debug;
+use url::Url;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -104,9 +105,10 @@ pub async fn make_block_history_on_anvil(
     sender_address: EthereumContractAddress,
     receiver_address: EthereumContractAddress,
     base_layer_config: EthereumBaseLayerConfig,
+    url: &Url,
     num_blocks: usize,
 ) {
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
     let provider = base_layer.contract.provider();
     let mut prev_block_number =
         usize::try_from(provider.get_block_number().await.unwrap()).unwrap();

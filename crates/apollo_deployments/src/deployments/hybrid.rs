@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::template::Template;
@@ -9,19 +8,20 @@ use apollo_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use indexmap::IndexMap;
-use libp2p::{Multiaddr, PeerId};
+use libp2p::Multiaddr;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::addresses::{get_p2p_address, get_peer_id};
+use crate::addresses::{get_peer_id, peer_address};
 use crate::config_override::{
     ConfigOverride,
     DeploymentConfigOverride,
     InstanceConfigOverride,
-    NetworkConfigOverride,
+    PeerToPeerAdvertisementConfig,
+    PeerToPeerBootstrapConfig,
 };
-use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
+use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
     CloudK8sEnvironment,
@@ -29,10 +29,10 @@ use crate::deployment_definitions::{
     DeploymentInputs,
     Environment,
     InfraServicePort,
-    NodeAndValidatorId,
     ServicePort,
+    CONSENSUS_P2P_PORT,
+    MEMPOOL_P2P_PORT,
 };
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -45,6 +45,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 use crate::utils::validate_ports;
@@ -174,14 +175,16 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-    fn get_autoscale(&self) -> bool {
+    fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            HybridNodeServiceName::Core => false,
-            HybridNodeServiceName::HttpServer => false,
-            HybridNodeServiceName::Gateway => true,
-            HybridNodeServiceName::L1 => false,
-            HybridNodeServiceName::Mempool => false,
-            HybridNodeServiceName::SierraCompiler => true,
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::L1
+            | HybridNodeServiceName::Mempool => ScalePolicy::StaticallyScaled,
+
+            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
+                ScalePolicy::AutoScaled
+            }
         }
     }
 
@@ -694,66 +697,6 @@ impl ServiceNameInner for HybridNodeServiceName {
     }
 }
 
-impl HybridNodeServiceName {
-    /// Returns a component execution config for a component that runs locally, and accepts inbound
-    /// connections from remote components.
-    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-    }
-
-    /// Returns a component execution config for a component that is accessed remotely.
-    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        let mut base = ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        );
-        match self {
-            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                let remote_client_config_ref = base
-                    .remote_client_config
-                    .as_mut()
-                    .expect("Remote client config should be available");
-                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
-            }
-            HybridNodeServiceName::Core
-            | HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool => {}
-        };
-        base
-    }
-
-    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
-        HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(port),
-            remote: self.component_config_for_remote_service(port),
-        }
-    }
-}
-
-/// Component config bundling for services of a hybrid node: a config to run a component
-/// locally while being accessible to other services, and a suitable config enabling such services
-/// the access.
-struct HybridNodeServiceConfigPair {
-    local: ReactiveComponentExecutionConfig,
-    remote: ReactiveComponentExecutionConfig,
-}
-
-impl HybridNodeServiceConfigPair {
-    fn local(&self) -> ReactiveComponentExecutionConfig {
-        self.local.clone()
-    }
-
-    fn remote(&self) -> ReactiveComponentExecutionConfig {
-        self.remote.clone()
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
@@ -861,6 +804,42 @@ pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deploy
 }
 
 fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
+    // List all nodes as respective bootstrap peers.
+    let sanitized_domain = inputs.p2p_communication_type.get_p2p_domain(&inputs.ingress_domain);
+
+    let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = inputs
+        .node_and_validator_ids
+        .iter()
+        .map(|(node_id, _)| {
+            peer_address(
+                NodeService::Hybrid(HybridNodeServiceName::Core),
+                CONSENSUS_P2P_PORT,
+                &inputs.node_namespace_format.format(&[&node_id]),
+                &get_peer_id(*node_id),
+                &sanitized_domain,
+            )
+        })
+        .collect();
+
+    let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = inputs
+        .node_and_validator_ids
+        .iter()
+        .map(|(node_id, _)| {
+            peer_address(
+                NodeService::Hybrid(HybridNodeServiceName::Mempool),
+                MEMPOOL_P2P_PORT,
+                &inputs.node_namespace_format.format(&[&node_id]),
+                &get_peer_id(*node_id),
+                &sanitized_domain,
+            )
+        })
+        .collect();
+
+    let consensus_p2p_bootstrap_config =
+        PeerToPeerBootstrapConfig::new(Some(consensus_bootstrap_peers_multiaddrs));
+    let mempool_p2p_bootstrap_config =
+        PeerToPeerBootstrapConfig::new(Some(mempool_bootstrap_peers_multiaddrs));
+
     inputs
         .node_and_validator_ids
         .iter()
@@ -876,7 +855,6 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
             };
             hybrid_deployment(
                 i,
-                inputs.node_and_validator_ids.clone(),
                 validator_id.to_string(),
                 inputs.p2p_communication_type,
                 inputs.deployment_environment.clone(),
@@ -891,6 +869,8 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                     inputs.l1_startup_height_override,
                     inputs.num_validators,
                     inputs.state_sync_type.clone(),
+                    consensus_p2p_bootstrap_config.clone(),
+                    mempool_p2p_bootstrap_config.clone(),
                 ),
                 &inputs.node_namespace_format,
                 &inputs.ingress_domain,
@@ -905,7 +885,6 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,
-    node_and_validator_ids: Vec<NodeAndValidatorId>,
     validator_id: String,
     p2p_communication_type: P2PCommunicationType,
     environment: Environment,
@@ -926,7 +905,6 @@ pub(crate) fn hybrid_deployment(
             deployment_config_override,
             create_hybrid_instance_config_override(
                 id,
-                node_and_validator_ids,
                 validator_id,
                 node_namespace_format,
                 p2p_communication_type,
@@ -943,58 +921,12 @@ pub(crate) fn hybrid_deployment(
 
 fn create_hybrid_instance_config_override(
     node_id: usize,
-    node_and_validator_ids: Vec<NodeAndValidatorId>,
     validator_id: String,
     node_namespace_format: &Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
-    // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
-    // consistently throughout the code.
-    const CORE_SERVICE_PORT: u16 = 53080;
-    const MEMPOOL_SERVICE_PORT: u16 = 53200;
-
-    let node_peer_id = get_peer_id(node_id);
-
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
-
-    let build_peer_address =
-        |node_service: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &PeerId| {
-            let domain = build_service_namespace_domain_address(
-                &node_service.k8s_service_name(),
-                &node_namespace_format.format(&[&node_id]),
-                &sanitized_domain,
-            );
-            get_p2p_address(&domain, port, peer_id)
-        };
-
-    // TODO(Tsabary): both `consensus_bootstrap_peers_multiaddrs` and
-    // `mempool_bootstrap_peers_multiaddrs` can be moved to the deployment override module, which
-    // removed the need to re-compute this per node. Not urgent.
-    // List all nodes as respective bootstrap peers.
-    let consensus_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
-        .iter()
-        .map(|(node_id, _)| {
-            build_peer_address(
-                HybridNodeServiceName::Core,
-                CORE_SERVICE_PORT,
-                *node_id,
-                &get_peer_id(*node_id),
-            )
-        })
-        .collect();
-
-    let mempool_bootstrap_peers_multiaddrs: Vec<Multiaddr> = node_and_validator_ids
-        .iter()
-        .map(|(node_id, _)| {
-            build_peer_address(
-                HybridNodeServiceName::Mempool,
-                MEMPOOL_SERVICE_PORT,
-                *node_id,
-                &get_peer_id(*node_id),
-            )
-        })
-        .collect();
 
     // Set advertised addresses based on the P2P communication type.
     let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
@@ -1008,31 +940,27 @@ fn create_hybrid_instance_config_override(
             // Advertised addresses for external communication.
             {
                 (
-                    Some(build_peer_address(
-                        HybridNodeServiceName::Core,
-                        CORE_SERVICE_PORT,
-                        node_id,
-                        &node_peer_id,
+                    Some(peer_address(
+                        NodeService::Hybrid(HybridNodeServiceName::Core),
+                        CONSENSUS_P2P_PORT,
+                        &node_namespace_format.format(&[&node_id]),
+                        &get_peer_id(node_id),
+                        &sanitized_domain,
                     )),
-                    Some(build_peer_address(
-                        HybridNodeServiceName::Mempool,
-                        MEMPOOL_SERVICE_PORT,
-                        node_id,
-                        &node_peer_id,
+                    Some(peer_address(
+                        NodeService::Hybrid(HybridNodeServiceName::Mempool),
+                        MEMPOOL_P2P_PORT,
+                        &node_namespace_format.format(&[&node_id]),
+                        &get_peer_id(node_id),
+                        &sanitized_domain,
                     )),
                 )
             }
         };
 
     InstanceConfigOverride::new(
-        NetworkConfigOverride::new(
-            Some(consensus_bootstrap_peers_multiaddrs),
-            consensus_advertised_multiaddr,
-        ),
-        NetworkConfigOverride::new(
-            Some(mempool_bootstrap_peers_multiaddrs),
-            mempool_advertised_multiaddr,
-        ),
+        PeerToPeerAdvertisementConfig::new(consensus_advertised_multiaddr),
+        PeerToPeerAdvertisementConfig::new(mempool_advertised_multiaddr),
         validator_id,
     )
 }

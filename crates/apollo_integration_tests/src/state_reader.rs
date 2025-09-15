@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use apollo_class_manager::class_storage::{ClassStorage, FsClassStorage};
-use apollo_class_manager::config::FsClassStorageConfig;
 use apollo_class_manager::test_utils::FsClassStorageBuilderForTesting;
+use apollo_class_manager_config::config::FsClassStorageConfig;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;

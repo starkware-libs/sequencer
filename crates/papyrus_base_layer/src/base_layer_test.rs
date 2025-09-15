@@ -6,6 +6,7 @@ use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
+use url::Url;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -26,7 +27,11 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
 
     let provider = ProviderBuilder::new().on_mocked_client(asserter.clone()).root().clone();
     let contract = Starknet::new(Default::default(), provider);
-    let base_layer = EthereumBaseLayerContract { contract, config: Default::default() };
+    let base_layer = EthereumBaseLayerContract {
+        contract,
+        config: Default::default(),
+        url: Url::parse("http://dummy_url").unwrap(),
+    };
 
     (base_layer, asserter)
 }
@@ -39,11 +44,10 @@ async fn latest_proved_block_ethereum() {
     }
     #[allow(deprecated)] // Legacy code, will be removed soon, don't add new instances if this.
     let (node_handle, starknet_contract_address) = crate::test_utils::get_test_ethereum_node();
-    let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
-        node_url: node_handle.0.endpoint().parse().unwrap(),
-        starknet_contract_address,
-        ..Default::default()
-    });
+    let contract = EthereumBaseLayerContract::new(
+        EthereumBaseLayerConfig { starknet_contract_address, ..Default::default() },
+        node_handle.0.endpoint().parse().unwrap(),
+    );
 
     let first_sn_state_update =
         BlockHashAndNumber { number: BlockNumber(100), hash: BlockHash(felt!("0x100")) };

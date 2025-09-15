@@ -15,14 +15,10 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
-use apollo_p2p_sync::client::{
-    P2pSyncClient,
-    P2pSyncClientChannels,
-    P2pSyncClientConfig,
-    P2pSyncClientError,
-};
+use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientError};
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
 use apollo_rpc::{run_server, RpcConfig};
 use apollo_starknet_client::reader::objects::pending_data::{
