@@ -71,11 +71,8 @@ pub(crate) enum PanelType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Unit {
-    #[allow(dead_code)] // TODO(Ron): use Bytes in panels
     Bytes,
-    #[allow(dead_code)] // TODO(Ron): use Seconds in panels
     Seconds,
-    #[allow(dead_code)] // TODO(Ron): use Percent in panels
     #[allow(clippy::enum_variant_names)]
     // The expected values for PercentUnit are [0,1]
     PercentUnit,
@@ -156,7 +153,6 @@ impl Panel {
         );
         Self { name, description, exprs, panel_type, extra: ExtraParams::default() }
     }
-    #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_unit(mut self, unit: Unit) -> Self {
         self.extra.unit = Some(unit);
         self
@@ -172,7 +168,6 @@ impl Panel {
         self.extra.show_percent_change = Some(true);
         self
     }
-    #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
         let mut query = log_query.into();
 
@@ -185,7 +180,6 @@ impl Panel {
         self
     }
 
-    #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_legends<S: Into<String>>(mut self, legends: Vec<S>) -> Self {
         assert_eq!(
             legends.len(),
