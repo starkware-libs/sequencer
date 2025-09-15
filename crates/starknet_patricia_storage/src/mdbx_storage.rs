@@ -1,17 +1,25 @@
 use std::path::Path;
 
-use libmdbx::{Database as MdbxDb, TableFlags, WriteFlags, WriteMap};
+use libmdbx::{Database, Geometry, PageSize, TableFlags, WriteFlags, WriteMap};
 
 use crate::map_storage::MapStorage;
 use crate::storage_trait::{DbKey, DbValue, PatriciaStorageResult, Storage};
 
 pub struct MdbxStorage {
-    db: MdbxDb<WriteMap>,
+    db: Database<WriteMap>,
 }
 
 impl MdbxStorage {
     pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
-        let db = MdbxDb::<WriteMap>::new().open(path)?;
+        let db = Database::<WriteMap>::new()
+            .set_geometry(Geometry {
+                size: Some(1 << 20..1 << 40),
+                growth_step: Some(1 << 32),
+                page_size: Some(PageSize::MinimalAcceptable),
+                ..Default::default()
+            })
+            .set_max_tables(1)
+            .open(path)?;
         let txn = db.begin_rw_txn()?;
         txn.create_table(None, TableFlags::empty())?;
         txn.commit()?;

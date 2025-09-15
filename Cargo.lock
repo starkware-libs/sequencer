@@ -12064,6 +12064,7 @@ dependencies = [
  "starknet_patricia_storage",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
