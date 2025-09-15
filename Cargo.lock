@@ -1526,7 +1526,7 @@ dependencies = [
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
- "apollo_l1_provider",
+ "apollo_l1_provider_config",
  "apollo_l1_scraper_config",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
@@ -1674,10 +1674,10 @@ version = "0.15.0-rc.4"
 dependencies = [
  "alloy",
  "apollo_batcher_types",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
+ "apollo_l1_provider_config",
  "apollo_l1_provider_types",
  "apollo_l1_scraper_config",
  "apollo_metrics",
@@ -1691,13 +1691,21 @@ dependencies = [
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
- "serde",
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "apollo_l1_provider_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
  "validator",
 ]
 
@@ -1976,6 +1984,7 @@ dependencies = [
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
+ "apollo_l1_provider_config",
  "apollo_l1_provider_types",
  "apollo_l1_scraper_config",
  "apollo_mempool",
