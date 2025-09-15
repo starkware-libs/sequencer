@@ -4,22 +4,19 @@ use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use rstest::rstest;
-use validator::Validate;
-
-use crate::config::component_execution_config::{
+use apollo_node_config::{
+    private_parameters,
+    MonitoringConfig,
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
-};
-use crate::config::config_utils::private_parameters;
-use crate::config::monitoring::MonitoringConfig;
-use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     CONFIG_SCHEMA_PATH,
     CONFIG_SECRETS_SCHEMA_PATH,
 };
+use rstest::rstest;
+use validator::Validate;
 
 const FIX_BINARY_NAME: &str = "update_apollo_node_config_schema";
 

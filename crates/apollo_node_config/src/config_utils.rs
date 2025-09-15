@@ -10,8 +10,8 @@ use serde_json::{Map, Value};
 use tracing::error;
 use validator::ValidationError;
 
-use crate::config::definitions::ConfigPointersMap;
-use crate::config::node_config::{
+use crate::definitions::ConfigPointersMap;
+use crate::node_config::{
     SequencerNodeConfig,
     CONFIG_POINTERS,
     CONFIG_SCHEMA_PATH,
@@ -50,7 +50,7 @@ pub fn private_parameters() -> BTreeSet<ParamPath> {
     private_values
 }
 
-pub(crate) fn create_validation_error(
+pub fn create_validation_error(
     error_msg: String,
     validate_code: &'static str,
     validate_error_msg: &'static str,

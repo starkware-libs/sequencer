@@ -73,6 +73,7 @@ use apollo_mempool_types::communication::{
     RemoteMempoolClient,
     SharedMempoolClient,
 };
+use apollo_node_config::{ReactiveComponentExecutionMode, SequencerNodeConfig};
 use apollo_signature_manager::metrics::SIGNATURE_MANAGER_INFRA_METRICS;
 use apollo_signature_manager_types::{
     LocalSignatureManagerClient,
@@ -92,8 +93,6 @@ use apollo_state_sync_types::communication::{
 use tracing::info;
 
 use crate::communication::SequencerNodeCommunication;
-use crate::config::component_execution_config::ReactiveComponentExecutionMode;
-use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,

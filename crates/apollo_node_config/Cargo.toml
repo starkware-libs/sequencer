@@ -1,0 +1,47 @@
+[package]
+name = "apollo_node_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_batcher_config.workspace = true
+apollo_class_manager_config.workspace = true
+apollo_config.workspace = true
+blockifier.workspace = true
+# TODO(Nadin): Remove this dependency once ConfigManagerConfig is extracted to a separate config crate
+apollo_config_manager.workspace = true
+apollo_consensus_manager_config.workspace = true
+apollo_gateway_config.workspace = true
+apollo_http_server_config.workspace = true
+apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
+apollo_l1_endpoint_monitor_config.workspace = true
+apollo_l1_gas_price_provider_config.workspace = true
+apollo_l1_provider_config.workspace = true
+apollo_l1_scraper_config.workspace = true
+apollo_mempool_config.workspace = true
+apollo_mempool_p2p_config.workspace = true
+apollo_monitoring_endpoint_config.workspace = true
+apollo_reverts.workspace = true
+apollo_sierra_compilation_config.workspace = true
+apollo_state_sync_config.workspace = true
+clap.workspace = true
+const_format.workspace = true
+papyrus_base_layer.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+apollo_config = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+pretty_assertions.workspace = true

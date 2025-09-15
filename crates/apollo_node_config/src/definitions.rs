@@ -27,13 +27,13 @@ impl From<ConfigPointersMap> for ConfigPointers {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum ConfigExpectation {
+pub enum ConfigExpectation {
     Redundant,
     Required,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum ConfigPresence {
+pub enum ConfigPresence {
     Absent,
     Present,
 }

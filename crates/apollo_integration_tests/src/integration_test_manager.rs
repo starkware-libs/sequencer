@@ -15,10 +15,13 @@ use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPr
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
-use apollo_node::config::config_utils::DeploymentBaseAppConfig;
-use apollo_node::config::definitions::ConfigPointersMap;
-use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
 use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use apollo_node_config::{
+    ConfigPointersMap,
+    DeploymentBaseAppConfig,
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+};
 use apollo_storage::StorageConfig;
 use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
