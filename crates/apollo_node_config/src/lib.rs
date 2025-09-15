@@ -7,3 +7,4 @@ pub mod config_utils;
 pub mod definitions;
 pub mod monitoring;
 pub mod node_config;
+pub mod version;

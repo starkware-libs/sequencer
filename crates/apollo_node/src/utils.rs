@@ -1,11 +1,11 @@
 use apollo_config::presentation::get_config_presentation;
 use apollo_config::ConfigError;
+use apollo_node_config::node_config::SequencerNodeConfig;
 use tracing::info;
 
 use crate::clients::{create_node_clients, SequencerNodeClients};
 use crate::communication::create_node_channels;
 use crate::components::create_node_components;
-use crate::config::node_config::SequencerNodeConfig;
 use crate::servers::{create_node_servers, SequencerNodeServers};
 
 pub async fn create_node_modules(
