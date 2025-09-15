@@ -13,7 +13,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
     CONSENSUS_TIMEOUTS,
-    LABEL_NAME_TIMEOUT_REASON,
+    LABEL_NAME_TIMEOUT_TYPE,
 };
 use apollo_consensus_manager::metrics::{
     CONSENSUS_NETWORK_EVENTS,
@@ -183,11 +183,16 @@ fn get_panel_consensus_reproposals() -> Panel {
 }
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
-        "Consensus Timeouts By Reason",
-        "The number of times consensus has timed out (10m window)",
+        "Consensus Timeouts By Type",
+        "The number of times consensus has timed out by type (10m window). \n- TimeoutPropose: as \
+         proposer, didn’t finish building in time; as validator, either didn’t receive the \
+         proposal or didn’t finish validation in time.\n- TimeoutPrevote: the node voted and \
+         received a quorum of prevotes, but not on the same value.\n- TimeoutPrecommit: didn’t \
+         finish validation but quorum of precommits received, or it finished but no decision \
+         reached.",
         vec![format!(
             "sum by ({}) (increase({}[10m]))",
-            LABEL_NAME_TIMEOUT_REASON,
+            LABEL_NAME_TIMEOUT_TYPE,
             CONSENSUS_TIMEOUTS.get_name_with_filter()
         )],
         PanelType::TimeSeries,

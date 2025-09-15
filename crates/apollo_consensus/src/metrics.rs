@@ -31,11 +31,11 @@ define_metrics!(
     },
 );
 
-pub const LABEL_NAME_TIMEOUT_REASON: &str = "timeout_reason";
+pub const LABEL_NAME_TIMEOUT_TYPE: &str = "timeout_type";
 
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum TimeoutReason {
+pub(crate) enum TimeoutType {
     Propose,
     Prevote,
     Precommit,
@@ -43,7 +43,7 @@ pub(crate) enum TimeoutReason {
 
 generate_permutation_labels! {
     CONSENSUS_TIMEOUT_LABELS,
-    (LABEL_NAME_TIMEOUT_REASON, TimeoutReason),
+    (LABEL_NAME_TIMEOUT_TYPE, TimeoutType),
 }
 
 pub(crate) fn register_metrics() {
