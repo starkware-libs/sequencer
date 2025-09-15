@@ -206,6 +206,7 @@
           "anti_affinity",
           "toleration",
           "storage",
+          "storage_class",
           "resources",
           "external_secret"
         ]
