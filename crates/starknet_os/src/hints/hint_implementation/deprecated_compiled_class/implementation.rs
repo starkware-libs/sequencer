@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 use blockifier::execution::contract_class::CompiledClassV0;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
-use cairo_vm::serde::deserialize_program::HintParams;
+use cairo_vm::serde::deserialize_program::{HintParams, Identifier, ReferenceManager};
+use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::relocatable::Relocatable;
 use starknet_api::core::CompiledClassHash;
 
@@ -107,6 +109,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
                 &params.flow_tracking_data.ap_tracking,
                 &params.flow_tracking_data.reference_ids,
                 &dep_class.program.shared_program_data.reference_manager,
+                constants.clone(),
             )?;
             compiled_hints.push(compiled_hint);
         }
