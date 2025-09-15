@@ -431,5 +431,19 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
             message: err.to_string(),
         },
+        StarknetApiError::DeclareTransactionCasmHashMissMatch {
+            class_hash,
+            compiled_class_hash,
+            compiled_class_hash_v2,
+        } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidCompiledClassHash,
+            ),
+            message: format!(
+                "Mismatch compiled class hash for class with hash {:#064x}. Actual: {:#064x}, \
+                 Expected: {:#064x}",
+                class_hash.0, compiled_class_hash.0, compiled_class_hash_v2.0
+            ),
+        },
     }
 }
