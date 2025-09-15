@@ -3,6 +3,7 @@ use apollo_state_sync_metrics::metrics::{
     P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
+    STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
     STATE_SYNC_HEADER_LATENCY_SEC,
 };
@@ -28,6 +29,14 @@ fn get_panel_central_sync_central_block_marker() -> Panel {
         "Central Block Marker",
         "The first block that Central Starknet hasn't seen yet",
         vec![CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter().to_string()],
+        PanelType::Stat,
+    )
+}
+fn get_panel_state_sync_body_marker() -> Panel {
+    Panel::new(
+        "State Sync Body Marker",
+        "The first block number for which the state sync component does not have a body",
+        vec![STATE_SYNC_BODY_MARKER.get_name_with_filter().to_string()],
         PanelType::Stat,
     )
 }
@@ -58,6 +67,7 @@ pub(crate) fn get_state_sync_row() -> Row {
         "State Sync",
         vec![
             get_panel_central_sync_central_block_marker(),
+            get_panel_state_sync_body_marker(),
             get_panel_state_sync_diff_from_central(),
             get_panel_state_sync_new_header_maturity(),
         ],

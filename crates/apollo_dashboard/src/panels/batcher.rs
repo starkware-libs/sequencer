@@ -86,7 +86,7 @@ fn get_panel_block_close_reasons() -> Panel {
 }
 fn get_panel_num_batches_in_proposal() -> Panel {
     Panel::new(
-        "Number of Batches in Proposal",
+        "Number of Chunks in Proposal",
         "The number of transaction batches received in a valid proposal",
         vec![CONSENSUS_NUM_BATCHES_IN_PROPOSAL.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
