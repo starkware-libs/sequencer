@@ -6,21 +6,12 @@ use apollo_consensus::metrics::{
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
-    CONSENSUS_HELD_LOCKS,
-    CONSENSUS_INBOUND_STREAM_EVICTED,
-    CONSENSUS_INBOUND_STREAM_FINISHED,
-    CONSENSUS_INBOUND_STREAM_STARTED,
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
-    CONSENSUS_NEW_VALUE_LOCKS,
-    CONSENSUS_OUTBOUND_STREAM_FINISHED,
-    CONSENSUS_OUTBOUND_STREAM_STARTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_PROPOSALS_VALIDATED,
-    CONSENSUS_PROPOSALS_VALID_INIT,
     CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
-    CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_REASON,
 };
@@ -36,13 +27,10 @@ use apollo_consensus_manager::metrics::{
 };
 use apollo_consensus_orchestrator::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
-    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
-    CONSENSUS_L1_DATA_GAS_MISMATCH,
-    CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
@@ -67,18 +55,6 @@ fn get_panel_consensus_block_number() -> Panel {
         PanelType::Stat,
     )
 }
-fn get_panel_consensus_block_number_diff_between_nodes() -> Panel {
-    Panel::new(
-        "Height Diff Between Nodes",
-        "The difference between the highest and lowest consensus heights between nodes",
-        vec![format!(
-            "(max({}) - min({}))",
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-}
 fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     Panel::new(
         "Consensus Height Diff From Sync",
@@ -99,14 +75,6 @@ fn get_panel_consensus_round() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_consensus_round_avg() -> Panel {
-    Panel::new(
-        "Average Consensus Round",
-        "Average consensus round (10m window)",
-        vec![format!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter())],
-        PanelType::TimeSeries,
-    )
-}
 fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
         "Average Block Time",
@@ -116,16 +84,8 @@ fn get_panel_consensus_block_time_avg() -> Panel {
     )
     .with_unit(Unit::Seconds)
 }
-fn get_panel_consensus_round_above_zero() -> Panel {
-    Panel::new(
-        "Consensus Rounds Above Zero",
-        "The number of times the consensus round has increased above zero (10m window)",
-        vec![format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter())],
-        PanelType::TimeSeries,
-    )
-}
 fn get_panel_consensus_max_cached_block_number() -> Panel {
-    Panel::from_gauge(&CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::TimeSeries)
+    Panel::from_gauge(&CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Stat)
 }
 fn get_panel_consensus_cached_votes() -> Panel {
     Panel::from_gauge(&CONSENSUS_CACHED_VOTES, PanelType::TimeSeries)
@@ -152,24 +112,9 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_consensus_inbound_stream_started() -> Panel {
-    Panel::from_counter(&CONSENSUS_INBOUND_STREAM_STARTED, PanelType::TimeSeries)
-}
-fn get_panel_consensus_inbound_stream_evicted() -> Panel {
-    Panel::from_counter(&CONSENSUS_INBOUND_STREAM_EVICTED, PanelType::TimeSeries)
-}
-fn get_panel_consensus_inbound_stream_finished() -> Panel {
-    Panel::from_counter(&CONSENSUS_INBOUND_STREAM_FINISHED, PanelType::TimeSeries)
-}
-fn get_panel_consensus_outbound_stream_started() -> Panel {
-    Panel::from_counter(&CONSENSUS_OUTBOUND_STREAM_STARTED, PanelType::TimeSeries)
-}
-fn get_panel_consensus_outbound_stream_finished() -> Panel {
-    Panel::from_counter(&CONSENSUS_OUTBOUND_STREAM_FINISHED, PanelType::TimeSeries)
-}
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
-        "Proposals Received",
+        "Proposal Validation: Number of Received Proposals",
         "The number of proposals received from the network (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_RECEIVED.get_name_with_filter())],
         PanelType::TimeSeries,
@@ -177,7 +122,7 @@ fn get_panel_consensus_proposals_received() -> Panel {
 }
 fn get_panel_consensus_proposals_validated() -> Panel {
     Panel::new(
-        "Proposal Validation Success",
+        "Proposal Validation: Number of Validated Proposals",
         "The number of proposals received and validated successfully (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALIDATED.get_name_with_filter())],
         PanelType::TimeSeries,
@@ -185,28 +130,28 @@ fn get_panel_consensus_proposals_validated() -> Panel {
 }
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
-        "Proposal Validation Failed",
+        "Proposal Validation: Number of Invalid Proposals",
         "The number of proposals received and failed validation (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter())],
         PanelType::TimeSeries,
     )
 }
-fn get_panel_consensus_proposals_valid_init() -> Panel {
+fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
-        "Proposal Validation Breakdown",
-        "Breakdown of proposals by validation result. There are more validations, but they are \
-         not reported here (10m window)",
-        vec![
-            format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALID_INIT.get_name_with_filter()),
-            format!("increase({}[10m])", CONSENSUS_L1_GAS_MISMATCH.get_name_with_filter()),
-            format!("increase({}[10m])", CONSENSUS_L1_DATA_GAS_MISMATCH.get_name_with_filter()),
-        ],
+        "Proposal Validation: Proposal Failure by Reason",
+        "The number of validate proposal failures (10m window)",
+        vec![format!(
+            "sum by ({}) (increase({}[10m]))",
+            LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
+            CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
+        )],
         PanelType::TimeSeries,
     )
+    .with_log_query("PROPOSAL_FAILED: Proposal failed as validator")
 }
 fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
-        "Proposal Build",
+        "Proposal Build: Number of Proposals Started",
         "The number of proposals that started building (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_BUILD_PROPOSAL_TOTAL.get_name_with_filter())],
         PanelType::TimeSeries,
@@ -214,20 +159,27 @@ fn get_panel_consensus_build_proposal_total() -> Panel {
 }
 fn get_panel_consensus_build_proposal_failed() -> Panel {
     Panel::new(
-        "Proposal Build Failed",
+        "Proposal Build: Number of Proposals Failed",
         "The number of proposals that failed to be built (10m window)",
         vec![format!("increase({}[10m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
 }
+fn get_panel_build_proposal_failure() -> Panel {
+    Panel::new(
+        "Proposal Build: Proposal Failure by Reason",
+        "The number of build proposal failures (10m window)",
+        vec![format!(
+            "sum by ({}) (increase({}[10m]))",
+            LABEL_BUILD_PROPOSAL_FAILURE_REASON,
+            CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+    .with_log_query("PROPOSAL_FAILED: Proposal failed as proposer")
+}
 fn get_panel_consensus_reproposals() -> Panel {
     Panel::from_counter(&CONSENSUS_REPROPOSALS, PanelType::TimeSeries)
-}
-fn get_panel_consensus_new_value_locks() -> Panel {
-    Panel::from_counter(&CONSENSUS_NEW_VALUE_LOCKS, PanelType::TimeSeries)
-}
-fn get_panel_consensus_held_locks() -> Panel {
-    Panel::from_counter(&CONSENSUS_HELD_LOCKS, PanelType::TimeSeries)
 }
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
@@ -243,7 +195,7 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
 }
 fn get_panel_consensus_num_batches_in_proposal() -> Panel {
     Panel::new(
-        "Number of Batches Received in Proposal",
+        "Proposal Validation: Number of Batches in Proposal",
         "The number of transaction batches received in a valid proposal",
         vec![CONSENSUS_NUM_BATCHES_IN_PROPOSAL.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
@@ -251,7 +203,7 @@ fn get_panel_consensus_num_batches_in_proposal() -> Panel {
 }
 fn get_panel_consensus_num_txs_in_proposal() -> Panel {
     Panel::new(
-        "Number of Transactions in Proposal Received",
+        "Proposal Validation: Number of Transactions in Proposal",
         "The total number of individual transactions in a valid proposal received",
         vec![CONSENSUS_NUM_TXS_IN_PROPOSAL.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
@@ -287,23 +239,6 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("Blob for block number")
-}
-fn get_panel_cende_prepare_blob_for_next_height_latency() -> Panel {
-    Panel::new(
-        "Prepare Blob for Next Height Latency",
-        "The time it takes to prepare the blob for the next height",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
-    )
-    .with_unit(Unit::Seconds)
 }
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
     Panel::new(
@@ -353,32 +288,6 @@ fn get_panel_cende_write_blob_failure() -> Panel {
     )
     .with_log_query("CENDE_FAILURE")
 }
-fn get_panel_build_proposal_failure() -> Panel {
-    Panel::new(
-        "Build Proposal Failure by Reason",
-        "The number of build proposal failures (10m window)",
-        vec![format!(
-            "sum by ({}) (increase({}[10m]))",
-            LABEL_BUILD_PROPOSAL_FAILURE_REASON,
-            CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-    .with_log_query("\"PROPOSAL_FAILED: Proposal failed as proposer\"")
-}
-fn get_panel_validate_proposal_failure() -> Panel {
-    Panel::new(
-        "Validate Proposal Failure by Reason",
-        "The number of validate proposal failures (10m window)",
-        vec![format!(
-            "sum by ({}) (increase({}[10m]))",
-            LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
-            CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-    .with_log_query("\"PROPOSAL_FAILED: Proposal failed as validator\"")
-}
 
 fn get_panel_consensus_network_events_by_type() -> Panel {
     Panel::new(
@@ -425,36 +334,25 @@ pub(crate) fn get_consensus_row() -> Row {
         vec![
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
-            get_panel_consensus_round_avg(),
-            get_panel_consensus_block_time_avg(),
-            get_panel_consensus_round_above_zero(),
-            get_panel_consensus_block_number_diff_between_nodes(),
             get_panel_consensus_block_number_diff_from_sync(),
+            get_panel_consensus_block_time_avg(),
             get_panel_consensus_decisions_reached_by_consensus(),
             get_panel_consensus_decisions_reached_by_sync(),
+            get_panel_consensus_build_proposal_total(),
+            get_panel_consensus_build_proposal_failed(),
+            get_panel_build_proposal_failure(),
             get_panel_consensus_proposals_received(),
             get_panel_consensus_proposals_validated(),
             get_panel_consensus_proposals_invalid(),
             get_panel_validate_proposal_failure(),
-            get_panel_consensus_proposals_valid_init(),
-            get_panel_consensus_build_proposal_total(),
-            get_panel_consensus_build_proposal_failed(),
-            get_panel_build_proposal_failure(),
             get_panel_consensus_timeouts_by_type(),
-            get_panel_consensus_num_batches_in_proposal(),
-            get_panel_consensus_num_txs_in_proposal(),
             get_panel_consensus_l2_gas_price(),
-            // TODO(Dafna): Can we remove these panels below?
+            get_panel_consensus_num_txs_in_proposal(),
+            get_panel_consensus_num_batches_in_proposal(),
+            // TODO(Dafna): Move to a debugging row
             get_panel_consensus_max_cached_block_number(),
             get_panel_consensus_cached_votes(),
             get_panel_consensus_reproposals(),
-            get_panel_consensus_new_value_locks(),
-            get_panel_consensus_held_locks(),
-            get_panel_consensus_inbound_stream_started(),
-            get_panel_consensus_inbound_stream_evicted(),
-            get_panel_consensus_inbound_stream_finished(),
-            get_panel_consensus_outbound_stream_started(),
-            get_panel_consensus_outbound_stream_finished(),
         ],
     )
 }
@@ -467,7 +365,6 @@ pub(crate) fn get_cende_row() -> Row {
             get_panel_cende_write_blob_failure(),
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_last_prepared_blob_block_number(),
-            get_panel_cende_prepare_blob_for_next_height_latency(),
         ],
     )
 }
