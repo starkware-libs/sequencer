@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_config::config::PreconfirmedBlockWriterConfig;
 use apollo_batcher_types::batcher_types::Round;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::reader::StateDiff;
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
@@ -14,7 +12,6 @@ use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
 use reqwest::StatusCode;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -266,38 +263,6 @@ fn is_round_mismatch_error(
         return true;
     }
     false
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Copy)]
-pub struct PreconfirmedBlockWriterConfig {
-    pub channel_buffer_capacity: usize,
-    pub write_block_interval_millis: u64,
-}
-
-impl Default for PreconfirmedBlockWriterConfig {
-    fn default() -> Self {
-        Self { channel_buffer_capacity: 1000, write_block_interval_millis: 50 }
-    }
-}
-
-impl SerializeConfig for PreconfirmedBlockWriterConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "channel_buffer_capacity",
-                &self.channel_buffer_capacity,
-                "The capacity of the channel buffer for receiving pre-confirmed transactions.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "write_block_interval_millis",
-                &self.write_block_interval_millis,
-                "Time interval (ms) between writing pre-confirmed blocks. Writes occur only when \
-                 block data changes.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 #[cfg_attr(test, automock)]

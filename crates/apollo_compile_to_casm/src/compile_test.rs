@@ -1,6 +1,11 @@
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
+use apollo_sierra_compilation_config::config::{
+    SierraCompilationConfig,
+    DEFAULT_MAX_BYTECODE_SIZE,
+    DEFAULT_MAX_MEMORY_USAGE,
+};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::allowed_libfuncs::{
     lookup_allowed_libfuncs_list,
@@ -15,7 +20,6 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 
 use crate::compiler::SierraToCasmCompiler;
-use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE, DEFAULT_MAX_MEMORY_USAGE};
 use crate::{RawClass, SierraCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use apollo_config::converters::UrlAndHeaders;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use mockito::{Mock, ServerGuard};
@@ -7,7 +8,7 @@ use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig, UrlAndHeaders};
+use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
     server

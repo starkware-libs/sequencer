@@ -1,3 +1,4 @@
+use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc::CompiledContractClass;
 use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::execution::contract_class::RunnableCompiledClass;
@@ -9,7 +10,6 @@ use starknet_api::block::{BlockInfo, BlockNumber, GasPricePerToken};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
-use crate::config::RpcStateReaderConfig;
 use crate::rpc_objects::{
     BlockHeader,
     BlockId,

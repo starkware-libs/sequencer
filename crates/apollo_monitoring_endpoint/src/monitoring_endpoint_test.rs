@@ -9,6 +9,11 @@ use apollo_mempool_types::mempool_types::{
     MempoolStateSnapshot,
     TransactionQueueSnapshot,
 };
+use apollo_monitoring_endpoint_config::config::{
+    MonitoringEndpointConfig,
+    MONITORING_ENDPOINT_DEFAULT_IP,
+    MONITORING_ENDPOINT_DEFAULT_PORT,
+};
 use axum::http::StatusCode;
 use axum::response::Response;
 use axum::Router;
@@ -24,8 +29,6 @@ use tokio::spawn;
 use tokio::task::yield_now;
 use tower::ServiceExt;
 
-use super::MonitoringEndpointConfig;
-use crate::config::{MONITORING_ENDPOINT_DEFAULT_IP, MONITORING_ENDPOINT_DEFAULT_PORT};
 use crate::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,

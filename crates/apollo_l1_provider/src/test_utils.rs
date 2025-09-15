@@ -173,11 +173,9 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_cancel_requested_txs(
-        mut self,
+        self,
         cancel_requested: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
-        self = self.with_nonzero_timelock_setup();
-
         let now = self.clock.as_ref().unwrap().unix_now();
         let cancellation_request_timestamp = now;
         let cancel_requested =
@@ -186,11 +184,9 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_cancelled_txs(
-        mut self,
+        self,
         cancelled: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
-        self = self.with_nonzero_timelock_setup();
-
         let now = self.clock.as_ref().unwrap().unix_now();
         let cancellation_timelock =
             self.config.unwrap().l1_handler_cancellation_timelock_seconds.as_secs();
@@ -205,14 +201,10 @@ impl L1ProviderContentBuilder {
     /// Use to test timelocking of new l1-handler transactions, if you don't care about the actual
     /// timestamp values. If you want to test specific timestamp values, use `with_timed_txs` and
     /// set clock and cooldown configs manually through the setters.
-    /// Note: do not set clock/configs manually if you use this method, or you may get unexpected
-    /// results.
     pub fn with_timelocked_txs(
         mut self,
         txs: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
-        self = self.with_nonzero_timelock_setup();
-
         let now = self.clock.as_ref().unwrap().unix_now();
         // An l1-handler is timelocked if if was created less than `cooldown` seconds ago. Since
         // timelock is nonzero, all txs created `now` are trivially timelocked.
@@ -252,17 +244,22 @@ impl L1ProviderContentBuilder {
         self.build().into()
     }
 
-    fn with_nonzero_timelock_setup(mut self) -> Self {
+    pub fn with_nonzero_timelock_setup(mut self) -> Self {
         let base_timestamp = 5; // Arbitrary small base timestamp.
         self.clock = self.clock.take().or_else(|| Some(Arc::new(FakeClock::new(base_timestamp))));
 
         let nonzero_timelock = Duration::from_secs(1);
-        let config = self.config.unwrap_or_default();
+        if self.config.is_some() {
+            panic!(
+                "Setting the nonzero timelock overrides a previously given with_config. Use \
+                 with_config at the end of the builder chain."
+            )
+        }
         self.with_config(L1ProviderConfig {
             new_l1_handler_cooldown_seconds: nonzero_timelock,
             l1_handler_cancellation_timelock_seconds: nonzero_timelock,
             l1_handler_consumption_timelock_seconds: nonzero_timelock,
-            ..config
+            ..Default::default()
         })
     }
 }
@@ -273,7 +270,7 @@ impl L1ProviderContentBuilder {
 struct TransactionManagerContent {
     pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
-    pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    pub committed: Option<Vec<TransactionPayload>>,
     pub consumed: Option<Vec<ConsumedTransaction>>,
     pub cancel_requested: Option<Vec<CancellationRequest>>,
     pub config: Option<TransactionManagerConfig>,
@@ -295,7 +292,10 @@ impl TransactionManagerContent {
         }
 
         if let Some(expected_committed) = &self.committed {
-            assert_eq!(expected_committed.keys().copied().collect_vec(), snapshot.committed);
+            assert_eq!(
+                expected_committed.iter().map(|tx| tx.tx_hash()).collect_vec(),
+                snapshot.committed
+            );
         }
 
         if let Some(rejected) = &self.rejected {
@@ -325,8 +325,7 @@ impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
-        // TODO(guyn): make this a vector too.
-        let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
+        let committed: Vec<_> = mem::take(&mut content.committed).unwrap_or_default();
         let consumed: Vec<_> = mem::take(&mut content.consumed).unwrap_or_default();
         let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
 
@@ -359,10 +358,10 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
-        for (tx_hash, committed_tx) in committed {
+        for committed_tx in committed {
             let mut record = TransactionRecord::from(committed_tx);
             record.mark_committed();
-            assert_eq!(records.insert(tx_hash, record), None);
+            assert_eq!(records.insert(record.tx.tx_hash(), record), None);
         }
 
         for cancel_requested_tx in cancel_requested {
@@ -407,7 +406,7 @@ impl From<TransactionManagerContent> for TransactionManager {
 struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
-    committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    committed: Option<Vec<TransactionPayload>>,
     consumed: Option<Vec<ConsumedTransaction>>,
     config: Option<TransactionManagerConfig>,
     cancel_requested: Option<Vec<CancellationRequest>>,
@@ -437,7 +436,7 @@ impl TransactionManagerContentBuilder {
             committed
                 .into_iter()
                 // created at block is irrelevant for committed txs.
-                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), scrape_timestamp: 0 })),
+                .map(|tx| TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), scrape_timestamp: 0 }),
         );
         self
     }
@@ -455,14 +454,11 @@ impl TransactionManagerContentBuilder {
         committed: impl IntoIterator<Item = TimedL1HandlerTransaction>,
     ) -> Self {
         self.committed.get_or_insert_default().extend(committed.into_iter().map(|timed_tx| {
-            (
-                timed_tx.tx.tx_hash,
-                TransactionPayload::Full {
-                    tx: timed_tx.tx,
-                    created_at_block_timestamp: timed_tx.timestamp,
-                    scrape_timestamp: timed_tx.timestamp.0,
-                },
-            )
+            TransactionPayload::Full {
+                tx: timed_tx.tx,
+                created_at_block_timestamp: timed_tx.timestamp,
+                scrape_timestamp: timed_tx.timestamp.0,
+            }
         }));
         self
     }
@@ -471,11 +467,9 @@ impl TransactionManagerContentBuilder {
         mut self,
         committed_hashes: impl IntoIterator<Item = TransactionHash>,
     ) -> Self {
-        self.committed.get_or_insert_default().extend(
-            committed_hashes
-                .into_iter()
-                .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly(tx_hash))),
-        );
+        self.committed
+            .get_or_insert_default()
+            .extend(committed_hashes.into_iter().map(TransactionPayload::HashOnly));
         self
     }
 
@@ -541,31 +535,8 @@ impl FakeL1ProviderClient {
     pub fn assert_add_events_received_with(&self, expected: &[Event]) {
         let events_received = mem::take(&mut *self.events_received.lock().unwrap());
         for (received, expected) in events_received.iter().zip_eq(expected) {
-            assert_event_almost_eq(received, expected);
+            received.assert_event_almost_eq(expected);
         }
-    }
-}
-
-/// Asserts that the received event matches the expected event, ignoring scrape time.
-fn assert_event_almost_eq(received: &Event, expected: &Event) {
-    if let (
-        Event::L1HandlerTransaction {
-            l1_handler_tx: received_l1_handler_tx,
-            block_timestamp: received_block_timestamp,
-            scrape_timestamp: _,
-        },
-        Event::L1HandlerTransaction {
-            l1_handler_tx: expected_l1_handler_tx,
-            block_timestamp: expected_block_timestamp,
-            scrape_timestamp: _,
-        },
-    ) = (received, expected)
-    {
-        // Skip the assertion on scrape_timestamp.
-        assert_eq!(received_l1_handler_tx, expected_l1_handler_tx);
-        assert_eq!(received_block_timestamp, expected_block_timestamp);
-    } else {
-        assert_eq!(received, expected);
     }
 }
 

@@ -176,8 +176,17 @@ impl ReactiveComponentExecutionConfig {
             port: DEFAULT_INVALID_PORT,
         }
     }
+
     fn is_valid_socket(&self) -> bool {
         self.port != 0
+    }
+
+    pub fn with_idle_connections(mut self, idle_connections: usize) -> Self {
+        self.remote_client_config
+            .as_mut()
+            .expect("Remote client config should be available")
+            .idle_connections = idle_connections;
+        self
     }
 
     #[cfg(any(feature = "testing", test))]

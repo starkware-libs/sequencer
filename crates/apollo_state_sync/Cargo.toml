@@ -13,11 +13,13 @@ workspace = true
 
 [dependencies]
 apollo_central_sync.workspace = true
+apollo_central_sync_config.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync.workspace = true
+apollo_p2p_sync_config.workspace = true
 apollo_reverts.workspace = true
 apollo_rpc.workspace = true
 apollo_starknet_client.workspace = true

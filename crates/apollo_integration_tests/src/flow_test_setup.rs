@@ -6,10 +6,10 @@ use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
-use apollo_mempool_p2p::config::MempoolP2pConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
+use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::network_manager::test_utils::{
     create_connected_network_configs,
@@ -50,6 +50,7 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
+use url::Url;
 
 use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
@@ -119,8 +120,20 @@ impl FlowTestSetup {
             .try_into()
             .unwrap();
 
+<<<<<<< HEAD
         let anvil_base_layer = AnvilBaseLayer::new().await;
         let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
+||||||| d18ef963d
+        let base_layer_config =
+            ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
+        let (anvil, starknet_l1_contract) =
+            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
+=======
+        let (base_layer_config, base_layer_url) =
+            ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
+        let (anvil, starknet_l1_contract) =
+            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
+>>>>>>> origin/main-v0.14.1
 
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -129,6 +142,7 @@ impl FlowTestSetup {
             sender_address,
             receiver_address,
             base_layer_config.clone(),
+            &base_layer_url,
             NUM_L1_TRANSACTIONS,
         )
         .await;
@@ -150,6 +164,7 @@ impl FlowTestSetup {
             SEQUENCER_0,
             chain_info.clone(),
             base_layer_config.clone(),
+            base_layer_url.clone(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 1),
@@ -164,6 +179,7 @@ impl FlowTestSetup {
             SEQUENCER_1,
             chain_info,
             base_layer_config,
+            base_layer_url,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 2),
@@ -226,6 +242,7 @@ impl FlowSequencerSetup {
         node_index: usize,
         chain_info: ChainInfo,
         base_layer_config: EthereumBaseLayerConfig,
+        base_layer_url: Url,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
@@ -273,6 +290,7 @@ impl FlowSequencerSetup {
             monitoring_endpoint_config,
             component_config,
             base_layer_config,
+            base_layer_url,
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,
@@ -284,7 +302,7 @@ impl FlowSequencerSetup {
             num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
-        let (clients, servers) = create_node_modules(&node_config).await;
+        let (clients, servers) = create_node_modules(&node_config, vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();

@@ -1,3 +1,4 @@
+use apollo_gateway_config::compiler_version::VersionId;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -18,8 +19,6 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
-
-use crate::compiler_version::VersionId;
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
