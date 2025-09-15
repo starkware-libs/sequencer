@@ -76,7 +76,7 @@ use crate::alert_scenarios::transaction_delays::{
 };
 use crate::alert_scenarios::transaction_failures::{
     get_http_server_high_deprecated_transaction_failure_ratio,
-    get_http_server_high_transaction_failure_ratio_vec,
+    get_http_server_high_transaction_failure_ratio,
     get_http_server_internal_error_once,
     get_http_server_internal_error_ratio_vec,
     get_mempool_transaction_drop_ratio_vec,
@@ -541,6 +541,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_sync_storage_open_read_transactions_alert(),
         get_batcher_storage_open_read_transactions_alert(),
         get_class_manager_storage_open_read_transactions_alert(),
+        get_http_server_high_transaction_failure_ratio(),
     ];
 
     alerts.append(&mut get_batched_transactions_stuck_vec());
@@ -556,7 +557,6 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_general_pod_memory_utilization_vec());
     alerts.append(&mut get_general_pod_disk_utilization_vec());
     alerts.append(&mut get_http_server_avg_add_tx_latency_alert_vec());
-    alerts.append(&mut get_http_server_high_transaction_failure_ratio_vec());
     alerts.append(&mut get_http_server_internal_error_ratio_vec());
     alerts.append(&mut get_gateway_low_successful_transaction_rate_vec());
     alerts.append(&mut get_http_server_p95_add_tx_latency_alert_vec());

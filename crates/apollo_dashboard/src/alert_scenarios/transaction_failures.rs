@@ -44,10 +44,7 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
     )
 }
 
-fn get_http_server_high_transaction_failure_ratio(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
     Alert::new(
         "http_server_high_transaction_failure_ratio",
         "http server high transaction failure ratio",
@@ -65,23 +62,10 @@ fn get_http_server_high_transaction_failure_ratio(
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
+        AlertEnvFiltering::All,
     )
-}
-
-pub(crate) fn get_http_server_high_transaction_failure_ratio_vec() -> Vec<Alert> {
-    vec![
-        get_http_server_high_transaction_failure_ratio(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-        get_http_server_high_transaction_failure_ratio(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
 }
 
 fn get_http_server_internal_error_ratio(
