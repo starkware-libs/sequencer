@@ -621,23 +621,25 @@
       ],
       "collapsed": true
     },
-    "L1 Gas Price": {
+    "ETH→STRK Rate & L1 Gas Price": {
       "panels": [
         {
-          "title": "eth_to_strk_error_count",
-          "description": "Number of times the query to the Eth to Strk oracle failed due to an error or timeout",
-          "type": "stat",
+          "title": "ETH→STRK Rate Query Success (binary)",
+          "description": "Indicates whether the ETH→STRK rate query succeeded (1m window) \nExpected to be 1 every 15 minutes.",
+          "type": "timeseries",
           "exprs": [
-            "eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "changes(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Caching conversion rate for timestamp\""
+          }
         },
         {
-          "title": "eth_to_strk_success_count",
-          "description": "Number of times the query to the Eth to Strk oracle succeeded",
-          "type": "stat",
+          "title": "ETH→STRK Rate Query Error Count",
+          "description": "The number of times the ETH→STRK rate query failed (10m window)",
+          "type": "timeseries",
           "exprs": [
-            "eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
@@ -648,55 +650,59 @@
           "exprs": [
             "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"} / 1000000000000000000000"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Caching conversion rate for timestamp\""
+          }
         },
         {
-          "title": "l1_gas_price_provider_insufficient_history",
-          "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
-          "type": "stat",
-          "exprs": [
-            "l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "l1_gas_price_scraper_success_count",
-          "description": "Number of times the L1 gas price scraper successfully scraped and updated gas prices",
-          "type": "stat",
-          "exprs": [
-            "l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "l1_gas_price_scraper_baselayer_error_count",
-          "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
-          "type": "stat",
-          "exprs": [
-            "l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "l1_gas_price_scraper_reorg_detected",
-          "description": "Number of times the L1 gas price scraper detected a reorganization in the base layer",
-          "type": "stat",
-          "exprs": [
-            "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "l1_gas_price_scraper_latest_scraped_block",
-          "description": "The latest block number that the L1 gas price scraper has scraped",
+          "title": "L1 Gas Price Provider Insufficient History",
+          "description": "The number of times the L1 gas price provider calculated an average with too few blocks (10m window)",
           "type": "timeseries",
+          "exprs": [
+            "increase(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"Not enough history to calculate the mean gas price.\""
+          }
+        },
+        {
+          "title": "L1 Gas Price Scraper Success Count",
+          "description": "The number of times the L1 gas price scraper successfully scraped and updated gas prices (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "L1 Gas Price Scraper Base Layer Error Count",
+          "description": "The number of times the L1 gas price scraper encountered an error while scraping the base layer (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "L1 Gas Price Scraper Reorg Detected",
+          "description": "The number of times the L1 gas price scraper detected a reorganization in the base layer (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "L1 Gas Price Scraper Latest Scraped Block",
+          "description": "The latest block number that the L1 gas price scraper has scraped",
+          "type": "stat",
           "exprs": [
             "l1_gas_price_scraper_latest_scraped_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_latest_mean_value",
+          "title": "L1 Gas Price Latest Mean Value",
           "description": "The latest L1 gas price, calculated as an average by the provider client",
           "type": "timeseries",
           "exprs": [
@@ -705,7 +711,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_data_gas_price_latest_mean_value",
+          "title": "L1 Data Gas Price Latest Mean Value",
           "description": "The latest L1 data gas price, calculated as an average by the provider client",
           "type": "timeseries",
           "exprs": [
