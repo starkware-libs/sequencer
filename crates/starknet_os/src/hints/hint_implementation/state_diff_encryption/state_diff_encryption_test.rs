@@ -153,3 +153,97 @@ fn test_state_diff_encryption_function(#[case] private_keys: &[Felt]) {
         assert_eq!(decrypted_data, data);
     }
 }
+
+#[rstest]
+#[case::single_key(&[Felt::from(1234567890)])]
+#[case::multiple_keys(&[Felt::from(123), Felt::from(456), Felt::from(789), Felt::from(101112)])]
+fn test_compute_public_keys_function(#[case] private_keys: &[Felt]) {
+    // Set up starknet private keys.
+    let sn_private_keys_vector: Vec<Felt> = private_keys
+        .iter()
+        .map(|&private_key| {
+            private_key + Felt::from(1000) // simple transformation for testing
+        })
+        .collect();
+
+    // Set up the entry point runner configuration.
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::starknet,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    };
+
+    let mut implicit_args = vec![
+        ImplicitArg::Builtin(BuiltinName::range_check),
+        ImplicitArg::Builtin(BuiltinName::ec_op),
+    ];
+
+    let entrypoint = "starkware.starknet.core.os.output.compute_public_keys";
+
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        entrypoint,
+        &implicit_args,
+        HashMap::new(),
+    )
+    .unwrap();
+
+    let encrypted_dst = runner.vm.add_memory_segment();
+    implicit_args
+        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(encrypted_dst.into()))));
+
+    let sn_private_keys = runner.vm.add_memory_segment();
+    // Insert the content of 'sn_private_keys_vector' into 'sn_private_keys'.
+    runner
+        .vm
+        .load_data(
+            sn_private_keys,
+            &sn_private_keys_vector
+                .clone()
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<MaybeRelocatable>>(),
+        )
+        .unwrap();
+
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(sn_private_keys_vector.len().into())),
+        EndpointArg::Value(ValueArg::Single(sn_private_keys.into())),
+    ];
+    let state_reader = None;
+    let expected_explicit_return_values: Vec<EndpointArg> = vec![];
+    let (implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+        state_reader,
+        &mut runner,
+        &program,
+        &runner_config,
+        &expected_explicit_return_values,
+    )
+    .unwrap();
+
+    // [range_check_ptr, ec_op_ptr, encrypted_dst_end]
+    assert_eq!(implicit_return_values.len(), 3);
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::RelocatableValue(encrypted_dst_end))) =
+        implicit_return_values[2]
+    else {
+        panic!("Unexpected implicit return value");
+    };
+
+    let actual_public_keys_length = (encrypted_dst_end - encrypted_dst).unwrap();
+    assert_eq!(sn_private_keys_vector.len(), actual_public_keys_length);
+
+    let sn_public_keys_from_memory: Vec<Felt> = runner
+        .vm
+        .get_integer_range(encrypted_dst, actual_public_keys_length)
+        .unwrap()
+        .into_iter()
+        .map(|felt| *felt)
+        .collect();
+
+    let expected_public_keys = compute_public_keys(&sn_private_keys_vector);
+    assert_eq!(sn_public_keys_from_memory, expected_public_keys);
+}
