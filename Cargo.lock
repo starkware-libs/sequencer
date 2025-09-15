@@ -9550,7 +9550,6 @@ dependencies = [
  "apollo_l1_endpoint_monitor_types",
  "assert_matches",
  "async-trait",
- "colored 3.0.0",
  "ethers",
  "ethers-core",
  "futures",

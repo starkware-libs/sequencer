@@ -17,6 +17,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     Starknet,
+    StarknetL1Contract,
 };
 use papyrus_base_layer::test_utils::{
     make_block_history_on_anvil,
@@ -138,6 +139,13 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
 
     let (base_layer_config, base_layer_url) = build_base_layer_config_for_testing();
 
+    pub async fn deploy_starknet_l1_contract(
+        config: EthereumBaseLayerConfig,
+        url: &Url,
+    ) -> StarknetL1Contract {
+        let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config, url.clone());
+        Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
+    }
     deploy_starknet_l1_contract(base_layer_config.clone(), &base_layer_url).await;
 
     make_block_history_on_anvil(
@@ -150,6 +158,7 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
     .await;
 }
 
+// TODO(Arni): Use `AnvilBaseLayer`.
 fn build_base_layer_config_for_testing() -> (EthereumBaseLayerConfig, Url) {
     let starknet_contract_address: EthereumContractAddress =
         DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");

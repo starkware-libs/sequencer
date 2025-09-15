@@ -10,6 +10,7 @@ use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use tracing::debug;
+use url::Url;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -97,128 +98,9 @@ pub fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddr
     ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
 }
 
-<<<<<<< HEAD
 // FIXME: This should be part of AnvilBaseLayer, however the usage in the simulator doesn't allow
 // that, since it is coupled with a manual invocation of an anvil instance that is managed inside
 // the github workflow.
-||||||| d18ef963d
-// TODO(Arni): Make port non-optional.
-// Spin up Anvil instance, a local Ethereum node, dies when dropped.
-pub fn anvil(port: Option<u16>) -> AnvilInstance {
-    let mut anvil = Anvil::new();
-    // If the port is not set explicitly, a random ephemeral port is bound and used.
-    if let Some(port) = port {
-        anvil = anvil.port(port);
-    }
-
-    anvil.try_spawn().unwrap_or_else(|error| match error {
-        AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
-            panic!(
-                "\n{}\n{}\n",
-                "Anvil binary not found!".bold().red(),
-                "Install instructions (for local development):\n
-                 cargo install --git \
-                 https://github.com/foundry-rs/foundry anvil --locked --tag=v0.3.0"
-                    .yellow()
-            )
-        }
-        _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
-    })
-}
-
-pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLayerConfig {
-    // Use the specified port if provided; otherwise, default to Anvil's default port.
-    let non_optional_port = port.unwrap_or(DEFAULT_ANVIL_PORT);
-    let endpoint = format!("http://localhost:{non_optional_port}");
-    EthereumBaseLayerConfig {
-        node_url: Url::parse(&endpoint).unwrap(),
-        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-        ..Default::default()
-    }
-}
-
-pub fn anvil_instance_from_config(config: &EthereumBaseLayerConfig) -> AnvilInstance {
-    let port = config.node_url.port();
-    let anvil = anvil(port);
-    assert_eq!(config.node_url, anvil.endpoint_url(), "Unexpected config for Anvil instance.");
-    anvil
-}
-
-pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
-    config: &EthereumBaseLayerConfig,
-) -> (AnvilInstance, StarknetL1Contract) {
-    let anvil = anvil_instance_from_config(config);
-    let starknet_l1_contract = deploy_starknet_l1_contract(config.clone()).await;
-    (anvil, starknet_l1_contract)
-}
-
-pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> StarknetL1Contract {
-    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config);
-    Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
-}
-
-=======
-// TODO(Arni): Make port non-optional.
-// Spin up Anvil instance, a local Ethereum node, dies when dropped.
-pub fn anvil(port: Option<u16>) -> AnvilInstance {
-    let mut anvil = Anvil::new();
-    // If the port is not set explicitly, a random ephemeral port is bound and used.
-    if let Some(port) = port {
-        anvil = anvil.port(port);
-    }
-
-    anvil.try_spawn().unwrap_or_else(|error| match error {
-        AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
-            panic!(
-                "\n{}\n{}\n",
-                "Anvil binary not found!".bold().red(),
-                "Install instructions (for local development):\n
-                 cargo install --git \
-                 https://github.com/foundry-rs/foundry anvil --locked --tag=v0.3.0"
-                    .yellow()
-            )
-        }
-        _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
-    })
-}
-
-pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> (EthereumBaseLayerConfig, Url) {
-    // Use the specified port if provided; otherwise, default to Anvil's default port.
-    let non_optional_port = port.unwrap_or(DEFAULT_ANVIL_PORT);
-    let endpoint = format!("http://localhost:{non_optional_port}");
-    let url = Url::parse(&endpoint).unwrap();
-    let config = EthereumBaseLayerConfig {
-        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-        ..Default::default()
-    };
-    (config, url)
-}
-
-pub fn anvil_instance_from_url(url: &Url) -> AnvilInstance {
-    let port = url.port();
-    let anvil = anvil(port);
-    assert_eq!(url, &anvil.endpoint_url(), "Unexpected config for Anvil instance.");
-    anvil
-}
-
-pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
-    config: &EthereumBaseLayerConfig,
-    url: &Url,
-) -> (AnvilInstance, StarknetL1Contract) {
-    let anvil = anvil_instance_from_url(url);
-    let starknet_l1_contract = deploy_starknet_l1_contract(config.clone(), url).await;
-    (anvil, starknet_l1_contract)
-}
-
-pub async fn deploy_starknet_l1_contract(
-    config: EthereumBaseLayerConfig,
-    url: &Url,
-) -> StarknetL1Contract {
-    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config, url.clone());
-    Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
-}
-
->>>>>>> origin/main-v0.14.1
 pub async fn make_block_history_on_anvil(
     sender_address: EthereumContractAddress,
     receiver_address: EthereumContractAddress,
