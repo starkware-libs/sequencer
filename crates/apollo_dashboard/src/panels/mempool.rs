@@ -36,7 +36,7 @@ fn get_panel_mempool_transactions_committed() -> Panel {
 fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
         "Dropped Transactions by Reason",
-        "Number of transactions dropped from the mempool by reason",
+        "Number of transactions dropped from the mempool by reason (over the selected time range)",
         vec![format!(
             "sum  by ({}) (increase({}[$__range]))",
             LABEL_NAME_DROP_REASON,
