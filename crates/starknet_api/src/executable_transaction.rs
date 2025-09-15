@@ -203,9 +203,7 @@ impl DeclareTransaction {
 
     /// Verifies that the compiled class hash field in the declare tx,
     /// is compiled_class_hash_v2 of the compiled contract.
-    pub fn check_compile_class_hash_v2_declaration(
-        &self,
-    ) -> Result<(), (ClassHash, CompiledClassHash, CompiledClassHash)> {
+    pub fn check_compile_class_hash_v2_declaration(&self) -> Result<(), StarknetApiError> {
         let compiled_class = &self.class_info.contract_class;
         let compiled_class_hash_v2 = match &compiled_class {
             ContractClass::V0(_) => return Ok(()),
@@ -213,10 +211,13 @@ impl DeclareTransaction {
         };
         let compiled_class_hash = self.compiled_class_hash();
         if compiled_class_hash_v2 != compiled_class_hash {
-            Err((self.class_hash(), compiled_class_hash, compiled_class_hash_v2))
-        } else {
-            Ok(())
+            return Err(StarknetApiError::DeclareTransactionCasmHashMissMatch {
+                class_hash: self.class_hash(),
+                compiled_class_hash,
+                compiled_class_hash_v2,
+            });
         }
+        Ok(())
     }
 
     // Returns whether the declare transaction is for bootstrapping.

@@ -30,6 +30,7 @@ pub mod versioned_constants_logic;
 
 use std::num::ParseIntError;
 
+use crate::core::{ClassHash, CompiledClassHash};
 use crate::transaction::TransactionVersion;
 
 /// The error type returned by StarknetApi.
@@ -73,6 +74,15 @@ pub enum StarknetApiError {
     ParseSierraVersionError(String),
     #[error("Unsupported transaction type: {0}")]
     UnknownTransactionType(String),
+    #[error(
+        "Mismatch compiled class hash for class with hash {:#064x}. Actual: {:#064x}, Expected: {:#064x}",
+        class_hash.0, compiled_class_hash.0, compiled_class_hash_v2.0
+    )]
+    DeclareTransactionCasmHashMissMatch {
+        class_hash: ClassHash,
+        compiled_class_hash: CompiledClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    },
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;
