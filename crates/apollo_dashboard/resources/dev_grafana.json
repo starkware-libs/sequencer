@@ -451,7 +451,7 @@
           "description": "The number of transactions failed by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
+            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
         },
