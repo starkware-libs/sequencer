@@ -17,9 +17,9 @@ use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGR
 fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
         "Transactions Received by Type",
-        "The number of transactions received by type (10m window)",
+        "The number of transactions received by type (over the selected time range)",
         vec![format!(
-            "sum  by ({}) (increase({}[10m])) ",
+            "sum  by ({}) (increase({}[$__range])) ",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         )],
@@ -31,9 +31,9 @@ fn get_panel_gateway_transactions_received_by_type() -> Panel {
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
     Panel::new(
         "Transactions Received by Source",
-        "The number of transactions received by source (10m window)",
+        "The number of transactions received by source (over the selected time range)",
         vec![format!(
-            "sum  by ({}) (increase({}[10m])) ",
+            "sum  by ({}) (increase({}[$__range])) ",
             LABEL_NAME_SOURCE,
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         )],
@@ -94,9 +94,9 @@ fn get_panel_gateway_validate_tx_latency() -> Panel {
 fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     Panel::new(
         "Transactions Failed by Reason",
-        "The number of transactions failed by reason (10m window)",
+        "The number of transactions failed by reason (over the selected time range)",
         vec![format!(
-            "sum by ({}) (increase({}[10m]))",
+            "sum by ({}) (increase({}[$__range]))",
             LABEL_NAME_ADD_TX_FAILURE_REASON,
             GATEWAY_ADD_TX_FAILURE.get_name_with_filter()
         )],
@@ -107,9 +107,10 @@ fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
 fn get_panel_gateway_transactions_failure_rate() -> Panel {
     Panel::new(
         "Transaction Failure Rate by Type",
-        "The rate of failed transactions vs received transactions by type (10m window)",
+        "The rate of failed transactions vs received transactions by type (over the selected time \
+         range)",
         vec![format!(
-            "(sum by ({}) (increase({}[10m])) / sum by ({}) (increase({}[10m])))",
+            "(sum by ({}) (increase({}[$__range])) / sum by ({}) (increase({}[$__range])))",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter(),
             GATEWAY_LABEL_NAME_TX_TYPE,
@@ -123,9 +124,9 @@ fn get_panel_gateway_transactions_failure_rate() -> Panel {
 fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
     Panel::new(
         "Transactions Sent to Mempool by Type",
-        "The number of transactions sent to mempool by type (10m window)",
+        "The number of transactions sent to mempool by type (over the selected time range)",
         vec![format!(
-            "sum  by ({}) (increase({}[10m]))",
+            "sum  by ({}) (increase({}[$__range]))",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
         )],
