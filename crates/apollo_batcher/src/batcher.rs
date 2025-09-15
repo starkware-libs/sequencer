@@ -197,7 +197,7 @@ impl Batcher {
 
         // TODO(yair): extract function for the following calls, use join_all.
         info!(
-            "Committing block {}, round {} in Mempool client",
+            "Notifying the mempool we start to work on block {}, round {}.",
             block_number, propose_block_input.proposal_round
         );
         self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
