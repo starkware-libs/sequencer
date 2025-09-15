@@ -463,15 +463,6 @@
           }
         },
         {
-          "title": "Transactions Failed by Type",
-          "description": "The number of transactions failed by type (10m window)",
-          "type": "stat",
-          "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Transaction Failure Rate by Type",
           "description": "The rate of failed transactions vs received transactions by type (10m window)",
           "type": "stat",
