@@ -26,6 +26,8 @@ from starkware.starknet.core.os.state.output import (
     serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
+from starkware.starknet.core.os.naive_blake import naive_encode_felt252s_to_u32s
+from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 
 // Represents the output of the OS.
 struct OsOutput {
@@ -269,6 +271,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
 
     // Encrypt the compressed state updates.
     // Generate random symmetric key and random starknet private keys.
+    let (__fp__, _) = get_fp_and_pc();
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
@@ -286,6 +289,10 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     let encrypted_dst = encrypted_start;
     assert encrypted_dst[0] = n_keys;
     let encrypted_dst = &encrypted_dst[1];
+    let (local encoded_symmetric_key: felt*) = alloc();
+    naive_encode_felt252s_to_u32s(
+        packed_values_len=1, packed_values=&symmetric_key, unpacked_u32s=encoded_symmetric_key
+    );
 
     with encrypted_dst {
         compute_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
@@ -295,7 +302,11 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
             sn_private_keys=sn_private_keys,
             symmetric_key=symmetric_key,
         );
-        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
+        encrypt(
+            data_start=compressed_start,
+            data_end=compressed_dst,
+            encoded_symmetric_key=encoded_symmetric_key,
+        );
     }
 
     return (da_start=encrypted_start, da_end=encrypted_dst);
@@ -455,29 +466,71 @@ func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_d
 }
 
 func encrypt{range_check_ptr, encrypted_dst: felt*}(
-    data_start: felt*, data_end: felt*, symmetric_key: felt
+    data_start: felt*, data_end: felt*, encoded_symmetric_key: felt*
 ) {
-    encrypt_inner(data_start=data_start, data_end=data_end, index=0, symmetric_key=symmetric_key);
+    // For all elements of the state diff, write the input and output to the same output to
+    // optimize segment allocation.
+    alloc_locals;
+
+    let (local blake_output: felt*) = alloc();
+    let blake_output_dst = blake_output;
+    with blake_output_dst {
+        encrypt_inner(
+            data_start=data_start,
+            data_end=data_end,
+            index=0,
+            encoded_symmetric_key=encoded_symmetric_key,
+        );
+    }
     return ();
 }
 
 // A helper for encrypt.
-func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
-    data_start: felt*, data_end: felt*, index: felt, symmetric_key: felt
+func encrypt_inner{range_check_ptr, encrypted_dst: felt*, blake_output_dst: felt*}(
+    data_start: felt*, data_end: felt*, index: felt, encoded_symmetric_key: felt*
 ) {
+    alloc_locals;
+
     if (data_start == data_end) {
         return ();
     }
+    let blake_encoding_start = blake_output_dst;
 
-    // TODO(Noa): prepare the entire input in a single array
-    tempvar blake_input: felt* = new (symmetric_key, index);
+    // Write encoded symmetric key to blake output
+    assert blake_encoding_start[0] = encoded_symmetric_key[0];
+    assert blake_encoding_start[1] = encoded_symmetric_key[1];
+    assert blake_encoding_start[2] = encoded_symmetric_key[2];
+    assert blake_encoding_start[3] = encoded_symmetric_key[3];
+    assert blake_encoding_start[4] = encoded_symmetric_key[4];
+    assert blake_encoding_start[5] = encoded_symmetric_key[5];
+    assert blake_encoding_start[6] = encoded_symmetric_key[6];
+    assert blake_encoding_start[7] = encoded_symmetric_key[7];
+    let blake_output_dst = &blake_output_dst[8];
+    let (__fp__, _) = get_fp_and_pc();
+    let index_ptr = index;
+    // Write encoded index to blake output
+    naive_encode_felt252s_to_u32s(
+        packed_values_len=1, packed_values=&index_ptr, unpacked_u32s=blake_output_dst
+    );
+    let blake_output_dst = &blake_output_dst[8];
+    // Calculate blake hash modulo prime
+    // TODO(Einat): replace with optimized blake_with_opcode
+    blake_with_opcode(len=16, data=blake_encoding_start, out=blake_output_dst);
+    let hash = blake_output_dst[7] * 2 ** 224 + blake_output_dst[6] * 2 ** 192 + blake_output_dst[
+        5
+    ] * 2 ** 160 + blake_output_dst[4] * 2 ** 128 + blake_output_dst[3] * 2 ** 96 +
+        blake_output_dst[2] * 2 ** 64 + blake_output_dst[1] * 2 ** 32 + blake_output_dst[0];
+    let blake_output_dst = &blake_output_dst[8];
+
     // Encrypt the current element.
-    let (hash: felt) = encode_felt252_data_and_calc_blake_hash(data_len=2, data=blake_input);
     assert encrypted_dst[0] = hash + data_start[0];
 
     let encrypted_dst = &encrypted_dst[1];
 
     return encrypt_inner(
-        data_start=&data_start[1], data_end=data_end, index=index + 1, symmetric_key=symmetric_key
+        data_start=&data_start[1],
+        data_end=data_end,
+        index=index + 1,
+        encoded_symmetric_key=encoded_symmetric_key,
     );
 }
