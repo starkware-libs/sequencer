@@ -720,3 +720,104 @@ fn class_hash_migration_data_from_state(
         assert_eq!(migration_proving_gas, GasAmount::ZERO);
     }
 }
+
+/// Ensures `get_tx_weights` adds the migration gas when (and only when) migration is applicable.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
+#[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[case(CairoVersion::Cairo0)]
+fn get_tx_weights_applies_migration_gas_delta(
+    #[case] cairo_version: CairoVersion,
+    #[values(true, false)] declare_with_casm_hash_v1: bool,
+) {
+    let mut bc_migration_enabled = BlockContext::create_for_account_testing();
+    bc_migration_enabled.versioned_constants.enable_casm_hash_migration = true;
+
+    let mut vc_migration_disabled = bc_migration_enabled.versioned_constants.clone();
+    vc_migration_disabled.enable_casm_hash_migration = false;
+
+    let (state, executed) =
+        build_state_and_executed(&bc_migration_enabled, cairo_version, declare_with_casm_hash_v1);
+
+    // Expected migration gas computed directly from state.
+    let migration_data = CasmHashMigrationData::from_state(
+        &state,
+        &executed,
+        &bc_migration_enabled.versioned_constants,
+    )
+    .unwrap();
+
+    let migration_applicable = !cairo_version.is_cairo0() && declare_with_casm_hash_v1;
+
+    // Sanity check - class hashes to migrate empty only when migration is not applicable.
+    if !migration_applicable {
+        assert!(migration_data.class_hashes_to_migrate.is_empty());
+    } else {
+        assert!(!migration_data.class_hashes_to_migrate.is_empty());
+    }
+
+    let expected_migration_sierra_gas = migration_data.to_gas(
+        &bc_migration_enabled.versioned_constants.os_constants.gas_costs.builtins,
+        &bc_migration_enabled.versioned_constants,
+        bc_migration_enabled.bouncer_config.blake_weight,
+    );
+    let expected_migration_proving_gas = migration_data.to_gas(
+        &bc_migration_enabled.bouncer_config.builtin_weights.gas_costs,
+        &bc_migration_enabled.versioned_constants,
+        bc_migration_enabled.bouncer_config.blake_weight,
+    );
+
+    // Sanity check - migration gas is zero only when not applicable.
+    if !migration_applicable {
+        assert_eq!(expected_migration_sierra_gas, GasAmount::ZERO);
+        assert_eq!(expected_migration_proving_gas, GasAmount::ZERO);
+    } else {
+        assert_ne!(expected_migration_sierra_gas, GasAmount::ZERO);
+        assert_ne!(expected_migration_proving_gas, GasAmount::ZERO);
+    }
+
+    // Actual weights - migration disabled.
+    let weights_migration_disabled = get_tx_weights(
+        &state,
+        &executed,
+        0,
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &vc_migration_disabled,
+        &BuiltinCounterMap::default(),
+        &bc_migration_enabled.bouncer_config,
+    )
+    .unwrap();
+
+    // Sanity check - class hashes to migrate are empty when migration is disabled.
+    assert!(weights_migration_disabled.class_hashes_to_migrate.is_empty());
+
+    // Actual weights - migration enabled.
+    let weights_migration_enabled = get_tx_weights(
+        &state,
+        &executed,
+        0,
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &bc_migration_enabled.versioned_constants,
+        &BuiltinCounterMap::default(),
+        &bc_migration_enabled.bouncer_config,
+    )
+    .unwrap();
+
+    // Class-hash mapping propagates only when migration is applicable.
+    assert_eq!(
+        weights_migration_enabled.class_hashes_to_migrate,
+        migration_data.class_hashes_to_migrate
+    );
+
+    // Delta(with_migration − without_migration) must equal computed migration gas.
+    let sierra_migration_delta = weights_migration_enabled.bouncer_weights.sierra_gas
+        - weights_migration_disabled.bouncer_weights.sierra_gas;
+
+    let proving_migration_delta = weights_migration_enabled.bouncer_weights.proving_gas
+        - weights_migration_disabled.bouncer_weights.proving_gas;
+
+    assert_eq!(sierra_migration_delta, expected_migration_sierra_gas);
+    assert_eq!(proving_migration_delta, expected_migration_proving_gas);
+}
