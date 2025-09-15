@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
@@ -7,7 +8,8 @@ use cairo_vm::hint_processor::hint_processor_definition::{
     HintProcessorLogic,
     HintReference,
 };
-use cairo_vm::serde::deserialize_program::{HintParams, ReferenceManager};
+use cairo_vm::serde::deserialize_program::{HintParams, Identifier, ReferenceManager};
+use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use starknet_api::core::CompiledClassHash;
@@ -96,6 +98,17 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
                 value: dep_class.program.reference_manager.clone(),
             }
         })?;
+    // TODO(Dori): Use Program::extract_constants if and when public in the VM crate.
+    let identifiers: HashMap<String, Identifier> =
+        serde_json::from_value(dep_class.program.identifiers.clone())?;
+    let mut constants = HashMap::new();
+    for (key, value) in identifiers.into_iter() {
+        if value.type_.as_deref() == Some("const") {
+            let value = value.value.ok_or_else(|| ProgramError::ConstWithoutValue(key.clone()))?;
+            constants.insert(key, value);
+        }
+    }
+    let constants = Rc::new(constants);
 
     let refs = ref_manager
         .references
@@ -126,6 +139,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
                 &params.flow_tracking_data.ap_tracking,
                 &params.flow_tracking_data.reference_ids,
                 &refs,
+                constants.clone(),
             )?;
             compiled_hints.push(compiled_hint);
         }
