@@ -1619,7 +1619,6 @@ dependencies = [
  "papyrus_base_layer",
  "reqwest 0.12.23",
  "rstest",
- "serde",
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
@@ -1627,7 +1626,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
- "validator",
 ]
 
 [[package]]
@@ -1636,6 +1634,7 @@ version = "0.15.0-rc.4"
 dependencies = [
  "apollo_config",
  "serde",
+ "starknet_api",
  "url",
  "validator",
 ]
