@@ -126,11 +126,11 @@
           }
         },
         {
-          "title": "Consensus Timeouts By Reason",
-          "description": "The number of times consensus has timed out (10m window)",
+          "title": "Consensus Timeouts By Type",
+          "description": "The number of times consensus has timed out by type (10m window). \n- TimeoutPropose: as proposer, didn’t finish building in time; as validator, either didn’t receive the proposal or didn’t finish validation in time.\n- TimeoutPrevote: the node voted and received a quorum of prevotes, but not on the same value.\n- TimeoutPrecommit: didn’t finish validation but quorum of precommits received, or it finished but no decision reached.",
           "type": "timeseries",
           "exprs": [
-            "sum by (timeout_reason) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "sum by (timeout_type) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {}
         },
