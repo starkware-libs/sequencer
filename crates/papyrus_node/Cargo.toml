@@ -25,6 +25,7 @@ apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync.workspace = true
+apollo_p2p_sync_config.workspace = true
 apollo_rpc = { workspace = true, optional = true }
 apollo_starknet_client.workspace = true
 apollo_storage.workspace = true
