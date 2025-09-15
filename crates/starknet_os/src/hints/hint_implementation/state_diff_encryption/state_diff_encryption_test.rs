@@ -102,11 +102,12 @@ fn test_state_diff_encryption_function(#[case] private_keys: &[Felt]) {
             &data.clone().into_iter().map(Into::into).collect::<Vec<MaybeRelocatable>>(),
         )
         .unwrap();
-
+    let symmetric_key_segment = runner.vm.add_memory_segment();
+    runner.vm.load_data(symmetric_key_segment, &[symmetric_key.into()]).unwrap();
     let explicit_args = vec![
         EndpointArg::Value(ValueArg::Single(data_start.into())),
         EndpointArg::Value(ValueArg::Single(data_end.into())),
-        EndpointArg::Value(ValueArg::Single(symmetric_key.into())),
+        EndpointArg::Value(ValueArg::Single(symmetric_key_segment.into())),
     ];
     let state_reader = None;
     let expected_explicit_return_values: Vec<EndpointArg> = vec![];
