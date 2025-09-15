@@ -135,56 +135,11 @@
           "extra_params": {}
         },
         {
-          "title": "consensus_l2_gas_price",
+          "title": "L2 Gas Price",
           "description": "The L2 gas price calculated in an accepted proposal",
           "type": "timeseries",
           "exprs": [
             "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Proposal Validation: Number of Transactions in Proposal",
-          "description": "The total number of individual transactions in a valid proposal received",
-          "type": "timeseries",
-          "exprs": [
-            "consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Proposal Validation: Number of Batches in Proposal",
-          "description": "The number of transaction batches received in a valid proposal",
-          "type": "timeseries",
-          "exprs": [
-            "consensus_num_batches_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "consensus_max_cached_block_number",
-          "description": "How many blocks after current are cached",
-          "type": "stat",
-          "exprs": [
-            "consensus_max_cached_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "consensus_cached_votes",
-          "description": "How many votes are cached when starting to work on a new block number",
-          "type": "timeseries",
-          "exprs": [
-            "consensus_cached_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "consensus_reproposals",
-          "description": "The number of reproposals sent",
-          "type": "timeseries",
-          "exprs": [
-            "consensus_reproposals{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         }
@@ -237,6 +192,15 @@
           "extra_params": {
             "log_query": "\"Blob for block number\""
           }
+        },
+        {
+          "title": "Write Preconfirmed Block Success",
+          "description": "The number of preconfirmed blocks written to Cende",
+          "type": "timeseries",
+          "exprs": [
+            "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
@@ -294,6 +258,24 @@
               "Reverted"
             ]
           }
+        },
+        {
+          "title": "Proposal Validation: Number of Batches in Proposal",
+          "description": "The number of transaction batches received in a valid proposal",
+          "type": "timeseries",
+          "exprs": [
+            "consensus_num_batches_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Proposal Validation: Number of Transactions in Proposal",
+          "description": "The total number of individual transactions in a valid proposal received",
+          "type": "timeseries",
+          "exprs": [
+            "consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true

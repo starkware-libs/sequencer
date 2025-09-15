@@ -1,16 +1,14 @@
+use apollo_batcher::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
-    CONSENSUS_CACHED_VOTES,
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
-    CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_PROPOSALS_VALIDATED,
-    CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_REASON,
@@ -32,8 +30,6 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
     CONSENSUS_L2_GAS_PRICE,
-    CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
-    CONSENSUS_NUM_TXS_IN_PROPOSAL,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
@@ -83,12 +79,6 @@ fn get_panel_consensus_block_time_avg() -> Panel {
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
-}
-fn get_panel_consensus_max_cached_block_number() -> Panel {
-    Panel::from_gauge(&CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Stat)
-}
-fn get_panel_consensus_cached_votes() -> Panel {
-    Panel::from_gauge(&CONSENSUS_CACHED_VOTES, PanelType::TimeSeries)
 }
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
@@ -178,9 +168,6 @@ fn get_panel_build_proposal_failure() -> Panel {
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as proposer")
 }
-fn get_panel_consensus_reproposals() -> Panel {
-    Panel::from_counter(&CONSENSUS_REPROPOSALS, PanelType::TimeSeries)
-}
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
         "Consensus Timeouts By Reason",
@@ -193,25 +180,14 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_consensus_num_batches_in_proposal() -> Panel {
-    Panel::new(
-        "Proposal Validation: Number of Batches in Proposal",
-        "The number of transaction batches received in a valid proposal",
-        vec![CONSENSUS_NUM_BATCHES_IN_PROPOSAL.get_name_with_filter().to_string()],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_num_txs_in_proposal() -> Panel {
-    Panel::new(
-        "Proposal Validation: Number of Transactions in Proposal",
-        "The total number of individual transactions in a valid proposal received",
-        vec![CONSENSUS_NUM_TXS_IN_PROPOSAL.get_name_with_filter().to_string()],
-        PanelType::TimeSeries,
-    )
-}
 fn get_panel_consensus_l2_gas_price() -> Panel {
     // TODO(Dafna): Better presentation of the price units.
-    Panel::from_gauge(&CONSENSUS_L2_GAS_PRICE, PanelType::TimeSeries)
+    Panel::new(
+        "L2 Gas Price",
+        "The L2 gas price calculated in an accepted proposal",
+        vec![CONSENSUS_L2_GAS_PRICE.get_name_with_filter().to_string()],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_num_connected_peers() -> Panel {
     Panel::from_gauge(&CONSENSUS_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
@@ -288,6 +264,14 @@ fn get_panel_cende_write_blob_failure() -> Panel {
     )
     .with_log_query("CENDE_FAILURE")
 }
+fn get_panel_cende_write_preconfirmed_block() -> Panel {
+    Panel::new(
+        "Write Preconfirmed Block Success",
+        "The number of preconfirmed blocks written to Cende",
+        vec![format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+}
 
 fn get_panel_consensus_network_events_by_type() -> Panel {
     Panel::new(
@@ -347,12 +331,6 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_validate_proposal_failure(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
-            get_panel_consensus_num_txs_in_proposal(),
-            get_panel_consensus_num_batches_in_proposal(),
-            // TODO(Dafna): Move to a debugging row
-            get_panel_consensus_max_cached_block_number(),
-            get_panel_consensus_cached_votes(),
-            get_panel_consensus_reproposals(),
         ],
     )
 }
@@ -365,6 +343,7 @@ pub(crate) fn get_cende_row() -> Row {
             get_panel_cende_write_blob_failure(),
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_last_prepared_blob_block_number(),
+            get_panel_cende_write_preconfirmed_block(),
         ],
     )
 }
