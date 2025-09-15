@@ -271,6 +271,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
 
     // Encrypt the compressed state updates.
     // Generate random symmetric key and random starknet private keys.
+    let (__fp__, _) = get_fp_and_pc();
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
@@ -297,7 +298,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
             sn_private_keys=sn_private_keys,
             symmetric_key=symmetric_key,
         );
-        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
+        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=&symmetric_key);
     }
 
     return (da_start=encrypted_start, da_end=encrypted_dst);
