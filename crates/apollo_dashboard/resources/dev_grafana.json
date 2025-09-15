@@ -346,7 +346,7 @@
         {
           "title": "Transactions Received",
           "description": "Number of transactions received (10m window)",
-          "type": "stat",
+          "type": "timeseries",
           "exprs": [
             "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
@@ -357,7 +357,7 @@
         {
           "title": "Transaction Success Rate",
           "description": "The ratio of transactions successfully added to the gateway (10m window)",
-          "type": "stat",
+          "type": "timeseries",
           "exprs": [
             "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
