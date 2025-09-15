@@ -79,6 +79,7 @@ pub enum Unit {
     #[allow(clippy::enum_variant_names)]
     // The expected values for PercentUnit are [0,1]
     PercentUnit,
+    MB,
 }
 
 impl Unit {
@@ -87,6 +88,7 @@ impl Unit {
             Unit::Bytes => "bytes",
             Unit::Seconds => "s",
             Unit::PercentUnit => "percentunit",
+            Unit::MB => "decmbytes",
         }
     }
 }
