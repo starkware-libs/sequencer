@@ -906,24 +906,28 @@
     "Storage": {
       "panels": [
         {
-          "title": "storage_append_thin_state_diff_latency_seconds",
-          "description": "Latency to append thin state diff in storage (secs)",
+          "title": "Append Thin State Diff Latency",
+          "description": "Latency to append thin state diff in storage",
           "type": "timeseries",
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         },
         {
-          "title": "storage_commit_latency_seconds",
-          "description": "Latency to commit changes in storage (secs)",
+          "title": "Storage Commit Latency",
+          "description": "Latency to commit changes in storage",
           "type": "timeseries",
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         },
         {
           "title": "sync_storage_open_read_transactions",
