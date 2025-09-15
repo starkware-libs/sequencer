@@ -11,7 +11,7 @@ use apollo_class_manager_config::config::{
     FsClassStorageConfig,
 };
 use apollo_config::converters::UrlAndHeaders;
-use apollo_config_manager::config::ConfigManagerConfig;
+use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
