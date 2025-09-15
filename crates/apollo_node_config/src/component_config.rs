@@ -5,7 +5,7 @@ use apollo_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::component_execution_config::{
+use crate::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };

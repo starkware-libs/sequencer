@@ -9,9 +9,9 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam, FIELD_SEPARAT
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::component_execution_config::ReactiveComponentExecutionConfig;
-use apollo_node::config::config_utils::{config_to_preset, prune_by_is_none};
+use apollo_node_config::component_config::ComponentConfig;
+use apollo_node_config::component_execution_config::ReactiveComponentExecutionConfig;
+use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};

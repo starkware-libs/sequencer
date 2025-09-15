@@ -3,15 +3,16 @@ use std::fs::File;
 use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_config::presentation::get_config_presentation;
+use apollo_config::{ConfigError, ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use serde_json::{Map, Value};
-use tracing::error;
+use tracing::{error, info};
 use validator::ValidationError;
 
-use crate::config::definitions::ConfigPointersMap;
-use crate::config::node_config::{
+use crate::definitions::ConfigPointersMap;
+use crate::node_config::{
     SequencerNodeConfig,
     CONFIG_POINTERS,
     CONFIG_SCHEMA_PATH,
@@ -50,7 +51,7 @@ pub fn private_parameters() -> BTreeSet<ParamPath> {
     private_values
 }
 
-pub(crate) fn create_validation_error(
+pub fn create_validation_error(
     error_msg: String,
     validate_code: &'static str,
     validate_error_msg: &'static str,
@@ -211,4 +212,26 @@ impl DeploymentBaseAppConfig {
             config_path.to_str().expect("Should be able to convert path to string"),
         );
     }
+}
+
+pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
+    let config_load_result = SequencerNodeConfig::load_and_process(args);
+    let loaded_config =
+        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
+    info!("Finished loading configuration.");
+
+    if let Err(error) = loaded_config.validate_node_config() {
+        panic!("Config validation failed: {error}");
+    }
+    info!("Finished validating configuration.");
+
+    info!("Config map:");
+    info!(
+        "{:#?}",
+        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
+            .expect("Should be able to get representation.")
+    );
+    info!("Finished dumping configuration.");
+
+    Ok(loaded_config)
 }

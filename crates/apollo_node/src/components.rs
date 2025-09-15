@@ -22,6 +22,12 @@ use apollo_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
+use apollo_node_config::component_execution_config::{
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
+};
+use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::version::VERSION_FULL;
 use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
@@ -31,12 +37,6 @@ use papyrus_base_layer::BaseLayerContract;
 use tracing::{debug, info};
 
 use crate::clients::SequencerNodeClients;
-use crate::config::component_execution_config::{
-    ActiveComponentExecutionMode,
-    ReactiveComponentExecutionMode,
-};
-use crate::config::node_config::SequencerNodeConfig;
-use crate::version::VERSION_FULL;
 
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,

@@ -18,10 +18,10 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network::network_manager::BroadcastTopicChannels;
 use apollo_node::clients::SequencerNodeClients;
-use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::node_config::SequencerNodeConfig;
 use apollo_node::servers::run_component_servers;
 use apollo_node::utils::create_node_modules;
+use apollo_node_config::component_config::ComponentConfig;
+use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::StorageConfig;

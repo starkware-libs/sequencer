@@ -3,7 +3,8 @@ use std::env::args;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
 use apollo_node::servers::run_component_servers;
-use apollo_node::utils::{create_node_modules, load_and_validate_config};
+use apollo_node::utils::create_node_modules;
+use apollo_node_config::config_utils::load_and_validate_config;
 use tracing::info;
 
 set_global_allocator!();
