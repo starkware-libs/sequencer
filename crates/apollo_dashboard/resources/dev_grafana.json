@@ -620,29 +620,29 @@
     "L1 Provider": {
       "panels": [
         {
-          "title": "l1_message_scraper_success_count",
-          "description": "Number of times the L1 message scraper successfully scraped messages and updated the provider",
+          "title": "L1 Message Scraper Success Count",
+          "description": "The increase in the number of times the L1 message scraper successfully scraped messages (10m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "l1_message_scraper_baselayer_error_count",
-          "description": "Number of times the L1 message scraper encountered an error while scraping the base layer",
+          "title": "L1 Message Scraper Base Layer Error Count",
+          "description": "The increase in the number of times the L1 message scraper encountered an error while scraping the base layer (10m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "l1_message_scraper_reorg_detected",
-          "description": "Number of times the L1 message scraper detected a reorganization in the base layer",
+          "title": "L1 Message Scraper Reorg Detected",
+          "description": "The increase in the number of times the L1 message scraper detected a reorg (12h window)",
           "type": "timeseries",
           "exprs": [
-            "l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h])"
           ],
           "extra_params": {}
         }
