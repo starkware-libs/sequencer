@@ -217,7 +217,7 @@ fn create_default_initial_state_txs_and_contracts() -> InitialTransactionsData {
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
 ) -> (CommitmentOutput, MapStorage) {
-    let mut map_storage = MapStorage::new();
+    let mut map_storage = MapStorage::default();
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     (
