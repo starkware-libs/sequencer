@@ -32,6 +32,17 @@ pub fn felt_to_u128(felt: &Felt) -> Result<u128, StarknetApiError> {
     })
 }
 
+#[macro_export]
+macro_rules! impl_size_of_for_felt {
+    ($type:ty) => {
+        impl size_of::SizeOf for $type {
+            fn size_of_children(&self, context: &mut size_of::Context) {
+                context.add(32);
+            }
+        }
+    };
+}
+
 /// A chain id.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum ChainId {
@@ -212,9 +223,10 @@ pub fn calculate_contract_address(
     Ord,
     derive_more::Display,
     derive_more::Deref,
-    SizeOf,
 )]
 pub struct ClassHash(pub StarkHash);
+
+impl_size_of_for_felt!(ClassHash);
 
 impl From<ClassHash> for Felt {
     fn from(class_hash: ClassHash) -> Felt {
@@ -236,9 +248,10 @@ impl From<ClassHash> for Felt {
     PartialOrd,
     Ord,
     derive_more::Display,
-    SizeOf,
 )]
 pub struct CompiledClassHash(pub StarkHash);
+
+impl_size_of_for_felt!(CompiledClassHash);
 
 impl From<CompiledClassHash> for Felt {
     fn from(compiled_class_hash: CompiledClassHash) -> Felt {
@@ -260,9 +273,10 @@ impl From<CompiledClassHash> for Felt {
     PartialOrd,
     Ord,
     derive_more::Deref,
-    SizeOf,
 )]
 pub struct Nonce(pub Felt);
+
+impl_size_of_for_felt!(Nonce);
 
 impl Nonce {
     pub fn try_increment(&self) -> Result<Self, StarknetApiError> {
@@ -389,10 +403,11 @@ pub struct StateDiffCommitment(pub PoseidonHash);
     PartialOrd,
     Ord,
     derive_more:: Deref,
-    SizeOf,
 )]
 #[display(fmt = "{}", "_0.to_fixed_hex_string()")]
 pub struct PatriciaKey(StarkHash);
+
+impl_size_of_for_felt!(PatriciaKey);
 
 // 2**251
 pub const PATRICIA_KEY_UPPER_BOUND: &str =
