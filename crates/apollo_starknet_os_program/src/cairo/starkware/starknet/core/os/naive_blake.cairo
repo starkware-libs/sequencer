@@ -7,7 +7,7 @@ func naive_encode_felt252s_to_u32s{range_check_ptr: felt}(
     local end = cast(packed_values, felt) + packed_values_len;
 
     // TODO(Einat): add this hint to the enum definition file once function is used in the OS.
-    %{ naive_encode_felt252s_to_u32s(ids.packed_values_len, ids.packed_values, ids.unpacked_u32s) %}
+    %{ NaiveUnpackFelt252sToU32s %}
     tempvar out = unpacked_u32s;
     tempvar packed_values = packed_values;
     tempvar range_check_ptr = range_check_ptr;

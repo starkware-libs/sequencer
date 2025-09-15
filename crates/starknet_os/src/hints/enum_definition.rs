@@ -26,6 +26,7 @@ use crate::hints::hint_implementation::aggregator::{
 };
 use crate::hints::hint_implementation::blake2s::implementation::{
     check_packed_values_end_and_size,
+    naive_unpack_felt252s_to_u32s,
     unpack_felts_to_u32s,
 };
 use crate::hints::hint_implementation::block_context::{
@@ -937,6 +938,11 @@ ids.initial_carried_outputs = segments.gen_arg(
         GenerateKeysUsingSha256Hash,
         calculate_keys_using_sha256_hash,
         "generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys)"
+    ),
+    (
+        NaiveUnpackFelt252sToU32s,
+        naive_unpack_felt252s_to_u32s,
+        "NaiveUnpackFelt252sToU32s"
     )
 );
 
