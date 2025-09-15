@@ -23,7 +23,7 @@
         {
           "title": "Consensus Height Diff From Sync",
           "description": "The difference between the consensus height and the sync height",
-          "type": "stat",
+          "type": "timeseries",
           "exprs": [
             "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
@@ -269,7 +269,7 @@
           "extra_params": {}
         },
         {
-          "title": "Number of Batches in Proposal",
+          "title": "Number of Chunks in Proposal",
           "description": "The number of transaction batches received in a valid proposal",
           "type": "timeseries",
           "exprs": [
@@ -297,6 +297,15 @@
           "type": "stat",
           "exprs": [
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "State Sync Body Marker",
+          "description": "The first block number for which the state sync component does not have a body",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         },
@@ -350,7 +359,7 @@
           "description": "The ratio of transactions successfully added to the gateway (10m window)",
           "type": "timeseries",
           "exprs": [
-            "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / (increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {
             "unit": "percentunit",
@@ -358,7 +367,7 @@
           }
         },
         {
-          "title": "Transactions Failed to be Added (by reason)",
+          "title": "Transactions Failed to Be Added (By Reason)",
           "description": "Number of transactions that failed to be added by reason (10m window)",
           "type": "timeseries",
           "exprs": [

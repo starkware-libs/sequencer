@@ -1,5 +1,6 @@
 use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_DEPRECATED_ERROR,
+    ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
@@ -22,9 +23,10 @@ fn get_panel_transaction_success_rate() -> Panel {
         "Transaction Success Rate",
         "The ratio of transactions successfully added to the gateway (10m window)",
         vec![format!(
-            "increase({}[10m]) / increase({}[10m])",
+            "increase({}[10m]) / (increase({}[10m]) + increase({}[10m]))",
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
-            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
+            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
         )],
         PanelType::TimeSeries,
     )
@@ -59,7 +61,7 @@ fn get_panel_http_add_tx_latency() -> Panel {
 
 fn get_panel_transactions_failed_by_reason() -> Panel {
     Panel::new(
-        "Transactions Failed to be Added (by reason)",
+        "Transactions Failed to Be Added (By Reason)",
         "Number of transactions that failed to be added by reason (10m window)",
         vec![
             format!(

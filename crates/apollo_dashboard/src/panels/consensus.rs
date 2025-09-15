@@ -60,7 +60,7 @@ fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
             CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
         )],
-        PanelType::Stat,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_consensus_round() -> Panel {
