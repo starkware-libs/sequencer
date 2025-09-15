@@ -13,7 +13,7 @@ fn get_panel_total_transactions_received() -> Panel {
         "Transactions Received",
         "Number of transactions received (10m window)",
         vec![format!("increase({}[10m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter())],
-        PanelType::Stat,
+        PanelType::TimeSeries,
     )
     .with_log_query("\"ADD_TX_START\"")
 }
@@ -26,7 +26,7 @@ fn get_panel_transaction_success_rate() -> Panel {
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         )],
-        PanelType::Stat,
+        PanelType::TimeSeries,
     )
     .with_unit(Unit::PercentUnit)
     .with_log_query("\"Recorded transaction\"")
