@@ -5,12 +5,12 @@ use std::fs::File;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_node::config::component_execution_config::{
+use apollo_node_config::{
+    private_parameters,
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
+    SequencerNodeConfig,
 };
-use apollo_node::config::config_utils::private_parameters;
-use apollo_node::config::node_config::SequencerNodeConfig;
 use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;

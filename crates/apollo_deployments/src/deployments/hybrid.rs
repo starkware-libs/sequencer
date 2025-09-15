@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::template::Template;
-use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::component_execution_config::{
+use apollo_node_config::{
     ActiveComponentExecutionConfig,
+    ComponentConfig,
     ReactiveComponentExecutionConfig,
 };
 use indexmap::IndexMap;
