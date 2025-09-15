@@ -1,3 +1,4 @@
+use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -26,7 +27,6 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
-use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
@@ -115,9 +115,12 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
         let address = executable_tx.contract_address();
         let account_nonce =
             self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
-                // TODO(yair): Fix this. Need to map the errors better.
-                let msg = format!("Failed to get nonce for sender address {address}");
-                StarknetError::internal_with_logging(&msg, e)
+                // TODO(noamsp): Fix this. Need to map the errors better.
+                StarknetError::internal_with_signature_logging(
+                    "Failed to get nonce for sender address {address}",
+                    &executable_tx.signature(),
+                    e,
+                )
             })?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)

@@ -447,9 +447,9 @@ impl L1ProviderBuilder {
             .or(self.startup_height)
             // TODO(Gilad): remove expect message below once we support LogStateUpdate in Anvil.
             .expect(
-                "Starting height for l1 provider not given. If using Anvil then set manually via \
-                 `provider_startup_height_override` in the config. If not using Anvil, then the \
-                 scraper had issues communicating with the starknet contract on L1.",
+            "Cannot get startup height. Most likely this is due to scraper being unable \
+                to contact baselayer. If using Anvil then set startup height manually via \
+                `provider_startup_height_override` in the config."
             );
 
         let catchup_height = self

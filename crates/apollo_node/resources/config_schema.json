@@ -4,11 +4,6 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "base_layer_config.node_url": {
-    "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
-    "privacy": "Private",
-    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
-  },
   "base_layer_config.prague_blob_gas_calc": {
     "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
     "privacy": "Public",

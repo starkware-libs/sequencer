@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use apollo_gateway::config::RpcStateReaderConfig;
+use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
