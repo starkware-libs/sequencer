@@ -11,8 +11,6 @@ pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
 #[derive(Serialize)]
 pub struct SecretsConfigOverride {
-    #[serde(rename = "base_layer_config.node_url")]
-    base_layer_config_node_url: Url,
     #[serde(
         rename = "consensus_manager_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
@@ -49,7 +47,6 @@ pub struct SecretsConfigOverride {
 impl Default for SecretsConfigOverride {
     fn default() -> Self {
         Self {
-            base_layer_config_node_url: Url::parse("https://arbitrary.url.com").unwrap(),
             consensus_manager_config_network_config_secret_key: None,
             l1_endpoint_monitor_config_ordered_l1_endpoint_urls: vec![
                 Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),

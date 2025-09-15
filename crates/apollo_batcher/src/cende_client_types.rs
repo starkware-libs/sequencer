@@ -716,7 +716,9 @@ impl From<StateMaps> for StarknetClientStateDiff {
                 .collect(),
             old_declared_contracts: Default::default(),
             nonces: state_maps.nonces.into_iter().collect(),
+            // TODO(Aviv): Verify that we ignore those fields in purpose.
             replaced_classes: Default::default(),
+            migrated_compiled_classes: Default::default(),
         })
     }
 }

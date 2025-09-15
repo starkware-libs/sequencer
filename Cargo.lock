@@ -801,9 +801,9 @@ checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 name = "apollo_batcher"
 version = "0.0.0"
 dependencies = [
+ "apollo_batcher_config",
  "apollo_batcher_types",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_provider_types",
@@ -842,6 +842,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_batcher_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_storage",
+ "blockifier",
+ "serde",
+ "url",
+ "validator",
+]
+
+[[package]]
 name = "apollo_batcher_types"
 version = "0.0.0"
 dependencies = [
@@ -866,8 +878,8 @@ dependencies = [
 name = "apollo_central_sync"
 version = "0.0.0"
 dependencies = [
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_proc_macros",
  "apollo_starknet_client",
  "apollo_state_sync_metrics",
@@ -881,7 +893,6 @@ dependencies = [
  "futures",
  "futures-util",
  "indexmap 2.11.0",
- "itertools 0.12.1",
  "lru 0.12.5",
  "metrics 0.24.2",
  "mockall",
@@ -889,7 +900,6 @@ dependencies = [
  "papyrus_common",
  "pretty_assertions",
  "reqwest 0.12.23",
- "serde",
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
@@ -897,6 +907,16 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "apollo_central_sync_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_starknet_client",
+ "itertools 0.12.1",
+ "serde",
  "url",
  "validator",
 ]
@@ -905,9 +925,9 @@ dependencies = [
 name = "apollo_class_manager"
 version = "0.0.0"
 dependencies = [
+ "apollo_class_manager_config",
  "apollo_class_manager_types",
  "apollo_compile_to_casm_types",
- "apollo_config",
  "apollo_infra",
  "apollo_metrics",
  "apollo_storage",
@@ -915,7 +935,6 @@ dependencies = [
  "async-trait",
  "hex",
  "mockall",
- "serde",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -923,6 +942,16 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_class_manager_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_storage",
+ "serde",
+ "starknet_api",
  "validator",
 ]
 
@@ -968,22 +997,20 @@ version = "0.0.0"
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_casm_types",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_metrics",
  "apollo_proc_macros",
+ "apollo_sierra_compilation_config",
  "assert_matches",
  "async-trait",
  "cairo-lang-starknet-classes",
  "mempool_test_utils",
  "pretty_assertions",
- "serde",
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
  "tracing",
- "validator",
 ]
 
 [[package]]
@@ -1133,6 +1160,7 @@ dependencies = [
  "apollo_consensus",
  "apollo_consensus_config",
  "apollo_consensus_orchestrator",
+ "apollo_consensus_orchestrator_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
@@ -1161,8 +1189,8 @@ dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_consensus",
+ "apollo_consensus_orchestrator_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
@@ -1210,6 +1238,16 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "apollo_consensus_orchestrator_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
+ "url",
  "validator",
 ]
 
@@ -1253,10 +1291,9 @@ dependencies = [
  "apollo_config",
  "apollo_http_server_config",
  "apollo_infra_utils",
- "apollo_monitoring_endpoint",
+ "apollo_monitoring_endpoint_config",
  "apollo_network",
  "apollo_node",
- "apollo_protobuf",
  "indexmap 2.11.0",
  "libp2p",
  "serde",
@@ -1274,8 +1311,8 @@ name = "apollo_gateway"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
- "apollo_compilation_utils",
  "apollo_config",
+ "apollo_gateway_config",
  "apollo_gateway_types",
  "apollo_infra",
  "apollo_mempool",
@@ -1318,6 +1355,20 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+]
+
+[[package]]
+name = "apollo_gateway_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_compilation_utils",
+ "apollo_config",
+ "blockifier",
+ "cairo-lang-starknet-classes",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
  "validator",
 ]
 
@@ -1445,32 +1496,46 @@ dependencies = [
  "alloy",
  "anyhow",
  "apollo_batcher",
+ "apollo_batcher_config",
  "apollo_class_manager",
- "apollo_compile_to_casm",
+ "apollo_class_manager_config",
  "apollo_config",
  "apollo_config_manager",
  "apollo_consensus",
  "apollo_consensus_config",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
+ "apollo_consensus_orchestrator_config",
  "apollo_deployments",
- "apollo_gateway",
+ "apollo_gateway_config",
  "apollo_http_server",
  "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_l1_endpoint_monitor",
+ "apollo_l1_endpoint_monitor_config",
  "apollo_l1_gas_price",
+ "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
+<<<<<<< HEAD
  "apollo_l1_provider_types",
  "apollo_mempool",
  "apollo_mempool_p2p",
+||||||| d18ef963d
+ "apollo_mempool",
+ "apollo_mempool_p2p",
+=======
+ "apollo_l1_scraper_config",
+ "apollo_mempool_config",
+ "apollo_mempool_p2p_config",
+>>>>>>> origin/main-v0.14.1
  "apollo_monitoring_endpoint",
+ "apollo_monitoring_endpoint_config",
  "apollo_network",
  "apollo_node",
  "apollo_protobuf",
  "apollo_rpc",
+ "apollo_sierra_compilation_config",
  "apollo_state_sync",
  "apollo_state_sync_metrics",
  "apollo_storage",
@@ -1510,16 +1575,24 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.0.0"
 dependencies = [
  "alloy",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor_config",
  "apollo_l1_endpoint_monitor_types",
  "async-trait",
  "mockito 1.7.0",
  "papyrus_base_layer",
- "serde",
  "tokio",
  "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_endpoint_monitor_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "url",
  "validator",
 ]
@@ -1547,6 +1620,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "async-trait",
@@ -1557,13 +1631,22 @@ dependencies = [
  "papyrus_base_layer",
  "reqwest 0.12.23",
  "rstest",
- "serde",
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
  "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_gas_price_provider_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
  "url",
  "validator",
 ]
@@ -1598,6 +1681,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_provider_types",
+ "apollo_l1_scraper_config",
  "apollo_metrics",
  "apollo_state_sync_types",
  "apollo_time",
@@ -1615,6 +1699,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "url",
  "validator",
 ]
 
@@ -1638,11 +1723,29 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "apollo_mempool"
 version = "0.0.0"
+||||||| d18ef963d
+name = "apollo_mempool"
+version = "0.15.0-rc.4"
+=======
+name = "apollo_l1_scraper_config"
+version = "0.15.0-rc.4"
+>>>>>>> origin/main-v0.14.1
 dependencies = [
  "apollo_config",
+ "serde",
+ "starknet_api",
+ "validator",
+]
+
+[[package]]
+name = "apollo_mempool"
+version = "0.15.0-rc.4"
+dependencies = [
  "apollo_infra",
+ "apollo_mempool_config",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_metrics",
@@ -1662,13 +1765,20 @@ dependencies = [
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
- "serde",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_mempool_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1677,9 +1787,9 @@ name = "apollo_mempool_p2p"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_gateway_types",
  "apollo_infra",
+ "apollo_mempool_p2p_config",
  "apollo_mempool_p2p_types",
  "apollo_metrics",
  "apollo_network",
@@ -1691,10 +1801,18 @@ dependencies = [
  "libp2p",
  "mockall",
  "rand_chacha 0.3.1",
- "serde",
  "starknet_api",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_mempool_p2p_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "apollo_network",
+ "serde",
  "validator",
 ]
 
@@ -1753,19 +1871,18 @@ name = "apollo_monitoring_endpoint"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_provider_types",
  "apollo_mempool_types",
  "apollo_metrics",
+ "apollo_monitoring_endpoint_config",
  "axum",
  "hyper 0.14.32",
  "metrics 0.24.2",
  "metrics-exporter-prometheus",
  "num-traits",
  "pretty_assertions",
- "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -1774,6 +1891,14 @@ dependencies = [
  "tokio-metrics",
  "tower 0.4.13",
  "tracing",
+]
+
+[[package]]
+name = "apollo_monitoring_endpoint_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1835,8 +1960,10 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo_batcher",
+ "apollo_batcher_config",
  "apollo_batcher_types",
  "apollo_class_manager",
+ "apollo_class_manager_config",
  "apollo_class_manager_types",
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
@@ -1845,23 +1972,31 @@ dependencies = [
  "apollo_config_manager_types",
  "apollo_consensus_manager",
  "apollo_gateway",
+ "apollo_gateway_config",
  "apollo_gateway_types",
  "apollo_http_server",
  "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor",
+ "apollo_l1_endpoint_monitor_config",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
+ "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
  "apollo_l1_provider_types",
+ "apollo_l1_scraper_config",
  "apollo_mempool",
+ "apollo_mempool_config",
  "apollo_mempool_p2p",
+ "apollo_mempool_p2p_config",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",
+ "apollo_monitoring_endpoint_config",
  "apollo_reverts",
+ "apollo_sierra_compilation_config",
  "apollo_signature_manager",
  "apollo_signature_manager_types",
  "apollo_state_sync",
@@ -1887,8 +2022,8 @@ name = "apollo_p2p_sync"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
- "apollo_config",
  "apollo_network",
+ "apollo_p2p_sync_config",
  "apollo_proc_macros",
  "apollo_protobuf",
  "apollo_state_sync_metrics",
@@ -1908,7 +2043,6 @@ dependencies = [
  "papyrus_common",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
- "serde",
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
@@ -1916,6 +2050,14 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "apollo_p2p_sync_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -2067,6 +2209,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_sierra_compilation_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "validator",
+]
+
+[[package]]
 name = "apollo_signature_manager"
 version = "0.0.0"
 dependencies = [
@@ -2193,11 +2344,13 @@ name = "apollo_state_sync"
 version = "0.0.0"
 dependencies = [
  "apollo_central_sync",
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_infra",
  "apollo_network",
  "apollo_p2p_sync",
+ "apollo_p2p_sync_config",
  "apollo_reverts",
  "apollo_rpc",
  "apollo_starknet_client",
@@ -3360,6 +3513,7 @@ name = "blockifier_reexecution"
 version = "0.0.0"
 dependencies = [
  "apollo_gateway",
+ "apollo_gateway_config",
  "apollo_rpc_execution",
  "assert_matches",
  "blockifier",
@@ -9493,13 +9647,15 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo_central_sync",
+ "apollo_central_sync_config",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus_config",
- "apollo_consensus_orchestrator",
+ "apollo_consensus_orchestrator_config",
  "apollo_infra_utils",
  "apollo_network",
  "apollo_p2p_sync",
+ "apollo_p2p_sync_config",
  "apollo_rpc",
  "apollo_starknet_client",
  "apollo_storage",
@@ -9527,6 +9683,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
+ "url",
  "validator",
 ]
 

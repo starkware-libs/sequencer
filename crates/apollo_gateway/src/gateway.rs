@@ -6,6 +6,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -33,7 +34,6 @@ use starknet_api::rpc_transaction::{
 };
 use tracing::{debug, info, instrument, warn, Span};
 
-use crate::config::GatewayConfig;
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
     transaction_converter_err_to_deprecated_gw_err,
@@ -228,6 +228,7 @@ impl ProcessTxBlockingTask {
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
+<<<<<<< HEAD
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &executable_tx,
             self.mempool_client,
@@ -235,6 +236,45 @@ impl ProcessTxBlockingTask {
         )?;
 
         Ok(AddTransactionArgs::new(internal_tx, nonce))
+||||||| d18ef963d
+        let address = executable_tx.contract_address();
+        let nonce = validator.get_nonce(address).map_err(|e| {
+            // TODO(noamsp): Fix this. Need to map the errors better.
+            StarknetError::internal_with_signature_logging(
+                "Failed to get nonce for sender address {address}",
+                &tx_signature,
+                e,
+            )
+        })?;
+
+        self.stateful_tx_validator
+            .run_transaction_validations(
+                &executable_tx,
+                nonce,
+                self.mempool_client,
+                validator,
+                self.runtime,
+            )
+            .map_err(|e| StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
+                message: e.to_string(),
+            })?;
+
+        // TODO(Arni): Add the Sierra and the Casm to the mempool input.
+        Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
+=======
+        let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
+            &executable_tx,
+            self.mempool_client,
+            self.runtime,
+        )?;
+
+        // TODO(Arni): Add the Sierra and the Casm to the mempool input.
+        Ok(AddTransactionArgs {
+            tx: internal_tx,
+            account_state: AccountState { address: executable_tx.contract_address(), nonce },
+        })
+>>>>>>> origin/main-v0.14.1
     }
 }
 

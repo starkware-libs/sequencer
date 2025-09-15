@@ -11,11 +11,26 @@ use apollo_class_manager_types::transaction_converter::{
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
+<<<<<<< HEAD
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
     StarknetErrorCode,
 };
+||||||| d18ef963d
+use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
+=======
+use apollo_gateway_config::config::{
+    GatewayConfig,
+    StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
+};
+use apollo_gateway_types::deprecated_gateway_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
+>>>>>>> origin/main-v0.14.1
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -30,6 +45,7 @@ use apollo_mempool_types::communication::{
 };
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
@@ -76,6 +92,7 @@ use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;
 
+<<<<<<< HEAD
 use crate::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,
@@ -83,6 +100,18 @@ use crate::config::{
 };
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::{Gateway, ProcessTxBlockingTask};
+||||||| d18ef963d
+use crate::config::{
+    GatewayConfig,
+    StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
+};
+use crate::errors::GatewayResult;
+use crate::gateway::Gateway;
+=======
+use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
+use crate::gateway::{Gateway, ProcessTxBlockingTask};
+>>>>>>> origin/main-v0.14.1
 use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
@@ -526,6 +555,7 @@ fn test_register_metrics() {
             let labels: &[(&str, &str); 2] =
                 &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
 
+            // TODO(Tsabary): replace with assert_exists when available.
             assert_eq!(
                 GATEWAY_TRANSACTIONS_RECEIVED
                     .parse_numeric_metric::<u64>(&metrics, labels)
@@ -542,8 +572,7 @@ fn test_register_metrics() {
                     .unwrap(),
                 0
             );
-            assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().sum, 0.0);
-            assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().count, 0);
+            GATEWAY_ADD_TX_LATENCY.assert_eq(&metrics, &HistogramValue::default());
         }
     }
 }

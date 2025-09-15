@@ -4,11 +4,11 @@ use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::paths::binary_path;
 use apollo_compilation_utils::resource_limits::ResourceLimits;
+use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use tracing::info;
 
-use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 
 #[derive(Clone)]
