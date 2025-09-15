@@ -31,7 +31,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
 };
-use tracing::{debug, error, info, instrument, warn, Span};
+use tracing::{debug, error, info, warn, Span};
 
 use crate::config::GatewayConfig;
 use crate::errors::{
@@ -82,15 +82,31 @@ impl Gateway {
         }
     }
 
-    #[instrument(skip_all, fields(is_p2p = p2p_message_metadata.is_some()), ret)]
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
-        debug!("Processing tx: {:?}", tx);
+        let is_p2p = p2p_message_metadata.is_some();
 
+        let start_time = std::time::Instant::now();
+        let ret = self.add_tx_inner(&tx, p2p_message_metadata).await;
+        let elapsed = start_time.elapsed().as_secs_f64();
+
+        debug!(
+            "Processed tx. duration: {elapsed} sec, ret: {ret:?}, is_p2p: {is_p2p}, tx: {:?}",
+            tx
+        );
+
+        ret
+    }
+
+    async fn add_tx_inner(
+        &self,
+        tx: &RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<GatewayOutput> {
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
