@@ -415,10 +415,10 @@
         },
         {
           "title": "Transactions Received by Source",
-          "description": "The number of transactions received by source (10m window)",
+          "description": "The number of transactions received by source (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) "
+            "sum  by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) "
           ],
           "extra_params": {
             "log_query": "\"Processing tx\" AND \"is_p2p=\""
@@ -426,10 +426,10 @@
         },
         {
           "title": "Transactions Received by Type",
-          "description": "The number of transactions received by type (10m window)",
+          "description": "The number of transactions received by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) "
+            "sum  by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) "
           ],
           "extra_params": {
             "log_query": "\"Processing tx\""
@@ -437,10 +437,10 @@
         },
         {
           "title": "Transaction Failure Rate by Type",
-          "description": "The rate of failed transactions vs received transactions by type (10m window)",
+          "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])))"
+            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])))"
           ],
           "extra_params": {
             "unit": "percentunit"
@@ -448,19 +448,19 @@
         },
         {
           "title": "Transactions Failed by Reason",
-          "description": "The number of transactions failed by reason (10m window)",
+          "description": "The number of transactions failed by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {}
         },
         {
           "title": "Transactions Sent to Mempool by Type",
-          "description": "The number of transactions sent to mempool by type (10m window)",
+          "description": "The number of transactions sent to mempool by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "sum  by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {}
         }
@@ -491,7 +491,7 @@
         },
         {
           "title": "Dropped Transactions by Reason",
-          "description": "Number of transactions dropped from the mempool by reason",
+          "description": "Number of transactions dropped from the mempool by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
             "sum  by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
