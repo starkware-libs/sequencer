@@ -779,8 +779,8 @@
     "ConsensusP2p": {
       "panels": [
         {
-          "title": "apollo_consensus_num_connected_peers",
-          "description": "The number of connected peers to the consensus p2p component",
+          "title": "Number of Connected Peers",
+          "description": "The number of connected peers in Consensus P2P",
           "type": "timeseries",
           "exprs": [
             "apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -788,56 +788,20 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_votes_num_sent_messages",
-          "description": "The number of messages sent by the consensus p2p component over the Votes topic",
+          "title": "Consensus Votes Number of Sent Messages",
+          "description": "The increase in the number of vote messages sent by consensus p2p (10m window)",
           "type": "timeseries",
           "exprs": [
-            "apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_votes_num_received_messages",
-          "description": "The number of messages received by the consensus p2p component over the Votes topic",
+          "title": "Consensus Votes Number of Received Messages",
+          "description": "The increase in the number of vote messages received by consensus p2p (10m window)",
           "type": "timeseries",
           "exprs": [
-            "apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_consensus_proposals_num_sent_messages",
-          "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
-          "type": "timeseries",
-          "exprs": [
-            "apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_consensus_proposals_num_received_messages",
-          "description": "The number of messages received by the consensus p2p component over the Proposals topic",
-          "type": "timeseries",
-          "exprs": [
-            "apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "consensus_conflicting_votes",
-          "description": "The number of times consensus has received conflicting votes",
-          "type": "timeseries",
-          "exprs": [
-            "consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_consensus_network_events",
-          "description": "Network events counter by event type for consensus",
-          "type": "timeseries",
-          "exprs": [
-            "sum by (event_type) (apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "increase(apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
@@ -851,11 +815,47 @@
           "extra_params": {}
         },
         {
+          "title": "Consensus Conflicting Votes",
+          "description": "The increase in the number of conflicting votes (12h window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Consensus Proposals Number of Sent Messages",
+          "description": "The increase in the number of proposal messages sent by consensus p2p (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Consensus Proposals Number of Received Messages",
+          "description": "The increase in the number of proposal messages received by consensus p2p (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "apollo_consensus_proposals_num_dropped_messages",
           "description": "The number of messages dropped by the consensus p2p component over the Proposals topic",
           "type": "timeseries",
           "exprs": [
             "sum by (drop_reason) (apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_consensus_network_events",
+          "description": "Network events counter by event type for consensus",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (event_type) (apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
         }
