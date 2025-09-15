@@ -89,19 +89,6 @@ fn get_panel_gateway_validate_tx_latency() -> Panel {
     .with_unit(Unit::Seconds)
 }
 
-fn get_panel_gateway_transactions_failed() -> Panel {
-    Panel::new(
-        "Transactions Failed by Type",
-        "The number of transactions failed by type (10m window)",
-        vec![format!(
-            "sum  by ({}) (increase({}[10m]))",
-            GATEWAY_LABEL_NAME_TX_TYPE,
-            GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter()
-        )],
-        PanelType::Stat,
-    )
-}
-
 fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     Panel::new(
         "Transactions Failed by Reason",
@@ -153,7 +140,6 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_validate_tx_latency(),
             get_panel_gateway_transactions_received_by_source(),
             get_panel_gateway_transactions_received_by_type(),
-            get_panel_gateway_transactions_failed(),
             get_panel_gateway_transactions_failure_rate(),
             get_panel_gateway_add_tx_failure_by_reason(),
             get_panel_gateway_transactions_sent_to_mempool(),
