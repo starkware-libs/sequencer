@@ -20,9 +20,9 @@ fn get_panel_total_transactions_received() -> Panel {
 fn get_panel_transaction_success_rate() -> Panel {
     Panel::new(
         "Transaction Success Rate",
-        "The ratio of transactions successfully added to the gateway (10m window)",
+        "The ratio of transactions successfully added to the gateway (1m window)",
         vec![format!(
-            "increase({}[10m]) / increase({}[10m])",
+            "increase({}[1m]) / increase({}[1m])",
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         )],

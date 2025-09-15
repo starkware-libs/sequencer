@@ -338,10 +338,10 @@
         },
         {
           "title": "Transaction Success Rate",
-          "description": "The ratio of transactions successfully added to the gateway (10m window)",
+          "description": "The ratio of transactions successfully added to the gateway (1m window)",
           "type": "timeseries",
           "exprs": [
-            "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m]) / increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {
             "unit": "percentunit",
@@ -382,10 +382,10 @@
       "panels": [
         {
           "title": "Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the gateway (10m window)",
+          "description": "The rate of transactions received by the gateway (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)"
+            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)"
           ],
           "extra_params": {}
         },
