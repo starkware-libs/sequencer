@@ -1,6 +1,12 @@
-use assert_matches::assert_matches;
-use serde::Deserialize;
+use std::sync::Arc;
 
+use assert_matches::assert_matches;
+use rstest::rstest;
+use serde::Deserialize;
+use size_of::SizeOf;
+use starknet_types_core::felt::Felt;
+
+use crate::core::{ClassHash, CompiledClassHash, Nonce, PatriciaKey, TransactionHash};
 use crate::deprecated_contract_class::{
     ConstructorType,
     ContractClassAbiEntry,
@@ -13,6 +19,13 @@ use crate::serde_utils::{
     hex_str_from_bytes,
     BytesAsHex,
     InnerDeserializationError,
+};
+use crate::transaction::fields::{
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    TransactionSignature,
 };
 
 #[test]
@@ -185,4 +198,32 @@ fn deserialize_optional_contract_class_abi_entry_vector_none() {
     "#;
     let res: DummyContractClass = serde_json::from_str(json).unwrap();
     assert_eq!(res, DummyContractClass { abi: None });
+}
+
+#[rstest]
+#[case(ContractAddressSalt::default(), 32)]
+#[case(ClassHash::default(), 32)]
+#[case(CompiledClassHash::default(), 32)]
+#[case(TransactionHash::default(), 32)]
+#[case(PatriciaKey::default(), 32)]
+#[case(Nonce::default(), 32)]
+#[case(
+    PaymasterData(vec![Felt::ONE, Felt::TWO, Felt::THREE]),
+    32 * 3 + std::mem::size_of::<Vec<Felt>>()
+)]
+#[case(
+    AccountDeploymentData(vec![Felt::ONE, Felt::TWO, Felt::THREE]),
+    32 * 3 + std::mem::size_of::<Vec<Felt>>()
+)]
+#[case(
+    Calldata(Arc::new(vec![Felt::ONE, Felt::TWO, Felt::THREE])),
+    32 * 3 + std::mem::size_of::<Arc<Vec<Felt>>>()
+)]
+#[case(
+    TransactionSignature(Arc::new(vec![Felt::ONE, Felt::TWO, Felt::THREE])),
+    32 * 3 + std::mem::size_of::<Arc<Vec<Felt>>>()
+)]
+fn test_size_of_felt_wrappers<T: SizeOf>(#[case] data: T, #[case] expected_size: usize) {
+    let total_bytes = data.size_of().total_bytes();
+    assert_eq!(total_bytes, expected_size);
 }
