@@ -1081,15 +1081,22 @@ dependencies = [
 name = "apollo_config_manager"
 version = "0.15.0-rc.4"
 dependencies = [
- "apollo_config",
+ "apollo_config_manager_config",
  "apollo_config_manager_types",
  "apollo_consensus_config",
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
- "serde",
  "serde_json",
  "tracing",
+]
+
+[[package]]
+name = "apollo_config_manager_config"
+version = "0.15.0-rc.4"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1510,7 +1517,7 @@ dependencies = [
  "apollo_class_manager",
  "apollo_class_manager_config",
  "apollo_config",
- "apollo_config_manager",
+ "apollo_config_manager_config",
  "apollo_consensus",
  "apollo_consensus_config",
  "apollo_consensus_manager_config",
@@ -1967,6 +1974,7 @@ dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_config",
  "apollo_config_manager",
+ "apollo_config_manager_config",
  "apollo_config_manager_types",
  "apollo_consensus_manager",
  "apollo_consensus_manager_config",
