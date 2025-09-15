@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use size_of::SizeOf;
+use size_of::{Context, SizeOf};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
@@ -10,7 +10,18 @@ use crate::block::{GasPrice, NonzeroGasPrice};
 use crate::execution_resources::{GasAmount, GasVector};
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
-use crate::{StarknetApiError, StarknetApiResult};
+use crate::{impl_size_of_for_felt, StarknetApiError, StarknetApiResult};
+
+macro_rules! impl_size_of_for_felt_vec {
+    ($type:ty, $inner_type:ty) => {
+        impl SizeOf for $type {
+            fn size_of_children(&self, context: &mut Context) {
+                context.add(std::mem::size_of::<$inner_type>());
+                context.add(self.0.capacity() * 32);
+            }
+        }
+    };
+}
 
 /// A fee.
 #[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::Deref))]
@@ -86,34 +97,25 @@ impl From<Fee> for Felt {
 
 /// A contract address salt.
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    Hash,
-    Deserialize,
-    Serialize,
-    PartialOrd,
-    Ord,
-    SizeOf,
+    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
 pub struct ContractAddressSalt(pub StarkHash);
+
+impl_size_of_for_felt!(ContractAddressSalt);
 
 /// A transaction signature, wrapped in `Arc` for efficient cloning and safe sharing across threads.
 /// `Rc` is avoided due to its lack of thread safety, and `Mutex` is unnecessary as the signature
 /// vector is immutable and never modified.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 
+impl_size_of_for_felt_vec!(TransactionSignature, Arc<Vec<Felt>>);
+
 /// The calldata of a transaction.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct Calldata(pub Arc<Vec<Felt>>);
+
+impl_size_of_for_felt_vec!(Calldata, Arc<Vec<Felt>>);
 
 #[macro_export]
 macro_rules! calldata {
@@ -576,10 +578,10 @@ impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
 }
 
 /// Paymaster-related data.
-#[derive(
-    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
-)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct PaymasterData(pub Vec<Felt>);
+
+impl_size_of_for_felt_vec!(PaymasterData, Vec<Felt>);
 
 impl PaymasterData {
     pub fn is_empty(&self) -> bool {
@@ -589,10 +591,10 @@ impl PaymasterData {
 
 /// If nonempty, will contain the required data for deploying and initializing an account contract:
 /// its class hash, address salt and constructor calldata.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct AccountDeploymentData(pub Vec<Felt>);
+
+impl_size_of_for_felt_vec!(AccountDeploymentData, Vec<Felt>);
 
 impl AccountDeploymentData {
     pub fn is_empty(&self) -> bool {

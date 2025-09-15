@@ -2,7 +2,6 @@ use std::sync::LazyLock;
 
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
@@ -43,7 +42,7 @@ use crate::transaction_hash::{
     get_invoke_transaction_v3_hash,
     get_l1_handler_transaction_hash,
 };
-use crate::{executable_transaction, StarknetApiError, StarknetApiResult};
+use crate::{executable_transaction, impl_size_of_for_felt, StarknetApiError, StarknetApiResult};
 
 #[cfg(test)]
 #[path = "transaction_test.rs"]
@@ -894,9 +893,10 @@ pub struct RevertedTransactionExecutionStatus {
     PartialOrd,
     Ord,
     derive_more::Deref,
-    SizeOf,
 )]
 pub struct TransactionHash(pub StarkHash);
+
+impl_size_of_for_felt!(TransactionHash);
 
 impl std::fmt::Display for TransactionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
