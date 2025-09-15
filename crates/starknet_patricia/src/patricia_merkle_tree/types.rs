@@ -241,7 +241,7 @@ impl<'a> SortedLeafIndices<'a> {
     }
 
     pub(crate) fn contains(&self, value: &NodeIndex) -> bool {
-        self.0.contains(value)
+        self.0.binary_search(value).is_ok()
     }
 
     pub(crate) fn is_empty(&self) -> bool {
