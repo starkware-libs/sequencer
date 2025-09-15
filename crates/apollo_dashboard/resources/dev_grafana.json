@@ -770,17 +770,40 @@
       ],
       "collapsed": true
     },
-    "Compile sierra to casm": {
+    "Class Manager": {
       "panels": [
         {
-          "title": "compile_to_casm_compilation_duration_seconds",
-          "description": "Server-side compilation to casm duration in seconds",
+          "title": "Compile to Casm Compilation Duration",
+          "description": "Server-side compilation of Sierra to Casm duration",
           "type": "timeseries",
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Number of Classes",
+          "description": "Number of classes, labeled by type (regular, deprecated)",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (class_type) (increase(class_manager_n_classes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+          ],
           "extra_params": {}
+        },
+        {
+          "title": "Class Sizes",
+          "description": "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "decmbytes"
+          }
         }
       ],
       "collapsed": true
