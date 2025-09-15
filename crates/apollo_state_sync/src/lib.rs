@@ -1,4 +1,3 @@
-pub mod config;
 pub mod runner;
 #[cfg(test)]
 mod test;
@@ -10,6 +9,7 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
+use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
@@ -27,7 +27,6 @@ use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
 
-use crate::config::StateSyncConfig;
 use crate::runner::StateSyncRunner;
 
 const BUFFER_SIZE: usize = 100000;
