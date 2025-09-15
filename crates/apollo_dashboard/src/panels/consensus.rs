@@ -194,22 +194,64 @@ fn get_panel_consensus_l2_gas_price() -> Panel {
     )
 }
 fn get_panel_consensus_num_connected_peers() -> Panel {
-    Panel::from_gauge(&CONSENSUS_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
+    Panel::new(
+        "Number of Connected Peers",
+        "The number of connected peers in Consensus P2P",
+        vec![CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter().to_string()],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_votes_num_sent_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_VOTES_NUM_SENT_MESSAGES, PanelType::TimeSeries)
+    Panel::new(
+        "Consensus Votes Number of Sent Messages",
+        "The increase in the number of vote messages sent by consensus p2p (10m window)",
+        vec![format!(
+            "increase({}[10m])",
+            CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_votes_num_received_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
+    Panel::new(
+        "Consensus Votes Number of Received Messages",
+        "The increase in the number of vote messages received by consensus p2p (10m window)",
+        vec![format!(
+            "increase({}[10m])",
+            CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::TimeSeries)
+    Panel::new(
+        "Consensus Proposals Number of Sent Messages",
+        "The increase in the number of proposal messages sent by consensus p2p (10m window)",
+        vec![format!(
+            "increase({}[10m])",
+            CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_proposals_num_received_messages() -> Panel {
-    Panel::from_counter(&CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
+    Panel::new(
+        "Consensus Proposals Number of Received Messages",
+        "The increase in the number of proposal messages received by consensus p2p (10m window)",
+        vec![format!(
+            "increase({}[10m])",
+            CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_consensus_conflicting_votes() -> Panel {
-    Panel::from_counter(&CONSENSUS_CONFLICTING_VOTES, PanelType::TimeSeries)
+    Panel::new(
+        "Consensus Conflicting Votes",
+        "The increase in the number of conflicting votes (12h window)",
+        vec![format!("increase({}[12h])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
     Panel::new(
@@ -360,12 +402,12 @@ pub(crate) fn get_consensus_p2p_row() -> Row {
             get_panel_consensus_num_connected_peers(),
             get_panel_consensus_votes_num_sent_messages(),
             get_panel_consensus_votes_num_received_messages(),
+            get_panel_consensus_votes_dropped_messages_by_reason(),
+            get_panel_consensus_conflicting_votes(),
             get_panel_consensus_proposals_num_sent_messages(),
             get_panel_consensus_proposals_num_received_messages(),
-            get_panel_consensus_conflicting_votes(),
-            get_panel_consensus_network_events_by_type(),
-            get_panel_consensus_votes_dropped_messages_by_reason(),
             get_panel_consensus_proposals_dropped_messages_by_reason(),
+            get_panel_consensus_network_events_by_type(),
         ],
     )
 }
