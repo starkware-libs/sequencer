@@ -141,10 +141,10 @@
         },
         {
           "title": "Proposal Build: Proposal Failure by Reason",
-          "description": "The number of build proposal failures (10m window)",
-          "type": "timeseries",
+          "description": "The number of build proposal failures (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {
             "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\""
@@ -179,10 +179,10 @@
         },
         {
           "title": "Proposal Validation: Proposal Failure by Reason",
-          "description": "The number of validate proposal failures (10m window)",
-          "type": "timeseries",
+          "description": "The number of validate proposal failures (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+            "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {
             "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\""
