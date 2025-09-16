@@ -3,7 +3,6 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
-use apollo_batcher::VersionedConstantsOverrides;
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_config::dumping::{
@@ -37,21 +36,22 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
+use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::component_config::ComponentConfig;
-use crate::config::component_execution_config::ExpectedComponentConfig;
-use crate::config::monitoring::MonitoringConfig;
+use crate::component_config::ComponentConfig;
+use crate::component_execution_config::ExpectedComponentConfig;
+use crate::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
 // The path of the configuration schema file, provided as part of the crate.
 pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
 pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
     "crates/apollo_node/resources/config_secrets_schema.json";
-pub(crate) const POINTER_TARGET_VALUE: &str = "PointerTarget";
+pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // TODO(Tsabary): move metrics recorder to the node level, like tracing, instead of being
 // initialized as part of the endpoint.
@@ -388,7 +388,7 @@ impl SequencerNodeConfig {
 }
 
 /// The command line interface of this node.
-pub(crate) fn node_command() -> Command {
+pub fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")

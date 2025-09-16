@@ -7,13 +7,13 @@ use apollo_infra_utils::dumping::serialize_to_file_test;
 use rstest::rstest;
 use validator::Validate;
 
-use crate::config::component_execution_config::{
+use crate::component_execution_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
-use crate::config::config_utils::private_parameters;
-use crate::config::monitoring::MonitoringConfig;
-use crate::config::node_config::{
+use crate::config_utils::private_parameters;
+use crate::monitoring::MonitoringConfig;
+use crate::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,

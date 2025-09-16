@@ -5,7 +5,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-use crate::config::config_utils::create_validation_error;
+use crate::config_utils::create_validation_error;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 #[validate(schema(function = "validate_monitoring_config"))]

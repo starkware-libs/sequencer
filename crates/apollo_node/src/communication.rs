@@ -9,13 +9,12 @@ use apollo_l1_gas_price::communication::L1GasPriceRequestWrapper;
 use apollo_l1_provider::communication::L1ProviderRequestWrapper;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestWrapper;
 use apollo_mempool_types::communication::MempoolRequestWrapper;
+use apollo_node_config::component_execution_config::ExpectedComponentConfig;
+use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_signature_manager_types::SignatureManagerRequestWrapper;
 use apollo_state_sync_types::communication::StateSyncRequestWrapper;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
-
-use crate::config::component_execution_config::ExpectedComponentConfig;
-use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestWrapper>,
