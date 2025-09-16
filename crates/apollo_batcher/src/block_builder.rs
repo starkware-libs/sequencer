@@ -306,8 +306,9 @@ impl BlockBuilder {
             PROPOSER_DEFERRED_TXS.set_lossy(not_executed);
         }
         info!(
-            "Finished building block. Started executing {} transactions. Finished executing {} \
-             transactions. Final number of transactions (as set by the proposer): {}.",
+            "Finished building block as {}. Started executing {} transactions. Finished executing \
+             {} transactions. Final number of transactions (as set by the proposer): {}.",
+            if self.execution_params.is_validator { "validator" } else { "proposer" },
             self.block_txs.len(),
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
