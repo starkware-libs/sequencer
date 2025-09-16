@@ -2,7 +2,8 @@ use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
-use crate::build_proposal::BuildProposalError;
+use crate::build_proposal::BuildProposalFailureReasonLabelValue;
+use crate::validate_proposal::ValidateProposalFailureReasonLabelValue;
 
 define_metrics!(
     ConsensusOrchestrator => {
@@ -54,48 +55,12 @@ pub(crate) fn record_write_failure(reason: CendeWriteFailureReason) {
 // Build proposal failure reasons
 pub const LABEL_BUILD_PROPOSAL_FAILURE_REASON: &str = "build_proposal_failure_reason";
 
-#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
-#[strum(serialize_all = "snake_case")]
-pub(crate) enum BuildProposalFailureReason {
-    BatcherError,
-    StateSyncClientError,
-    StateSyncNotReady,
-    SendError,
-    EthToStrkOracleError,
-    L1GasPriceProviderError,
-    Interrupted,
-    CendeWriteError,
-    TransactionConverterError,
-    BlockInfoConversionError,
-}
-
 generate_permutation_labels! {
     BUILD_PROPOSAL_FAILURE_REASON,
-    (LABEL_BUILD_PROPOSAL_FAILURE_REASON, BuildProposalFailureReason),
+    (LABEL_BUILD_PROPOSAL_FAILURE_REASON, BuildProposalFailureReasonLabelValue),
 }
 
-impl From<&BuildProposalError> for BuildProposalFailureReason {
-    fn from(e: &BuildProposalError) -> Self {
-        match e {
-            BuildProposalError::Batcher(_, _) => Self::BatcherError,
-            BuildProposalError::StateSyncClientError(_) => Self::StateSyncClientError,
-            BuildProposalError::StateSyncNotReady(_) => Self::StateSyncNotReady,
-            BuildProposalError::SendError(_) => Self::SendError,
-            BuildProposalError::EthToStrkOracle(_) => Self::EthToStrkOracleError,
-            BuildProposalError::L1GasPriceProvider(_) => Self::L1GasPriceProviderError,
-            BuildProposalError::Interrupted => Self::Interrupted,
-            BuildProposalError::CendeWriteError(_) => Self::CendeWriteError,
-            BuildProposalError::TransactionConverterError(_) => Self::TransactionConverterError,
-            BuildProposalError::BlockInfoConversion(_) => Self::BlockInfoConversionError,
-        }
-    }
-}
-
-pub(crate) fn record_build_proposal_failure<R>(reason: R)
-where
-    R: Into<BuildProposalFailureReason>,
-{
-    let reason = reason.into();
+pub(crate) fn record_build_proposal_failure(reason: BuildProposalFailureReasonLabelValue) {
     CONSENSUS_BUILD_PROPOSAL_FAILURE
         .increment(1, &[(LABEL_BUILD_PROPOSAL_FAILURE_REASON, reason.into())]);
 }
@@ -103,60 +68,12 @@ where
 // Validate proposal failure reasons
 pub const LABEL_VALIDATE_PROPOSAL_FAILURE_REASON: &str = "validate_proposal_failure_reason";
 
-#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
-#[strum(serialize_all = "snake_case")]
-pub(crate) enum ValidateProposalFailureReason {
-    BatcherError,
-    StateSyncClientError,
-    StateSyncNotReady,
-    SendError,
-    EthToStrkOracleError,
-    L1GasPriceProviderError,
-    InvalidBlockInfo,
-    BlockInfoConversionError,
-    ValidationTimeout,
-    ProposalInterrupted,
-    InvalidSecondProposalPart,
-    InvalidProposal,
-    ProposalPartFailed,
-    ProposalFinMismatch,
-    CannotCalculateDeadline,
-}
-
 generate_permutation_labels! {
     VALIDATE_PROPOSAL_FAILURE_REASON,
-    (LABEL_VALIDATE_PROPOSAL_FAILURE_REASON, ValidateProposalFailureReason),
+    (LABEL_VALIDATE_PROPOSAL_FAILURE_REASON, ValidateProposalFailureReasonLabelValue),
 }
 
-use crate::validate_proposal::ValidateProposalError;
-
-impl From<&ValidateProposalError> for ValidateProposalFailureReason {
-    fn from(e: &ValidateProposalError) -> Self {
-        match e {
-            ValidateProposalError::Batcher(_, _) => Self::BatcherError,
-            ValidateProposalError::StateSyncClientError(_) => Self::StateSyncClientError,
-            ValidateProposalError::StateSyncNotReady(_) => Self::StateSyncNotReady,
-            ValidateProposalError::SendError(_) => Self::SendError,
-            ValidateProposalError::EthToStrkOracle(_) => Self::EthToStrkOracleError,
-            ValidateProposalError::L1GasPriceProvider(_) => Self::L1GasPriceProviderError,
-            ValidateProposalError::InvalidBlockInfo(_, _, _) => Self::InvalidBlockInfo,
-            ValidateProposalError::BlockInfoConversion(_) => Self::BlockInfoConversionError,
-            ValidateProposalError::ValidationTimeout(_) => Self::ValidationTimeout,
-            ValidateProposalError::ProposalInterrupted(_) => Self::ProposalInterrupted,
-            ValidateProposalError::InvalidSecondProposalPart(_) => Self::InvalidSecondProposalPart,
-            ValidateProposalError::InvalidProposal(_) => Self::InvalidProposal,
-            ValidateProposalError::ProposalPartFailed(_, _) => Self::ProposalPartFailed,
-            ValidateProposalError::ProposalFinMismatch => Self::ProposalFinMismatch,
-            ValidateProposalError::CannotCalculateDeadline { .. } => Self::CannotCalculateDeadline,
-        }
-    }
-}
-
-pub(crate) fn record_validate_proposal_failure<R>(reason: R)
-where
-    R: Into<ValidateProposalFailureReason>,
-{
-    let reason = reason.into();
+pub(crate) fn record_validate_proposal_failure(reason: ValidateProposalFailureReasonLabelValue) {
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE
         .increment(1, &[(LABEL_VALIDATE_PROPOSAL_FAILURE_REASON, reason.into())]);
 }
