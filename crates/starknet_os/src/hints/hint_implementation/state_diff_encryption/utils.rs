@@ -53,13 +53,11 @@ pub fn encrypt_symmetric_key(
         .collect()
 }
 
-#[allow(dead_code)]
-pub fn decrypt_state_diff(
+pub fn decrypt_symmetric_key(
     private_key: Felt,
     sn_public_key: Felt,
     encrypted_symmetric_key: Felt,
-    encrypted_state_diff: &[Felt],
-) -> Vec<Felt> {
+) -> Felt {
     // Compute the shared secret using Diffie-Hellman key exchange.
     let sn_public_key_y = recover_y(sn_public_key);
     let sn_public_key_point =
@@ -69,8 +67,17 @@ pub fn decrypt_state_diff(
 
     // Decrypt the symmetric key using the shared secret.
     // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
-    let symmetric_key =
-        encrypted_symmetric_key - encode_felt252_data_and_calc_blake_hash(&[shared_secret]);
+    encrypted_symmetric_key - encode_felt252_data_and_calc_blake_hash(&[shared_secret])
+}
+
+#[allow(dead_code)]
+pub fn decrypt_state_diff(
+    private_key: Felt,
+    sn_public_key: Felt,
+    encrypted_symmetric_key: Felt,
+    encrypted_state_diff: &[Felt],
+) -> Vec<Felt> {
+    let symmetric_key = decrypt_symmetric_key(private_key, sn_public_key, encrypted_symmetric_key);
 
     // Decrypt the state diff using the symmetric key.
     // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
