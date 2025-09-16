@@ -122,7 +122,7 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert_vec() -> Vec<Alert> {
     vec![
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
+            AlertSeverity::WorkingHours,
         ),
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::TestnetStyleAlerts,

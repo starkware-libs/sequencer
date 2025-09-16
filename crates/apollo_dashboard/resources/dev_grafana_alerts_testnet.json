@@ -309,8 +309,8 @@
       "observer_applicable": "false"
     },
     {
-      "name": "gateway_add_tx_idle_all_sources",
-      "title": "Gateway add_tx idle (all sources)",
+      "name": "gateway_add_tx_idle_p2p_rpc",
+      "title": "Gateway add_tx idle (p2p+rpc)",
       "ruleGroup": "gateway",
       "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
       "conditions": [
@@ -333,7 +333,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "p2",
       "observer_applicable": "false"
     },
     {
@@ -501,7 +501,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "p2",
       "observer_applicable": "false"
     },
     {
@@ -617,8 +617,8 @@
       "observer_applicable": "false"
     },
     {
-      "name": "mempool_add_tx_idle_all_sources",
-      "title": "Mempool add_tx idle (all sources)",
+      "name": "mempool_add_tx_idle_p2p_rpc",
+      "title": "Mempool add_tx idle (p2p+rpc)",
       "ruleGroup": "mempool",
       "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
       "conditions": [
@@ -1096,12 +1096,12 @@
       "name": "consensus_round_above_zero_multiple_times",
       "title": "Consensus round above zero multiple times",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[30m])",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              5.0
+              30.0
             ],
             "type": "gt"
           },
@@ -1549,7 +1549,7 @@
         {
           "evaluator": {
             "params": [
-              2000.0
+              10000.0
             ],
             "type": "gt"
           },

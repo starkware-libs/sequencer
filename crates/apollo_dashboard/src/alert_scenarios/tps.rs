@@ -27,6 +27,7 @@ fn build_idle_alert(
     alert_group: AlertGroup,
     metric_name_with_filter: &str,
     duration: Duration,
+    alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
         alert_name,
@@ -40,7 +41,7 @@ fn build_idle_alert(
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Sos,
+        alert_severity,
         ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
@@ -53,26 +54,29 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
         AlertGroup::HttpServer,
         &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
         Duration::from_secs(30 * SECS_IN_MIN),
+        AlertSeverity::Regular,
     )
 }
 
 pub(crate) fn get_gateway_add_tx_idle() -> Alert {
     build_idle_alert(
-        "gateway_add_tx_idle_all_sources",
-        "Gateway add_tx idle (all sources)",
+        "gateway_add_tx_idle_p2p_rpc",
+        "Gateway add_tx idle (p2p+rpc)",
         AlertGroup::Gateway,
         &GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         Duration::from_secs(2 * SECS_IN_MIN),
+        AlertSeverity::Regular,
     )
 }
 
 pub(crate) fn get_mempool_add_tx_idle() -> Alert {
     build_idle_alert(
-        "mempool_add_tx_idle_all_sources",
-        "Mempool add_tx idle (all sources)",
+        "mempool_add_tx_idle_p2p_rpc",
+        "Mempool add_tx idle (p2p+rpc)",
         AlertGroup::Mempool,
         &MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         Duration::from_secs(2 * SECS_IN_MIN),
+        AlertSeverity::Sos,
     )
 }
 
