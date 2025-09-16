@@ -22,3 +22,11 @@ async-trait.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_infra_utils.workspace = true
+mockall.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tracing-test.workspace = true
