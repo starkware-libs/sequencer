@@ -50,6 +50,7 @@ fn get_panel_consensus_block_number() -> Panel {
         vec![CONSENSUS_BLOCK_NUMBER.get_name_with_filter().to_string()],
         PanelType::Stat,
     )
+    .with_log_query("Running consensus for height")
 }
 fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     Panel::new(
@@ -70,6 +71,7 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
         vec![CONSENSUS_ROUND.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
     )
+    .with_log_query("START_ROUND")
 }
 fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
@@ -90,6 +92,7 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("DECISION_REACHED: Decision reached for round")
 }
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
@@ -101,6 +104,7 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Decision learned via sync protocol.")
 }
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
@@ -117,6 +121,7 @@ fn get_panel_consensus_proposals_validated() -> Panel {
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALIDATED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("Validated proposal.")
 }
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
@@ -125,6 +130,7 @@ fn get_panel_consensus_proposals_invalid() -> Panel {
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("Validated proposal.")
 }
 fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
@@ -184,6 +190,7 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Applying Timeout")
 }
 fn get_panel_consensus_l2_gas_price() -> Panel {
     Panel::new(
@@ -318,6 +325,7 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
         vec![format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("write_pre_confirmed_block request succeeded.")
 }
 
 fn get_panel_consensus_network_events_by_type() -> Panel {

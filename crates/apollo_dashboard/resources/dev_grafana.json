@@ -9,7 +9,9 @@
           "exprs": [
             "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"START_ROUND\""
+          }
         },
         {
           "title": "Write Blob Failure by Reason",
@@ -72,7 +74,9 @@
           "exprs": [
             "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Running consensus for height\""
+          }
         },
         {
           "title": "Consensus Round",
@@ -81,7 +85,9 @@
           "exprs": [
             "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"START_ROUND\""
+          }
         },
         {
           "title": "Consensus Height Diff From Sync",
@@ -110,7 +116,9 @@
           "exprs": [
             "increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"DECISION_REACHED: Decision reached for round\""
+          }
         },
         {
           "title": "Decisions Reached By Sync",
@@ -119,7 +127,9 @@
           "exprs": [
             "increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Decision learned via sync protocol.\""
+          }
         },
         {
           "title": "Proposal Build: Number of Proposals Started",
@@ -166,7 +176,9 @@
           "exprs": [
             "increase(consensus_proposals_validated{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Validated proposal.\""
+          }
         },
         {
           "title": "Proposal Validation: Number of Invalid Proposals",
@@ -175,7 +187,9 @@
           "exprs": [
             "increase(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Validated proposal.\""
+          }
         },
         {
           "title": "Proposal Validation: Proposal Failure by Reason",
@@ -195,7 +209,9 @@
           "exprs": [
             "sum by (timeout_type) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Applying Timeout\""
+          }
         },
         {
           "title": "L2 Gas Price (GFri)",
@@ -263,7 +279,9 @@
           "exprs": [
             "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"write_pre_confirmed_block request succeeded.\""
+          }
         }
       ],
       "collapsed": true
