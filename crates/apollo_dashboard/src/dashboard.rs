@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use apollo_infra::metrics::{
     InfraMetrics,
     LocalClientMetrics,
@@ -17,13 +15,14 @@ use apollo_metrics::metrics::{
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
+use serde_with::skip_serializing_none;
 
 #[cfg(test)]
 #[path = "dashboard_test.rs"]
 mod dashboard_test;
 
-const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
-const HISTOGRAM_TIME_RANGE: &str = "5m";
+pub const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
+pub const HISTOGRAM_TIME_RANGE: &str = "5m";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dashboard {
@@ -43,10 +42,16 @@ impl Serialize for Dashboard {
     where
         S: Serializer,
     {
+        #[derive(Serialize)]
+        struct RowValue<'a> {
+            panels: &'a [Panel],
+            collapsed: bool,
+        }
+
         let mut map = serializer.serialize_map(Some(1))?;
         let mut row_map = IndexMap::new();
         for row in &self.rows {
-            row_map.insert(row.name, &row.panels);
+            row_map.insert(row.name, RowValue { panels: &row.panels, collapsed: row.collapsed });
         }
 
         map.serialize_entry(self.name, &row_map)?;
@@ -60,6 +65,66 @@ impl Serialize for Dashboard {
 pub(crate) enum PanelType {
     Stat,
     TimeSeries,
+    #[allow(dead_code)] // TODO(Ron): use BarGauge in panels
+    BarGauge,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Unit {
+    Bytes,
+    Seconds,
+    #[allow(clippy::enum_variant_names)]
+    // The expected values for PercentUnit are [0,1]
+    PercentUnit,
+    MB,
+}
+
+impl Unit {
+    fn grafana_id(&self) -> &'static str {
+        match self {
+            Unit::Bytes => "bytes",
+            Unit::Seconds => "s",
+            Unit::PercentUnit => "percentunit",
+            Unit::MB => "decmbytes",
+        }
+    }
+}
+
+impl Serialize for Unit {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.grafana_id())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThresholdMode {
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    Absolute,
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    Percentage,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ThresholdStep {
+    pub color: String,
+    pub value: Option<f64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Thresholds {
+    pub mode: ThresholdMode,
+    pub steps: Vec<ThresholdStep>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+pub struct ExtraParams {
+    pub unit: Option<Unit>,
+    pub show_percent_change: Option<bool>,
+    pub log_query: Option<String>,
+    pub thresholds: Option<Thresholds>,
+    pub legends: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -68,6 +133,7 @@ pub(crate) struct Panel {
     description: String,
     exprs: Vec<String>,
     panel_type: PanelType,
+    extra: ExtraParams,
 }
 
 impl Panel {
@@ -87,7 +153,83 @@ impl Panel {
             "Too many expressions ({} > {NUM_LETTERS}) in panel '{name}'.",
             exprs.len(),
         );
-        Self { name, description, exprs, panel_type }
+        Self { name, description, exprs, panel_type, extra: ExtraParams::default() }
+    }
+    pub fn with_unit(mut self, unit: Unit) -> Self {
+        self.extra.unit = Some(unit);
+        self
+    }
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn show_percent_change(mut self) -> Self {
+        assert_eq!(
+            self.panel_type,
+            PanelType::Stat,
+            "show_percent_change is only supported on Stat panels; got {:?}",
+            self.panel_type
+        );
+        self.extra.show_percent_change = Some(true);
+        self
+    }
+    pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
+        let mut query = log_query.into();
+
+        // Add quotes if none are present.
+        if !query.contains('"') {
+            query = format!("\"{}\"", query);
+        }
+
+        self.extra.log_query = Some(query);
+        self
+    }
+
+    pub fn with_legends<S: Into<String>>(mut self, legends: Vec<S>) -> Self {
+        assert_eq!(
+            legends.len(),
+            self.exprs.len(),
+            "Number of legends must match number of expressions"
+        );
+        self.extra.legends = Some(legends.into_iter().map(|s| s.into()).collect());
+        self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    fn with_thresholds(mut self, mode: ThresholdMode, steps: Vec<(&str, Option<f64>)>) -> Self {
+        assert!(!steps.is_empty(), "thresholds must include at least one step");
+        assert!(steps[0].1.is_none(), "first threshold step must have value=null");
+        for w in steps.windows(2).skip(1) {
+            let prev = w[0].1.unwrap();
+            let next = w[1].1.unwrap();
+            assert!(
+                next > prev,
+                "threshold values must be strictly increasing: {} then {}",
+                prev,
+                next
+            );
+        }
+        let steps = steps
+            .into_iter()
+            .map(|(color, value)| ThresholdStep { color: color.to_string(), value })
+            .collect();
+        self.extra.thresholds = Some(Thresholds { mode, steps });
+        self
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    /// - The first step must have `value = None` → becomes `null` in Grafana. This defines the base
+    ///   color for all values below the first numeric threshold.
+    /// - All following steps must be `Some(number)` with **strictly increasing values**. Grafana
+    ///   chooses the color of the last threshold whose value ≤ datapoint.
+    /// - Colors may be any valid CSS color string:
+    /// - Named: "green", "red": <https://developer.mozilla.org/en-US/docs/Web/CSS/named-color>.
+    /// - Hex: "#FF0000", "#00ff00".
+    /// - RGB/HSL: "rgb(255,0,0)", "hsl(120,100%,50%)", etc.
+    pub fn with_absolute_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+        self.with_thresholds(ThresholdMode::Absolute, steps)
+    }
+
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_percentage_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
+        self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
     // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
@@ -137,36 +279,30 @@ impl Panel {
             .collect::<Vec<_>>()
             .join(" + ");
 
-        let expr = format!("100 * ({} / ({}))", numerator_expr, denominator_expr);
+        let expr = format!("({} / ({}))", numerator_expr, denominator_expr);
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries)
+        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
-}
 
-impl From<&MetricCounter> for Panel {
-    fn from(metric: &MetricCounter) -> Self {
+    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
             vec![metric.get_name_with_filter().to_string()],
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
-}
 
-impl From<&MetricGauge> for Panel {
-    fn from(metric: &MetricGauge) -> Self {
+    pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
             vec![metric.get_name_with_filter().to_string()],
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
-}
 
-impl From<&MetricHistogram> for Panel {
-    fn from(metric: &MetricHistogram) -> Self {
+    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -180,9 +316,14 @@ impl From<&MetricHistogram> for Panel {
                     )
                 })
                 .collect(),
-            PanelType::TimeSeries,
+            panel_type,
         )
     }
+}
+
+#[allow(dead_code)] // TODO(Ron): use in panels
+pub fn traffic_light_thresholds(yellow: f64, red: f64) -> Vec<(&'static str, Option<f64>)> {
+    vec![("green", None), ("yellow", Some(yellow)), ("red", Some(red))]
 }
 
 // There is no equivalent for LabeledPanels because they are less straightforward than
@@ -199,14 +340,16 @@ impl From<&LocalClientMetrics> for UnlabeledPanels {
 
 impl From<&RemoteClientMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteClientMetrics) -> Self {
-        Self(vec![Panel::from(metrics.get_attempts_metric())])
+        Self(vec![Panel::from_hist(metrics.get_attempts_metric(), PanelType::TimeSeries)])
     }
 }
 
 impl From<&LocalServerMetrics> for UnlabeledPanels {
     fn from(metrics: &LocalServerMetrics) -> Self {
-        let received_msgs_panel = Panel::from(metrics.get_received_metric());
-        let processed_msgs_panel = Panel::from(metrics.get_processed_metric());
+        let received_msgs_panel =
+            Panel::from_counter(metrics.get_received_metric(), PanelType::TimeSeries);
+        let processed_msgs_panel =
+            Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
         let queue_depth_panel = Panel::new(
             "local_queue_depth",
             "The depth of the local priority queues",
@@ -223,10 +366,14 @@ impl From<&LocalServerMetrics> for UnlabeledPanels {
 
 impl From<&RemoteServerMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteServerMetrics) -> Self {
-        let total_received_msgs_panel = Panel::from(metrics.get_total_received_metric());
-        let valid_received_msgs_panel = Panel::from(metrics.get_valid_received_metric());
-        let processed_msgs_panel = Panel::from(metrics.get_processed_metric());
-        let number_of_connections_panel = Panel::from(metrics.get_number_of_connections_metric());
+        let total_received_msgs_panel =
+            Panel::from_counter(metrics.get_total_received_metric(), PanelType::TimeSeries);
+        let valid_received_msgs_panel =
+            Panel::from_counter(metrics.get_valid_received_metric(), PanelType::TimeSeries);
+        let processed_msgs_panel =
+            Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
+        let number_of_connections_panel =
+            Panel::from_gauge(metrics.get_number_of_connections_metric(), PanelType::TimeSeries);
 
         Self(vec![
             total_received_msgs_panel,
@@ -292,10 +439,7 @@ impl Serialize for Panel {
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
         state.serialize_field("exprs", &self.exprs)?;
-
-        // Append an empty dictionary `{}` at the end
-        let empty_map: HashMap<String, String> = HashMap::new();
-        state.serialize_field("extra_params", &empty_map)?;
+        state.serialize_field("extra_params", &self.extra)?;
 
         state.end()
     }
@@ -305,11 +449,17 @@ impl Serialize for Panel {
 pub(crate) struct Row {
     name: &'static str,
     panels: Vec<Panel>,
+    collapsed: bool,
 }
 
 impl Row {
     pub(crate) const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
-        Self { name, panels }
+        Self { name, panels, collapsed: true }
+    }
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn expand(mut self) -> Self {
+        self.collapsed = false;
+        self
     }
 }
 

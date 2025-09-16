@@ -9,19 +9,32 @@ use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 
-use crate::dashboard::{get_component_infra_row, Dashboard};
-use crate::panels::batcher::get_batcher_row;
+use crate::dashboard::{get_component_infra_row, Dashboard, Row};
+use crate::panels::batcher::{get_batcher_row, get_panel_batched_transactions_rate};
 use crate::panels::blockifier::get_blockifier_row;
-use crate::panels::consensus::{get_consensus_p2p_row, get_consensus_row};
-use crate::panels::gateway::get_gateway_row;
-use crate::panels::http_server::get_http_server_row;
+use crate::panels::consensus::{
+    get_cende_row,
+    get_consensus_p2p_row,
+    get_consensus_row,
+    get_panel_cende_write_blob_failure,
+    get_panel_consensus_round,
+};
+use crate::panels::gateway::{get_gateway_row, get_panel_gateway_transactions_failure_rate};
+use crate::panels::http_server::{
+    get_http_server_row,
+    get_panel_http_server_transactions_received_rate,
+};
 use crate::panels::l1_gas_price::get_l1_gas_price_row;
 use crate::panels::l1_provider::get_l1_provider_row;
 use crate::panels::mempool::get_mempool_row;
 use crate::panels::mempool_p2p::get_mempool_p2p_row;
 use crate::panels::pod_metrics::get_pod_metrics_row;
 use crate::panels::sierra_compiler::get_compile_to_casm_row;
-use crate::panels::state_sync::{get_state_sync_p2p_row, get_state_sync_row};
+use crate::panels::state_sync::{
+    get_panel_state_sync_diff_from_central,
+    get_state_sync_p2p_row,
+    get_state_sync_row,
+};
 use crate::panels::storage::get_storage_row;
 use crate::panels::tokio::get_tokio_row;
 
@@ -31,11 +44,28 @@ mod dashboard_definitions_test;
 
 pub const DEV_JSON_PATH: &str = "crates/apollo_dashboard/resources/dev_grafana.json";
 
+fn get_overview_row() -> Row {
+    Row::new(
+        "Overview",
+        vec![
+            get_panel_consensus_round(),
+            get_panel_cende_write_blob_failure(),
+            get_panel_http_server_transactions_received_rate(),
+            get_panel_batched_transactions_rate(),
+            get_panel_state_sync_diff_from_central(),
+            get_panel_gateway_transactions_failure_rate(),
+        ],
+    )
+    .expand()
+}
+
 pub fn get_apollo_dashboard() -> Dashboard {
     Dashboard::new(
         "Sequencer Node Dashboard",
         vec![
+            get_overview_row(),
             get_consensus_row(),
+            get_cende_row(),
             get_batcher_row(),
             get_state_sync_row(),
             get_http_server_row(),

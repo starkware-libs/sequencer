@@ -52,7 +52,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
-use crate::metrics::FULL_BLOCKS;
+use crate::metrics::{PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
@@ -238,6 +238,13 @@ impl BlockBuilder {
                 if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::Deadline.into(),
+                    )],
+                );
                 break;
             }
             if final_n_executed_txs.is_none() {
@@ -260,7 +267,13 @@ impl BlockBuilder {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
-                FULL_BLOCKS.increment(1);
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::FullBlock.into(),
+                    )],
+                );
                 break;
             }
 
@@ -283,6 +296,15 @@ impl BlockBuilder {
             self.n_executed_txs
         };
 
+        if self.execution_params.is_validator {
+            // Validator wasted txs: executed locally but not included in final block.
+            let wasted = self.n_executed_txs.saturating_sub(final_n_executed_txs_nonopt);
+            VALIDATOR_WASTED_TXS.set_lossy(wasted);
+        } else {
+            // Proposer deferred txs: started but not executed by end of proposal.
+            let not_executed = self.block_txs.len().saturating_sub(self.n_executed_txs);
+            PROPOSER_DEFERRED_TXS.set_lossy(not_executed);
+        }
         info!(
             "Finished building block. Started executing {} transactions. Finished executing {} \
              transactions. Final number of transactions (as set by the proposer): {}.",

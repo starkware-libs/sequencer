@@ -35,6 +35,8 @@ indexmap.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 starknet_api.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
