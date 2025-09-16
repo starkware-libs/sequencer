@@ -1,5 +1,38 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
+from starkware.cairo.common.cairo_blake2s.blake2s import BLAKE2S_FINALIZE_INSTRUCTION
+
+// Computes blake2s of `input` of size `len` felts, representing 32 bits each.
+func blake_with_opcode_for_single_16_length_word(len: felt, data: felt*, out: felt*, state: felt*) {
+    alloc_locals;
+    assert len = 16;
+
+    // Add remainder bytes to counter.
+    tempvar counter = 64;
+    [ap] = state, ap++;
+    [ap] = data, ap++;
+    [ap] = counter, ap++;
+    [ap] = out;
+    dw BLAKE2S_FINALIZE_INSTRUCTION;
+    // Increment AP after blake opcode.
+    ap += 1;
+
+    return ();
+}
+
+func create_state_for_blake2s() -> (state: felt*) {
+    alloc_locals;
+    let (local state: felt*) = alloc();
+    assert state[0] = 0x6B08E647;  // IV[0] ^ 0x01010020 (config: no key, 32 bytes output).
+    assert state[1] = 0xBB67AE85;
+    assert state[2] = 0x3C6EF372;
+    assert state[3] = 0xA54FF53A;
+    assert state[4] = 0x510E527F;
+    assert state[5] = 0x9B05688C;
+    assert state[6] = 0x1F83D9AB;
+    assert state[7] = 0x5BE0CD19;
+    return (state=state);
+}
 
 // / Encodes a list of felt252s to a list of u32s, each felt is mapped to eight u32s.
 func naive_encode_felt252s_to_u32s{range_check_ptr: felt}(
@@ -50,6 +83,24 @@ func calc_blake_hash{range_check_ptr: felt}(data_len: felt, data: felt*) -> (has
     );
     let (local blake_output: felt*) = alloc();
     blake_with_opcode(len=encoded_data_len, data=encoded_data, out=blake_output);
+    let (hash: felt) = blake2s_to_felt252(blake_output=blake_output);
+    return (hash=hash);
+}
+
+// / Encodes a slice of `Felt` values into 32-bit words, then hashes the resulting byte stream
+// / with Blake2s-256 and returns the 256-bit digest to a 252-bit field element `Felt`.
+func calc_blake_hash_for_single_16_length_word{range_check_ptr: felt}(
+    data_len: felt, data: felt*, state: felt*
+) -> (hash: felt) {
+    alloc_locals;
+    let (local encoded_data: felt*) = alloc();
+    let encoded_data_len = naive_encode_felt252s_to_u32s(
+        packed_values_len=data_len, packed_values=data, unpacked_u32s=encoded_data
+    );
+    let (local blake_output: felt*) = alloc();
+    blake_with_opcode_for_single_16_length_word(
+        len=encoded_data_len, data=encoded_data, out=blake_output, state=state
+    );
     let (hash: felt) = blake2s_to_felt252(blake_output=blake_output);
     return (hash=hash);
 }
