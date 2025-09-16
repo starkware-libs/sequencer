@@ -293,7 +293,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     }
                     Err(e) => {
                         warn!("PROPOSAL_FAILED: Proposal failed as proposer. Error: {e:?}");
-                        record_build_proposal_failure(&e);
+                        record_build_proposal_failure(e.into());
                     }
                 }
             }
@@ -728,7 +728,7 @@ impl SequencerConsensusContext {
                     }
                     Err(e) => {
                         warn!("PROPOSAL_FAILED: Proposal failed as validator. Error: {e:?}");
-                        record_validate_proposal_failure(&e);
+                        record_validate_proposal_failure(e.into());
                     }
                 }
             }
