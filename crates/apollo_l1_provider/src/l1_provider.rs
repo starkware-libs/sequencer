@@ -45,6 +45,96 @@ pub struct L1Provider {
 }
 
 impl L1Provider {
+    // Functions Called by the scraper.
+
+    // Start the provider, get first-scrape events, start L2 sync.
+    pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        info!("Initializing l1 provider");
+        let Some(bootstrapper) = self.state.get_bootstrapper() else {
+            // FIXME: This should be return FatalError or similar, which should trigger a planned
+            // restart from the infra, since this CAN happen if the scraper recovered from a crash.
+            // Right now this is effectively a KILL message when called in steady state.
+            panic!("Called initialize while not in bootstrap state. Restart service.");
+        };
+        bootstrapper.start_l2_sync(self.current_height).await;
+        self.add_events(events)?;
+
+        Ok(())
+    }
+
+    /// Accept new events from the scraper.
+    #[instrument(skip_all, err)]
+    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
+        // TODO(guyn): can we remove this "every sec" since the polling interval is rather long?
+        info_every_n_sec!(1, "Adding {} l1 events", events.len());
+        trace!("Adding events: {events:?}");
+
+        for event in events {
+            match event {
+                Event::L1HandlerTransaction {
+                    l1_handler_tx,
+                    block_timestamp,
+                    scrape_timestamp,
+                } => {
+                    let tx_hash = l1_handler_tx.tx_hash;
+                    let successfully_inserted =
+                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
+                    if !successfully_inserted {
+                        debug!(
+                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
+                             known or committed."
+                        );
+                    }
+                }
+                Event::TransactionCancellationStarted {
+                    tx_hash,
+                    cancellation_request_timestamp,
+                } => {
+                    if !self.tx_manager.exists(tx_hash) {
+                        warn!(
+                            "Dropping cancellation request for old L1 handler transaction \
+                             {tx_hash}: not in the provider and will never be scraped at this \
+                             point."
+                        );
+                        continue;
+                    }
+
+                    self.tx_manager
+                        .request_cancellation(tx_hash, cancellation_request_timestamp)
+                        .inspect(|previous_request_timestamp| {
+                            // Re-requesting a cancellation is meaningful for the L1 timelock, but
+                            // for the l2 timelock we only consider the first cancellation
+                            // relevant.
+                            info!(
+                                "Dropping duplicated cancellation request for {tx_hash} at \
+                                 {cancellation_request_timestamp}, previous request block \
+                                 timestamp still stands: {previous_request_timestamp}"
+                            );
+                        });
+                }
+                Event::TransactionConsumed { tx_hash, timestamp: consumed_at } => {
+                    if let Err(previously_consumed_at) =
+                        self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
+                    {
+                        panic!(
+                            "Double consumption of {tx_hash} at {consumed_at}, previously \
+                             consumed at {previously_consumed_at}."
+                        );
+                    }
+                }
+                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
+            }
+        }
+        Ok(())
+    }
+
+    // Functions Called by the batcher.
+
+    /// Start a new block as either proposer or validator.
     #[instrument(skip(self), err)]
     pub fn start_block(
         &mut self,
@@ -59,20 +149,6 @@ impl L1Provider {
         info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
-        Ok(())
-    }
-
-    pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        info!("Initializing l1 provider");
-        let Some(bootstrapper) = self.state.get_bootstrapper() else {
-            // FIXME: This should be return FatalError or similar, which should trigger a planned
-            // restart from the infra, since this CAN happen if the scraper recovered from a crash.
-            // Right now this is effectively a KILL message when called in steady state.
-            panic!("Called initialize while not in bootstrap state. Restart service.");
-        };
-        bootstrapper.start_l2_sync(self.current_height).await;
-        self.add_events(events)?;
-
         Ok(())
     }
 
@@ -177,99 +253,7 @@ impl L1Provider {
         Ok(())
     }
 
-    /// Accept events from the scraper.
-    #[instrument(skip_all, err)]
-    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        if self.state.uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
-        }
-
-        // TODO(guyn): can we remove this "every sec" since the polling interval is rather long?
-        info_every_n_sec!(1, "Adding {} l1 events", events.len());
-        trace!("Adding events: {events:?}");
-
-        for event in events {
-            match event {
-                Event::L1HandlerTransaction {
-                    l1_handler_tx,
-                    block_timestamp,
-                    scrape_timestamp,
-                } => {
-                    let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted =
-                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
-                    if !successfully_inserted {
-                        debug!(
-                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
-                             known or committed."
-                        );
-                    }
-                }
-                Event::TransactionCancellationStarted {
-                    tx_hash,
-                    cancellation_request_timestamp,
-                } => {
-                    if !self.tx_manager.exists(tx_hash) {
-                        warn!(
-                            "Dropping cancellation request for old L1 handler transaction \
-                             {tx_hash}: not in the provider and will never be scraped at this \
-                             point."
-                        );
-                        continue;
-                    }
-
-                    self.tx_manager
-                        .request_cancellation(tx_hash, cancellation_request_timestamp)
-                        .inspect(|previous_request_timestamp| {
-                            // Re-requesting a cancellation is meaningful for the L1 timelock, but
-                            // for the l2 timelock we only consider the first cancellation
-                            // relevant.
-                            info!(
-                                "Dropping duplicated cancellation request for {tx_hash} at \
-                                 {cancellation_request_timestamp}, previous request block \
-                                 timestamp still stands: {previous_request_timestamp}"
-                            );
-                        });
-                }
-                Event::TransactionConsumed { tx_hash, timestamp: consumed_at } => {
-                    if let Err(previously_consumed_at) =
-                        self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
-                    {
-                        panic!(
-                            "Double consumption of {tx_hash} at {consumed_at}, previously \
-                             consumed at {previously_consumed_at}."
-                        );
-                    }
-                }
-                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
-            }
-        }
-        Ok(())
-    }
-
-    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
-        let txs_snapshot = self.tx_manager.snapshot();
-        Ok(L1ProviderSnapshot {
-            uncommitted_transactions: txs_snapshot.uncommitted,
-            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
-            rejected_transactions: txs_snapshot.rejected,
-            rejected_staged_transactions: txs_snapshot.rejected_staged,
-            committed_transactions: txs_snapshot.committed,
-            l1_provider_state: self.state.as_str().to_string(),
-            current_height: self.current_height,
-        })
-    }
-
-    /// Check that the given height is consistent with the current height.
-    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        if height != self.current_height {
-            return Err(L1ProviderError::UnexpectedHeight {
-                expected_height: self.current_height,
-                got: height,
-            });
-        }
-        Ok(())
-    }
+    // Functions called internally.
 
     /// Commit the given transactions, and increment the current height.
     fn apply_commit_block(
@@ -394,9 +378,35 @@ impl L1Provider {
         Ok(())
     }
 
+    /// Check that the given height is consistent with the current height.
+    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+        if height != self.current_height {
+            return Err(L1ProviderError::UnexpectedHeight {
+                expected_height: self.current_height,
+                got: height,
+            });
+        }
+        Ok(())
+    }
+
     /// Checks if the given height appears before the timeline of which the provider is aware of.
     fn is_historical_height(&self, height: BlockNumber) -> bool {
         height < self.start_height
+    }
+
+    // Functions used for debugging or testing.
+
+    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+        let txs_snapshot = self.tx_manager.snapshot();
+        Ok(L1ProviderSnapshot {
+            uncommitted_transactions: txs_snapshot.uncommitted,
+            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
+            rejected_transactions: txs_snapshot.rejected,
+            rejected_staged_transactions: txs_snapshot.rejected_staged,
+            committed_transactions: txs_snapshot.committed,
+            l1_provider_state: self.state.as_str().to_string(),
+            current_height: self.current_height,
+        })
     }
 }
 
