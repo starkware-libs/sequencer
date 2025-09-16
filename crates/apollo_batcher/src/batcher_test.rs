@@ -73,6 +73,7 @@ use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterTrait,
 };
 use crate::test_utils::{
+    test_l1_handler_txs,
     test_txs,
     verify_indexed_execution_infos,
     FakeProposeBlockBuilder,
@@ -214,11 +215,12 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, output_content_sender, _, _, _| {
+        move |_, _, tx_provider, output_content_sender, _, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
                 build_block_result: Some(build_block_result),
+                tx_provider,
             };
             Ok((Box::new(block_builder), abort_signal_sender()))
         },
@@ -688,6 +690,61 @@ async fn propose_block_full_flow() {
 
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 1, 0, 0);
+}
+
+#[rstest]
+#[tokio::test]
+async fn multiple_proposals_with_l1_every_n_proposals() {
+    const N_PROPOSALS: usize = 4;
+    const PROPOSALS_L1_MODULATOR: usize = 3;
+
+    // Send a regular tx and an l1 handler tx.
+    let mut expected_streamed_txs = test_txs(0..1);
+    expected_streamed_txs.extend(test_l1_handler_txs(1..2));
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    for _ in 0..N_PROPOSALS {
+        mock_create_builder_for_propose_block(
+            &mut block_builder_factory,
+            expected_streamed_txs.clone(),
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
+
+    let mut mock_dependencies = MockDependencies { block_builder_factory, ..Default::default() };
+    mock_dependencies.storage_writer.expect_revert_block().times(N_PROPOSALS).returning(|_| ());
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_start_block()
+        .times(N_PROPOSALS)
+        .returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    // Only propose L1 txs every PROPOSALS_L1_MODULATOR proposals.
+    batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
+
+    for i in 0..N_PROPOSALS {
+        batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+        batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+        let content = batcher
+            .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+            .await
+            .unwrap()
+            .content;
+        let txs = assert_matches!(content, GetProposalContent::Txs(txs) => txs);
+
+        if i % PROPOSALS_L1_MODULATOR == 0 {
+            assert_eq!(txs, expected_streamed_txs);
+        } else {
+            assert_eq!(txs, test_txs(0..1));
+        }
+
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+        batcher
+            .revert_block(RevertBlockInput { height: INITIAL_HEIGHT.prev().unwrap() })
+            .await
+            .unwrap();
+    }
 }
 
 #[rstest]

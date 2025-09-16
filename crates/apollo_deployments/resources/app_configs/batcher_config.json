@@ -49,5 +49,6 @@
   "batcher_config.storage.mmap_file_config.growth_step": 2147483648,
   "batcher_config.storage.mmap_file_config.max_object_size": 1073741824,
   "batcher_config.storage.mmap_file_config.max_size": 1099511627776,
-  "batcher_config.storage.scope": "StateOnly"
+  "batcher_config.storage.scope": "StateOnly",
+  "batcher_config.propose_l1_txs_every": 10
 }
