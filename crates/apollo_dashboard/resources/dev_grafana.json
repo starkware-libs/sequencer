@@ -335,7 +335,7 @@
     "Http Server": {
       "panels": [
         {
-          "title": "Transactions Received Rate (TPS)",
+          "title": "HTTP Server Transactions Received Rate (TPS)",
           "description": "The rate of transactions received by the HTTP Server (1m window)",
           "type": "timeseries",
           "exprs": [
@@ -399,7 +399,7 @@
     "Gateway": {
       "panels": [
         {
-          "title": "Transactions Received Rate (TPS)",
+          "title": "Gateway Transactions Received Rate (TPS)",
           "description": "The rate of transactions received by the gateway (1m window)",
           "type": "timeseries",
           "exprs": [
@@ -508,7 +508,7 @@
     "Mempool": {
       "panels": [
         {
-          "title": "Transactions Received Rate (TPS)",
+          "title": "Mempool Transactions Received Rate (TPS)",
           "description": "The rate of transactions received by the mempool (1m window)",
           "type": "timeseries",
           "exprs": [
