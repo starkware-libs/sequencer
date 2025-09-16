@@ -271,22 +271,32 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
     validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
-    let (local sn_public_keys: felt*) = alloc();
-    compute_public_keys(
-        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys_dst=sn_public_keys
-    );
 
-    let (local symmetric_key_encryptions: felt*) = alloc();
-    encrypt_symmetric_key(
-        n_keys=n_keys,
-        public_keys=public_keys,
-        sn_private_keys=sn_private_keys,
-        symmetric_key=symmetric_key,
-        symmetric_key_encryptions_dst=symmetric_key_encryptions,
-    );
+    local encrypted_start: felt*;
+    %{
+        if use_kzg_da:
+            ids.encrypted_start = segments.add()
+        else:
+            # Assign a temporary segment, to be relocated into the output segment.
+            ids.encrypted_start = segments.add_temp_segment()
+    %}
 
-    // TODO(Einat): encrypt the data with the symmetric key.
-    return (da_start=compressed_start, da_end=compressed_dst);
+    let encrypted_dst = encrypted_start;
+    assert encrypted_dst[0] = n_keys;
+    let encrypted_dst = &encrypted_dst[1];
+
+    with encrypted_dst {
+        compute_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+        encrypt_symmetric_key(
+            n_keys=n_keys,
+            public_keys=public_keys,
+            sn_private_keys=sn_private_keys,
+            symmetric_key=symmetric_key,
+        );
+        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
+    }
+
+    return (da_start=encrypted_start, da_end=encrypted_dst);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
@@ -401,8 +411,8 @@ func validate_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*
 }
 
 // Computes the public keys from the private keys by multiplying by the EC group generator.
-func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    n_keys: felt, sn_private_keys: felt*, sn_public_keys_dst: felt*
+func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
+    n_keys: felt, sn_private_keys: felt*
 ) {
     if (n_keys == 0) {
         return ();
@@ -410,20 +420,13 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     let (sn_public_key) = ec_mul(
         m=sn_private_keys[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
     );
-    assert sn_public_keys_dst[0] = sn_public_key.x;
-    return compute_public_keys(
-        n_keys=n_keys - 1,
-        sn_private_keys=&sn_private_keys[1],
-        sn_public_keys_dst=&sn_public_keys_dst[1],
-    );
+    assert encrypted_dst[0] = sn_public_key.x;
+    let encrypted_dst = &encrypted_dst[1];
+    return compute_public_keys(n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1]);
 }
 
-func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    n_keys: felt,
-    public_keys: felt*,
-    sn_private_keys: felt*,
-    symmetric_key: felt,
-    symmetric_key_encryptions_dst: felt*,
+func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
+    n_keys: felt, public_keys: felt*, sn_private_keys: felt*, symmetric_key: felt
 ) {
     if (n_keys == 0) {
         return ();
@@ -437,14 +440,15 @@ func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     let (local shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
     // TODO(Avi, 10/9/2025): Switch to naive encoding once the function is available.
     let (hash) = encode_felt252_data_and_calc_blake_hash(data_len=1, data=&shared_secret.x);
-    assert symmetric_key_encryptions_dst[0] = symmetric_key + hash;
+
+    assert encrypted_dst[0] = symmetric_key + hash;
+    let encrypted_dst = &encrypted_dst[1];
 
     return encrypt_symmetric_key(
         n_keys=n_keys - 1,
         public_keys=&public_keys[1],
         sn_private_keys=&sn_private_keys[1],
         symmetric_key=symmetric_key,
-        symmetric_key_encryptions_dst=&symmetric_key_encryptions_dst[1],
     );
 }
 
