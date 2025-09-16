@@ -16,7 +16,7 @@ use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGR
 
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
-        "Transactions Received Rate (TPS)",
+        "Mempool Transactions Received Rate (TPS)",
         "The rate of transactions received by the mempool (1m window)",
         vec![format!(
             "sum(rate({}[1m])) or vector(0)",
