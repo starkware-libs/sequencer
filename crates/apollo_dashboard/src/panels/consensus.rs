@@ -157,7 +157,7 @@ fn get_panel_consensus_build_proposal_failed() -> Panel {
 }
 fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
-        "Proposal Build: Proposal Failure by Reason",
+        "Proposal Build: Proposal Failure by Reason ",
         "The number of build proposal failures (over the selected time range)",
         vec![format!(
             "sum by ({}) (increase({}[$__range])) > 0",
