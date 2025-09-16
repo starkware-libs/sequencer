@@ -70,6 +70,8 @@ pub struct DbConfig {
     pub max_size: usize,
     /// The growth step of the database.
     pub growth_step: isize,
+    /// The maximum number of readers used by the database.
+    pub max_readers: u32,
 }
 
 impl Default for DbConfig {
@@ -82,6 +84,7 @@ impl Default for DbConfig {
             min_size: 1 << 20,    // 1MB
             max_size: 1 << 40,    // 1TB
             growth_step: 1 << 32, // 4GB
+            max_readers: 1 << 13, // 8K readers
         }
     }
 }
@@ -126,6 +129,12 @@ impl SerializeConfig for DbConfig {
                 &self.growth_step,
                 "The growth step in bytes, must be greater than zero to allow the database to \
                  grow.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_readers",
+                &self.max_readers,
+                "The maximum number of readers used by the database.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -196,7 +205,7 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
     if config.enforce_file_exists && !db_file_path.exists() {
         return Err(DbError::FileDoesNotExist(db_file_path));
     }
-    const MAX_READERS: u32 = 1 << 13; // 8K readers
+
     let env = Arc::new(
         Environment::new()
             .set_geometry(Geometry {
@@ -206,7 +215,7 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
                 ..Default::default()
             })
             .set_max_tables(MAX_DBS)
-            .set_max_readers(MAX_READERS)
+            .set_max_readers(config.max_readers)
             .set_flags(DatabaseFlags {
                 // There is no locality of pages in the database almost at all, so readahead will
                 // fill the RAM with garbage.

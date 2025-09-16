@@ -8,6 +8,7 @@ pub(crate) mod l1_gas_price;
 pub(crate) mod l1_provider;
 pub(crate) mod mempool;
 pub(crate) mod mempool_p2p;
+pub(crate) mod pod_metrics;
 pub(crate) mod sierra_compiler;
 pub(crate) mod state_sync;
 pub(crate) mod storage;

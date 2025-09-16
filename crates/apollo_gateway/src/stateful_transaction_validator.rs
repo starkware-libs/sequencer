@@ -215,6 +215,71 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         Ok(())
     }
 
+<<<<<<< HEAD
+||||||| 9f526276f
+    pub fn instantiate_validator(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
+    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
+        // TODO(yael 6/5/2024): consider storing the block_info as part of the
+        // StatefulTransactionValidator and update it only once a new block is created.
+        let latest_block_info = get_latest_block_info(state_reader_factory)?;
+        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
+        let state = CachedState::new(state_reader);
+        let versioned_constants = VersionedConstants::get_versioned_constants(
+            self.config.versioned_constants_overrides.clone(),
+        );
+        let mut block_info = latest_block_info;
+        block_info.block_number = block_info.block_number.unchecked_next();
+        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
+        // able to read the block_hash of 10 blocks ago from papyrus.
+        let block_context = BlockContext::new(
+            block_info,
+            chain_info.clone(),
+            versioned_constants,
+            BouncerConfig::max(),
+        );
+
+        Ok(BlockifierStatefulValidator::create(state, block_context))
+    }
+
+=======
+    pub fn instantiate_validator(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
+    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
+        // TODO(yael 6/5/2024): consider storing the block_info as part of the
+        // StatefulTransactionValidator and update it only once a new block is created.
+        let state_reader = state_reader_factory
+            .get_state_reader_from_latest_block()
+            .map_err(|err| {
+                error!("Failed to get state reader from latest block: {}", err);
+                GatewaySpecError::UnexpectedError { data: format!("Internal server error: {err}") }
+            })
+            .map_err(|e| StarknetError::internal(&e.to_string()))?;
+        let latest_block_info = get_latest_block_info(&state_reader)?;
+
+        let state = CachedState::new(state_reader);
+        let versioned_constants = VersionedConstants::get_versioned_constants(
+            self.config.versioned_constants_overrides.clone(),
+        );
+        let mut block_info = latest_block_info;
+        block_info.block_number = block_info.block_number.unchecked_next();
+        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
+        // able to read the block_hash of 10 blocks ago from papyrus.
+        let block_context = BlockContext::new(
+            block_info,
+            chain_info.clone(),
+            versioned_constants,
+            BouncerConfig::max(),
+        );
+
+        Ok(BlockifierStatefulValidator::create(state, block_context))
+    }
+
+>>>>>>> origin/main-v0.14.0
     fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
         let incoming_tx_nonce = executable_tx.nonce();
 
@@ -303,12 +368,31 @@ fn skip_stateful_validations(
 }
 
 pub fn get_latest_block_info(
-    state_reader_factory: &dyn StateReaderFactory,
+    state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
+<<<<<<< HEAD
     let state_reader = state_reader_factory.get_state_reader_from_latest_block().map_err(|e| {
         StarknetError::internal_with_logging("Failed to get state reader from latest block", e)
     })?;
     state_reader
         .get_block_info()
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
+||||||| 9f526276f
+    let state_reader = state_reader_factory
+        .get_state_reader_from_latest_block()
+        .map_err(|e| {
+            error!("Failed to get state reader from latest block: {}", e);
+            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+        })
+        .map_err(|e| StarknetError::internal(&e.to_string()))?;
+    state_reader.get_block_info().map_err(|e| {
+        error!("Failed to get latest block info: {}", e);
+        StarknetError::internal(&e.to_string())
+    })
+=======
+    state_reader.get_block_info().map_err(|e| {
+        error!("Failed to get latest block info: {}", e);
+        StarknetError::internal(&e.to_string())
+    })
+>>>>>>> origin/main-v0.14.0
 }

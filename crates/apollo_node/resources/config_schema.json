@@ -294,6 +294,11 @@
     "privacy": "Public",
     "value": 4294967296
   },
+  "batcher_config.storage.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
   "batcher_config.storage.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
     "privacy": "Public",
@@ -363,6 +368,11 @@
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
     "privacy": "Public",
     "value": 4294967296
+  },
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
   },
   "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
@@ -454,6 +464,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.batcher.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -468,11 +483,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.batcher.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.batcher.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -539,6 +549,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.class_manager.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.class_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -553,11 +568,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.class_manager.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.class_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -624,6 +634,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.config_manager.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.config_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -638,11 +653,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.config_manager.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.config_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -714,6 +724,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.gateway.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -728,11 +743,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.gateway.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.gateway.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -804,6 +814,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.l1_endpoint_monitor.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.l1_endpoint_monitor.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -818,11 +833,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -889,6 +899,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.l1_gas_price_provider.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.l1_gas_price_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -903,11 +918,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -979,6 +989,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.l1_provider.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -993,11 +1008,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.l1_provider.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.l1_provider.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -1069,6 +1079,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.mempool.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1083,11 +1098,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.mempool.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.mempool.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -1154,6 +1164,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.mempool_p2p.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1168,11 +1183,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.mempool_p2p.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -1244,6 +1254,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.sierra_compiler.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.sierra_compiler.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1258,11 +1273,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.sierra_compiler.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -1414,6 +1424,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.state_sync.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1428,11 +1443,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.state_sync.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.state_sync.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
@@ -2623,6 +2633,11 @@
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
     "privacy": "Public",
     "value": 4294967296
+  },
+  "state_sync_config.storage_config.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
   },
   "state_sync_config.storage_config.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",

@@ -31,6 +31,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -196,7 +197,7 @@ impl Batcher {
 
         // TODO(yair): extract function for the following calls, use join_all.
         info!(
-            "Committing block {}, round {} in Mempool client",
+            "Notifying the mempool we start to work on block {}, round {}.",
             block_number, propose_block_input.proposal_round
         );
         self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
@@ -915,8 +916,11 @@ pub fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
-    let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
-        .expect("Failed to open batcher's storage");
+    let (storage_reader, storage_writer) = apollo_storage::open_storage_with_metric(
+        config.storage.clone(),
+        &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
+    )
+    .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));

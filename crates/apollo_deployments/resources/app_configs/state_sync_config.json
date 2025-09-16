@@ -49,6 +49,7 @@
   "state_sync_config.should_replay_processed_txs_metric": false,
   "state_sync_config.storage_config.db_config.enforce_file_exists": false,
   "state_sync_config.storage_config.db_config.growth_step": 67108864,
+  "state_sync_config.storage_config.db_config.max_readers": 8192,
   "state_sync_config.storage_config.db_config.max_size": 1099511627776,
   "state_sync_config.storage_config.db_config.min_size": 1048576,
   "state_sync_config.storage_config.db_config.path_prefix": "/data/state_sync",

@@ -185,6 +185,58 @@ impl From<&MetricHistogram> for Panel {
     }
 }
 
+// There is no equivalent for LabeledPanels because they are less straightforward than
+// UnlabeledPanels and require an aggregation of metrics more often, for example the panels created
+// using `get_multi_metric_panel`.
+/// A struct that contains all unlabeled panels for a given metrics struct.
+struct UnlabeledPanels(Vec<Panel>);
+
+impl From<&LocalClientMetrics> for UnlabeledPanels {
+    fn from(_metrics: &LocalClientMetrics) -> Self {
+        Self(vec![])
+    }
+}
+
+impl From<&RemoteClientMetrics> for UnlabeledPanels {
+    fn from(metrics: &RemoteClientMetrics) -> Self {
+        Self(vec![Panel::from(metrics.get_attempts_metric())])
+    }
+}
+
+impl From<&LocalServerMetrics> for UnlabeledPanels {
+    fn from(metrics: &LocalServerMetrics) -> Self {
+        let received_msgs_panel = Panel::from(metrics.get_received_metric());
+        let processed_msgs_panel = Panel::from(metrics.get_processed_metric());
+        let queue_depth_panel = Panel::new(
+            "local_queue_depth",
+            "The depth of the local priority queues",
+            vec![
+                metrics.get_high_priority_queue_depth_metric().get_name_with_filter().to_string(),
+                metrics.get_normal_priority_queue_depth_metric().get_name_with_filter().to_string(),
+            ],
+            PanelType::TimeSeries,
+        );
+
+        Self(vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel])
+    }
+}
+
+impl From<&RemoteServerMetrics> for UnlabeledPanels {
+    fn from(metrics: &RemoteServerMetrics) -> Self {
+        let total_received_msgs_panel = Panel::from(metrics.get_total_received_metric());
+        let valid_received_msgs_panel = Panel::from(metrics.get_valid_received_metric());
+        let processed_msgs_panel = Panel::from(metrics.get_processed_metric());
+        let number_of_connections_panel = Panel::from(metrics.get_number_of_connections_metric());
+
+        Self(vec![
+            total_received_msgs_panel,
+            valid_received_msgs_panel,
+            processed_msgs_panel,
+            number_of_connections_panel,
+        ])
+    }
+}
+
 pub(crate) fn _create_request_type_labeled_hist_panels(
     metric: &LabeledMetricHistogram,
     panel_type: PanelType,
@@ -273,59 +325,6 @@ impl Serialize for Row {
     }
 }
 
-pub(crate) fn get_unlabeled_local_client_panels(
-    _local_client_metrics: &LocalClientMetrics,
-) -> Vec<Panel> {
-    vec![]
-}
-
-pub(crate) fn get_unlabeled_remote_client_panels(
-    remote_client_metrics: &RemoteClientMetrics,
-) -> Vec<Panel> {
-    vec![Panel::from(remote_client_metrics.get_attempts_metric())]
-}
-
-pub(crate) fn get_unlabeled_local_server_panels(
-    local_server_metrics: &LocalServerMetrics,
-) -> Vec<Panel> {
-    let received_msgs_panel = Panel::from(local_server_metrics.get_received_metric());
-    let processed_msgs_panel = Panel::from(local_server_metrics.get_processed_metric());
-    let queue_depth_panel = Panel::new(
-        "local_queue_depth",
-        "The depth of the local priority queues",
-        vec![
-            local_server_metrics
-                .get_high_priority_queue_depth_metric()
-                .get_name_with_filter()
-                .to_string(),
-            local_server_metrics
-                .get_normal_priority_queue_depth_metric()
-                .get_name_with_filter()
-                .to_string(),
-        ],
-        PanelType::TimeSeries,
-    );
-
-    vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel]
-}
-
-pub(crate) fn get_unlabeled_remote_server_panels(
-    remote_server_metrics: &RemoteServerMetrics,
-) -> Vec<Panel> {
-    let total_received_msgs_panel = Panel::from(remote_server_metrics.get_total_received_metric());
-    let valid_received_msgs_panel = Panel::from(remote_server_metrics.get_valid_received_metric());
-    let processed_msgs_panel = Panel::from(remote_server_metrics.get_processed_metric());
-    let number_of_connections_panel =
-        Panel::from(remote_server_metrics.get_number_of_connections_metric());
-
-    vec![
-        total_received_msgs_panel,
-        valid_received_msgs_panel,
-        processed_msgs_panel,
-        number_of_connections_panel,
-    ]
-}
-
 // This function assumes that all metrics share the same labels.
 fn get_request_type_labeled_panels(
     labeled_metrics: &Vec<&LabeledMetricHistogram>,
@@ -384,10 +383,10 @@ pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMet
     );
 
     let mut panels: Vec<Panel> = Vec::new();
-    panels.extend(get_unlabeled_local_client_panels(metrics.get_local_client_metrics()));
-    panels.extend(get_unlabeled_remote_client_panels(metrics.get_remote_client_metrics()));
-    panels.extend(get_unlabeled_local_server_panels(metrics.get_local_server_metrics()));
-    panels.extend(get_unlabeled_remote_server_panels(metrics.get_remote_server_metrics()));
+    panels.extend(UnlabeledPanels::from(metrics.get_local_client_metrics()).0);
+    panels.extend(UnlabeledPanels::from(metrics.get_remote_client_metrics()).0);
+    panels.extend(UnlabeledPanels::from(metrics.get_local_server_metrics()).0);
+    panels.extend(UnlabeledPanels::from(metrics.get_remote_server_metrics()).0);
     panels.extend(labeled_client_panels);
     panels.extend(labeled_server_panels);
 

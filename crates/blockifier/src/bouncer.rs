@@ -29,7 +29,7 @@ use crate::utils::{add_maps, should_migrate, u64_from_usize, usize_from_u64};
 #[path = "bouncer_test.rs"]
 mod test;
 
-macro_rules! impl_checked_ops {
+macro_rules! impl_field_wise_ops {
     ($($field:ident),+) => {
         pub fn checked_sub(self: Self, other: Self) -> Option<Self> {
             Some(
@@ -49,6 +49,17 @@ macro_rules! impl_checked_ops {
                     )+
                 }
             )
+        }
+
+        // Returns a comma-separated string of exceeded fields.
+        pub fn get_exceeded_weights(self: Self, other: Self) -> String {
+            let mut exceeded = Vec::new();
+            $(
+                if other.$field > self.$field {
+                    exceeded.push(stringify!($field));
+                }
+            )+
+            exceeded.join(", ")
         }
     };
 }
@@ -87,6 +98,16 @@ impl BouncerConfig {
         self.block_max_capacity.has_room(weights)
     }
 
+<<<<<<< HEAD
+||||||| 9f526276f
+    #[allow(clippy::result_large_err)]
+=======
+    pub fn get_exceeded_weights(&self, weights: BouncerWeights) -> String {
+        self.block_max_capacity.get_exceeded_weights(weights)
+    }
+
+    #[allow(clippy::result_large_err)]
+>>>>>>> origin/main-v0.14.0
     pub fn within_max_capacity_or_err(
         &self,
         weights: BouncerWeights,
@@ -131,7 +152,7 @@ pub struct BouncerWeights {
 }
 
 impl BouncerWeights {
-    impl_checked_ops!(
+    impl_field_wise_ops!(
         l1_gas,
         message_segment_length,
         n_events,
@@ -585,15 +606,34 @@ impl Bouncer {
             "Addition overflow. Transaction weights: {tx_bouncer_weights:?}, block weights: {:?}.",
             self.get_bouncer_weights()
         );
+<<<<<<< HEAD
         if !self
             .bouncer_config
             .has_room(self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg))
         {
+||||||| 9f526276f
+        if !self
+            .bouncer_config
+            .has_room(self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg))
+        {
+=======
+        let next_accumulated_weights =
+            self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg);
+        if !self.bouncer_config.has_room(next_accumulated_weights) {
+>>>>>>> origin/main-v0.14.0
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
-                 transaction weights: {:?}, block weights: {:?}.",
+                 transaction weights: {:?}, block weights: {:?}. Block max capacity reached on \
+                 fields: {}",
                 tx_weights.bouncer_weights,
+<<<<<<< HEAD
                 self.get_bouncer_weights()
+||||||| 9f526276f
+                self.accumulated_weights
+=======
+                self.accumulated_weights,
+                self.bouncer_config.get_exceeded_weights(next_accumulated_weights)
+>>>>>>> origin/main-v0.14.0
             );
             Err(TransactionExecutorError::BlockFull)?
         }
