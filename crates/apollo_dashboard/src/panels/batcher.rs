@@ -64,7 +64,7 @@ fn get_panel_rejection_reverted_ratio() -> Panel {
     .with_legends(vec!["Rejected", "Reverted"])
     .with_unit(Unit::PercentUnit)
 }
-fn get_panel_batched_transactions_rate() -> Panel {
+pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
     Panel::new(
         "Batched Transactions Rate (TPS)",
         "The rate of transactions batched by the Batcher (1m window)",

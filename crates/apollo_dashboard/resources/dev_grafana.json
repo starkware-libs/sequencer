@@ -1,5 +1,68 @@
 {
   "Sequencer Node Dashboard": {
+    "Overview": {
+      "panels": [
+        {
+          "title": "Consensus Round",
+          "description": "The round the node is currently working on",
+          "type": "timeseries",
+          "exprs": [
+            "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Write Blob Failure by Reason",
+          "description": "The number of failed blob writes to Cende (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+          ],
+          "extra_params": {
+            "log_query": "\"CENDE_FAILURE\""
+          }
+        },
+        {
+          "title": "HTTP Server Transactions Received Rate (TPS)",
+          "description": "The rate of transactions received by the HTTP Server (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Batched Transactions Rate (TPS)",
+          "description": "The rate of transactions batched by the Batcher (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Sync Diff From Central",
+          "description": "The number of blocks that were not fully synced yet",
+          "type": "timeseries",
+          "exprs": [
+            "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Transaction Failure Rate by Type",
+          "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        }
+      ],
+      "collapsed": false
+    },
     "Consensus": {
       "panels": [
         {
