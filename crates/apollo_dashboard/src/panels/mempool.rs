@@ -88,8 +88,21 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     )
 }
 fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {
-    Panel::from_hist(&TRANSACTION_TIME_SPENT_UNTIL_BATCHED, PanelType::TimeSeries)
-        .with_unit(Unit::Seconds)
+    Panel::new(
+        "Transaction Time Spent in Mempool Until Batched",
+        "The time a transaction spends in the mempool until it is batched (5m window)",
+        HISTOGRAM_QUANTILES
+            .iter()
+            .map(|q| {
+                format!(
+                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                    TRANSACTION_TIME_SPENT_UNTIL_BATCHED.get_name_with_filter(),
+                )
+            })
+            .collect(),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
 }
 fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
     Panel::new(
