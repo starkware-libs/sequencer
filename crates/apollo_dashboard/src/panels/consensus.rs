@@ -43,6 +43,12 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
 
+// The key events that are relevant to the consensus panel.
+const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
+    "\"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \
+     \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \
+     \"Broadcasting\"";
+
 fn get_panel_consensus_block_number() -> Panel {
     Panel::new(
         "Consensus Height",
@@ -50,7 +56,13 @@ fn get_panel_consensus_block_number() -> Panel {
         vec![CONSENSUS_BLOCK_NUMBER.get_name_with_filter().to_string()],
         PanelType::Stat,
     )
+    .with_log_query(
+        "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start \
+         validating proposal\"",
+    )
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     Panel::new(
         "Consensus Height Diff From Sync",
@@ -70,6 +82,8 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
         vec![CONSENSUS_ROUND.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
@@ -90,6 +104,8 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("DECISION_REACHED: Decision reached for round")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
@@ -101,6 +117,8 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Decision learned via sync protocol.")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
@@ -117,6 +135,8 @@ fn get_panel_consensus_proposals_validated() -> Panel {
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALIDATED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
@@ -125,6 +145,8 @@ fn get_panel_consensus_proposals_invalid() -> Panel {
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
@@ -138,6 +160,7 @@ fn get_panel_validate_proposal_failure() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as validator")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
@@ -167,6 +190,7 @@ fn get_panel_build_proposal_failure() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as proposer")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
@@ -184,6 +208,8 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Applying Timeout")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_l2_gas_price() -> Panel {
     Panel::new(
@@ -318,6 +344,7 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
         vec![format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("write_pre_confirmed_block request succeeded.")
 }
 
 fn get_panel_consensus_network_events_by_type() -> Panel {
