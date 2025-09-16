@@ -7,6 +7,8 @@ from starkware.starknet.core.os.naive_blake import (
     calc_blake_hash,
     naive_encode_felt252s_to_u32s,
     u256_to_felt,
+    create_initial_state_for_blake2s,
+    blake_with_opcode_for_single_16_length_word,
 )
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 from starkware.cairo.common.alloc import alloc
@@ -77,14 +79,15 @@ func encrypt{range_check_ptr, encrypted_dst: felt*}(
         packed_values_len=1, packed_values=&symmetric_key, unpacked_u32s=encoded_symmetric_key
     );
     let blake_output: felt* = alloc();
-    // Ensure the data size is small - we assume this when encoding the index in encrypt_inner.
     assert_le(data_end - data_start, 2 ** 32 - 1);
+    let (initial_state: felt*) = create_initial_state_for_blake2s();
     encrypt_inner(
         data_start=data_start,
         data_end=data_end,
         index=0,
         encoded_symmetric_key=encoded_symmetric_key,
         blake_output=blake_output,
+        initial_state=initial_state,
     );
     return ();
 }
@@ -96,6 +99,7 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
     index: felt,
     encoded_symmetric_key: felt*,
     blake_output: felt*,
+    initial_state: felt*,
 ) {
     if (data_start == data_end) {
         return ();
@@ -123,8 +127,9 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
     assert blake_output[7] = index;
     let blake_output = &blake_output[8];
     // Calculate blake hash modulo prime.
-    // TODO(Einat): replace with optimized blake_with_opcode.
-    blake_with_opcode(len=16, data=blake_encoding_start, out=blake_output);
+    blake_with_opcode_for_single_16_length_word(
+        data=blake_encoding_start, out=blake_output, initial_state=initial_state
+    );
     let hash = u256_to_felt(u256=blake_output);
     let blake_output = &blake_output[8];
 
@@ -139,5 +144,6 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
         index=index + 1,
         encoded_symmetric_key=encoded_symmetric_key,
         blake_output=blake_output,
+        initial_state=initial_state,
     );
 }
