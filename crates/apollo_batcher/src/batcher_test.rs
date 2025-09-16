@@ -677,6 +677,48 @@ async fn propose_block_full_flow() {
 
 #[rstest]
 #[tokio::test]
+async fn multiple_proposals_with_l1_every_n_proposals() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    // Expecting 3 chunks of streamed txs.
+    const N_PROPOSALS: usize = 4;
+    const N_TXS: usize = 3;
+    let expected_streamed_txs = test_txs(0..N_TXS);
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    for _ in 0..N_PROPOSALS {
+        mock_create_builder_for_propose_block(
+            &mut block_builder_factory,
+            expected_streamed_txs.clone(),
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().times(N_PROPOSALS).returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    })
+    .await;
+
+    let mut height = INITIAL_HEIGHT;
+    for i in 0..N_PROPOSALS {
+        batcher.start_height(StartHeightInput { height }).await.unwrap();
+        batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+        let content = batcher
+            .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+            .await
+            .unwrap()
+            .content;
+        let txs = assert_matches!(content, GetProposalContent::Txs(txs) => txs);
+        assert_eq!(txs.len(), expected_streamed_txs.len());
+        height = height.unchecked_next();
+    }
+}
+
+#[rstest]
+#[tokio::test]
 async fn get_height() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
@@ -1174,4 +1216,119 @@ async fn decision_reached_return_error_when_l1_commit_block_fails(
 
     let result = batcher_propose_and_commit_block(mock_dependencies).await;
     assert!(result.is_err());
+}
+
+// A local fake propose builder that fetches transactions from the tx_provider (1 tx)
+// and streams them out, allowing us to observe whether L1 or mempool was queried first.
+struct ProposeBuilderFetchingFromProvider {
+    tx_provider: Box<dyn crate::transaction_provider::TransactionProvider>,
+    output_content_sender: tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+}
+
+#[async_trait::async_trait]
+impl crate::block_builder::BlockBuilderTrait for ProposeBuilderFetchingFromProvider {
+    async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
+        let txs = self.tx_provider.get_txs(1).await.unwrap();
+        for tx in txs {
+            self.output_content_sender.send(tx).unwrap();
+        }
+        Ok(BlockExecutionArtifacts::create_for_testing())
+    }
+}
+
+#[tokio::test]
+async fn propose_block_uses_l1_only_every_n_proposals() {
+    use apollo_l1_provider_types::MockL1ProviderClient;
+    use apollo_mempool_types::communication::MockMempoolClient;
+    use starknet_api::executable_transaction::L1HandlerTransaction;
+    use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
+
+    const N_PROPOSALS: usize = 4;
+    const MODULATOR: u64 = 3; // expect L1 on proposals 0 and 3
+
+    // Storage reader returns the working height for metrics and start_height checks.
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+
+    // Mempool expectations: commit_block + update_gas_price per proposal, and get_txs only when
+    // not using L1 (proposals 1 and 2 with MODULATOR=3).
+    let mut mempool_client = MockMempoolClient::new();
+    let expected_gas_price =
+        propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price.get();
+    mempool_client
+        .expect_update_gas_price()
+        .times(N_PROPOSALS)
+        .with(eq(expected_gas_price))
+        .returning(|_| Ok(()));
+    mempool_client
+        .expect_commit_block()
+        .times(N_PROPOSALS)
+        .with(eq(CommitBlockArgs::default()))
+        .returning(|_| Ok(()));
+    // Expect mempool tx fetch exactly for proposals 1 and 2 → 2 calls requesting 1 tx each.
+    mempool_client
+        .expect_get_txs()
+        .times(2)
+        .with(eq(1_usize))
+        .returning(|n| Ok(vec![internal_invoke_tx(InvokeTxArgs::default()); n]));
+
+    // L1 provider expectations: start_block per proposal, and get_txs only on proposals 0 and 3.
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().times(N_PROPOSALS).returning(|_, _| Ok(()));
+    l1_provider_client
+        .expect_get_txs()
+        .times(2)
+        .with(eq(1_usize), eq(INITIAL_HEIGHT))
+        .returning(|_, _| Ok(vec![L1HandlerTransaction::default()]));
+
+    // Preconfirmed writer factory stubbed N_PROPOSALS times.
+    let mut pre_confirmed_block_writer_factory = MockPreconfirmedBlockWriterFactoryTrait::new();
+    pre_confirmed_block_writer_factory.expect_create().times(N_PROPOSALS).returning(|_, _, _| {
+        let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
+        let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+        let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
+        mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
+        (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
+    });
+
+    // Block builder factory creates a builder that fetches 1 tx from the provider and streams it.
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    for _ in 0..N_PROPOSALS {
+        block_builder_factory.expect_create_block_builder().times(1).return_once(
+            |_, _, tx_provider, output_content_sender, _, _, _| {
+                let builder = ProposeBuilderFetchingFromProvider {
+                    tx_provider,
+                    output_content_sender: output_content_sender.unwrap(),
+                };
+                Ok((Box::new(builder), abort_signal_sender()))
+            },
+        );
+    }
+
+    // Build a batcher with a custom config to set proposals_l1_modulator.
+    let mut batcher = Batcher::new(
+        BatcherConfig {
+            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+            proposals_l1_modulator: MODULATOR,
+            max_l1_handler_txs_per_block_proposal: 1,
+            ..Default::default()
+        },
+        Arc::new(storage_reader),
+        Box::new(MockBatcherStorageWriterTrait::new()),
+        Arc::new(l1_provider_client),
+        Arc::new(mempool_client),
+        TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID_FOR_TESTS.clone()),
+        Box::new(block_builder_factory),
+        Box::new(pre_confirmed_block_writer_factory),
+    );
+    batcher.start().await;
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    // Propose N_PROPOSALS blocks sequentially to drive the proposals_counter.
+    for i in 0..N_PROPOSALS {
+        let pid = ProposalId(i as u64);
+        batcher.propose_block(propose_block_input(pid)).await.unwrap();
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+    }
 }
