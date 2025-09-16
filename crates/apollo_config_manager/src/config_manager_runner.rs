@@ -36,7 +36,7 @@ impl ConfigManagerRunner {
         Self { config_manager_client, cli_args }
     }
 
-    async fn update_consensus_config(
+    pub async fn update_consensus_config(
         &self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Loading and validating config");

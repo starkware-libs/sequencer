@@ -1084,13 +1084,22 @@ dependencies = [
  "apollo_config_manager_config",
  "apollo_config_manager_types",
  "apollo_consensus_config",
+ "apollo_consensus_manager_config",
+ "apollo_deployments",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_metrics",
  "apollo_node_config",
+ "apollo_protobuf",
  "async-trait",
+ "mockall",
  "serde_json",
+ "starknet_api",
+ "strum 0.25.0",
+ "tempfile",
  "tokio",
  "tracing",
+ "tracing-test",
 ]
 
 [[package]]

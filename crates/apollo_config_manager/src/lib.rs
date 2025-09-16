@@ -1,3 +1,6 @@
 pub mod config_manager;
 pub mod config_manager_runner;
 pub mod metrics;
+
+#[cfg(test)]
+mod config_manager_runner_tests;
