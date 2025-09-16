@@ -11,6 +11,7 @@ use starknet_types_core::felt::Felt;
 use crate::hints::hint_implementation::state_diff_encryption::utils::{
     compute_public_keys,
     decrypt_state_diff,
+    decrypt_symmetric_key,
     encrypt_symmetric_key,
 };
 use crate::test_utils::cairo_runner::{
@@ -242,4 +243,130 @@ fn test_compute_public_keys_function(#[case] private_keys: &[Felt]) {
 
     let expected_public_keys = compute_public_keys(&sn_private_keys_vector);
     assert_eq!(sn_private_keys_from_memory, expected_public_keys);
+}
+
+#[rstest]
+#[case::single_key(&[Felt::from(1234567890)])]
+#[case::multiple_keys(&[Felt::from(123), Felt::from(456), Felt::from(789), Felt::from(101112)])]
+fn test_symmetric_key_encryption_function(#[case] private_keys: &[Felt]) {
+    // Set up committee keys for encryption/decryption.
+    let public_keys_vector: Vec<Felt> = compute_public_keys(private_keys);
+
+    // Set up symmetric key and starknet private and public keys.
+    let symmetric_key = Felt::from(987654321);
+    let sn_private_keys_vector: Vec<Felt> = private_keys
+        .iter()
+        .map(|&private_key| {
+            private_key + Felt::from(1000) // simple transformation for testing
+        })
+        .collect();
+    let sn_public_keys = compute_public_keys(&sn_private_keys_vector);
+
+
+
+    // Set up the entry point runner configuration.
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::starknet,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    };
+
+    let mut implicit_args = vec![ImplicitArg::Builtin(BuiltinName::range_check), ImplicitArg::Builtin(BuiltinName::ec_op)];
+
+    let entrypoint = "starkware.starknet.core.os.output.encrypt_symmetric_key";
+
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        entrypoint,
+        &implicit_args,
+        HashMap::new(),
+    )
+    .unwrap();
+
+    let encrypted_dst = runner.vm.add_memory_segment();
+    implicit_args
+        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(encrypted_dst.into()))));
+
+    let sn_private_keys = runner.vm.add_memory_segment();
+    runner
+        .vm
+        .load_data(
+            sn_private_keys,
+            &sn_private_keys_vector
+                .clone()
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<MaybeRelocatable>>(),
+        )
+        .unwrap();
+
+    let public_keys = runner.vm.add_memory_segment();
+    runner
+        .vm
+        .load_data(
+            public_keys,
+            &public_keys_vector
+                .clone()
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<MaybeRelocatable>>(),
+        )
+        .unwrap();
+
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(sn_private_keys_vector.len().into())),
+        EndpointArg::Value(ValueArg::Single(public_keys.into())),
+        EndpointArg::Value(ValueArg::Single(sn_private_keys.into())),
+        EndpointArg::Value(ValueArg::Single(symmetric_key.into())),        
+    ];
+
+    let state_reader = None;
+    let expected_explicit_return_values: Vec<EndpointArg> = vec![];
+    let (implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+        state_reader,
+        &mut runner,
+        &program,
+        &runner_config,
+        &expected_explicit_return_values,
+    )
+    .unwrap();
+
+    // [range_check_ptr, ec_op_ptr, encrypted_dst_end]
+    assert_eq!(implicit_return_values.len(), 3);
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::RelocatableValue(encrypted_dst_end))) =
+        implicit_return_values[2]
+    else {
+        panic!("Unexpected implicit return value");
+    };
+
+    let encrypted_dst_length = (encrypted_dst_end - encrypted_dst).unwrap();
+    assert_eq!(public_keys_vector.len(), encrypted_dst_length);
+
+    let encrypted_symmetric_keys = runner.vm.get_integer_range(encrypted_dst, encrypted_dst_length).unwrap();
+    let encrypted_symmetric_keys: Vec<Felt> = encrypted_symmetric_keys.into_iter().map(|felt| *felt).collect();
+
+    // Compute the expected encrypted symmetric keys.
+    let expected_encrypted_symmetric_keys =
+        encrypt_symmetric_key(&sn_private_keys_vector, &public_keys_vector, symmetric_key);
+
+    // Verify the encrypted symmetric keys match the expected values.
+    assert_eq!(encrypted_symmetric_keys, expected_encrypted_symmetric_keys);
+
+    // Decrypt the encrypted symmetric keys for each committee member with their parameters:
+    // private_key and sn_public_key.
+    // Verify that the decrypted symmetric key matches the original symmetric key.
+    for ((&private_key, &sn_public_key), &encrypted_symmetric_key) in
+        private_keys.iter().zip_eq(sn_public_keys.iter()).zip_eq(encrypted_symmetric_keys.iter())
+    {
+        let decrypted_symmetric_key = decrypt_symmetric_key(
+            private_key,
+            sn_public_key,
+            encrypted_symmetric_key,
+        );
+        assert_eq!(decrypted_symmetric_key, symmetric_key);
+    }
 }
