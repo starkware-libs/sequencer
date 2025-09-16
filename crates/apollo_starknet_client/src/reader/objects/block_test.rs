@@ -24,8 +24,6 @@ use crate::test_utils::read_resource::read_resource_file;
 
 #[test]
 fn load_block_succeeds() {
-    // TODO(Tzahi): Replace block_post_0_13_3 (copied from 0_13_2 and added additional fields) with
-    // live data once available.
     for block_path in [
         "reader/block_post_0_14_0.json",
         "reader/block_post_0_13_4.json",
