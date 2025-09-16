@@ -63,7 +63,7 @@ fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_consensus_round() -> Panel {
+pub(crate) fn get_panel_consensus_round() -> Panel {
     Panel::new(
         "Consensus Round",
         "The round the node is currently working on",
@@ -297,7 +297,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
     )
     .with_log_query(query_expression)
 }
-fn get_panel_cende_write_blob_failure() -> Panel {
+pub(crate) fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
         "The number of failed blob writes to Cende (10m window)",

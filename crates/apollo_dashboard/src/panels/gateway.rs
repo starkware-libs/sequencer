@@ -104,7 +104,7 @@ fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     )
 }
 
-fn get_panel_gateway_transactions_failure_rate() -> Panel {
+pub(crate) fn get_panel_gateway_transactions_failure_rate() -> Panel {
     Panel::new(
         "Transaction Failure Rate by Type",
         "The rate of failed transactions vs received transactions by type (over the selected time \
