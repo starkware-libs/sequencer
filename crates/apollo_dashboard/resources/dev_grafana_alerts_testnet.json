@@ -785,6 +785,34 @@
       "observer_applicable": "false"
     },
     {
+      "name": "http_server_high_transaction_failure_ratio",
+      "title": "http server high transaction failure ratio",
+      "ruleGroup": "http_server",
+      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.3
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
       "name": "batched_transactions_stuck",
       "title": "Batched transactions stuck",
       "ruleGroup": "batcher",
@@ -1270,34 +1298,6 @@
           "evaluator": {
             "params": [
               2.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p4",
-      "observer_applicable": "false"
-    },
-    {
-      "name": "http_server_high_transaction_failure_ratio",
-      "title": "http server high transaction failure ratio",
-      "ruleGroup": "http_server",
-      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              0.3
             ],
             "type": "gt"
           },
