@@ -79,7 +79,7 @@ fn test_state_diff_encryption_function(#[case] private_keys: &[Felt]) {
 
     let mut implicit_args = vec![ImplicitArg::Builtin(BuiltinName::range_check)];
 
-    let entrypoint = "starkware.starknet.core.os.output.encrypt";
+    let entrypoint = "starkware.starknet.core.os.encrypt.encrypt";
 
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
