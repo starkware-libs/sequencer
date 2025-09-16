@@ -295,7 +295,9 @@
           "exprs": [
             "increase(batcher_proposer_deferred_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Finished building block. Started executing\""
+          }
         },
         {
           "title": "Proposal Validation: Wasted TXs",
@@ -304,7 +306,9 @@
           "exprs": [
             "increase(batcher_validator_wasted_txs{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Finished building block. Started executing\""
+          }
         },
         {
           "title": "Rejected / Reverted TXs Ratio",
@@ -329,7 +333,9 @@
           "exprs": [
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\""
+          }
         },
         {
           "title": "Number of Chunks in Proposal",
