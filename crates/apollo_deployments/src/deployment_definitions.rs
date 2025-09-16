@@ -18,6 +18,7 @@ use crate::addresses::PEER_IDS;
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployments::hybrid::load_and_create_hybrid_deployments;
+
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
