@@ -33,7 +33,7 @@ fn get_panel_transaction_success_rate() -> Panel {
     .with_unit(Unit::PercentUnit)
     .with_log_query("\"Recorded transaction\"")
 }
-fn get_panel_http_server_transactions_received_rate() -> Panel {
+pub(crate) fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
         "HTTP Server Transactions Received Rate (TPS)",
         "The rate of transactions received by the HTTP Server (1m window)",
