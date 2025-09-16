@@ -584,8 +584,8 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_transaction_time_spent_until_batched",
-          "description": "The time (seconds) a transaction spent in the mempool until it was batched for execution",
+          "title": "Transaction Time Spent in Mempool Until Batched",
+          "description": "The time a transaction spends in the mempool until it is batched (5m window)",
           "type": "timeseries",
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
