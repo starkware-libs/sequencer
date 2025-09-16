@@ -129,13 +129,13 @@ fn get_panel_consensus_proposals_invalid() -> Panel {
 fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Validation: Proposal Failure by Reason",
-        "The number of validate proposal failures (10m window)",
+        "The number of validate proposal failures (over the selected time range)",
         vec![format!(
-            "sum by ({}) (increase({}[10m]))",
+            "sum by ({}) (increase({}[$__range])) > 0",
             LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
             CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as validator")
 }
@@ -158,13 +158,13 @@ fn get_panel_consensus_build_proposal_failed() -> Panel {
 fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Build: Proposal Failure by Reason",
-        "The number of build proposal failures (10m window)",
+        "The number of build proposal failures (over the selected time range)",
         vec![format!(
-            "sum by ({}) (increase({}[10m]))",
+            "sum by ({}) (increase({}[$__range])) > 0",
             LABEL_BUILD_PROPOSAL_FAILURE_REASON,
             CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as proposer")
 }
