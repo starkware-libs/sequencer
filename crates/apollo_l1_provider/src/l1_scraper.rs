@@ -121,7 +121,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .await;
 
         let l1_events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
-        // Used for debug.
+        // Used for debug. Get the L1 tx hash and L1 block timestamp.
         let l1_messages_info = l1_events
             .iter()
             .filter_map(|event| match event {
@@ -132,6 +132,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             })
             .collect::<Vec<_>>();
 
+        // Convert L1 events into Starknet provider events. This includes calculating the L2 tx
+        // hash.
         let events = l1_events
             .into_iter()
             .map(|event| {
@@ -140,7 +142,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             })
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
 
-        // Used for debug.
+        // Used for debug. Collect the L2 tx hashes.
         let l2_hashes = events.iter().filter_map(|event| match event {
             Event::L1HandlerTransaction { l1_handler_tx, .. } => Some(l1_handler_tx.tx_hash),
             _ => None,
@@ -148,13 +150,30 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let formatted_pairs = zip_eq(l1_messages_info, l2_hashes)
             .map(|((l1_hash, timestamp), l2_hash)| {
-                format!("L1 hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 hash: {l2_hash}")
+                format!("L1 tx hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 tx hash: {l2_hash}")
             })
             .collect::<Vec<_>>();
         if formatted_pairs.is_empty() {
             debug_every_n!(100, "Got Messages to L2: []");
         } else {
             debug!("Got Messages to L2: {formatted_pairs:?}");
+        }
+
+        // Debug: log cancellation started events:
+        let cancellation_started_events = events
+            .iter()
+            .filter_map(|event| match event {
+                Event::TransactionCancellationStarted { tx_hash, .. } => Some(*tx_hash),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let formatted_cancellation_started_events = cancellation_started_events
+            .iter()
+            .map(|tx_hash| format!("Cancel tx with L2 hash: {tx_hash}"));
+        if cancellation_started_events.is_empty() {
+            debug_every_n!(100, "Got Cancellation Started Events: []");
+        } else {
+            debug!("Got Cancellation Started Events: {formatted_cancellation_started_events:?}");
         }
         Ok((latest_l1_block, events))
     }
