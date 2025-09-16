@@ -28,6 +28,8 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::StarknetApiError;
+use strum::EnumVariantNames;
+use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -86,7 +88,12 @@ enum SecondProposalPart {
 
 type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ValidateProposalFailureReasonLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
