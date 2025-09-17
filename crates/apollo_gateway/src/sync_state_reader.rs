@@ -25,8 +25,8 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::metrics::{
-    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
@@ -267,8 +267,10 @@ impl Drop for SharedStateSyncClientMetricWrapper {
         GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS
             .record(self.num_storage_operations.load(Ordering::Relaxed).into_f64());
 
-        GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS
-            .record(self.total_time_storage_operations_micros.load(Ordering::Relaxed).into_f64());
+        GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME.record(
+            self.total_time_storage_operations_micros.load(Ordering::Relaxed).into_f64()
+                / 1_000_000.0, // Histogram buckets are best fit in seconds
+        );
     }
 }
 
