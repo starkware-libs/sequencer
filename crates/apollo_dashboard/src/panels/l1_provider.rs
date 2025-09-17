@@ -40,7 +40,10 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
     )
 }
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE)
+    Panel::from_gauge(
+        &L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE,
+        PanelType::TimeSeries,
+    )
 }
 
 // TODO(noamsp): rename to l1_event_row

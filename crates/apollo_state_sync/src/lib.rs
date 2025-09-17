@@ -122,7 +122,6 @@ impl StateSync {
         tokio::task::spawn_blocking(move || {
             let txn = storage_reader.begin_ro_txn()?;
 
-<<<<<<< HEAD
             let block_header = txn
                 .get_block_header(block_number)?
                 .ok_or(StateSyncError::BlockNotFound(block_number))?;
@@ -133,34 +132,6 @@ impl StateSync {
                 .get_state_diff(block_number)?
                 .ok_or(StateSyncError::BlockNotFound(block_number))?;
             drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
-||||||| 9f526276f
-            let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
-            let Some(block_header) = txn.get_block_header(block_number)? else {
-                return block_not_found_err;
-            };
-            let Some(block_transactions_with_hash) =
-                txn.get_block_transactions_with_hash(block_number)?
-            else {
-                return block_not_found_err;
-            };
-            let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-                return block_not_found_err;
-            };
-=======
-            let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
-            let Some(block_header) = txn.get_block_header(block_number)? else {
-                return block_not_found_err;
-            };
-            let Some(block_transactions_with_hash) =
-                txn.get_block_transactions_with_hash(block_number)?
-            else {
-                return block_not_found_err;
-            };
-            let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-                return block_not_found_err;
-            };
-            drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
->>>>>>> origin/main-v0.14.0
 
             let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
             let mut account_transaction_hashes: Vec<TransactionHash> = vec![];

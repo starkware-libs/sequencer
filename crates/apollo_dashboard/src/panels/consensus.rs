@@ -28,16 +28,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
-<<<<<<< HEAD
-    CONSENSUS_ETH_TO_FRI_RATE_MISMATCH,
-    CONSENSUS_L1_DATA_GAS_MISMATCH,
-    CONSENSUS_L1_GAS_MISMATCH,
-||||||| 9f526276f
-    CONSENSUS_L1_DATA_GAS_MISMATCH,
-    CONSENSUS_L1_GAS_MISMATCH,
-=======
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
->>>>>>> origin/main-v0.14.0
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
@@ -319,22 +310,6 @@ pub(crate) fn get_panel_cende_write_blob_failure() -> Panel {
     )
     .with_log_query("CENDE_FAILURE")
 }
-<<<<<<< HEAD
-fn get_panel_consensus_eth_to_fri_rate_mismatch() -> Panel {
-    Panel::from(&CONSENSUS_ETH_TO_FRI_RATE_MISMATCH)
-}
-fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
-    Panel::from(&CONSENSUS_L1_DATA_GAS_MISMATCH)
-}
-fn get_panel_consensus_l1_gas_mismatch() -> Panel {
-    Panel::from(&CONSENSUS_L1_GAS_MISMATCH)
-||||||| 9f526276f
-fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
-    Panel::from(&CONSENSUS_L1_DATA_GAS_MISMATCH)
-}
-fn get_panel_consensus_l1_gas_mismatch() -> Panel {
-    Panel::from(&CONSENSUS_L1_GAS_MISMATCH)
-=======
 fn get_panel_cende_write_preconfirmed_block() -> Panel {
     Panel::new(
         "Write Preconfirmed Block Success",
@@ -343,7 +318,6 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
         vec![format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter())],
         PanelType::TimeSeries,
     )
->>>>>>> origin/main-v0.14.0
 }
 
 fn get_panel_consensus_network_events_by_type() -> Panel {
@@ -414,18 +388,9 @@ pub(crate) fn get_cende_row() -> Row {
         vec![
             get_panel_cende_write_blob_success(),
             get_panel_cende_write_blob_failure(),
-<<<<<<< HEAD
-            get_panel_consensus_eth_to_fri_rate_mismatch(),
-            get_panel_consensus_l1_data_gas_mismatch(),
-            get_panel_consensus_l1_gas_mismatch(),
-||||||| 9f526276f
-            get_panel_consensus_l1_data_gas_mismatch(),
-            get_panel_consensus_l1_gas_mismatch(),
-=======
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_last_prepared_blob_block_number(),
             get_panel_cende_write_preconfirmed_block(),
->>>>>>> origin/main-v0.14.0
         ],
     )
 }

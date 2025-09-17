@@ -1388,7 +1388,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "serde",
- "starknet-types-core",
+ "starknet-types-core 0.2.1",
  "starknet_api",
  "thiserror 1.0.69",
  "validator",
@@ -1704,15 +1704,7 @@ dependencies = [
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
-<<<<<<< HEAD
- "starknet-types-core",
-||||||| 9f526276f
- "serde",
- "starknet-types-core",
-=======
- "serde",
  "starknet-types-core 0.2.1",
->>>>>>> origin/main-v0.14.0
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
@@ -1784,15 +1776,7 @@ dependencies = [
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
-<<<<<<< HEAD
- "starknet-types-core",
-||||||| 9f526276f
- "serde",
- "starknet-types-core",
-=======
- "serde",
  "starknet-types-core 0.2.1",
->>>>>>> origin/main-v0.14.0
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -2089,15 +2073,7 @@ dependencies = [
  "papyrus_common",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
-<<<<<<< HEAD
- "starknet-types-core",
-||||||| 9f526276f
- "serde",
- "starknet-types-core",
-=======
- "serde",
  "starknet-types-core 0.2.1",
->>>>>>> origin/main-v0.14.0
  "starknet_api",
  "static_assertions",
  "thiserror 1.0.69",
@@ -2284,8 +2260,8 @@ dependencies = [
  "pretty_assertions",
  "rstest",
  "starknet-core",
- "starknet-crypto",
- "starknet-types-core",
+ "starknet-crypto 0.8.1",
+ "starknet-types-core 0.2.1",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
@@ -2320,7 +2296,7 @@ dependencies = [
  "blockifier_test_utils",
  "mockall",
  "rstest",
- "starknet-types-core",
+ "starknet-types-core 0.2.1",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
@@ -2416,15 +2392,7 @@ dependencies = [
  "libp2p",
  "papyrus_common",
  "rand_chacha 0.3.1",
-<<<<<<< HEAD
- "starknet-types-core",
-||||||| 9f526276f
- "serde",
- "starknet-types-core",
-=======
- "serde",
  "starknet-types-core 0.2.1",
->>>>>>> origin/main-v0.14.0
  "starknet_api",
  "tokio",
  "tracing",
@@ -3342,33 +3310,12 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-name = "bincode"
-version = "2.0.1"
-||||||| 9f526276f
-name = "bincode"
-version = "2.0.0-rc.3"
-=======
 name = "bincode_derive"
 version = "2.0.1"
->>>>>>> origin/main-v0.14.0
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
-checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
-||||||| 9f526276f
-checksum = "f11ea1a0346b94ef188834a65c068a03aec181c94896d481d7a0a40d85b0ce95"
-=======
 checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
->>>>>>> origin/main-v0.14.0
 dependencies = [
-<<<<<<< HEAD
- "serde",
- "unty",
-||||||| 9f526276f
- "serde",
-=======
  "virtue",
->>>>>>> origin/main-v0.14.0
 ]
 
 [[package]]
@@ -3521,14 +3468,8 @@ version = "0.16.0-rc.0"
 dependencies = [
  "blake2",
  "digest 0.10.7",
-<<<<<<< HEAD
  "rstest",
- "starknet-types-core",
-||||||| 9f526276f
- "starknet-types-core",
-=======
  "starknet-types-core 0.2.1",
->>>>>>> origin/main-v0.14.0
 ]
 
 [[package]]
@@ -4071,16 +4012,8 @@ dependencies = [
  "rand 0.9.2",
  "sha2",
  "smol_str",
-<<<<<<< HEAD
- "starknet-types-core",
- "thiserror 2.0.16",
-||||||| 9f526276f
- "starknet-types-core",
- "thiserror 2.0.12",
-=======
  "starknet-types-core 0.2.1",
- "thiserror 2.0.12",
->>>>>>> origin/main-v0.14.0
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -4133,16 +4066,8 @@ dependencies = [
  "serde_json",
  "sha3",
  "smol_str",
-<<<<<<< HEAD
- "starknet-types-core",
- "thiserror 2.0.16",
-||||||| 9f526276f
- "starknet-types-core",
- "thiserror 2.0.12",
-=======
  "starknet-types-core 0.2.1",
- "thiserror 2.0.12",
->>>>>>> origin/main-v0.14.0
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -4218,16 +4143,8 @@ dependencies = [
  "itertools 0.14.0",
  "num-bigint 0.4.6",
  "num-traits",
-<<<<<<< HEAD
- "starknet-types-core",
- "thiserror 2.0.16",
-||||||| 9f526276f
- "starknet-types-core",
- "thiserror 2.0.12",
-=======
  "starknet-types-core 0.2.1",
- "thiserror 2.0.12",
->>>>>>> origin/main-v0.14.0
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -4267,16 +4184,8 @@ dependencies = [
  "serde",
  "serde_json",
  "smol_str",
-<<<<<<< HEAD
- "starknet-types-core",
- "thiserror 2.0.16",
-||||||| 9f526276f
- "starknet-types-core",
- "thiserror 2.0.12",
-=======
  "starknet-types-core 0.2.1",
- "thiserror 2.0.12",
->>>>>>> origin/main-v0.14.0
+ "thiserror 2.0.16",
  "typetag",
 ]
 
@@ -4299,16 +4208,8 @@ dependencies = [
  "serde_json",
  "sha3",
  "smol_str",
-<<<<<<< HEAD
- "starknet-types-core",
- "thiserror 2.0.16",
-||||||| 9f526276f
- "starknet-types-core",
- "thiserror 2.0.12",
-=======
  "starknet-types-core 0.2.1",
- "thiserror 2.0.12",
->>>>>>> origin/main-v0.14.0
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -4331,21 +4232,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-syntax-codegen"
-<<<<<<< HEAD
-version = "2.12.0"
-||||||| 9f526276f
-version = "2.12.0-dev.1"
-=======
 version = "2.12.3"
->>>>>>> origin/main-v0.14.0
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
-checksum = "882f1bad365ffa5ad353e6ae727cbaf7ad51420787f1c4211c9f0bf847e55cb4"
-||||||| 9f526276f
-checksum = "0e5e3c6be0b159dad1239fa83562087448aeb1d44b0ead059ea6ab73728909a8"
-=======
 checksum = "0d00ae64466774b6e34a91c4a66202778b17ef5a844a6f668436e28d71ccb9b2"
->>>>>>> origin/main-v0.14.0
 dependencies = [
  "genco",
  "xshell",
@@ -4471,13 +4360,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c21cacdf4e290ab5f0018f24d6bf97f8d3a8809bd09568550669270e7f9ed534"
 dependencies = [
  "anyhow",
-<<<<<<< HEAD
- "bincode 2.0.1",
-||||||| 9f526276f
- "bincode 2.0.0-rc.3",
-=======
  "bincode",
->>>>>>> origin/main-v0.14.0
  "bitvec",
  "generic-array",
  "hashbrown 0.15.5",
@@ -4496,19 +4379,9 @@ dependencies = [
  "serde_json",
  "sha2",
  "sha3",
-<<<<<<< HEAD
- "starknet-crypto",
- "starknet-types-core",
- "thiserror 2.0.16",
-||||||| 9f526276f
- "starknet-crypto",
- "starknet-types-core",
- "thiserror 2.0.12",
-=======
  "starknet-crypto 0.8.1",
  "starknet-types-core 0.2.1",
- "thiserror 2.0.12",
->>>>>>> origin/main-v0.14.0
+ "thiserror 2.0.16",
  "zip",
 ]
 
@@ -7020,16 +6893,8 @@ dependencies = [
  "ipconfig",
  "moka",
  "once_cell",
-<<<<<<< HEAD
  "parking_lot 0.12.4",
  "rand 0.9.2",
-||||||| 9f526276f
- "parking_lot 0.12.3",
- "rand 0.9.0",
-=======
- "parking_lot 0.12.3",
- "rand 0.9.2",
->>>>>>> origin/main-v0.14.0
  "resolv-conf",
  "smallvec",
  "thiserror 2.0.16",
@@ -8159,7 +8024,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "405d65a26831650ba348a503a2881ed7a0483ef3ec17f66e0fc8e2f9c97fc7ca"
 dependencies = [
- "getrandom 0.2.15",
+ "getrandom 0.2.16",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -12696,7 +12561,7 @@ dependencies = [
  "indexmap 2.11.0",
  "indoc 2.0.6",
  "itertools 0.12.1",
- "lambdaworks-math",
+ "lambdaworks-math 0.10.0",
  "log",
  "num-bigint 0.4.6",
  "num-integer",
@@ -14923,24 +14788,7 @@ version = "0.8.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1039dd0d3c310cf05de012d8a39ff557cb0d23087fd44cad61df08fc31907a2f"
 dependencies = [
-<<<<<<< HEAD
  "zerocopy-derive",
-||||||| 9f526276f
- "byteorder",
- "zerocopy-derive 0.7.35",
-]
-
-[[package]]
-name = "zerocopy"
-version = "0.8.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd97444d05a4328b90e75e503a34bad781f14e28a823ad3557f0750df1ebcbc6"
-dependencies = [
- "zerocopy-derive 0.8.23",
-=======
- "byteorder",
- "zerocopy-derive",
->>>>>>> origin/main-v0.14.0
 ]
 
 [[package]]
@@ -14951,33 +14799,10 @@ checksum = "9ecf5b4cc5364572d7f4c329661bcc82724222973f2cab6f050a4e5c22f75181"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
  "syn 2.0.106",
 ]
 
 [[package]]
-||||||| 9f526276f
- "syn 2.0.100",
-]
-
-[[package]]
-name = "zerocopy-derive"
-version = "0.8.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6352c01d0edd5db859a63e2605f4ea3183ddbd15e2c4a9e7d32184df75e4f154"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
-]
-
-[[package]]
-=======
- "syn 2.0.100",
-]
-
-[[package]]
->>>>>>> origin/main-v0.14.0
 name = "zerofrom"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

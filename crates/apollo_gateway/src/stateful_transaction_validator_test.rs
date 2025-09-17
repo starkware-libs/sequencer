@@ -128,31 +128,7 @@ fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(|| latest_state_reader);
 
-<<<<<<< HEAD
-    // Make sure stateful_validator uses the latest block in the following calls to the
-    // state_reader.
-    let latest_block = state_reader_factory.state_reader.block_info.block_number;
-    let state_reader = state_reader_factory.get_state_reader(latest_block);
-    mock_state_reader_factory
-        .expect_get_state_reader()
-        .with(eq(latest_block))
-        .return_once(move |_| state_reader);
-
     let validator = stateful_validator_factory
-||||||| 9f526276f
-    // Make sure stateful_validator uses the latest block in the following calls to the
-    // state_reader.
-    let latest_block = state_reader_factory.state_reader.block_info.block_number;
-    let state_reader = state_reader_factory.get_state_reader(latest_block);
-    mock_state_reader_factory
-        .expect_get_state_reader()
-        .with(eq(latest_block))
-        .return_once(move |_| state_reader);
-
-    let blockifier_validator = stateful_validator
-=======
-    let blockifier_validator = stateful_validator
->>>>>>> origin/main-v0.14.0
         .instantiate_validator(&mock_state_reader_factory, &ChainInfo::create_for_testing());
     assert!(validator.is_ok());
 }

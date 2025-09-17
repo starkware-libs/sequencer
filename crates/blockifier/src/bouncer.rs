@@ -98,16 +98,10 @@ impl BouncerConfig {
         self.block_max_capacity.has_room(weights)
     }
 
-<<<<<<< HEAD
-||||||| 9f526276f
-    #[allow(clippy::result_large_err)]
-=======
     pub fn get_exceeded_weights(&self, weights: BouncerWeights) -> String {
         self.block_max_capacity.get_exceeded_weights(weights)
     }
 
-    #[allow(clippy::result_large_err)]
->>>>>>> origin/main-v0.14.0
     pub fn within_max_capacity_or_err(
         &self,
         weights: BouncerWeights,
@@ -608,34 +602,16 @@ impl Bouncer {
             "Addition overflow. Transaction weights: {tx_bouncer_weights:?}, block weights: {:?}.",
             self.get_bouncer_weights()
         );
-<<<<<<< HEAD
-        if !self
-            .bouncer_config
-            .has_room(self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg))
-        {
-||||||| 9f526276f
-        if !self
-            .bouncer_config
-            .has_room(self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg))
-        {
-=======
         let next_accumulated_weights =
-            self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg);
+            self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg);
         if !self.bouncer_config.has_room(next_accumulated_weights) {
->>>>>>> origin/main-v0.14.0
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
                  transaction weights: {:?}, block weights: {:?}. Block max capacity reached on \
                  fields: {}",
                 tx_weights.bouncer_weights,
-<<<<<<< HEAD
-                self.get_bouncer_weights()
-||||||| 9f526276f
-                self.accumulated_weights
-=======
-                self.accumulated_weights,
+                self.get_bouncer_weights(),
                 self.bouncer_config.get_exceeded_weights(next_accumulated_weights)
->>>>>>> origin/main-v0.14.0
             );
             Err(TransactionExecutorError::BlockFull)?
         }

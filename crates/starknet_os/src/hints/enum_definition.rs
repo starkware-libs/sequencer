@@ -1072,19 +1072,6 @@ define_hint_enum!(
         }
     ),
     (
-<<<<<<< HEAD
-        EnterScopeWithBytecodeSegmentStructure,
-        enter_scope_with_bytecode_segment_structure,
-        indoc! {r#"EnterScopeWithBytecodeSegmentStructure"#}
-||||||| 9f526276f
-        BytecodeSegmentStructure,
-        bytecode_segment_structure,
-        indoc! {r#"
-    vm_enter_scope({
-        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
-        "is_segment_used_callback": is_segment_used_callback
-    })"#}
-=======
         RelocateSha256Segment,
         relocate_sha256_segment,
         indoc! {r#"
@@ -1095,14 +1082,9 @@ define_hint_enum!(
     memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)"#}
     ),
     (
-        BytecodeSegmentStructure,
-        bytecode_segment_structure,
-        indoc! {r#"
-    vm_enter_scope({
-        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
-        "is_segment_used_callback": is_segment_used_callback
-    })"#}
->>>>>>> origin/main-v0.14.0
+        EnterScopeWithBytecodeSegmentStructure,
+        enter_scope_with_bytecode_segment_structure,
+        indoc! {r#"EnterScopeWithBytecodeSegmentStructure"#}
     ),
     (
         BlockNumber,
