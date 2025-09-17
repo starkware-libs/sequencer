@@ -125,18 +125,18 @@ fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
     assert_contains_ordered_substrings(
         &[
             format!(
-                "contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}"
+                "contract address: {account_address_felt:#066x}, class hash: \
+                 {account_contract_hash:#066x}, selector: {execute_selector_felt:#066x}"
             )
             .as_str(),
             format!(
-                "contract address: {test_contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}"
+                "contract address: {test_contract_address_felt:#066x}, class hash: \
+                 {test_contract_hash:#066x}, selector: {external_entry_point_selector_felt:#066x}"
             )
             .as_str(),
             format!(
-                "contract address: {test_contract_address_2_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}"
+                "contract address: {test_contract_address_2_felt:#066x}, class hash: \
+                 {test_contract_hash:#066x}, selector: {inner_entry_point_selector_felt:#066x}"
             )
             .as_str(),
         ],
@@ -204,18 +204,18 @@ fn test_stack_trace(block_context: BlockContext, #[case] cairo_version: CairoVer
     assert_contains_ordered_substrings(
         &[
             format!(
-                "contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}"
+                "contract address: {account_address_felt:#066x}, class hash: \
+                 {account_contract_hash:#066x}, selector: {execute_selector_felt:#066x}"
             )
             .as_str(),
             format!(
-                "contract address: {test_contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}"
+                "contract address: {test_contract_address_felt:#066x}, class hash: \
+                 {test_contract_hash:#066x}, selector: {external_entry_point_selector_felt:#066x}"
             )
             .as_str(),
             format!(
-                "contract address: {test_contract_address_2_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}"
+                "contract address: {test_contract_address_2_felt:#066x}, class hash: \
+                 {test_contract_hash:#066x}, selector: {inner_entry_point_selector_felt:#066x}"
             )
             .as_str(),
         ],
@@ -322,16 +322,16 @@ fn test_trace_callchain_ends_with_regular_call(
     let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
     let mut sub_trace_strings = vec![
         format!(
-            "contract address: {account_address_felt:#064x}, class hash: \
-             {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}"
+            "contract address: {account_address_felt:#066x}, class hash: \
+             {account_contract_hash:#066x}, selector: {execute_selector_felt:#066x}"
         ),
         format!(
-            "contract address: {contract_address_felt:#064x}, class hash: \
-             {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}"
+            "contract address: {contract_address_felt:#066x}, class hash: \
+             {test_contract_hash:#066x}, selector: {invoke_call_chain_selector_felt:#066x}"
         ),
         format!(
-            "contract address: {contract_address_felt:#064x}, class hash: \
-             {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}"
+            "contract address: {contract_address_felt:#066x}, class hash: \
+             {test_contract_hash:#066x}, selector: {invoke_call_chain_selector_felt:#066x}"
         ),
     ];
     if cairo_version.is_cairo0() {
@@ -517,26 +517,26 @@ fn test_trace_call_chain_with_syscalls(
 
     let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
     let account_preamble = format!(
-        "contract address: {account_address_felt:#064x}, class hash: \
-         {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}"
+        "contract address: {account_address_felt:#066x}, class hash: \
+         {account_contract_hash:#066x}, selector: {execute_selector_felt:#066x}"
     );
     let contract_preamble = format!(
-        "contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
-         selector: {invoke_call_chain_selector_felt:#064x}"
+        "contract address: {address_felt:#066x}, class hash: {test_contract_hash:#066x}, \
+         selector: {invoke_call_chain_selector_felt:#066x}"
     );
     let last_call_preamble = match (cairo_version.is_cairo0(), call_type) {
         (true, 0) => format!(
-            "Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-             {test_contract_hash:#064x}, selector: {last_func_selector_felt:#064x})"
+            "Error in the called contract (contract address: {address_felt:#066x}, class hash: \
+             {test_contract_hash:#066x}, selector: {last_func_selector_felt:#066x})"
         ),
         (true, 1) => format!(
-            "Error in a library call (contract address: {address_felt:#064x}, class hash: \
-             {test_contract_hash:#064x}, selector: {last_func_selector_felt:#064x})"
+            "Error in a library call (contract address: {address_felt:#066x}, class hash: \
+             {test_contract_hash:#066x}, selector: {last_func_selector_felt:#066x})"
         ),
         // Cairo1 - no distinction between call contract and library call.
         (_, _) => format!(
-            "contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
-             selector: {last_func_selector_felt:#064x}"
+            "contract address: {address_felt:#066x}, class hash: {test_contract_hash:#066x}, \
+             selector: {last_func_selector_felt:#066x}"
         ),
     };
 
@@ -636,8 +636,8 @@ fn test_validate_trace(
     let expected_error = match cairo_version {
         CairoVersion::Cairo0 => format!(
             "Transaction validation has failed:
-0: Error in the called contract (contract address: {contract_address:#064x}, class hash: {:#064x}, \
-             selector: {selector:#064x}):
+0: Error in the called contract (contract address: {contract_address:#066x}, class hash: {:#066x}, \
+             selector: {selector:#066x}):
 Error at pc=0:0:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:0)
@@ -649,8 +649,8 @@ An ASSERT_EQ instruction failed: 1 != 0.
         ),
         CairoVersion::Cairo1(_) => format!(
             "The `validate` entry point panicked with:
-Error in contract (contract address: {contract_address:#064x}, class hash: {:#064x}, selector: \
-             {selector:#064x}):
+Error in contract (contract address: {contract_address:#066x}, class hash: {:#066x}, selector: \
+             {selector:#066x}):
 0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
             class_hash.0
@@ -705,8 +705,8 @@ fn test_account_ctor_frame_stack_trace(
     let expected_address = deploy_address.0.key();
     let expected_error_prefix = format!(
         "Contract constructor execution has failed:
-0: Error in the contract class constructor (contract address: {expected_address:#064x}, class \
-         hash: {:#064x}, selector: {expected_selector:#064x}):
+0: Error in the contract class constructor (contract address: {expected_address:#066x}, class \
+         hash: {:#066x}, selector: {expected_selector:#066x}):
 ",
         class_hash.0
     );
@@ -792,26 +792,26 @@ fn test_contract_ctor_frame_stack_trace(
     let (frame0, frame1, frame2, error_frame) = (
         format!(
             "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-             {:#064x}, selector: {:#064x}):",
+0: Error in the called contract (contract address: {account_address_felt:#066x}, class hash: \
+             {:#066x}, selector: {:#066x}):",
             account_class_hash.0, execute_selector.0
         ),
         format!(
-            "1: Error in the called contract (contract address: {account_address_felt:#064x}, \
-             class hash: {:#064x}, selector: {:#064x}):",
+            "1: Error in the called contract (contract address: {account_address_felt:#066x}, \
+             class hash: {:#066x}, selector: {:#066x}):",
             account_class_hash.0, deploy_contract_selector.0
         ),
         format!(
             "2: Error in the contract class constructor (contract address: \
-             {expected_address:#064x}, class hash: {:#064x}, selector: {:#064x}):",
+             {expected_address:#066x}, class hash: {:#066x}, selector: {:#066x}):",
             faulty_class_hash.0, ctor_selector.0
         ),
         match cairo_version {
             CairoVersion::Cairo0 => "An ASSERT_EQ instruction failed: 1 != 0.".to_string(),
             CairoVersion::Cairo1(_) => format!(
                 "Execution failed. Failure reason:
-Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
-                 {:#064x}):
+Error in contract (contract address: {expected_address:#066x}, class hash: {:#066x}, selector: \
+                 {:#066x}):
 0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
                 faulty_class_hash.0, ctor_selector.0
@@ -980,7 +980,7 @@ fn test_cairo1_stack_extraction_inner_call_successful() {
         error.to_string(),
         format!(
             "Execution failed. Failure reason:
-Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
+Error in contract (contract address: {:#066x}, class hash: _, selector: {:#066x}):
 {failure_reason_str}.
 ",
             ContractAddress::default().0.key(),
