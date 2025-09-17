@@ -106,12 +106,15 @@ async fn test_gw_integration_testnet() {
         &TransactionOptions::default(),
     )
     .unwrap();
+    // TODO(Dori): Remove useless qualification and conversion once `starknet_core::types::Felt` is
+    //   the same type as `starknet_types_core::felt::Felt` (currently `starknet_types_core` is used
+    //   with two different versions).
     let signature = ecdsa_sign(
-        &Felt::from_hex(&env::var("SENDER_PRIVATE_KEY").expect(
+        &starknet_core::types::Felt::from_hex(&env::var("SENDER_PRIVATE_KEY").expect(
             "Sender private key must be given in SENDER_PRIVATE_KEY environment variable.",
         ))
         .unwrap(),
-        &hash.0,
+        &starknet_core::types::Felt::from_bytes_be(&hash.0.to_bytes_be()),
     )
     .unwrap();
     invoke_tx.signature = TransactionSignature(
