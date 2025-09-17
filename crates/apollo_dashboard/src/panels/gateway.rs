@@ -4,8 +4,8 @@ use apollo_gateway::metrics::{
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
-    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
     GATEWAY_VALIDATE_TX_LATENCY,
     LABEL_NAME_ADD_TX_FAILURE_REASON,
     LABEL_NAME_SOURCE,
@@ -115,12 +115,13 @@ fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
     )
 }
 
-fn get_panel_gateway_validate_stateful_tx_storage_micros() -> Panel {
+fn get_panel_gateway_validate_stateful_tx_storage_time() -> Panel {
     Panel::from_hist(
-        &GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS,
-        "Gateway Validate Stateful Tx Storage Micros",
-        "Total time spent in storage operations in micros during stateful tx validation",
+        &GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
+        "Gateway Validate Stateful Tx Storage Access Time",
+        "Total time spent in storage operations during stateful tx validation",
     )
+    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
@@ -143,7 +144,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_transactions_failure_rate(),
             get_panel_gateway_add_tx_failure_by_reason(),
             get_panel_gateway_transactions_sent_to_mempool(),
-            get_panel_gateway_validate_stateful_tx_storage_micros(),
+            get_panel_gateway_validate_stateful_tx_storage_time(),
             get_panel_gateway_validate_stateful_tx_storage_operations(),
         ],
     )
