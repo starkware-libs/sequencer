@@ -2,13 +2,17 @@ use std::fs;
 use std::sync::Arc;
 
 use apollo_config::CONFIG_FILE_ARG;
+use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{
     MockConfigManagerClient,
     SharedConfigManagerClient,
 };
+use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_consensus_config::ValidatorId;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{
+    NodeDynamicConfig,
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
@@ -17,6 +21,7 @@ use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
 
+use crate::config_manager::ConfigManager;
 use crate::config_manager_runner::ConfigManagerRunner;
 
 // An arbitrary hex-str config entry to be replaced.
@@ -85,8 +90,11 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
 }
 
 #[tokio::test]
-async fn test_update_config_with_changed_values() {
-    let config_manager_client: SharedConfigManagerClient = Arc::new(MockConfigManagerClient::new());
+async fn test_config_manager_runner_update_config_with_changed_values() {
+    // Set a mock config manager client to expect the update dynamic config request.
+    let mut mock_client = MockConfigManagerClient::new();
+    mock_client.expect_update_dynamic_config().times(1..).return_const(Ok(()));
+    let config_manager_client: SharedConfigManagerClient = Arc::new(mock_client);
 
     // Create a temporary config file and get the validator id value.
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
@@ -123,5 +131,50 @@ async fn test_update_config_with_changed_values() {
         second_dynamic_config.consensus_dynamic_config.validator_id, expected_validator_id,
         "Second update_config: Validator id mismatch: {} != {}",
         second_dynamic_config.consensus_dynamic_config.validator_id, expected_validator_id
+    );
+}
+
+#[tokio::test]
+async fn test_config_manager_update_config() {
+    // Set a config manager.
+    let config = ConfigManagerConfig::default();
+
+    let consensus_dynamic_config = ConsensusDynamicConfig::default();
+    let node_dynamic_config = NodeDynamicConfig { consensus_dynamic_config };
+    let mut config_manager = ConfigManager::new(config, node_dynamic_config.clone());
+
+    // Get the consensus dynamic config and assert it is the expected one.
+    let consensus_dynamic_config = config_manager
+        .get_consensus_dynamic_config()
+        .expect("Failed to get consensus dynamic config");
+    assert_eq!(
+        consensus_dynamic_config, node_dynamic_config.consensus_dynamic_config,
+        "Consensus dynamic config mismatch: {consensus_dynamic_config:#?} != {:#?}",
+        node_dynamic_config.consensus_dynamic_config
+    );
+
+    // Set a new dynamic config by creating a new consensus dynamic config. For simplicity, we
+    // create an arbitrary one and assert it's not the default one.
+    let new_consensus_dynamic_config =
+        ConsensusDynamicConfig { validator_id: ValidatorId::from(1_u8) };
+    assert_ne!(
+        consensus_dynamic_config, new_consensus_dynamic_config,
+        "Consensus dynamic config should be different: {consensus_dynamic_config:#?} != {:#?}",
+        new_consensus_dynamic_config
+    );
+    config_manager
+        .set_node_dynamic_config(NodeDynamicConfig {
+            consensus_dynamic_config: new_consensus_dynamic_config.clone(),
+        })
+        .expect("Failed to set node dynamic config");
+
+    // Get the post-change consensus dynamic config and assert it is the expected one.
+    let consensus_dynamic_config = config_manager
+        .get_consensus_dynamic_config()
+        .expect("Failed to get consensus dynamic config");
+    assert_eq!(
+        consensus_dynamic_config, new_consensus_dynamic_config,
+        "Consensus dynamic config mismatch: {consensus_dynamic_config:#?} != {:#?}",
+        new_consensus_dynamic_config
     );
 }
