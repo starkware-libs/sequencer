@@ -7,6 +7,10 @@ use async_trait::async_trait;
 use tokio::time::{interval, Duration as TokioDuration};
 use tracing::{error, info};
 
+#[cfg(test)]
+#[path = "config_manager_runner_tests.rs"]
+pub mod config_manager_runner_tests;
+
 pub struct ConfigManagerRunner {
     // TODO(Nadin): remove dead_code once we have actual config manager runner logic
     #[allow(dead_code)]
@@ -39,7 +43,10 @@ impl ConfigManagerRunner {
         Self { config_manager_client, cli_args }
     }
 
-    async fn update_config(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // TODO(Nadin): Define a proper result type instead of Box<dyn std::error::Error + Send + Sync>
+    pub(crate) async fn update_config(
+        &self,
+    ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
         let config = load_and_validate_config(self.cli_args.clone())?;
 
         // Extract consensus dynamic config from the loaded config
@@ -59,7 +66,7 @@ impl ConfigManagerRunner {
 
         // TODO(Nadin): Send the new config to the config manager through the client.
 
-        Ok(())
+        Ok(node_dynamic_config)
     }
 }
 
