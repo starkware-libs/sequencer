@@ -415,8 +415,20 @@ async fn no_active_height() {
 #[case::proposer(true)]
 #[case::validator(false)]
 #[tokio::test]
-async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
+async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
     let mut deps = MockDependencies::default();
+    if proposer {
+        mock_create_builder_for_propose_block(
+            &mut deps.block_builder_factory,
+            vec![],
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    } else {
+        mock_create_builder_for_validate_block(
+            &mut deps.block_builder_factory,
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
     deps.l1_provider_client.expect_start_block().returning(|_, _| {
         // The heights are not important for the test.
         let err = L1ProviderError::UnexpectedHeight {
@@ -429,15 +441,9 @@ async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
     assert_eq!(batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await, Ok(()));
 
     if proposer {
-        assert_eq!(
-            batcher.propose_block(propose_block_input(PROPOSAL_ID)).await,
-            Err(BatcherError::NotReady)
-        );
+        batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     } else {
-        assert_eq!(
-            batcher.validate_block(validate_block_input(PROPOSAL_ID)).await,
-            Err(BatcherError::NotReady)
-        );
+        batcher.validate_block(validate_block_input(PROPOSAL_ID)).await.unwrap();
     }
 }
 
@@ -817,15 +823,23 @@ async fn proposal_startup_failure_allows_new_proposals() {
         Ok(BlockExecutionArtifacts::create_for_testing()),
     );
     let mut l1_provider_client = MockL1ProviderClient::new();
-    let error = L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
-        expected_height: BlockNumber(1),
-        got: BlockNumber(0),
-    });
-    l1_provider_client.expect_start_block().once().return_once(|_, _| Err(error));
-    l1_provider_client.expect_start_block().once().return_once(|_, _| Ok(()));
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut mempool_client = MockMempoolClient::new();
+    let expected_gas_price =
+        propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price.get();
+    let error = MempoolClientError::ClientError(ClientError::CommunicationFailure(
+        "Mempool not ready".to_string(),
+    ));
+    mempool_client
+        .expect_update_gas_price()
+        .with(eq(expected_gas_price))
+        .return_once(|_| Err(error));
+    mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).return_once(|_| Ok(()));
+    mempool_client.expect_commit_block().with(eq(CommitBlockArgs::default())).returning(|_| Ok(()));
     let mut batcher = create_batcher(MockDependencies {
         block_builder_factory,
         l1_provider_client,
+        mempool_client,
         ..Default::default()
     })
     .await;
@@ -835,7 +849,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
     batcher
         .propose_block(propose_block_input(ProposalId(0)))
         .await
-        .expect_err("Expected to fail because of the first L1ProviderClient error");
+        .expect_err("Expected to fail because of the first MempoolClient error");
 
     batcher.validate_block(validate_block_input(ProposalId(1))).await.expect("Expected to succeed");
     batcher
@@ -1161,7 +1175,7 @@ fn validate_batcher_config_failure() {
     })
 )]
 #[tokio::test]
-async fn decision_reached_return_error_when_l1_commit_block_fails(
+async fn decision_reached_return_success_when_l1_commit_block_fails(
     #[case] l1_error: L1ProviderClientError,
 ) {
     let mut mock_dependencies = MockDependencies::default();
@@ -1176,7 +1190,7 @@ async fn decision_reached_return_error_when_l1_commit_block_fails(
 
     mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
 
-    mock_dependencies.storage_writer.expect_revert_block().returning(|_| ());
+    mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
@@ -1185,5 +1199,5 @@ async fn decision_reached_return_error_when_l1_commit_block_fails(
     );
 
     let result = batcher_propose_and_commit_block(mock_dependencies).await;
-    assert!(result.is_err());
+    assert!(result.is_ok());
 }

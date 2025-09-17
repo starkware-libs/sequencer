@@ -16,6 +16,8 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
+use crate::metrics::BATCHER_L1_PROVIDER_ERRORS;
+
 type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
 
 #[derive(Clone, Debug, Error)]
@@ -89,7 +91,11 @@ impl ProposeTransactionProvider {
         Ok(self
             .l1_provider_client
             .get_txs(n_txs, self.height)
-            .await?
+            .await
+            .inspect_err(|_err| {
+                BATCHER_L1_PROVIDER_ERRORS.increment(1);
+            })
+            .unwrap_or_default()
             .into_iter()
             .map(InternalConsensusTransaction::L1Handler)
             .collect())
@@ -177,8 +183,16 @@ impl TransactionProvider for ValidateTransactionProvider {
 
         for tx in &buffer {
             if let InternalConsensusTransaction::L1Handler(tx) = tx {
-                let l1_validation_status =
-                    self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
+                let l1_validation_status = self
+                    .l1_provider_client
+                    .validate(tx.tx_hash, self.height)
+                    .await
+                    .inspect_err(|_err| {
+                        BATCHER_L1_PROVIDER_ERRORS.increment(1);
+                    })
+                    .unwrap_or(L1ValidationStatus::Invalid(
+                        L1InvalidValidationStatus::L1ProviderError,
+                    ));
                 if let L1ValidationStatus::Invalid(validation_status) = l1_validation_status {
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed {
                         tx_hash: tx.tx_hash,
