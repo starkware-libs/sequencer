@@ -2,6 +2,7 @@ use std::cmp::min;
 use std::vec;
 
 use apollo_l1_provider_types::errors::L1ProviderClientError;
+use crate::metrics::L1_PROVIDER_ERRORS;
 use apollo_l1_provider_types::{
     InvalidValidationStatus as L1InvalidValidationStatus,
     SharedL1ProviderClient,
@@ -89,7 +90,11 @@ impl ProposeTransactionProvider {
         Ok(self
             .l1_provider_client
             .get_txs(n_txs, self.height)
-            .await?
+            .await
+            .inspect_err(|_err| {
+                L1_PROVIDER_ERRORS.increment(1);
+            })
+            .unwrap_or_default()
             .into_iter()
             .map(InternalConsensusTransaction::L1Handler)
             .collect())
@@ -177,8 +182,11 @@ impl TransactionProvider for ValidateTransactionProvider {
 
         for tx in &buffer {
             if let InternalConsensusTransaction::L1Handler(tx) = tx {
-                let l1_validation_status =
-                    self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
+                let l1_validation_status = self.l1_provider_client.validate(tx.tx_hash, self.height)
+                    .await
+                    .inspect_err(|_err| {
+                        L1_PROVIDER_ERRORS.increment(1);
+                    }).unwrap_or_else(|_| L1ValidationStatus::Invalid(L1InvalidValidationStatus::L1ProviderError));
                 if let L1ValidationStatus::Invalid(validation_status) = l1_validation_status {
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed {
                         tx_hash: tx.tx_hash,
