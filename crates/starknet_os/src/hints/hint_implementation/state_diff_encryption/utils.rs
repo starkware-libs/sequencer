@@ -1,4 +1,4 @@
-use blake2s::encode_felt252_data_and_calc_blake_hash;
+use blake2s::{blake2s_to_felt, encode_felt252_data_and_calc_blake_hash};
 use lambdaworks_math::elliptic_curve::short_weierstrass::curves::stark_curve::StarkCurve;
 use lambdaworks_math::elliptic_curve::short_weierstrass::traits::IsShortWeierstrass;
 use starknet_types_core::curve::AffinePoint;
@@ -86,4 +86,36 @@ pub fn decrypt_state_diff(
                 - encode_felt252_data_and_calc_blake_hash(&[symmetric_key, Felt::from(i)])
         })
         .collect()
+}
+
+// TODO(Meshi): Remove allow(dead_code) once we use this function.
+#[allow(dead_code)]
+/// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
+/// `naive_encode_felt252s_to_u32s` hint does, then hashes the resulting byte stream
+/// with Blake2s-256 and returns the 256-bit digest to a
+/// 252-bit field element `Felt`.
+fn calc_blake_hash(data: &[Felt]) -> Felt {
+    // 1) Unpack each Felt into 8 u32 limbs.
+    let u32_words = naive_encode_felts_to_u32s(data.to_vec());
+
+    // 2) Serialize the u32 limbs into a little-endian byte stream.
+    let mut byte_stream = Vec::with_capacity(u32_words.len() * 4);
+    for word in u32_words {
+        byte_stream.extend_from_slice(&word.to_le_bytes());
+    }
+
+    // 3) Compute Blake2s-256 over the bytes and pack the result into a Felt.
+    blake2s_to_felt(&byte_stream)
+}
+
+pub fn naive_encode_felts_to_u32s(felts: Vec<Felt>) -> Vec<u32> {
+    let mut unpacked_u32s = Vec::new();
+    for felt in felts {
+        let felt_as_be_bytes = felt.to_bytes_be();
+        // big: 8 limbs, big‐endian order.
+        for chunk in felt_as_be_bytes.chunks_exact(4) {
+            unpacked_u32s.push(u32::from_be_bytes(chunk.try_into().unwrap()));
+        }
+    }
+    unpacked_u32s
 }
