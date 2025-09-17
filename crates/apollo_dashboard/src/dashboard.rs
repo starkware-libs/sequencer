@@ -329,6 +329,35 @@ impl Panel {
             PanelType::TimeSeries,
         )
     }
+
+    pub(crate) fn from_labeled_hist(
+        metric: &LabeledMetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+    ) -> Self {
+        let group_label = metric.get_label_name();
+        Self::new(
+            name.to_string(),
+            description.to_string(),
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| {
+                    format!(
+                        "histogram_quantile({q:.2}, sum by (le, {group_label}) \
+                         (rate({}[{HISTOGRAM_TIME_RANGE}])))",
+                        metric.get_name_with_filter(),
+                    )
+                })
+                .collect(),
+            PanelType::TimeSeries,
+        )
+        .with_legends(
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| format!("{:.2} {{{{{}}}}}", q, group_label))
+                .collect(),
+        )
+    }
 }
 
 #[allow(dead_code)] // TODO(Ron): use in panels
