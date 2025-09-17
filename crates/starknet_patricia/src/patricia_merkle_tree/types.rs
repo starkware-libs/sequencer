@@ -245,7 +245,11 @@ impl<'a> SortedLeafIndices<'a> {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        !self.is_not_empty()
+    }
+
+    pub(crate) fn is_not_empty(&self) -> bool {
+        !self.0.is_empty()
     }
 
     pub(crate) fn len(&self) -> usize {
