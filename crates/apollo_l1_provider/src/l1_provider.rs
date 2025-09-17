@@ -55,7 +55,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height)?;
+        self.validate_height(height);
         info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
@@ -87,7 +87,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height)?;
+        self.validate_height(height);
 
         match self.state {
             ProviderState::Propose => {
@@ -122,7 +122,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height)?;
+        self.validate_height(height);
         match self.state {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
@@ -161,7 +161,7 @@ impl L1Provider {
             return self.bootstrap(committed_txs, height);
         }
 
-        self.validate_height(height)?;
+        self.validate_height(height);
         self.apply_commit_block(committed_txs, rejected_txs);
 
         self.state = self.state.transition_to_pending();
@@ -253,7 +253,11 @@ impl L1Provider {
         if height > self.current_height {
             // TODO(shahak): Add a way to move to bootstrap mode from any point and move to
             // bootstrap here instead of panicking.
-            panic!("Batcher surpassed l1 provider. Panicking in order to restart the provider and bootstrap again. l1 provider height: {}, batcher height: {}", self.current_height, height);
+            panic!(
+                "Batcher surpassed l1 provider. Panicking in order to restart the provider and \
+                 bootstrap again. l1 provider height: {}, batcher height: {}",
+                self.current_height, height
+            );
         }
         if height < self.current_height {
             panic!("Unexpected height: expected >= {}, got {}", self.current_height, height);
