@@ -33,7 +33,7 @@ use crate::network_manager::metrics::BroadcastNetworkMetrics;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
-use crate::{gossipsub_impl, Bytes, NetworkConfig};
+use crate::{gossipsub_impl, peer_manager, Bytes, NetworkConfig};
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkError {
@@ -369,11 +369,28 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         Ok(())
     }
 
+    fn update_blacklisted_peers_metric(&mut self) {
+        if let Some(metrics) = &self.metrics {
+            // TODO(AndrewL): using the gauge as a sum of all
+            // blacklisted peers for now, consider changing
+            metrics.num_blacklisted_peers.increment(1);
+        }
+    }
+
     // TODO(shahak): Move this logic to mixed_behaviour.
     fn handle_to_other_behaviour_event(&mut self, event: mixed_behaviour::ToOtherBehaviourEvent) {
         if let mixed_behaviour::ToOtherBehaviourEvent::NoOp = event {
             return;
         }
+
+        // Handle peer blacklisting events to update metrics
+        if let mixed_behaviour::ToOtherBehaviourEvent::PeerManager(
+            peer_manager::ToOtherBehaviourEvent::PeerBlacklisted { peer_id: _ },
+        ) = &event
+        {
+            self.update_blacklisted_peers_metric();
+        }
+
         self.swarm.behaviour_mut().identify.on_other_behaviour_event(&event);
         self.swarm.behaviour_mut().kademlia.on_other_behaviour_event(&event);
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
