@@ -249,7 +249,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         let stream_sender = self.start_stream(stream_id).await;
 
-        info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
+        info!(?proposal_init, ?timeout, %proposal_id, "Start building proposal");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let gas_price_params = GasPriceParams {
@@ -693,7 +693,7 @@ impl SequencerConsensusContext {
     ) {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
+        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Start validating proposal");
 
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
