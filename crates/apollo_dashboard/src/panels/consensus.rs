@@ -41,7 +41,7 @@ use apollo_network::network_manager::metrics::{
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 // The key events that are relevant to the consensus panel.
 const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
@@ -289,21 +289,10 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
     .with_log_query("Blob for block number")
 }
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
         "Write Blob Latency",
         "The time it takes to write the blob to Cende",
-        // TODO(Dafna): add an helper function to generate a vector of histogram expressions, to be
-        // used everywhere
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
