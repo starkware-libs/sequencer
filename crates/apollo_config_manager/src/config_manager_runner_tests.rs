@@ -1,4 +1,3 @@
-
 use std::fs;
 use std::sync::Arc;
 
@@ -87,7 +86,12 @@ fn create_temp_config_file_and_args(validator_id: &str) -> (NamedTempFile, Vec<S
 #[tokio::test]
 #[traced_test]
 async fn test_update_config_with_changed_values() {
-    let config_manager_client: SharedConfigManagerClient = Arc::new(MockConfigManagerClient::new());
+    let mut mock_client = MockConfigManagerClient::new();
+
+    // Set up expectations for the mock client to accept any NodeDynamicConfig
+    mock_client.expect_update_dynamic_config().returning(|_| Ok(()));
+
+    let config_manager_client: SharedConfigManagerClient = Arc::new(mock_client);
 
     let initial_validator_id = "0x64";
     let (temp_file, cli_args) = create_temp_config_file_and_args(initial_validator_id);

@@ -63,9 +63,16 @@ impl ConfigManagerRunner {
 
         info!("Extracted NodeDynamicConfig: {:?}", node_dynamic_config);
 
-        // TODO(Nadin): Send the new config to the config manager through the client.
-
-        Ok(())
+        match self.config_manager_client.update_dynamic_config(node_dynamic_config).await {
+            Ok(()) => {
+                info!("Successfully updated dynamic config");
+                Ok(())
+            }
+            Err(e) => {
+                error!("Failed to update dynamic config: {:?}", e);
+                Err(format!("Failed to update dynamic config: {:?}", e).into())
+            }
+        }
     }
 }
 

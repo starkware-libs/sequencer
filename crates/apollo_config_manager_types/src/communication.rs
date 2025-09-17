@@ -23,7 +23,12 @@ pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
-pub trait ConfigManagerClient: Send + Sync {}
+pub trait ConfigManagerClient: Send + Sync {
+    async fn update_dynamic_config(
+        &self,
+        config: NodeDynamicConfig,
+    ) -> ConfigManagerClientResult<()>;
+}
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
@@ -34,6 +39,7 @@ pub trait ConfigManagerClient: Send + Sync {}
 pub enum ConfigManagerRequest {
     ReadConfig,
     GetNodeDynamicConfig,
+    UpdateDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -50,14 +56,34 @@ generate_permutation_labels! {
 pub enum ConfigManagerResponse {
     ReadConfig(ConfigManagerResult<Value>),
     GetNodeDynamicConfig(ConfigManagerResult<NodeDynamicConfig>),
+    UpdateDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ConfigManagerClientError {}
+pub enum ConfigManagerClientError {
+    UpdateFailed,
+    UnexpectedResponse,
+}
 
 #[async_trait]
-impl<ComponentClientType> ConfigManagerClient for ComponentClientType where
-    ComponentClientType: Send + Sync + ComponentClient<ConfigManagerRequest, ConfigManagerResponse>
+impl<ComponentClientType> ConfigManagerClient for ComponentClientType
+where
+    ComponentClientType: Send + Sync + ComponentClient<ConfigManagerRequest, ConfigManagerResponse>,
 {
+    async fn update_dynamic_config(
+        &self,
+        config: NodeDynamicConfig,
+    ) -> ConfigManagerClientResult<()> {
+        let request = ConfigManagerRequest::UpdateDynamicConfig(config);
+        let response = self.send(request).await;
+        match response {
+            Ok(ConfigManagerResponse::UpdateDynamicConfig(result)) => match result {
+                Ok(()) => Ok(()),
+                Err(_e) => Err(ConfigManagerClientError::UpdateFailed),
+            },
+            Ok(_) => Err(ConfigManagerClientError::UnexpectedResponse),
+            Err(_e) => Err(ConfigManagerClientError::UpdateFailed),
+        }
+    }
 }
