@@ -1,9 +1,9 @@
 import argparse
-import copy
 import json
 import os
 import time
 
+import copy
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
 from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
@@ -35,12 +35,14 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     if log_comment:
         query_parts.append(quote(log_comment))
     query_value = "%0A".join(query_parts)
-    link = "\n".join([
-        "https://console.cloud.google.com/logs/query;",
-        f"query={query_value};",
-        "timeRange=${__from:date:iso}%2F${__to:date:iso}",
-        "?project=${gcp_project}",
-    ])
+    link = "\n".join(
+        [
+            "https://console.cloud.google.com/logs/query;",
+            f"query={query_value};",
+            "timeRange=${__from:date:iso}%2F${__to:date:iso}",
+            "?project=${gcp_project}",
+        ]
+    )
     legends = extra.get("legends", [])
     display_name_override_value = (
         "${__field.labels.namespace}"
@@ -72,41 +74,26 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                 "thresholds": thresholds,
             },
             "overrides": [
-            # Override the pod display name to show only namespace (and sometimes location) labels
+                # Override the pod display name to show only namespace (and sometimes location) labels
                 {
-                    "matcher": {
-                        "id": "byRegexp",
-                        "options": ".*location.*"
-                    },
-                    "properties": [
-                        {
-                            "id": "displayName",
-                            "value": display_name_override_value
-                        }
-                    ]
+                    "matcher": {"id": "byRegexp", "options": ".*location.*"},
+                    "properties": [{"id": "displayName", "value": display_name_override_value}],
                 }
-            ]
+            ],
         },
-        "options": {
-            "showPercentChange": show_percent_change
-        },
-        "links": (
-            [{"url": link, "title": "GCP Logs", "targetBlank": True}]
-        ),
+        "options": {"showPercentChange": show_percent_change},
+        "links": ([{"url": link, "title": "GCP Logs", "targetBlank": True}]),
         "transformations": [
             # Renames labels of the form {label="value"} to just "value"
             {
                 "id": "renameByRegex",
-                "options": {
-                    "regex": "^\\{[^=]+=\\\"([^\\\"]+)\\\"\\}$",
-                    "renamePattern": "$1"
-                }
+                "options": {"regex": '^\\{[^=]+=\\"([^\\"]+)\\"\\}$', "renamePattern": "$1"},
             },
             # Used twice to remove up to 2 instances of cluster and namespace labels, since it is
             # not possible to remove all in one transformation
             remove_cluster_and_namespace_from_display_name(),
             remove_cluster_and_namespace_from_display_name(),
-        ]
+        ],
     }
 
     if thresholds:
@@ -114,16 +101,18 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 
     return grafana_panel
 
+
 def remove_cluster_and_namespace_from_display_name():
     return {
-            "id": "renameByRegex",
-            "options": {
-                # Remove 'cluster' and 'namespace' label from display name if it is a panel with
-                # combined namespaces (meaning it contains 'cluster' but not 'location').
-                "regex": "^(.*)\{(?=[^}]*cluster)(?![^}]*location)[^}]*\}(.*)$",
-                "renamePattern": "$1$2",
-                },
-            }
+        "id": "renameByRegex",
+        "options": {
+            # Remove 'cluster' and 'namespace' label from display name if it is a panel with
+            # combined namespaces (meaning it contains 'cluster' but not 'location').
+            "regex": "^(.*)\{(?=[^}]*cluster)(?![^}]*location)[^}]*\}(.*)$",
+            "renamePattern": "$1$2",
+        },
+    }
+
 
 def get_next_position(x_position, y_position):
     """Helper function to calculate next position for the panel."""
@@ -149,6 +138,7 @@ def make_gcp_project_var(gcp_project_value: str) -> dict:
         "name": "gcp_project",
         "query": gcp_project_value,
     }
+
 
 def create_dashboard(dashboard_name: str, dev_dashboard: json, env: EnvironmentName) -> dict:
     dashboard = empty_dashboard.copy()
@@ -226,7 +216,7 @@ def dashboard_builder(args: argparse.Namespace) -> None:
                 create_dashboard(
                     dashboard_name=dashboard_name,
                     dev_dashboard=dev_json[dashboard_name],
-                    env=EnvironmentName(args.env)
+                    env=EnvironmentName(args.env),
                 ),
             ]
         )
