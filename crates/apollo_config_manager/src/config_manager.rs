@@ -53,6 +53,11 @@ impl ConfigManager {
     pub fn get_node_dynamic_config(&self) -> Arc<NodeDynamicConfig> {
         self.state.node_dynamic_config.clone()
     }
+
+    pub fn set_node_dynamic_config(&mut self, config: NodeDynamicConfig) {
+        info!("ConfigManager: updating node dynamic config");
+        self.state.node_dynamic_config = Arc::new(config);
+    }
 }
 
 pub type LocalConfigManagerServer =
@@ -76,6 +81,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                 let node_config = self.get_node_dynamic_config();
                 let result = Ok((*node_config).clone());
                 ConfigManagerResponse::GetNodeDynamicConfig(result)
+            }
+            ConfigManagerRequest::UpdateDynamicConfig(new_config) => {
+                info!("ConfigManager: handling UpdateDynamicConfig request");
+                self.set_node_dynamic_config(new_config);
+                ConfigManagerResponse::UpdateDynamicConfig(Ok(()))
             }
         }
     }
