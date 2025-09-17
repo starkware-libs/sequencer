@@ -193,6 +193,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
     async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
         let last_processed_l1_block_number = self.last_l1_block_processed.number;
+        let last_processed_l1_block_hash = self.last_l1_block_processed.hash;
         let last_block_processed_fresh = self
             .base_layer
             .l1_block_at(last_processed_l1_block_number)
@@ -203,13 +204,13 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             L1_MESSAGE_SCRAPER_REORG_DETECTED.increment(1);
             return Err(L1ScraperError::L1ReorgDetected {
                 reason: format!(
-                    "Last processed L1 block with number {last_processed_l1_block_number} no \
-                     longer exists."
+                    "Last processed L1 block with number {last_processed_l1_block_number} and \
+                     hash {last_processed_l1_block_hash} no longer exists."
                 ),
             });
         };
 
-        if last_block_processed_fresh.hash != self.last_l1_block_processed.hash {
+        if last_block_processed_fresh.hash != last_processed_l1_block_hash {
             L1_MESSAGE_SCRAPER_REORG_DETECTED.increment(1);
             return Err(L1ScraperError::L1ReorgDetected {
                 reason: format!(
@@ -217,7 +218,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                      hash stored, {}",
                     last_block_processed_fresh.hash,
                     last_processed_l1_block_number,
-                    self.last_l1_block_processed.hash,
+                    last_processed_l1_block_hash
                 ),
             });
         }
@@ -236,7 +237,7 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
         .await
         .map_err(L1ScraperError::BaseLayerError)?;
 
-    let latest_l1_block = match latest_l1_block_number {
+    let latest_l1_block_number = match latest_l1_block_number {
         Some(latest_l1_block_number) => Ok(latest_l1_block_number),
         None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
     }?;
@@ -246,16 +247,18 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
     // Add 50% safety margin.
     let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
 
-    let l1_block_number_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
+    let l1_block_number_rewind = latest_l1_block_number.saturating_sub(safe_blocks_in_interval);
 
     let block_reference_rewind = base_layer
         .l1_block_at(l1_block_number_rewind)
         .await
         .map_err(L1ScraperError::BaseLayerError)?
-        .expect(
-            "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
-             exist",
-        );
+        .unwrap_or_else(|| {
+            panic!(
+                "Rewound L1 block number is between 0 and the verified latest L1 block \
+                 {latest_l1_block_number}, so should exist",
+            )
+        });
     Ok(block_reference_rewind)
 }
 
@@ -325,7 +328,10 @@ impl SerializeConfig for L1ScraperConfig {
 pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
     BaseLayerError(T::Error),
-    #[error("Finality too high: {finality:?} > {latest_l1_block_no_finality:?}")]
+    #[error(
+        "Could not find block number. Finality {finality:?}, latest block: \
+         {latest_l1_block_no_finality:?}"
+    )]
     FinalityTooHigh { finality: u64, latest_l1_block_no_finality: L1BlockNumber },
     #[error("Failed to calculate hash: {0}")]
     HashCalculationError(StarknetApiError),
