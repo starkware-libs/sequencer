@@ -287,8 +287,10 @@ impl Event {
             }
         })
     }
+}
 
-    #[cfg(any(feature = "testing", test))]
+#[cfg(any(feature = "testing", test))]
+impl Event {
     /// Asserts event matches other, allowing for a small margin in scrape time.
     pub fn assert_event_almost_eq(&self, other: &Event) {
         if let (
