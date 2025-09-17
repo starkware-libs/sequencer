@@ -55,8 +55,10 @@ apollo_test_utils.workspace = true
 assert_matches.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec", "schemars"] }
 camelpaste.workspace = true
+futures.workspace = true
 insta = { workspace = true, features = ["yaml"] }
 metrics-exporter-prometheus.workspace = true
+nix.workspace = true
 num-traits.workspace = true
 paste.workspace = true
 pretty_assertions.workspace = true
