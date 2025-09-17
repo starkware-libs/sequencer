@@ -60,10 +60,10 @@ fn get_consensus_round_above_zero_multiple_times(
         "consensus_round_above_zero_multiple_times",
         "Consensus round above zero multiple times",
         AlertGroup::Consensus,
-        format!("increase({}[30m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+        format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0,
+            comparison_value: 30.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
@@ -147,7 +147,7 @@ fn get_consensus_p2p_peer_down(
 
 pub(crate) fn get_consensus_p2p_peer_down_vec() -> Vec<Alert> {
     vec![
-        get_consensus_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Sos),
+        get_consensus_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
         get_consensus_p2p_peer_down(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
@@ -204,7 +204,7 @@ pub(crate) fn get_consensus_block_number_progress_is_slow_vec() -> Vec<Alert> {
     vec![
         get_consensus_block_number_progress_is_slow(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
+            AlertSeverity::Regular,
         ),
         get_consensus_block_number_progress_is_slow(
             AlertEnvFiltering::TestnetStyleAlerts,

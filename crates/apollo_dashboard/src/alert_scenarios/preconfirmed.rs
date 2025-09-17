@@ -40,7 +40,7 @@ pub(crate) fn get_preconfirmed_block_not_written_vec() -> Vec<Alert> {
     vec![
         get_preconfirmed_block_not_written(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
+            AlertSeverity::Sos,
         ),
         get_preconfirmed_block_not_written(
             AlertEnvFiltering::TestnetStyleAlerts,
