@@ -60,7 +60,11 @@ fn create_cli_args_from_deployment_system() -> Vec<String> {
 async fn test_config_manager_runner_with_dummy_config() {
     // Use all the consolidated test config files
     let cli_args = create_cli_args_from_deployment_system();
-    let mock_client = MockConfigManagerClient::new();
+    let mut mock_client = MockConfigManagerClient::new();
+
+    // Set up mock expectation for set_consensus_dynamic_config
+    mock_client.expect_set_consensus_dynamic_config().times(1).returning(|_| Ok(()));
+
     let shared_client: Arc<dyn ConfigManagerClient> = Arc::new(mock_client);
     let runner = ConfigManagerRunner::new(shared_client, cli_args);
     // Test the update_consensus_config method directly
@@ -69,7 +73,7 @@ async fn test_config_manager_runner_with_dummy_config() {
     assert!(result.is_ok(), "update_consensus_config should succeed");
     assert!(logs_contain("Loading and validating config"));
     assert!(logs_contain("Built consensus dynamic config"));
-    assert!(logs_contain("Would send consensus dynamic config.validator_id:"));
+    assert!(logs_contain("Successfully sent consensus dynamic config to config manager:"));
 }
 
 #[tokio::test]
@@ -97,7 +101,14 @@ async fn test_config_manager_runner_config_update() {
         }
     }
 
-    let mock_client = MockConfigManagerClient::new();
+    let mut mock_client = MockConfigManagerClient::new();
+
+    // Set up mock expectations for set_consensus_dynamic_config calls
+    mock_client
+        .expect_set_consensus_dynamic_config()
+        .times(2)  // Called twice in this test
+        .returning(|_| Ok(()));
+
     let shared_client: Arc<dyn ConfigManagerClient> = Arc::new(mock_client);
     let runner = ConfigManagerRunner::new(shared_client, cli_args);
 
@@ -108,11 +119,8 @@ async fn test_config_manager_runner_config_update() {
     // Verify initial config was processed
     assert!(logs_contain("Built consensus dynamic config"));
     assert!(
-        logs_contain(
-            "Would send consensus dynamic config.validator_id: \
-             0x0000000000000000000000000000000000000000000000000000000000000064 to config manager"
-        ),
-        "Should contain default validator_id 0x64"
+        logs_contain("Successfully sent consensus dynamic config to config manager:"),
+        "Should contain successful config send message"
     );
 
     let modified_config = json!({

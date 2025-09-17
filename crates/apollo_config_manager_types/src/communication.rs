@@ -23,7 +23,12 @@ pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
-pub trait ConfigManagerClient: Send + Sync {}
+pub trait ConfigManagerClient: Send + Sync {
+    async fn set_consensus_dynamic_config(
+        &self,
+        config: ConsensusDynamicConfig,
+    ) -> ConfigManagerClientResult<()>;
+}
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
@@ -34,6 +39,7 @@ pub trait ConfigManagerClient: Send + Sync {}
 pub enum ConfigManagerRequest {
     ReadConfig,
     GetConsensusDynamicConfig,
+    SetConsensusDynamicConfig(ConsensusDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -50,14 +56,33 @@ generate_permutation_labels! {
 pub enum ConfigManagerResponse {
     ReadConfig(ConfigManagerResult<Value>),
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    SetConsensusDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum ConfigManagerClientError {}
+pub enum ConfigManagerClientError {
+    RequestFailed,
+    UnexpectedResponse,
+    CommunicationError,
+}
 
 #[async_trait]
-impl<ComponentClientType> ConfigManagerClient for ComponentClientType where
-    ComponentClientType: Send + Sync + ComponentClient<ConfigManagerRequest, ConfigManagerResponse>
+impl<ComponentClientType> ConfigManagerClient for ComponentClientType
+where
+    ComponentClientType: Send + Sync + ComponentClient<ConfigManagerRequest, ConfigManagerResponse>,
 {
+    async fn set_consensus_dynamic_config(
+        &self,
+        config: ConsensusDynamicConfig,
+    ) -> ConfigManagerClientResult<()> {
+        let request = ConfigManagerRequest::SetConsensusDynamicConfig(config);
+        match self.send(request).await {
+            Ok(ConfigManagerResponse::SetConsensusDynamicConfig(result)) => {
+                result.map_err(|_| ConfigManagerClientError::RequestFailed)
+            }
+            Ok(_) => Err(ConfigManagerClientError::UnexpectedResponse),
+            Err(_) => Err(ConfigManagerClientError::CommunicationError),
+        }
+    }
 }
