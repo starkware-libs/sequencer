@@ -145,7 +145,6 @@ pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
     Ok(subtrees_roots)
 }
 
-#[allow(dead_code)]
 /// Returns the Patricia inner nodes ([PreimageMap]) in the paths to the given `leaf_indices` in the
 /// given tree according to the `root_hash`.
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
@@ -168,7 +167,6 @@ pub fn fetch_patricia_paths<L: Leaf>(
     Ok(witnesses)
 }
 
-#[allow(dead_code)]
 /// Fetches the inner nodes [HashOutput] and [Preimage] in the paths to modified leaves.
 /// The siblings (witnesses) are included in the [Preimage] of their parent node.
 /// Required for `patricia_update` function in Cairo.

@@ -236,7 +236,7 @@ impl<'a> SortedLeafIndices<'a> {
         [Self(&self.0[..idx]), Self(&self.0[idx..])]
     }
 
-    pub(crate) fn get_indices(&self) -> &'a [NodeIndex] {
+    pub fn get_indices(&self) -> &'a [NodeIndex] {
         self.0
     }
 
