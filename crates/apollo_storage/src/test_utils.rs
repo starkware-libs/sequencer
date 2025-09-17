@@ -44,7 +44,7 @@ pub(crate) fn get_test_config(storage_scope: Option<StorageScope>) -> (StorageCo
 /// This function ensures that the specified directory exists by creating it if necessary.
 /// Unlike get_test_config, this function does not return a TempDir object, so the caller is
 /// responsible for managing the directory's lifecycle and cleanup.
-pub(crate) fn get_test_config_with_path(
+pub fn get_test_config_with_path(
     storage_scope: Option<StorageScope>,
     path: PathBuf,
 ) -> StorageConfig {
