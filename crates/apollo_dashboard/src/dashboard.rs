@@ -123,6 +123,7 @@ pub struct ExtraParams {
     pub unit: Option<Unit>,
     pub show_percent_change: Option<bool>,
     pub log_query: Option<String>,
+    pub log_comment: Option<String>,
     pub thresholds: Option<Thresholds>,
     pub legends: Option<Vec<String>>,
 }
@@ -170,15 +171,20 @@ impl Panel {
         self.extra.show_percent_change = Some(true);
         self
     }
+
+    fn quote_if_missing(s: &str) -> String {
+        if s.contains('"') { s.to_string() } else { format!("\"{}\"", s) }
+    }
+
     pub fn with_log_query(mut self, log_query: impl Into<String>) -> Self {
-        let mut query = log_query.into();
-
-        // Add quotes if none are present.
-        if !query.contains('"') {
-            query = format!("\"{}\"", query);
-        }
-
+        let query = Self::quote_if_missing(&log_query.into());
         self.extra.log_query = Some(query);
+        self
+    }
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    pub fn with_log_comment(mut self, log_comment: impl Into<String>) -> Self {
+        let comment = Self::quote_if_missing(&log_comment.into());
+        self.extra.log_comment = Some(format!("-- {}", comment));
         self
     }
 
