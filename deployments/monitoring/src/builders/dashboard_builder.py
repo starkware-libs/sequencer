@@ -26,10 +26,18 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     unit = extra.get("unit", "none")
     show_percent_change = extra.get("show_percent_change", False)
     log_query = extra.get("log_query", "")
+    log_comment = extra.get("log_comment", "")
     thresholds = extra.get("thresholds", {})
+    query_parts = [
+        f"resource.labels.namespace_name=~%22^%28${{namespace:pipe}}%29$%22",
+        quote(log_query),
+    ]
+    if log_comment:
+        query_parts.append(quote(log_comment))
+    query_value = "%0A".join(query_parts)
     link = "\n".join([
         "https://console.cloud.google.com/logs/query;",
-        f"query=resource.labels.namespace_name=~%22^%28${{namespace:pipe}}%29$%22%0A{quote(log_query)};",
+        f"query={query_value};",
         "timeRange=${__from:date:iso}%2F${__to:date:iso}",
         "?project=${gcp_project}",
     ])
