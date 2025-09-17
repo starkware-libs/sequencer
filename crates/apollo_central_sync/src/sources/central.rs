@@ -408,7 +408,7 @@ fn client_to_central_block(
     match maybe_client_block {
         Ok((Some(block), Some(signature_data))) => {
             debug!(
-                "Received new block {current_block_number} with hash {:#064x}.",
+                "Received new block {current_block_number} with hash {:#066x}.",
                 block.block_hash().0
             );
             trace!("Block: {block:#?}, signature data: {signature_data:#?}.");
