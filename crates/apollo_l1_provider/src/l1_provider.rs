@@ -34,6 +34,8 @@ pub mod l1_provider_tests;
 #[derive(Debug, Clone)]
 pub struct L1Provider {
     pub config: L1ProviderConfig,
+    /// Used for catching up at startup or after a crash.
+    pub bootstrapper: Bootstrapper,
     /// Represents the L2 block height being built.
     pub current_height: BlockNumber,
     pub tx_manager: TransactionManager,
@@ -50,13 +52,13 @@ impl L1Provider {
     // Start the provider, get first-scrape events, start L2 sync.
     pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
         info!("Initializing l1 provider");
-        let Some(bootstrapper) = self.state.get_bootstrapper() else {
+        if !self.state.is_bootstrapping() {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
             // restart from the infra, since this CAN happen if the scraper recovered from a crash.
             // Right now this is effectively a KILL message when called in steady state.
             panic!("Called initialize while not in bootstrap state. Restart service.");
         };
-        bootstrapper.start_l2_sync(self.current_height).await;
+        self.bootstrapper.start_l2_sync(self.current_height).await;
         self.add_events(events)?;
 
         Ok(())
@@ -65,7 +67,7 @@ impl L1Provider {
     /// Accept new events from the scraper.
     #[instrument(skip_all, err)]
     pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        if self.state.uninitialized() {
+        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -141,7 +143,7 @@ impl L1Provider {
         height: BlockNumber,
         state: SessionState,
     ) -> L1ProviderResult<()> {
-        if self.state.uninitialized() {
+        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -160,7 +162,7 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
-        if self.state.uninitialized() {
+        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -180,7 +182,7 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            ProviderState::Pending | ProviderState::Bootstrap(_) => {
+            ProviderState::Pending | ProviderState::Bootstrap => {
                 Err(L1ProviderError::OutOfSessionGetTransactions)
             }
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
@@ -196,7 +198,7 @@ impl L1Provider {
         tx_hash: TransactionHash,
         height: BlockNumber,
     ) -> L1ProviderResult<ValidationStatus> {
-        if self.state.uninitialized() {
+        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -206,7 +208,7 @@ impl L1Provider {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending | ProviderState::Bootstrap(_) => {
+            ProviderState::Pending | ProviderState::Bootstrap => {
                 Err(L1ProviderError::OutOfSessionValidate)
             }
         }
@@ -224,7 +226,7 @@ impl L1Provider {
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         info!("Committing block to L1 provider at height {}.", height);
-        if self.state.uninitialized() {
+        if self.state.is_bootstrapping() && !self.bootstrapper.sync_started() {
             return Err(L1ProviderError::Uninitialized);
         }
 
@@ -243,7 +245,7 @@ impl L1Provider {
         // ending the bootstrap.
         if self.state.is_bootstrapping() {
             // Once bootstrap completes it will transition to Pending state by itself.
-            return self.bootstrap(committed_txs, height);
+            return self.accept_commit_while_bootstrapping(committed_txs, height);
         }
 
         self.validate_height(height)?;
@@ -274,7 +276,7 @@ impl L1Provider {
     /// - If provider gets a block consistent with current_height, apply it and then the rest of the
     ///   backlog, then transition to Pending state.
     /// - Blocks lower than current height are checked for consistency with existing transactions.
-    fn bootstrap(
+    fn accept_commit_while_bootstrapping(
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
         new_height: BlockNumber,
@@ -322,28 +324,20 @@ impl L1Provider {
             Equal => self.apply_commit_block(committed_txs, Default::default()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
-                self.state
-                    .get_bootstrapper()
-                    .expect("This method should only be called when bootstrapping.")
-                    .add_commit_block_to_backlog(committed_txs, new_height);
+                self.bootstrapper.add_commit_block_to_backlog(committed_txs, new_height);
                 // No need to check the backlog or bootstrap completion, since those are only
                 // applicable if we just increased the provider's height, like in the `Equal` case.
                 return Ok(());
             }
         };
 
-        let bootstrapper = self
-            .state
-            .get_bootstrapper()
-            .expect("This method should only be called when bootstrapping.");
-
-        // If caught up, apply the backlog, drop the Bootstrapper and transition to Pending.
-        if bootstrapper.is_caught_up(self.current_height) {
+        // If caught up, apply the backlog and transition to Pending.
+        if self.bootstrapper.is_caught_up(self.current_height) {
             info!(
                 "Bootstrapper sync completed, provider height is now {}, processing backlog...",
                 self.current_height
             );
-            let backlog = std::mem::take(&mut bootstrapper.commit_block_backlog);
+            let backlog = std::mem::take(&mut self.bootstrapper.commit_block_backlog);
             assert!(
                 backlog.is_empty()
                     || self.current_height == backlog.first().unwrap().height
@@ -367,11 +361,10 @@ impl L1Provider {
 
             info!(
                 "Bootstrapping done: commit-block backlog was processed, now transitioning to \
-                 Pending state at new height: {} and dropping the bootstrapper.",
+                 Pending state at new height: {}.",
                 self.current_height
             );
 
-            // Drops bootstrapper and all of its assets.
             self.state = ProviderState::Pending;
         }
 
@@ -509,13 +502,14 @@ impl L1ProviderBuilder {
         info!("Starting L1 provider at height: {l1_provider_startup_height}");
         L1Provider {
             start_height: l1_provider_startup_height,
+            bootstrapper,
             current_height: l1_provider_startup_height,
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,
                 self.config.l1_handler_cancellation_timelock_seconds,
                 self.config.l1_handler_consumption_timelock_seconds,
             ),
-            state: ProviderState::Bootstrap(bootstrapper),
+            state: ProviderState::Bootstrap,
             config: self.config,
             clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
