@@ -39,6 +39,7 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 validator.workspace = true
+apollo_consensus_config.workspace = true
 
 [dev-dependencies]
 apollo_config = { workspace = true, features = ["testing"] }

@@ -1083,9 +1083,9 @@ version = "0.16.0-rc.0"
 dependencies = [
  "apollo_config_manager_config",
  "apollo_config_manager_types",
- "apollo_consensus_config",
  "apollo_infra",
  "apollo_metrics",
+ "apollo_node_config",
  "async-trait",
  "serde_json",
  "tracing",
@@ -1104,9 +1104,9 @@ dependencies = [
 name = "apollo_config_manager_types"
 version = "0.16.0-rc.0"
 dependencies = [
- "apollo_consensus_config",
  "apollo_infra",
  "apollo_metrics",
+ "apollo_node_config",
  "async-trait",
  "mockall",
  "serde",
@@ -2015,6 +2015,7 @@ dependencies = [
  "apollo_class_manager_config",
  "apollo_config",
  "apollo_config_manager_config",
+ "apollo_consensus_config",
  "apollo_consensus_manager_config",
  "apollo_gateway_config",
  "apollo_http_server_config",

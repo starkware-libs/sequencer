@@ -19,6 +19,7 @@ use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager_config::config::ConfigManagerConfig;
+use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::HttpServerConfig;
@@ -282,6 +283,18 @@ impl Default for SequencerNodeConfig {
             sierra_compiler_config: Some(SierraCompilationConfig::default()),
             state_sync_config: Some(StateSyncConfig::default()),
         }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct NodeDynamicConfig {
+    #[validate]
+    pub consensus_dynamic_config: ConsensusDynamicConfig,
+}
+
+impl Default for NodeDynamicConfig {
+    fn default() -> Self {
+        Self { consensus_dynamic_config: ConsensusDynamicConfig::default() }
     }
 }
 
