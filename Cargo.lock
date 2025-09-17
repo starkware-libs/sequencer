@@ -1088,6 +1088,7 @@ dependencies = [
  "apollo_node_config",
  "async-trait",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
 ]
@@ -2040,7 +2041,9 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet_api",
  "tracing",
+ "url",
  "validator",
 ]
 
