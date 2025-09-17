@@ -38,6 +38,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 pub trait RandomValue {
+    /// Generates a random number between 0 and max (inclusive).
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self;
 }
 
@@ -46,8 +47,10 @@ pub trait DummyRandomValue {
 }
 
 impl RandomValue for Felt {
-    fn random<R: Rng>(rng: &mut R, _max: Option<U256>) -> Self {
-        u256_try_into_felt(&get_random_u256(rng, U256::ONE, u256_from_felt(&Felt::MAX) + 1))
+    fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
+        let max_felt = u256_from_felt(&Felt::MAX);
+        let max = min(max.unwrap_or(max_felt), max_felt);
+        u256_try_into_felt(&get_random_u256(rng, U256::ONE, max + 1))
             .expect("Failed to create a random Felt")
     }
 }
