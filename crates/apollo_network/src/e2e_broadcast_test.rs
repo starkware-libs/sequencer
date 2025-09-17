@@ -10,7 +10,7 @@ use starknet_api::core::ChainId;
 use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
-use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
+use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager, NetworkManager};
 use crate::peer_manager::PeerManagerConfig;
 use crate::{sqmr, Bytes};
 
@@ -82,19 +82,36 @@ impl From<Number> for Bytes {
     }
 }
 
+pub async fn create_peer_network(num_peers: usize) -> Vec<NetworkManager> {
+    assert!(num_peers > 0, "Number of peers must be greater than 0");
+
+    let get_address = |swarm: &Swarm<MixedBehaviour>| {
+        let address = swarm.external_addresses().next().unwrap().clone();
+        address.with_p2p(*swarm.local_peer_id()).unwrap()
+    };
+    let mut network_managers = Vec::new();
+
+    let bootstrap_swarm = create_swarm(None).await;
+    let bootstrap_peer_multiaddr = get_address(&bootstrap_swarm);
+    network_managers.push(create_network_manager(bootstrap_swarm));
+
+    for _ in 0..num_peers {
+        let swarm = create_swarm(Some(bootstrap_peer_multiaddr.clone())).await;
+        network_managers.push(create_network_manager(swarm));
+    }
+
+    network_managers
+}
+
 #[tokio::test]
 async fn broadcast_subscriber_end_to_end_test() {
     let topic1 = Topic::new("TOPIC1");
     let topic2 = Topic::new("TOPIC2");
-    let bootstrap_swarm = create_swarm(None).await;
-    let bootstrap_peer_multiaddr = bootstrap_swarm.external_addresses().next().unwrap().clone();
-    let bootstrap_peer_multiaddr =
-        bootstrap_peer_multiaddr.with_p2p(*bootstrap_swarm.local_peer_id()).unwrap();
-    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
-    let mut network_manager1 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr.clone())).await);
-    let mut network_manager2 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)).await);
+
+    let mut network_managers = create_peer_network(2).await;
+    let bootstrap_network_manager = network_managers.remove(0);
+    let mut network_manager1 = network_managers.remove(0);
+    let mut network_manager2 = network_managers.remove(0);
 
     let mut subscriber_channels1_1 =
         network_manager1.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
