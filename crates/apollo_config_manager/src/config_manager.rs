@@ -53,6 +53,15 @@ impl ConfigManager {
     pub fn get_consensus_dynamic_config(&self) -> Arc<ConsensusDynamicConfig> {
         self.state.consensus_dynamic_config.clone()
     }
+
+    pub fn set_consensus_dynamic_config(
+        &mut self,
+        config: ConsensusDynamicConfig,
+    ) -> ConfigManagerResult<()> {
+        info!("Updating consensus dynamic config");
+        self.state.consensus_dynamic_config = Arc::new(config);
+        Ok(())
+    }
 }
 
 pub type LocalConfigManagerServer =
@@ -76,6 +85,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                 let consensus_config = self.get_consensus_dynamic_config();
                 let result = Ok((*consensus_config).clone());
                 ConfigManagerResponse::GetConsensusDynamicConfig(result)
+            }
+            ConfigManagerRequest::SetConsensusDynamicConfig(config) => {
+                info!("ConfigManager: handling SetConsensusDynamicConfig request");
+                let result = self.set_consensus_dynamic_config(config);
+                ConfigManagerResponse::SetConsensusDynamicConfig(result)
             }
         }
     }

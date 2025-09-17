@@ -59,11 +59,23 @@ impl ConfigManagerRunner {
 
             info!("Built consensus dynamic config: {:?}", consensus_dynamic_config);
 
-            // TODO(Nadin): Send the new config to the config manager through the client.
-            info!(
-                "Would send consensus dynamic config.validator_id: {} to config manager",
-                consensus_dynamic_config.validator_id
-            );
+            // Send the new config to the config manager through the client
+            match self
+                .config_manager_client
+                .set_consensus_dynamic_config(consensus_dynamic_config.clone())
+                .await
+            {
+                Ok(()) => {
+                    info!(
+                        "Successfully sent consensus dynamic config to config manager: {:?}",
+                        consensus_dynamic_config
+                    );
+                }
+                Err(e) => {
+                    error!("Failed to send consensus dynamic config to config manager: {:?}", e);
+                    return Err(format!("Failed to send config to config manager: {:?}", e).into());
+                }
+            }
 
             Ok(())
         } else {
