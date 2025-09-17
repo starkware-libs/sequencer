@@ -1083,6 +1083,7 @@ dependencies = [
 name = "apollo_config_manager"
 version = "0.16.0-rc.0"
 dependencies = [
+ "apollo_config",
  "apollo_config_manager_config",
  "apollo_config_manager_types",
  "apollo_infra",
@@ -1090,6 +1091,8 @@ dependencies = [
  "apollo_node_config",
  "async-trait",
  "serde_json",
+ "starknet_api",
+ "tempfile",
  "tokio",
  "tracing",
 ]
