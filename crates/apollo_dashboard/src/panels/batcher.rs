@@ -22,7 +22,9 @@ fn get_panel_validator_wasted_txs() -> Panel {
         vec![format!("increase({}[10m])", VALIDATOR_WASTED_TXS.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("Finished building block as validator. Started executing")
 }
+
 fn get_panel_proposer_deferred_txs() -> Panel {
     Panel::new(
         "Proposal Build: Deferred TXs",
@@ -30,7 +32,9 @@ fn get_panel_proposer_deferred_txs() -> Panel {
         vec![format!("increase({}[10m])", PROPOSER_DEFERRED_TXS.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("Finished building block as proposer. Started executing")
 }
+
 fn get_panel_storage_height() -> Panel {
     Panel::new(
         "Storage Height",
@@ -39,6 +43,7 @@ fn get_panel_storage_height() -> Panel {
         PanelType::Stat,
     )
 }
+
 fn get_panel_rejection_reverted_ratio() -> Panel {
     let denominator_expr = format!(
         "(increase({}[10m]) + increase({}[10m]) + increase({}[10m]))",
@@ -64,6 +69,7 @@ fn get_panel_rejection_reverted_ratio() -> Panel {
     .with_legends(vec!["Rejected", "Reverted"])
     .with_unit(Unit::PercentUnit)
 }
+
 pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
     Panel::new(
         "Batched Transactions Rate (TPS)",
@@ -72,6 +78,7 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
         PanelType::TimeSeries,
     )
 }
+
 fn get_panel_block_close_reasons() -> Panel {
     Panel::new(
         "Block Close Reasons",
@@ -83,7 +90,9 @@ fn get_panel_block_close_reasons() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"Block builder deadline reached.\" OR \"Block is full.\"")
 }
+
 fn get_panel_num_batches_in_proposal() -> Panel {
     Panel::new(
         "Number of Chunks in Proposal",
@@ -92,6 +101,7 @@ fn get_panel_num_batches_in_proposal() -> Panel {
         PanelType::TimeSeries,
     )
 }
+
 fn get_panel_num_txs_in_proposal() -> Panel {
     Panel::new(
         "Number of Transactions in Proposal",
