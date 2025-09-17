@@ -5,6 +5,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_INBOUND_STREAM_EVICTED,
 };
 use apollo_consensus_manager::metrics::{
+    CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
@@ -22,7 +23,11 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
+use apollo_mempool_p2p::metrics::{
+    MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
+    MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+};
+use apollo_state_sync_metrics::metrics::P2P_SYNC_NUM_BLACKLISTED_PEERS;
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
 use crate::alert_scenarios::block_production_delay::{
@@ -464,6 +469,63 @@ fn get_mempool_p2p_disconnections() -> Alert {
     )
 }
 
+fn get_consensus_blacklisted_peers_alert() -> Alert {
+    Alert::new(
+        "consensus_blacklisted_peers",
+        "Consensus blacklisted peers detected",
+        AlertGroup::Consensus,
+        format!("sum({}) or vector(0)", CONSENSUS_NUM_BLACKLISTED_PEERS.get_name_with_filter()),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::Applicable,
+        AlertEnvFiltering::All,
+    )
+}
+
+fn get_mempool_p2p_blacklisted_peers_alert() -> Alert {
+    Alert::new(
+        "mempool_p2p_blacklisted_peers",
+        "Mempool P2P blacklisted peers detected",
+        AlertGroup::Mempool,
+        format!("sum({}) or vector(0)", MEMPOOL_P2P_NUM_BLACKLISTED_PEERS.get_name_with_filter()),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::NotApplicable,
+        AlertEnvFiltering::All,
+    )
+}
+
+fn get_state_sync_blacklisted_peers_alert() -> Alert {
+    Alert::new(
+        "state_sync_blacklisted_peers",
+        "State sync blacklisted peers detected",
+        AlertGroup::StateSync,
+        format!("sum({}) or vector(0)", P2P_SYNC_NUM_BLACKLISTED_PEERS.get_name_with_filter()),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::Applicable,
+        AlertEnvFiltering::All,
+    )
+}
+
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let mut alerts = vec![
         get_consensus_proposal_fin_mismatch_once(),
@@ -475,6 +537,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_p2p_disconnections(),
+        get_consensus_blacklisted_peers_alert(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
         get_gateway_add_tx_idle(),
@@ -490,7 +553,9 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
         get_mempool_p2p_disconnections(),
+        get_mempool_p2p_blacklisted_peers_alert(),
         get_native_compilation_error_increase(),
+        get_state_sync_blacklisted_peers_alert(),
     ];
 
     alerts.append(&mut get_batched_transactions_stuck_vec());
