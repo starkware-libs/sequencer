@@ -1334,6 +1334,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "components.signature_manager.remote_client_config.attempts_per_log": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.signature_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -1348,11 +1353,6 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
-  },
-  "components.signature_manager.remote_client_config.log_attempt_interval_ms": {
-    "description": "Number of attempts between failure log messages",
-    "privacy": "Public",
-    "value": 10
   },
   "components.signature_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
