@@ -63,6 +63,7 @@ use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
+    L1_PROVIDER_ERRORS,
     LAST_BATCHED_BLOCK_HEIGHT,
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
@@ -220,16 +221,19 @@ impl Batcher {
                 error!("Failed to update gas price in mempool: {}", err);
                 BatcherError::InternalError
             })?;
-        self.l1_provider_client
+        // Ignore errors. If start_block fails, then subsequent calls to l1 provider will fail on
+        // out of session and l1 provider will restart and bootstrap again.
+        let _ = self
+            .l1_provider_client
             .start_block(SessionState::Propose, propose_block_input.block_info.block_number)
             .await
-            .map_err(|err| {
+            .inspect_err(|err| {
                 error!(
                     "L1 provider is not ready to start proposing block {}: {}. ",
                     propose_block_input.block_info.block_number, err
                 );
-                BatcherError::NotReady
-            })?;
+                L1_PROVIDER_ERRORS.increment(1);
+            });
 
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
@@ -305,16 +309,19 @@ impl Batcher {
             validate_block_input.retrospective_block_hash,
         )?;
 
-        self.l1_provider_client
+        // Ignore errors. If start_block fails, then subsequent calls to l1 provider will fail on
+        // out of session and l1 provider will restart and bootstrap again.
+        let _ = self
+            .l1_provider_client
             .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
             .await
-            .map_err(|err| {
+            .inspect_err(|err| {
                 error!(
                     "L1 provider is not ready to start validating block {}: {}. ",
                     validate_block_input.block_info.block_number, err
                 );
-                BatcherError::NotReady
-            })?;
+                L1_PROVIDER_ERRORS.increment(1);
+            });
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
@@ -678,9 +685,7 @@ impl Batcher {
                     );
                 }
             }
-            // Rollback the state diff in the storage.
-            self.storage_writer.revert_block(height);
-            return Err(BatcherError::InternalError);
+            L1_PROVIDER_ERRORS.increment(1);
         }
 
         // Notify the mempool of the new block.
