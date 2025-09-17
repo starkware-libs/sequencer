@@ -3891,6 +3891,25 @@
                     }
                 }
             ],
+            "1330": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__main__.invoke_call_chain"
+                    ],
+                    "code": "assert ids.value == 0, 'split_int(): value is out of range.'",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 104,
+                            "offset": 7
+                        },
+                        "reference_ids": {
+                            "__main__.invoke_call_chain.value": 30
+                        }
+                    }
+                }
+            ],
             "1358": [
                 {
                     "accessible_scopes": [
@@ -4975,6 +4994,21 @@
             "__main__.invoke_call_chain.SIZEOF_LOCALS": {
                 "type": "const",
                 "value": 0
+            },
+            "__main__.invoke_call_chain.value": {
+                "cairo_type": "felt",
+                "full_name": "__main__.invoke_call_chain.value",
+                "references": [
+                    {
+                        "ap_tracking_data": {
+                            "group": 104,
+                            "offset": 7
+                        },
+                        "pc": 1330,
+                        "value": "cast(777, felt)"
+                    }
+                ],
+                "type": "reference"
             },
             "__main__.library_call": {
                 "destination": "starkware.starknet.common.syscalls.library_call",
@@ -11684,6 +11718,14 @@
                     },
                     "pc": 646,
                     "value": "[cast(fp, felt*)]"
+                },
+                {
+                    "ap_tracking_data": {
+                        "group": 104,
+                        "offset": 7
+                    },
+                    "pc": 1330,
+                    "value": "cast(777, felt)"
                 }
             ]
         }

@@ -339,6 +339,8 @@ func invoke_call_chain{syscall_ptr: felt*}(calldata_len: felt, calldata: felt*) 
     }
 
     let invoke_call_chain_selector = 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5;
+    let value = 777;
+    %{ assert ids.value == 0, 'split_int(): value is out of range.' %}
     let fail_selector = 0x032564d7e0fe091d49b4c20f4632191e4ed6986bf993849879abfef9465def25;
     if (function_selector == invoke_call_chain_selector) {
         return invoke_call_chain(calldata_len=calldata_len, calldata=calldata);
