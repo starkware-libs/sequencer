@@ -440,7 +440,7 @@ impl ConsensusContext for SequencerConsensusContext {
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", block.0);
+        info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
 
         self.interrupt_active_proposal().await;
         let proposal_id;

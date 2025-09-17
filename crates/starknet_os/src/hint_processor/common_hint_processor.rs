@@ -57,6 +57,7 @@ macro_rules! impl_common_hint_processor_logic {
             _vm: &mut VirtualMachine,
             _exec_scopes: &mut ExecutionScopes,
             _hint_data: &Box<dyn Any>,
+            _constants: &HashMap<String, Felt>,
         ) -> VmHintResult {
             Ok(())
         }
@@ -66,6 +67,7 @@ macro_rules! impl_common_hint_processor_logic {
             vm: &mut VirtualMachine,
             exec_scopes: &mut ExecutionScopes,
             hint_data: &Box<dyn Any>,
+            constants: &HashMap<String, Felt>,
         ) -> VmHintExtensionResult {
             if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
                 // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
@@ -74,7 +76,7 @@ macro_rules! impl_common_hint_processor_logic {
                     exec_scopes,
                     ids_data: &hint_processor_data.ids_data,
                     ap_tracking: &hint_processor_data.ap_tracking,
-                    constants: &self.program.constants,
+                    constants,
                 };
                 let hint_str = hint_processor_data.code.as_str();
                 if let Ok(hint) = AllHints::from_str(hint_str) {
@@ -92,7 +94,12 @@ macro_rules! impl_common_hint_processor_logic {
                     };
                 } else {
                     // Cairo0 core hint.
-                    self.get_builtin_hint_processor().execute_hint(vm, exec_scopes, hint_data)?;
+                    self.get_builtin_hint_processor().execute_hint(
+                        vm,
+                        exec_scopes,
+                        hint_data,
+                        constants,
+                    )?;
                     return Ok(HintExtension::default());
                 }
             }
