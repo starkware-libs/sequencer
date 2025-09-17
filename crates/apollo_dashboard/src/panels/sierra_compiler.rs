@@ -48,6 +48,15 @@ fn get_panel_class_sizes() -> Panel {
             .collect(),
         PanelType::TimeSeries,
     )
+    .with_legends(
+        HISTOGRAM_QUANTILES
+            .iter()
+            .map(|q| {
+                let quantile = format!("{q:.2}");
+                format!("{} {}", quantile, "{{class_object_type}}")
+            })
+            .collect(),
+    )
     .with_unit(Unit::MB)
 }
 
