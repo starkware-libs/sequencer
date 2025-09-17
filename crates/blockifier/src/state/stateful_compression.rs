@@ -19,7 +19,7 @@ pub(crate) type AliasKey = StorageKey;
 
 #[derive(Debug, Error)]
 pub enum CompressionError {
-    #[error("Missing key in alias contract: {:#064x}", ***.0)]
+    #[error("Missing key in alias contract: {:#066x}", ***.0)]
     MissedAlias(AliasKey),
     #[error(transparent)]
     StateError(#[from] StateError),
