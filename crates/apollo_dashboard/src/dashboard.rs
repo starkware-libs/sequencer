@@ -308,11 +308,14 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_hist(
-        metric: &MetricHistogram,
+    fn from_hist_helper(
+        metric_name_with_filter: impl AsRef<str>,
         name: impl ToString,
         description: impl ToString,
+        sum_by: impl AsRef<str>,
     ) -> Self {
+        let metric_name = metric_name_with_filter.as_ref();
+        let sum_by = sum_by.as_ref();
         Self::new(
             name.to_string(),
             description.to_string(),
@@ -320,13 +323,40 @@ impl Panel {
                 .iter()
                 .map(|q| {
                     format!(
-                        "histogram_quantile({q:.2}, sum by (le) \
-                         (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                        metric.get_name_with_filter(),
+                        "histogram_quantile({q:.2}, sum by ({sum_by}) \
+                         (rate({metric_name}[{HISTOGRAM_TIME_RANGE}])))",
                     )
                 })
                 .collect(),
             PanelType::TimeSeries,
+        )
+    }
+
+    pub(crate) fn from_hist(
+        metric: &MetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+    ) -> Self {
+        Self::from_hist_helper(metric.get_name_with_filter(), name, description, "le")
+    }
+
+    pub(crate) fn from_labeled_hist(
+        metric: &LabeledMetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+    ) -> Self {
+        let group_label = metric.get_label_name();
+        Self::from_hist_helper(
+            metric.get_name_with_filter(),
+            name,
+            description,
+            format!("le, {}", group_label),
+        )
+        .with_legends(
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| format!("{:.2} {{{{{}}}}}", q, group_label))
+                .collect(),
         )
     }
 }
