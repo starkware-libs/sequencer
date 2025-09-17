@@ -6,6 +6,10 @@ use async_trait::async_trait;
 use tokio::time::{interval, Duration as TokioDuration};
 use tracing::{error, info};
 
+#[cfg(test)]
+#[path = "config_manager_runner_tests.rs"]
+pub mod config_manager_runner_tests;
+
 pub struct ConfigManagerRunner {
     // TODO(Nadin): remove dead_code once we have actual config manager runner logic
     #[allow(dead_code)]
@@ -40,7 +44,7 @@ impl ConfigManagerRunner {
         }
     }
 
-    async fn update_consensus_config(
+    pub async fn update_consensus_config(
         &self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Loading and validating config");
