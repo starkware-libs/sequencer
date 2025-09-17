@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
@@ -19,7 +18,7 @@ use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManager;
@@ -69,9 +68,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        // TODO(guyn): can we remove this "every sec" since the polling interval is rather long?
-        info_every_n_sec!(1, "Adding {} l1 events", events.len());
-        trace!("Adding events: {events:?}");
+        info!("Adding {} l1 events", events.len());
 
         for event in events {
             match event {
