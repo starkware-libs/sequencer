@@ -110,3 +110,22 @@ async fn test_update_config_with_changed_values() {
     assert!(result2.is_ok(), "Second update_config should succeed with changed values");
     assert!(logs_contain("validator_id: ContractAddress(PatriciaKey(0x128))"));
 }
+
+
+#[tokio::test]
+async fn test_update_config_client_communication_failure() {
+    // TODO(Tsabary/Nadin): Test behavior when client.update_dynamic_config() fails
+    todo!()
+}
+
+#[tokio::test]
+async fn test_config_manager_runner_periodic_updates() {
+    // TODO(Tsabary/Nadin): Test the periodic update mechanism in ComponentStarter::start()
+    todo!()
+}
+
+#[test]
+fn test_config_manager_runner_creation_with_invalid_args() {
+    // TODO(Tsabary/Nadin): Test ConfigManagerRunner::new with invalid cli arguments
+    todo!()
+}
