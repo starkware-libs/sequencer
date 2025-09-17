@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = []
+testing = ["starknet_api", "url"]
 
 [lints]
 workspace = true
@@ -38,7 +38,9 @@ const_format.workspace = true
 papyrus_base_layer.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet_api = { workspace = true, features = ["testing"], optional = true }
 tracing.workspace = true
+url = { workspace = true, optional = true }
 validator.workspace = true
 
 [dev-dependencies]
