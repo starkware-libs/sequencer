@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::{debug_every_n, info_every_n_sec};
+use apollo_infra_utils::debug_every_n;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
@@ -85,9 +85,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
-        // TODO(guyn): remove these _every_n_sec because the polling interval is longer.
-        trace!("scraped up to {latest_l1_block:?}");
-        info_every_n_sec!(1, "scraped up to {latest_l1_block:?}");
+        info!("scraped up to {latest_l1_block:?}");
 
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no
