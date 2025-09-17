@@ -38,7 +38,9 @@
           "exprs": [
             "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BATCHER_FIN_VALIDATOR\""
+          }
         },
         {
           "title": "Sync Diff From Central",
@@ -277,7 +279,9 @@
           "exprs": [
             "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Committing block at height\""
+          }
         },
         {
           "title": "Batched Transactions Rate (TPS)",
@@ -286,7 +290,9 @@
           "exprs": [
             "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BATCHER_FIN_VALIDATOR\""
+          }
         },
         {
           "title": "Proposal Build: Deferred TXs",
@@ -329,7 +335,9 @@
           "exprs": [
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\""
+          }
         },
         {
           "title": "Number of Chunks in Proposal",
@@ -347,7 +355,9 @@
           "exprs": [
             "consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BATCHER_FIN_PROPOSER\""
+          }
         }
       ],
       "collapsed": true
