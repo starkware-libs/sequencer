@@ -249,14 +249,15 @@ impl L1Provider {
         })
     }
 
-    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        if height != self.current_height {
-            return Err(L1ProviderError::UnexpectedHeight {
-                expected_height: self.current_height,
-                got: height,
-            });
+    fn validate_height(&mut self, height: BlockNumber) {
+        if height > self.current_height {
+            // TODO(shahak): Add a way to move to bootstrap mode from any point and move to
+            // bootstrap here instead of panicking.
+            panic!("Batcher surpassed l1 provider. Panicking in order to restart the provider and bootstrap again. l1 provider height: {}, batcher height: {}", self.current_height, height);
         }
-        Ok(())
+        if height < self.current_height {
+            panic!("Unexpected height: expected >= {}, got {}", self.current_height, height);
+        }
     }
 
     fn apply_commit_block(
