@@ -100,6 +100,42 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
 }
 
 #[rstest]
+#[case::not_exceeded(BouncerWeights {
+        l1_gas: 7,
+        message_segment_length: 10,
+        n_events: 2,
+        state_diff_size: 7,
+        sierra_gas: GasAmount(7),
+        n_txs: 7,
+        proving_gas: GasAmount(5),
+    }, "")]
+#[case::sierra_gas_exceeded(BouncerWeights {
+        l1_gas: 20,
+        message_segment_length: 10,
+        n_events: 2,
+        state_diff_size: 7,
+        sierra_gas: GasAmount(27),
+        n_txs: 7,
+        proving_gas: GasAmount(5),
+    }, "sierra_gas")]
+#[case::multiple_weights_exceeded(BouncerWeights {
+        l1_gas: 7,
+        message_segment_length: 25,
+        n_events: 2,
+        state_diff_size: 21,
+        sierra_gas: GasAmount(7),
+        n_txs: 7,
+        proving_gas: GasAmount(22),
+    }, "message_segment_length, state_diff_size, proving_gas")]
+fn test_block_weights_exceeded(
+    #[case] accumulated_weight: BouncerWeights,
+    #[case] exceeded_list: String,
+    block_max_capacity: BouncerWeights,
+) {
+    assert_eq!(block_max_capacity.get_exceeded_weights(accumulated_weight), exceeded_list);
+}
+
+#[rstest]
 #[case::has_room(19, true)]
 #[case::at_max(20, true)]
 #[case::no_room(21, false)]

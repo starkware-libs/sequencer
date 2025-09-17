@@ -131,7 +131,6 @@ func execute_transactions{
     // Prepare builtin pointers.
     let segment_arena_ptr = new_arena();
     let (sha256_ptr: Sha256ProcessBlock*) = alloc();
-    %{ syscall_handler.sha256_segment = ids.sha256_ptr %}
 
     let (__fp__, _) = get_fp_and_pc();
     local local_builtin_ptrs: BuiltinPointers = BuiltinPointers(

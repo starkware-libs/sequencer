@@ -51,6 +51,8 @@ pub struct ClassHashDbConfig {
     pub min_size: usize,
     pub max_size: usize,
     pub growth_step: isize,
+    /// The maximum number of readers used by the database.
+    pub max_readers: u32,
 }
 
 impl SerializeConfig for ClassHashDbConfig {
@@ -88,6 +90,12 @@ impl SerializeConfig for ClassHashDbConfig {
                  grow.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_readers",
+                &self.max_readers,
+                "The maximum number of readers used by the database.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -111,6 +119,7 @@ impl Default for ClassHashStorageConfig {
                 min_size: 1 << 20,    // 1MB
                 max_size: 1 << 40,    // 1TB
                 growth_step: 1 << 32, // 4GB
+                max_readers: 1 << 13, // 8K readers
             },
             mmap_file_config: MmapFileConfig {
                 max_size: 1 << 30,        // 1GB.
@@ -134,6 +143,7 @@ impl From<ClassHashStorageConfig> for StorageConfig {
                 min_size: value.class_hash_db_config.min_size,
                 max_size: value.class_hash_db_config.max_size,
                 growth_step: value.class_hash_db_config.growth_step,
+                max_readers: value.class_hash_db_config.max_readers,
             },
             scope: value.scope,
             mmap_file_config: value.mmap_file_config,

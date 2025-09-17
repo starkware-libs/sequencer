@@ -1249,9 +1249,9 @@ fn metrics_correctness() {
         delayed_declares_size: 1,
         total_size_in_bytes: 1952,
         evictions_count: 1,
-        transaction_time_spent_in_mempool: HistogramValue {
-            sum: 85.0,
-            count: 5,
+        transaction_time_spent_until_batched: HistogramValue {
+            sum: 2.0,
+            count: 1,
             ..Default::default()
         },
         transaction_time_spent_until_committed: HistogramValue {

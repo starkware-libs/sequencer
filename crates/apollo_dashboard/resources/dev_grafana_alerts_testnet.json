@@ -701,6 +701,981 @@
       "observer_applicable": "false"
     },
     {
+      "name": "sync_storage_open_read_transactions",
+      "title": "sync - High number of open read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(sync_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+<<<<<<< HEAD
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "batched_transactions_stuck_long_time",
+      "title": "Batched transactions stuck",
+      "ruleGroup": "batcher",
+      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "get_consensus_block_number_progress_is_slow",
+      "title": "Consensus block number progress is slow",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "cende_write_blob_failure",
+      "title": "Cende write blob failure",
+      "ruleGroup": "consensus",
+      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+||||||| 9f526276f
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": false
+    },
+    {
+      "name": "batched_transactions_stuck_long_time",
+      "title": "Batched transactions stuck",
+      "ruleGroup": "batcher",
+      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": false
+    },
+    {
+      "name": "get_consensus_block_number_progress_is_slow",
+      "title": "Consensus block number progress is slow",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": true
+    },
+    {
+      "name": "cende_write_blob_failure",
+      "title": "Cende write blob failure",
+      "ruleGroup": "consensus",
+      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+=======
+              7500.0
+>>>>>>> origin/main-v0.14.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "batcher_storage_open_read_transactions",
+      "title": "batcher - High number of open read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(batcher_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+<<<<<<< HEAD
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "consensus_block_number_stuck_long_time",
+      "title": "Consensus block number stuck",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "consensus_p2p_not_enough_peers_for_quorum",
+      "title": "Consensus p2p not enough peers for quorum",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "consensus_p2p_not_enough_peers_for_quorum_long_time",
+      "title": "Consensus p2p not enough peers for quorum",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "consensus_p2p_peer_down",
+      "title": "Consensus p2p peer down",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "consensus_round_above_zero",
+      "title": "Consensus round above zero",
+      "ruleGroup": "consensus",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+||||||| 9f526276f
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": false
+    },
+    {
+      "name": "consensus_block_number_stuck_long_time",
+      "title": "Consensus block number stuck",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": false
+    },
+    {
+      "name": "consensus_p2p_not_enough_peers_for_quorum",
+      "title": "Consensus p2p not enough peers for quorum",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": true
+    },
+    {
+      "name": "consensus_p2p_not_enough_peers_for_quorum_long_time",
+      "title": "Consensus p2p not enough peers for quorum",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": true
+    },
+    {
+      "name": "consensus_p2p_peer_down",
+      "title": "Consensus p2p peer down",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": true
+    },
+    {
+      "name": "consensus_round_above_zero",
+      "title": "Consensus round above zero",
+      "ruleGroup": "consensus",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+=======
+              7500.0
+>>>>>>> origin/main-v0.14.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "class_manager_storage_open_read_transactions",
+      "title": "class_manager - High number of open read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+<<<<<<< HEAD
+      "observer_applicable": "false"
+    },
+    {
+      "name": "consensus_round_high",
+      "title": "Consensus round high",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              20.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "eth_to_strk_success_count",
+      "title": "Eth to Strk success count",
+      "ruleGroup": "l1_gas_price",
+      "expr": "increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "pod_state_high_memory_utilization",
+      "title": "Pod High Memory Utilization ( >70% )",
+      "ruleGroup": "general",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "pod_state_critical_memory_utilization",
+      "title": "Pod Critical Memory Utilization ( >85% )",
+      "ruleGroup": "general",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              85.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "pod_state_high_disk_utilization",
+      "title": "Pod High Disk Utilization ( >70% )",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "pod_state_critical_disk_utilization",
+      "title": "Pod Critical Disk Utilization ( >90% )",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "http_server_avg_add_tx_latency",
+      "title": "High HTTP server average add_tx latency",
+      "ruleGroup": "http_server",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]), 1/120)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+||||||| 9f526276f
+      "observer_applicable": false
+    },
+    {
+      "name": "consensus_round_high",
+      "title": "Consensus round high",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              20.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": false
+    },
+    {
+      "name": "eth_to_strk_success_count",
+      "title": "Eth to Strk success count",
+      "ruleGroup": "l1_gas_price",
+      "expr": "increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": false
+    },
+    {
+      "name": "pod_state_high_memory_utilization",
+      "title": "Pod High Memory Utilization ( >70% )",
+      "ruleGroup": "general",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": true
+    },
+    {
+      "name": "pod_state_critical_memory_utilization",
+      "title": "Pod Critical Memory Utilization ( >85% )",
+      "ruleGroup": "general",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              85.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": true
+    },
+    {
+      "name": "pod_state_high_disk_utilization",
+      "title": "Pod High Disk Utilization ( >70% )",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": true
+    },
+    {
+      "name": "pod_state_critical_disk_utilization",
+      "title": "Pod Critical Disk Utilization ( >90% )",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": true
+    },
+    {
+      "name": "http_server_avg_add_tx_latency",
+      "title": "High HTTP server average add_tx latency",
+      "ruleGroup": "http_server",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]), 1/120)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": false
+=======
+      "observer_applicable": "false"
+>>>>>>> origin/main-v0.14.0
+    },
+    {
+      "name": "http_server_high_transaction_failure_ratio",
+      "title": "http server high transaction failure ratio",
+      "ruleGroup": "http_server",
+      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.3
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+<<<<<<< HEAD
+      "observer_applicable": "false"
+||||||| 9f526276f
+      "observer_applicable": false
+=======
+      "observer_applicable": "false"
+    },
+    {
       "name": "batched_transactions_stuck",
       "title": "Batched transactions stuck",
       "ruleGroup": "batcher",
@@ -1203,34 +2178,7 @@
       "intervalSec": 30,
       "severity": "p4",
       "observer_applicable": "false"
-    },
-    {
-      "name": "http_server_high_transaction_failure_ratio",
-      "title": "http server high transaction failure ratio",
-      "ruleGroup": "http_server",
-      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              0.3
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p4",
-      "observer_applicable": "false"
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "http_server_internal_error_ratio",

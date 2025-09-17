@@ -5,16 +5,39 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
-use crate::dashboard::{Panel, Row};
+use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT)
+    Panel::new(
+        "L1 Message Scraper Success Count",
+        "The increase in the number of times the L1 message scraper successfully scraped messages \
+         (10m window)",
+        vec![format!("increase({}[10m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT)
+    Panel::new(
+        "L1 Message Scraper Base Layer Error Count",
+        "The increase in the number of times the L1 message scraper encountered an error while \
+         scraping the base layer (10m window)",
+        vec![format!(
+            "increase({}[10m])",
+            L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
-    Panel::from(&L1_MESSAGE_SCRAPER_REORG_DETECTED)
+    Panel::new(
+        "L1 Message Scraper Reorg Detected",
+        "The increase in the number of times the L1 message scraper detected a reorg (12h window)",
+        vec![format!(
+            "increase({}[12h])",
+            L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::from(&L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE)

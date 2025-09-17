@@ -4,7 +4,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::BlockInfo;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -18,7 +18,6 @@ pub trait StateReaderFactory: Send + Sync {
     fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>>;
-    fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader>;
 }
 
 // By default, a Box<dyn Trait> does not implement the trait of the object it contains.

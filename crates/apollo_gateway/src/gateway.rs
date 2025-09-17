@@ -32,7 +32,13 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
 };
+<<<<<<< HEAD
 use tracing::{debug, info, instrument, warn, Span};
+||||||| 9f526276f
+use tracing::{debug, error, info, instrument, warn, Span};
+=======
+use tracing::{debug, error, info, warn, Span};
+>>>>>>> origin/main-v0.14.0
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -88,26 +94,52 @@ impl Gateway {
         }
     }
 
-    #[instrument(skip_all, fields(is_p2p = p2p_message_metadata.is_some()), ret)]
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
+<<<<<<< HEAD
         debug!("Processing tx with signature: {:?}", tx.signature());
+||||||| 9f526276f
+        debug!("Processing tx: {:?}", tx);
+=======
+        let is_p2p = p2p_message_metadata.is_some();
+>>>>>>> origin/main-v0.14.0
 
-        let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
+        let start_time = std::time::Instant::now();
+        let ret = self.add_tx_inner(&tx, p2p_message_metadata).await;
+        let elapsed = start_time.elapsed().as_secs_f64();
+
+        debug!(
+            "Processed tx. duration: {elapsed} sec, ret: {ret:?}, is_p2p: {is_p2p}, tx: {:?}",
+            tx
+        );
+
+        ret
+    }
+
+    async fn add_tx_inner(
+        &self,
+        tx: &RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<GatewayOutput> {
+        let mut metric_counters = GatewayMetricHandle::new(tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
-            self.check_declare_permissions(declare_tx)?;
+            if let Err(e) = self.check_declare_permissions(declare_tx) {
+                metric_counters.record_add_tx_failure(&e);
+                return Err(e);
+            }
         }
 
         let blocking_task =
             ProcessTxBlockingTask::new(self, tx.clone(), tokio::runtime::Handle::current());
         // Run the blocking task in the current span.
         let curr_span = Span::current();
+<<<<<<< HEAD
         let add_tx_args =
             tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
                 .await
@@ -125,14 +157,63 @@ impl Gateway {
                         starknet_error
                     );
                 })?;
+||||||| 9f526276f
+        let add_tx_args =
+            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
+                .await
+                .map_err(|join_err| {
+                    error!("Failed to process tx: {}", join_err);
+                    StarknetError::internal(&join_err.to_string())
+                })?
+                .inspect_err(|starknet_error| {
+                    info!(
+                        "Gateway validation failed for tx: {:?} with error: {}",
+                        tx, starknet_error
+                    );
+                })?;
+=======
+        let handle =
+            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()));
+        let handle_result = handle.await;
+        let add_tx_args = match handle_result {
+            Ok(Ok(add_tx_args)) => add_tx_args,
+            Ok(Err(starknet_err)) => {
+                info!("Gateway validation failed for tx: {:?} with error: {}", tx, starknet_err);
+                metric_counters.record_add_tx_failure(&starknet_err);
+                return Err(starknet_err);
+            }
+            Err(join_err) => {
+                error!("Failed to process tx: {}", join_err);
+                let err = StarknetError::internal(&join_err.to_string());
+                metric_counters.record_add_tx_failure(&err);
+                return Err(err);
+            }
+        };
+>>>>>>> origin/main-v0.14.0
 
         let gateway_output = create_gateway_output(&add_tx_args.tx);
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
+<<<<<<< HEAD
         mempool_client_result_to_deprecated_gw_result(
             tx.signature(),
             self.mempool_client.add_tx(add_tx_args).await,
         )?;
+||||||| 9f526276f
+        mempool_client_result_to_deprecated_gw_result(
+            self.mempool_client.add_tx(add_tx_args).await,
+        )?;
+=======
+        let add_tx_result = self.mempool_client.add_tx(add_tx_args).await;
+        let gw_result = mempool_client_result_to_deprecated_gw_result(add_tx_result);
+        match gw_result {
+            Ok(()) => {}
+            Err(e) => {
+                metric_counters.record_add_tx_failure(&e);
+                return Err(e);
+            }
+        }
+>>>>>>> origin/main-v0.14.0
 
         metric_counters.transaction_sent_to_mempool();
 

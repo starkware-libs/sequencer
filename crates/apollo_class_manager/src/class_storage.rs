@@ -11,6 +11,7 @@ use apollo_class_manager_config::config::{
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
+use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
@@ -251,7 +252,10 @@ pub struct ClassHashStorage {
 impl ClassHashStorage {
     pub fn new(config: ClassHashStorageConfig) -> ClassHashStorageResult<Self> {
         let storage_config = StorageConfig::from(config);
-        let (reader, writer) = apollo_storage::open_storage(storage_config)?;
+        let (reader, writer) = apollo_storage::open_storage_with_metric(
+            storage_config,
+            &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
+        )?;
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)) })
     }

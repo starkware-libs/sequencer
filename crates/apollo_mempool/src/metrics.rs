@@ -27,7 +27,7 @@ define_metrics!(
         MetricGauge { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
         MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are being delayed" },
         MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
-        MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)" },
+        MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_BATCHED, "mempool_transaction_time_spent_until_batched", "The time (seconds) a transaction spent in the mempool until it was batched for execution" },
         MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, "mempool_transaction_time_spent_until_committed", "The time (seconds) a transaction spent in the mempool until it was committed" },
     },
 );
@@ -136,6 +136,6 @@ pub(crate) fn register_metrics() {
     MEMPOOL_DELAYED_DECLARES_SIZE.register();
     MEMPOOL_TOTAL_SIZE_BYTES.register();
     // Register Histograms.
-    TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED.register();
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();
 }

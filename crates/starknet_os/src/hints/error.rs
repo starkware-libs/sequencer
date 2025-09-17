@@ -3,6 +3,7 @@ use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscal
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::errors::math_errors::MathError;
+use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::errors::exec_scope_errors::ExecScopeError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
@@ -79,7 +80,7 @@ pub enum OsHintError {
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error(
-        "Inconsistent storage value for contract address: {}, key: {}. Expected: {}, actual: {}.", 
+        "Inconsistent storage value for contract address: {}, key: {}. Expected: {}, actual: {}.",
         .0.contract_address.0.key(), .0.key.0.key(), .0.expected, .0.actual
     )]
     InconsistentStorageValue(Box<InnerInconsistentStorageValueError>),
@@ -113,6 +114,8 @@ pub enum OsHintError {
     PathToBottom(#[from] PathToBottomError),
     #[error(transparent)]
     Patricia(#[from] PatriciaError),
+    #[error(transparent)]
+    Program(#[from] ProgramError),
     #[error(transparent)]
     Runner(#[from] RunnerError),
     #[error("{error:?} for json value {value}.")]
