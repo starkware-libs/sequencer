@@ -6,39 +6,21 @@ use apollo_storage::metrics::{
     SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_storage_append_thin_state_diff_latency() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &STORAGE_APPEND_THIN_STATE_DIFF_LATENCY,
         "Append Thin State Diff Latency",
         "Latency to append thin state diff in storage",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    STORAGE_APPEND_THIN_STATE_DIFF_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
 fn get_storage_commit_latency() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &STORAGE_COMMIT_LATENCY,
         "Storage Commit Latency",
         "Latency to commit changes in storage",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    STORAGE_COMMIT_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
