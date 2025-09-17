@@ -891,7 +891,11 @@
             "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {
-            "unit": "decmbytes"
+            "unit": "decmbytes",
+            "legends": [
+              "0.50 {{class_object_type}}",
+              "0.95 {{class_object_type}}"
+            ]
           }
         }
       ],
