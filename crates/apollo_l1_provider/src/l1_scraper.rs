@@ -109,6 +109,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .map_err(L1ScraperError::BaseLayerError)?;
 
         let Some(latest_l1_block) = latest_l1_block else {
+            // TODO(guyn): get rid of finality_too_high, use a better error.
             return Err(
                 L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
             );
@@ -237,11 +238,6 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
         .await
         .map_err(L1ScraperError::BaseLayerError)?;
 
-    let latest_l1_block_number = match latest_l1_block_number {
-        Some(latest_l1_block_number) => Ok(latest_l1_block_number),
-        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
-    }?;
-
     // Estimate the number of blocks in the interval, to rewind from the latest block.
     let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
     // Add 50% safety margin.
@@ -364,13 +360,13 @@ impl<B: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<B> {
     }
 }
 
+// TODO(guyn): get rid of finality_too_high, use a better error.
 impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
     pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
         let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
 
         let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
-            Ok(block_number) => block_number
-                .expect("Latest *L1* block without finality is assumed to always exist."),
+            Ok(block_number) => block_number,
             Err(error) => return Self::BaseLayerError(error),
         };
 
