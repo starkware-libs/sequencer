@@ -3,6 +3,7 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_l1_provider_types::{
     Event,
     L1ProviderClient,
@@ -11,6 +12,7 @@ use apollo_l1_provider_types::{
     SessionState,
     ValidationStatus,
 };
+use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;
 use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
@@ -26,11 +28,11 @@ use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 
-use crate::bootstrapper::CommitBlockBacklog;
+use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
-use crate::{L1ProviderConfig, ProviderState};
+use crate::{make_bootstrapper, L1ProviderConfig, ProviderState};
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
     let tx_hash = TransactionHash(StarkHash::from(tx_hash));
@@ -44,6 +46,7 @@ pub struct L1ProviderContent {
     config: Option<L1ProviderConfig>,
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
+    bootstrapper: Option<Bootstrapper>,
     current_height: Option<BlockNumber>,
     clock: Option<Arc<dyn Clock>>,
 }
@@ -69,12 +72,17 @@ impl L1ProviderContent {
 
 impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
+        let bootstrapper = match content.bootstrapper {
+            Some(bootstrapper) => bootstrapper,
+            None => make_bootstrapper!(backlog: [], catch_up: 0),
+        };
         L1Provider {
             config: content.config.unwrap_or_default(),
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             // Defaulting to Pending state, since a provider with a "default" Bootstrapper
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
+            bootstrapper,
             current_height: content.current_height.unwrap_or_default(),
             start_height: content.current_height.unwrap_or_default(),
             clock: content.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
@@ -87,6 +95,7 @@ pub struct L1ProviderContentBuilder {
     config: Option<L1ProviderConfig>,
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
+    bootstrapper: Option<Bootstrapper>,
     current_height: Option<BlockNumber>,
     clock: Option<Arc<dyn Clock>>,
 }
@@ -103,6 +112,11 @@ impl L1ProviderContentBuilder {
 
     pub fn with_state(mut self, state: ProviderState) -> Self {
         self.state = Some(state);
+        self
+    }
+
+    pub fn with_bootstrapper(mut self, bootstrapper: Bootstrapper) -> Self {
+        self.bootstrapper = Some(bootstrapper);
         self
     }
 
@@ -235,6 +249,7 @@ impl L1ProviderContentBuilder {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
+            bootstrapper: self.bootstrapper,
             current_height: self.current_height,
             clock: self.clock,
         }
