@@ -1088,6 +1088,7 @@ dependencies = [
  "apollo_node_config",
  "async-trait",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 

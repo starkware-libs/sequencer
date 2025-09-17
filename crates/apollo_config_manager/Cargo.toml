@@ -19,4 +19,5 @@ apollo_metrics.workspace = true
 apollo_node_config.workspace = true
 async-trait.workspace = true
 serde_json.workspace = true
+tokio.workspace = true
 tracing.workspace = true
