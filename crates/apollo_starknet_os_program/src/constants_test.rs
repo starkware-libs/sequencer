@@ -46,9 +46,9 @@ fn stringify_class_hash_list(name: &str, class_hashes: &[ClassHash]) -> String {
         .map(|(i, class_hash)| {
             // If the line ends up longer than 100 chars, wrap the value in parenthesis, so the
             // formatter can split the lines.
-            let line = format!("const {name}_{i} = {:#066x};", class_hash.0);
+            let line = format!("const {name}_{i} = {:#064x};", class_hash.0);
             if line.len() > 100 {
-                format!("const {name}_{i} = ({:#066x});", class_hash.0)
+                format!("const {name}_{i} = ({:#064x});", class_hash.0)
             } else {
                 line
             }

@@ -24,7 +24,7 @@ use crate::state::errors::StateError;
 
 #[derive(Debug, Error)]
 pub enum PreExecutionError {
-    #[error("Entry point {:#066x} of type {typ:?} is not unique.", .selector.0)]
+    #[error("Entry point {:#064x} of type {typ:?} is not unique.", .selector.0)]
     DuplicatedEntryPointSelector { selector: EntryPointSelector, typ: EntryPointType },
     #[error("Entry point {0:?} not found in contract.")]
     EntryPointNotFound(EntryPointSelector),
@@ -46,7 +46,7 @@ pub enum PreExecutionError {
     RunnerError(Box<RunnerError>),
     #[error(transparent)]
     StateError(#[from] StateError),
-    #[error("Requested contract address {:#066x} is not deployed.", .0.key())]
+    #[error("Requested contract address {:#064x} is not deployed.", .0.key())]
     UninitializedStorageAddress(ContractAddress),
     #[error("Called builtins: {0:?} are unsupported in a Cairo0 contract")]
     UnsupportedCairo0Builtin(HashSet<BuiltinName>),

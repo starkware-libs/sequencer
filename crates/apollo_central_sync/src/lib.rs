@@ -467,7 +467,7 @@ impl<
     #[instrument(
         skip(self, block),
         level = "debug",
-        fields(block_hash = format_args!("{:#066x}", block.header.block_hash.0)),
+        fields(block_hash = format_args!("{:#064x}", block.header.block_hash.0)),
         err
     )]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.

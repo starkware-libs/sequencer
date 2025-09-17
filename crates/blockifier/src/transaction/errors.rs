@@ -78,7 +78,7 @@ pub enum TransactionExecutionError {
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ContractConstructorExecutionFailed(#[from] ConstructorEntryPointExecutionError),
-    #[error("Class with hash {:#066x} is already declared.", **class_hash)]
+    #[error("Class with hash {:#064x} is already declared.", **class_hash)]
     DeclareTransactionError { class_hash: ClassHash },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ExecutionError {
@@ -136,8 +136,8 @@ pub enum TransactionExecutionError {
 #[derive(Debug, Error)]
 pub enum TransactionPreValidationError {
     #[error(
-        "Invalid transaction nonce of contract at address {:#066x}. Account nonce: \
-         {:#066x}; got: {:#066x}.", ***address, **account_nonce, **incoming_tx_nonce
+        "Invalid transaction nonce of contract at address {:#064x}. Account nonce: \
+         {:#064x}; got: {:#064x}.", ***address, **account_nonce, **incoming_tx_nonce
     )]
     InvalidNonce { address: ContractAddress, account_nonce: Nonce, incoming_tx_nonce: Nonce },
     #[error(transparent)]

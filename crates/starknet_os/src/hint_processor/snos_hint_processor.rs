@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::btree_map::IntoIter;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;

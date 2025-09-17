@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use std::rc::Rc;
 
 use blockifier::execution::contract_class::CompiledClassV0;
 use blockifier::state::state_api::StateReader;
@@ -96,7 +95,6 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         hint_processor.program,
     )?;
     let byte_code_ptr = vm.get_relocatable(byte_code_ptr_addr)?;
-    let constants = Rc::new(dep_class.program.constants.clone());
 
     let mut hint_extension = HintExtension::new();
 
@@ -109,7 +107,6 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
                 &params.flow_tracking_data.ap_tracking,
                 &params.flow_tracking_data.reference_ids,
                 &dep_class.program.shared_program_data.reference_manager,
-                constants.clone(),
             )?;
             compiled_hints.push(compiled_hint);
         }
