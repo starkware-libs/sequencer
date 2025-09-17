@@ -26,20 +26,26 @@ use crate::transaction_manager::TransactionManagerConfig;
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderState {
-    /// Provider is not read for proposing or validating. Use start_block to transition to Propose
-    /// or Validate.
-    Pending,
-    /// Provider is ready for proposing. Use commit_block to finish and return to Pending.
-    Propose,
+    /// Provider has not been initialized yet, needs to do bootstrapping at least once.
+    Uninitialized,
+    // TODO(guyn): in a upcoming PR, bootstrap will be available not only on startup.
     /// Provider is catching up using sync. Only happens on startup.
     Bootstrap,
-    /// Provider is ready for validating. Use validate to validate a transaction.
+    /// Provider is not ready for proposing or validating. Use start_block to transition to Propose
+    /// or Validate.
+    Pending,
+    /// Provider is ready for proposing. Use get_txs to get what you need for a new proposal. Use
+    /// commit_block to finish and return to Pending.
+    Propose,
+    /// Provider is ready for validating. Use validate to validate a transaction. Use commit_block
+    /// to finish and return to Pending.
     Validate,
 }
 
 impl ProviderState {
     pub fn as_str(&self) -> &str {
         match self {
+            ProviderState::Uninitialized => "Uninitialized",
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
             ProviderState::Bootstrap => "Bootstrap",
@@ -47,12 +53,12 @@ impl ProviderState {
         }
     }
 
-    pub fn is_bootstrapping(&self) -> bool {
-        if let ProviderState::Bootstrap = self {
-            return true;
-        }
+    pub fn uninitialized(&self) -> bool {
+        matches!(self, ProviderState::Uninitialized)
+    }
 
-        false
+    pub fn is_bootstrapping(&self) -> bool {
+        matches!(self, ProviderState::Bootstrap)
     }
 
     fn transition_to_pending(&self) -> ProviderState {
