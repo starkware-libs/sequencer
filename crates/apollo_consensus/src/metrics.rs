@@ -26,6 +26,7 @@ define_metrics!(
         MetricCounter { CONSENSUS_INBOUND_STREAM_FINISHED, "consensus_inbound_stream_finished", "The total number of inbound streams finished", init=0 },
         // TODO(Matan): remove this metric.
         MetricCounter { CONSENSUS_ROUND_ABOVE_ZERO, "consensus_round_above_zero", "The number of times the consensus round has increased above zero", init=0 },
+        MetricCounter { CONSENSUS_ROUND_ADVANCES, "consensus_round_advances", "The number of times the consensus round has advanced", init=0 },
         MetricCounter { CONSENSUS_CONFLICTING_VOTES, "consensus_conflicting_votes", "The number of times consensus has received conflicting votes", init=0 },
         LabeledMetricCounter { CONSENSUS_TIMEOUTS, "consensus_timeouts", "The number of times consensus has timed out", init=0, labels = CONSENSUS_TIMEOUT_LABELS },
     },
@@ -68,6 +69,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_OUTBOUND_STREAM_STARTED.register();
     CONSENSUS_OUTBOUND_STREAM_FINISHED.register();
     CONSENSUS_ROUND_ABOVE_ZERO.register();
+    CONSENSUS_ROUND_ADVANCES.register();
     CONSENSUS_CONFLICTING_VOTES.register();
     CONSENSUS_TIMEOUTS.register();
 }
