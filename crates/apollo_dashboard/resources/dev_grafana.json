@@ -93,15 +93,6 @@
           }
         },
         {
-          "title": "Consensus Height Diff From Sync",
-          "description": "The difference between the consensus height and the sync height",
-          "type": "timeseries",
-          "exprs": [
-            "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Average Block Time",
           "description": "Average block time (10m window)",
           "type": "timeseries",
@@ -111,6 +102,27 @@
           "extra_params": {
             "unit": "s"
           }
+        },
+        {
+          "title": "Consensus Round Above Zero",
+          "description": "Occurances where the consensus round was 1, relative to displayed range",
+          "type": "timeseries",
+          "exprs": [
+            "consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"} @ start())"
+          ],
+          "extra_params": {
+            "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
+          "title": "Consensus Height Diff From Sync",
+          "description": "The difference between the consensus height and the sync height",
+          "type": "timeseries",
+          "exprs": [
+            "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          ],
+          "extra_params": {}
         },
         {
           "title": "Decisions Reached By Consensus",
