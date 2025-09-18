@@ -28,9 +28,9 @@ pub struct CommitterInputImpl {
 impl TryFrom<RawInput> for CommitterInputImpl {
     type Error = DeserializationError;
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
-        let mut storage = HashMap::new();
+        let mut storage = MapStorage::default();
         for entry in raw_input.storage {
-            add_unique(&mut storage, "storage", DbKey(entry.key), DbValue(entry.value))?;
+            add_unique(&mut storage.0, "storage", DbKey(entry.key), DbValue(entry.value))?;
         }
 
         let mut address_to_class_hash = HashMap::new();

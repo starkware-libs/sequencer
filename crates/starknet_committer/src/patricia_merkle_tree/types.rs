@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::{Felt, FromStrError};
 
@@ -26,3 +28,30 @@ pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
 pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
+
+pub struct ContractsTrieProof {
+    pub nodes: PreimageMap,
+    pub leaves: HashMap<ContractAddress, ContractState>,
+}
+
+pub struct StarknetForestProofs {
+    pub classes_trie_proof: PreimageMap,
+    pub contracts_trie_proof: ContractsTrieProof,
+    pub contracts_trie_storage_proofs: HashMap<ContractAddress, PreimageMap>,
+}
+
+impl StarknetForestProofs {
+    pub(crate) fn extend(&mut self, other: Self) {
+        self.classes_trie_proof.extend(other.classes_trie_proof);
+        self.contracts_trie_proof.nodes.extend(other.contracts_trie_proof.nodes);
+        self.contracts_trie_proof.leaves.extend(other.contracts_trie_proof.leaves);
+        for (address, proof) in other.contracts_trie_storage_proofs {
+            self.contracts_trie_storage_proofs.entry(address).or_default().extend(proof);
+        }
+    }
+}
+
+pub struct RootHashes {
+    pub previous_root_hash: HashOutput,
+    pub new_root_hash: HashOutput,
+}

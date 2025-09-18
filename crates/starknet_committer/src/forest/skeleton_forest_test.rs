@@ -20,7 +20,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::Origi
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
@@ -145,7 +145,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     },
-    HashMap::from([
+    MapStorage(DbHashMap::from([
         // Roots.
         create_root_edge_entry(29, SubTreeHeight::new(3)),
         create_root_edge_entry(55, SubTreeHeight::new(3)),
@@ -194,7 +194,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         create_storage_leaf_entry(9),
         create_storage_leaf_entry(15),
         create_storage_leaf_entry(16),
-        ]),
+        ])),
      OriginalSkeletonForest{
         classes_trie: OriginalSkeletonTreeImpl {
             nodes: create_expected_skeleton_nodes(
@@ -293,7 +293,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
-    #[case] storage: MapStorage,
+    #[case] mut storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
@@ -312,7 +312,7 @@ fn test_create_original_skeleton_forest(
     };
 
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        &storage,
+        &mut storage,
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &input.state_diff.actual_storage_updates(),

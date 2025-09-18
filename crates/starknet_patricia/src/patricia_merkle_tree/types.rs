@@ -236,12 +236,12 @@ impl<'a> SortedLeafIndices<'a> {
         [Self(&self.0[..idx]), Self(&self.0[idx..])]
     }
 
-    pub(crate) fn get_indices(&self) -> &'a [NodeIndex] {
+    pub fn get_indices(&self) -> &'a [NodeIndex] {
         self.0
     }
 
     pub(crate) fn contains(&self, value: &NodeIndex) -> bool {
-        self.0.contains(value)
+        self.0.binary_search(value).is_ok()
     }
 
     pub(crate) fn is_empty(&self) -> bool {

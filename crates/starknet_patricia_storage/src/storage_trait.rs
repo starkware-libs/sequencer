@@ -1,14 +1,15 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 
-use crate::map_storage::MapStorage;
-
-#[derive(Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct DbValue(pub Vec<u8>);
+
+pub type DbHashMap = HashMap<DbKey, DbValue>;
 
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
@@ -18,7 +19,9 @@ pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 
 pub trait Storage {
     /// Returns value from storage, if it exists.
-    fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
+    /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
+    /// for caching).
+    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
@@ -26,10 +29,10 @@ pub trait Storage {
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&self, keys: &[DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
+    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: MapStorage) -> PatriciaStorageResult<()>;
+    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
