@@ -16,10 +16,10 @@ use crate::panels::consensus::{
     get_cende_row,
     get_consensus_p2p_row,
     get_consensus_row,
-    get_panel_cende_write_blob_failure,
+    get_panel_consensus_block_time_avg,
     get_panel_consensus_round,
 };
-use crate::panels::gateway::{get_gateway_row, get_panel_gateway_transactions_failure_rate};
+use crate::panels::gateway::{get_gateway_row, get_panel_gateway_add_tx_failure_by_reason};
 use crate::panels::http_server::{
     get_http_server_row,
     get_panel_http_server_transactions_received_rate,
@@ -48,12 +48,12 @@ fn get_overview_row() -> Row {
     Row::new(
         "Overview",
         vec![
+            get_panel_consensus_block_time_avg(),
             get_panel_consensus_round(),
-            get_panel_cende_write_blob_failure(),
             get_panel_http_server_transactions_received_rate(),
             get_panel_batched_transactions_rate(),
             get_panel_state_sync_diff_from_central(),
-            get_panel_gateway_transactions_failure_rate(),
+            get_panel_gateway_add_tx_failure_by_reason(),
         ],
     )
     .expand()

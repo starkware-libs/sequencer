@@ -85,7 +85,7 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
-fn get_panel_consensus_block_time_avg() -> Panel {
+pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
         "Average Block Time",
         "Average block time (10m window)",
@@ -312,7 +312,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
     )
     .with_log_query(query_expression)
 }
-pub(crate) fn get_panel_cende_write_blob_failure() -> Panel {
+fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
         "The number of failed blob writes to Cende (10m window)",

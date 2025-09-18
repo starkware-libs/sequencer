@@ -72,7 +72,7 @@ fn get_panel_gateway_validate_tx_latency() -> Panel {
     .with_unit(Unit::Seconds)
 }
 
-fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
+pub(crate) fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     Panel::new(
         "Transactions Failed by Reason",
         "The number of transactions failed by reason (over the selected time range)",
@@ -85,7 +85,7 @@ fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     )
 }
 
-pub(crate) fn get_panel_gateway_transactions_failure_rate() -> Panel {
+fn get_panel_gateway_transactions_failure_rate() -> Panel {
     Panel::new(
         "Transaction Failure Rate by Type",
         "The rate of failed transactions vs received transactions by type (over the selected time \
