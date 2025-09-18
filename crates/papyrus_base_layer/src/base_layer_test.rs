@@ -21,6 +21,8 @@ use crate::ethereum_base_layer_contract::{
 use crate::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
+    make_block_history_on_anvil,
+    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use crate::{BaseLayerContract, L1Event};
@@ -76,7 +78,7 @@ async fn latest_proved_block_ethereum() {
         match latest_block {
             Ok(latest_block) => assert_eq!(latest_block, expected),
             Err(e) => {
-                assert_matches!(e, EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _))
+                assert_matches!(e, EthereumBaseLayerError::LatestBlockNumberReturnedTooLow { .. })
             }
         }
     }
@@ -193,4 +195,46 @@ async fn events_from_other_contract() {
 
     assert_eq!(events.len(), 1, "Expected only events from this contract.");
     assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } if tx == this_l1_handler);
+}
+
+#[tokio::test]
+async fn low_block_number_returns_error() {
+    let base_layer_config = ethereum_base_layer_config_for_anvil(None);
+    let anvil = anvil_instance_from_config(&base_layer_config);
+    let contract = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let expected_finality = 10;
+
+    let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
+    let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+    let num_blocks = 20_u64; // Enough to get to finality 10.
+
+    // Generate num_blocks on base layer.
+    make_block_history_on_anvil(
+        sender_address,
+        receiver_address,
+        base_layer_config,
+        (num_blocks).try_into().unwrap(),
+    )
+    .await;
+
+    // With no finality
+    let finality = 0;
+    let return_value = contract.latest_l1_block_number(finality).await;
+    assert_eq!(return_value, Ok(num_blocks));
+
+    // With expected_finality
+    let return_value = contract.latest_l1_block_number(expected_finality).await;
+    assert_eq!(return_value, Ok(num_blocks - expected_finality)); // Finality takes one block off the top.
+
+    // With finality of 10
+    let big_finality = 10 * expected_finality;
+    let return_value = contract.latest_l1_block_number(big_finality).await;
+    if let Err(EthereumBaseLayerError::LatestBlockNumberReturnedTooLow { finality, block_number }) =
+        return_value
+    {
+        assert_eq!(finality, big_finality);
+        assert_eq!(block_number, num_blocks);
+    } else {
+        panic!("Expected LatestBlockNumberReturnedTooLow error, got {:?}", return_value);
+    }
 }
