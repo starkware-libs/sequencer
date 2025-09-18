@@ -180,3 +180,58 @@ impl TestingTxArgs for InvokeTxArgs {
         internal_invoke_tx(self.clone())
     }
 }
+
+// TODO(Itamar): Use actual builder pattern and delete `InvokeTxArgs`.
+pub struct InvokeTxBuilder {
+    invoke_tx_args: InvokeTxArgs,
+}
+
+impl InvokeTxBuilder {
+    pub fn new() -> Self {
+        Self { invoke_tx_args: InvokeTxArgs::default() }
+    }
+
+    pub fn signature(mut self, signature: TransactionSignature) -> Self {
+        self.invoke_tx_args.signature = signature;
+        self
+    }
+
+    pub fn sender_address(mut self, sender_address: ContractAddress) -> Self {
+        self.invoke_tx_args.sender_address = sender_address;
+        self
+    }
+
+    pub fn calldata(mut self, calldata: Calldata) -> Self {
+        self.invoke_tx_args.calldata = calldata;
+        self
+    }
+
+    pub fn resource_bounds(mut self, resource_bounds: ValidResourceBounds) -> Self {
+        self.invoke_tx_args.resource_bounds = resource_bounds;
+        self
+    }
+
+    pub fn tip(mut self, tip: Tip) -> Self {
+        self.invoke_tx_args.tip = tip;
+        self
+    }
+
+    pub fn nonce(mut self, nonce: Nonce) -> Self {
+        self.invoke_tx_args.nonce = nonce;
+        self
+    }
+
+    pub fn build_rpc_invoke_tx(self) -> RpcTransaction {
+        rpc_invoke_tx(self.invoke_tx_args)
+    }
+
+    pub fn build_executable_invoke_tx(self) -> AccountTransaction {
+        executable_invoke_tx(self.invoke_tx_args)
+    }
+}
+
+impl Default for InvokeTxBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
