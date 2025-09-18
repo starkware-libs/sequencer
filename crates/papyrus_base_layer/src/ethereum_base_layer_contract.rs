@@ -169,7 +169,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
-        debug!("Got events in {:?}, transaction hashes: {:?}", block_range, hashes);
+        debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
 
         let block_header_futures = matching_logs.into_iter().map(|log| {
             let block_number = log.block_number.unwrap();
