@@ -192,6 +192,10 @@ impl NodeService {
         }
     }
 
+    pub fn name_string(&self) -> String {
+        self.as_inner().to_string()
+    }
+
     pub fn get_controller(&self) -> Controller {
         self.as_inner().get_controller()
     }
@@ -263,7 +267,7 @@ impl NodeService {
     }
 }
 
-pub(crate) trait ServiceNameInner: Display {
+pub trait ServiceNameInner: Display {
     fn get_controller(&self) -> Controller;
 
     fn get_autoscale(&self) -> bool;
@@ -366,6 +370,7 @@ impl NodeType {
         }
     }
 
+    // TODO(Nadin): return HashMap instead of IndexMap.
     pub fn get_component_configs(
         &self,
         ports: Option<Vec<u16>>,
