@@ -36,7 +36,7 @@ rand_distr.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_repr.workspace = true
-starknet-types-core.workspace = true
+starknet-types-core = { workspace = true, version = "0.2.1" }
 starknet_api.workspace = true
 starknet_committer.workspace = true
 # The 'testing' feature of starknet_os should be moved under this crate's `testing` feature, when it
