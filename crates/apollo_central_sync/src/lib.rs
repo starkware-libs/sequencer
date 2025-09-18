@@ -374,7 +374,7 @@ impl<
     #[instrument(
         skip(self, block),
         level = "debug",
-        fields(block_hash = format_args!("{:#064x}", block.header.block_hash.0)),
+        fields(block_hash = format_args!("{:#066x}", block.header.block_hash.0)),
         err
     )]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -1042,20 +1042,25 @@ fn check_sync_progress(
     store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
-        let txn=reader.begin_ro_txn()?;
-        let mut header_marker=txn.get_header_marker()?;
-        let mut state_marker=txn.get_state_marker()?;
-        let mut casm_marker=txn.get_compiled_class_marker()?;
-        drop(txn); // Drop txn so we don't unnecessarily hold it open while sleeping.
+        let (mut header_marker, mut state_marker, mut casm_marker) = {
+            let txn = reader.begin_ro_txn()?;
+            let header_marker = txn.get_header_marker()?;
+            let state_marker = txn.get_state_marker()?;
+            let casm_marker = txn.get_compiled_class_marker()?;
+            (header_marker, state_marker, casm_marker)
+        };
 
         loop{
             tokio::time::sleep(SLEEP_TIME_SYNC_PROGRESS).await;
             debug!("Checking if sync stopped progress.");
-            let txn=reader.begin_ro_txn()?;
-            let new_header_marker=txn.get_header_marker()?;
-            let new_state_marker=txn.get_state_marker()?;
-            let new_casm_marker=txn.get_compiled_class_marker()?;
-            let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
+            let (new_header_marker, new_state_marker, new_casm_marker, compiler_backward_compatibility_marker) = {
+                let txn = reader.begin_ro_txn()?;
+                let new_header_marker = txn.get_header_marker()?;
+                let new_state_marker = txn.get_state_marker()?;
+                let new_casm_marker = txn.get_compiled_class_marker()?;
+                let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
+                (new_header_marker, new_state_marker, new_casm_marker, compiler_backward_compatibility_marker)
+            };
             let is_casm_stuck = casm_marker == new_casm_marker && (new_casm_marker < compiler_backward_compatibility_marker || store_sierras_and_casms);
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event. Header marker: {header_marker}, \

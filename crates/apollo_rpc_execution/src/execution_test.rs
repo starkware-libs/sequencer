@@ -778,7 +778,7 @@ fn blockifier_error_mapping() {
     let class_hash = class_hash!("0x321");
     let expected = format!(
         "Contract constructor execution has failed:\n0: Error in the contract class constructor \
-         (contract address: {:#064x}, class hash: {:#064x}, selector: UNKNOWN):\n{child}\n",
+         (contract address: {:#066x}, class hash: {:#066x}, selector: UNKNOWN):\n{child}\n",
         storage_address.0.key(),
         class_hash.0
     );

@@ -66,7 +66,12 @@ use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeContext};
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
-use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
+use crate::metrics::{
+    record_build_proposal_failure,
+    record_validate_proposal_failure,
+    register_metrics,
+    CONSENSUS_L2_GAS_PRICE,
+};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
 use crate::validate_proposal::{
@@ -288,6 +293,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     }
                     Err(e) => {
                         warn!("PROPOSAL_FAILED: Proposal failed as proposer. Error: {e:?}");
+                        record_build_proposal_failure(e.into());
                     }
                 }
             }
@@ -434,7 +440,7 @@ impl ConsensusContext for SequencerConsensusContext {
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
+        info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", block.0);
 
         self.interrupt_active_proposal().await;
         let proposal_id;
@@ -724,6 +730,7 @@ impl SequencerConsensusContext {
                     }
                     Err(e) => {
                         warn!("PROPOSAL_FAILED: Proposal failed as validator. Error: {e:?}");
+                        record_validate_proposal_failure(e.into());
                     }
                 }
             }

@@ -23,4 +23,5 @@ pub(crate) fn register_scraper_metrics() {
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT.register();
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.register();
     L1_MESSAGE_SCRAPER_REORG_DETECTED.register();
+    L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE.register();
 }

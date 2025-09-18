@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::btree_map::IntoIter;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -381,12 +381,8 @@ impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 #[derive(Default)]
 pub struct SyscallHintProcessor {
-    // Sha256 segment related fields.
-    pub(crate) sha256_segment: Option<Relocatable>,
-    pub(crate) sha256_block_count: usize,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
-
     // Secp hint processors.
     pub(crate) secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub(crate) secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,

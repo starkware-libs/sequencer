@@ -29,7 +29,7 @@ use crate::utils::{add_maps, should_migrate, u64_from_usize, usize_from_u64};
 #[path = "bouncer_test.rs"]
 mod test;
 
-macro_rules! impl_checked_ops {
+macro_rules! impl_field_wise_ops {
     ($($field:ident),+) => {
         pub fn checked_sub(self: Self, other: Self) -> Option<Self> {
             Some(
@@ -49,6 +49,17 @@ macro_rules! impl_checked_ops {
                     )+
                 }
             )
+        }
+
+        // Returns a comma-separated string of exceeded fields.
+        pub fn get_exceeded_weights(self: Self, other: Self) -> String {
+            let mut exceeded = Vec::new();
+            $(
+                if other.$field > self.$field {
+                    exceeded.push(stringify!($field));
+                }
+            )+
+            exceeded.join(", ")
         }
     };
 }
@@ -85,6 +96,10 @@ impl BouncerConfig {
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
         self.block_max_capacity.has_room(weights)
+    }
+
+    pub fn get_exceeded_weights(&self, weights: BouncerWeights) -> String {
+        self.block_max_capacity.get_exceeded_weights(weights)
     }
 
     pub fn within_max_capacity_or_err(
@@ -132,7 +147,7 @@ pub struct BouncerWeights {
 }
 
 impl BouncerWeights {
-    impl_checked_ops!(
+    impl_field_wise_ops!(
         l1_gas,
         message_segment_length,
         n_events,
@@ -587,15 +602,16 @@ impl Bouncer {
             "Addition overflow. Transaction weights: {tx_bouncer_weights:?}, block weights: {:?}.",
             self.get_bouncer_weights()
         );
-        if !self
-            .bouncer_config
-            .has_room(self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg))
-        {
+        let next_accumulated_weights =
+            self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg);
+        if !self.bouncer_config.has_room(next_accumulated_weights) {
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
-                 transaction weights: {:?}, block weights: {:?}.",
+                 transaction weights: {:?}, block weights: {:?}. Block max capacity reached on \
+                 fields: {}",
                 tx_weights.bouncer_weights,
-                self.get_bouncer_weights()
+                self.get_bouncer_weights(),
+                self.bouncer_config.get_exceeded_weights(next_accumulated_weights)
             );
             Err(TransactionExecutorError::BlockFull)?
         }
