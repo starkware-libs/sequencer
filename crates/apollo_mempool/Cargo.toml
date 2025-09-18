@@ -12,6 +12,8 @@ testing = [
   "apollo_network/testing",
   "apollo_network_types/testing",
   "apollo_time/testing",
+  "blockifier/testing",
+  "blockifier_test_utils",
   "starknet_api/testing",
 ]
 
@@ -27,6 +29,7 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_time = { workspace = true }
 async-trait.workspace = true
+blockifier_test_utils = { workspace = true, optional = true }
 derive_more.workspace = true
 indexmap.workspace = true
 rand.workspace = true
@@ -45,6 +48,9 @@ apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+blockifier = { workspace = true, features = ["mocks", "testing"] }
+blockifier_test_utils.workspace = true
+criterion = { workspace = true, features = ["async_tokio"] }
 itertools.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
@@ -55,3 +61,9 @@ rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
+
+[[bench]]
+harness = false
+name = "apollo_mempool"
+path = "benches/main.rs"
+required-features = ["testing"]
