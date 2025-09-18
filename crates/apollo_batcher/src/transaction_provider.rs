@@ -60,7 +60,7 @@ pub struct ProposeTransactionProvider {
 
 // Keeps track of whether we need to fetch L1 handler transactions or mempool transactions.
 #[derive(Clone, Debug, PartialEq)]
-enum TxProviderPhase {
+pub(crate) enum TxProviderPhase {
     L1,
     Mempool,
 }
@@ -71,13 +71,14 @@ impl ProposeTransactionProvider {
         l1_provider_client: SharedL1ProviderClient,
         max_l1_handler_txs_per_block: usize,
         height: BlockNumber,
+        start_phase: TxProviderPhase,
     ) -> Self {
         Self {
             mempool_client,
             l1_provider_client,
             max_l1_handler_txs_per_block,
             height,
-            phase: TxProviderPhase::L1,
+            phase: start_phase,
             n_l1handler_txs_so_far: 0,
         }
     }
