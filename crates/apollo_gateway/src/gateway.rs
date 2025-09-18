@@ -146,7 +146,7 @@ impl Gateway {
             }
             Err(join_err) => {
                 let err = StarknetError::internal_with_signature_logging(
-                    "Failed to process tx",
+                    "Failed to process tx".into(),
                     tx.signature(),
                     join_err,
                 );

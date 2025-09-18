@@ -75,7 +75,7 @@ impl StarknetError {
     }
 
     pub fn internal_with_signature_logging(
-        log_message: &str,
+        log_message: String,
         tx_signature: &TransactionSignature,
         err: impl std::error::Error,
     ) -> Self {

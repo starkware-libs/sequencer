@@ -223,7 +223,7 @@ pub fn mempool_client_err_to_deprecated_gw_err(
     let code = match &err {
         MempoolClientError::ClientError(client_error) => {
             return StarknetError::internal_with_signature_logging(
-                "Mempool client error",
+                "Mempool client error".into(),
                 tx_signature,
                 client_error,
             );
@@ -253,7 +253,7 @@ pub fn mempool_client_err_to_deprecated_gw_err(
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
                     return StarknetError::internal_with_signature_logging(
-                        "Mempool p2p propagator client error",
+                        "Mempool p2p propagator client error".into(),
                         tx_signature,
                         mempool_error,
                     );
@@ -336,7 +336,11 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         }
         // Internal error because the class manager should have the class in its storage.
         TransactionConverterError::ClassNotFound { .. } => {
-            StarknetError::internal_with_signature_logging("Class not found", tx_signature, err)
+            StarknetError::internal_with_signature_logging(
+                "Class not found".into(),
+                tx_signature,
+                err,
+            )
         }
         TransactionConverterError::StarknetApiError(err) => convert_sn_api_error(err),
     }
@@ -365,7 +369,7 @@ fn convert_class_manager_client_error(
             convert_class_manager_error(tx_signature, err)
         }
         ClassManagerClientError::ClientError(_) => StarknetError::internal_with_signature_logging(
-            "Class manager client error",
+            "Class manager client error".into(),
             tx_signature,
             err,
         ),
@@ -395,9 +399,11 @@ fn convert_class_manager_error(
         },
         ClassManagerError::ClassSerde(_)
         | ClassManagerError::ClassStorage(_)
-        | ClassManagerError::Client(_) => {
-            StarknetError::internal_with_signature_logging("Class manager error", tx_signature, err)
-        }
+        | ClassManagerError::Client(_) => StarknetError::internal_with_signature_logging(
+            "Class manager error".into(),
+            tx_signature,
+            err,
+        ),
     }
 }
 
