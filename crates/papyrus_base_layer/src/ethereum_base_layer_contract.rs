@@ -191,10 +191,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         )
         .await??;
         let Some(block_number) = block_number.checked_sub(finality) else {
-            return Err(EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(
+            return Err(EthereumBaseLayerError::LatestBlockNumberReturnedTooLow {
                 block_number,
                 finality,
-            ));
+            });
         };
         Ok(block_number)
     }
@@ -287,8 +287,8 @@ pub enum EthereumBaseLayerError {
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
     UnhandledL1Event(alloy::primitives::Log),
-    #[error("Block number is too low: {0}, finality: {1}")]
-    LatestBlockNumberReturnedTooLow(u64, u64),
+    #[error("Block number is too low: {block_number}, finality: {finality}")]
+    LatestBlockNumberReturnedTooLow { block_number: u64, finality: u64 },
 }
 
 impl PartialEq for EthereumBaseLayerError {
