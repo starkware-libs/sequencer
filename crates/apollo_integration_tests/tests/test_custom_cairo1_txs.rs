@@ -106,7 +106,11 @@ fn generate_direct_test_contract_invoke_txs(
     .iter()
     .map(|(fn_name, fn_args)| {
         let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, fn_args);
-        account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata)
+        account_tx_generator
+            .invoke_tx_builder()
+            .tip(DEFAULT_TIP)
+            .calldata(calldata)
+            .build_rpc_invoke_tx()
     })
     .collect()
 }
@@ -171,7 +175,9 @@ fn generate_test_deploy_txs(
     ];
     let calldata =
         create_calldata(test_contract.get_instance_address(0), "test_deploy", &test_deploy_args);
-    txs.push(account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata));
+    txs.push(
+        account_tx_generator.invoke_tx_builder().tip(tip).calldata(calldata).build_rpc_invoke_tx(),
+    );
 
     // Get the contract address of the newly deployed contract from test_deploy.
     let newly_deployed_contract_address = calculate_contract_address(
@@ -222,7 +228,9 @@ fn generate_test_deploy_txs(
         &test_replace_class_args,
     );
 
-    txs.push(account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata));
+    txs.push(
+        account_tx_generator.invoke_tx_builder().tip(tip).calldata(calldata).build_rpc_invoke_tx(),
+    );
 
     txs
 }
@@ -255,8 +263,5 @@ fn generate_test_get_execution_info_without_block_info_invoke_tx(
     ];
     let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, &calldata);
 
-    account_tx_generator.generate_rpc_invoke_tx(
-        0, // The test checks for tip being 0.
-        calldata,
-    )
+    account_tx_generator.invoke_tx_builder().tip(0).calldata(calldata).build_rpc_invoke_tx()
 }

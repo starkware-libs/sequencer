@@ -61,7 +61,11 @@ fn generate_direct_test_contract_invoke_txs_cairo_0_syscall(
     .iter()
     .map(|(fn_name, fn_args)| {
         let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, fn_args);
-        account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata)
+        account_tx_generator
+            .invoke_tx_builder()
+            .tip(DEFAULT_TIP)
+            .calldata(calldata)
+            .build_rpc_invoke_tx()
     })
     .collect()
 }
