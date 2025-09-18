@@ -12,6 +12,7 @@ use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConf
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
+    // TODO(Nadin): replace Vec with a map keyed by service, i.e. service -> ComponentConfig
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
