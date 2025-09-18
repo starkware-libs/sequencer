@@ -72,6 +72,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     async fn initialize(&mut self) -> L1ScraperResult<(), B> {
         let (latest_l1_block, events) = self.fetch_events().await?;
 
+        debug!("Latest L1 block for initialize: {latest_l1_block:?}");
+        debug!("All events scraped during initialize: {events:?}");
+
         // If this gets too high, send in batches.
         let initialize_result = self.l1_provider_client.initialize(events).await;
         handle_client_error(initialize_result)?;
@@ -236,6 +239,7 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
         .latest_l1_block_number(finality)
         .await
         .map_err(L1ScraperError::BaseLayerError)?;
+    debug!("Latest L1 block number: {latest_l1_block_number:?}");
 
     let latest_l1_block_number = match latest_l1_block_number {
         Some(latest_l1_block_number) => Ok(latest_l1_block_number),
@@ -244,10 +248,14 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
 
     // Estimate the number of blocks in the interval, to rewind from the latest block.
     let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
+    debug!("Blocks in interval: {blocks_in_interval}");
+
     // Add 50% safety margin.
     let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
+    debug!("Safe blocks in interval: {safe_blocks_in_interval}");
 
     let l1_block_number_rewind = latest_l1_block_number.saturating_sub(safe_blocks_in_interval);
+    debug!("L1 block number rewind: {l1_block_number_rewind}");
 
     let block_reference_rewind = base_layer
         .l1_block_at(l1_block_number_rewind)
@@ -259,6 +267,8 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
                  {latest_l1_block_number}, so should exist",
             )
         });
+    debug!("Block reference rewind: {block_reference_rewind:?}");
+
     Ok(block_reference_rewind)
 }
 
