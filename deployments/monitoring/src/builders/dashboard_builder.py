@@ -237,7 +237,7 @@ def dashboard_builder(args: argparse.Namespace) -> None:
             output_dir = f"{args.out_dir}/dashboards"
             os.makedirs(output_dir, exist_ok=True)
             with open(dashboard_file_name(output_dir, dashboard_name), "w") as f:
-                json.dump(dashboard, f, indent=4)
+                json.dump(dashboard, f, separators=(",", ":"), ensure_ascii=False)
         if not args.dry_run:
             upload_dashboards_local(dashboard=dashboard)
 
