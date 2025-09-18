@@ -103,7 +103,10 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            ProviderState::Pending | ProviderState::Bootstrap(_) => {
+            ProviderState::Pending => {
+                panic!("get_txs called while in pending state. Panicking in order to restart the provider and bootstrap again.");
+            }
+            ProviderState::Bootstrap(_) => {
                 Err(L1ProviderError::OutOfSessionGetTransactions)
             }
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
@@ -128,7 +131,10 @@ impl L1Provider {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending | ProviderState::Bootstrap(_) => {
+            ProviderState::Pending => {
+                panic!("validate called while in pending state. Panicking in order to restart the provider and bootstrap again.");
+            }
+            ProviderState::Bootstrap(_) => {
                 Err(L1ProviderError::OutOfSessionValidate)
             }
         }
