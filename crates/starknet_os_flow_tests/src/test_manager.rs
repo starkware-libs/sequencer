@@ -59,7 +59,6 @@ use crate::utils::{
     create_committer_state_diff,
     divide_vec_into_n_parts,
     execute_transactions,
-    hashmap_contains_other,
     maybe_dummy_block_hash_and_number,
     CommitmentOutput,
     ExecutionOutput,
@@ -103,23 +102,24 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) committed_state_diff: StateDiff,
 }
 
-pub(crate) struct OsTestOutput {
+pub(crate) struct OsTestOutput<S: FlowTestState> {
     pub(crate) runner_output: StarknetOsRunnerOutput,
-    pub(crate) decompressed_state_diff: StateMaps,
+    pub(crate) decompressed_state_diff: StateDiff,
+    pub(crate) final_state: S,
     pub(crate) expected_values: OsTestExpectedValues,
 }
 
-impl OsTestOutput {
+impl<S: FlowTestState> OsTestOutput<S> {
     pub(crate) fn perform_validations(
         &self,
         perform_global_validations: bool,
-        partial_state_diff: Option<&StateMaps>,
+        partial_state_diff: Option<&StateDiff>,
     ) {
         if perform_global_validations {
             self.perform_global_validations();
         }
         if let Some(partial_state_diff) = partial_state_diff {
-            self.assert_contains_state_diff(partial_state_diff);
+            assert!(partial_state_diff.is_subset(&self.decompressed_state_diff));
         }
     }
 
@@ -188,46 +188,29 @@ impl OsTestOutput {
         );
 
         // State diff.
-        // Check that the committed state diff is a subset of the actual diff (the actual diff may
-        // contain additional updates that are not committed, such nonces of addresses with storage
-        // updates).
-        // Storage diffs should be equal.
-        let actual_diff = create_committer_state_diff(CommitmentStateDiff::from(
-            self.decompressed_state_diff.clone(),
-        ));
-        assert!(
-            self.expected_values.committed_state_diff.is_subset(&actual_diff),
-            "Actual state diff is not a superset of the committed state diff. \
-             Actual:\n{actual_diff:#?}\nCommitted:\n{:#?}",
-            self.expected_values.committed_state_diff
-        );
-        assert_eq!(
-            actual_diff.storage_updates,
-            self.expected_values.committed_state_diff.storage_updates
-        );
-    }
-
-    fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.class_hashes,
-            &partial_state_diff.class_hashes
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.nonces,
-            &partial_state_diff.nonces
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.storage,
-            &partial_state_diff.storage
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.compiled_class_hashes,
-            &partial_state_diff.compiled_class_hashes
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.declared_contracts,
-            &partial_state_diff.declared_contracts
-        ));
+        // Storage diffs should always be equal, but in full output mode there is extra data in the
+        // OS output - any contract address with any change (nonce, class hash or storage) will have
+        // all three in the output.
+        if self.runner_output.os_output.full_output() {
+            // Fill in class hashes / nonces for all addresses with changes.
+            let mut full_state_diff = self.expected_values.committed_state_diff.clone();
+            for address in self
+                .decompressed_state_diff
+                .address_to_class_hash
+                .keys()
+                .chain(self.decompressed_state_diff.address_to_nonce.keys())
+                .chain(self.decompressed_state_diff.storage_updates.keys())
+            {
+                // Read the current nonce / class hash from the state.
+                let nonce = self.final_state.get_nonce_at(*address).unwrap_or_default();
+                let class_hash = self.final_state.get_class_hash_at(*address).unwrap_or_default();
+                full_state_diff.address_to_nonce.insert(*address, nonce);
+                full_state_diff.address_to_class_hash.insert(*address, class_hash);
+            }
+            assert_eq!(self.decompressed_state_diff, full_state_diff);
+        } else {
+            assert_eq!(self.decompressed_state_diff, self.expected_values.committed_state_diff);
+        }
     }
 }
 
@@ -318,7 +301,7 @@ impl<S: FlowTestState> TestManager<S> {
         self,
         initial_block_number: u64,
         test_params: &TestParameters,
-    ) -> OsTestOutput {
+    ) -> OsTestOutput<S> {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
@@ -337,7 +320,7 @@ impl<S: FlowTestState> TestManager<S> {
         self,
         block_contexts: Vec<BlockContext>,
         test_params: &TestParameters,
-    ) -> OsTestOutput {
+    ) -> OsTestOutput<S> {
         assert_eq!(
             block_contexts.len(),
             self.per_block_transactions.len(),
@@ -420,7 +403,7 @@ impl<S: FlowTestState> TestManager<S> {
         self,
         block_contexts: Vec<BlockContext>,
         test_params: &TestParameters,
-    ) -> OsTestOutput {
+    ) -> OsTestOutput<S> {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let mut cached_state_inputs = vec![];
@@ -535,12 +518,14 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let (os_output, _) = run_os_stateless_for_testing(layout, os_hints).unwrap();
-        let decompressed_state_diff =
-            Self::get_decompressed_state_diff(&os_output, &state, alias_keys);
+        let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
+            Self::get_decompressed_state_diff(&os_output, &state, alias_keys),
+        ));
 
         OsTestOutput {
             runner_output: os_output,
             decompressed_state_diff,
+            final_state: state,
             expected_values: OsTestExpectedValues {
                 previous_global_root: expected_previous_global_root,
                 new_global_root: expected_new_global_root,
