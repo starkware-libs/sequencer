@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use blockifier::state::cached_state::StateMaps;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -30,6 +29,12 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::{declare_tx_args, invoke_tx_args};
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
@@ -85,6 +90,7 @@ async fn declare_deploy_scenario(
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
+
     let (mut test_manager, mut nonce_manager) =
         TestManager::<DictStateReader>::new_with_default_initial_state().await;
 
@@ -148,16 +154,22 @@ async fn declare_deploy_scenario(
         )
         .await;
 
-    let partial_state_diff = StateMaps {
+    let partial_state_diff = StateDiff {
         // Deployed contract.
-        class_hashes: HashMap::from([(expected_contract_address, class_hash)]),
+        address_to_class_hash: HashMap::from([(expected_contract_address, class_hash)]),
         // Storage update from the contract's constructor.
-        storage: HashMap::from([(
-            (expected_contract_address, get_storage_var_address("my_storage_var", &[])),
-            arg1 + arg2,
+        storage_updates: HashMap::from([(
+            expected_contract_address,
+            HashMap::from([(
+                StarknetStorageKey(get_storage_var_address("my_storage_var", &[])),
+                StarknetStorageValue(arg1 + arg2),
+            )]),
         )]),
         // Declared class.
-        compiled_class_hashes: HashMap::from([(class_hash, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: HashMap::from([(
+            class_hash,
+            CompiledClassHash(compiled_class_hash.0),
+        )]),
         ..Default::default()
     };
 
