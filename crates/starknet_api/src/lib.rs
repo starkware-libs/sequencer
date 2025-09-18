@@ -30,7 +30,26 @@ pub mod versioned_constants_logic;
 
 use std::num::ParseIntError;
 
+use crate::core::{ClassHash, CompiledClassHash};
 use crate::transaction::TransactionVersion;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CasmHashMismatch {
+    hash: ClassHash,
+    actual: CompiledClassHash,
+    expected: CompiledClassHash,
+}
+
+impl std::fmt::Display for CasmHashMismatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Mismatch compiled class hash for class with hash {:#064x}. Actual: {:#064x}, \
+             Expected: {:#064x}",
+            self.hash.0, self.actual.0, self.expected.0
+        )
+    }
+}
 
 /// The error type returned by StarknetApi.
 // Note: if you need `Eq` see InnerDeserializationError's docstring.
@@ -73,6 +92,11 @@ pub enum StarknetApiError {
     ParseSierraVersionError(String),
     #[error("Unsupported transaction type: {0}")]
     UnknownTransactionType(String),
+    #[error(
+        "Mismatch compiled class hash for class with hash {:#064x}. Actual: {:#064x}, Expected: {:#064x}",
+        .0.hash.0, .0.actual.0, .0.expected.0
+    )]
+    DeclareTransactionCasmHashMissMatch(Box<CasmHashMismatch>),
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;

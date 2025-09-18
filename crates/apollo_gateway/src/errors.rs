@@ -431,5 +431,11 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
             message: err.to_string(),
         },
+        StarknetApiError::DeclareTransactionCasmHashMissMatch(err) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidCompiledClassHash,
+            ),
+            message: err.to_string(),
+        },
     }
 }
