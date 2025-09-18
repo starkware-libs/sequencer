@@ -19,6 +19,7 @@ cairo-vm.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
+starknet_api.workspace = true
 thiserror.workspace = true
 
 [build-dependencies]
