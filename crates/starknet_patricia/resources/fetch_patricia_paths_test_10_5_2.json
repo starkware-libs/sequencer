@@ -1,0 +1,78 @@
+{
+    "initial_preimages": {
+        "0x53a5dd8f5db91993852191c2690663a0297f4a9dc237a64644f0d2595aff75": [
+            "0x9",
+            "0x52",
+            "0x452"
+        ],
+        "0x45b63f124c223427e86c0629bb3bdbafb5e66ec87a174f2581a9c97da4fa2bc": [
+            "0x8",
+            "0x12",
+            "0x612"
+        ],
+        "0x5c5401726bef0e59d9b6acaf9c06eaaf1ded2731aa8c6f2ae9cb4b38bdbadd3": [
+            "0x7",
+            "0x63",
+            "0x7e3"
+        ],
+        "0x3277f3ed644c9f2e0548bc63a5fd6bbd86e1436d7d4b9b8d5f93effca45a52b": [
+            "0x6",
+            "0x14",
+            "0x714"
+        ],
+        "0x345eb5327c82f63671d7cd2d021d7189e9a202efa335625abadefc8bfe6b7c2": [
+            "0x6",
+            "0x1d",
+            "0x75d"
+        ],
+        "0x3e358dac52f85768789e956837d35ec80e8be58a26cdb7ca55386e6be87d7f3": [
+            "0x3277f3ed644c9f2e0548bc63a5fd6bbd86e1436d7d4b9b8d5f93effca45a52b",
+            "0x345eb5327c82f63671d7cd2d021d7189e9a202efa335625abadefc8bfe6b7c2"
+        ],
+        "0x75ceb586b71f3514be6eefdc21620dbe96f80d92882f225778fafcabe6507f1": [
+            "0x3e358dac52f85768789e956837d35ec80e8be58a26cdb7ca55386e6be87d7f3",
+            "0x5c5401726bef0e59d9b6acaf9c06eaaf1ded2731aa8c6f2ae9cb4b38bdbadd3"
+        ],
+        "0x5d3b7ccb3260abd6542599239866f605378538e5fe13551617567364eca0ad7": [
+            "0x45b63f124c223427e86c0629bb3bdbafb5e66ec87a174f2581a9c97da4fa2bc",
+            "0x75ceb586b71f3514be6eefdc21620dbe96f80d92882f225778fafcabe6507f1"
+        ],
+        "0x484e489216d950c3a4a8d8c1bfe9556bfb55f915cc6743431c736691097f387": [
+            "0x53a5dd8f5db91993852191c2690663a0297f4a9dc237a64644f0d2595aff75",
+            "0x5d3b7ccb3260abd6542599239866f605378538e5fe13551617567364eca0ad7"
+        ]
+    },
+    "initial_leaves": [
+        788,
+        861,
+        82,
+        530,
+        995
+    ],
+    "root_hash": "0x484e489216d950c3a4a8d8c1bfe9556bfb55f915cc6743431c736691097f387",
+    "leaf_indices": [
+        530,
+        82
+    ],
+    "height": 10,
+    "expected_nodes": {
+        "0x484e489216d950c3a4a8d8c1bfe9556bfb55f915cc6743431c736691097f387": [
+            "0x53a5dd8f5db91993852191c2690663a0297f4a9dc237a64644f0d2595aff75",
+            "0x5d3b7ccb3260abd6542599239866f605378538e5fe13551617567364eca0ad7"
+        ],
+        "0x53a5dd8f5db91993852191c2690663a0297f4a9dc237a64644f0d2595aff75": [
+            "0x9",
+            "0x52",
+            "0x452"
+        ],
+        "0x5d3b7ccb3260abd6542599239866f605378538e5fe13551617567364eca0ad7": [
+            "0x45b63f124c223427e86c0629bb3bdbafb5e66ec87a174f2581a9c97da4fa2bc",
+            "0x75ceb586b71f3514be6eefdc21620dbe96f80d92882f225778fafcabe6507f1"
+        ],
+        "0x45b63f124c223427e86c0629bb3bdbafb5e66ec87a174f2581a9c97da4fa2bc": [
+            "0x8",
+            "0x12",
+            "0x612"
+        ]
+    }
+}
