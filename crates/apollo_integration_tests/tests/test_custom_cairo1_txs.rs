@@ -13,7 +13,8 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{calculate_contract_address, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::test_utils::invoke::rpc_invoke_tx;
+use starknet_api::transaction::fields::{ContractAddressSalt, Tip};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
@@ -22,7 +23,6 @@ use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 
 mod common;
 
-const DEFAULT_TIP: u64 = 1_u64;
 const CUSTOM_INVOKE_TX_COUNT: usize = 16;
 
 /// Test a wide range of different kinds of invoke transactions.
@@ -56,7 +56,7 @@ fn create_custom_cairo1_test_txs(
     txs.push(generate_empty_contract_declare_tx(account_tx_generator));
     txs.extend(generate_nested_library_call_invoke_txs(account_tx_generator));
     txs.extend(generate_direct_test_contract_invoke_txs(account_tx_generator));
-    txs.extend(generate_test_deploy_txs(account_tx_generator, DEFAULT_TIP));
+    txs.extend(generate_test_deploy_txs(account_tx_generator));
     txs.push(generate_test_get_execution_info_without_block_info_invoke_tx(account_tx_generator));
 
     txs
@@ -106,7 +106,7 @@ fn generate_direct_test_contract_invoke_txs(
     .iter()
     .map(|(fn_name, fn_args)| {
         let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, fn_args);
-        account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata)
+        rpc_invoke_tx(account_tx_generator.build_invoke_tx_args().calldata(calldata))
     })
     .collect()
 }
@@ -124,7 +124,6 @@ fn generate_nested_library_call_invoke_txs(
         .iter()
         .map(|(fn_name, fn_args)| {
             account_tx_generator.generate_library_call_invoke_tx(
-                DEFAULT_TIP,
                 &test_contract,
                 &test_contract,
                 fn_name,
@@ -152,7 +151,6 @@ fn generate_empty_contract_declare_tx(
 /// Deploy a contract and test the deployed contract functionality.
 fn generate_test_deploy_txs(
     account_tx_generator: &mut AccountTransactionGenerator,
-    tip: u64,
 ) -> Vec<RpcTransaction> {
     let mut txs = vec![];
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -171,7 +169,7 @@ fn generate_test_deploy_txs(
     ];
     let calldata =
         create_calldata(test_contract.get_instance_address(0), "test_deploy", &test_deploy_args);
-    txs.push(account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata));
+    txs.push(rpc_invoke_tx(account_tx_generator.build_invoke_tx_args().calldata(calldata)));
 
     // Get the contract address of the newly deployed contract from test_deploy.
     let newly_deployed_contract_address = calculate_contract_address(
@@ -192,7 +190,6 @@ fn generate_test_deploy_txs(
     ];
 
     txs.push(account_tx_generator.generate_call_contract_invoke_tx(
-        tip,
         &test_contract,
         &newly_deployed_contract_address,
         "test_storage_write",
@@ -205,7 +202,6 @@ fn generate_test_deploy_txs(
         key,
     ];
     txs.push(account_tx_generator.generate_library_call_invoke_tx(
-        tip,
         &test_contract,
         &test_contract,
         "test_storage_read",
@@ -222,7 +218,7 @@ fn generate_test_deploy_txs(
         &test_replace_class_args,
     );
 
-    txs.push(account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata));
+    txs.push(rpc_invoke_tx(account_tx_generator.build_invoke_tx_args().calldata(calldata)));
 
     txs
 }
@@ -255,8 +251,5 @@ fn generate_test_get_execution_info_without_block_info_invoke_tx(
     ];
     let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, &calldata);
 
-    account_tx_generator.generate_rpc_invoke_tx(
-        0, // The test checks for tip being 0.
-        calldata,
-    )
+    rpc_invoke_tx(account_tx_generator.build_invoke_tx_args().tip(Tip(0)).calldata(calldata))
 }
