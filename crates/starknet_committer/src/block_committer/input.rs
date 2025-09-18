@@ -111,6 +111,35 @@ pub struct Input<C: Config> {
     pub config: C,
 }
 
+pub trait IsSubset<T> {
+    fn is_subset(&self, other: &T) -> bool;
+}
+
+impl<K, V> IsSubset<HashMap<K, V>> for HashMap<K, V>
+where
+    K: Eq + std::hash::Hash,
+    V: PartialEq,
+{
+    fn is_subset(&self, other: &HashMap<K, V>) -> bool {
+        self.iter().all(|(k, v)| other.get(k).is_some_and(|other_v| v == other_v))
+    }
+}
+
+impl IsSubset<StateDiff> for StateDiff {
+    fn is_subset(&self, other: &Self) -> bool {
+        let Self {
+            address_to_class_hash,
+            address_to_nonce,
+            class_hash_to_compiled_class_hash,
+            storage_updates,
+        } = other;
+        self.address_to_class_hash.is_subset(address_to_class_hash)
+            && self.address_to_nonce.is_subset(address_to_nonce)
+            && self.class_hash_to_compiled_class_hash.is_subset(class_hash_to_compiled_class_hash)
+            && self.storage_updates.is_subset(storage_updates)
+    }
+}
+
 impl StateDiff {
     pub fn extend(&mut self, other: Self) {
         self.address_to_class_hash.extend(other.address_to_class_hash);
