@@ -14,6 +14,7 @@ use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
+    EthereumBaseLayerError,
     L1ToL2MessageArgs,
     Starknet,
 };
@@ -71,8 +72,13 @@ async fn latest_proved_block_ethereum() {
         (1000, None),
     ];
     for (scenario, expected) in scenarios {
-        let latest_block = contract.latest_proved_block(scenario).await.unwrap();
-        assert_eq!(latest_block, expected);
+        let latest_block = contract.latest_proved_block(scenario).await;
+        match latest_block {
+            Ok(latest_block) => assert_eq!(latest_block, expected),
+            Err(e) => {
+                assert_matches!(e, EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _))
+            }
+        }
     }
 }
 

@@ -176,10 +176,8 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
         &mut self,
         block_number: &mut L1BlockNumber,
     ) -> L1GasPriceScraperResult<(), B> {
-        let Some(last_block_number) = self.latest_l1_block_number().await? else {
-            // Not enough blocks under current finality. Try again later.
-            return Ok(());
-        };
+        let last_block_number = self.latest_l1_block_number().await?;
+
         trace!("Scraping gas prices starting from block {} to {last_block_number}.", *block_number,);
         info_every_n_sec!(
             1,
@@ -234,7 +232,7 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
         Ok(())
     }
 
-    async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<Option<L1BlockNumber>, B> {
+    async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<L1BlockNumber, B> {
         self.base_layer
             .latest_l1_block_number(self.config.finality)
             .await
@@ -256,7 +254,6 @@ where
                 let latest = self
                     .latest_l1_block_number()
                     .await
-                    .expect("Failed to get the latest L1 block number at startup")
                     .expect("Failed to get the latest L1 block number at startup");
 
                 // If no starting block is provided, the default is to start from

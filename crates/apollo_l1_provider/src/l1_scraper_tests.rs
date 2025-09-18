@@ -577,7 +577,7 @@ async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayer
 #[fixture]
 fn dummy_base_layer() -> MockBaseLayerContract {
     let mut base_layer = MockBaseLayerContract::new();
-    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Some(Default::default())));
+    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Default::default()));
     base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
     base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
     base_layer
