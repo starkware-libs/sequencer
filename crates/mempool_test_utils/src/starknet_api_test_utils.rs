@@ -20,7 +20,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
-use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs, InvokeTxBuilder};
 use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
@@ -397,37 +397,27 @@ impl AccountTransactionGenerator {
         self.nonce_manager.borrow().get(self.sender_address()) != nonce!(0)
     }
 
-    fn build_invoke_tx_args(&mut self, tip: u64, calldata: Calldata) -> InvokeTxArgs {
+    pub fn invoke_tx_builder(&mut self) -> InvokeTxBuilder {
         assert!(
             self.is_deployed(),
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
-        let nonce = self.next_nonce();
-        let invoke_args = invoke_tx_args!(
-            nonce,
-            tip: Tip(tip),
-            sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
-            calldata,
-        );
-        invoke_args
-    }
-
-    pub fn generate_rpc_invoke_tx(&mut self, tip: u64, calldata: Calldata) -> RpcTransaction {
-        let invoke_args = self.build_invoke_tx_args(tip, calldata);
-        rpc_invoke_tx(invoke_args)
+        InvokeTxBuilder::new()
+            .sender_address(self.sender_address())
+            .nonce(self.next_nonce())
+            .resource_bounds(test_valid_resource_bounds())
     }
 
     pub fn generate_trivial_rpc_invoke_tx(&mut self, tip: u64) -> RpcTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-        self.generate_rpc_invoke_tx(tip, calldata)
+        self.invoke_tx_builder().tip(Tip(tip)).calldata(calldata).build_rpc_invoke_tx()
     }
 
     fn generate_nested_call_invoke_tx(
         &mut self,
-        tip: u64,
+        tip: Tip,
         outer_test_contract: &FeatureContract,
         inner_contract_pointer: &Felt,
         outer_fn_name: &str,
@@ -444,12 +434,12 @@ impl AccountTransactionGenerator {
             outer_fn_name,
             &inner_calldata.0,
         );
-        self.generate_rpc_invoke_tx(tip, calldata)
+        self.invoke_tx_builder().tip(tip).calldata(calldata).build_rpc_invoke_tx()
     }
 
     pub fn generate_library_call_invoke_tx(
         &mut self,
-        tip: u64,
+        tip: Tip,
         outer_contract: &FeatureContract,
         inner_contract: &FeatureContract,
         fn_name: &str,
@@ -467,7 +457,7 @@ impl AccountTransactionGenerator {
 
     pub fn generate_call_contract_invoke_tx(
         &mut self,
-        tip: u64,
+        tip: Tip,
         outer_contract: &FeatureContract,
         inner_contract: &ContractAddress,
         fn_name: &str,
@@ -501,8 +491,7 @@ impl AccountTransactionGenerator {
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
-        starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
+        self.invoke_tx_builder().calldata(calldata).build_executable_invoke_tx()
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.
