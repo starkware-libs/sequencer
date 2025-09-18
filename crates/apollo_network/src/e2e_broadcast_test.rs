@@ -1,18 +1,32 @@
 use std::time::Duration;
 
+use apollo_metrics::metrics::MetricGauge;
 use futures::{FutureExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::core::ChainId;
 
 use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
+use crate::network_manager::metrics::NetworkMetrics;
 use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager, NetworkManager};
 use crate::peer_manager::PeerManagerConfig;
 use crate::{sqmr, Bytes};
+
+const NUM_CONNECTED_PEERS: MetricGauge = MetricGauge::new(
+    apollo_metrics::metrics::MetricScope::MempoolP2p,
+    "num_connected_peers",
+    "Number of connected peers",
+);
+const NUM_BLACKLISTED_PEERS: MetricGauge = MetricGauge::new(
+    apollo_metrics::metrics::MetricScope::MempoolP2p,
+    "num_blacklisted_peers",
+    "Number of blacklisted peers",
+);
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -51,10 +65,17 @@ const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
 fn create_network_manager(
     swarm: Swarm<MixedBehaviour>,
 ) -> GenericNetworkManager<Swarm<MixedBehaviour>> {
+    let metrics = NetworkMetrics {
+        num_connected_peers: NUM_CONNECTED_PEERS,
+        num_blacklisted_peers: NUM_BLACKLISTED_PEERS,
+        broadcast_metrics_by_topic: None,
+        sqmr_metrics: None,
+        event_metrics: None,
+    };
     GenericNetworkManager::generic_new(
         swarm,
         None,
-        None,
+        Some(metrics),
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
     )
@@ -149,6 +170,67 @@ async fn broadcast_subscriber_end_to_end_test() {
                 assert!(broadcast_client2_1.next().now_or_never().is_none());
                 assert!(broadcast_client2_2.next().now_or_never().is_none());
             }
+        ) => {
+            result.unwrap()
+        }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+#[tokio::test]
+async fn test_report_peer_metric() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let mut network_managers = create_peer_network(2).await;
+    let bootstrap_network_manager = network_managers.remove(0);
+    let mut network_manager1 = network_managers.remove(0);
+    let mut network_manager2 = network_managers.remove(0);
+
+    let topic = Topic::new("TOPIC");
+
+    let mut subscriber_channels1 =
+        network_manager1.register_broadcast_topic::<Number>(topic.clone(), BUFFER_SIZE).unwrap();
+    let mut subscriber_channels2 =
+        network_manager2.register_broadcast_topic::<Number>(topic.clone(), BUFFER_SIZE).unwrap();
+
+    tokio::select! {
+        _ = network_manager1.run() => panic!("network manager ended"),
+        _ = network_manager2.run() => panic!("network manager ended"),
+        _ = bootstrap_network_manager.run() => panic!("network manager ended"),
+        result = tokio::time::timeout(
+            TIMEOUT, async  {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+
+                let metrics = recorder.handle().render();
+                NUM_CONNECTED_PEERS.assert_eq(&metrics, 6);
+                // TODO(AndrewL): adding the next line causes the test to flakey.
+                // (sometimes peers are blacklisted for no reason?) This because
+                // dial failures result in reported peers.
+                // NUM_BLACKLISTED_PEERS.assert_eq(&metrics, 0);
+
+                // Broadcast a message from network_manager1 to network_manager2
+                subscriber_channels1.broadcast_topic_client.broadcast_message(Number(1)).await.unwrap();
+
+                // Receive the message from network_manager1
+                let (received_number1, report_callback) =
+                subscriber_channels2.broadcasted_messages_receiver.next().await.unwrap();
+                assert_eq!(received_number1.unwrap(), Number(1));
+
+                // Report the peer to network_manager2
+                subscriber_channels2.broadcast_topic_client.report_peer(report_callback).await.unwrap();
+
+                // Allow time for the peer report to be processed
+                tokio::time::sleep(Duration::from_secs(1)).await;
+
+                // Check the metrics
+                let metrics = recorder.handle().render();
+
+                // With 3 network managers (1 bootstrap + 2 peers), each connecting to the others,
+                // we get 6 total connections (3 managers × 2 connections each)
+                NUM_CONNECTED_PEERS.assert_eq(&metrics, 6u64);
+                assert!(NUM_BLACKLISTED_PEERS.parse_numeric_metric::<u64>(&metrics).unwrap() > 0);
+            },
         ) => {
             result.unwrap()
         }

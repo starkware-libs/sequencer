@@ -102,6 +102,8 @@ impl NetworkBehaviour for PeerManager {
                     );
                     return;
                 }
+                // Found the issue with flakey peer reports, dial failure result in reporting a
+                // peer. Should this be the case?
                 let res = self.report_peer(peer_id, super::ReputationModifier::Unstable);
                 if res.is_err() {
                     warn!("Dial failure of an unknown peer. peer id: {}", peer_id)
