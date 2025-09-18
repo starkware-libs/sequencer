@@ -652,6 +652,7 @@ impl Batcher {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
+        info!("Successfully committed proposal for block {} to storage.", height);
 
         // Notify the L1 provider of the new block.
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
