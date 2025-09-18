@@ -16,6 +16,31 @@ on:
       - "crates/starknet_committer/**"
       - "crates/starknet_patricia/**"
       - "scripts/dependencies.sh"
+  workflow_dispatch:
+    inputs:
+      dependency_version_set:
+        description: 'Dependency version set to test'
+        required: true
+        default: 'current'
+        type: choice
+        options:
+        - current
+        - cairo_lang_latest
+        - starknet_core_latest
+        - custom
+      custom_cairo_version:
+        description: 'Custom Cairo Lang version (only used if dependency_version_set is custom)'
+        required: false
+        default: '2.12.0-dev.1'
+      custom_starknet_core_version:
+        description: 'Custom starknet-core version (only used if dependency_version_set is custom)'
+        required: false
+        default: '0.12.1'
+      run_benchmarks:
+        description: 'Run benchmarks in addition to tests'
+        required: true
+        default: true
+        type: boolean
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -32,9 +57,57 @@ concurrency:
 jobs:
   run-regression-tests:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
+      
+      # Set up dependency versions based on input
+      - name: Configure dependency versions
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dependency_version_set != 'current'
+        run: |
+          echo "Setting up dependency versions for: ${{ github.event.inputs.dependency_version_set }}"
+          
+          # Backup original Cargo.toml
+          cp Cargo.toml Cargo.toml.backup
+          
+          case "${{ github.event.inputs.dependency_version_set }}" in
+            "cairo_lang_latest")
+              echo "Using latest Cairo Lang versions"
+              # Update cairo-lang dependencies to latest versions
+              sed -i 's/cairo-lang-casm = "[^"]*"/cairo-lang-casm = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-runner = "[^"]*"/cairo-lang-runner = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-sierra = "[^"]*"/cairo-lang-sierra = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-sierra-to-casm = "[^"]*"/cairo-lang-sierra-to-casm = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-starknet-classes = "[^"]*"/cairo-lang-starknet-classes = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-utils = "[^"]*"/cairo-lang-utils = "2.8.0"/' Cargo.toml
+              ;;
+            "starknet_core_latest")
+              echo "Using latest starknet-core versions"
+              # Update starknet dependencies to latest versions
+              sed -i 's/starknet-core = "[^"]*"/starknet-core = "0.11.1"/' Cargo.toml
+              sed -i 's/starknet-crypto = "[^"]*"/starknet-crypto = "0.7.1"/' Cargo.toml
+              sed -i 's/starknet-types-core = "[^"]*"/starknet-types-core = "0.1.5"/' Cargo.toml
+              ;;
+            "custom")
+              echo "Using custom dependency versions"
+              if [ -n "${{ github.event.inputs.custom_cairo_version }}" ]; then
+                echo "Setting Cairo Lang version to: ${{ github.event.inputs.custom_cairo_version }}"
+                sed -i 's/cairo-lang-casm = "[^"]*"/cairo-lang-casm = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-runner = "[^"]*"/cairo-lang-runner = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-sierra = "[^"]*"/cairo-lang-sierra = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-sierra-to-casm = "[^"]*"/cairo-lang-sierra-to-casm = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-starknet-classes = "[^"]*"/cairo-lang-starknet-classes = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-utils = "[^"]*"/cairo-lang-utils = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+              fi
+              if [ -n "${{ github.event.inputs.custom_starknet_core_version }}" ]; then
+                echo "Setting starknet-core version to: ${{ github.event.inputs.custom_starknet_core_version }}"
+                sed -i 's/starknet-core = "[^"]*"/starknet-core = "${{ github.event.inputs.custom_starknet_core_version }}"/' Cargo.toml
+              fi
+              ;;
+          esac
+          
+          echo "Updated Cargo.toml dependencies:"
+          git diff Cargo.toml || true
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
@@ -64,12 +137,60 @@ jobs:
 
   benchmarking:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ (github.event_name == 'pull_request') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_benchmarks == 'true') }}
     steps:
-      # Checkout the base branch to get the old code.
+      # Checkout the base branch to get the old code (for PR) or current branch (for manual dispatch)
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.base_ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref }}
+          
+      # Set up dependency versions based on input (for manual dispatch)
+      - name: Configure dependency versions (base)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dependency_version_set != 'current'
+        run: |
+          echo "Setting up dependency versions for baseline: ${{ github.event.inputs.dependency_version_set }}"
+          
+          # Backup original Cargo.toml
+          cp Cargo.toml Cargo.toml.backup
+          
+          case "${{ github.event.inputs.dependency_version_set }}" in
+            "cairo_lang_latest")
+              echo "Using latest Cairo Lang versions"
+              # Update cairo-lang dependencies to latest versions
+              sed -i 's/cairo-lang-casm = "[^"]*"/cairo-lang-casm = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-runner = "[^"]*"/cairo-lang-runner = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-sierra = "[^"]*"/cairo-lang-sierra = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-sierra-to-casm = "[^"]*"/cairo-lang-sierra-to-casm = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-starknet-classes = "[^"]*"/cairo-lang-starknet-classes = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-utils = "[^"]*"/cairo-lang-utils = "2.8.0"/' Cargo.toml
+              ;;
+            "starknet_core_latest")
+              echo "Using latest starknet-core versions"
+              # Update starknet dependencies to latest versions
+              sed -i 's/starknet-core = "[^"]*"/starknet-core = "0.11.1"/' Cargo.toml
+              sed -i 's/starknet-crypto = "[^"]*"/starknet-crypto = "0.7.1"/' Cargo.toml
+              sed -i 's/starknet-types-core = "[^"]*"/starknet-types-core = "0.1.5"/' Cargo.toml
+              ;;
+            "custom")
+              echo "Using custom dependency versions"
+              if [ -n "${{ github.event.inputs.custom_cairo_version }}" ]; then
+                echo "Setting Cairo Lang version to: ${{ github.event.inputs.custom_cairo_version }}"
+                sed -i 's/cairo-lang-casm = "[^"]*"/cairo-lang-casm = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-runner = "[^"]*"/cairo-lang-runner = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-sierra = "[^"]*"/cairo-lang-sierra = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-sierra-to-casm = "[^"]*"/cairo-lang-sierra-to-casm = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-starknet-classes = "[^"]*"/cairo-lang-starknet-classes = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-utils = "[^"]*"/cairo-lang-utils = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+              fi
+              if [ -n "${{ github.event.inputs.custom_starknet_core_version }}" ]; then
+                echo "Setting starknet-core version to: ${{ github.event.inputs.custom_starknet_core_version }}"
+                sed -i 's/starknet-core = "[^"]*"/starknet-core = "${{ github.event.inputs.custom_starknet_core_version }}"/' Cargo.toml
+              fi
+              ;;
+          esac
+          
+          echo "Updated Cargo.toml dependencies for baseline:"
+          git diff Cargo.toml || true
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
@@ -108,11 +229,54 @@ jobs:
       - run: mv ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json_bu
       - run: mv ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json_bu
 
-      # Checkout the new code.
+      # Checkout the new code (for PR comparison) or skip if manual dispatch (already on correct branch)
       - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
         with:
           clean: false
       - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      
+      # Set up dependency versions again for the new code (manual dispatch only)
+      - name: Configure dependency versions (new)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dependency_version_set != 'current'
+        run: |
+          echo "Re-applying dependency versions for comparison: ${{ github.event.inputs.dependency_version_set }}"
+          
+          case "${{ github.event.inputs.dependency_version_set }}" in
+            "cairo_lang_latest")
+              echo "Using latest Cairo Lang versions"
+              # Update cairo-lang dependencies to latest versions
+              sed -i 's/cairo-lang-casm = "[^"]*"/cairo-lang-casm = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-runner = "[^"]*"/cairo-lang-runner = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-sierra = "[^"]*"/cairo-lang-sierra = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-sierra-to-casm = "[^"]*"/cairo-lang-sierra-to-casm = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-starknet-classes = "[^"]*"/cairo-lang-starknet-classes = "2.8.0"/' Cargo.toml
+              sed -i 's/cairo-lang-utils = "[^"]*"/cairo-lang-utils = "2.8.0"/' Cargo.toml
+              ;;
+            "starknet_core_latest")
+              echo "Using latest starknet-core versions"
+              # Update starknet dependencies to latest versions
+              sed -i 's/starknet-core = "[^"]*"/starknet-core = "0.11.1"/' Cargo.toml
+              sed -i 's/starknet-crypto = "[^"]*"/starknet-crypto = "0.7.1"/' Cargo.toml
+              sed -i 's/starknet-types-core = "[^"]*"/starknet-types-core = "0.1.5"/' Cargo.toml
+              ;;
+            "custom")
+              echo "Using custom dependency versions"
+              if [ -n "${{ github.event.inputs.custom_cairo_version }}" ]; then
+                echo "Setting Cairo Lang version to: ${{ github.event.inputs.custom_cairo_version }}"
+                sed -i 's/cairo-lang-casm = "[^"]*"/cairo-lang-casm = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-runner = "[^"]*"/cairo-lang-runner = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-sierra = "[^"]*"/cairo-lang-sierra = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-sierra-to-casm = "[^"]*"/cairo-lang-sierra-to-casm = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-starknet-classes = "[^"]*"/cairo-lang-starknet-classes = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+                sed -i 's/cairo-lang-utils = "[^"]*"/cairo-lang-utils = "${{ github.event.inputs.custom_cairo_version }}"/' Cargo.toml
+              fi
+              if [ -n "${{ github.event.inputs.custom_starknet_core_version }}" ]; then
+                echo "Setting starknet-core version to: ${{ github.event.inputs.custom_starknet_core_version }}"
+                sed -i 's/starknet-core = "[^"]*"/starknet-core = "${{ github.event.inputs.custom_starknet_core_version }}"/' Cargo.toml
+              fi
+              ;;
+          esac
 
       # If the pip requirements on the old commit are different from the new commit, re-install them.
       - run: pip install -r scripts/requirements.txt
