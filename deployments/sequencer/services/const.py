@@ -41,7 +41,6 @@ BACKEND_CONFIG_HEALTHY_THRESHOLD = 1
 BACKEND_CONFIG_UNHEALTHY_THRESHOLD = 10
 BACKEND_CONFIG_HEADERS = [
     "X-Client-Region:{client_region}",
-    "X-Client-Region:{client_region}",
     "X-Client-CityLatLong:{client_city_lat_long}",
 ]
 
