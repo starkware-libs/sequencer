@@ -580,14 +580,16 @@
           "extra_params": {}
         },
         {
-          "title": "Gateway Validate Stateful Tx Storage Micros",
-          "description": "Total time spent in storage operations in micros during stateful tx validation",
+          "title": "Gateway Validate Stateful Tx Storage Access Time",
+          "description": "Total time spent in storage operations during stateful tx validation",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_micros_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_micros_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         },
         {
           "title": "Gateway Validate Stateful Tx Storage Operations",

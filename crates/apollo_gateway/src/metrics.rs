@@ -45,7 +45,7 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_ADD_TX_FAILURE, "gateway_add_tx_failure", "Counter of add_tx failures by reason", init = 0 , labels = ADD_TX_FAILURE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
-        MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS, "gateway_validate_stateful_tx_storage_micros", "Total time spent in storage operations in micros during stateful tx validation" },
+        MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME, "gateway_validate_stateful_tx_storage_time", "Total time spent in storage operations in secs during stateful tx validation" },
         MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, "gateway_validate_stateful_tx_storage_operations", "Total number of storage operations during stateful tx validation"},
     },
 );
@@ -247,6 +247,6 @@ pub(crate) fn register_metrics() {
     GATEWAY_ADD_TX_FAILURE.register();
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
-    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS.register();
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS.register();
 }
