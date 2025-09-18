@@ -580,7 +580,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_validate_stateful_tx_storage_micros",
+          "title": "Gateway Validate Stateful Tx Storage Micros",
           "description": "Total time spent in storage operations in micros during stateful tx validation",
           "type": "timeseries",
           "exprs": [
@@ -590,7 +590,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_validate_stateful_tx_storage_operations",
+          "title": "Gateway Validate Stateful Tx Storage Operations",
           "description": "Total number of storage operations during stateful tx validation",
           "type": "timeseries",
           "exprs": [
@@ -1129,7 +1129,7 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
+          "title": "Mempool P2p Broadcasted Transaction Batch Size",
           "description": "The number of transactions in batches broadcast by the mempool p2p component",
           "type": "timeseries",
           "exprs": [

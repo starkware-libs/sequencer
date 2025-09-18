@@ -26,7 +26,11 @@ fn get_panel_mempool_p2p_num_received_messages() -> Panel {
 }
 
 fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
-    Panel::from_hist(&MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::TimeSeries)
+    Panel::from_hist(
+        &MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
+        "Mempool P2p Broadcasted Transaction Batch Size",
+        "The number of transactions in batches broadcast by the mempool p2p component",
+    )
 }
 
 fn get_panel_mempool_p2p_network_events_by_type() -> Panel {

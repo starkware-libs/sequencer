@@ -308,10 +308,14 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
+    pub(crate) fn from_hist(
+        metric: &MetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+    ) -> Self {
         Self::new(
-            metric.get_name(),
-            metric.get_description(),
+            name.to_string(),
+            description.to_string(),
             HISTOGRAM_QUANTILES
                 .iter()
                 .map(|q| {
@@ -322,7 +326,7 @@ impl Panel {
                     )
                 })
                 .collect(),
-            panel_type,
+            PanelType::TimeSeries,
         )
     }
 }
@@ -346,7 +350,11 @@ impl From<&LocalClientMetrics> for UnlabeledPanels {
 
 impl From<&RemoteClientMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteClientMetrics) -> Self {
-        Self(vec![Panel::from_hist(metrics.get_attempts_metric(), PanelType::TimeSeries)])
+        Self(vec![Panel::from_hist(
+            metrics.get_attempts_metric(),
+            metrics.get_attempts_metric().get_name(),
+            metrics.get_attempts_metric().get_description(),
+        )])
     }
 }
 
