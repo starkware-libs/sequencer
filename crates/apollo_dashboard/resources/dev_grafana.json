@@ -3,6 +3,17 @@
     "Overview": {
       "panels": [
         {
+          "title": "Average Block Time",
+          "description": "Average block time (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
           "title": "Consensus Round",
           "description": "The round the node is currently working on",
           "type": "timeseries",
@@ -12,17 +23,6 @@
           "extra_params": {
             "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
             "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
-          }
-        },
-        {
-          "title": "Write Blob Failure by Reason",
-          "description": "The number of failed blob writes to Cende (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
-          ],
-          "extra_params": {
-            "log_query": "\"CENDE_FAILURE\""
           }
         },
         {
@@ -53,15 +53,13 @@
           "extra_params": {}
         },
         {
-          "title": "Transaction Failure Rate by Type",
-          "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
+          "title": "Transactions Failed by Reason",
+          "description": "The number of transactions failed by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])))"
+            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
+          "extra_params": {}
         }
       ],
       "collapsed": false
