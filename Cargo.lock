@@ -12317,6 +12317,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
+ "itertools 0.12.1",
  "rstest",
  "starknet-types-core",
  "starknet_api",
