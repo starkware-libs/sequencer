@@ -162,6 +162,10 @@ pub fn create_binary_entry<SH: StarkHash>(left: Felt, right: Felt) -> (DbKey, Db
     (create_inner_node_patricia_key(SH::hash(&left, &right)), create_binary_val(left, right))
 }
 
+pub fn create_binary_entry_from_u128<SH: StarkHash>(left: u128, right: u128) -> (DbKey, DbValue) {
+    create_binary_entry::<SH>(Felt::from(left), Felt::from(right))
+}
+
 pub fn create_edge_entry<SH: StarkHash>(hash: Felt, path: u128, length: u8) -> (DbKey, DbValue) {
     (
         create_inner_node_patricia_key(hash_edge::<SH>(
@@ -171,6 +175,14 @@ pub fn create_edge_entry<SH: StarkHash>(hash: Felt, path: u128, length: u8) -> (
         )),
         create_edge_val(hash, path, length),
     )
+}
+
+pub fn create_edge_entry_from_u128<SH: StarkHash>(
+    hash: u128,
+    path: u128,
+    length: u8,
+) -> (DbKey, DbValue) {
+    create_edge_entry::<SH>(Felt::from(hash), path, length)
 }
 
 pub fn create_leaf_entry<L: Leaf>(hash: u128) -> (DbKey, DbValue) {
