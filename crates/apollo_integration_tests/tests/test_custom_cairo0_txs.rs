@@ -17,7 +17,7 @@ use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 mod common;
 
 const DEFAULT_TIP: Tip = Tip(1_u64);
-const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 4;
+const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 5;
 
 #[tokio::test]
 async fn custom_cairo0_txs() {
@@ -48,6 +48,7 @@ fn create_custom_cairo0_test_txs(
     let mut txs = vec![];
     txs.extend(generate_direct_test_contract_invoke_txs_cairo_0_syscall(account_tx_generator));
     txs.extend(generate_invoke_txs_with_signature_cairo_0_syscall(account_tx_generator));
+    txs.extend(generate_deploy_contract_invoke_tx(account_tx_generator));
 
     txs
 }
@@ -107,4 +108,31 @@ fn generate_invoke_txs_with_signature_cairo_0_syscall(
             .signature(signature)
             .build_rpc_invoke_tx(),
     ]
+}
+
+fn generate_deploy_contract_invoke_tx(
+    account_tx_generator: &mut AccountTransactionGenerator,
+) -> Vec<RpcTransaction> {
+    let mut txs = vec![];
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let salt = felt!(34_u64);
+    let constructor_calldata_arg1 = felt!(321_u64);
+    let constructor_calldata_arg2 = felt!(543_u64);
+    let deploy_calldata = vec![
+        test_contract.get_class_hash().0, // class hash for test contract
+        salt,                             // salt
+        felt!(2_u64),                     // constructor calldata length
+        constructor_calldata_arg1,        // constructor arg1
+        constructor_calldata_arg2,        // constructor arg2
+    ];
+    let calldata =
+        create_calldata(account_tx_generator.sender_address(), "deploy_contract", &deploy_calldata);
+    txs.push(
+        account_tx_generator
+            .invoke_tx_builder()
+            .tip(DEFAULT_TIP)
+            .calldata(calldata)
+            .build_rpc_invoke_tx(),
+    );
+    txs
 }
