@@ -54,6 +54,7 @@ pub enum InvalidValidationStatus {
     ConsumedOnL1,
     // This tx is either never been seen or was seen, consumed, and deleted.
     NotFound,
+    L1ProviderError,
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
