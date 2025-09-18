@@ -7,6 +7,7 @@ use serde::de::{self, Deserializer};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use starknet_types_core::felt::Felt;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -202,15 +203,45 @@ impl<'de> Deserialize<'de> for NativeClassesWhitelist {
         if raw == "All" {
             return Ok(NativeClassesWhitelist::All);
         }
-        // Support stringified JSON array: "[\"0x..\", \"0x..\"]"
-        match serde_json::from_str::<Vec<ClassHash>>(&raw) {
-            Ok(vec) => Ok(NativeClassesWhitelist::Limited(vec)),
-            Err(_) => Err(de::Error::custom(format!(
-                "invalid native_classes_whitelist string: expected \"All\" or stringified JSON \
-                 array, (i.e., \"[\\\"0x..\\\", \\\"0x..\\\"]\") got: {}",
+
+        // Accept a stringified list of hex values, e.g. "[0x1234, 0x5678]".
+        // Also tolerate quotes around individual items: "[\"0x1234\", 0x5678]".
+        let trimmed = raw.trim();
+        if !(trimmed.starts_with('[') && trimmed.ends_with(']')) {
+            return Err(de::Error::custom(format!(
+                "invalid native_classes_whitelist string: expected \"All\" or stringified list \
+                 like \"[0x.., 0x..]\", got: {}",
                 raw
-            ))),
+            )));
         }
+
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let mut hashes: Vec<ClassHash> = Vec::new();
+        let inner = inner.trim();
+        if inner.is_empty() {
+            return Ok(NativeClassesWhitelist::Limited(hashes));
+        }
+
+        for part in inner.split(',') {
+            let token = part.trim();
+            if token.is_empty() {
+                return Err(de::Error::custom(
+                    "invalid native_classes_whitelist string: empty element in list",
+                ));
+            }
+            // Expect hex values with 0x/0X prefix.
+            if !(token.starts_with("0x") || token.starts_with("0X")) {
+                return Err(de::Error::custom(format!(
+                    "invalid class hash (missing 0x prefix): {}",
+                    token
+                )));
+            }
+            let felt = Felt::from_hex(token)
+                .map_err(|_| de::Error::custom(format!("invalid hex in class hash: {}", token)))?;
+            hashes.push(ClassHash(felt));
+        }
+
+        Ok(NativeClassesWhitelist::Limited(hashes))
     }
 }
 
@@ -222,9 +253,10 @@ impl Serialize for NativeClassesWhitelist {
         match self {
             NativeClassesWhitelist::All => serializer.serialize_str("All"),
             NativeClassesWhitelist::Limited(vec) => {
-                let json = serde_json::to_string(vec)
-                    .expect("Failed to stringify whitelist to JSON array");
-                serializer.serialize_str(&json)
+                // Serialize as stringified list of bare hexes: "[0x..., 0x...]"
+                let joined = vec.iter().map(|h| h.0.to_hex_string()).collect::<Vec<_>>().join(", ");
+                let s = format!("[{}]", joined);
+                serializer.serialize_str(&s)
             }
         }
     }
