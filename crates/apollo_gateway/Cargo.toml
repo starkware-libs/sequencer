@@ -47,6 +47,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_gateway_config = { workspace = true, features = ["testing"] }
 apollo_mempool.workspace = true
 apollo_mempool_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
