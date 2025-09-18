@@ -144,7 +144,7 @@ async fn declare_deploy_scenario(
     let test_output = test_manager
         .execute_test_with_default_block_contexts(
             initial_block_number,
-            &TestParameters { use_kzg_da, full_output },
+            &TestParameters { use_kzg_da, full_output, ..Default::default() },
         )
         .await;
 
