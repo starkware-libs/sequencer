@@ -32,6 +32,7 @@ def main():
         args.namespace,
         args.num_nodes,
         args.start_index,
+        args.service,
         args.cluster,
         not args.no_restart,
     )
