@@ -94,6 +94,7 @@ impl Gateway {
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
+        debug!("Processing tx with signature: {:?}", tx.signature());
         let is_p2p = p2p_message_metadata.is_some();
 
         let start_time = std::time::Instant::now();
