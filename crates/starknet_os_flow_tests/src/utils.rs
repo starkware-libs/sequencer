@@ -379,6 +379,7 @@ pub(crate) fn get_class_info_of_cairo_1_feature_contract(
     }
 }
 
+// TODO(Dori): Remove this, use `IsSubset` instead, where relevant.
 pub(crate) fn hashmap_contains_other<K, V>(contains: &HashMap<K, V>, other: &HashMap<K, V>) -> bool
 where
     K: Eq + std::hash::Hash,

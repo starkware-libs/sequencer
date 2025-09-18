@@ -24,7 +24,7 @@ use starknet_api::executable_transaction::{
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::MessageToL1;
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_committer::block_committer::input::{IsSubset, StateDiff};
 use starknet_os::io::os_input::{
     OsBlockInput,
     OsChainInfo,
@@ -188,14 +188,22 @@ impl OsTestOutput {
         );
 
         // State diff.
+        // Check that the committed state diff is a subset of the actual diff (the actual diff may
+        // contain additional updates that are not committed, such nonces of addresses with storage
+        // updates).
+        // Storage diffs should be equal.
         let actual_diff = create_committer_state_diff(CommitmentStateDiff::from(
             self.decompressed_state_diff.clone(),
         ));
-        assert_eq!(
-            actual_diff, self.expected_values.committed_state_diff,
-            "Actual state diff does not match the expected one. \
-             Actual:\n{actual_diff:#?}\nExpected:\n{:#?}",
+        assert!(
+            self.expected_values.committed_state_diff.is_subset(&actual_diff),
+            "Actual state diff is not a superset of the committed state diff. \
+             Actual:\n{actual_diff:#?}\nCommitted:\n{:#?}",
             self.expected_values.committed_state_diff
+        );
+        assert_eq!(
+            actual_diff.storage_updates,
+            self.expected_values.committed_state_diff.storage_updates
         );
     }
 
@@ -532,7 +540,7 @@ impl<S: FlowTestState> TestManager<S> {
 
         OsTestOutput {
             runner_output: os_output,
-            decompressed_state_diff: initial_state.nontrivial_diff_maps(decompressed_state_diff),
+            decompressed_state_diff,
             expected_values: OsTestExpectedValues {
                 previous_global_root: expected_previous_global_root,
                 new_global_root: expected_new_global_root,

@@ -111,6 +111,40 @@ pub struct Input<C: Config> {
     pub config: C,
 }
 
+pub trait IsSubset<T> {
+    fn is_subset(&self, other: &T) -> bool;
+}
+
+impl<K, V> IsSubset<HashMap<K, V>> for HashMap<K, V>
+where
+    K: Eq + std::hash::Hash,
+    V: PartialEq,
+{
+    fn is_subset(&self, other: &HashMap<K, V>) -> bool {
+        self.iter().all(|(k, v)| other.get(k).is_some_and(|other_v| v == other_v))
+    }
+}
+
+impl IsSubset<StateDiff> for StateDiff {
+    /// Checks if self is a subset of other.
+    /// For storage diffs, asserts every address with a diff exists in other, and the address's diff
+    /// is a subset of the other's diff.
+    fn is_subset(&self, other: &Self) -> bool {
+        let Self {
+            address_to_class_hash,
+            address_to_nonce,
+            class_hash_to_compiled_class_hash,
+            storage_updates,
+        } = other;
+        self.address_to_class_hash.is_subset(address_to_class_hash)
+            && self.address_to_nonce.is_subset(address_to_nonce)
+            && self.class_hash_to_compiled_class_hash.is_subset(class_hash_to_compiled_class_hash)
+            && self.storage_updates.iter().all(|(address, diffs)| {
+                storage_updates.get(address).is_some_and(|other_diffs| diffs.is_subset(other_diffs))
+            })
+    }
+}
+
 impl StateDiff {
     pub fn extend(&mut self, other: Self) {
         self.address_to_class_hash.extend(other.address_to_class_hash);
