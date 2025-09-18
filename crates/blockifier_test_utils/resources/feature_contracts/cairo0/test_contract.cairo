@@ -6,6 +6,7 @@ from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin, EcOpBuiltin
 from starkware.cairo.common.ec import ec_op
 from starkware.cairo.common.ec_point import EcPoint
+from starkware.cairo.common.math import split_felt
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.messages import send_message_to_l1
@@ -39,6 +40,12 @@ func number_map(key: felt) -> (value: felt) {
 @constructor
 func constructor{syscall_ptr: felt*}(address: felt, value: felt) {
     storage_write(address=address, value=value);
+    return ();
+}
+
+@external
+func split_felt_wrapper{range_check_ptr} (value: felt) {
+    let (high, low) = split_felt(value);
     return ();
 }
 
