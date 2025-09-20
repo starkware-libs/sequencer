@@ -95,7 +95,6 @@ use crate::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
-use crate::state_reader::MockStateReaderFactory;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
@@ -177,7 +176,7 @@ impl MockDependencies {
         let chain_id = self.config.chain_info.chain_id.clone();
         Gateway::new(
             self.config,
-            Arc::new(self.state_reader_factory),
+            self.state_reader_factory,
             Arc::new(self.mock_mempool_client),
             TransactionConverter::new(Arc::new(self.mock_class_manager_client), chain_id),
         )
@@ -386,7 +385,6 @@ fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
     ProcessTxBlockingTask {
         stateless_tx_validator: Arc::new(mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_validator_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
         tx: invoke_args().get_rpc_tx(),
         transaction_converter: Arc::new(mock_transaction_converter),
@@ -500,7 +498,7 @@ async fn test_block_declare_config(
     config.block_declare = true;
     let gateway = Gateway::new(
         config,
-        Arc::new(state_reader_factory),
+        state_reader_factory,
         Arc::new(MockMempoolClient::new()),
         TransactionConverter::new(
             Arc::new(EmptyClassManagerClient),
@@ -559,7 +557,7 @@ async fn test_unauthorized_declare_config(
 
     let gateway = Gateway::new(
         config,
-        Arc::new(state_reader_factory),
+        state_reader_factory,
         Arc::new(MockMempoolClient::new()),
         TransactionConverter::new(
             Arc::new(EmptyClassManagerClient),
@@ -647,7 +645,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let overrides = ProcessTxOverrides {
         mock_stateful_transaction_validator_factory: Some(
@@ -703,7 +701,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|| Err(expected_error));
 
     let overrides = ProcessTxOverrides {
         mock_stateful_transaction_validator_factory: Some(

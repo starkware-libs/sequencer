@@ -59,15 +59,15 @@ pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<TransactionConverter>,
 }
 
 impl Gateway {
-    pub fn new(
+    // TODO(Arni): Consider removing the 'static trait bound from S.
+    pub fn new<S: StateReaderFactory + Sized + 'static>(
         config: GatewayConfig,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
+        state_reader_factory: S,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
     ) -> Self {
@@ -79,8 +79,8 @@ impl Gateway {
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
+                state_reader_factory,
             }),
-            state_reader_factory,
             mempool_client,
             transaction_converter: Arc::new(transaction_converter),
         }
@@ -206,7 +206,6 @@ impl Gateway {
 struct ProcessTxBlockingTask {
     stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
     tx: RpcTransaction,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
@@ -218,7 +217,6 @@ impl ProcessTxBlockingTask {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
-            state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
             tx,
             transaction_converter: gateway.transaction_converter.clone(),
@@ -255,9 +253,8 @@ impl ProcessTxBlockingTask {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref())?;
+        let mut stateful_transaction_validator =
+            self.stateful_tx_validator_factory.instantiate_validator()?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &executable_tx,
@@ -276,11 +273,11 @@ pub fn create_gateway(
     class_manager_client: SharedClassManagerClient,
     runtime: tokio::runtime::Handle,
 ) -> Gateway {
-    let state_reader_factory = Arc::new(SyncStateReaderFactory {
+    let state_reader_factory = SyncStateReaderFactory {
         shared_state_sync_client,
         class_manager_client: class_manager_client.clone(),
         runtime,
-    });
+    };
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
 
