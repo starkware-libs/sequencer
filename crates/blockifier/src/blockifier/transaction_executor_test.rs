@@ -4,6 +4,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
@@ -494,13 +495,30 @@ fn test_compiled_class_hash_migration(
                 )
             })
             .collect::<Vec<_>>();
-
         block_execution_summary.compiled_class_hashes_for_migration.sort();
         expected_compiled_class_hashes_for_migration.sort();
 
         assert_eq!(
             block_execution_summary.compiled_class_hashes_for_migration,
             expected_compiled_class_hashes_for_migration
+        );
+        // Verify that the migration is applied to the state diff.
+        // State diff class hash to compiled class hash contains both migration and declared
+        // classes. But this block only contains the migration.
+        assert_eq!(
+            block_execution_summary.state_diff.class_hash_to_compiled_class_hash,
+            executed_class_hashes
+                .iter()
+                .map(|&class_hash| (
+                    class_hash,
+                    state
+                        .get_compiled_class_hash_v2(
+                            class_hash,
+                            &state.get_compiled_class(class_hash).unwrap()
+                        )
+                        .unwrap()
+                ))
+                .collect::<IndexMap<_, _>>()
         );
     } else {
         // No migration should happen.
@@ -512,6 +530,8 @@ fn test_compiled_class_hash_migration(
              are: {:#?}",
             block_execution_summary.compiled_class_hashes_for_migration
         );
+        // Neither migration nor declare tx, so state diff in class hash to compiled class hash.
+        assert!(block_execution_summary.state_diff.class_hash_to_compiled_class_hash.is_empty(),)
     }
 }
 

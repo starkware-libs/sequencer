@@ -1,7 +1,7 @@
 use apollo_config::dumping::SerializeConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
-use apollo_node::config::config_utils::private_parameters;
-use apollo_node::config::node_config::{
+use apollo_node_config::config_utils::private_parameters;
+use apollo_node_config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,

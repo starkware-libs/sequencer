@@ -1,0 +1,20 @@
+[package]
+name = "apollo_state_sync_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+apollo_central_sync_config.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_p2p_sync_config.workspace = true
+apollo_reverts.workspace = true
+apollo_rpc.workspace = true
+apollo_storage.workspace = true
+serde = { workspace = true, features = ["derive"] }
+validator.workspace = true
+
+[lints]
+workspace = true

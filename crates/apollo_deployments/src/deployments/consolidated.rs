@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
-use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::component_execution_config::{
+use apollo_node_config::component_config::ComponentConfig;
+use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
@@ -26,6 +26,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::update_strategy::UpdateStrategy;
 
@@ -62,9 +63,9 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         }
     }
 
-    fn get_autoscale(&self) -> bool {
+    fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            ConsolidatedNodeServiceName::Node => false,
+            ConsolidatedNodeServiceName::Node => ScalePolicy::StaticallyScaled,
         }
     }
 

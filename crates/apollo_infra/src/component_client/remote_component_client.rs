@@ -27,7 +27,7 @@ const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
-const DEFAULT_LOG_ATTEMPT_INTERVAL_MS: usize = 10;
+const DEFAULT_ATTEMPTS_PER_LOG: usize = 10;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
@@ -36,7 +36,7 @@ pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout_ms: u64,
-    pub log_attempt_interval_ms: usize,
+    pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
 }
@@ -48,7 +48,7 @@ impl Default for RemoteClientConfig {
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
-            log_attempt_interval_ms: DEFAULT_LOG_ATTEMPT_INTERVAL_MS,
+            attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
         }
     }
@@ -82,8 +82,8 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "log_attempt_interval_ms",
-                &self.log_attempt_interval_ms,
+                "attempts_per_log",
+                &self.attempts_per_log,
                 "Number of attempts between failure log messages",
                 ParamPrivacyInput::Public,
             ),
@@ -226,8 +226,8 @@ where
                 return res;
             }
             self.metrics.record_communication_failure(elapsed.as_secs_f64(), request_label);
-            let log_attempt_interval_ms = self.config.log_attempt_interval_ms;
-            if attempt % log_attempt_interval_ms == log_attempt_interval_ms - 1 {
+            let attempts_per_log = self.config.attempts_per_log;
+            if attempt % attempts_per_log == attempts_per_log - 1 {
                 warn!("Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}");
             }
             if attempt == max_attempts {

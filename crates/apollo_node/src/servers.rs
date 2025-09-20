@@ -49,6 +49,11 @@ use apollo_mempool_p2p::propagator::{
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
+use apollo_node_config::component_execution_config::{
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
+};
+use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_signature_manager::communication::{
     LocalSignatureManagerServer,
     RemoteSignatureManagerServer,
@@ -65,11 +70,6 @@ use tracing::info;
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
-use crate::config::component_execution_config::{
-    ActiveComponentExecutionMode,
-    ReactiveComponentExecutionMode,
-};
-use crate::config::node_config::SequencerNodeConfig;
 
 // Component servers that can run locally.
 struct LocalServers {

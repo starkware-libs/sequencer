@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, info, trace, warn};
 
 use crate::metrics::{
-    TimeoutReason,
+    TimeoutType,
     CONSENSUS_HELD_LOCKS,
     CONSENSUS_NEW_VALUE_LOCKS,
     CONSENSUS_ROUND,
     CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
-    LABEL_NAME_TIMEOUT_REASON,
+    LABEL_NAME_TIMEOUT_TYPE,
 };
 use crate::types::{ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
@@ -293,8 +293,7 @@ impl StateMachine {
             "PROPOSAL_FAILED: Proposal failed as validator. Applying TimeoutPropose for \
              round={round}."
         );
-        CONSENSUS_TIMEOUTS
-            .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Propose.into())]);
+        CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Propose.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(None, round)]);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
@@ -321,8 +320,7 @@ impl StateMachine {
             return VecDeque::new();
         };
         debug!("Applying TimeoutPrevote for round={round}.");
-        CONSENSUS_TIMEOUTS
-            .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Prevote.into())]);
+        CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Prevote.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Precommit(None, round)]);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
@@ -358,7 +356,7 @@ impl StateMachine {
         };
         debug!("Applying TimeoutPrecommit for round={round}.");
         CONSENSUS_TIMEOUTS
-            .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Precommit.into())]);
+            .increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Precommit.into())]);
         self.advance_to_round(round + 1, leader_fn)
     }
 

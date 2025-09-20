@@ -38,10 +38,6 @@ use crate::reader::objects::transaction::{
 };
 use crate::reader::{ReaderClientError, ReaderClientResult};
 
-fn default_next_l2_gas_price() -> GasPrice {
-    GasPrice(1)
-}
-
 fn default_old_starknet_version() -> StarknetVersion {
     StarknetVersion::PreV0_9_1
 }
@@ -84,15 +80,9 @@ pub struct BlockPostV0_13_1 {
     pub receipt_commitment: Option<ReceiptCommitment>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_diff_length: Option<usize>,
-    // New field in V0.14.0
-    // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
-    // values are missing for older blocks. Change to GasAmount.
-    #[serde(default)]
+    // New field in V0.14.0.
     pub l2_gas_consumed: GasAmount,
-    // New field in V0.14.0
-    // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
-    // values are missing for older blocks. Change to GasPrice.
-    #[serde(default = "default_next_l2_gas_price")]
+    // New field in V0.14.0.
     pub next_l2_gas_price: GasPrice,
 }
 

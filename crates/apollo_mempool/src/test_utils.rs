@@ -23,7 +23,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
-    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
@@ -297,7 +297,7 @@ pub struct MempoolMetrics {
     pub delayed_declares_size: u64,
     pub total_size_in_bytes: u64,
     pub evictions_count: u64,
-    pub transaction_time_spent_in_mempool: HistogramValue,
+    pub transaction_time_spent_until_batched: HistogramValue,
     pub transaction_time_spent_until_committed: HistogramValue,
 }
 
@@ -346,8 +346,8 @@ impl MempoolMetrics {
         MEMPOOL_GET_TXS_SIZE.assert_eq(metrics, self.get_txs_size);
         MEMPOOL_DELAYED_DECLARES_SIZE.assert_eq(metrics, self.delayed_declares_size);
         MEMPOOL_TOTAL_SIZE_BYTES.assert_eq(metrics, self.total_size_in_bytes);
-        TRANSACTION_TIME_SPENT_IN_MEMPOOL
-            .assert_eq(metrics, &self.transaction_time_spent_in_mempool);
+        TRANSACTION_TIME_SPENT_UNTIL_BATCHED
+            .assert_eq(metrics, &self.transaction_time_spent_until_batched);
         TRANSACTION_TIME_SPENT_UNTIL_COMMITTED
             .assert_eq(metrics, &self.transaction_time_spent_until_committed);
     }

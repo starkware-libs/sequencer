@@ -1,3 +1,5 @@
+use apollo_gateway_config::compiler_version::VersionId;
+use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
@@ -10,8 +12,6 @@ use starknet_api::transaction::fields::{Fee, Tip, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 
-use crate::compiler_version::VersionId;
-use crate::config::StatelessTransactionValidatorConfig;
 use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionValidatorResult};
 
 #[cfg(test)]

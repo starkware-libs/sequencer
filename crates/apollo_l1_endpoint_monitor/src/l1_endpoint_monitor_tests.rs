@@ -1,14 +1,11 @@
 use std::time::Duration;
 
+use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
+use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
 use mockito::{Matcher, Server, ServerGuard};
 use url::Url;
 
-use crate::monitor::{
-    L1EndpointMonitor,
-    L1EndpointMonitorConfig,
-    L1EndpointMonitorError,
-    HEALTH_CHECK_RPC_METHOD,
-};
+use crate::monitor::{L1EndpointMonitor, HEALTH_CHECK_RPC_METHOD};
 
 // Unreachable localhost endpoints for simulating failures.
 // Using localhost to prevent IO (so don't switch to example.com in order to avoid port issues).
@@ -130,13 +127,4 @@ async fn all_down_fails() {
     let result = monitor.get_active_l1_endpoint().await;
     assert_eq!(result, Err(L1EndpointMonitorError::NoActiveL1Endpoint));
     assert_eq!(monitor.current_l1_endpoint_index, 0);
-}
-
-#[tokio::test]
-async fn initialized_with_unknown_url_returns_error() {
-    let some_valid_endpoint = mock_working_l1_endpoint().await;
-    let config = l1_endpoint_monitor_config(vec![some_valid_endpoint.url]);
-    let unknown_url = url(BAD_ENDPOINT_1);
-    let result = L1EndpointMonitor::new(config.clone(), &unknown_url);
-    assert_eq!(result, Err(L1EndpointMonitorError::InitializationError { unknown_url }));
 }

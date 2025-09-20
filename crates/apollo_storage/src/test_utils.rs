@@ -21,6 +21,7 @@ fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> St
             min_size: 1 << 20,    // 1MB
             max_size: 1 << 35,    // 32GB
             growth_step: 1 << 26, // 64MB
+            max_readers: 1 << 13, // 8K readers
         },
         scope: storage_scope,
         mmap_file_config: get_mmap_file_test_config(),
