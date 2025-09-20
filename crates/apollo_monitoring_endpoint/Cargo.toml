@@ -13,23 +13,21 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
+apollo_monitoring_endpoint_config.workspace = true
 axum.workspace = true
 hyper = { workspace = true }
 metrics-exporter-prometheus.workspace = true
 num-traits = { workspace = true, optional = true }
-serde.workspace = true
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["rt"] }
 tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
 tower = { workspace = true, optional = true }
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }

@@ -7,6 +7,7 @@ define_metrics!(
         MetricGauge { CONSENSUS_NUM_BATCHES_IN_PROPOSAL, "consensus_num_batches_in_proposal", "The number of transaction batches in a valid proposal received" },
         MetricGauge { CONSENSUS_NUM_TXS_IN_PROPOSAL, "consensus_num_txs_in_proposal", "The total number of individual transactions in a valid proposal received" },
         MetricCounter { CONSENSUS_PROPOSAL_FIN_MISMATCH, "consensus_proposal_fin_mismatch", "The number of times the proposal fin commitment mismatched the batcher-built commitment", init = 0 },
+        MetricCounter { CONSENSUS_ETH_TO_FRI_RATE_MISMATCH, "consensus_eth_to_fri_rate_mismatch", "The number of times the eth to fri rate in a proposal does not match the value expected by this validator", init = 0 },
         MetricCounter { CONSENSUS_L1_GAS_MISMATCH, "consensus_l1_gas_mismatch", "The number of times the L1 gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricCounter { CONSENSUS_L1_DATA_GAS_MISMATCH, "consensus_l1_data_gas_mismatch", "The number of times the L1 data gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricGauge { CONSENSUS_L2_GAS_PRICE, "consensus_l2_gas_price", "The L2 gas price calculated in an accepted proposal" },
@@ -48,6 +49,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL.register();
     CONSENSUS_NUM_TXS_IN_PROPOSAL.register();
     CONSENSUS_PROPOSAL_FIN_MISMATCH.register();
+    CONSENSUS_ETH_TO_FRI_RATE_MISMATCH.register();
     CONSENSUS_L1_GAS_MISMATCH.register();
     CONSENSUS_L1_DATA_GAS_MISMATCH.register();
     CONSENSUS_L2_GAS_PRICE.register();

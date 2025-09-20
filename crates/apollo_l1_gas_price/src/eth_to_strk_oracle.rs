@@ -4,25 +4,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use apollo_config::converters::{
-    deserialize_optional_list_with_url_and_headers,
-    serialize_optional_list_with_url_and_headers,
-    UrlAndHeaders,
-};
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
-use validator::Validate;
 
 use crate::metrics::{
     register_eth_to_strk_metrics,
@@ -46,68 +38,6 @@ fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
         );
     }
     header_map
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
-pub struct EthToStrkOracleConfig {
-    #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
-    pub url_header_list: Option<Vec<UrlAndHeaders>>,
-    pub lag_interval_seconds: u64,
-    pub max_cache_size: usize,
-    pub query_timeout_sec: u64,
-}
-
-impl SerializeConfig for EthToStrkOracleConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "url_header_list",
-                &serialize_optional_list_with_url_and_headers(&self.url_header_list),
-                "A list of Url+HTTP headers for the eth to strk oracle. \
-                 The url is followed by a comma and then headers as key^value pairs, separated by commas. \
-                 For example: `https://api.example.com/api,key1^value1,key2^value2`. \
-                 Each URL+headers is separated by a pipe `|` character. \
-                 The `timestamp` parameter is appended dynamically when making requests, in order \
-                 to have a stable mapping from block timestamp to conversion rate. ",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
-                "lag_interval_seconds",
-                &self.lag_interval_seconds,
-                "The size of the interval (seconds) that the eth to strk rate is taken on. The \
-                 lag refers to the fact that the interval `[T, T+k)` contains the conversion rate \
-                 for queries in the interval `[T+k, T+2k)`. Should be configured in alignment \
-                 with relevant query parameters in `url_header_list`, if required.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_cache_size",
-                &self.max_cache_size,
-                "The maximum number of cached conversion rates.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "query_timeout_sec",
-                &self.query_timeout_sec,
-                "The timeout (seconds) for the query to the eth to strk oracle.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-impl Default for EthToStrkOracleConfig {
-    fn default() -> Self {
-        Self {
-            url_header_list: Some(vec![UrlAndHeaders {
-                url: Url::parse("https://api.example.com/api").expect("Invalid URL"),
-                headers: BTreeMap::new(),
-            }]),
-            lag_interval_seconds: 1,
-            max_cache_size: 100,
-            query_timeout_sec: 3,
-        }
-    }
 }
 
 /// A struct containing a URL and its associated headers.

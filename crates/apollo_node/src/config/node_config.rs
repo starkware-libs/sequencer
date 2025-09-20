@@ -3,10 +3,9 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
-use apollo_batcher::config::BatcherConfig;
 use apollo_batcher::VersionedConstantsOverrides;
-use apollo_class_manager::config::FsClassManagerConfig;
-use apollo_compile_to_casm::config::SierraCompilationConfig;
+use apollo_batcher_config::config::BatcherConfig;
+use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_config::dumping::{
     generate_struct_pointer,
     prepend_sub_config_name,
@@ -22,18 +21,21 @@ use apollo_config::validators::config_validate;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager::config::ConfigManagerConfig;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
-use apollo_gateway::config::GatewayConfig;
+use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
-use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
-use apollo_l1_provider::l1_scraper::L1ScraperConfig;
+use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
+use apollo_l1_gas_price_provider_config::config::{
+    L1GasPriceProviderConfig,
+    L1GasPriceScraperConfig,
+};
 use apollo_l1_provider::L1ProviderConfig;
-use apollo_mempool::config::MempoolConfig;
-use apollo_mempool_p2p::config::MempoolP2pConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_p2p_config::config::MempoolP2pConfig;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
+use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;

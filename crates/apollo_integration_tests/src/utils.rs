@@ -2,40 +2,41 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use apollo_batcher::block_builder::BlockBuilderConfig;
-use apollo_batcher::config::BatcherConfig;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
-use apollo_class_manager::class_storage::CachedClassStorageConfig;
-use apollo_class_manager::config::{
+use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_class_manager_config::config::{
+    CachedClassStorageConfig,
     ClassManagerConfig,
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
-use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
-use apollo_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
-use apollo_consensus_orchestrator::config::ContextConfig;
-use apollo_gateway::config::{
+use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
+use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
+use apollo_gateway_config::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
-use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
-use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
+use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
+use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
+use apollo_l1_gas_price_provider_config::config::{
+    EthToStrkOracleConfig,
+    L1GasPriceProviderConfig,
+    L1GasPriceScraperConfig,
+};
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
-use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
-use apollo_mempool::config::MempoolConfig;
-use apollo_mempool_p2p::config::MempoolP2pConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_p2p_config::config::MempoolP2pConfig;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
@@ -44,6 +45,7 @@ use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
+use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
@@ -175,6 +177,7 @@ pub fn create_node_config(
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
+    base_layer_url: Url,
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
@@ -206,14 +209,14 @@ pub fn create_node_config(
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
-        ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+        ordered_l1_endpoint_urls: vec![base_layer_url.clone()],
         ..Default::default()
     };
     let validate_resource_bounds = !allow_bootstrap_txs;
     let mempool_config = create_mempool_config(validate_resource_bounds);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
-        lag_margin_seconds: 0,
+        lag_margin_seconds: Duration::from_secs(0),
         eth_to_strk_oracle_config,
         ..Default::default()
     };

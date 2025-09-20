@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_infra::component_client::ClientError;
+use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClientError,
     MockMempoolP2pPropagatorClient,
@@ -32,7 +33,6 @@ use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{
     AccountsWithGap,
     Mempool,
-    MempoolConfig,
     MempoolContent,
     MempoolState,
     TransactionReference,

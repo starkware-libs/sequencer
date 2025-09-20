@@ -1,3 +1,4 @@
+use apollo_class_manager_config::config::ClassHashDbConfig;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::felt;
@@ -11,7 +12,6 @@ use crate::class_storage::{
     FsClassStorage,
     FsClassStorageError,
 };
-use crate::config::ClassHashDbConfig;
 
 // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
 

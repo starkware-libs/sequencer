@@ -1,5 +1,5 @@
 {
-  "base_layer.node_url": "",
+  "base_layer_url": "",
   "network.port": 10000,
   "storage.db_config.path_prefix": "./data",
   "network.#is_none": false,

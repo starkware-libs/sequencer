@@ -80,12 +80,13 @@ impl AnvilBaseLayer {
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
         let config = Self::config();
+        let url = Self::url();
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
 
         let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
-            ethereum_base_layer: EthereumBaseLayerContract { config, contract },
+            ethereum_base_layer: EthereumBaseLayerContract { config, contract, url },
         };
         anvil_base_layer.initialize_mocked_starknet_contract().await;
 
@@ -99,11 +100,12 @@ impl AnvilBaseLayer {
         send_message_to_l2(&self.ethereum_base_layer.contract, l1_handler).await
     }
 
-    pub fn config() -> EthereumBaseLayerConfig {
-        let url: Url = format!("http://127.0.0.1:{}", Self::DEFAULT_ANVIL_PORT).parse().unwrap();
+    pub fn url() -> Url {
+        format!("http://127.0.0.1:{}", Self::DEFAULT_ANVIL_PORT).parse().unwrap()
+    }
 
+    pub fn config() -> EthereumBaseLayerConfig {
         EthereumBaseLayerConfig {
-            node_url: url,
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
             ..Default::default()
         }
@@ -222,6 +224,11 @@ impl BaseLayerContract for AnvilBaseLayer {
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error> {
         self.ethereum_base_layer.get_block_header(block_number).await
+    }
+
+    // TODO(Arni): Consider deleting this function from the trait.
+    async fn get_url(&self) -> Result<Url, Self::Error> {
+        Ok(self.ethereum_base_layer.url.clone())
     }
 
     async fn set_provider_url(&mut self, _url: Url) -> Result<(), Self::Error> {
