@@ -57,13 +57,13 @@ pub struct EntryPointErrorFrame {
 impl EntryPointErrorFrame {
     fn preamble_text(&self) -> String {
         format!(
-            "{}: {} (contract address: {:#064x}, class hash: {:#064x}, selector: {}):",
+            "{}: {} (contract address: {:#066x}, class hash: {:#066x}, selector: {}):",
             self.depth,
             self.preamble_type.text(),
             self.storage_address.0.key(),
             self.class_hash.0,
             if let Some(selector) = self.selector {
-                format!("{:#064x}", selector.0)
+                format!("{:#066x}", selector.0)
             } else {
                 "UNKNOWN".to_string()
             }
@@ -213,10 +213,10 @@ impl Display for Cairo1RevertFrame {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Error in contract (contract address: {:#064x}, class hash: {}, selector: {:#064x}):",
+            "Error in contract (contract address: {:#066x}, class hash: {}, selector: {:#066x}):",
             self.contract_address.0.key(),
             match self.class_hash {
-                Some(class_hash) => format!("{:#064x}", class_hash.0),
+                Some(class_hash) => format!("{:#066x}", class_hash.0),
                 None => "_".to_string(),
             },
             self.selector.0,

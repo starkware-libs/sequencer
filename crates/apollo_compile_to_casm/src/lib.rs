@@ -4,6 +4,7 @@ use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_proc_macros::sequencer_latency_histogram;
+use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use async_trait::async_trait;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
@@ -13,12 +14,10 @@ use thiserror::Error;
 use tracing::instrument;
 
 use crate::compiler::SierraToCasmCompiler;
-use crate::config::SierraCompilationConfig;
 use crate::metrics::{register_metrics, COMPILATION_DURATION};
 
 pub mod communication;
 pub mod compiler;
-pub mod config;
 pub mod constants;
 pub mod metrics;
 

@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::EmptyClassManagerClient;
-use apollo_gateway::config::GatewayConfig;
 use apollo_gateway::gateway::Gateway;
 use apollo_gateway::state_reader_test_utils::local_test_state_reader_factory;
+use apollo_gateway_config::config::GatewayConfig;
 use apollo_mempool_types::communication::MockMempoolClient;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};

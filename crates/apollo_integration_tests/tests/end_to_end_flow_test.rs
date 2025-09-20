@@ -20,7 +20,13 @@ async fn test_end_to_end_flow() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTest,
         create_test_scenarios(),
+<<<<<<< HEAD
         GasAmount(93000000),
+||||||| d18ef963d
+        GasAmount(65000000),
+=======
+        GasAmount(100000000), // Enough gas to cover all transactions in one block.
+>>>>>>> origin/main-v0.14.1
         false,
         false,
     )
@@ -119,6 +125,6 @@ fn test_two_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
 
 fn create_declare_tx(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
     let account_tx_generator = tx_generator.account_with_id_mut(ACCOUNT_ID_0);
-    let declare_tx = account_tx_generator.generate_declare();
+    let declare_tx = account_tx_generator.generate_declare_of_contract_class();
     vec![declare_tx]
 }

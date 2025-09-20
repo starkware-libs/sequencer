@@ -1,0 +1,18 @@
+{
+  "node_and_validator_ids": [[0,"0x64"], [1,"0x65"], [2,"0x66"], [10,"0x1"], [11,"0x1"], [12,"0x1"]],
+  "num_validators": 3,
+  "http_server_ingress_alternative_name": "sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io",
+  "ingress_domain": "sw-dev.io",
+  "secret_name_format": "apollo-mainnet-test-{}",
+  "node_namespace_format": "apollo-mainnet-test-{}",
+  "starknet_contract_address": "0x9A24bE2884FE593dFA951eE19C751e3a7c89fECd",
+  "chain_id_string": "SN_GOERLI",
+  "eth_fee_token_address": "0x4475715fa6768670bb310eab072171856c94c1a04fa78be2370513aa2a87dc4",
+  "starknet_gateway_url": "https://feeder.sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io",
+  "strk_fee_token_address": "0x6cd5b5125491c4bccec3d3b8635cbd98542c1d91a134541eca6e108cf0639f6",
+  "l1_startup_height_override": null,
+  "state_sync_type": "Central",
+  "p2p_communication_type": "External",
+  "deployment_environment": "UpgradeTest",
+  "requires_k8s_service_config_params": true
+}

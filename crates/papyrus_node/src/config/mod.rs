@@ -12,8 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{env, fs, io};
 
-use apollo_central_sync::sources::central::CentralSourceConfig;
-use apollo_central_sync::SyncConfig;
+use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_sub_config,
@@ -24,9 +23,10 @@ use apollo_config::dumping::{
 use apollo_config::loading::load_and_process_config;
 use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus_config::config::ConsensusConfig;
-use apollo_consensus_orchestrator::config::ContextConfig;
+use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_network::NetworkConfig;
-use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use apollo_p2p_sync::client::P2pSyncClient;
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 #[cfg(feature = "rpc")]
 use apollo_rpc::RpcConfig;
 use apollo_starknet_client::RetryConfig;
@@ -40,6 +40,7 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
+use url::Url;
 use validator::Validate;
 
 use crate::version::VERSION_FULL;
@@ -55,6 +56,7 @@ pub struct NodeConfig {
     pub rpc: RpcConfig,
     pub central: CentralSourceConfig,
     pub base_layer: EthereumBaseLayerConfig,
+    pub base_layer_url: Url,
     pub monitoring_gateway: MonitoringGatewayConfig,
     #[validate]
     pub storage: StorageConfig,
@@ -77,6 +79,7 @@ impl Default for NodeConfig {
         NodeConfig {
             central: CentralSourceConfig::default(),
             base_layer: EthereumBaseLayerConfig::default(),
+            base_layer_url: Url::parse("https://mainnet.infura.io/v3/%3Cyour_api_key%3E").unwrap(),
             #[cfg(feature = "rpc")]
             rpc: RpcConfig::default(),
             monitoring_gateway: MonitoringGatewayConfig::default(),
@@ -104,16 +107,23 @@ impl SerializeConfig for NodeConfig {
             ser_optional_sub_config(&self.consensus, "consensus"),
             ser_optional_sub_config(&self.context, "context"),
             ser_optional_sub_config(&self.network, "network"),
-            BTreeMap::from_iter([ser_param(
-                "collect_profiling_metrics",
-                &self.collect_profiling_metrics,
-                "If true, collect profiling metrics for the node.",
-                ParamPrivacyInput::Public,
-            )]),
+            BTreeMap::from_iter([
+                ser_param(
+                    "collect_profiling_metrics",
+                    &self.collect_profiling_metrics,
+                    "If true, collect profiling metrics for the node.",
+                    ParamPrivacyInput::Public,
+                ),
+                ser_param(
+                    "base_layer_url",
+                    &self.base_layer_url,
+                    "URL for communicating with Ethereum.",
+                    ParamPrivacyInput::Private,
+                ),
+            ]),
         ];
         #[cfg(feature = "rpc")]
         sub_configs.push(prepend_sub_config_name(self.rpc.dump(), "rpc"));
-
         sub_configs.into_iter().flatten().collect()
     }
 }

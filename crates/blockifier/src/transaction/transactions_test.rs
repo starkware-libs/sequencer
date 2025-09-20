@@ -1787,15 +1787,20 @@ fn test_declare_redeposit_amount_regression() {
 }
 
 #[apply(cairo_version)]
-#[case(TransactionVersion::ZERO, CairoVersion::Cairo0)]
-#[case(TransactionVersion::ONE, CairoVersion::Cairo0)]
-#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-#[case(TransactionVersion::THREE, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[case(TransactionVersion::ZERO, CairoVersion::Cairo0, HashVersion::V2)]
+#[case(TransactionVersion::ONE, CairoVersion::Cairo0, HashVersion::V2)]
+#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), HashVersion::V2)]
+#[case(TransactionVersion::THREE, CairoVersion::Cairo1(RunnableCairo1::Casm), HashVersion::V2)]
+#[should_panic(expected = "DeclareTransactionCasmHashMissMatch")]
+#[case(TransactionVersion::THREE, CairoVersion::Cairo1(RunnableCairo1::Casm), HashVersion::V1)]
 fn test_declare_tx(
     default_all_resource_bounds: ValidResourceBounds,
     cairo_version: CairoVersion,
     #[case] tx_version: TransactionVersion,
     #[case] empty_contract_version: CairoVersion,
+    // Used only for V3+ transactions to check that we are blocking declare txs with V1 casm
+    // hashes.
+    #[case] hash_version: HashVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
     let account_cairo_version = cairo_version;
@@ -1806,7 +1811,7 @@ fn test_declare_tx(
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
-    let compiled_class_hash = empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let compiled_class_hash = empty_contract.get_compiled_class_hash(&hash_version);
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();

@@ -1,0 +1,18 @@
+[package]
+name = "apollo_batcher_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Configuration for Apollo batcher"
+
+[dependencies]
+apollo_config.workspace = true
+apollo_storage.workspace = true
+blockifier.workspace = true
+serde = { workspace = true, features = ["derive"] }
+url.workspace = true
+validator.workspace = true
+
+[lints]
+workspace = true

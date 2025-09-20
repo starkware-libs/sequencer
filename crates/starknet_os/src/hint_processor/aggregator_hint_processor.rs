@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use cairo_lang_casm::hints::{Hint as Cairo1Hint, StarknetHint};
-use cairo_lang_runner::casm_run::execute_core_hint_base;
+use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
+use cairo_lang_runner::casm_run::{cell_ref_to_relocatable, execute_core_hint_base};
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData as Cairo0Hint,
@@ -9,12 +9,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_def
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
-use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use rand::Rng;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
@@ -96,6 +96,10 @@ impl HintProcessorLogic for AggregatorHintProcessor<'_> {
 
 impl<'program> CommonHintProcessor<'program> for AggregatorHintProcessor<'program> {
     impl_common_hint_processor_getters!();
+
+    fn get_rng(&mut self) -> &mut rand::rngs::StdRng {
+        panic!("Aggregator should not use randomness.");
+    }
 
     fn execute_cairo0_unique_hint(
         &mut self,
