@@ -373,7 +373,7 @@
         {
           "title": "Block Close Reasons",
           "description": "Number of blocks closed by reason (10m window)",
-          "type": "timeseries",
+          "type": "stat",
           "exprs": [
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
