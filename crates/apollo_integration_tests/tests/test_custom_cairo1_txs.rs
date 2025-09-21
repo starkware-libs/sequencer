@@ -31,7 +31,7 @@ async fn custom_cairo1_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_cairo1_txs_scenario(),
-        GasAmount(110000000),
+        GasAmount(120000000),
         true,
         false,
     )

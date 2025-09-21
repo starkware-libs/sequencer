@@ -255,19 +255,9 @@ impl ProcessTxBlockingTask {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-<<<<<<< HEAD
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
-||||||| d18ef963d
-        let mut validator = self
-            .stateful_tx_validator
-            .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
-=======
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref())?;
->>>>>>> origin/main-v0.14.1
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &executable_tx,

@@ -11,15 +11,6 @@ use apollo_class_manager_types::transaction_converter::{
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
-<<<<<<< HEAD
-use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
-};
-||||||| d18ef963d
-use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
-=======
 use apollo_gateway_config::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,
@@ -30,7 +21,6 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetError,
     StarknetErrorCode,
 };
->>>>>>> origin/main-v0.14.1
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -92,26 +82,8 @@ use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;
 
-<<<<<<< HEAD
-use crate::config::{
-    GatewayConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
-};
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::{Gateway, ProcessTxBlockingTask};
-||||||| d18ef963d
-use crate::config::{
-    GatewayConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
-};
-use crate::errors::GatewayResult;
-use crate::gateway::Gateway;
-=======
-use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
-use crate::gateway::{Gateway, ProcessTxBlockingTask};
->>>>>>> origin/main-v0.14.1
 use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
@@ -393,39 +365,6 @@ async fn run_add_tx_and_extract_metrics(
     AddTxResults { result, metric_handle_for_queries, metrics }
 }
 
-<<<<<<< HEAD
-#[derive(Default)]
-pub struct ProcessTxOverrides {
-    pub mock_stateful_transaction_validator_factory:
-        Option<MockStatefulTransactionValidatorFactoryTrait>,
-    pub mock_transaction_converter: Option<MockTransactionConverterTrait>,
-    pub mock_stateless_transaction_validator: Option<MockStatelessTransactionValidatorTrait>,
-}
-
-fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
-    let mock_validator_factory = overrides
-        .mock_stateful_transaction_validator_factory
-        .unwrap_or_else(mock_stateful_transaction_validator_factory);
-    let mock_transaction_converter =
-        overrides.mock_transaction_converter.unwrap_or_else(mock_transaction_converter);
-    let mock_stateless_transaction_validator = overrides
-        .mock_stateless_transaction_validator
-        .unwrap_or_else(mock_stateless_transaction_validator);
-
-    ProcessTxBlockingTask {
-        stateless_tx_validator: Arc::new(mock_stateless_transaction_validator),
-        stateful_tx_validator_factory: Arc::new(mock_validator_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
-        mempool_client: Arc::new(MockMempoolClient::new()),
-        chain_info: Arc::new(ChainInfo::create_for_testing()),
-        tx: invoke_args().get_rpc_tx(),
-        transaction_converter: Arc::new(mock_transaction_converter),
-        runtime: tokio::runtime::Handle::current(),
-    }
-}
-
-||||||| d18ef963d
-=======
 #[derive(Default)]
 pub struct ProcessTxOverrides {
     pub mock_stateful_transaction_validator_factory:
@@ -455,7 +394,6 @@ fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
     }
 }
 
->>>>>>> origin/main-v0.14.1
 // TODO(AlonH): add test with Some broadcasted message metadata
 #[rstest]
 #[case::tx_with_duplicate_tx_hash(
@@ -678,150 +616,6 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
 
     assert_eq!(loaded_config, original_config);
 }
-<<<<<<< HEAD
-
-#[rstest]
-#[case::validate_failure(StarknetErrorCode::KnownErrorCode(
-    KnownStarknetErrorCode::ValidateFailure
-))]
-#[case::invalid_nonce(StarknetErrorCode::KnownErrorCode(
-    KnownStarknetErrorCode::InvalidTransactionNonce
-))]
-#[case::gas_price_too_low(
-    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.GAS_PRICE_TOO_LOW".into())
-)]
-#[case::internal_error(
-    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
-)]
-#[tokio::test]
-async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_fails(
-    #[case] error_code: StarknetErrorCode,
-    mut mock_stateful_transaction_validator: MockStatefulTransactionValidatorTrait,
-    mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
-) {
-    let expected_error = StarknetError {
-        code: error_code.clone(),
-        message: "placeholder".into(), // Message is not checked
-    };
-
-    mock_stateful_transaction_validator
-        .expect_extract_state_nonce_and_run_validations()
-        .return_once(|_, _, _| Err(expected_error));
-
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
-
-    let overrides = ProcessTxOverrides {
-        mock_stateful_transaction_validator_factory: Some(
-            mock_stateful_transaction_validator_factory,
-        ),
-        ..Default::default()
-    };
-    let process_tx_task = process_tx_task(overrides);
-
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
-
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, error_code);
-}
-
-#[rstest]
-#[tokio::test]
-async fn process_tx_returns_error_for_one_stateless_error_variant() {
-    let arbitrary_validation_error = Err(StatelessTransactionValidatorError::SignatureTooLong {
-        signature_length: 5001,
-        max_signature_length: 4000,
-    });
-    let error_code =
-        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.SIGNATURE_TOO_LONG".into());
-
-    let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
-    mock_stateless_transaction_validator
-        .expect_validate()
-        .return_once(|_| arbitrary_validation_error);
-
-    let overrides = ProcessTxOverrides {
-        mock_stateless_transaction_validator: Some(mock_stateless_transaction_validator),
-        ..Default::default()
-    };
-    let task = process_tx_task(overrides);
-
-    let result: Result<AddTransactionArgs, StarknetError> =
-        tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
-
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, error_code);
-}
-
-#[rstest]
-#[tokio::test]
-async fn process_tx_returns_error_when_instantiating_validator_fails(
-    mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
-) {
-    let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
-    let expected_error = StarknetError {
-        code: error_code.clone(),
-        message: "placeholder".into(), // Message is not checked
-    };
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_, _| Err(expected_error));
-
-    let overrides = ProcessTxOverrides {
-        mock_stateful_transaction_validator_factory: Some(
-            mock_stateful_transaction_validator_factory,
-        ),
-        ..Default::default()
-    };
-    let process_tx_task = process_tx_task(overrides);
-
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
-
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, error_code);
-}
-
-#[rstest]
-#[case::rpc_to_internal_fails(
-    Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() }),
-    // This value is never used because the first step already fails. Provided a valid executable tx to satisfy the signature.
-    Ok(executable_invoke_tx(invoke_args())),
-)]
-#[case::internal_to_executable_fails(
-    Ok(invoke_args().get_internal_tx()),
-    Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
-)]
-#[tokio::test]
-async fn process_tx_conversion_errors_are_mapped_to_internal_error(
-    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
-    #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
-) {
-    let mut mock_transaction_converter = MockTransactionConverterTrait::new();
-    mock_transaction_converter
-        .expect_convert_rpc_tx_to_internal_rpc_tx()
-        .return_once(|_| expect_internal_rpc_tx_result);
-    mock_transaction_converter
-        .expect_convert_internal_rpc_tx_to_executable_tx()
-        .return_once(|_| expect_executable_tx_result);
-
-    let overrides = ProcessTxOverrides {
-        mock_transaction_converter: Some(mock_transaction_converter),
-        ..Default::default()
-    };
-    let process_tx_task = process_tx_task(overrides);
-
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
-
-    assert!(result.is_err());
-    // All TransactionConverter errors are mapped to InternalError.
-    assert_eq!(
-        result.unwrap_err().code,
-        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
-    );
-}
-||||||| d18ef963d
-=======
 
 #[rstest]
 #[case::validate_failure(StarknetErrorCode::KnownErrorCode(
@@ -963,4 +757,3 @@ async fn process_tx_conversion_errors_are_mapped_to_internal_error(
         StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
     );
 }
->>>>>>> origin/main-v0.14.1

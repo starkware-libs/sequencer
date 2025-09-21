@@ -130,17 +130,9 @@ impl TestScenario for DeclareTx {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-<<<<<<< HEAD
     ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
-        let declare_tx = tx_generator.account_with_id_mut(account_id).generate_declare();
-||||||| d18ef963d
-    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
-        let declare_tx = tx_generator.account_with_id_mut(account_id).generate_declare();
-=======
-    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
         let declare_tx =
             tx_generator.account_with_id_mut(account_id).generate_declare_of_contract_class();
->>>>>>> origin/main-v0.14.1
         (vec![declare_tx], vec![])
     }
 

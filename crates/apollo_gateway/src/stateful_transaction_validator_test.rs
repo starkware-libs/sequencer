@@ -113,20 +113,11 @@ async fn test_extract_state_nonce_and_run_validations(
 }
 
 #[rstest]
-<<<<<<< HEAD
-fn test_instantiate_validator() {
-    let stateful_validator_factory = StatefulTransactionValidatorFactory {
-        config: StatefulTransactionValidatorConfig::default(),
-    };
-||||||| d18ef963d
-fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) {
-=======
 fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
     };
->>>>>>> origin/main-v0.14.1
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
 
@@ -138,36 +129,8 @@ fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(|| latest_state_reader);
 
-<<<<<<< HEAD
-    // Make sure stateful_validator uses the latest block in the following calls to the
-    // state_reader.
-    let latest_block = state_reader_factory.state_reader.block_info.block_number;
-    let state_reader = state_reader_factory.get_state_reader(latest_block);
-    mock_state_reader_factory
-        .expect_get_state_reader()
-        .with(eq(latest_block))
-        .return_once(move |_| state_reader);
-
-    let validator = stateful_validator_factory
-        .instantiate_validator(&mock_state_reader_factory, &ChainInfo::create_for_testing());
-    assert!(validator.is_ok());
-||||||| d18ef963d
-    // Make sure stateful_validator uses the latest block in the following calls to the
-    // state_reader.
-    let latest_block = state_reader_factory.state_reader.block_info.block_number;
-    let state_reader = state_reader_factory.get_state_reader(latest_block);
-    mock_state_reader_factory
-        .expect_get_state_reader()
-        .with(eq(latest_block))
-        .return_once(move |_| state_reader);
-
-    let blockifier_validator = stateful_validator
-        .instantiate_validator(&mock_state_reader_factory, &ChainInfo::create_for_testing());
-    assert!(blockifier_validator.is_ok());
-=======
     let validator = stateful_validator_factory.instantiate_validator(&mock_state_reader_factory);
     assert!(validator.is_ok());
->>>>>>> origin/main-v0.14.1
 }
 
 #[rstest]

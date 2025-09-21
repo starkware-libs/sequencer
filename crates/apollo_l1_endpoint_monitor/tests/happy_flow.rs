@@ -1,12 +1,6 @@
-<<<<<<< HEAD
 use alloy::node_bindings::{Anvil, AnvilInstance};
-use apollo_l1_endpoint_monitor::monitor::{L1EndpointMonitor, L1EndpointMonitorConfig};
-||||||| d18ef963d
-use apollo_l1_endpoint_monitor::monitor::{L1EndpointMonitor, L1EndpointMonitorConfig};
-=======
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_endpoint_monitor_config::config::L1EndpointMonitorConfig;
->>>>>>> origin/main-v0.14.1
 use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
 use url::Url;
 

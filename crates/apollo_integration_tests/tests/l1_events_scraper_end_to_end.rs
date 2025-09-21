@@ -8,23 +8,7 @@ use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use mockall::Sequence;
-<<<<<<< HEAD:crates/apollo_integration_tests/tests/l1_events_scraper_end_to_end.rs
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
-||||||| d18ef963d:crates/apollo_l1_provider/tests/scraper_end_to_end.rs
-use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
-=======
-use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_url,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
->>>>>>> origin/main-v0.14.1:crates/apollo_l1_provider/tests/scraper_end_to_end.rs
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::contract_address;
@@ -40,34 +24,14 @@ pub fn in_ci() -> bool {
 
 #[tokio::test]
 async fn scraper_end_to_end() {
-    // if !in_ci() {
-    //     return;
-    // }
+    if !in_ci() {
+        return;
+    }
 
     // Setup.
-<<<<<<< HEAD:crates/apollo_integration_tests/tests/l1_events_scraper_end_to_end.rs
     let base_layer = AnvilBaseLayer::new().await;
     let contract = &base_layer.ethereum_base_layer.contract;
-||||||| d18ef963d:crates/apollo_l1_provider/tests/scraper_end_to_end.rs
-    let base_layer_config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil_server_guard = anvil_instance_from_config(&base_layer_config);
-=======
-    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
-    let _anvil_server_guard = anvil_instance_from_url(&base_layer_url);
->>>>>>> origin/main-v0.14.1:crates/apollo_l1_provider/tests/scraper_end_to_end.rs
     let mut l1_provider_client = MockL1ProviderClient::default();
-<<<<<<< HEAD:crates/apollo_integration_tests/tests/l1_events_scraper_end_to_end.rs
-||||||| d18ef963d:crates/apollo_l1_provider/tests/scraper_end_to_end.rs
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
-
-    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
-    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
-=======
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config, base_layer_url);
-
-    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
-    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
->>>>>>> origin/main-v0.14.1:crates/apollo_l1_provider/tests/scraper_end_to_end.rs
 
     // Send messages from L1 to L2.
     let l2_contract_address = "0x12";
