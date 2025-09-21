@@ -126,23 +126,24 @@ impl OsTestOutput {
 
         // Builtin validations are done in `run_os_stateless_for_testing`.
 
+        let os_output = self
+            .runner_output
+            .get_os_output()
+            .expect("Getting OsOutput from raw OS output should not fail.");
         // Validate state roots.
         assert_eq!(
-            self.runner_output.os_output.common_os_output.initial_root,
+            os_output.common_os_output.initial_root,
             self.expected_values.previous_global_root.0
         );
-        assert_eq!(
-            self.runner_output.os_output.common_os_output.final_root,
-            self.expected_values.new_global_root.0
-        );
+        assert_eq!(os_output.common_os_output.final_root, self.expected_values.new_global_root.0);
 
         // Block numbers.
         assert_eq!(
-            self.runner_output.os_output.common_os_output.prev_block_number,
+            os_output.common_os_output.prev_block_number,
             self.expected_values.previous_block_number
         );
         assert_eq!(
-            self.runner_output.os_output.common_os_output.new_block_number,
+            os_output.common_os_output.new_block_number,
             self.expected_values.new_block_number
         );
 
@@ -150,19 +151,19 @@ impl OsTestOutput {
 
         // Config hash.
         assert_eq!(
-            self.runner_output.os_output.common_os_output.starknet_os_config_hash,
+            os_output.common_os_output.starknet_os_config_hash,
             self.expected_values.config_hash,
         );
 
         // Flags.
-        assert_eq!(self.runner_output.os_output.use_kzg_da(), self.expected_values.use_kzg_da);
-        assert_eq!(self.runner_output.os_output.full_output(), self.expected_values.full_output);
+        assert_eq!(os_output.use_kzg_da(), self.expected_values.use_kzg_da);
+        assert_eq!(os_output.full_output(), self.expected_values.full_output);
 
         // KZG commitment.
-        if self.runner_output.os_output.use_kzg_da() {
+        if os_output.use_kzg_da() {
             let OsStateDiff::PartialCommitment(PartialCommitmentOsStateDiff(
                 ref partial_commitment,
-            )) = self.runner_output.os_output.state_diff
+            )) = os_output.state_diff
             else {
                 panic!(
                     "Expected a PartialCommitment state diff when use_kzg_da is true; full_output \
@@ -176,14 +177,8 @@ impl OsTestOutput {
         }
 
         // Messages.
-        assert_eq!(
-            self.runner_output.os_output.common_os_output.messages_to_l1,
-            self.expected_values.messages_to_l1
-        );
-        assert_eq!(
-            self.runner_output.os_output.common_os_output.messages_to_l2,
-            self.expected_values.messages_to_l2
-        );
+        assert_eq!(os_output.common_os_output.messages_to_l1, self.expected_values.messages_to_l1);
+        assert_eq!(os_output.common_os_output.messages_to_l2, self.expected_values.messages_to_l2);
     }
 
     fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
@@ -368,24 +363,27 @@ impl<S: FlowTestState> TestManager<S> {
     /// Decompresses the state diff from the OS output using the given OS output, state and alias
     /// keys.
     fn get_decompressed_state_diff(
-        os_output: &StarknetOsRunnerOutput,
+        runner_output: &StarknetOsRunnerOutput,
         state: &S,
         alias_keys: HashSet<StorageKey>,
     ) -> StateMaps {
-        let os_state_diff_maps = match os_output.os_output.state_diff {
+        let os_output = runner_output
+            .get_os_output()
+            .expect("Getting OsOutput from raw OS output should not fail.");
+        let os_state_diff_maps = match os_output.state_diff {
             OsStateDiff::Partial(ref partial_os_state_diff) => {
                 partial_os_state_diff.as_state_maps()
             }
             OsStateDiff::Full(ref full_os_state_diff) => full_os_state_diff.as_state_maps(),
             // In commitment modes, state diff should be deserialized from the DA segment.
             OsStateDiff::PartialCommitment(_) => {
-                let da_segment = os_output.da_segment.clone().unwrap();
+                let da_segment = runner_output.da_segment.clone().unwrap();
                 PartialOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
                     .unwrap()
                     .as_state_maps()
             }
             OsStateDiff::FullCommitment(_) => {
-                let da_segment = os_output.da_segment.clone().unwrap();
+                let da_segment = runner_output.da_segment.clone().unwrap();
                 FullOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
                     .unwrap()
                     .as_state_maps()
