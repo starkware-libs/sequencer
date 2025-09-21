@@ -170,8 +170,8 @@ impl L1Provider {
         }
 
         // If not historical height and not bootstrapping, must go into bootstrap state upon getting
-        // wrong height. TODO(guyn): for now, we go into bootstrap using panic. We should
-        // improve this.
+        // wrong height.
+        // TODO(guyn): for now, we go into bootstrap using panic. We should improve this.
         self.check_height_with_panic(height);
         self.apply_commit_block(committed_txs, rejected_txs);
 
