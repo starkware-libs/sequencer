@@ -176,3 +176,121 @@ async fn declare_deploy_scenario(
     let perform_global_validations = true;
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
 }
+
+/// Test state diffs in separate blocks that become trivial in a multiblock.
+#[rstest]
+#[tokio::test]
+async fn trivial_diff_scenario(
+    #[values(false, true)] use_kzg_da: bool,
+    #[values(false, true)] full_output: bool,
+) {
+    // TODO(Dori): Create a util to define an initial state with the test contract declared and
+    //   deployed. The address of the test contract should be part of the initial state data.
+
+    // Initialize the test manager with a default initial state and get the nonce manager to help
+    // keep track of nonces.
+
+    let (mut test_manager, mut nonce_manager) =
+        TestManager::<DictStateReader>::new_with_default_initial_state().await;
+
+    // Declare and deploy a test contract.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract_sierra = test_contract.get_sierra();
+    let class_hash = test_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_cairo_1_feature_contract(test_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    // Add the transaction to the test manager.
+    test_manager.add_cairo1_declare_tx(tx, &test_contract_sierra);
+    let arg1 = Felt::from(7);
+    let arg2 = Felt::from(90);
+    // Deploy the test contract using the deploy contract syscall.
+    let constructor_calldata = [
+        2.into(), // constructor length
+        arg1,
+        arg2,
+    ];
+    let contract_address_salt = ContractAddressSalt(Felt::ONE);
+    let calldata: Vec<_> =
+        [class_hash.0, contract_address_salt.0].into_iter().chain(constructor_calldata).collect();
+    let deploy_contract_calldata = create_calldata(
+        *FUNDED_ACCOUNT_ADDRESS,
+        DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+        &calldata,
+    );
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: deploy_contract_calldata,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let test_contract_address = calculate_contract_address(
+        contract_address_salt,
+        class_hash,
+        &Calldata(constructor_calldata[1..].to_vec().into()),
+        *FUNDED_ACCOUNT_ADDRESS,
+    )
+    .unwrap();
+    let deploy_contract_tx = invoke_tx(invoke_tx_args);
+    let deploy_contract_tx =
+        InvokeTransaction::create(deploy_contract_tx, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx(deploy_contract_tx);
+
+    let key = Felt::from(10u8);
+    let value = Felt::from(11u8);
+    let function_name = "test_storage_read_write";
+    // Invoke a function on the test contract that changes the key to the new value.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(test_contract_address, function_name, &[key, value]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let change_value_tx = invoke_tx(invoke_tx_args);
+    let change_value_tx = InvokeTransaction::create(change_value_tx, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx(change_value_tx);
+
+    // Move to next block, and add an invoke that reverts the previous change.
+    test_manager.move_to_next_block();
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let revert_value_tx = invoke_tx(invoke_tx_args);
+    let revert_value_tx = InvokeTransaction::create(revert_value_tx, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx(revert_value_tx);
+
+    // Execute the test.
+    let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(
+            initial_block_number,
+            &TestParameters { use_kzg_da, full_output, ..Default::default() },
+        )
+        .await;
+
+    // Explicitly check the storage updates (not just inclusion) to make sure the key has no diff.
+    // Only storage update expected is due to the constructor call.
+    let expected_test_contract_storage_updates = HashMap::from([(
+        StarknetStorageKey(get_storage_var_address("my_storage_var", &[])),
+        StarknetStorageValue(arg1 + arg2),
+    )]);
+    assert_eq!(
+        test_output.decompressed_state_diff.storage_updates.get(&test_contract_address).unwrap(),
+        &expected_test_contract_storage_updates
+    );
+
+    let perform_global_validations = true;
+    test_output.perform_validations(perform_global_validations, None);
+}
