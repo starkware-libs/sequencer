@@ -55,7 +55,7 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
     let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
     mock_blockifier_validator.expect_get_nonce().return_once(move |_| {
         Err(BlockifierStatefulValidatorError::StateError(StateError::StateReadError(
-            "Placeholder".to_string(),
+            "TestError".to_string(),
         )))
     });
 
