@@ -1,7 +1,7 @@
 {
   "base_layer_config.starknet_contract_address": "0xd8A5518cf4AC3ECD3b4cec772478109679a73E78",
   "chain_id": "PRIVATE_SN_POTC_MOCK_SEPOLIA",
-  "consensus_manager_config.context_config.num_validators": 3,
+  "consensus_manager_config.context_config.num_validators": 1,
   "eth_fee_token_address": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
   "l1_provider_config.provider_startup_height_override": 0,
   "l1_provider_config.provider_startup_height_override.#is_none": true,

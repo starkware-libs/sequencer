@@ -14,14 +14,14 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "app_configs/state_sync_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_1.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_2.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.apollo-potc-2-sepolia-mock-sharp-1.starknet.io",
+        "external_dns_name": "sequencer-core-service.apollo-potc-mock-2.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -30,16 +30,16 @@
       "toleration": "batcher-8-64",
       "resources": {
         "requests": {
-          "cpu": 50,
-          "memory": 200
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
-          "cpu": 50,
-          "memory": 220
+          "cpu": 7,
+          "memory": 14
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
+        "gcsm_key": "apollo-potc-mock-2"
       },
       "anti_affinity": true,
       "update_strategy_type": "RollingUpdate",
@@ -61,8 +61,8 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/http_server_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_1.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_2.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
@@ -95,7 +95,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
+        "gcsm_key": "apollo-potc-mock-2"
       },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
@@ -114,8 +114,8 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/gateway_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_1.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_2.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -135,7 +135,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
+        "gcsm_key": "apollo-potc-mock-2"
       },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
@@ -159,8 +159,8 @@
         "app_configs/l1_provider_config.json",
         "app_configs/l1_scraper_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_1.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_2.json",
         "services/hybrid/l1.json"
       ],
       "ingress": null,
@@ -171,16 +171,16 @@
       "toleration": "apollo-l1-service",
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 1,
+          "memory": 2
         },
         "limits": {
-          "cpu": 3,
-          "memory": 12
+          "cpu": 2,
+          "memory": 4
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
+        "gcsm_key": "apollo-potc-mock-2"
       },
       "anti_affinity": true,
       "update_strategy_type": "Recreate",
@@ -202,14 +202,14 @@
         "app_configs/mempool_config.json",
         "app_configs/mempool_p2p_config.json",
         "app_configs/monitoring_endpoint_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_1.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_2.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.apollo-potc-2-sepolia-mock-sharp-1.starknet.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-potc-mock-2.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -218,16 +218,16 @@
       "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 1,
+          "memory": 2
         },
         "limits": {
-          "cpu": 3,
-          "memory": 12
+          "cpu": 2,
+          "memory": 4
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
+        "gcsm_key": "apollo-potc-mock-2"
       },
       "anti_affinity": true,
       "update_strategy_type": "Recreate",
@@ -246,8 +246,8 @@
         "app_configs/validate_resource_bounds_config.json",
         "app_configs/monitoring_endpoint_config.json",
         "app_configs/sierra_compiler_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_1.json",
+        "deployments/potc_mock/deployment_config_override.json",
+        "deployments/potc_mock/hybrid_2.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
@@ -267,7 +267,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
+        "gcsm_key": "apollo-potc-mock-2"
       },
       "anti_affinity": false,
       "update_strategy_type": "RollingUpdate",
