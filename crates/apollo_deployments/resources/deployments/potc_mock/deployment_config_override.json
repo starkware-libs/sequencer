@@ -5,7 +5,7 @@
   "eth_fee_token_address": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
   "l1_provider_config.provider_startup_height_override": 0,
   "l1_provider_config.provider_startup_height_override.#is_none": true,
-  "starknet_url": "https://feeder.potc-mock-sepolia-fgw.starknet.io/",
+  "starknet_url": "https://feeder.potc-testnet-mock-sepolia.starknet.io/",
   "state_sync_config.central_sync_client_config.#is_none": false,
   "state_sync_config.network_config.#is_none": true,
   "state_sync_config.p2p_sync_client_config.#is_none": true,
