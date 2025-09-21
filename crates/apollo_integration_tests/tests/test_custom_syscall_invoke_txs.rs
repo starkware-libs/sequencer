@@ -24,7 +24,7 @@ async fn custom_syscall_invoke_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_syscall_invoke_txs_scenario(),
-        GasAmount(90000000),
+        GasAmount(110000000),
         false,
         false,
     )
@@ -97,8 +97,9 @@ fn generate_nested_library_call_invoke_txs(
     [("test_sha256", test_sha256_args), ("test_circuit", test_circuit_args)]
         .iter()
         .map(|(fn_name, fn_args)| {
-            account_tx_generator.generate_invoke_tx_library_call(
+            account_tx_generator.generate_library_call_invoke_tx(
                 DEFAULT_TIP,
+                &test_contract,
                 &test_contract,
                 fn_name,
                 fn_args,

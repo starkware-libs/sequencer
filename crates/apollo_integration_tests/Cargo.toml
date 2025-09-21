@@ -35,6 +35,7 @@ apollo_l1_endpoint_monitor_config.workspace = true
 apollo_l1_gas_price.workspace = true
 apollo_l1_gas_price_provider_config.workspace = true
 apollo_l1_gas_price_types.workspace = true
+apollo_l1_provider.workspace = true
 apollo_l1_provider_config.workspace = true
 apollo_l1_scraper_config.workspace = true
 apollo_mempool_config.workspace = true

@@ -25,7 +25,7 @@ use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 pub type GatewayResult<T> = Result<T, StarknetError>;
 
 #[derive(Debug, Error)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 pub enum StatelessTransactionValidatorError {
     #[error(
         "Calldata length exceeded maximum: length {calldata_length}

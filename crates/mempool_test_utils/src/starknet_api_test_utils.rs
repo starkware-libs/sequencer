@@ -409,35 +409,6 @@ impl AccountTransactionGenerator {
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
-<<<<<<< HEAD
-    pub fn generate_invoke_tx_library_call(
-        &mut self,
-        tip: u64,
-        inner_test_contract: &FeatureContract,
-        inner_fn_name: &str,
-        inner_fn_args: &[Felt],
-    ) -> RpcTransaction {
-        // Calldata for nested library call: called contract class hash, called entry point
-        // selector, and arguments.
-        let library_call_calldata = Calldata(
-            [
-                vec![inner_test_contract.get_class_hash().0, selector_from_name(inner_fn_name).0],
-                inner_fn_args.to_vec(),
-            ]
-            .concat()
-            .into(),
-        );
-        let calldata = create_calldata(
-            inner_test_contract.get_instance_address(0),
-            "test_library_call",
-            &library_call_calldata.0,
-||||||| d18ef963d
-        let invoke_args = invoke_tx_args!(
-            sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
-            nonce,
-            calldata: create_trivial_calldata(self.sender_address()),
-=======
     fn generate_nested_call_invoke_tx(
         &mut self,
         tip: u64,
@@ -507,26 +478,15 @@ impl AccountTransactionGenerator {
             resource_bounds: test_valid_resource_bounds(),
             nonce,
             compiled_class_hash,
->>>>>>> origin/main-v0.14.1
         );
         rpc_declare_tx(declare_args, contract_class)
     }
 
-<<<<<<< HEAD
-        self.generate_rpc_invoke_tx(tip, calldata)
-    }
+    pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
+        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
+        let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
+        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
 
-    pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
-        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
-        let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
-||||||| d18ef963d
-=======
-    pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
-        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
-        let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
->>>>>>> origin/main-v0.14.1
         starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
     }
 

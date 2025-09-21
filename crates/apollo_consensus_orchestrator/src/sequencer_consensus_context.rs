@@ -64,15 +64,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-<<<<<<< HEAD
 use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
-use crate::config::ContextConfig;
-||||||| d18ef963d
-use crate::cende::{BlobParameters, CendeContext};
-use crate::config::ContextConfig;
-=======
-use crate::cende::{BlobParameters, CendeContext};
->>>>>>> origin/main-v0.14.1
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{
     record_build_proposal_failure,

@@ -116,14 +116,10 @@ pub enum OsHintError {
     #[error(transparent)]
     Patricia(#[from] PatriciaError),
     #[error(transparent)]
-<<<<<<< HEAD
     Preimage(#[from] PreimageError),
     #[error(transparent)]
-||||||| d18ef963d
-=======
     Program(#[from] ProgramError),
     #[error(transparent)]
->>>>>>> origin/main-v0.14.1
     Runner(#[from] RunnerError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },

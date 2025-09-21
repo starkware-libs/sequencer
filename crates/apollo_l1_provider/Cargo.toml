@@ -33,7 +33,6 @@ starknet_api.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-url.workspace = true
 
 [dev-dependencies]
 alloy.workspace = true
