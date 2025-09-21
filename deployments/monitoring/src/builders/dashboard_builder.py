@@ -89,9 +89,6 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                 }
             ]
         },
-        "options": {
-            "showPercentChange": show_percent_change
-        },
         "links": (
             [{"url": link, "title": "GCP Logs", "targetBlank": True}]
         ),
@@ -113,6 +110,12 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 
     if thresholds:
         grafana_panel["fieldConfig"]["defaults"]["color"] = {"mode": "thresholds"}
+
+    if panel["type"] == "stat":
+        grafana_panel["options"] = {
+            "textMode": "value_and_name",
+            "showPercentChange": show_percent_change,
+        }
 
     return grafana_panel
 
