@@ -90,7 +90,7 @@ fn get_panel_block_close_reasons() -> Panel {
             LABEL_NAME_BLOCK_CLOSE_REASON,
             BLOCK_CLOSE_REASON.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
     .with_log_query("\"Block builder deadline reached.\" OR \"Block is full.\"")
 }
