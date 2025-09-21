@@ -64,7 +64,7 @@ fn get_panel_consensus_block_number() -> Panel {
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 
-fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
+pub(crate) fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     Panel::new(
         "Consensus Height Diff From Sync",
         "The difference between the consensus height and the sync height",
