@@ -55,7 +55,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height);
+        self.check_height_with_error(height)?;
         info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
@@ -87,7 +87,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height);
+        self.check_height_with_error(height)?;
 
         match self.state {
             ProviderState::Propose => {
@@ -126,7 +126,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height);
+        self.check_height_with_error(height)?;
         match self.state {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
@@ -169,7 +169,10 @@ impl L1Provider {
             return self.bootstrap(committed_txs, height);
         }
 
-        self.validate_height(height);
+        // If not historical height and not bootstrapping, must go into bootstrap state upon getting
+        // wrong height.
+        // TODO(guyn): for now, we go into bootstrap using panic. We should improve this.
+        self.check_height_with_panic(height);
         self.apply_commit_block(committed_txs, rejected_txs);
 
         self.state = self.state.transition_to_pending();
@@ -257,7 +260,17 @@ impl L1Provider {
         })
     }
 
-    fn validate_height(&mut self, height: BlockNumber) {
+    fn check_height_with_error(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+        if height != self.current_height {
+            return Err(L1ProviderError::UnexpectedHeight {
+                expected_height: self.current_height,
+                got: height,
+            });
+        }
+        Ok(())
+    }
+
+    fn check_height_with_panic(&mut self, height: BlockNumber) {
         if height > self.current_height {
             // TODO(shahak): Add a way to move to bootstrap mode from any point and move to
             // bootstrap here instead of panicking.
