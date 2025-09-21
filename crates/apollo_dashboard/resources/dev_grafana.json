@@ -1192,7 +1192,11 @@
           "exprs": [
             "tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_min_busy_duration",
