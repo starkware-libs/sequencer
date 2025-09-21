@@ -90,7 +90,8 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
             ]
         },
         "options": {
-            "showPercentChange": show_percent_change
+            "showPercentChange": show_percent_change,
+            "textMode": "value_and_name"
         },
         "links": (
             [{"url": link, "title": "GCP Logs", "targetBlank": True}]
