@@ -16,6 +16,7 @@ use crate::panels::consensus::{
     get_cende_row,
     get_consensus_p2p_row,
     get_consensus_row,
+    get_panel_consensus_block_number_diff_from_sync,
     get_panel_consensus_block_time_avg,
     get_panel_consensus_round,
 };
@@ -30,11 +31,7 @@ use crate::panels::mempool::get_mempool_row;
 use crate::panels::mempool_p2p::get_mempool_p2p_row;
 use crate::panels::pod_metrics::get_pod_metrics_row;
 use crate::panels::sierra_compiler::get_compile_to_casm_row;
-use crate::panels::state_sync::{
-    get_panel_state_sync_diff_from_central,
-    get_state_sync_p2p_row,
-    get_state_sync_row,
-};
+use crate::panels::state_sync::{get_state_sync_p2p_row, get_state_sync_row};
 use crate::panels::storage::get_storage_row;
 use crate::panels::tokio::get_tokio_row;
 
@@ -52,7 +49,7 @@ fn get_overview_row() -> Row {
             get_panel_consensus_round(),
             get_panel_http_server_transactions_received_rate(),
             get_panel_batched_transactions_rate(),
-            get_panel_state_sync_diff_from_central(),
+            get_panel_consensus_block_number_diff_from_sync(),
             get_panel_gateway_add_tx_failure_by_reason(),
         ],
     )

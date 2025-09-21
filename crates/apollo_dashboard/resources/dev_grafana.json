@@ -46,11 +46,11 @@
           }
         },
         {
-          "title": "Sync Diff From Central",
-          "description": "The number of blocks that were not fully synced yet",
+          "title": "Consensus Height Diff From Sync",
+          "description": "The difference between the consensus height and the sync height",
           "type": "timeseries",
           "exprs": [
-            "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
         },
