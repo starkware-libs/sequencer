@@ -7988,23 +7988,12 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fce8f59622ed408c318c9b5eca17f1a1154159e3738b5c4d5a22a0dd3700c906"
 dependencies = [
- "lambdaworks-math 0.12.0",
+ "lambdaworks-math",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
  "sha2",
  "sha3",
-]
-
-[[package]]
-name = "lambdaworks-math"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1bd2632acbd9957afc5aeec07ad39f078ae38656654043bf16e046fa2730e23"
-dependencies = [
- "rayon",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -12378,7 +12367,7 @@ dependencies = [
  "blake2",
  "digest 0.10.7",
  "lambdaworks-crypto",
- "lambdaworks-math 0.12.0",
+ "lambdaworks-math",
  "lazy_static",
  "num-bigint 0.4.6",
  "num-integer",
@@ -12506,7 +12495,6 @@ dependencies = [
  "indexmap 2.11.0",
  "indoc 2.0.6",
  "itertools 0.12.1",
- "lambdaworks-math 0.10.0",
  "log",
  "num-bigint 0.4.6",
  "num-integer",
