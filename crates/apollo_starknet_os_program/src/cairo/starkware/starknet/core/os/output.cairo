@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.segments import relocate_segment
@@ -22,6 +22,12 @@ from starkware.starknet.core.os.state.output import (
     serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
+from starkware.starknet.core.os.encrypt import (
+    validate_private_keys,
+    compute_public_keys,
+    encrypt_symmetric_key,
+    encrypt,
+)
 
 // Represents the output of the OS.
 struct OsOutput {
@@ -76,9 +82,9 @@ struct OsCarriedOutputs {
     messages_to_l2: MessageToL2Header*,
 }
 
-func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*}(
-    os_output: OsOutput*, replace_keys_with_aliases: felt
-) {
+func serialize_os_output{
+    range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*
+}(os_output: OsOutput*, replace_keys_with_aliases: felt, n_keys: felt, public_keys: felt*) {
     alloc_locals;
 
     local use_kzg_da = os_output.header.use_kzg_da;
@@ -121,6 +127,8 @@ func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output
         state_updates_start=state_updates_start,
         state_updates_end=state_updates_ptr,
         compress_state_updates=compress_state_updates,
+        n_keys=n_keys,
+        public_keys=public_keys,
     );
 
     if (use_kzg_da != FALSE) {
@@ -229,8 +237,12 @@ func serialize_os_kzg_commitment_info{output_ptr: felt*}(
 }
 
 // Returns the final data-availability to output.
-func process_data_availability{range_check_ptr}(
-    state_updates_start: felt*, state_updates_end: felt*, compress_state_updates: felt
+func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
+    state_updates_start: felt*,
+    state_updates_end: felt*,
+    compress_state_updates: felt,
+    n_keys: felt,
+    public_keys: felt*,
 ) -> (da_start: felt*, da_end: felt*) {
     if (compress_state_updates == 0) {
         return (da_start=state_updates_start, da_end=state_updates_end);
@@ -238,10 +250,10 @@ func process_data_availability{range_check_ptr}(
 
     alloc_locals;
 
-    // Output a compression of the state updates.
+    // Compress the state updates.
     local compressed_start: felt*;
     %{
-        if use_kzg_da:
+        if use_kzg_da or ids.n_keys > 0:
             ids.compressed_start = segments.add()
         else:
             # Assign a temporary segment, to be relocated into the output segment.
@@ -251,7 +263,44 @@ func process_data_availability{range_check_ptr}(
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);
     }
-    return (da_start=compressed_start, da_end=compressed_dst);
+
+    if (n_keys == 0) {
+        // No public keys - skip the state updates encryption.
+        return (da_start=compressed_start, da_end=compressed_dst);
+    }
+
+    // Encrypt the compressed state updates.
+    // Generate random symmetric key and random starknet private keys.
+    local symmetric_key: felt;
+    local sn_private_keys: felt*;
+    %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
+    validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+
+    local encrypted_start: felt*;
+    %{
+        if use_kzg_da:
+            ids.encrypted_start = segments.add()
+        else:
+            # Assign a temporary segment, to be relocated into the output segment.
+            ids.encrypted_start = segments.add_temp_segment()
+    %}
+
+    let encrypted_dst = encrypted_start;
+    assert encrypted_dst[0] = n_keys;
+    let encrypted_dst = &encrypted_dst[1];
+
+    with encrypted_dst {
+        compute_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+        encrypt_symmetric_key(
+            n_keys=n_keys,
+            public_keys=public_keys,
+            sn_private_keys=sn_private_keys,
+            symmetric_key=symmetric_key,
+        );
+        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
+    }
+
+    return (da_start=encrypted_start, da_end=encrypted_dst);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
