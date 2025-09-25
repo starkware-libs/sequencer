@@ -54,8 +54,10 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
                 info!(
                     "L1 endpoint {} is no longer operational, switching to new operational L1 \
                      endpoint: {}",
-                    self.current_node_url.read().await,
-                    &new_node_url
+                    to_safe_string(
+                        &Url::parse(self.current_node_url.read().await.as_ref()).unwrap()
+                    ),
+                    to_safe_string(&new_node_url)
                 );
 
                 let mut base_layer = self.base_layer.lock().await;
@@ -223,4 +225,11 @@ impl<B: BaseLayerContract + Send + Sync> std::fmt::Debug for MonitoredBaseLayerE
             MonitoredBaseLayerError::BaseLayerContractError(err) => write!(f, "{:?}", err),
         }
     }
+}
+
+// TODO(guyn): this is duplicated code from apollo_l1_endpoint_monitor/src/monitor.rs
+// TODO(guyn): when it is moved to apollo_infra_utils, we should import it instead.
+fn to_safe_string(url: &Url) -> String {
+    // We print only the hostnames to avoid leaking the API keys.
+    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
 }
