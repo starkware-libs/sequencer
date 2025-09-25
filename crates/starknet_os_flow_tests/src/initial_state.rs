@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -40,10 +40,12 @@ use crate::test_manager::{
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
 };
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
     create_cairo1_bootstrap_declare_tx,
     create_committer_state_diff,
+    create_declare_tx,
     execute_transactions,
     CommitmentOutput,
     ExecutionOutput,
@@ -121,13 +123,17 @@ pub(crate) struct InitialState<S: FlowTestState> {
 /// Creates the initial state for the flow test which includes:
 /// Declares token and account contracts.
 /// Deploys both contracts and funds the account.
-pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
--> (InitialStateData<S>, NonceManager) {
-    let InitialTransactionsData {
-        transactions: default_initial_state_txs,
-        execution_contracts,
-        nonce_manager,
-    } = create_default_initial_state_txs_and_contracts();
+pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N: usize>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+) -> (InitialStateData<S>, NonceManager, [ContractAddress; N]) {
+    let (
+        InitialTransactionsData {
+            transactions: default_initial_state_txs,
+            execution_contracts,
+            nonce_manager,
+        },
+        extra_contracts_addresses,
+    ) = create_default_initial_state_txs_and_contracts(extra_contracts);
     // Execute these 4 txs.
     let initial_state_reader = S::create_empty_state();
     let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
@@ -169,7 +175,11 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
         classes_trie_root_hash: commitment_output.classes_trie_root_hash,
     };
 
-    (InitialStateData { initial_state, execution_contracts }, nonce_manager)
+    (
+        InitialStateData { initial_state, execution_contracts },
+        nonce_manager,
+        extra_contracts_addresses,
+    )
 }
 
 struct InitialTransactionsData {
@@ -178,7 +188,9 @@ struct InitialTransactionsData {
     pub(crate) nonce_manager: NonceManager,
 }
 
-fn create_default_initial_state_txs_and_contracts() -> InitialTransactionsData {
+fn create_default_initial_state_txs_and_contracts<const N: usize>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+) -> (InitialTransactionsData, [ContractAddress; N]) {
     let mut os_execution_contracts = OsExecutionContracts::default();
     // Declare account and ERC20 contracts.
     let account_contract =
@@ -211,11 +223,38 @@ fn create_default_initial_state_txs_and_contracts() -> InitialTransactionsData {
     let nonce = nonce_manager.next(account_contract_address);
     let (deploy_contract_tx, _) = get_deploy_fee_token_tx_and_address(nonce);
     txs.push(deploy_contract_tx);
-    InitialTransactionsData {
-        transactions: txs,
-        execution_contracts: os_execution_contracts,
-        nonce_manager,
+
+    // Deploy extra contracts. Declare contracts that are not already declared.
+    let mut declared_contracts = HashSet::from([account_contract, erc20_contract]);
+    let mut extra_addresses = Vec::new();
+    for (contract, calldata) in extra_contracts {
+        if !declared_contracts.contains(&contract) {
+            // Add a declare transaction for the contract.
+            // No need for bootstrap mode: funded account already exists at this point.
+            txs.push(Transaction::new_for_sequencing(StarknetAPITransaction::Account(
+                create_declare_tx(contract, &mut nonce_manager, &mut os_execution_contracts, false),
+            )));
+            declared_contracts.insert(contract);
+        }
+        // Deploy.
+        let (deploy_tx, address) = get_deploy_contract_tx_and_address(
+            contract.get_sierra().calculate_class_hash(),
+            calldata,
+            nonce_manager.next(account_contract_address),
+            *NON_TRIVIAL_RESOURCE_BOUNDS,
+        );
+        txs.push(deploy_tx);
+        extra_addresses.push(address);
     }
+
+    (
+        InitialTransactionsData {
+            transactions: txs,
+            execution_contracts: os_execution_contracts,
+            nonce_manager,
+        },
+        extra_addresses.try_into().unwrap(),
+    )
 }
 
 pub(crate) async fn commit_initial_state_diff(
