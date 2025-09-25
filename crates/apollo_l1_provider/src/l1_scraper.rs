@@ -117,6 +117,15 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
             );
         };
+        // This can happen if, e.g., changing base layers. Should ignore and try scraping again.
+        if latest_l1_block.number <= self.last_l1_block_processed.number {
+            warn!(
+                "Latest L1 block number {} is not greater than the last processed L1 block number \
+                 {}. Ignoring, will try again on the next interval.",
+                latest_l1_block.number, self.last_l1_block_processed.number
+            );
+            return Ok((self.last_l1_block_processed, vec![]));
+        }
 
         let scraping_start_number = self.last_l1_block_processed.number + 1;
         let scraping_result = self
