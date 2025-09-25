@@ -31,6 +31,7 @@ pub mod l1_scraper_tests;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
+// TODO(guyn): make this a config parameter
 // Sensible lower bound.
 const L1_BLOCK_TIME: u64 = 10;
 
@@ -63,6 +64,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         })
     }
 
+    /// Send an initialize message to the L1 provider, including events scraped on the first
+    /// iteration. The provider will return an error if it was already initialized (e.g., if the
+    /// scraper was restarted).
     #[instrument(skip(self), err)]
     async fn initialize(&mut self) -> L1ScraperResult<(), B> {
         let (latest_l1_block, events) = self.fetch_events().await?;
@@ -76,16 +80,18 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
+    /// Scrape recent events and send them to the L1 provider.
     pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
+        // TODO(guyn): remove these _every_n_sec because the polling interval is longer.
         trace!("scraped up to {latest_l1_block:?}");
         info_every_n_sec!(1, "scraped up to {latest_l1_block:?}");
 
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
-        // Perf hit is minimal, since the scraper is on the same machine as the provider (no net).
-        // If this gets spammy, short-circuit on events.empty().
+        // Perf hit is minimal, since the scraper is on the same machine as the provider (no
+        // network). If this gets spammy, short-circuit on events.empty().
         let add_events_result = self.l1_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
@@ -94,6 +100,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
+    /// Query the L1 base layer for all events since last_l1_block_processed.
     async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
         let scrape_timestamp = self.clock.unix_now();
 
@@ -116,7 +123,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .await;
 
         let l1_events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
-        // Used for debug.
+
+        // Used for debug. Collect the L1 handler events only.
         let l1_messages_info = l1_events
             .iter()
             .filter_map(|event| match event {
@@ -127,6 +135,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             })
             .collect::<Vec<_>>();
 
+        // Convert L1 events into Starknet provider events.
         let events = l1_events
             .into_iter()
             .map(|event| {
@@ -135,7 +144,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             })
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
 
-        // Used for debug.
+        // Used for debug. Collect the L2 hashes for events that are L1 handler transactions.
         let l2_hashes = events.iter().filter_map(|event| match event {
             Event::L1HandlerTransaction { l1_handler_tx, .. } => Some(l1_handler_tx.tx_hash),
             _ => None,
@@ -171,6 +180,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         }
 
         loop {
+            // TODO(guyn): move sleep to the end of the loop.
             sleep(self.config.polling_interval_seconds).await;
 
             match self.send_events_to_l1_provider().await {
@@ -185,8 +195,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 Err(e) => return Err(e),
             }
 
-            // Can reach this if Ok or if baselayer error. Other cases would return Err, crashing
-            // the node.
+            // Can reach this if Ok / baselayer error. Otherwise return Err, crashing the node.
             if let Some(last_successful_scrape_timestamp) = self.last_successful_scrape_timestamp {
                 L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE
                     .set_lossy(self.clock.unix_now() - last_successful_scrape_timestamp);
@@ -194,6 +203,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         }
     }
 
+    /// Fetch last_l1_block_processed again, check it still exists and that its hash is the same.
+    /// If a reorg occurred up to this block, return an error (existing data in the provider is
+    /// stale).
     async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
         let last_processed_l1_block_number = self.last_l1_block_processed.number;
         let last_block_processed_fresh = self
@@ -229,6 +241,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 }
 
+/// Use config.startup_rewind_time_seconds to estimate an L1 block number
+/// that is far enough back to start scraping from.
 pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
     base_layer: &B,
     config: &L1ScraperConfig,
@@ -309,6 +323,8 @@ impl<B: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<B> {
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
+    /// Pass any base layer errors. In the rare case that the finality is bigger than the latest L1
+    /// block number, return FinalityTooHigh.
     pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
         let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
 
