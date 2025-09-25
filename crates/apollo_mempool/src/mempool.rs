@@ -15,7 +15,11 @@ use indexmap::IndexSet;
 use rand::{thread_rng, Rng};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionLabelValue,
+    InternalRpcTransactionWithoutTxHash,
+};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
@@ -27,12 +31,13 @@ use crate::metrics::{
     metric_count_expired_txs,
     metric_count_rejected_txs,
     metric_set_get_txs_size,
-    MempoolMetricHandle,
+    LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TOTAL_SIZE_BYTES,
+    MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
 };
 use crate::transaction_pool::TransactionPool;
@@ -343,9 +348,6 @@ impl Mempool {
         err
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
-        let mut metric_handle = MempoolMetricHandle::new(&args.tx.tx);
-        metric_handle.count_transaction_received();
-
         // First remove old transactions from the pool.
         let mut account_nonce_updates = self.remove_expired_txs();
         self.add_ready_declares();
@@ -358,7 +360,10 @@ impl Mempool {
             self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
         }
 
-        metric_handle.transaction_inserted();
+        MEMPOOL_TRANSACTIONS_RECEIVED.increment(
+            1,
+            &[(LABEL_NAME_TX_TYPE, InternalRpcTransactionLabelValue::from(&args.tx.tx).into())],
+        );
 
         // May override a removed queued nonce with the received account nonce or the account's
         // state nonce.
