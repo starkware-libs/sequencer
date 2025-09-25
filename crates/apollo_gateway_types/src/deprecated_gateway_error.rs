@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[cfg(any(feature = "testing", test))]
 use enum_iterator::Sequence;
 use serde::de::Error;
@@ -75,7 +77,7 @@ impl StarknetError {
     }
 
     pub fn internal_with_signature_logging(
-        log_message: &str,
+        log_message: impl Display,
         tx_signature: &TransactionSignature,
         err: impl std::error::Error,
     ) -> Self {
