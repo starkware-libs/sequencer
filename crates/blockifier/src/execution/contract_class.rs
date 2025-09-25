@@ -41,6 +41,7 @@ use starknet_api::deprecated_contract_class::{
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::abi::constants::{self};
 use crate::execution::casm_hash_estimation::{
@@ -73,11 +74,6 @@ pub struct FeltSizeCount {
 }
 
 impl FeltSizeCount {
-    /// Threshold for considering a felt "small" or "large".
-    /// 2^63 is the threshold for the Blake2s hash function.
-    // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
-    pub(crate) const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
-
     pub(crate) fn n_felts(&self) -> usize {
         self.small + self.large
     }
@@ -114,7 +110,7 @@ impl From<&[Felt]> for FeltSizeCount {
     /// Constructs a `FeltSizeCount` by counting how many felts are "small" (< `SMALL_THRESHOLD`,
     /// 2^63) and how many are "large" (>= `SMALL_THRESHOLD`).
     fn from(items: &[Felt]) -> Self {
-        Self::from_slice(items, |x| *x < Self::SMALL_THRESHOLD)
+        Self::from_slice(items, |x| *x < Blake2Felt252::SMALL_THRESHOLD)
     }
 }
 
@@ -123,7 +119,7 @@ impl From<&[BigUintAsHex]> for FeltSizeCount {
     /// `SMALL_THRESHOLD`, 2^63) and how many are "large" (value >= `SMALL_THRESHOLD`).
     fn from(items: &[BigUintAsHex]) -> Self {
         static SMALL_THRESHOLD: LazyLock<BigUint> =
-            LazyLock::new(|| FeltSizeCount::SMALL_THRESHOLD.to_biguint());
+            LazyLock::new(|| Blake2Felt252::SMALL_THRESHOLD.to_biguint());
         Self::from_slice(items, |x| x.value < *SMALL_THRESHOLD)
     }
 }
