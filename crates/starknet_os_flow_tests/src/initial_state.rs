@@ -28,7 +28,7 @@ use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
-use starknet_api::{deploy_account_tx_args, invoke_tx_args};
+use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
@@ -246,27 +246,18 @@ pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {
     DeployAccountTransaction::create(deploy_tx, &CHAIN_ID_FOR_TESTS).unwrap()
 }
 
-pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
-    let class_hash = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
-        .get_sierra()
-        .calculate_class_hash();
+pub(crate) fn get_deploy_contract_tx_and_address(
+    class_hash: ClassHash,
+    ctor_calldata: Calldata,
+    nonce: Nonce,
+    resource_bounds: ValidResourceBounds,
+) -> (Transaction, ContractAddress) {
     let contract_address_salt = Felt::ONE;
-
-    let constructor_calldata = [
-        9.into(), // constructor length
-        Felt::from_bytes_be_slice(STRK_TOKEN_NAME),
-        Felt::from_bytes_be_slice(STRK_SYMBOL),
-        STRK_DECIMALS.into(),
-        INITIAL_TOKEN_SUPPLY.into(),     // initial supply lsb
-        0.into(),                        // initial supply msb
-        *FUNDED_ACCOUNT_ADDRESS.0.key(), // recipient address
-        *FUNDED_ACCOUNT_ADDRESS.0.key(), // permitted minter
-        *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
-        10.into(),                       // upgrade delay
-    ];
-
-    let calldata: Vec<_> =
-        [class_hash.0, contract_address_salt].into_iter().chain(constructor_calldata).collect();
+    let calldata = [class_hash.0, contract_address_salt, ctor_calldata.0.len().into()]
+        .iter()
+        .chain(ctor_calldata.0.iter())
+        .cloned()
+        .collect::<Vec<Felt>>();
 
     let deploy_contract_calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
@@ -278,7 +269,7 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce,
         calldata: deploy_contract_calldata,
-        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement()
+        resource_bounds,
     };
     let deploy_contract_tx = invoke_tx(invoke_tx_args);
     let deploy_contract_tx =
@@ -287,7 +278,7 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
     let contract_address = calculate_contract_address(
         ContractAddressSalt(contract_address_salt),
         class_hash,
-        &Calldata(constructor_calldata[1..].to_vec().into()), // Ignore the length.
+        &ctor_calldata,
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
@@ -296,5 +287,29 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
             AccountTransaction::Invoke(deploy_contract_tx),
         )),
         contract_address,
+    )
+}
+
+pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
+    let class_hash = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
+        .get_sierra()
+        .calculate_class_hash();
+
+    let constructor_calldata = calldata![
+        Felt::from_bytes_be_slice(STRK_TOKEN_NAME),
+        Felt::from_bytes_be_slice(STRK_SYMBOL),
+        STRK_DECIMALS.into(),
+        INITIAL_TOKEN_SUPPLY.into(),     // initial supply lsb
+        0.into(),                        // initial supply msb
+        *FUNDED_ACCOUNT_ADDRESS.0.key(), // recipient address
+        *FUNDED_ACCOUNT_ADDRESS.0.key(), // permitted minter
+        *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
+        10.into()                        // upgrade delay
+    ];
+    get_deploy_contract_tx_and_address(
+        class_hash,
+        constructor_calldata,
+        nonce,
+        ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     )
 }
