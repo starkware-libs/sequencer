@@ -39,7 +39,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
 use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
-use crate::utils::{divide_vec_into_n_parts, get_class_info_of_cairo_1_feature_contract};
+use crate::utils::{divide_vec_into_n_parts, get_class_info_of_feature_contract};
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
     LazyLock::new(|| {
@@ -107,7 +107,7 @@ async fn declare_deploy_scenario(
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_cairo_1_feature_contract(test_contract);
+    let class_info = get_class_info_of_feature_contract(test_contract);
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     // Add the transaction to the test manager.
@@ -206,7 +206,7 @@ async fn trivial_diff_scenario(
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_cairo_1_feature_contract(test_contract);
+    let class_info = get_class_info_of_feature_contract(test_contract);
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     // Add the transaction to the test manager.

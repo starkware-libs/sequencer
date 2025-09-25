@@ -14,10 +14,11 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash as StarknetAPICompiledClassHash,
@@ -177,7 +178,7 @@ pub(crate) fn create_cairo1_bootstrap_declare_tx(
         resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_cairo_1_feature_contract(feature_contract);
+    let class_info = get_class_info_of_feature_contract(feature_contract);
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     AccountTransaction::Declare(tx)
@@ -365,16 +366,30 @@ pub(crate) fn divide_vec_into_n_parts<T>(mut vec: Vec<T>, n: usize) -> Vec<Vec<T
 }
 
 // TODO(Nimrod): Consider moving it to a method of `FeatureContract`.
-pub(crate) fn get_class_info_of_cairo_1_feature_contract(
-    feature_contract: FeatureContract,
-) -> ClassInfo {
-    let sierra = feature_contract.get_sierra();
+pub(crate) fn get_class_info_of_feature_contract(feature_contract: FeatureContract) -> ClassInfo {
     let contract_class = feature_contract.get_class();
-    let sierra_version = feature_contract.get_sierra_version();
-    ClassInfo {
-        contract_class,
-        sierra_program_length: sierra.sierra_program.len(),
-        abi_length: sierra.abi.len(),
-        sierra_version,
+    match feature_contract.cairo_version() {
+        CairoVersion::Cairo0 => {
+            let ContractClass::V0(ref class) = contract_class else {
+                panic!("Expected a Cairo 0 contract class.");
+            };
+            let abi_length = class.abi.as_ref().unwrap().len();
+            ClassInfo {
+                contract_class,
+                sierra_program_length: 0,
+                abi_length,
+                sierra_version: SierraVersion::DEPRECATED,
+            }
+        }
+        CairoVersion::Cairo1(_) => {
+            let sierra = feature_contract.get_sierra();
+            let sierra_version = feature_contract.get_sierra_version();
+            ClassInfo {
+                contract_class,
+                sierra_program_length: sierra.sierra_program.len(),
+                abi_length: sierra.abi.len(),
+                sierra_version,
+            }
+        }
     }
 }
