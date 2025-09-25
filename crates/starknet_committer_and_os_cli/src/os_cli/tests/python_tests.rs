@@ -1,6 +1,6 @@
-use blake2s::encode_felts_to_u32s;
 use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::os_cli::commands::{validate_os_input, AggregatorCliInput, OsCliInput};
 use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult};
@@ -39,7 +39,7 @@ impl PythonTestRunner for OsPythonTestRunner {
             }
             Self::EncodeFelts => {
                 let felts: Vec<Felt> = serde_json::from_str(Self::non_optional_input(input)?)?;
-                Ok(format!("{:?}", encode_felts_to_u32s(felts)))
+                Ok(format!("{:?}", Blake2Felt252::encode_felts_to_u32s(&felts)))
             }
         }
     }

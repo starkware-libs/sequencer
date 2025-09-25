@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use blake2s::encode_felt252_data_and_calc_blake_hash;
 use blockifier::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
@@ -12,6 +11,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
@@ -53,7 +53,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
         add_main_prefix_to_entrypoint: false,
     };
 
-    let rust_hash = encode_felt252_data_and_calc_blake_hash(&test_data);
+    let rust_hash = Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&test_data);
 
     let data_len = test_data.len();
     let explicit_args = vec![
