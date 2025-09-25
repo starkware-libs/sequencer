@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
-use blockifier::context::BlockContext;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
     calculate_contract_address,
@@ -25,7 +25,7 @@ use starknet_api::executable_transaction::{
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{deploy_account_tx_args, invoke_tx_args};
@@ -35,7 +35,11 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::state_trait::FlowTestState;
-use crate::test_manager::{FUNDED_ACCOUNT_ADDRESS, STRK_FEE_TOKEN_ADDRESS};
+use crate::test_manager::{
+    block_context_for_flow_tests,
+    FUNDED_ACCOUNT_ADDRESS,
+    STRK_FEE_TOKEN_ADDRESS,
+};
 use crate::utils::{
     commit_state_diff,
     create_cairo1_bootstrap_declare_tx,
@@ -126,11 +130,12 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
     } = create_default_initial_state_txs_and_contracts();
     // Execute these 4 txs.
     let initial_state_reader = S::create_empty_state();
+    let use_kzg_da = false;
     let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
         execute_transactions(
             initial_state_reader,
             &default_initial_state_txs,
-            BlockContext::create_for_testing(),
+            block_context_for_flow_tests(BlockNumber(CURRENT_BLOCK_NUMBER), use_kzg_da),
         );
     assert_eq!(
         execution_outputs.len(),
