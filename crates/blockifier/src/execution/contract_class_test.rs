@@ -147,8 +147,8 @@ fn test_create_bytecode_segment_felt_sizes(
 /// For both Felt and BigUintAsHex slices.
 fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_large: usize) {
     // Build inputs inline: values straddling the threshold.
-    let small_felt = FeltSizeCount::SMALL_THRESHOLD - 1_u64;
-    let large_felt = FeltSizeCount::SMALL_THRESHOLD;
+    let small_felt = Blake2Felt252::SMALL_THRESHOLD - 1_u64;
+    let large_felt = Blake2Felt252::SMALL_THRESHOLD;
 
     let items: Vec<Felt> =
         repeat_n(small_felt, expected_small).chain(repeat_n(large_felt, expected_large)).collect();
