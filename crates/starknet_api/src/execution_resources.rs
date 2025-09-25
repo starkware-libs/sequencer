@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
