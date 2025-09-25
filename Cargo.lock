@@ -3465,16 +3465,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blake2s"
-version = "0.16.0-rc.0"
-dependencies = [
- "blake2",
- "digest 0.10.7",
- "rstest",
- "starknet-types-core",
-]
-
-[[package]]
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3508,7 +3498,6 @@ dependencies = [
  "ark-secp256k1 0.4.0",
  "ark-secp256r1 0.4.0",
  "assert_matches",
- "blake2s",
  "blockifier_test_utils",
  "cached",
  "cairo-lang-casm",
@@ -12387,7 +12376,6 @@ dependencies = [
  "assert_matches",
  "base64 0.13.1",
  "bitvec",
- "blake2s",
  "cached",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
@@ -12439,7 +12427,6 @@ version = "0.16.0-rc.0"
 dependencies = [
  "apollo_starknet_os_program",
  "assert_matches",
- "blake2s",
  "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
@@ -12482,7 +12469,6 @@ dependencies = [
  "ark-secp256k1 0.4.0",
  "ark-secp256r1 0.4.0",
  "assert_matches",
- "blake2s",
  "blockifier",
  "blockifier_test_utils",
  "c-kzg",
