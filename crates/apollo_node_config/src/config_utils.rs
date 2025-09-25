@@ -150,6 +150,8 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
     }
 }
 
+// TODO(Nadin/Tsabary): `DeploymentBaseAppConfig` is only used in tests, and should be marked as
+// such.
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,

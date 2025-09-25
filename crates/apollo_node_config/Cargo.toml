@@ -44,5 +44,6 @@ validator.workspace = true
 [dev-dependencies]
 apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
+
 pretty_assertions.workspace = true
 rstest.workspace = true
