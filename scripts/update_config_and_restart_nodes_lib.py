@@ -5,7 +5,7 @@ import json
 import subprocess
 import sys
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import tempfile
 import yaml
@@ -18,7 +18,6 @@ class Colors(Enum):
     RED = "\033[1;31m"
     GREEN = "\033[1;32m"
     YELLOW = "\033[1;33m"
-    GREEN = "\033[1;32m"
     BLUE = "\033[1;34m"
     RESET = "\033[0m"
 
@@ -48,22 +47,25 @@ class ArgsParserBuilder:
             epilog=usage_example,
         )
 
-        # Add all required flags immediately on creation
         self._add_common_flags()
 
     def _add_common_flags(self):
         """Add all common flags."""
-        self.parser.add_argument(
+        namespace_group = self.parser.add_mutually_exclusive_group(required=True)
+        namespace_group.add_argument(
             "-n",
-            "--namespace",
-            required=True,
+            "--namespace-prefix",
             help="The Kubernetes namespace prefix (e.g., apollo-sepolia-integration)",
+        )
+        namespace_group.add_argument(
+            "--namespace-list",
+            nargs="+",
+            help="Space separated list of namespaces (e.g., apollo-sepolia-integration-0 apollo-sepolia-integration-2)",
         )
 
         self.parser.add_argument(
             "-N",
             "--num-nodes",
-            required=True,
             type=int,
             help="The number of nodes to restart (required)",
         )
@@ -76,8 +78,14 @@ class ArgsParserBuilder:
             help="The starting index for node IDs (default: 0)",
         )
 
-        self.parser.add_argument(
-            "-c", "--cluster", help="Optional cluster prefix for kubectl context"
+        cluster_group = self.parser.add_mutually_exclusive_group()
+        cluster_group.add_argument(
+            "-c", "--cluster-prefix", help="Optional cluster prefix for kubectl context"
+        )
+        cluster_group.add_argument(
+            "--cluster-list",
+            nargs="+",
+            help="Space separated list of cluster names for kubectl contexts",
         )
 
         restart_group = self.parser.add_mutually_exclusive_group()
@@ -137,13 +145,66 @@ class Service(Enum):
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
-    if args.num_nodes <= 0:
-        print_error("Error: num-nodes must be a positive integer.")
+    if args.namespace_list and args.cluster_prefix or args.namespace_prefix and args.cluster_list:
+        print_error("Error: Use either list mode or prefix mode. You cannot mix them.")
         sys.exit(1)
 
-    if args.start_index < 0:
-        print_error("Error: start-index must be a non-negative integer.")
-        sys.exit(1)
+    if args.namespace_list:
+        # List mode.
+        if args.start_index != 0:
+            print_error("Error: start-index cannot be set when namespace-list is specified.")
+            sys.exit(1)
+        if args.num_nodes:
+            print_error("Error: num-nodes cannot be set when namespace-list is specified.")
+            sys.exit(1)
+        if args.cluster_list:
+            if len(args.cluster_list) != len(args.namespace_list):
+                print_error(
+                    "Error: cluster-list and namespace-list must have the same number of values."
+                )
+                sys.exit(1)
+    else:
+        # Prefix mode.
+        if args.num_nodes is None:
+            print_error("Error: num-nodes is required when not in namespace-list mode.")
+            sys.exit(1)
+
+        if args.num_nodes <= 0:
+            print_error("Error: num-nodes must be a positive integer.")
+            sys.exit(1)
+
+        if args.start_index < 0:
+            print_error("Error: start-index must be a non-negative integer.")
+            sys.exit(1)
+
+
+def get_namespace_list_from_args(
+    args: argparse.Namespace,
+) -> list[str]:
+    """Get a list of namespaces based on the arguments"""
+    if args.namespace_list:
+        return args.namespace_list
+
+    return [
+        f"{args.namespace_prefix}-{i}"
+        for i in range(args.start_index, args.start_index + args.num_nodes)
+    ]
+
+
+def get_context_list_from_args(
+    args: argparse.Namespace,
+) -> list[str]:
+    """Get a list of contexts based on the arguments"""
+    if args.cluster_list:
+        return args.cluster_list
+
+    if args.cluster_prefix is None:
+        return None
+
+    return [
+        f"{args.cluster_prefix}-{i}"
+        for i in range(args.start_index, args.start_index + args.num_nodes)
+    ]
 
 
 def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.CompletedProcess:
@@ -157,19 +218,16 @@ def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.C
         sys.exit(1)
 
 
-def get_namespace_args(
-    namespace: str, node_id: int, cluster_prefix: Optional[str] = None
-) -> list[str]:
-    ret = ["-n", f"{namespace}-{node_id}"]
-    if cluster_prefix:
-        ret.extend(["--context", f"{cluster_prefix}-{node_id}"])
+def get_namespace_args(namespace: str, cluster: Optional[str] = None) -> list[str]:
+    ret = ["-n", f"{namespace}"]
+    if cluster:
+        ret.extend(["--context", f"{cluster}"])
     return ret
 
 
 def get_configmap(
     namespace: str,
-    node_id: int,
-    cluster_prefix: Optional[str] = None,
+    cluster: Optional[str] = None,
     service: Service = Service.Core,
 ) -> str:
     """Get configmap YAML for a specific node"""
@@ -180,7 +238,7 @@ def get_configmap(
         "-o",
         "yaml",
     ]
-    kubectl_args.extend(get_namespace_args(namespace, node_id, cluster_prefix))
+    kubectl_args.extend(get_namespace_args(namespace, cluster))
 
     result = run_kubectl_command(kubectl_args)
     return result.stdout
@@ -252,8 +310,7 @@ def serialize_config_to_yaml(full_config: dict, config_data: dict) -> str:
 
 def update_config_values(
     config_content: str,
-    node_id: int,
-    config_overrides: dict[str, any] = None,
+    config_overrides: dict[str, Any] = None,
 ) -> str:
     """Update configuration values in the YAML content and return the updated YAML"""
     # Parse the configuration
@@ -276,9 +333,9 @@ def normalize_config(config_content: str) -> str:
     return serialize_config_to_yaml(config, config_data)
 
 
-def show_config_diff(old_content: str, new_content: str, node_id: int) -> None:
+def show_config_diff(old_content: str, new_content: str, index: int) -> None:
     print_colored(
-        f"--------------------- Config changes to node no. {node_id}'s core service --------------------",
+        f"--------------------- Config changes {index} --------------------",
         Colors.YELLOW,
     )
 
@@ -288,8 +345,8 @@ def show_config_diff(old_content: str, new_content: str, node_id: int) -> None:
     diff = unified_diff(
         old_lines,
         new_lines,
-        fromfile=f"config{node_id}.yaml_old",
-        tofile=f"config{node_id}.yaml",
+        fromfile=f"config{index}.yaml_old",
+        tofile=f"config{index}.yaml",
         lineterm="",
     )
 
@@ -313,8 +370,8 @@ def ask_for_confirmation() -> bool:
 def apply_configmap(
     config_content: str,
     namespace: str,
-    node_id: int,
-    cluster_prefix: Optional[str] = None,
+    index: int,
+    cluster: Optional[str] = None,
 ) -> None:
     """Apply updated configmap"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -323,17 +380,17 @@ def apply_configmap(
 
         try:
             kubectl_args = ["apply", "-f", temp_file]
-            kubectl_args.extend(get_namespace_args(namespace, node_id, cluster_prefix))
+            kubectl_args.extend(get_namespace_args(namespace, cluster))
 
             run_kubectl_command(kubectl_args, capture_output=False)
 
         except Exception as e:
-            print_error(f"Failed applying config for node {node_id}: {e}")
+            print_error(f"Failed applying config for index {index}: {e}")
             sys.exit(1)
 
 
 def restart_pod(
-    namespace: str, node_id: int, service: Service, cluster_prefix: Optional[str] = None
+    namespace: str, service: Service, index: int, cluster: Optional[str] = None
 ) -> None:
     """Restart pod by deleting it"""
     # Get the list of pods (one string per line).
@@ -359,59 +416,57 @@ def restart_pod(
             "pod",
             pod,
         ]
-        kubectl_args.extend(get_namespace_args(namespace, node_id, cluster_prefix))
+        kubectl_args.extend(get_namespace_args(namespace, cluster))
 
         try:
             run_kubectl_command(kubectl_args, capture_output=False)
-            print_colored(f"Restarted {pod} for node {node_id}")
+            print_colored(f"Restarted {pod} for node {index}")
         except Exception as e:
-            print_error(f"Failed restarting {pod} for node {node_id}: {e}")
+            print_error(f"Failed restarting {pod} for node {index}: {e}")
             sys.exit(1)
 
 
 def update_config_and_restart_nodes(
-    config_overrides: dict[str, any],
-    namespace: str,
-    num_nodes: int,
-    start_index: int,
+    config_overrides: dict[str, Any],
+    namespace_list: list[str],
     service: Service,
-    cluster_prefix: Optional[str] = None,
+    cluster_list: Optional[list[str]] = None,
     restart_nodes: bool = True,
 ) -> None:
     assert config_overrides is not None, "config_overrides must be provided"
-    assert namespace is not None, "namespace must be provided"
-    assert num_nodes > 0, "num_nodes must be a positive integer"
-    assert start_index >= 0, "start_index must be a non-negative integer"
+    assert namespace_list is not None and len(namespace_list) > 0, "namespaces must be provided"
 
-    if not cluster_prefix:
+    if not cluster_list:
         print_colored(
-            "CLUSTER_PREFIX not provided. Assuming all nodes are on the current cluster",
+            "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
             Colors.RED,
         )
+    else:
+        assert len(cluster_list) == len(
+            namespace_list
+        ), "cluster_list must have the same number of values as namespace_list"
 
     # Store original and updated configs for all nodes
-    configs = {}
-
-    # Define the range of node IDs to process
-    node_ids = range(start_index, start_index + num_nodes)
+    configs = []
 
     # Process each node's configuration
-    for node_id in node_ids:
-        print_colored(f"\nProcessing node {node_id}...")
-
-        # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = normalize_config(
-            get_configmap(namespace, node_id, cluster_prefix, service)
+    for index, namespace in enumerate(namespace_list):
+        cluster = cluster_list[index] if cluster_list else None
+        print_colored(
+            f"\nProcessing node for namespace {namespace} (cluster: {cluster if cluster else 'current cluster'})..."
         )
 
+        # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
+        original_config = normalize_config(get_configmap(namespace, cluster, service))
+
         # Update config
-        updated_config = update_config_values(original_config, node_id, config_overrides)
+        updated_config = update_config_values(original_config, config_overrides)
 
         # Store configs
-        configs[node_id] = {"original": original_config, "updated": updated_config}
+        configs.append({"original": original_config, "updated": updated_config})
 
         # Show diff
-        show_config_diff(original_config, updated_config, node_id)
+        show_config_diff(original_config, updated_config, index)
 
     if not ask_for_confirmation():
         print_error("Operation cancelled by user")
@@ -419,13 +474,20 @@ def update_config_and_restart_nodes(
 
     # Apply all configurations
     print_colored("\nApplying configurations...")
-    for node_id in node_ids:
-        print(f"Applying config for node {node_id}...")
-        apply_configmap(configs[node_id]["updated"], namespace, node_id, cluster_prefix)
+    for index, config in enumerate(configs):
+        print(f"Applying config {index}...")
+        apply_configmap(
+            config["updated"],
+            namespace_list[index],
+            index,
+            cluster_list[index] if cluster_list else None,
+        )
 
     if restart_nodes:
-        for node_id in node_ids:
-            restart_pod(namespace, node_id, service, cluster_prefix)
+        for index, config in enumerate(configs):
+            restart_pod(
+                namespace_list[index], service, index, cluster_list[index] if cluster_list else None
+            )
         print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
     else:
         print_colored("\nSkipping pod restart (--no-restart was specified)")

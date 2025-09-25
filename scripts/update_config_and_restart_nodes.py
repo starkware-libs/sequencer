@@ -3,18 +3,21 @@
 import argparse
 import json
 import sys
+from typing import Any
 
 from update_config_and_restart_nodes_lib import (
     ArgsParserBuilder,
     Colors,
     Service,
+    get_context_list_from_args,
+    get_namespace_list_from_args,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
 )
 
 
-def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
+def parse_config_overrides(config_overrides: list[str]) -> dict[str, Any]:
     """Parse config override strings in key=value format.
 
     Args:
@@ -79,30 +82,36 @@ def service_type_converter(service_name: str) -> Service:
 def main():
     usage_example = """
 Examples:
-  # Update sequencer core configuration.
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --cluster my-cluster --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  # Basic usage with namespace prefix and node count
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
   
-  # Update gateway configuration
+  # Using namespace list mode (no num-nodes or start-index allowed)
+  %(prog)s --namespace-list apollo-sepolia-test-0 apollo-sepolia-test-1 apollo-sepolia-test-2 --config-overrides consensus_manager_config.timeout=5000
+  
+  # Using cluster prefix with namespace prefix
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --config-overrides validator_id=0x42
+  
+  # Using cluster list with namespace list (must have same number of items)
+  %(prog)s --namespace-list apollo-sepolia-test-0 apollo-sepolia-test-2 --cluster-list cluster0 cluster2 --config-overrides validator_id=0x42
+  
+  # Update different service types
   %(prog)s -n apollo-sepolia-integration -N 3 -j Gateway --config-overrides gateway_config.port=8080
-  
-  # Update mempool configuration
   %(prog)s -n apollo-sepolia-integration -N 3 -j Mempool --config-overrides mempool_config.max_size=1000
-  
-  # Update L1 provider configuration
   %(prog)s -n apollo-sepolia-integration -N 3 -j L1 --config-overrides l1_config.endpoint=\"https://eth-mainnet.alchemyapi.io/v2/your-key\"
-  
-  # Update HTTP server configuration
   %(prog)s -n apollo-sepolia-integration -N 3 -j HttpServer --config-overrides http_server_config.port=8081
+  %(prog)s -n apollo-sepolia-integration -N 3 -j SierraCompiler --config-overrides sierra_compiler_config.timeout=30000
+  
+  # Update starting from specific node index
+  %(prog)s -n apollo-sepolia-integration -N 3 -s 5 --config-overrides validator_id=0x42
   
   # Update without restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
   
-  # Update with explicit restart
+  # Update with explicit restart (default behavior)
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 -r
   
-  # Update starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --config-overrides validator_id=0x42
+  # Complex example with multiple config overrides
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster -j Core --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42 --config-overrides components.gateway.url=\"localhost\"
   
         """
 
@@ -142,11 +151,9 @@ Examples:
 
     update_config_and_restart_nodes(
         config_overrides,
-        args.namespace,
-        args.num_nodes,
-        args.start_index,
+        get_namespace_list_from_args(args),
         args.service,
-        args.cluster,
+        get_context_list_from_args(args),
         not args.no_restart,
     )
 
