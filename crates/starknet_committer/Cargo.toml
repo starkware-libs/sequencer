@@ -6,6 +6,9 @@ repository.workspace = true
 license.workspace = true
 description = "Computes and manages Starknet state."
 
+[features]
+testing = []
+
 [dependencies]
 hex.workspace = true
 pretty_assertions.workspace = true
