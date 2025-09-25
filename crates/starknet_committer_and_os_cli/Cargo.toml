@@ -20,7 +20,6 @@ tempfile.workspace = true
 [dependencies]
 # The 'test_programs' feature should be moved under `testing` feature, when it exists.
 apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
-blake2s.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = [
