@@ -17,11 +17,14 @@ use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
+    EthereumBaseLayerError,
     Starknet,
 };
 use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
+    make_block_history_on_anvil,
+    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
 };
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
 use rstest::{fixture, rstest};
@@ -655,6 +658,48 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
         scraper.send_events_to_l1_provider().await,
         Err(L1ScraperError::L1ReorgDetected { .. })
     );
+}
+
+#[tokio::test]
+async fn too_high_finality_returns_error() {
+    let base_layer_config = ethereum_base_layer_config_for_anvil(Some(65486));
+    let anvil = anvil_instance_from_config(&base_layer_config);
+    let _contract = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let (mut scraper, _fake_client) = scraper(base_layer_config.clone()).await;
+    let expected_finality = 10;
+
+    let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
+    let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+    let num_blocks = 20_u64; // Enough to get to finality 10.
+
+    // Generate num_blocks on base layer.
+    // Need to make num_blocks - 1 because the "scraper" helper also deploys a contract.
+    make_block_history_on_anvil(
+        sender_address,
+        receiver_address,
+        base_layer_config,
+        (num_blocks - 1).try_into().unwrap(),
+    )
+    .await;
+
+    // Regular scrape should succeed.
+    let return_value = scraper.send_events_to_l1_provider().await;
+    assert_matches!(return_value, Ok(()));
+
+    // Using a big finality is the same as suddenly having no blocks on base layer.
+    let big_finality = 10 * expected_finality;
+    scraper.config.finality = big_finality;
+    let return_value = scraper.send_events_to_l1_provider().await;
+
+    if let Err(L1ScraperError::BaseLayerError(
+        EthereumBaseLayerError::LatestBlockNumberReturnedTooLow { finality, block_number },
+    )) = return_value
+    {
+        assert_eq!(finality, big_finality);
+        assert_eq!(block_number, num_blocks);
+    } else {
+        panic!("Expected LatestBlockNumberReturnedTooLow error, got {:?}", return_value);
+    }
 }
 
 #[test]
