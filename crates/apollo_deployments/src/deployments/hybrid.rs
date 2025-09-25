@@ -184,7 +184,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
                         Some(Toleration::ApolloCoreService)
                     }
-                    CloudK8sEnvironment::Mainnet
+                    CloudK8sEnvironment::PotcTestnet
+                    | CloudK8sEnvironment::Mainnet
                     | CloudK8sEnvironment::SepoliaTestnet
                     | CloudK8sEnvironment::StressTest => Some(Toleration::ApolloCoreServiceC2D56),
                     CloudK8sEnvironment::PotcMock => Some(Toleration::Batcher864),
@@ -275,7 +276,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                         Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                     }
                 },
-                CloudK8sEnvironment::Mainnet
+                CloudK8sEnvironment::PotcTestnet
+                | CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
                     HybridNodeServiceName::Core => {
