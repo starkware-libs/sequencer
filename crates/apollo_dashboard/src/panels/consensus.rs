@@ -11,6 +11,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_ROUND,
     CONSENSUS_ROUND_ABOVE_ZERO,
+    CONSENSUS_ROUND_ADVANCES,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_TYPE,
 };
@@ -81,6 +82,16 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
         "Consensus Round",
         "The round the node is currently working on",
         vec![CONSENSUS_ROUND.get_name_with_filter().to_string()],
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
+}
+pub(crate) fn get_panel_consensus_round_advanced() -> Panel {
+    Panel::new(
+        "Consensus Round Advanced",
+        "The number of times the consensus round advanced (10m window)",
+        vec![format!("increase({}[10m])", CONSENSUS_ROUND_ADVANCES.get_name_with_filter())],
         PanelType::TimeSeries,
     )
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
@@ -397,6 +408,7 @@ pub(crate) fn get_consensus_row() -> Row {
         vec![
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
+            get_panel_consensus_round_advanced(),
             get_panel_consensus_block_time_avg(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_from_sync(),
