@@ -5,6 +5,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::expect;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash};
@@ -24,17 +25,23 @@ use crate::bouncer::{
     BouncerWeights,
     BuiltinWeights,
     CasmHashComputationData,
+    CasmHashMigrationData,
     TxWeights,
 };
 use crate::context::BlockContext;
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::fee::resources::{ComputationResources, TransactionResources};
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
+use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::ExecutionResourcesTraits;
+use crate::transaction::test_utils::{
+    create_init_data_for_compiled_class_hash_migration_test,
+    TestInitData,
+};
 use crate::utils::{add_maps, u64_from_usize};
 
 #[fixture]
@@ -631,4 +638,85 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         result.bouncer_weights.sierra_gas.0,
         expected_builtin_gas_delta
     );
+}
+
+fn build_state_and_executed(
+    block_context: &BlockContext,
+    cairo_version: CairoVersion,
+    declare_with_casm_hash_v1: bool,
+) -> (CachedState<DictStateReader>, HashSet<ClassHash>) {
+    let TestInitData { state, account_address, contract_address, nonce_manager: _ } =
+        create_init_data_for_compiled_class_hash_migration_test(
+            &block_context.chain_info,
+            cairo_version,
+            declare_with_casm_hash_v1,
+        );
+
+    let executed_class_hashes = HashSet::from([
+        state.get_class_hash_at(account_address).unwrap(),
+        state.get_class_hash_at(contract_address).unwrap(),
+    ]);
+
+    (state, executed_class_hashes)
+}
+
+/// Ensures `CasmHashMigrationData::from_state` produces migration data only when migration is
+/// enabled, classes use v1 hashes, and the Cairo version is not Cairo0.
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
+#[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+fn class_hash_migration_data_from_state(
+    #[case] cairo_version: CairoVersion,
+    #[values(true, false)] enable_casm_hash_migration: bool,
+    #[values(true, false)] declare_with_casm_hash_v1: bool,
+) {
+    let mut block_context = BlockContext::create_for_account_testing();
+    block_context.versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
+    let should_migrate =
+        enable_casm_hash_migration && declare_with_casm_hash_v1 && !cairo_version.is_cairo0();
+
+    let (state, executed) =
+        build_state_and_executed(&block_context, cairo_version, declare_with_casm_hash_v1);
+
+    let migration_data =
+        CasmHashMigrationData::from_state(&state, &executed, &block_context.versioned_constants)
+            .unwrap();
+
+    // Assert class-hash mapping.
+    let mut expected = HashMap::new();
+    if should_migrate {
+        for class_hash in &executed {
+            let compiled_class = state.get_compiled_class(*class_hash).unwrap();
+            let v2_hash = state.get_compiled_class_hash_v2(*class_hash, &compiled_class).unwrap();
+            let v1_hash = state.get_compiled_class_hash(*class_hash).unwrap();
+            expected.insert(*class_hash, (v2_hash, v1_hash));
+        }
+    }
+    assert_eq!(migration_data.class_hashes_to_migrate, expected);
+
+    // Assert migration gas.
+    let migration_sierra_gas = migration_data.to_gas(
+        &block_context.versioned_constants.os_constants.gas_costs.builtins,
+        &block_context.versioned_constants,
+        block_context.bouncer_config.blake_weight,
+    );
+    let migration_proving_gas = migration_data.to_gas(
+        &block_context.bouncer_config.builtin_weights.gas_costs,
+        &block_context.versioned_constants,
+        block_context.bouncer_config.blake_weight,
+    );
+
+    if should_migrate {
+        expect![[r#"
+            80617009
+        "#]]
+        .assert_debug_eq(&migration_sierra_gas.0);
+        expect![[r#"
+            184550379
+        "#]]
+        .assert_debug_eq(&migration_proving_gas.0);
+    } else {
+        assert_eq!(migration_sierra_gas, GasAmount::ZERO);
+        assert_eq!(migration_proving_gas, GasAmount::ZERO);
+    }
 }

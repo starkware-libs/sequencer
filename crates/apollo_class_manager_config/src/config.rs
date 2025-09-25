@@ -9,10 +9,41 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
 
-use crate::class_storage::CachedClassStorageConfig;
-
 const DEFAULT_MAX_COMPILED_CONTRACT_CLASS_OBJECT_SIZE: usize = 4089446;
 
+/// Configuration for cached class storage.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CachedClassStorageConfig {
+    pub class_cache_size: usize,
+    pub deprecated_class_cache_size: usize,
+}
+
+impl Default for CachedClassStorageConfig {
+    fn default() -> Self {
+        Self { class_cache_size: 10, deprecated_class_cache_size: 10 }
+    }
+}
+
+impl SerializeConfig for CachedClassStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "class_cache_size",
+                &self.class_cache_size,
+                "Contract classes cache size.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "deprecated_class_cache_size",
+                &self.deprecated_class_cache_size,
+                "Deprecated contract classes cache size.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// Configuration for class hash database.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ClassHashDbConfig {
     pub path_prefix: PathBuf,
@@ -61,6 +92,7 @@ impl SerializeConfig for ClassHashDbConfig {
     }
 }
 
+/// Configuration for class hash storage.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct ClassHashStorageConfig {
     #[validate]
@@ -127,6 +159,7 @@ impl SerializeConfig for ClassHashStorageConfig {
     }
 }
 
+/// Configuration for filesystem class storage.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct FsClassStorageConfig {
     pub persistent_root: PathBuf,
@@ -158,6 +191,7 @@ impl SerializeConfig for FsClassStorageConfig {
     }
 }
 
+/// Configuration for class manager.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ClassManagerConfig {
     pub cached_class_storage_config: CachedClassStorageConfig,
@@ -190,6 +224,7 @@ impl SerializeConfig for ClassManagerConfig {
     }
 }
 
+/// Configuration for filesystem-based class manager.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct FsClassManagerConfig {
     pub class_manager_config: ClassManagerConfig,

@@ -3,7 +3,7 @@ use std::env;
 use std::fs::read_to_string;
 use std::sync::LazyLock;
 
-use apollo_gateway::config::RpcStateReaderConfig;
+use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};

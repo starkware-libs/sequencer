@@ -10,6 +10,7 @@ use apollo_network::network_manager::test_utils::{
     MockClientResponsesManager,
 };
 use apollo_network::network_manager::GenericReceiver;
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_protobuf::sync::{
     ClassQuery,
     DataOrFin,
@@ -49,7 +50,7 @@ use starknet_api::transaction::FullTransaction;
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
 
-use super::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientConfig};
+use super::{P2pSyncClient, P2pSyncClientChannels};
 
 pub(crate) const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
 pub const BUFFER_SIZE: usize = 1000;

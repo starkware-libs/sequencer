@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::iter::once;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -9,6 +10,7 @@ use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::component_execution_config::ReactiveComponentExecutionConfig;
 use apollo_node::config::config_utils::{config_to_preset, prune_by_is_none};
 use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
@@ -38,6 +40,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
 use crate::update_strategy::UpdateStrategy;
@@ -53,7 +56,8 @@ pub struct Service {
     config_paths: Vec<String>,
     ingress: Option<Ingress>,
     k8s_service_config: Option<K8sServiceConfig>,
-    autoscale: bool,
+    #[serde(rename = "autoscale")]
+    scale_policy: ScalePolicy,
     replicas: usize,
     storage: Option<usize>,
     toleration: Option<Toleration>,
@@ -94,7 +98,7 @@ impl Service {
             .collect();
 
         let controller = node_service.get_controller();
-        let autoscale = node_service.get_autoscale();
+        let scale_policy = node_service.get_scale_policy();
         let toleration = node_service.get_toleration(&environment);
         let ingress = node_service.get_ingress(&environment, ingress_params);
         let k8s_service_config = node_service.get_k8s_service_config(k8s_service_config_params);
@@ -110,7 +114,7 @@ impl Service {
             controller,
             ingress,
             k8s_service_config,
-            autoscale,
+            scale_policy,
             replicas,
             storage,
             toleration,
@@ -195,8 +199,8 @@ impl NodeService {
         self.as_inner().get_controller()
     }
 
-    pub fn get_autoscale(&self) -> bool {
-        self.as_inner().get_autoscale()
+    pub fn get_scale_policy(&self) -> ScalePolicy {
+        self.as_inner().get_scale_policy()
     }
 
     pub fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
@@ -265,7 +269,7 @@ impl NodeService {
 pub(crate) trait ServiceNameInner: Display {
     fn get_controller(&self) -> Controller;
 
-    fn get_autoscale(&self) -> bool;
+    fn get_scale_policy(&self) -> ScalePolicy;
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration>;
 
@@ -407,10 +411,56 @@ impl NodeType {
     }
 }
 
-pub trait GetComponentConfigs {
+pub(crate) trait GetComponentConfigs: ServiceNameInner {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig>;
+
+    /// Returns a component execution config for a component that runs locally, and accepts inbound
+    /// connections from remote components.
+    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        )
+    }
+
+    /// Returns a component execution config for a component that is accessed remotely.
+    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        let idle_connections = self.get_scale_policy().idle_connections();
+        ReactiveComponentExecutionConfig::remote(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        )
+        .with_idle_connections(idle_connections)
+    }
+
+    fn component_config_pair(&self, port: u16) -> ComponentConfigPair {
+        ComponentConfigPair {
+            local: self.component_config_for_local_service(port),
+            remote: self.component_config_for_remote_service(port),
+        }
+    }
+}
+
+/// Component config bundling for node services: a config to run a component
+/// locally while being accessible to other remote components, and a suitable remote-access config
+/// to be used by such remotes.
+pub(crate) struct ComponentConfigPair {
+    local: ReactiveComponentExecutionConfig,
+    remote: ReactiveComponentExecutionConfig,
+}
+
+impl ComponentConfigPair {
+    pub(crate) fn local(&self) -> ReactiveComponentExecutionConfig {
+        self.local.clone()
+    }
+
+    pub(crate) fn remote(&self) -> ReactiveComponentExecutionConfig {
+        self.remote.clone()
+    }
 }
 
 impl Serialize for NodeService {
