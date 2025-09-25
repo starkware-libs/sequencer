@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_metrics::generate_permutation_labels;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -33,7 +33,7 @@ pub trait ConfigManagerClient: Send + Sync {}
 )]
 pub enum ConfigManagerRequest {
     ReadConfig,
-    GetConsensusDynamicConfig,
+    GetNodeDynamicConfig,
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -49,7 +49,7 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     ReadConfig(ConfigManagerResult<Value>),
-    GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetNodeDynamicConfig(ConfigManagerResult<NodeDynamicConfig>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
 

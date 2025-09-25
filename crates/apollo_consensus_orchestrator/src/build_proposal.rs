@@ -32,6 +32,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::StarknetApiError;
+use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
@@ -67,7 +68,12 @@ pub(crate) struct ProposalBuildArguments {
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, EnumDiscriminants)]
+#[strum_discriminants(
+    name(BuildProposalFailureReasonLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),

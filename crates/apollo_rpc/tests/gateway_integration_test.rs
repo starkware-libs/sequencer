@@ -114,13 +114,7 @@ async fn test_gw_integration_testnet() {
         &hash.0,
     )
     .unwrap();
-    invoke_tx.signature = TransactionSignature(
-        vec![
-            Felt::from_bytes_be(&signature.r.to_bytes_be()),
-            Felt::from_bytes_be(&signature.s.to_bytes_be()),
-        ]
-        .into(),
-    );
+    invoke_tx.signature = TransactionSignature(vec![signature.r, signature.s].into());
 
     let invoke_res = client
         .request::<AddInvokeOkResultRPC0_8, _>(

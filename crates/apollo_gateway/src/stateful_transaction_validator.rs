@@ -1,8 +1,10 @@
+use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
     StarknetErrorCode,
 };
+use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
@@ -26,7 +28,6 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
-use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
@@ -42,11 +43,11 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
+    pub chain_info: ChainInfo,
 }
 
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
@@ -54,12 +55,22 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
+        let state_reader = state_reader_factory
+            .get_state_reader_from_latest_block()
+            .map_err(|err| GatewaySpecError::UnexpectedError {
+                data: format!("Internal server error: {err}"),
+            })
+            .map_err(|e| {
+                StarknetError::internal_with_logging(
+                    "Failed to get state reader from latest block",
+                    e,
+                )
+            })?;
+        let latest_block_info = get_latest_block_info(&state_reader)?;
+
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
@@ -73,14 +84,13 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
             block_info,
-            chain_info.clone(),
+            self.chain_info.clone(),
             versioned_constants,
             BouncerConfig::max(),
         );
 
         let blockifier_stateful_tx_validator =
             BlockifierStatefulValidator::create(state, block_context);
-
         Ok(Box::new(StatefulTransactionValidator {
             config: self.config.clone(),
             blockifier_stateful_tx_validator,
@@ -115,9 +125,12 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
         let address = executable_tx.contract_address();
         let account_nonce =
             self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
-                // TODO(yair): Fix this. Need to map the errors better.
-                let msg = format!("Failed to get nonce for sender address {address}");
-                StarknetError::internal_with_logging(&msg, e)
+                // TODO(noamsp): Fix this. Need to map the errors better.
+                StarknetError::internal_with_signature_logging(
+                    "Failed to get nonce for sender address {address}",
+                    &executable_tx.signature(),
+                    e,
+                )
             })?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)
@@ -303,11 +316,8 @@ fn skip_stateful_validations(
 }
 
 pub fn get_latest_block_info(
-    state_reader_factory: &dyn StateReaderFactory,
+    state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    let state_reader = state_reader_factory.get_state_reader_from_latest_block().map_err(|e| {
-        StarknetError::internal_with_logging("Failed to get state reader from latest block", e)
-    })?;
     state_reader
         .get_block_info()
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))

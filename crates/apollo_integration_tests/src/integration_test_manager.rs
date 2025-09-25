@@ -10,15 +10,14 @@ use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
-use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
-use apollo_node::config::config_utils::DeploymentBaseAppConfig;
-use apollo_node::config::definitions::ConfigPointersMap;
-use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
 use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use apollo_node_config::config_utils::DeploymentBaseAppConfig;
+use apollo_node_config::definitions::ConfigPointersMap;
+use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
 use apollo_storage::StorageConfig;
 use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
@@ -34,6 +33,7 @@ use papyrus_base_layer::test_utils::{
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
+use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -80,7 +80,7 @@ use crate::utils::{
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_MAX_CAPACITY_GAS: GasAmount = GasAmount(80000000); // Capacity allows multiple transactions per block.
+const BLOCK_MAX_CAPACITY_GAS: GasAmount = GasAmount(100000000); // Capacity allows multiple transactions per block.
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
@@ -302,6 +302,7 @@ impl IntegrationTestManager {
             sender_address,
             receiver_address,
             anvil_base_layer.ethereum_base_layer.config.clone(),
+            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
             num_blocks_needed_on_l1,
         )
         .await;
@@ -876,6 +877,7 @@ async fn get_sequencer_setup_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
     let base_layer_config = AnvilBaseLayer::config();
+    let base_layer_url = AnvilBaseLayer::url();
 
     let mut nodes = Vec::new();
 
@@ -944,6 +946,7 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
+                base_layer_url.clone(),
                 BLOCK_MAX_CAPACITY_GAS,
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,

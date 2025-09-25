@@ -1,0 +1,17 @@
+[package]
+name = "apollo_central_sync_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+apollo_starknet_client.workspace = true
+itertools.workspace = true
+serde = { workspace = true, features = ["derive"] }
+url.workspace = true
+validator.workspace = true
+
+[lints]
+workspace = true

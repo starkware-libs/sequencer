@@ -3,6 +3,9 @@ use std::str::FromStr;
 use libp2p::multiaddr::Protocol;
 use libp2p::{Multiaddr, PeerId};
 
+use crate::deployment::build_service_namespace_domain_address;
+use crate::service::NodeService;
+
 // The following peer ids are derived using `get_peer_id_from_secret_key` binary, where the secret
 // key of node with index `id` is format!("
 // 0x01010101010101010101010101010101010101010101010101010101010101{:02x}", id + 1)
@@ -61,7 +64,22 @@ pub(crate) fn get_peer_id(node_id: usize) -> PeerId {
     PeerId::from_str(PEER_IDS[node_id]).unwrap()
 }
 
-pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &PeerId) -> Multiaddr {
+pub(crate) fn peer_address(
+    node_service: NodeService,
+    port: u16,
+    namespace: &str,
+    peer_id: &PeerId,
+    sanitized_domain: &str,
+) -> Multiaddr {
+    let dns = build_service_namespace_domain_address(
+        &node_service.k8s_service_name(),
+        namespace,
+        sanitized_domain,
+    );
+    build_mutliaddr(&dns, port, peer_id)
+}
+
+fn build_mutliaddr(dns: &str, port: u16, peer_id: &PeerId) -> Multiaddr {
     Multiaddr::from_str(format!("/dns/{dns}").as_str())
         .unwrap()
         .with(Protocol::Tcp(port))

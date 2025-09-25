@@ -14,6 +14,8 @@ pub struct VersionedConstants {
     /// The minimum gas price in fri.
     pub min_gas_price: GasPrice,
     /// The maximum block size in gas units.
+    // NOTE: Must stay in sync with BouncerWeights sierra gas.
+    // NOTE: When max_block_size is changed, update `gas_target` accordingly to maintain the ratio.
     pub max_block_size: GasAmount,
     /// The target gas usage per block.
     pub gas_target: GasAmount,

@@ -50,6 +50,7 @@ impl PapyrusStorage {
             min_size: 1 << 20, // 1MB.
             max_size: config.max_size,
             growth_step: 1 << 26, // 64MB.
+            max_readers: 1 << 13, // 8K readers
         };
         let storage_config = apollo_storage::StorageConfig {
             db_config,
@@ -78,6 +79,7 @@ impl PapyrusStorage {
             min_size: 1 << 20,    // 1MB
             max_size: 1 << 35,    // 32GB
             growth_step: 1 << 26, // 64MB
+            max_readers: 1 << 13, // 8K readers
         };
         let storage_config = apollo_storage::StorageConfig { db_config, ..Default::default() };
         let (reader, writer) = apollo_storage::open_storage(storage_config).unwrap();

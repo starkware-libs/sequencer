@@ -1,5 +1,6 @@
 use assert_matches::assert_matches;
 use indexmap::IndexMap;
+use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockHash;
 use starknet_api::core::{CompiledClassHash, Nonce};
@@ -23,8 +24,6 @@ use crate::test_utils::read_resource::read_resource_file;
 
 #[test]
 fn load_block_succeeds() {
-    // TODO(Tzahi): Replace block_post_0_13_3 (copied from 0_13_2 and added additional fields) with
-    // live data once available.
     for block_path in [
         "reader/block_post_0_14_0.json",
         "reader/block_post_0_13_4.json",
@@ -98,6 +97,10 @@ fn load_block_state_update_succeeds() {
                 class_hash: class_hash!(
                     "0x2248aff260e5837317641ff4f861495dd71e78b9dae98a31113e569b336bd26"
                 ),
+            }],
+            migrated_compiled_classes: vec![MigratedCompiledClassHashEntry {
+                class_hash: class_hash!("0x10"),
+                compiled_class_hash: CompiledClassHash(felt!("0x1000")),
             }],
         },
     };

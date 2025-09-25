@@ -9,12 +9,12 @@ version.workspace = true
 workspace = true
 
 [features]
-testing = ["blockifier/testing", "blockifier_test_utils"]
+testing = ["apollo_gateway_config/testing", "blockifier/testing", "blockifier_test_utils"]
 
 [dependencies]
 apollo_class_manager_types.workspace = true
-apollo_compilation_utils.workspace = true
 apollo_config.workspace = true
+apollo_gateway_config.workspace = true
 apollo_gateway_types.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_types.workspace = true
@@ -44,10 +44,10 @@ tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_gateway_config = { workspace = true, features = ["testing"] }
 apollo_mempool.workspace = true
 apollo_mempool_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }

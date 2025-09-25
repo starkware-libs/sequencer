@@ -34,6 +34,7 @@
 //!     min_size: 1 << 20,    // 1MB
 //!     max_size: 1 << 35,    // 32GB
 //!     growth_step: 1 << 26, // 64MB
+//!     max_readers: 1 << 13, // 8K readers
 //! };
 //! # let storage_config = StorageConfig{db_config, ..Default::default()};
 //! let (reader, mut writer) = open_storage(storage_config)?;
@@ -111,6 +112,7 @@ use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_metrics::metrics::MetricGauge;
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -168,6 +170,21 @@ pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 0 };
 pub fn open_storage(
     storage_config: StorageConfig,
 ) -> StorageResult<(StorageReader, StorageWriter)> {
+    open_storage_internal(storage_config, None)
+}
+
+/// Same as [`open_storage`], but also updates the given metric for the number of open readers.
+pub fn open_storage_with_metric(
+    storage_config: StorageConfig,
+    open_readers_metric: &'static MetricGauge,
+) -> StorageResult<(StorageReader, StorageWriter)> {
+    open_storage_internal(storage_config, Some(open_readers_metric))
+}
+
+fn open_storage_internal(
+    storage_config: StorageConfig,
+    open_readers_metric: Option<&'static MetricGauge>,
+) -> StorageResult<(StorageReader, StorageWriter)> {
     info!("Opening storage: {}", storage_config.db_config.path_prefix.display());
     register_metrics();
     if !storage_config.db_config.path_prefix.exists()
@@ -220,6 +237,7 @@ pub fn open_storage(
         tables: tables.clone(),
         scope: storage_config.scope,
         file_readers,
+        open_readers_metric,
     };
     let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
 
@@ -427,18 +445,20 @@ pub struct StorageReader {
     file_readers: FileHandlers<RO>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    open_readers_metric: Option<&'static MetricGauge>,
 }
 
 impl StorageReader {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
     pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_, RO>> {
-        Ok(StorageTxn {
-            txn: self.db_reader.begin_ro_txn()?,
-            file_handlers: self.file_readers.clone(),
-            tables: self.tables.clone(),
-            scope: self.scope,
-        })
+        Ok(StorageTxn::new(
+            self.db_reader.begin_ro_txn()?,
+            self.file_readers.clone(),
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(self.open_readers_metric),
+        ))
     }
 
     /// Returns metadata about the tables in the storage.
@@ -475,12 +495,37 @@ impl StorageWriter {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading and modifying data in the storage.
     pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
-        Ok(StorageTxn {
-            txn: self.db_writer.begin_rw_txn()?,
-            file_handlers: self.file_writers.clone(),
-            tables: self.tables.clone(),
-            scope: self.scope,
-        })
+        Ok(StorageTxn::new(
+            self.db_writer.begin_rw_txn()?,
+            self.file_writers.clone(),
+            self.tables.clone(),
+            self.scope,
+            MetricsHandler::new(None),
+        ))
+    }
+}
+
+/// A struct for increasing a gauge metric when an instance is created and decreasing it when it is
+/// dropped.
+pub struct MetricsHandler {
+    metric: Option<&'static MetricGauge>,
+}
+
+impl MetricsHandler {
+    /// Creates a new instance and increases the metric by 1 if not `None`.
+    pub fn new(metric: Option<&'static MetricGauge>) -> Self {
+        if let Some(metric) = metric {
+            metric.increment(1);
+        }
+        Self { metric }
+    }
+}
+
+impl Drop for MetricsHandler {
+    fn drop(&mut self) {
+        if let Some(metric) = self.metric {
+            metric.decrement(1);
+        }
     }
 }
 
@@ -491,6 +536,8 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    // Do not remove this. It is used to automatically update metrics on create/drop.
+    _metric_updater: MetricsHandler,
 }
 
 impl StorageTxn<'_, RW> {
@@ -502,7 +549,17 @@ impl StorageTxn<'_, RW> {
     }
 }
 
-impl<Mode: TransactionKind> StorageTxn<'_, Mode> {
+impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
+    fn new(
+        txn: DbTransaction<'env, Mode>,
+        file_handlers: FileHandlers<Mode>,
+        tables: Arc<Tables>,
+        scope: StorageScope,
+        metric_updater: MetricsHandler,
+    ) -> Self {
+        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+    }
+
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
         &self,
         table_id: &TableIdentifier<K, V, T>,

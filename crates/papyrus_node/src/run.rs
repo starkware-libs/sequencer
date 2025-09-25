@@ -8,9 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_central_sync::sources::base_layer::EthereumBaseLayerSource;
-use apollo_central_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
+use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
-use apollo_central_sync::{StateSync as CentralStateSync, SyncConfig as CentralSyncConfig};
+use apollo_central_sync::StateSync as CentralStateSync;
+use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig as CentralSyncConfig};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_config::presentation::get_config_presentation;
 use apollo_config::validators::config_validate;
@@ -41,6 +42,7 @@ use tracing::metadata::LevelFilter;
 use tracing::{debug_span, error, info, warn, Instrument};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
+use url::Url;
 
 use crate::config::NodeConfig;
 use crate::version::VERSION_FULL;
@@ -181,6 +183,7 @@ fn spawn_monitoring_server(
 
 async fn run_sync(
     configs: (CentralSyncConfig, CentralSourceConfig, EthereumBaseLayerConfig),
+    base_layer_url: Url,
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
@@ -193,7 +196,7 @@ async fn run_sync(
             .map_err(CentralError::ClientCreation)?;
     let pending_source =
         PendingSource::new(central_config, VERSION_FULL).map_err(CentralError::ClientCreation)?;
-    let base_layer_source = Some(EthereumBaseLayerSource::new(base_layer_config));
+    let base_layer_source = Some(EthereumBaseLayerSource::new(base_layer_config, base_layer_url));
     let class_manager_client = None;
     let sync = CentralStateSync::new(
         sync_config,
@@ -231,6 +234,7 @@ async fn spawn_sync_client(
             let storage = (storage_reader.clone(), storage_writer);
             tokio::spawn(run_sync(
                 configs,
+                config.base_layer_url.clone(),
                 shared_highest_block,
                 pending_data,
                 pending_classes,

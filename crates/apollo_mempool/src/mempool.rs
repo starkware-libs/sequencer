@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
+use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
     AccountState,
@@ -20,7 +21,6 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
-use crate::config::MempoolConfig;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_evicted_txs,
@@ -33,6 +33,7 @@ use crate::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TOTAL_SIZE_BYTES,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -300,6 +301,18 @@ impl Mempool {
                 "Returned mempool txs: {:?}",
                 eligible_tx_references.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
             );
+            let batched_at = self.clock.now();
+            for tx_ref in &eligible_tx_references {
+                let submission_time = self
+                    .tx_pool
+                    .get_submission_time(tx_ref.tx_hash)
+                    .expect("Transaction must still be in Mempool when recording batched latency");
+                let time_spent = (batched_at - submission_time)
+                    .to_std()
+                    .expect("batched_at must be later than submission_time")
+                    .as_secs_f64();
+                TRANSACTION_TIME_SPENT_UNTIL_BATCHED.record(time_spent);
+            }
         }
 
         metric_set_get_txs_size(n_returned_txs);

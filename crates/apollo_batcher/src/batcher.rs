@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherConfig;
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -31,6 +32,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -57,14 +59,13 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
-use crate::config::BatcherConfig;
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
-    LAST_BATCHED_BLOCK,
-    LAST_PROPOSED_BLOCK,
-    LAST_SYNCED_BLOCK,
+    LAST_BATCHED_BLOCK_HEIGHT,
+    LAST_PROPOSED_BLOCK_HEIGHT,
+    LAST_SYNCED_BLOCK_HEIGHT,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
@@ -196,7 +197,7 @@ impl Batcher {
 
         // TODO(yair): extract function for the following calls, use join_all.
         info!(
-            "Committing block {}, round {} in Mempool client",
+            "Notifying the mempool we start to work on block {}, round {}.",
             block_number, propose_block_input.proposal_round
         );
         self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
@@ -287,7 +288,7 @@ impl Batcher {
             "Proposal {} already exists. This should have been checked when spawning the proposal.",
             propose_block_input.proposal_id
         );
-        LAST_PROPOSED_BLOCK.set_lossy(block_number.0);
+        LAST_PROPOSED_BLOCK_HEIGHT.set_lossy(block_number.0);
         Ok(())
     }
 
@@ -558,7 +559,7 @@ impl Batcher {
             Default::default(),
         )
         .await?;
-        LAST_SYNCED_BLOCK.set_lossy(block_number.0);
+        LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
             (account_transaction_hashes.len() + l1_transaction_hashes.len()).try_into().unwrap(),
         );
@@ -605,7 +606,7 @@ impl Batcher {
         .await?;
         let execution_infos = block_execution_artifacts.execution_data.execution_infos;
 
-        LAST_BATCHED_BLOCK.set_lossy(height.0);
+        LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         REVERTED_TRANSACTIONS.increment(n_reverted_count);
@@ -915,8 +916,11 @@ pub fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
-    let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
-        .expect("Failed to open batcher's storage");
+    let (storage_reader, storage_writer) = apollo_storage::open_storage_with_metric(
+        config.storage.clone(),
+        &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
+    )
+    .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));

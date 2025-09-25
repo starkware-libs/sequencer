@@ -9,32 +9,32 @@ use apollo_monitoring_endpoint::tokio_metrics::{
     TOKIO_WORKERS_COUNT,
 };
 
-use crate::dashboard::{Panel, Row};
+use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
-    Panel::from(&TOKIO_TOTAL_BUSY_DURATION_MICROS)
+    Panel::from_counter(&TOKIO_TOTAL_BUSY_DURATION_MICROS, PanelType::TimeSeries)
 }
 fn get_panel_tokio_min_busy_duration_micros() -> Panel {
-    Panel::from(&TOKIO_MIN_BUSY_DURATION_MICROS)
+    Panel::from_counter(&TOKIO_MIN_BUSY_DURATION_MICROS, PanelType::TimeSeries)
 }
 fn get_panel_tokio_max_busy_duration_micros() -> Panel {
-    Panel::from(&TOKIO_MAX_BUSY_DURATION_MICROS)
+    Panel::from_counter(&TOKIO_MAX_BUSY_DURATION_MICROS, PanelType::TimeSeries)
 }
 
 fn get_panel_tokio_total_park_count() -> Panel {
-    Panel::from(&TOKIO_TOTAL_PARK_COUNT)
+    Panel::from_gauge(&TOKIO_TOTAL_PARK_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_tokio_min_park_count() -> Panel {
-    Panel::from(&TOKIO_MIN_PARK_COUNT)
+    Panel::from_gauge(&TOKIO_MIN_PARK_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_tokio_max_park_count() -> Panel {
-    Panel::from(&TOKIO_MAX_PARK_COUNT)
+    Panel::from_gauge(&TOKIO_MAX_PARK_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_tokio_global_queue_depth() -> Panel {
-    Panel::from(&TOKIO_GLOBAL_QUEUE_DEPTH)
+    Panel::from_gauge(&TOKIO_GLOBAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_tokio_workers_count() -> Panel {
-    Panel::from(&TOKIO_WORKERS_COUNT)
+    Panel::from_gauge(&TOKIO_WORKERS_COUNT, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_tokio_row() -> Row {

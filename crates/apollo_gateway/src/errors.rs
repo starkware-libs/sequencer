@@ -1,5 +1,6 @@
 use apollo_class_manager_types::transaction_converter::TransactionConverterError;
 use apollo_class_manager_types::{ClassManagerClientError, ClassManagerError};
+use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -19,13 +20,12 @@ use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};
 
-use crate::compiler_version::{VersionId, VersionIdError};
 use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 
 pub type GatewayResult<T> = Result<T, StarknetError>;
 
 #[derive(Debug, Error)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 pub enum StatelessTransactionValidatorError {
     #[error(
         "Calldata length exceeded maximum: length {calldata_length}

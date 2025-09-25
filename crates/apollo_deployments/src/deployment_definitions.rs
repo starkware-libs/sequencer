@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use alloy::primitives::Address as EthereumContractAddress;
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
 use apollo_infra_utils::template::Template;
-use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
+use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
@@ -17,26 +17,24 @@ use url::Url;
 use crate::addresses::PEER_IDS;
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
-use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
 use crate::deployments::hybrid::load_and_create_hybrid_deployments;
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
 mod testing;
-mod upgrade_test;
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
-const CONSENSUS_P2P_PORT: u16 = 53080;
+pub(crate) const CONSENSUS_P2P_PORT: u16 = 53080;
 const GATEWAY_PORT: u16 = 55002;
 const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
 const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
 const L1_PROVIDER_PORT: u16 = 55004;
 const MEMPOOL_PORT: u16 = 55006;
-const MEMPOOL_P2P_PORT: u16 = 53200;
+pub(crate) const MEMPOOL_P2P_PORT: u16 = 53200;
 const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
@@ -47,8 +45,8 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     || load_and_create_hybrid_deployments(INTEGRATION_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(TESTNET_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(STRESS_TEST_DEPLOYMENT_INPUTS_PATH),
+    || load_and_create_hybrid_deployments(UPGRADE_TEST_DEPLOYMENT_INPUTS_PATH),
     system_test_deployments,
-    upgrade_test_hybrid_deployments, // TODO(Tsabary): this env is deprecated, remove it.
 ];
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
@@ -66,6 +64,8 @@ const TESTNET_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/sepolia_testnet.json";
 const STRESS_TEST_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/stress_test.json";
+const UPGRADE_TEST_DEPLOYMENT_INPUTS_PATH: &str =
+    "crates/apollo_deployments/resources/deployment_inputs/upgrade_test.json";
 
 pub(crate) type NodeAndValidatorId = (usize, String);
 

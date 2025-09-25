@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_class_manager_config::config::{CachedClassStorageConfig, ClassManagerConfig};
 use apollo_class_manager_types::{ClassHashes, ClassManagerError};
 use apollo_compile_to_casm_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 use assert_matches::assert_matches;
@@ -10,8 +11,7 @@ use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
 use crate::class_manager::ClassManager;
-use crate::class_storage::{create_tmp_dir, CachedClassStorageConfig, FsClassStorage};
-use crate::config::ClassManagerConfig;
+use crate::class_storage::{create_tmp_dir, FsClassStorage};
 
 impl ClassManager<FsClassStorage> {
     fn new_for_testing(compiler: MockSierraCompilerClient, config: ClassManagerConfig) -> Self {
