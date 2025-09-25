@@ -425,3 +425,10 @@ pub(crate) fn get_class_info_of_feature_contract(feature_contract: FeatureContra
         }
     }
 }
+
+pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContract) -> ClassHash {
+    match feature_contract.get_class() {
+        ContractClass::V0(class) => ClassHash(compute_deprecated_class_hash(&class).unwrap()),
+        ContractClass::V1(_) => feature_contract.get_sierra().calculate_class_hash(),
+    }
+}
