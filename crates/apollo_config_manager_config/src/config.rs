@@ -5,19 +5,33 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConfigManagerConfig {
-    /// Placeholder field - config cannot be empty for proper deserialization
-    pub _placeholder: String,
+    pub enable_config_updates: bool,
+    pub config_update_interval_secs: f64,
 }
 
 impl SerializeConfig for ConfigManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "_placeholder",
-            &self._placeholder,
-            "Placeholder field - config cannot be empty for proper deserialization",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "enable_config_updates",
+                &self.enable_config_updates,
+                "Enables the resampling of the config every `config_update_interval_secs` seconds",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "config_update_interval_secs",
+                &self.config_update_interval_secs,
+                "Update interval in seconds for config updates",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for ConfigManagerConfig {
+    fn default() -> Self {
+        Self { enable_config_updates: false, config_update_interval_secs: 60.0 }
     }
 }
