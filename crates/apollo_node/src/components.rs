@@ -26,7 +26,7 @@ use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
 };
-use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_node_config::version::VERSION_FULL;
 use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
@@ -133,7 +133,8 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
             let config_manager_config =
                 config.config_manager_config.as_ref().expect("Config Manager config should be set");
-            let config_manger = ConfigManager::new(config_manager_config.clone());
+            let config_manger =
+                ConfigManager::new(config_manager_config.clone(), NodeDynamicConfig::from(config));
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager shared client should be available");

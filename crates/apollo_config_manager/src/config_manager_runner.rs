@@ -56,17 +56,26 @@ impl ConfigManagerRunner {
             .expect("consensus_manager_config must be present");
 
         let node_dynamic_config = NodeDynamicConfig {
-            consensus_dynamic_config: consensus_manager_config
-                .consensus_manager_config
-                .dynamic_config
-                .clone(),
+            consensus_dynamic_config: Some(
+                consensus_manager_config.consensus_manager_config.dynamic_config.clone(),
+            ),
         };
 
         info!("Extracted NodeDynamicConfig: {:?}", node_dynamic_config);
 
-        // TODO(Nadin): Send the new config to the config manager through the client.
-
-        Ok(node_dynamic_config)
+        // TODO(Nadin/Tsabary): Store the last loaded config, compare for changes and only send the
+        // changes to the config manager.
+        match self.config_manager_client.set_node_dynamic_config(node_dynamic_config.clone()).await
+        {
+            Ok(()) => {
+                info!("Successfully updated dynamic config");
+                Ok(node_dynamic_config)
+            }
+            Err(e) => {
+                error!("Failed to update dynamic config: {:?}", e);
+                Err(format!("Failed to update dynamic config: {:?}", e).into())
+            }
+        }
     }
 }
 
