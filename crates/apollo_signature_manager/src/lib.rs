@@ -1,6 +1,8 @@
 pub mod communication;
 pub mod metrics;
 pub mod signature_manager;
+// TODO(Aviv): Remove this when starknet-types-core is updated with this logic public.
+mod blake_utils;
 
 use std::ops::Deref;
 
