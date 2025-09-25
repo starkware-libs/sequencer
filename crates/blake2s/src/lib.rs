@@ -1,7 +1,6 @@
 use blake2::Blake2s256;
 use digest::Digest;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::StarkHash;
 
 // Encode each `Felt` into 32-bit words:
 /// - **Small** values `< 2^63` get **2** words: `[ high_32_bits, low_32_bits ]` from the last 8
@@ -55,35 +54,4 @@ pub fn blake2s_to_felt(data: &[u8]) -> Felt {
     hasher.update(data);
     let hash32 = hasher.finalize();
     pack_256_le_to_felt(hash32.as_slice())
-}
-
-/// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
-/// `encode_felt252_to_u32s` hint does, then hashes the resulting byte stream
-/// with Blake2s-256 and returns the 256-bit digest to a
-/// 252-bit field element `Felt`.
-pub fn encode_felt252_data_and_calc_blake_hash(data: &[Felt]) -> Felt {
-    // 1) Unpack each Felt into 2 or 8 u32 limbs.
-    let u32_words = encode_felts_to_u32s(data.to_vec());
-
-    // 2) Serialize the u32 limbs into a little-endian byte stream.
-    let mut byte_stream = Vec::with_capacity(u32_words.len() * 4);
-    for word in u32_words {
-        byte_stream.extend_from_slice(&word.to_le_bytes());
-    }
-
-    // 3) Compute Blake2s-256 over the bytes and pack the result into a Felt.
-    blake2s_to_felt(&byte_stream)
-}
-
-pub struct Blake2Felt252;
-impl StarkHash for Blake2Felt252 {
-    fn hash_array(felts: &[Felt]) -> Felt {
-        encode_felt252_data_and_calc_blake_hash(felts)
-    }
-    fn hash(felt_0: &Felt, felt_1: &Felt) -> Felt {
-        encode_felt252_data_and_calc_blake_hash(&[*felt_0, *felt_1])
-    }
-    fn hash_single(felt: &Felt) -> Felt {
-        encode_felt252_data_and_calc_blake_hash(&[*felt])
-    }
 }
