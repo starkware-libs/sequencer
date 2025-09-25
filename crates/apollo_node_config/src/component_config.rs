@@ -22,6 +22,8 @@ pub struct ComponentConfig {
     #[validate]
     pub class_manager: ReactiveComponentExecutionConfig,
     #[validate]
+    pub config_manager: ReactiveComponentExecutionConfig,
+    #[validate]
     pub gateway: ReactiveComponentExecutionConfig,
     #[validate]
     pub l1_endpoint_monitor: ReactiveComponentExecutionConfig,
@@ -33,8 +35,6 @@ pub struct ComponentConfig {
     pub mempool: ReactiveComponentExecutionConfig,
     #[validate]
     pub mempool_p2p: ReactiveComponentExecutionConfig,
-    #[validate]
-    pub config_manager: ReactiveComponentExecutionConfig,
     #[validate]
     pub sierra_compiler: ReactiveComponentExecutionConfig,
     #[validate]
