@@ -193,6 +193,7 @@ pub async fn create_node_components(
             None
         }
     };
+
     let gateway = match config.components.gateway.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -216,6 +217,7 @@ pub async fn create_node_components(
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
+
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let http_server_config =
@@ -503,6 +505,7 @@ pub async fn create_node_components(
             None
         }
     };
+
     let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let base_layer_config =
