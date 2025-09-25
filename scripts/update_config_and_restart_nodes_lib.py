@@ -370,7 +370,7 @@ def update_config_and_restart_nodes(
     if not cluster_prefix:
         print_colored(
             "CLUSTER_PREFIX not provided. Assuming all nodes are on the current cluster",
-            Colors.RED.value,
+            Colors.RED,
         )
 
     # Store original and updated configs for all nodes
