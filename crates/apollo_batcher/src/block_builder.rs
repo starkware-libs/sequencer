@@ -87,7 +87,7 @@ pub enum FailOnErrorCause {
     DeadlineReached,
     #[error("Transaction failed: {0}")]
     TransactionFailed(BlockifierTransactionExecutorError),
-    #[error("L1 Handler transaction validation failed")]
+    #[error("L1 Handler transaction validation failed: {0}")]
     L1HandlerTransactionValidationFailed(TransactionProviderError),
 }
 
