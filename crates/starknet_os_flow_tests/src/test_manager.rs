@@ -10,6 +10,7 @@ use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_test_utils::contracts::FeatureContract;
 use itertools::Itertools;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
@@ -24,6 +25,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StateDiff};
 use starknet_os::io::os_input::{
@@ -228,10 +230,18 @@ impl<S: FlowTestState> TestManager<S> {
 
     /// Creates a new `TestManager` with the default initial state.
     /// Returns the manager and a nonce manager to help keep track of nonces.
-    pub(crate) async fn new_with_default_initial_state() -> (Self, NonceManager) {
-        let (default_initial_state_data, nonce_manager) =
-            create_default_initial_state_data::<S>().await;
-        (Self::new_with_initial_state_data(default_initial_state_data), nonce_manager)
+    /// Optionally provide an array of extra contracts to declare and deploy - the addresses of
+    /// these contracts will be returned as an array of the same length.
+    pub(crate) async fn new_with_default_initial_state<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+    ) -> (Self, NonceManager, [ContractAddress; N]) {
+        let (default_initial_state_data, nonce_manager, extra_addresses) =
+            create_default_initial_state_data::<S, N>(extra_contracts).await;
+        (
+            Self::new_with_initial_state_data(default_initial_state_data),
+            nonce_manager,
+            extra_addresses,
+        )
     }
 
     /// Advances the manager to the next block when adding new transactions.
