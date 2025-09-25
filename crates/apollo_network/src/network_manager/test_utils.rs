@@ -202,7 +202,7 @@ where
 
     let mut network_manager = NetworkManager::new(network_config, None, None);
     let broadcast_channels =
-        network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
+        network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE, BUFFER_SIZE).unwrap();
 
     tokio::task::spawn(async move {
         let result = network_manager.run().await;
