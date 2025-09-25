@@ -10,7 +10,7 @@ use apollo_compile_to_casm::communication::{
     RemoteSierraCompilerServer,
 };
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
-use apollo_config_manager::config_manager::LocalConfigManagerServer;
+use apollo_config_manager::communication::{ConfigManagerRunnerServer, LocalConfigManagerServer};
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
@@ -71,6 +71,8 @@ use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
 
+// TODO(Tsabary): move all server types definitions to a component `communication.rs` module.
+
 // Component servers that can run locally.
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
@@ -89,6 +91,7 @@ struct LocalServers {
 
 // Component servers that wrap a component without a server.
 struct WrapperServers {
+    pub(crate) config_manager_runner: Option<Box<ConfigManagerRunnerServer>>,
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
@@ -104,6 +107,8 @@ struct WrapperServers {
 pub struct RemoteServers {
     pub batcher: Option<Box<RemoteBatcherServer>>,
     pub class_manager: Option<Box<RemoteClassManagerServer>>,
+    // Node: we explicitly avoid adding a config manager runner server to the remote servers as it
+    // is not used for remote connections.
     pub gateway: Option<Box<RemoteGatewayServer>>,
     pub l1_endpoint_monitor: Option<Box<RemoteL1EndpointMonitorServer>>,
     pub l1_provider: Option<Box<RemoteL1ProviderServer>>,
@@ -577,6 +582,7 @@ pub fn create_remote_servers(
         config.components.l1_provider.max_concurrency,
         L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
     );
+
     let l1_gas_price_provider_server = create_remote_server!(
         &config.components.l1_gas_price_provider.execution_mode,
         || { clients.get_l1_gas_price_provider_local_client() },
@@ -669,6 +675,11 @@ fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
+    let config_manager_runner_server = create_wrapper_server!(
+        &config.components.config_manager.execution_mode.clone().into(),
+        components.config_manager_runner
+    );
+
     let consensus_manager_server = create_wrapper_server!(
         &config.components.consensus_manager.execution_mode,
         components.consensus_manager
@@ -703,6 +714,7 @@ fn create_wrapper_servers(
 
     WrapperServers {
         consensus_manager: consensus_manager_server,
+        config_manager_runner: config_manager_runner_server,
         http_server,
         l1_scraper_server,
         l1_gas_price_scraper_server,
@@ -715,6 +727,7 @@ fn create_wrapper_servers(
 impl WrapperServers {
     async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = String> + Send>>> {
         create_servers(vec![
+            server_future_and_label(self.config_manager_runner, "Config Manager Runner"),
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
             server_future_and_label(self.l1_scraper_server, "L1 Scraper"),

@@ -27,7 +27,7 @@ pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait ConfigManagerClient: Send + Sync {
-    async fn get_consensus_manager_dynamic_config(
+    async fn get_consensus_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
@@ -78,7 +78,7 @@ impl<ComponentClientType> ConfigManagerClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<ConfigManagerRequest, ConfigManagerResponse>,
 {
-    async fn get_consensus_manager_dynamic_config(
+    async fn get_consensus_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig> {
         let request = ConfigManagerRequest::GetConsensusDynamicConfig;
