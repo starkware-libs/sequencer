@@ -1,9 +1,8 @@
-use blake2s::Blake2Felt252;
 use blockifier::state::state_api::StateReader;
 use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
 use serde::Serialize;
-use starknet_types_core::hash::Poseidon;
+use starknet_types_core::hash::{Blake2Felt252, Poseidon};
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
