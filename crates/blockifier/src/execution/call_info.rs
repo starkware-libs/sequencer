@@ -13,7 +13,11 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::{VersionedConstants, OS_RESERVED_CONTRACT_ADDRESSES};
+use crate::blockifier_versioned_constants::{
+    VersionedConstants,
+    BLOCK_HASH_CONTRACT_ADDRESS,
+    OS_RESERVED_CONTRACT_ADDRESSES,
+};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
@@ -365,6 +369,28 @@ impl CallInfo {
         versioned_constants: &VersionedConstants,
     ) -> ExecutionSummary {
         call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
+    }
+
+    pub fn get_storage_entries(&self) -> HashSet<StorageEntry> {
+        let mut storage_entries: HashSet<StorageEntry> = HashSet::new();
+        let contract_address = self.call.storage_address;
+        // Add accessed storage keys.
+        storage_entries.extend(
+            self.storage_access_tracker
+                .accessed_storage_keys
+                .iter()
+                .map(|key| (contract_address, *key)),
+        );
+        // Add accessed block hashes.
+        storage_entries.extend(
+            self.storage_access_tracker.accessed_blocks.iter().map(|block_number| {
+                (*BLOCK_HASH_CONTRACT_ADDRESS, StorageKey(block_number.0.into()))
+            }),
+        );
+        for call_info in self.inner_calls.iter() {
+            storage_entries.extend(call_info.get_storage_entries());
+        }
+        storage_entries
     }
 
     pub fn get_state_selector(&self) -> StateSelector {
