@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import sys
 
 from update_config_and_restart_nodes_lib import (
     ArgsParserBuilder,
     Colors,
+    Service,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -60,6 +62,20 @@ def parse_config_overrides(config_overrides: list[str]) -> dict[str, any]:
     return overrides
 
 
+def service_type_converter(service_name: str) -> Service:
+    """Convert string to Service enum with informative error message"""
+    if service_name.startswith("Service."):
+        service_name = service_name[8:]
+
+    try:
+        return Service[service_name]
+    except KeyError:
+        valid_services = ", ".join([service.name for service in Service])
+        raise argparse.ArgumentTypeError(
+            f"Invalid service type '{service_name}'. Valid options are: {valid_services}"
+        )
+
+
 def main():
     usage_example = """
 Examples:
@@ -102,6 +118,15 @@ Examples:
         help="Configuration overrides in key=value format. Can be specified multiple times. "
         "Example: --config-overrides consensus_manager_config.timeout=5000 "
         '--config-overrides components.gateway.url=\\"localhost\\" (note the escaping of the ")',
+    )
+
+    args_builder.add_argument(
+        "-j",
+        "--service",
+        type=service_type_converter,
+        choices=list(Service),
+        default=Service.Core,
+        help="Service type to operate on; determines configmap and pod names (default: Core)",
     )
 
     args = args_builder.build()
