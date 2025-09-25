@@ -12,7 +12,7 @@
   "strk_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
   "l1_startup_height_override": null,
   "state_sync_type": "Central",
-  "p2p_communication_type": "Internal",
+  "p2p_communication_type": "External",
   "deployment_environment": "PotcTestnet",
   "requires_k8s_service_config_params": true
 }
