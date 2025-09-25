@@ -93,6 +93,18 @@
           }
         },
         {
+          "title": "Consensus Round Advanced",
+          "description": "The number of times the consensus round advanced (counter is increased whenever round > 0) (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_round_advances{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
           "title": "Average Block Time",
           "description": "Average block time (10m window)",
           "type": "timeseries",
