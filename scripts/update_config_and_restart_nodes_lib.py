@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess
 import sys
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional
 
@@ -157,6 +158,69 @@ def service_type_converter(service_name: str) -> Service:
         raise argparse.ArgumentTypeError(
             f"Invalid service type '{service_name}'. Valid options are: {valid_services}"
         )
+
+
+class ConfigValuesUpdater(ABC):
+    """Abstract class for updating configuration values for different jobs."""
+
+    def get_updated_config(self, orig_config_yaml: str, job_index: int) -> str:
+        """Get updated configuration YAML for a specific job.
+
+        Args:
+            orig_config_yaml: Original configuration as YAML string
+            job_index: Index of the job to update configuration for
+
+        Returns:
+            Updated configuration as YAML string
+        """
+        config, config_data = parse_config_from_yaml(orig_config_yaml)
+        updated_config_data = self._update_config_for_job(config_data, job_index)
+        return serialize_config_to_yaml(config, updated_config_data)
+
+    @abstractmethod
+    def _update_config_for_job(self, config_data: dict, job_index: int) -> dict[str, any]:
+        """Update configuration data for a specific job.
+
+        Args:
+            config_data: Current configuration data dictionary
+            job_index: Index of the job to update configuration for
+
+        Returns:
+            Updated configuration data dictionary
+        """
+        pass
+
+
+class ConstConfigValuesUpdater(ConfigValuesUpdater):
+    """Concrete implementation that applies constant configuration overrides."""
+
+    def __init__(self, config_overrides: dict[str, any]):
+        """Initialize with configuration overrides.
+
+        Args:
+            config_overrides: Dictionary of configuration keys and values to override
+        """
+        self.config_overrides = config_overrides
+
+    def _update_config_for_job(self, config_data: dict, job_index: int) -> dict[str, any]:
+        """Apply the same configuration overrides to the config data for each job.
+
+        Args:
+            config_data: Current configuration data dictionary
+            job_index: Index of the job (not used in this implementation)
+
+        Returns:
+            Updated configuration data dictionary with overrides applied
+        """
+        # Create a copy to avoid modifying the original
+        updated_config = config_data.copy()
+
+        # Apply all overrides
+        for key, value in self.config_overrides.items():
+            print_colored(f"  Overriding config: {key} = {value}")
+            updated_config[key] = value
+
+        return updated_config
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
@@ -393,7 +457,7 @@ def restart_pod(
 
 
 def update_config_and_restart_nodes(
-    config_overrides: dict[str, any],
+    config_updater: ConfigValuesUpdater,
     namespace: str,
     num_nodes: int,
     start_index: int,
@@ -401,7 +465,7 @@ def update_config_and_restart_nodes(
     cluster_prefix: Optional[str] = None,
     restart_nodes: bool = True,
 ) -> None:
-    assert config_overrides is not None, "config_overrides must be provided"
+    assert config_updater is not None, "config_updater must be provided"
     assert namespace is not None, "namespace must be provided"
     assert num_nodes > 0, "num_nodes must be a positive integer"
     assert start_index >= 0, "start_index must be a non-negative integer"
@@ -428,7 +492,7 @@ def update_config_and_restart_nodes(
         )
 
         # Update config
-        updated_config = update_config_values(original_config, node_id, config_overrides)
+        updated_config = config_updater.get_updated_config(original_config, node_id)
 
         # Store configs
         configs[node_id] = {"original": original_config, "updated": updated_config}

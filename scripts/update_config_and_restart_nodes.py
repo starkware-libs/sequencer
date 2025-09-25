@@ -6,6 +6,7 @@ import sys
 from update_config_and_restart_nodes_lib import (
     ArgsParserBuilder,
     Colors,
+    ConstConfigValuesUpdater,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -116,7 +117,7 @@ Examples:
         sys.exit(1)
 
     update_config_and_restart_nodes(
-        config_overrides,
+        ConstConfigValuesUpdater(config_overrides),
         args.namespace,
         args.num_nodes,
         args.start_index,
