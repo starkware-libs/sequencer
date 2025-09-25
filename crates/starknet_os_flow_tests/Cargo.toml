@@ -6,6 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true

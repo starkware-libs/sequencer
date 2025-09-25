@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
@@ -23,14 +24,16 @@ use starknet_api::core::{
     ClassHash,
     CompiledClassHash as StarknetAPICompiledClassHash,
     ContractAddress,
+    Nonce,
     GLOBAL_STATE_VERSION,
 };
 use starknet_api::declare_tx_args;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
-use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
+use starknet_api::transaction::TransactionVersion;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
@@ -43,6 +46,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_os::hints::class_hash::hinted_class_hash::compute_cairo_hinted_class_hash;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -54,6 +58,8 @@ use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
+use crate::test_manager::FUNDED_ACCOUNT_ADDRESS;
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 pub(crate) struct ExecutionOutput<S: FlowTestState> {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
@@ -163,21 +169,59 @@ pub(crate) fn create_cairo1_bootstrap_declare_tx(
     feature_contract: FeatureContract,
     execution_contracts: &mut OsExecutionContracts,
 ) -> AccountTransaction {
-    let sierra = feature_contract.get_sierra();
-    let class = feature_contract.get_class();
-    let ContractClass::V1((casm, _)) = class else {
-        panic!("Expected a Cairo 1 contract class.");
+    assert_matches!(feature_contract.cairo_version(), CairoVersion::Cairo1(_));
+    create_declare_tx(feature_contract, &mut NonceManager::default(), execution_contracts, true)
+}
+
+pub(crate) fn create_declare_tx(
+    feature_contract: FeatureContract,
+    nonce_manager: &mut NonceManager,
+    execution_contracts: &mut OsExecutionContracts,
+    bootstrap: bool,
+) -> AccountTransaction {
+    let sender_address =
+        if bootstrap { DeclareTransaction::bootstrap_address() } else { *FUNDED_ACCOUNT_ADDRESS };
+    let nonce = if bootstrap { Nonce::default() } else { nonce_manager.next(sender_address) };
+    let declare_args = match feature_contract.cairo_version() {
+        CairoVersion::Cairo0 => {
+            let class = feature_contract.get_class();
+            let ContractClass::V0(class) = class else {
+                panic!("Expected a Cairo 0 contract class.");
+            };
+            let class_hash =
+                StarknetAPICompiledClassHash(compute_cairo_hinted_class_hash(&class).unwrap());
+            execution_contracts.add_deprecated_contract(class_hash, class);
+            declare_tx_args! {
+                version: TransactionVersion::ONE,
+                max_fee: if bootstrap { Fee::default() } else { Fee(1_000_000_000_000_000) },
+                class_hash: ClassHash(class_hash.0),
+                sender_address,
+                nonce,
+            }
+        }
+        CairoVersion::Cairo1(_) => {
+            let sierra = feature_contract.get_sierra();
+            let class = feature_contract.get_class();
+            let ContractClass::V1((casm, _)) = class else {
+                panic!("Expected a Cairo 1 contract class.");
+            };
+            let class_hash = sierra.calculate_class_hash();
+            let compiled_class_hash = feature_contract.get_compiled_class_hash(&HashVersion::V2);
+            execution_contracts.add_cairo1_contract(casm, &sierra);
+            declare_tx_args! {
+                sender_address,
+                class_hash,
+                compiled_class_hash,
+                resource_bounds: if bootstrap {
+                    ValidResourceBounds::create_for_testing_no_fee_enforcement()
+                } else {
+                    *NON_TRIVIAL_RESOURCE_BOUNDS
+                },
+                nonce,
+            }
+        }
     };
-    let class_hash = sierra.calculate_class_hash();
-    let compiled_class_hash = feature_contract.get_compiled_class_hash(&HashVersion::V2);
-    execution_contracts.add_cairo1_contract(casm, &sierra);
-    let declare_tx_args = declare_tx_args! {
-        sender_address: DeclareTransaction::bootstrap_address(),
-        class_hash,
-        compiled_class_hash,
-        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
-    };
-    let account_declare_tx = declare_tx(declare_tx_args);
+    let account_declare_tx = declare_tx(declare_args);
     let class_info = get_class_info_of_feature_contract(feature_contract);
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();

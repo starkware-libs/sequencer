@@ -12314,6 +12314,7 @@ dependencies = [
 name = "starknet_os_flow_tests"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
