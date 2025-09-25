@@ -25,6 +25,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -124,8 +125,35 @@ impl Gateway {
             }
         }
 
-        let blocking_task =
-            ProcessTxBlockingTask::new(self, tx.clone(), tokio::runtime::Handle::current());
+        let tx_signature = tx.signature().clone();
+        let internal_tx = self
+            .transaction_converter
+            .convert_rpc_tx_to_internal_rpc_tx(tx.clone())
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+            })?;
+
+        let executable_tx = self
+            .transaction_converter
+            .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone())
+            .await
+            .map_err(|e| {
+                warn!(
+                    "Failed to convert internal RPC transaction to executable transaction: {}",
+                    e
+                );
+                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+            })?;
+
+        let blocking_task = ProcessTxBlockingTask::new(
+            self,
+            tx.clone(),
+            internal_tx,
+            executable_tx,
+            tokio::runtime::Handle::current(),
+        );
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let handle =
@@ -209,19 +237,27 @@ struct ProcessTxBlockingTask {
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
     tx: RpcTransaction,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
+    internal_tx: InternalRpcTransaction,
+    executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
 }
 
 impl ProcessTxBlockingTask {
-    pub fn new(gateway: &Gateway, tx: RpcTransaction, runtime: tokio::runtime::Handle) -> Self {
+    pub fn new(
+        gateway: &Gateway,
+        tx: RpcTransaction,
+        internal_tx: InternalRpcTransaction,
+        executable_tx: AccountTransaction,
+        runtime: tokio::runtime::Handle,
+    ) -> Self {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
             tx,
-            transaction_converter: gateway.transaction_converter.clone(),
+            internal_tx,
+            executable_tx,
             runtime,
         }
     }
@@ -232,40 +268,40 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
-        let tx_signature = self.tx.signature().clone();
-        let internal_tx = self
-            .runtime
-            .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
-            .map_err(|e| {
-                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-            })?;
+        // let tx_signature = self.tx.signature().clone();
+        // let internal_tx = self
+        //     .runtime
+        //     .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
+        //     .map_err(|e| {
+        //         warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+        //         transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+        //     })?;
 
-        let executable_tx = self
-            .runtime
-            .block_on(
-                self.transaction_converter
-                    .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
-            )
-            .map_err(|e| {
-                warn!(
-                    "Failed to convert internal RPC transaction to executable transaction: {}",
-                    e
-                );
-                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-            })?;
+        // let executable_tx = self
+        //     .runtime
+        //     .block_on(
+        //         self.transaction_converter
+        //             .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
+        //     )
+        //     .map_err(|e| {
+        //         warn!(
+        //             "Failed to convert internal RPC transaction to executable transaction: {}",
+        //             e
+        //         );
+        //         transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+        //     })?;
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref())?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
-            &executable_tx,
+            &self.executable_tx,
             self.mempool_client,
             self.runtime,
         )?;
 
-        Ok(AddTransactionArgs::new(internal_tx, nonce))
+        Ok(AddTransactionArgs::new(self.internal_tx, nonce))
     }
 }
 
