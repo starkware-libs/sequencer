@@ -3507,7 +3507,6 @@ dependencies = [
  "ark-secp256k1 0.4.0",
  "ark-secp256r1 0.4.0",
  "assert_matches",
- "blake2s",
  "blockifier_test_utils",
  "cached",
  "cairo-lang-casm",
@@ -12386,7 +12385,6 @@ dependencies = [
  "assert_matches",
  "base64 0.13.1",
  "bitvec",
- "blake2s",
  "cached",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
@@ -12438,7 +12436,6 @@ version = "0.16.0-rc.0"
 dependencies = [
  "apollo_starknet_os_program",
  "assert_matches",
- "blake2s",
  "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
