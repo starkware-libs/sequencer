@@ -68,13 +68,16 @@ Examples:
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
   
   # Update gateway configuration
-  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides gateway_config.port=8080
+  %(prog)s -n apollo-sepolia-integration -N 3 -j Gateway --config-overrides gateway_config.port=8080
   
   # Update mempool configuration
-  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides mempool_config.max_size=1000
+  %(prog)s -n apollo-sepolia-integration -N 3 -j Mempool --config-overrides mempool_config.max_size=1000
   
   # Update L1 provider configuration
-  %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides l1_config.endpoint=https://eth-mainnet.alchemyapi.io/v2/your-key
+  %(prog)s -n apollo-sepolia-integration -N 3 -j L1 --config-overrides l1_config.endpoint=\"https://eth-mainnet.alchemyapi.io/v2/your-key\"
+  
+  # Update HTTP server configuration
+  %(prog)s -n apollo-sepolia-integration -N 3 -j HttpServer --config-overrides http_server_config.port=8081
   
   # Update without restart
   %(prog)s -n apollo-sepolia-integration -N 3 --config-overrides validator_id=0x42 --no-restart
@@ -84,6 +87,7 @@ Examples:
   
   # Update starting from specific node index
   %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --config-overrides validator_id=0x42
+  
         """
 
     args_builder = ArgsParserBuilder(
@@ -116,6 +120,7 @@ Examples:
         args.namespace,
         args.num_nodes,
         args.start_index,
+        args.service,
         args.cluster,
         not args.no_restart,
     )
