@@ -68,15 +68,6 @@ class ArgsParserBuilder:
         )
 
         self.parser.add_argument(
-            "-j",
-            "--service",
-            type=service_type_converter,
-            choices=list(Service),
-            default=Service.Core,
-            help="Service type to operate on; determines configmap and pod names (default: Core)",
-        )
-
-        self.parser.add_argument(
             "-s",
             "--start-index",
             type=int,
@@ -142,20 +133,6 @@ class Service(Enum):
     def __init__(self, config_map_name: str, pod_name: str) -> None:
         self.config_map_name = config_map_name
         self.pod_name = pod_name
-
-
-def service_type_converter(service_name: str) -> Service:
-    """Convert string to Service enum with informative error message"""
-    if service_name.startswith("Service."):
-        service_name = service_name[8:]
-
-    try:
-        return Service[service_name]
-    except KeyError:
-        valid_services = ", ".join([service.name for service in Service])
-        raise argparse.ArgumentTypeError(
-            f"Invalid service type '{service_name}'. Valid options are: {valid_services}"
-        )
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
