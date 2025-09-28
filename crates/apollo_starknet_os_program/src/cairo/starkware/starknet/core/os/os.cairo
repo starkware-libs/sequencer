@@ -480,13 +480,11 @@ func migrate_classes_to_v2_casm_hash{
 
     // Find the compiled class fact using the guessed v2 hash.
     static_assert CompiledClassFact.hash == 0;
-    let (compiled_class_fact: CompiledClassFact*) = find_element(
-        array_ptr=block_context.compiled_class_facts,
-        elm_size=CompiledClassFact.SIZE,
-        n_elms=block_context.n_compiled_class_facts,
-        key=expected_casm_hash_v2,
+    local compiled_class: CompiledClass*;
+    %{ GetCompiledClassByCompiledClassHash %}
+    local compiled_class_fact: CompiledClassFact* = new CompiledClassFact(
+        hash=expected_casm_hash_v2, compiled_class=compiled_class
     );
-    let compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
     // Compute the full compiled class hash, both v1 and v2,
     // using the compiled class from the block context:
     // The full hash is needed to verify the migration;
