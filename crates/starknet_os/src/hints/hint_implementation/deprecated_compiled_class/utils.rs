@@ -18,7 +18,6 @@ use crate::vm_utils::{
     VmUtilsResult,
 };
 
-#[allow(dead_code)]
 pub(crate) const DEPRECATED_COMPILED_CLASS_VERSION: Felt = Felt::ZERO;
 
 impl<IG: IdentifierGetter> CairoSized<IG> for ContractClass {
