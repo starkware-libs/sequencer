@@ -560,7 +560,9 @@ impl<S: FlowTestState> TestManager<S> {
 pub fn block_context_for_flow_tests(block_number: BlockNumber, use_kzg_da: bool) -> BlockContext {
     let fee_token_addresses = FeeTokenAddresses {
         strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
-        eth_fee_token_address: ContractAddress::default(),
+        // Reuse the same token address for ETH fee token, for ease of testing (only need to fund
+        // accounts with one token to send deprecated declares).
+        eth_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
     };
     BlockContext::new(
         BlockInfo { block_number, use_kzg_da, ..BlockInfo::create_for_testing() },
