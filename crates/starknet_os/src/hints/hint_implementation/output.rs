@@ -41,8 +41,7 @@ pub(crate) fn load_public_keys_into_memory(
     let public_keys: Vec<MaybeRelocatable> =
         public_keys.unwrap_or_default().into_iter().map(Into::into).collect();
 
-    let public_keys_segment =
-        if public_keys.is_empty() { MaybeRelocatable::from(0) } else { vm.gen_arg(&public_keys)? };
+    let public_keys_segment = vm.gen_arg(&public_keys)?;
 
     insert_value_from_var_name(
         Ids::PublicKeys.into(),
@@ -51,7 +50,13 @@ pub(crate) fn load_public_keys_into_memory(
         ids_data,
         ap_tracking,
     )?;
-    insert_value_from_var_name(Ids::NKeys.into(), public_keys.len(), vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::NPublicKeys.into(),
+        public_keys.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 

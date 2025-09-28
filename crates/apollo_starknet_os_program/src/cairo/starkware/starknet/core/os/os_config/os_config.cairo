@@ -53,15 +53,15 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
 }
 
 // Computes the hash of the public keys, returns 0 if there are no public keys.
-func get_public_keys_hash{hash_ptr: HashBuiltin*}(n_keys: felt, public_keys: felt*) -> (
+func get_public_keys_hash{hash_ptr: HashBuiltin*}(n_public_keys: felt, public_keys: felt*) -> (
     public_keys_hash: felt
 ) {
-    if (n_keys == 0) {
+    if (n_public_keys == 0) {
         return (public_keys_hash=0);
     }
     let (hash_state_ptr) = hash_init();
     let (hash_state_ptr) = hash_update(
-        hash_state_ptr=hash_state_ptr, data_ptr=public_keys, data_length=n_keys
+        hash_state_ptr=hash_state_ptr, data_ptr=public_keys, data_length=n_public_keys
     );
     let (public_keys_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
     return (public_keys_hash=public_keys_hash);

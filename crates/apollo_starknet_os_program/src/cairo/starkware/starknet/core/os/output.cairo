@@ -23,9 +23,9 @@ from starkware.starknet.core.os.state.output import (
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
 from starkware.starknet.core.os.encrypt import (
-    validate_private_keys,
-    compute_public_keys,
-    encrypt_symmetric_key,
+    validate_sn_private_keys,
+    output_sn_public_keys,
+    output_encrypted_symmetric_key,
     encrypt,
 )
 
@@ -84,7 +84,7 @@ struct OsCarriedOutputs {
 
 func serialize_os_output{
     range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*
-}(os_output: OsOutput*, replace_keys_with_aliases: felt, n_keys: felt, public_keys: felt*) {
+}(os_output: OsOutput*, replace_keys_with_aliases: felt, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
 
     local use_kzg_da = os_output.header.use_kzg_da;
@@ -127,7 +127,7 @@ func serialize_os_output{
         state_updates_start=state_updates_start,
         state_updates_end=state_updates_ptr,
         compress_state_updates=compress_state_updates,
-        n_keys=n_keys,
+        n_keys=n_public_keys,
         public_keys=public_keys,
     );
 
@@ -274,7 +274,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
-    validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+    validate_sn_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
 
     local encrypted_start: felt*;
     %{
@@ -290,8 +290,8 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     let encrypted_dst = &encrypted_dst[1];
 
     with encrypted_dst {
-        compute_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
-        encrypt_symmetric_key(
+        output_sn_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+        output_encrypted_symmetric_key(
             n_keys=n_keys,
             public_keys=public_keys,
             sn_private_keys=sn_private_keys,

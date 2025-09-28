@@ -1851,7 +1851,7 @@ block_input = next(block_input_iterator)
     (
         GetPublicKeys,
         get_public_keys,
-        "fill_public_keys_array(os_hints['public_keys'], public_keys, n_keys)"
+        "fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys)"
     ),
 );
 
@@ -1933,12 +1933,10 @@ if da_path is not None:
         GetPublicKeysFromAggregatorInput,
         get_public_keys_from_aggregator_input,
         indoc! {r#"
-    public_keys = program_input["public_keys"] if program_input["public_keys"] is not None else []
-    if len(public_keys) == 0:
-        ids.public_keys = 0
-    else:
-        ids.public_keys = segments.gen_arg(public_keys)
-    ids.n_keys = len(public_keys)"#
+    public_keys = program_input.get("public_keys", [])
+    ids.public_keys = segments.gen_arg(public_keys)
+    ids.n_public_keys = len(public_keys)"#
+
         }
     ),
 );
