@@ -377,13 +377,28 @@ impl StateMaps {
         }
     }
 
-    /// Returns the set of keys that aliases were potentially allocated for.
+    /// Returns the set of keys that were accessed while allocating aliases for the state diff
+    /// [Self] represents.
     #[cfg(any(test, feature = "testing"))]
     pub fn alias_keys(&self) -> HashSet<crate::state::stateful_compression::AliasKey> {
-        let mut keys = HashSet::from_iter(
-            self.get_contract_addresses().into_iter().map(|address| StorageKey(address.0)),
-        );
-        keys.extend(self.storage.keys().map(|(_address, storage_key)| *storage_key));
+        let mut keys =
+            HashSet::from_iter(self.get_contract_addresses().into_iter().filter_map(|address| {
+                if address.0.key() >= &crate::state::stateful_compression::INITIAL_AVAILABLE_ALIAS {
+                    Some(StorageKey(address.0))
+                } else {
+                    None
+                }
+            }));
+        keys.extend(self.storage.keys().filter_map(|(address, storage_key)| {
+            if address >= &crate::state::stateful_compression::MAX_NON_COMPRESSED_CONTRACT_ADDRESS
+                && &crate::state::stateful_compression::INITIAL_AVAILABLE_ALIAS <= storage_key
+            {
+                Some(*storage_key)
+            } else {
+                None
+            }
+        }));
+        keys.insert(crate::state::stateful_compression::ALIAS_COUNTER_STORAGE_KEY);
         keys
     }
 }
