@@ -119,10 +119,10 @@ func main{
     );
 
     local public_keys: felt*;
-    local n_keys: felt;
-    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_keys) %}
+    local n_public_keys: felt;
+    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys) %}
     let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
-        n_keys=n_keys, public_keys=public_keys
+        n_public_keys=n_public_keys, public_keys=public_keys
     );
     with txs_range_check_ptr {
         execute_blocks(
@@ -173,7 +173,7 @@ func main{
     serialize_os_output(
         os_output=final_os_output,
         replace_keys_with_aliases=TRUE,
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
 

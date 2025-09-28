@@ -1851,7 +1851,7 @@ block_input = next(block_input_iterator)
     (
         GetPublicKeys,
         get_public_keys,
-        "fill_public_keys_array(os_hints['public_keys'], public_keys, n_keys)"
+        "fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys)"
     ),
 );
 
@@ -1938,7 +1938,7 @@ if da_path is not None:
         ids.public_keys = 0
     else:
         ids.public_keys = segments.gen_arg(public_keys)
-    ids.n_keys = len(public_keys)"#
+    ids.n_public_keys = len(public_keys)"#
         }
     ),
 );

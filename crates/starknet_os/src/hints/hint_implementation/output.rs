@@ -51,7 +51,13 @@ pub(crate) fn load_public_keys_into_memory(
         ids_data,
         ap_tracking,
     )?;
-    insert_value_from_var_name(Ids::NKeys.into(), public_keys.len(), vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::NPublicKeys.into(),
+        public_keys.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
