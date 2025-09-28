@@ -20,10 +20,11 @@ use crate::hint_processor::state_update_pointers::{
 };
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the
@@ -34,23 +35,43 @@ pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_
     Ok(())
 }
 
-pub(crate) fn get_class_hash_and_compiled_class_hash_v2<S: StateReader>(
+pub(crate) fn get_class_hash_and_compiled_class_fact<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { ids_data, vm, ap_tracking, .. }: HintArgs<'_>,
+    HintArgs { ids_data, constants, vm, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let (class_hash, expected_casm_hash_v2) = hint_processor
+    // Fetch class hash and compiled class hash v2 from the classes to be migrate
+    let (class_hash, casm_hash_v2) = hint_processor
         .get_mut_current_execution_helper()?
         .class_hashes_to_migrate_iterator
         .next()
         .expect("Class hashes iterator should not be empty");
     insert_value_from_var_name(Ids::ClassHash.into(), class_hash.0, vm, ids_data, ap_tracking)?;
+
+    // Use compiled class hash v2 to fetch the casm contract and return it.
+    let casm_contract = hint_processor
+        .compiled_classes
+        .get(&casm_hash_v2)
+        .ok_or_else(|| OsHintError::MissingBytecodeSegmentStructure(casm_hash_v2))?;
+
+    // Load the CompiledClassFact into memory and return its pointer.
+    let compiled_class_fact =
+        CompiledClassFact { compiled_class_hash: &casm_hash_v2, compiled_class: casm_contract };
+    let compiled_class_fact_ptr = vm.add_memory_segment();
+    compiled_class_fact.load_into(
+        vm,
+        hint_processor.program,
+        compiled_class_fact_ptr,
+        constants,
+    )?;
+
     insert_value_from_var_name(
-        Ids::ExpectedCasmHashV2.into(),
-        expected_casm_hash_v2.0,
+        Ids::CompiledClassFact.into(),
+        compiled_class_fact_ptr,
         vm,
         ids_data,
         ap_tracking,
     )?;
+
     Ok(())
 }
 
