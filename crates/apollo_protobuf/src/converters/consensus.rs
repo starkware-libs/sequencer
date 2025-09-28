@@ -57,8 +57,11 @@ impl TryFrom<protobuf::Vote> for Vote {
 
         let height = value.height;
         let round = value.round;
-        let proposal_commitment: Option<BlockHash> =
-            value.block_hash.map(|block_hash| block_hash.try_into()).transpose()?.map(BlockHash);
+        let proposal_commitment: Option<BlockHash> = value
+            .proposal_commitment
+            .map(|block_hash| block_hash.try_into())
+            .transpose()?
+            .map(BlockHash);
         let voter = value.voter.ok_or(missing("voter"))?.try_into()?;
 
         Ok(Vote { vote_type, height, round, proposal_commitment, voter })
@@ -76,7 +79,7 @@ impl From<Vote> for protobuf::Vote {
             vote_type: i32::from(vote_type),
             height: value.height,
             round: value.round,
-            block_hash: value.proposal_commitment.map(|hash| hash.0.into()),
+            proposal_commitment: value.proposal_commitment.map(|hash| hash.0.into()),
             voter: Some(value.voter.into()),
         }
     }
