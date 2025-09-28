@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -10,6 +10,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
     TransactionExecutorError,
 };
+use blockifier::blockifier_versioned_constants::ALIAS_CONTRACT_ADDRESS;
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::StateSelector;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
@@ -389,4 +390,21 @@ pub(crate) fn get_os_state_selector(
     );
     state_selector.extend(execution_state_selector);
     state_selector
+}
+
+pub(crate) fn get_accessed_storage_entries_by_contract(
+    execution_outputs: &[TransactionExecutionOutput],
+    state_diff: &StateMaps,
+) -> HashMap<ContractAddress, Vec<StorageKey>> {
+    let mut storage_entries = HashSet::new();
+    for (tx_execution_info, _) in execution_outputs.iter() {
+        storage_entries.extend(tx_execution_info.get_accessed_storage_entries());
+    }
+    storage_entries
+        .extend(state_diff.alias_keys().into_iter().map(|key| (*ALIAS_CONTRACT_ADDRESS, key)));
+    let mut address_to_storage_keys = HashMap::new();
+    for (address, key) in storage_entries.into_iter() {
+        address_to_storage_keys.entry(address).or_insert_with(Vec::new).push(key);
+    }
+    address_to_storage_keys
 }
