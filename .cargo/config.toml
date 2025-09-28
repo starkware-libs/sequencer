@@ -2,11 +2,3 @@
 LLVM_SYS_191_PREFIX = "/usr/lib/llvm-19/"
 MLIR_SYS_190_PREFIX = "/usr/lib/llvm-19/"
 TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
-
-# Use `lld` for linking instead of `ld`, since we run out of memory while linking with `ld` on
-# 16-cores linux machines, see:
-# https://nnethercote.github.io/perf-book/build-configuration.html#linking.
-# TODO(Gilad): remove this once `rust` stabilizes `lld` as the default linker, currently only on nightly:
-# https://github.com/rust-lang/rust/issues/39915#issuecomment-618726211
-[target.'cfg(all(target_os = "linux"))']
-rustflags = ["-Clink-arg=-fuse-ld=lld"]

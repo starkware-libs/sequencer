@@ -18,8 +18,7 @@ function install_essential_deps_linux() {
             ripgrep \
             software-properties-common \
             zstd \
-            wget \
-            lld
+            wget
   '
 }
 
