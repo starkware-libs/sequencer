@@ -3,12 +3,11 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::{VersionedConstants, ALIAS_CONTRACT_ADDRESS};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::stateful_compression_test_utils::decompress;
-use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use itertools::Itertools;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};

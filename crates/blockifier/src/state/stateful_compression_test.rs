@@ -15,12 +15,12 @@ use super::{
     INITIAL_AVAILABLE_ALIAS,
     MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
 };
+use crate::blockifier_versioned_constants::ALIAS_CONTRACT_ADDRESS;
 use crate::state::cached_state::{CachedState, StateMaps, StorageEntry};
 use crate::state::state_api::{State, StateReader};
 use crate::state::stateful_compression::{AliasCompressor, CompressionError};
 use crate::state::stateful_compression_test_utils::decompress;
 use crate::test_utils::dict_state_reader::DictStateReader;
-use crate::test_utils::ALIAS_CONTRACT_ADDRESS;
 
 pub(crate) fn insert_to_alias_contract(
     storage: &mut HashMap<StorageEntry, Felt>,

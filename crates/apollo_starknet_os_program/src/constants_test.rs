@@ -2,10 +2,12 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::cairo0_compiler::cairo0_format;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
-use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
+use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants, ORIGIN_ADDRESS};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_types_core::felt::Felt;
+
+use crate::OS_PROGRAM;
 
 const CONSTANTS_CONTENTS: &str = include_str!("cairo/starkware/starknet/core/os/constants.cairo");
 
@@ -231,4 +233,12 @@ fn test_os_constants() {
              fix the test."
         );
     }
+}
+
+#[test]
+fn test_origin_address() {
+    assert_eq!(
+        *ORIGIN_ADDRESS.0.key(),
+        OS_PROGRAM.constants["starkware.starknet.common.constants.ORIGIN_ADDRESS"]
+    );
 }

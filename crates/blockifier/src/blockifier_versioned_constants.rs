@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -14,7 +14,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -32,6 +32,25 @@ use crate::utils::get_gas_cost_from_vm_resources;
 #[cfg(test)]
 #[path = "versioned_constants_test.rs"]
 pub mod test;
+
+pub static BLOCK_HASH_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
+    VersionedConstants::latest_constants()
+        .os_constants
+        .os_contract_addresses
+        .block_hash_contract_address()
+});
+
+pub static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
+    VersionedConstants::latest_constants()
+        .os_constants
+        .os_contract_addresses
+        .alias_contract_address()
+});
+
+pub const ORIGIN_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::ZERO);
+
+pub static OS_RESERVED_CONTRACT_ADDRESSES: LazyLock<[ContractAddress; 3]> =
+    LazyLock::new(|| [ORIGIN_ADDRESS, *BLOCK_HASH_CONTRACT_ADDRESS, *ALIAS_CONTRACT_ADDRESS]);
 
 define_versioned_constants!(
     VersionedConstants,
