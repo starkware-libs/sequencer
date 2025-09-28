@@ -12,7 +12,7 @@ use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
 };
-use apollo_consensus::types::Round;
+use apollo_consensus::types::{ProposalCommitment as ConsensusProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
@@ -22,7 +22,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
 use num_rational::Ratio;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tokio_util::sync::CancellationToken;
@@ -147,7 +147,7 @@ async fn build_proposal_succeed() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let res = build_proposal(proposal_args.into()).await.unwrap();
-    assert_eq!(res, BlockHash::default());
+    assert_eq!(res, ConsensusProposalCommitment::default());
 }
 
 #[tokio::test]
