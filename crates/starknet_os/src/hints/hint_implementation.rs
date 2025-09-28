@@ -6,7 +6,7 @@ pub(crate) mod bls_field;
 pub(crate) mod builtins;
 pub(crate) mod cairo1_revert;
 pub(crate) mod compiled_class;
-pub(crate) mod deprecated_compiled_class;
+pub mod deprecated_compiled_class;
 pub(crate) mod execute_syscalls;
 pub(crate) mod execute_transactions;
 pub(crate) mod execution;
