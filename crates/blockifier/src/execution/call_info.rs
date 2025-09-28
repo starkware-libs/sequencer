@@ -17,6 +17,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
+use crate::transaction::objects::TransactionExecutionInfo;
 use crate::utils::u64_from_usize;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -221,6 +222,25 @@ impl StateSelector {
     pub(crate) fn extend(&mut self, other: Self) {
         self.class_hashes.extend(other.class_hashes);
         self.contract_addresses.extend(other.contract_addresses);
+    }
+
+    pub fn from_tx_execution_infos<'a>(
+        tx_execution_infos: impl Iterator<Item = &'a TransactionExecutionInfo>,
+    ) -> Self {
+        tx_execution_infos.fold(StateSelector::default(), |mut acc, tx_execution_info| {
+            acc.extend(Self::from_tx_execution_info(tx_execution_info));
+            acc
+        })
+    }
+
+    fn from_tx_execution_info(tx_execution_info: &TransactionExecutionInfo) -> Self {
+        tx_execution_info.non_optional_call_infos().fold(
+            StateSelector::default(),
+            |mut acc, call_info| {
+                acc.extend(call_info.get_state_selector());
+                acc
+            },
+        )
     }
 }
 
