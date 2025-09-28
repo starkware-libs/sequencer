@@ -13,7 +13,7 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::{VersionedConstants, OS_RESERVED_CONTRACT_ADDRESSES};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
@@ -219,7 +219,14 @@ pub struct StateSelector {
 }
 
 impl StateSelector {
-    pub(crate) fn extend(&mut self, other: Self) {
+    pub fn create_for_os_reserved_addresses() -> Self {
+        Self {
+            class_hashes: HashSet::new(),
+            contract_addresses: HashSet::from_iter(*OS_RESERVED_CONTRACT_ADDRESSES),
+        }
+    }
+
+    pub fn extend(&mut self, other: Self) {
         self.class_hashes.extend(other.class_hashes);
         self.contract_addresses.extend(other.contract_addresses);
     }

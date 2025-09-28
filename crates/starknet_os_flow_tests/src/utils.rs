@@ -11,6 +11,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError,
 };
 use blockifier::context::BlockContext;
+use blockifier::execution::call_info::StateSelector;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
@@ -377,4 +378,15 @@ pub(crate) fn get_class_info_of_cairo_1_feature_contract(
         abi_length: sierra.abi.len(),
         sierra_version,
     }
+}
+
+pub(crate) fn get_os_state_selector(
+    execution_outputs: &[TransactionExecutionOutput],
+) -> StateSelector {
+    let mut state_selector = StateSelector::create_for_os_reserved_addresses();
+    let execution_state_selector = StateSelector::from_tx_execution_infos(
+        execution_outputs.iter().map(|(tx_execution_info, _)| tx_execution_info),
+    );
+    state_selector.extend(execution_state_selector);
+    state_selector
 }
