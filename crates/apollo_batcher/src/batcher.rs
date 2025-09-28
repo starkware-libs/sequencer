@@ -164,7 +164,8 @@ impl Batcher {
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
             propose_tx_streams: HashMap::new(),
             validate_tx_streams: HashMap::new(),
-            proposals_counter: 0,
+            // Allow the first few proposals to be without L1 txs while system starts up.
+            proposals_counter: 1,
         }
     }
 
