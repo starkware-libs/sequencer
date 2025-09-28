@@ -274,6 +274,11 @@
     "pointer_target": "recorder_url",
     "privacy": "Private"
   },
+  "batcher_config.propose_l1_txs_every": {
+    "description": "Only propose L1 transactions every N proposals.",
+    "privacy": "Public",
+    "value": 1
+  },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",

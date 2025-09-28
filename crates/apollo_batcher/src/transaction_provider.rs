@@ -48,6 +48,10 @@ pub trait TransactionProvider: Send {
     /// Once `Some()` is returned for the first time, future calls to this method may return `None`.
     /// Returns `None` in propose mode ([ProposeTransactionProvider]).
     async fn get_final_n_executed_txs(&mut self) -> Option<usize>;
+
+    // TODO(guyn): remove this after refactoring the batcher tests.
+    #[cfg(test)]
+    fn phase(&self) -> TxProviderPhase;
 }
 
 #[derive(Clone)]
@@ -61,8 +65,9 @@ pub struct ProposeTransactionProvider {
 }
 
 // Keeps track of whether we need to fetch L1 handler transactions or mempool transactions.
+// TODO(guyn): make the phase pub(crate) after refactoring the batcher tests.
 #[derive(Clone, Debug, PartialEq)]
-enum TxProviderPhase {
+pub enum TxProviderPhase {
     L1,
     Mempool,
 }
@@ -73,13 +78,14 @@ impl ProposeTransactionProvider {
         l1_provider_client: SharedL1ProviderClient,
         max_l1_handler_txs_per_block: usize,
         height: BlockNumber,
+        start_phase: TxProviderPhase,
     ) -> Self {
         Self {
             mempool_client,
             l1_provider_client,
             max_l1_handler_txs_per_block,
             height,
-            phase: TxProviderPhase::L1,
+            phase: start_phase,
             n_l1handler_txs_so_far: 0,
         }
     }
@@ -148,6 +154,12 @@ impl TransactionProvider for ProposeTransactionProvider {
     async fn get_final_n_executed_txs(&mut self) -> Option<usize> {
         None
     }
+
+    // TODO(guyn): remove this after refactoring the batcher tests.
+    #[cfg(test)]
+    fn phase(&self) -> TxProviderPhase {
+        self.phase.clone()
+    }
 }
 
 pub struct ValidateTransactionProvider {
@@ -207,5 +219,11 @@ impl TransactionProvider for ValidateTransactionProvider {
     async fn get_final_n_executed_txs(&mut self) -> Option<usize> {
         // Return None if the receiver is empty or closed unexpectedly.
         self.final_n_executed_txs_receiver.try_recv().ok()
+    }
+
+    // TODO(guyn): remove this after refactoring the batcher tests.
+    #[cfg(test)]
+    fn phase(&self) -> TxProviderPhase {
+        panic!("Phase is only relevant to proposing transactions.")
     }
 }

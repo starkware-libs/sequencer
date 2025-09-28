@@ -22,6 +22,7 @@ pub struct BatcherConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
+    pub propose_l1_txs_every: u64,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -45,6 +46,12 @@ impl SerializeConfig for BatcherConfig {
                 "max_l1_handler_txs_per_block_proposal",
                 &self.max_l1_handler_txs_per_block_proposal,
                 "The maximum number of L1 handler transactions to include in a block proposal.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "propose_l1_txs_every",
+                &self.propose_l1_txs_every,
+                "Only propose L1 transactions every N proposals.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -89,6 +96,7 @@ impl Default for BatcherConfig {
             contract_class_manager_config: ContractClassManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
+            propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
         }
     }
 }

@@ -21,7 +21,7 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     BlockTransactionExecutionData,
 };
-use crate::transaction_provider::TransactionProvider;
+use crate::transaction_provider::{TransactionProvider, TxProviderPhase};
 
 pub const EXECUTION_INFO_LEN: usize = 10;
 pub const DUMMY_FINAL_N_EXECUTED_TXS: usize = 12;
@@ -58,12 +58,19 @@ pub(crate) struct FakeProposeBlockBuilder {
     pub output_content_sender: UnboundedSender<InternalConsensusTransaction>,
     pub output_txs: Vec<InternalConsensusTransaction>,
     pub build_block_result: Option<BlockBuilderResult<BlockExecutionArtifacts>>,
+    pub tx_provider: Box<dyn TransactionProvider>,
 }
 
 #[async_trait]
 impl BlockBuilderTrait for FakeProposeBlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         for tx in &self.output_txs {
+            // Skip L1 txs if the tx_provider was set to mempool phase.
+            if matches!(tx, InternalConsensusTransaction::L1Handler(_))
+                && self.tx_provider.phase() == TxProviderPhase::Mempool
+            {
+                continue;
+            }
             self.output_content_sender.send(tx.clone()).unwrap();
         }
 
