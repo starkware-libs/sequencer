@@ -3,7 +3,7 @@
 import sys
 
 from update_config_and_restart_nodes_lib import (
-    ArgsParserBuilder,
+    ApolloArgsParserBuilder,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -34,7 +34,7 @@ Examples:
   %(prog)s -n apollo-sepolia-integration -N 3 -i 5 revert -b 12345
         """
 
-    args_builder = ArgsParserBuilder(
+    args_builder = ApolloArgsParserBuilder(
         "Sets or unsets the revert mode for the sequencer nodes", usage_example
     )
 

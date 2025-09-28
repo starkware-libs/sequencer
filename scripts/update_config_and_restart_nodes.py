@@ -5,7 +5,7 @@ import json
 import sys
 
 from update_config_and_restart_nodes_lib import (
-    ArgsParserBuilder,
+    ApolloArgsParserBuilder,
     Colors,
     Service,
     print_colored,
@@ -106,7 +106,7 @@ Examples:
   
         """
 
-    args_builder = ArgsParserBuilder(
+    args_builder = ApolloArgsParserBuilder(
         "Update configuration for Apollo sequencer nodes and (optionally) restart them",
         usage_example,
     )

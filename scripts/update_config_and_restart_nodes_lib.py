@@ -18,7 +18,6 @@ class Colors(Enum):
     RED = "\033[1;31m"
     GREEN = "\033[1;32m"
     YELLOW = "\033[1;33m"
-    GREEN = "\033[1;32m"
     BLUE = "\033[1;34m"
     RESET = "\033[0m"
 
@@ -32,7 +31,7 @@ def print_error(message: str) -> None:
     print_colored(message, color=Colors.RED, file=sys.stderr)
 
 
-class ArgsParserBuilder:
+class ApolloArgsParserBuilder:
     """Builder class for creating argument parsers with required flags and custom arguments."""
 
     def __init__(self, description: str, usage_example: str):
