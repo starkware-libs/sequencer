@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -13,6 +15,7 @@ use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
+use crate::hints::vars::Const;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
     FullOsStateDiff,
@@ -27,8 +30,11 @@ pub(crate) const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3;
 // from_address, to_address, nonce, selector, payload_size.
 pub(crate) const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
 // Hex of 'StarknetOsConfig3'.
-pub const STARKNET_OS_CONFIG_HASH_VERSION: Felt =
-    Felt::from_hex_unchecked("0x537461726b6e65744f73436f6e66696733");
+pub const STARKNET_OS_CONFIG_HASH_VERSION: LazyLock<Felt> = LazyLock::new(|| {
+    Const::StarknetOsConfigVersion
+        .fetch_from_os_program()
+        .expect("Starknet OS config version not found in the program.")
+});
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsOutputError {

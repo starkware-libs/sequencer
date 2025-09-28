@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use apollo_starknet_os_program::OS_PROGRAM;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_integer_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -305,6 +306,7 @@ define_string_enum! {
     #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
     #[derive(Clone, Copy, Debug)]
     pub enum Const {
+        (AddrBound, "starkware.starknet.common.storage.ADDR_BOUND"),
         (AliasContractAddress, "starkware.starknet.core.os.constants.ALIAS_CONTRACT_ADDRESS"),
         (
             AliasCounterStorageKey,
@@ -320,6 +322,7 @@ define_string_enum! {
             CompiledClassVersion,
             "starkware.starknet.core.os.contract_class.compiled_class_struct.COMPILED_CLASS_VERSION"
         ),
+        (ContractClassLeafVersion, "starkware.starknet.core.os.state.commitment.CONTRACT_CLASS_LEAF_VERSION"),
         (
             DeprecatedCompiledClassVersion,
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
@@ -329,6 +332,7 @@ define_string_enum! {
             EntryPointInitialBudget,
             "starkware.starknet.core.os.constants.ENTRY_POINT_INITIAL_BUDGET"
         ),
+        (GlobalStateVersion, "starkware.starknet.core.os.state.commitment.GLOBAL_STATE_VERSION"),
         (InitialAvailableAlias, "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"),
         (MinValueForAliasAlloc, "starkware.starknet.core.os.state.aliases.MIN_VALUE_FOR_ALIAS_ALLOC"),
         (
@@ -339,6 +343,7 @@ define_string_enum! {
         (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.output.N_UPDATES_SMALL_PACKING_BOUND"),
         (ShaBatchSize, "starkware.cairo.common.cairo_sha256.sha256_utils.BATCH_SIZE"),
         (Sha256InputChunkSize, "starkware.cairo.common.cairo_sha256.sha256_utils.SHA256_INPUT_CHUNK_SIZE_FELTS"),
+        (StarknetOsConfigVersion, "starkware.starknet.core.os.os_config.os_config.STARKNET_OS_CONFIG_VERSION"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
         (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
     }
@@ -348,6 +353,11 @@ impl Const {
     pub fn fetch<'a>(&self, constants: &'a HashMap<String, Felt>) -> Result<&'a Felt, HintError> {
         let identifier = (*self).into();
         constants.get(identifier).ok_or(HintError::MissingConstant(Box::new(identifier)))
+    }
+
+    pub fn fetch_from_os_program(&self) -> Result<Felt, HintError> {
+        let path: &str = (*self).into();
+        OS_PROGRAM.constants.get(path).cloned().ok_or(HintError::MissingConstant(Box::new(path)))
     }
 
     pub fn fetch_as<T: TryFrom<Felt>>(
