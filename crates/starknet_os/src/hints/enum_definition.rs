@@ -206,6 +206,7 @@ use crate::hints::hint_implementation::stateful_compression::implementation::{
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
     get_class_hash_and_compiled_class_hash_v2,
+    get_compiled_class_by_compiled_class_hash,
     guess_aliases_contract_storage_ptr,
     guess_contract_addr_storage_ptr,
     initialize_alias_counter,
@@ -1158,6 +1159,11 @@ define_hint_enum!(
         GetClassHashAndCompiledClassHashV2,
         get_class_hash_and_compiled_class_hash_v2,
         "GetClassHashAndCompiledClassHashV2"
+    ),
+    (
+        GetCompiledClassByCompiledClassHash,
+        get_compiled_class_by_compiled_class_hash,
+        "GetCompiledClassByCompiledClassHash"
     ),
     (
         WriteNextAliasFromKey,

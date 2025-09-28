@@ -8,7 +8,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{CompiledClassHash, ContractAddress};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -23,7 +23,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the
@@ -51,6 +51,33 @@ pub(crate) fn get_class_hash_and_compiled_class_hash_v2<S: StateReader>(
         ids_data,
         ap_tracking,
     )?;
+    Ok(())
+}
+
+pub(crate) fn get_compiled_class_by_compiled_class_hash<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, constants, vm, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let casm_hash_v2 = CompiledClassHash(get_integer_from_var_name(
+        Ids::ExpectedCasmHashV2.into(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?);
+    let casm_contract = hint_processor
+        .compiled_classes
+        .get(&casm_hash_v2)
+        .ok_or_else(|| OsHintError::MissingBytecodeSegmentStructure(casm_hash_v2))?;
+    let compiled_class_ptr = vm.add_memory_segment();
+    casm_contract.load_into(vm, hint_processor.program, compiled_class_ptr, constants)?;
+    insert_value_from_var_name(
+        Ids::CompiledClass.into(),
+        compiled_class_ptr,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
     Ok(())
 }
 
