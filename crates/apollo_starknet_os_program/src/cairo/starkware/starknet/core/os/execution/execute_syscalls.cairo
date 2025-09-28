@@ -491,6 +491,26 @@ func execute_syscalls{
     );
 }
 
+// Returns a failure response with a single felt.
+@known_ap_change
+func write_failure_response{syscall_ptr: felt*}(remaining_gas: felt, failure_felt: felt) {
+    let response_header = cast(syscall_ptr, ResponseHeader*);
+    let syscall_ptr = syscall_ptr + ResponseHeader.SIZE;
+
+    // Write the response header.
+    assert [response_header] = ResponseHeader(gas=remaining_gas, failure_flag=1);
+
+    let failure_reason: FailureReason* = cast(syscall_ptr, FailureReason*);
+    // Advance syscall pointer to the next syscall.
+    let syscall_ptr = syscall_ptr + FailureReason.SIZE;
+
+    // Write the failure reason.
+    tempvar start = failure_reason.start;
+    assert start[0] = failure_felt;
+    assert failure_reason.end = start + 1;
+    return ();
+}
+
 // Executes a syscall that calls another contract.
 func execute_call_contract{
     range_check_ptr,
@@ -507,6 +527,10 @@ func execute_call_contract{
     );
     if (success == FALSE) {
         // Not enough gas to execute the syscall.
+        return ();
+    }
+    if (request.selector == EXECUTE_ENTRY_POINT_SELECTOR) {
+        write_failure_response(remaining_gas=remaining_gas, failure_felt=ERROR_INVALID_ARGUMENT);
         return ();
     }
 
@@ -1343,6 +1367,8 @@ func execute_sha256_process_block{
     }
 
     local sha256_ptr: Sha256ProcessBlock* = builtin_ptrs.non_selectable.sha256;
+    let response = cast(syscall_ptr, Sha256ProcessBlockResponse*);
+    let actual_out_state: Sha256State* = &sha256_ptr.out_state;
 
     let input: Sha256Input* = &sha256_ptr.input;
     assert [input] = [request.input_start];
@@ -1350,13 +1376,21 @@ func execute_sha256_process_block{
     let state: Sha256State* = &sha256_ptr.in_state;
     assert [state] = [request.state_ptr];
 
-    let res: Sha256State* = &sha256_ptr.out_state;
-    let sha256_ptr = &sha256_ptr[1];
+    // Relocate `response.state_ptr` (allocated by the syscall hint) to the next `out_state`
+    // slot in the sha256 segment (`actual_out_state`) and assert that the two pointers are equal.
+    // Also copy [state_ptr] into [actual_out_state], since finalize_sha256 reads from
+    // [actual_out_state] and the relocation happens in the opposite direction.
+    %{
+        state_ptr = ids.response.state_ptr.address_
+        actual_out_state = ids.actual_out_state.address_
+        for i in range(8):
+            memory[actual_out_state + i] = memory[state_ptr + i]
+        memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)
+    %}
 
-    assert [cast(syscall_ptr, Sha256ProcessBlockResponse*)] = Sha256ProcessBlockResponse(
-        state_ptr=res
-    );
+    assert [response] = Sha256ProcessBlockResponse(state_ptr=actual_out_state);
     let syscall_ptr = syscall_ptr + Sha256ProcessBlockResponse.SIZE;
+    let sha256_ptr = &sha256_ptr[1];
 
     tempvar builtin_ptrs = new BuiltinPointers(
         selectable=builtin_ptrs.selectable,
@@ -1737,26 +1771,6 @@ func reduce_syscall_gas_and_write_response_header{range_check_ptr, syscall_ptr: 
     // Reduction has failed; in that case, 'reduce_syscall_base_gas' already wrote the response
     // objects and advanced the syscall pointer.
     return 0;
-}
-
-// Returns a failure response with a single felt.
-@known_ap_change
-func write_failure_response{syscall_ptr: felt*}(remaining_gas: felt, failure_felt: felt) {
-    let response_header = cast(syscall_ptr, ResponseHeader*);
-    let syscall_ptr = syscall_ptr + ResponseHeader.SIZE;
-
-    // Write the response header.
-    assert [response_header] = ResponseHeader(gas=remaining_gas, failure_flag=1);
-
-    let failure_reason: FailureReason* = cast(syscall_ptr, FailureReason*);
-    // Advance syscall pointer to the next syscall.
-    let syscall_ptr = syscall_ptr + FailureReason.SIZE;
-
-    // Write the failure reason.
-    tempvar start = failure_reason.start;
-    assert start[0] = failure_felt;
-    assert failure_reason.end = start + 1;
-    return ();
 }
 
 // Reduces the base amount of gas for the current syscall.
