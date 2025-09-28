@@ -14,6 +14,8 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 
 use crate::converters::ProtobufConversionError;
 
+pub type ProposalCommitment = BlockHash;
+
 pub trait IntoFromProto: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
 impl<T> IntoFromProto for T where
     T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>
@@ -32,7 +34,7 @@ pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,
     pub round: u32,
-    pub block_hash: Option<BlockHash>,
+    pub proposal_commitment: Option<ProposalCommitment>,
     pub voter: ContractAddress,
 }
 
@@ -101,12 +103,12 @@ pub struct TransactionBatch {
     pub transactions: Vec<ConsensusTransaction>,
 }
 
-/// The proposal is done when receiving this fin message, which contains the block hash.
+/// The proposal is done when receiving this fin message, which contains the proposal commitment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
-    /// The block hash of the proposed block.
+    /// The commitment identifying the proposed block.
     /// TODO(Matan): Consider changing the content ID to a signature.
-    pub proposal_commitment: BlockHash,
+    pub proposal_commitment: ProposalCommitment,
 }
 
 /// A part of the proposal.

@@ -733,15 +733,15 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    let block_hash = fin_receiver.await.unwrap().0;
-    assert_eq!(block_hash, STATE_DIFF_COMMITMENT.0.0);
+    let proposal_commitment = fin_receiver.await.unwrap();
+    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Decision reached
 
     context
         .decision_reached(
-            BlockHash(block_hash),
-            vec![Vote { block_hash: Some(BlockHash(block_hash)), ..Default::default() }],
+            proposal_commitment,
+            vec![Vote { proposal_commitment: Some(proposal_commitment), ..Default::default() }],
         )
         .await
         .unwrap();

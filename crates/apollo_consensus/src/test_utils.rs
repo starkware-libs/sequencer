@@ -97,13 +97,13 @@ mock! {
 }
 
 pub fn prevote(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> Vote {
-    let block_hash = block_felt.map(BlockHash);
-    Vote { vote_type: VoteType::Prevote, height, round, block_hash, voter }
+    let proposal_commitment = block_felt.map(BlockHash);
+    Vote { vote_type: VoteType::Prevote, height, round, proposal_commitment, voter }
 }
 
 pub fn precommit(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> Vote {
-    let block_hash = block_felt.map(BlockHash);
-    Vote { vote_type: VoteType::Precommit, height, round, block_hash, voter }
+    let proposal_commitment = block_felt.map(BlockHash);
+    Vote { vote_type: VoteType::Precommit, height, round, proposal_commitment, voter }
 }
 pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height: BlockNumber(height), round, proposer, ..Default::default() }
