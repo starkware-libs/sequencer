@@ -6,11 +6,15 @@ use starknet_api::core::{GLOBAL_STATE_VERSION, L2_ADDRESS_UPPER_BOUND};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::hint_implementation::deprecated_compiled_class::utils::DEPRECATED_COMPILED_CLASS_VERSION;
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::io::os_output::STARKNET_OS_CONFIG_HASH_VERSION;
 use crate::vm_utils::get_size_of_cairo_struct;
 
+// TODO(Dori): Move this utility to the vm_utils module and use it to define the constants in this
+//   crate. Tests for these constants can be deleted (tests for constants in other crates, i.e.
+//   starknet_api and blockifier, should remain).
 fn get_from_program(program: &Program, const_path: &str) -> Felt {
     program
         .constants
@@ -24,6 +28,14 @@ fn test_l2_address_bound() {
     assert_eq!(
         get_from_program(&OS_PROGRAM, "starkware.starknet.common.storage.ADDR_BOUND"),
         (*L2_ADDRESS_UPPER_BOUND).into()
+    );
+}
+
+#[test]
+fn test_deprecated_compiled_class_version() {
+    assert_eq!(
+        get_from_program(&OS_PROGRAM, Const::DeprecatedCompiledClassVersion.into()),
+        DEPRECATED_COMPILED_CLASS_VERSION
     );
 }
 
