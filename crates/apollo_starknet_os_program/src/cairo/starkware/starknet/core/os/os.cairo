@@ -105,8 +105,6 @@ func main{
     ) = deprecated_load_compiled_class_facts();
 
     let (local os_outputs: OsOutput*) = alloc();
-    local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
-    let txs_range_check_ptr = initial_txs_range_check_ptr;
     %{
         from starkware.starknet.core.os.execution_helper import StateUpdatePointers
         state_update_pointers = StateUpdatePointers(segments=segments)
@@ -124,12 +122,21 @@ func main{
     let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
         n_public_keys=n_public_keys, public_keys=public_keys
     );
+    local starknet_os_config: StarknetOsConfig* = new StarknetOsConfig(
+        chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
+        fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
+        public_keys_hash=public_keys_hash,
+    );
+
+    local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
+    let txs_range_check_ptr = initial_txs_range_check_ptr;
     with txs_range_check_ptr {
         execute_blocks(
             n_blocks=n_blocks,
             os_output_per_block_dst=os_outputs,
             compiled_class_facts_bundle=compiled_class_facts_bundle,
             public_keys_hash=public_keys_hash,
+            starknet_os_config=starknet_os_config,
         );
     }
 
@@ -244,6 +251,7 @@ func execute_blocks{
     os_output_per_block_dst: OsOutput*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
     public_keys_hash: felt,
+    starknet_os_config: StarknetOsConfig*,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -288,6 +296,7 @@ func execute_blocks{
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
         compiled_class_facts_bundle=compiled_class_facts_bundle,
         public_keys_hash=public_keys_hash,
+        starknet_os_config=starknet_os_config,
     );
 
     // Pre-process block.
@@ -341,7 +350,7 @@ func execute_blocks{
     let hash_ptr = pedersen_ptr;
     with hash_ptr {
         let (starknet_os_config_hash) = get_starknet_os_config_hash(
-            starknet_os_config=&block_context.starknet_os_config
+            starknet_os_config=block_context.starknet_os_config
         );
     }
 
@@ -371,6 +380,7 @@ func execute_blocks{
         os_output_per_block_dst=&os_output_per_block_dst[1],
         compiled_class_facts_bundle=compiled_class_facts_bundle,
         public_keys_hash=public_keys_hash,
+        starknet_os_config=starknet_os_config,
     );
 }
 
