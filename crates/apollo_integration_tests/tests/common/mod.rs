@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::flow_test_setup::{
@@ -125,6 +126,7 @@ pub async fn end_to_end_flow(
     }
 
     assert_full_blocks_flow(&recorder, expecting_full_blocks);
+    assert_no_reverted_transactions_flow(&recorder);
 }
 
 pub struct TestScenario {
@@ -154,6 +156,13 @@ fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks:
     } else {
         assert_eq!(full_blocks_metric, 0);
     }
+}
+
+fn assert_no_reverted_transactions_flow(recorder: &PrometheusRecorder) {
+    let metrics = recorder.handle().render();
+    let reverted_transactions_metric =
+        REVERTED_TRANSACTIONS.parse_numeric_metric::<u64>(&metrics).unwrap();
+    assert_eq!(reverted_transactions_metric, 0);
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
