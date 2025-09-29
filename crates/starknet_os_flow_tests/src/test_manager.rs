@@ -311,14 +311,13 @@ impl<S: FlowTestState> TestManager<S> {
     /// Executes the test using default block contexts, starting from the given block number.
     pub(crate) async fn execute_test_with_default_block_contexts(
         self,
-        initial_block_number: u64,
         test_params: &TestParameters,
     ) -> OsTestOutput<S> {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
                 block_context_for_flow_tests(
-                    BlockNumber(initial_block_number + u64::try_from(i).unwrap()),
+                    BlockNumber(self.initial_state.next_block_number.0 + u64::try_from(i).unwrap()),
                     test_params.use_kzg_da,
                 )
             })

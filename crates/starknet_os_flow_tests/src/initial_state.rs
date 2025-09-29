@@ -119,6 +119,8 @@ pub(crate) struct InitialState<S: FlowTestState> {
     // Current patricia roots.
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
+    // Next available block number.
+    pub(crate) next_block_number: BlockNumber,
 }
 
 /// Creates the initial state for the flow test which includes:
@@ -138,12 +140,13 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     ) = create_default_initial_state_txs_and_contracts(extra_contracts);
     // Execute these 4 txs.
     let initial_state_reader = S::create_empty_state();
+    let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
     let use_kzg_da = false;
     let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
         execute_transactions(
             initial_state_reader,
             &default_initial_state_txs,
-            block_context_for_flow_tests(BlockNumber(CURRENT_BLOCK_NUMBER), use_kzg_da),
+            block_context_for_flow_tests(initial_block_number, use_kzg_da),
         );
     assert_eq!(
         execution_outputs.len(),
@@ -176,6 +179,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
         commitment_storage,
         contracts_trie_root_hash: commitment_output.contracts_trie_root_hash,
         classes_trie_root_hash: commitment_output.classes_trie_root_hash,
+        next_block_number: initial_block_number.next().unwrap(),
     };
 
     (
