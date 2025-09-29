@@ -2,19 +2,29 @@
 
 import argparse
 import json
+import signal
+import socket
+import subprocess
 import sys
 from enum import Enum
 
+from time import sleep
 import urllib.error
 import urllib.request
+from prometheus_client.parser import text_string_to_metric_families
+
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Service,
     get_context_list_from_args,
     get_namespace_list_from_args,
+    get_pod_names,
     print_colored,
     print_error,
-    update_config_and_restart_nodes,
+    restart_node,
+    restart_all_nodes,
+    restart_pods,
+    update_config,
 )
 
 
@@ -38,6 +48,115 @@ def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
         raise argparse.ArgumentTypeError(
             f"Invalid restart strategy '{strategy_name}'. Valid options are: {valid_strategies}"
         )
+
+
+def get_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
+
+
+def get_metrics(port: int, pod: str) -> str:
+    for attempt in range(10):
+        try:
+            with urllib.request.urlopen(f"http://localhost:{port}/monitoring/metrics") as response:
+                if response.status == 200:
+                    return response.read().decode("utf-8")
+                else:
+                    print_colored(
+                        f"Failed to get metrics from for pod {pod}, attempt {attempt + 1}: {response.status}"
+                    )
+        except urllib.error.URLError as e:
+            print_colored(f"Failed to get metrics from for pod {pod}, attempt {attempt + 1}: {e}")
+    print_error(f"Failed to get metrics from for pod {pod}, after {attempt + 1} attempts")
+    sys.exit(1)
+
+
+def poll_until_height_revert(
+    local_port: int, pod: str, polling_interval_seconds: int, storage_required_height: int
+):
+    """Poll metrics until the storage height marker reaches the required height."""
+    while True:
+        metrics = get_metrics(local_port, pod)
+        if metrics is None:
+            print_error(f"Failed to get metrics from for pod {pod}")
+            sys.exit(1)
+
+        metric_families = text_string_to_metric_families(metrics)
+        val = None
+        # TODO: change to the real metric (proposal accepted as prposer) when we have a sequencer
+        # node (and the metric exists).
+        METRIC_NAME = "mempool_pending_queue_size"
+        for metric_family in metric_families:
+            if metric_family.name == METRIC_NAME:
+                val = metric_family.samples[0].value
+                break
+
+        if val is None:
+            print_colored(
+                f"Metric '{METRIC_NAME}' not found in pod {pod}. Assuming the node is not ready."
+            )
+        else:
+            if val < storage_required_height:
+                print_colored(
+                    f"Storage height marker ({val}) has not reached {storage_required_height} yet, continuing to wait."
+                )
+            else:
+                print_colored(
+                    f"Storage height marker ({val}) has reached {storage_required_height}. Safe to continue."
+                )
+                break
+
+        sleep(polling_interval_seconds)
+
+
+def wait_for_node(
+    pod: str, metrics_port: int, polling_interval_seconds: int, storage_required_height: int
+):
+    """Wait for the node to be restarted and propose successfully."""
+    local_port = get_free_port()
+    # Start kubectl port forwarding to the node and keep it running in the background.
+    cmd = [
+        "kubectl",
+        "port-forward",
+        f"pod/{pod}",
+        f"{local_port}:{metrics_port}",
+    ]
+
+    pf_process = None
+    try:
+        pf_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Set up signal handler to ensure subprocess is terminated on interruption
+        def signal_handler(signum, frame):
+            if pf_process and pf_process.poll() is None:
+                print_colored(f"Terminating kubectl port-forward process (PID: {pf_process.pid})")
+                pf_process.terminate()
+                try:
+                    pf_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    print_colored("Force killing kubectl port-forward process")
+                    pf_process.kill()
+                    pf_process.wait()
+            sys.exit(0)
+
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
+        poll_until_height_revert(local_port, pod, polling_interval_seconds, storage_required_height)
+
+    finally:
+        # Ensure subprocess is always terminated
+        if pf_process and pf_process.poll() is None:
+            print_colored(f"Terminating kubectl port-forward process (PID: {pf_process.pid})")
+            pf_process.terminate()
+            try:
+                pf_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                print_colored("Force killing kubectl port-forward process")
+                pf_process.kill()
+                pf_process.wait()
 
 
 def main():
@@ -89,6 +208,15 @@ Examples:
         help="Strategy for restarting nodes (default: All_At_Once)",
     )
 
+    # The port to connect to to get the metrics.
+    args_builder.add_argument(
+        "-p",
+        "--metrics-port",
+        type=int,
+        default=8082,
+        help="The port to connect to to get the metrics (default: 8082)",
+    )
+
     args = args_builder.build()
 
     # Get current block number from feeder URL
@@ -121,13 +249,39 @@ Examples:
         "consensus_manager_config.cende_config.skip_write_height": next_block_number,
     }
 
-    update_config_and_restart_nodes(
-        config_overrides,
-        get_namespace_list_from_args(args),
-        Service.Core,
-        get_context_list_from_args(args),
-        not args.no_restart,
-    )
+    namespace_list = get_namespace_list_from_args(args)
+    context_list = get_context_list_from_args(args)
+    # update_config(
+    #     config_overrides,
+    #     namespace_list,
+    #     Service.Core,
+    #     context_list,
+    # )
+
+    if args.no_restart:
+        print_colored("\nSkipping pod restart (--no-restart was specified)")
+        sys.exit(0)
+
+    if args.restart_strategy == RestartStrategy.One_By_One:
+        for index, namespace in enumerate(namespace_list):
+            cluster = context_list[index] if context_list else None
+            try:
+                [pod] = get_pod_names(namespace, Service.Core, cluster)
+            except ValueError:
+                print_error(f"Expected 1 pod for namespace {namespace}, got: {pod}")
+                sys.exit(1)
+            # restart_pods(namespace, [pod], index, cluster)
+            wait_for_node(pod, args.metrics_port, 5, next_block_number)
+    elif args.restart_strategy == RestartStrategy.All_At_Once:
+        # restart_all_nodes(
+        #     namespace_list,
+        #     Service.Core,
+        #     context_list,
+        # )
+        pass
+    else:
+        print_error(f"Invalid restart strategy: {args.restart_strategy}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

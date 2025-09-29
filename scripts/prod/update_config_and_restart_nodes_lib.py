@@ -393,10 +393,8 @@ def apply_configmap(
             sys.exit(1)
 
 
-def restart_pod(
-    namespace: str, service: Service, index: int, cluster: Optional[str] = None
-) -> None:
-    """Restart pod by deleting it"""
+def get_pod_names(namespace: str, service: Service, cluster: Optional[str] = None) -> list[str]:
+    """Get the list of pods for a specific service"""
     # Get the list of pods (one string per line).
     kubectl_args = [
         "get",
@@ -408,6 +406,14 @@ def restart_pod(
 
     # Filter the list of pods to only include the ones that match the service and extract the pod name.
     pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
+
+    return pods
+
+
+def restart_pods(
+    namespace: str, pods: list[str], index: int, cluster: Optional[str] = None
+) -> None:
+    """Restart pod by deleting it"""
 
     if not pods:
         print_error(f"Could not find pods for service {service.pod_name}.")
@@ -430,7 +436,27 @@ def restart_pod(
             sys.exit(1)
 
 
-def update_config_and_restart_nodes(
+def restart_node(
+    namespace: str, service: Service, index: int, cluster: Optional[str] = None
+) -> None:
+    """Restart a single node by deleting its pod"""
+    pods = get_pod_names(namespace, service, cluster)
+    restart_pods(namespace, pods, index, cluster)
+
+
+def restart_all_nodes(
+    namespace_list: list[str],
+    service: Service,
+    cluster_list: Optional[list[str]] = None,
+) -> None:
+    """Restart nodes by deleting their pods"""
+    for index, namespace in enumerate(namespace_list):
+        cluster = cluster_list[index] if cluster_list else None
+        restart_node(namespace, service, index, cluster)
+    print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
+
+
+def update_config(
     config_overrides: dict[str, Any],
     namespace_list: list[str],
     service: Service,
@@ -487,13 +513,18 @@ def update_config_and_restart_nodes(
             cluster_list[index] if cluster_list else None,
         )
 
+    print("\nUpdate completed successfully!")
+
+
+def update_config_and_restart_nodes(
+    config_overrides: dict[str, Any],
+    namespace_list: list[str],
+    service: Service,
+    cluster_list: Optional[list[str]] = None,
+    restart_nodes: bool = True,
+) -> None:
+    update_config(config_overrides, namespace_list, service, cluster_list, restart_nodes)
     if restart_nodes:
-        for index, config in enumerate(configs):
-            restart_pod(
-                namespace_list[index], service, index, cluster_list[index] if cluster_list else None
-            )
-        print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
+        restart_all_nodes(namespace_list, service, cluster_list)
     else:
         print_colored("\nSkipping pod restart (--no-restart was specified)")
-
-    print("\nOperation completed successfully!")
