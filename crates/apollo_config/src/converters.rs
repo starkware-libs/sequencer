@@ -31,6 +31,8 @@ use std::time::Duration;
 
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
+use starknet_api::core::ContractAddress;
+use starknet_types_core::felt::Felt;
 use url::Url;
 
 /// Deserializes milliseconds to duration object.
@@ -271,4 +273,38 @@ where
     raw.split_whitespace()
         .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
+}
+
+/// Deserializes an optional comma-separated list of contract addresses into
+/// `Option<Vec<ContractAddress>>`. An empty string is invalid if the `#is_none` flag is false.
+pub fn deserialize_optional_contract_addresses<'de, D>(
+    de: D,
+) -> Result<Option<Vec<ContractAddress>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = match Option::<String>::deserialize(de)? {
+        Some(addresses) => addresses,
+        None => return Ok(None),
+    };
+
+    if raw.is_empty() {
+        return Err(D::Error::custom(
+            "Empty string is not a valid input for contract addresses. The config field is marked \
+             as not none.",
+        ));
+    }
+
+    let mut result = Vec::new();
+    for addresses_str in raw.split(',') {
+        let felt = Felt::from_str(addresses_str).map_err(|err| {
+            D::Error::custom(format!("Failed to parse Felt from '{addresses_str}': {err}"))
+        })?;
+        let addr = ContractAddress::try_from(felt).map_err(|err| {
+            D::Error::custom(format!("Invalid contract address '{addresses_str}': {err}"))
+        })?;
+        result.push(addr);
+    }
+
+    Ok(Some(result))
 }
