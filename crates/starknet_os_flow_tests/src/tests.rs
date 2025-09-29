@@ -183,13 +183,18 @@ async fn declare_deploy_scenario(
 async fn trivial_diff_scenario(
     #[values(false, true)] use_kzg_da: bool,
     #[values(false, true)] full_output: bool,
+    #[values(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+    )]
+    test_contract: FeatureContract,
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
     let (mut test_manager, mut nonce_manager, [test_contract_address]) =
         TestManager::<DictStateReader>::new_with_default_initial_state([(
-            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            test_contract,
             calldata![Felt::ONE, Felt::TWO],
         )])
         .await;
