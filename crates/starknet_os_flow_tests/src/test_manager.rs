@@ -15,7 +15,7 @@ use itertools::Itertools;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -24,6 +24,7 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetApiTransaction,
 };
 use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
@@ -283,6 +284,10 @@ impl<S: FlowTestState> TestManager<S> {
         self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
             StarknetApiTransaction::Account(AccountTransaction::Invoke(tx)),
         ));
+    }
+
+    pub(crate) fn add_invoke_tx_from_args(&mut self, args: InvokeTxArgs, chain_id: &ChainId) {
+        self.add_invoke_tx(InvokeTransaction::create(invoke_tx(args), chain_id).unwrap());
     }
 
     pub(crate) fn add_cairo0_declare_tx(

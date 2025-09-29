@@ -9,10 +9,9 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::calculate_contract_address;
-use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::declare_tx;
-use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
@@ -140,10 +139,7 @@ async fn declare_deploy_scenario(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    let deploy_contract_tx = invoke_tx(invoke_tx_args);
-    let deploy_contract_tx =
-        InvokeTransaction::create(deploy_contract_tx, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_invoke_tx(deploy_contract_tx);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
@@ -208,9 +204,7 @@ async fn trivial_diff_scenario(
         calldata: create_calldata(test_contract_address, function_name, &[key, value]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let change_value_tx = invoke_tx(invoke_tx_args);
-    let change_value_tx = InvokeTransaction::create(change_value_tx, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_invoke_tx(change_value_tx);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
 
     // Move to next block, and add an invoke that reverts the previous change.
     test_manager.move_to_next_block();
@@ -220,9 +214,7 @@ async fn trivial_diff_scenario(
         calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let revert_value_tx = invoke_tx(invoke_tx_args);
-    let revert_value_tx = InvokeTransaction::create(revert_value_tx, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_invoke_tx(revert_value_tx);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
 
     // Execute the test.
     let test_output = test_manager
