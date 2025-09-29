@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::{
@@ -961,8 +962,14 @@ async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
         .times(1)
         .with(eq(tx_args.tx))
         .returning(|_| Ok(()));
-    let mut mempool_wrapper =
-        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
+
+    let mock_config_manager = MockConfigManagerClient::new();
+
+    let mut mempool_wrapper = MempoolCommunicationWrapper::new(
+        mempool,
+        Arc::new(mock_mempool_p2p_propagator_client),
+        Arc::new(mock_config_manager),
+    );
 
     mempool_wrapper.add_tx(propagateor_args).await.unwrap();
 }
@@ -985,8 +992,13 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
         .with(eq(expected_message_metadata.clone()))
         .returning(|_| Ok(()));
 
-    let mut mempool_wrapper =
-        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
+    let mock_config_manager = MockConfigManagerClient::new();
+
+    let mut mempool_wrapper = MempoolCommunicationWrapper::new(
+        mempool,
+        Arc::new(mock_mempool_p2p_propagator_client),
+        Arc::new(mock_config_manager),
+    );
 
     mempool_wrapper.add_tx(propagated_args).await.unwrap();
 }
@@ -1481,7 +1493,14 @@ async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
             "".to_string(),
         )))
     });
-    let mut mempool_wrapper = MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p));
+
+    let mock_config_manager = MockConfigManagerClient::new();
+
+    let mut mempool_wrapper = MempoolCommunicationWrapper::new(
+        mempool,
+        Arc::new(mock_p2p),
+        Arc::new(mock_config_manager),
+    );
 
     let result = mempool_wrapper.add_tx(tx_args_wrapper).await;
 
