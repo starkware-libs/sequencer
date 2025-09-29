@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
-use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
     AccountState,
@@ -528,6 +528,10 @@ impl Mempool {
             });
         }
         Ok(())
+    }
+
+    pub(crate) fn update_dynamic_config(&mut self, mempool_dynamic_config: MempoolDynamicConfig) {
+        self.config.dynamic_config = mempool_dynamic_config;
     }
 
     fn validate_commitment(&self, address: ContractAddress, next_nonce: Nonce) {

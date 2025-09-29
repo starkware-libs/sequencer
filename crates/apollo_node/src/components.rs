@@ -76,13 +76,13 @@ pub async fn create_node_components(
             let batcher_config =
                 config.batcher_config.as_ref().expect("Batcher config should be set");
             let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool Client should be available");
+                clients.get_mempool_shared_client().expect("Mempool client should be available");
             let l1_provider_client = clients
                 .get_l1_provider_shared_client()
-                .expect("L1 Provider Client should be available");
+                .expect("L1 Provider client should be available");
             let class_manager_client = clients
                 .get_class_manager_shared_client()
-                .expect("Class Manager Client should be available");
+                .expect("Class Manager client should be available");
             let pre_confirmed_cende_client = std::sync::Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.pre_confirmed_cende_config.clone(),
             ));
@@ -107,7 +107,7 @@ pub async fn create_node_components(
                 config.class_manager_config.as_ref().expect("Class Manager config should be set");
             let compiler_shared_client = clients
                 .get_sierra_compiler_shared_client()
-                .expect("Sierra Compiler Client should be available");
+                .expect("Sierra Compiler client should be available");
             Some(create_class_manager(class_manager_config.clone(), compiler_shared_client))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -137,7 +137,7 @@ pub async fn create_node_components(
                 ConfigManager::new(config_manager_config.clone(), NodeDynamicConfig::from(config));
             let config_manager_client = clients
                 .get_config_manager_shared_client()
-                .expect("Config Manager shared client should be available");
+                .expect("Config Manager client should be available");
             let config_manager_runner = ConfigManagerRunner::new(config_manager_client, cli_args);
             (Some(config_manger), Some(config_manager_runner))
         }
@@ -162,22 +162,22 @@ pub async fn create_node_components(
                 .as_ref()
                 .expect("Consensus Manager config should be set");
             let batcher_client =
-                clients.get_batcher_shared_client().expect("Batcher Client should be available");
+                clients.get_batcher_shared_client().expect("Batcher client should be available");
             let state_sync_client = clients
                 .get_state_sync_shared_client()
-                .expect("State Sync Client should be available");
+                .expect("State Sync client should be available");
             let class_manager_client = clients
                 .get_class_manager_shared_client()
-                .expect("Class Manager Client should be available");
+                .expect("Class Manager client should be available");
             let signature_manager_client = clients
                 .get_signature_manager_shared_client()
-                .expect("Signature Manager Client should be available");
+                .expect("Signature Manager client should be available");
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
-                .expect("L1 gas price shared client should be available");
+                .expect("L1 gas price client should be available");
             let config_manager_client = clients
                 .get_config_manager_shared_client()
-                .expect("Config Manager shared client should be available");
+                .expect("Config Manager client should be available");
             Some(ConsensusManager::new(
                 consensus_manager_config.clone(),
                 batcher_client,
@@ -199,13 +199,13 @@ pub async fn create_node_components(
             let gateway_config =
                 config.gateway_config.as_ref().expect("Gateway config should be set");
             let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool Client should be available");
+                clients.get_mempool_shared_client().expect("Mempool client should be available");
             let state_sync_client = clients
                 .get_state_sync_shared_client()
-                .expect("State Sync Client should be available");
+                .expect("State Sync client should be available");
             let class_manager_client = clients
                 .get_class_manager_shared_client()
-                .expect("Class Manager Client should be available");
+                .expect("Class Manager client should be available");
             Some(create_gateway(
                 gateway_config.clone(),
                 state_sync_client,
@@ -221,7 +221,7 @@ pub async fn create_node_components(
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
             let gateway_client =
-                clients.get_gateway_shared_client().expect("Gateway Client should be available");
+                clients.get_gateway_shared_client().expect("Gateway client should be available");
 
             Some(create_http_server(http_server_config.clone(), gateway_client))
         }
@@ -239,13 +239,13 @@ pub async fn create_node_components(
                     config.mempool_p2p_config.as_ref().expect("Mempool P2P config should be set");
                 let gateway_client = clients
                     .get_gateway_shared_client()
-                    .expect("Gateway Client should be available");
+                    .expect("Gateway client should be available");
                 let class_manager_client = clients
                     .get_class_manager_shared_client()
-                    .expect("Class Manager Client should be available");
+                    .expect("Class Manager client should be available");
                 let mempool_p2p_propagator_client = clients
                     .get_mempool_p2p_propagator_shared_client()
-                    .expect("Mempool P2p Propagator Client should be available");
+                    .expect("Mempool P2p Propagator client should be available");
                 let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
                     mempool_p2p_config.clone(),
                     gateway_client,
@@ -265,10 +265,17 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_config =
                 config.mempool_config.as_ref().expect("Mempool config should be set");
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
             let mempool_p2p_propagator_client = clients
                 .get_mempool_p2p_propagator_shared_client()
-                .expect("Propagator Client should be available");
-            let mempool = create_mempool(mempool_config.clone(), mempool_p2p_propagator_client);
+                .expect("Propagator client should be available");
+            let mempool = create_mempool(
+                mempool_config.clone(),
+                mempool_p2p_propagator_client,
+                config_manager_client,
+            );
             Some(mempool)
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -289,7 +296,7 @@ pub async fn create_node_components(
                 | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
                     clients
                         .get_mempool_shared_client()
-                        .expect("Mempool Client should be available"),
+                        .expect("Mempool client should be available"),
                 ),
                 ReactiveComponentExecutionMode::Disabled
                 | ReactiveComponentExecutionMode::Remote => None,
@@ -300,7 +307,7 @@ pub async fn create_node_components(
                 | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
                     clients
                         .get_l1_provider_shared_client()
-                        .expect("L1 Provider Client should be available"),
+                        .expect("L1 Provider client should be available"),
                 ),
                 ReactiveComponentExecutionMode::Disabled
                 | ReactiveComponentExecutionMode::Remote => None,
@@ -326,7 +333,7 @@ pub async fn create_node_components(
                 config.state_sync_config.as_ref().expect("State Sync config should be set");
             let class_manager_client = clients
                 .get_class_manager_shared_client()
-                .expect("Class Manager Client should be available");
+                .expect("Class Manager client should be available");
             let (state_sync, state_sync_runner) =
                 create_state_sync_and_runner(state_sync_config.clone(), class_manager_client);
             (Some(state_sync), Some(state_sync_runner))
