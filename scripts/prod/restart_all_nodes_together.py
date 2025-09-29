@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import sys
+from enum import Enum
 
 import urllib.error
 import urllib.request
@@ -14,6 +16,28 @@ from update_config_and_restart_nodes_lib import (
     print_error,
     update_config_and_restart_nodes,
 )
+
+
+class RestartStrategy(Enum):
+    """Strategy for restarting nodes."""
+
+    All_At_Once = 1
+    One_By_One = 2
+
+
+def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
+    """Convert string to RestartStrategy enum with informative error message"""
+    RESTART_STRATEGY_PREFIX = f"{RestartStrategy.__name__}."
+    if strategy_name.startswith(RESTART_STRATEGY_PREFIX):
+        strategy_name = strategy_name[len(RESTART_STRATEGY_PREFIX) :]
+
+    try:
+        return RestartStrategy[strategy_name]
+    except KeyError:
+        valid_strategies = ", ".join([strategy.name for strategy in RestartStrategy])
+        raise argparse.ArgumentTypeError(
+            f"Invalid restart strategy '{strategy_name}'. Valid options are: {valid_strategies}"
+        )
 
 
 def main():
@@ -54,6 +78,15 @@ Examples:
         required=True,
         type=str,
         help="The feeder URL to get the current block from",
+    )
+
+    args_builder.add_argument(
+        "-r",
+        "--restart-strategy",
+        type=restart_strategy_converter,
+        choices=list(RestartStrategy),
+        default=RestartStrategy.All_At_Once,
+        help="Strategy for restarting nodes (default: All_At_Once)",
     )
 
     args = args_builder.build()
