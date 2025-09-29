@@ -1088,6 +1088,7 @@ dependencies = [
  "apollo_config_manager_types",
  "apollo_consensus_config",
  "apollo_infra",
+ "apollo_mempool_config",
  "apollo_metrics",
  "apollo_node_config",
  "async-trait",
@@ -1113,6 +1114,7 @@ version = "0.16.0-rc.0"
 dependencies = [
  "apollo_consensus_config",
  "apollo_infra",
+ "apollo_mempool_config",
  "apollo_metrics",
  "apollo_node_config",
  "apollo_proc_macros",

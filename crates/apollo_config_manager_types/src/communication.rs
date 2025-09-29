@@ -4,6 +4,7 @@ use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_proc_macros::handle_all_response_variants;
@@ -31,6 +32,8 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
+    async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -45,6 +48,7 @@ pub trait ConfigManagerClient: Send + Sync {
 )]
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
+    GetMempoolDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -61,6 +65,7 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -85,6 +90,17 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig> {
+        let request = ConfigManagerRequest::GetMempoolDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetMempoolDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
