@@ -48,19 +48,7 @@ impl ConfigManagerRunner {
         &self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
         let config = load_and_validate_config(self.cli_args.clone())?;
-
-        // Extract consensus dynamic config from the loaded config
-        let consensus_manager_config = config
-            .consensus_manager_config
-            .as_ref()
-            .expect("consensus_manager_config must be present");
-
-        let node_dynamic_config = NodeDynamicConfig {
-            consensus_dynamic_config: Some(
-                consensus_manager_config.consensus_manager_config.dynamic_config.clone(),
-            ),
-        };
-
+        let node_dynamic_config = NodeDynamicConfig::from(&config);
         info!("Extracted NodeDynamicConfig: {:?}", node_dynamic_config);
 
         // TODO(Nadin/Tsabary): Store the last loaded config, compare for changes and only send the
