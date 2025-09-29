@@ -257,7 +257,7 @@ impl Mempool {
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             accounts_with_gap: AccountsWithGap::new(),
-            state: MempoolState::new(config.committed_nonce_retention_block_count),
+            state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
         }
     }
@@ -379,7 +379,7 @@ impl Mempool {
     }
 
     fn insert_to_tx_queue(&mut self, tx_reference: TransactionReference) {
-        self.tx_queue.insert(tx_reference, self.config.validate_resource_bounds);
+        self.tx_queue.insert(tx_reference, self.config.static_config.validate_resource_bounds);
     }
 
     fn add_tx_inner(&mut self, args: AddTransactionArgs) {
@@ -407,7 +407,7 @@ impl Mempool {
     fn add_ready_declares(&mut self) {
         let now = self.clock.now();
         while let Some((submission_time, _args)) = self.delayed_declares.front() {
-            if now - self.config.declare_delay < *submission_time {
+            if now - self.config.static_config.declare_delay < *submission_time {
                 break;
             }
             let (_submission_time, args) =
@@ -564,7 +564,7 @@ impl Mempool {
 
         self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
 
-        if !self.config.enable_fee_escalation {
+        if !self.config.static_config.enable_fee_escalation {
             if self.tx_pool.get_by_address_and_nonce(address, nonce).is_some() {
                 return Err(MempoolError::DuplicateNonce { address, nonce });
             };
@@ -612,7 +612,7 @@ impl Mempool {
     }
 
     fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
-        let percentage = u128::from(self.config.fee_escalation_percentage);
+        let percentage = u128::from(self.config.static_config.fee_escalation_percentage);
 
         // Note: To reduce precision loss, we first multiply by the percentage and then divide by
         // 100. This could cause an overflow and an automatic rejection of the transaction, but the
@@ -630,8 +630,9 @@ impl Mempool {
     }
 
     fn remove_expired_txs(&mut self) -> AddressToNonce {
-        let removed_txs =
-            self.tx_pool.remove_txs_older_than(self.config.transaction_ttl, &self.state.staged);
+        let removed_txs = self
+            .tx_pool
+            .remove_txs_older_than(self.config.dynamic_config.transaction_ttl, &self.state.staged);
         let queued_txs = self.tx_queue.remove_txs(&removed_txs);
 
         metric_count_expired_txs(removed_txs.len());
@@ -651,7 +652,7 @@ impl Mempool {
     ) -> (Vec<TransactionReference>, AddressToNonce) {
         // Divide the chunk into transactions that are old and no longer valid and those that
         // remain valid.
-        let submission_cutoff_time = self.clock.now() - self.config.transaction_ttl;
+        let submission_cutoff_time = self.clock.now() - self.config.dynamic_config.transaction_ttl;
         let (old_txs, valid_txs): (Vec<_>, Vec<_>) = txs.into_iter().partition(|tx| {
             let tx_submission_time = self
                 .tx_pool
@@ -695,7 +696,7 @@ impl Mempool {
 
     // Returns true if the mempool will exceeds its capacity by adding the given transaction.
     fn exceeds_capacity(&self, tx: &InternalRpcTransaction) -> bool {
-        self.size_in_bytes() + tx.total_bytes() > self.config.capacity_in_bytes
+        self.size_in_bytes() + tx.total_bytes() > self.config.static_config.capacity_in_bytes
     }
 
     fn update_accounts_with_gap(&mut self, address_to_nonce: AddressToNonce) {

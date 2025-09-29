@@ -34,7 +34,7 @@ use apollo_l1_gas_price_provider_config::config::{
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider_config::config::L1ProviderConfig;
 use apollo_l1_scraper_config::config::L1ScraperConfig;
-use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
@@ -664,9 +664,8 @@ pub fn create_batcher_config(
 
 pub fn create_mempool_config(validate_resource_bounds: bool) -> MempoolConfig {
     MempoolConfig {
-        transaction_ttl: Duration::from_secs(5 * 60),
-        validate_resource_bounds,
-        ..Default::default()
+        dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(5 * 60) },
+        static_config: MempoolStaticConfig { validate_resource_bounds, ..Default::default() },
     }
 }
 

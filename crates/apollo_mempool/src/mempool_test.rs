@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_infra::component_client::ClientError;
-use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClientError,
     MockMempoolP2pPropagatorClient,
@@ -87,7 +87,13 @@ struct MempoolTestContentBuilder {
 impl MempoolTestContentBuilder {
     fn new() -> Self {
         Self {
-            config: MempoolConfig { enable_fee_escalation: false, ..Default::default() },
+            config: MempoolConfig {
+                static_config: MempoolStaticConfig {
+                    enable_fee_escalation: false,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
             content: MempoolTestContent::default(),
             gas_price_threshold: GasPrice::default(),
         }
@@ -124,8 +130,11 @@ impl MempoolTestContentBuilder {
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
         self.config = MempoolConfig {
-            enable_fee_escalation: true,
-            fee_escalation_percentage,
+            static_config: MempoolStaticConfig {
+                enable_fee_escalation: true,
+                fee_escalation_percentage,
+                ..Default::default()
+            },
             ..Default::default()
         };
         self
@@ -146,7 +155,9 @@ impl MempoolTestContentBuilder {
                 self.gas_price_threshold,
             ),
             accounts_with_gap: AccountsWithGap::new(),
-            state: MempoolState::new(self.config.committed_nonce_retention_block_count),
+            state: MempoolState::new(
+                self.config.static_config.committed_nonce_retention_block_count,
+            ),
             clock: Arc::new(FakeClock::default()),
         }
     }
@@ -463,7 +474,7 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 #[rstest]
 fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstrap: bool) {
     let mut builder = MempoolTestContentBuilder::new();
-    builder.config.validate_resource_bounds = !allow_bootstrap;
+    builder.config.static_config.validate_resource_bounds = !allow_bootstrap;
     builder.gas_price_threshold = GasPrice(7);
     let mut mempool = builder.build_full_mempool();
 
@@ -624,7 +635,13 @@ fn add_tx_exceeds_capacity() {
     // Setup mempool capacity to the size of the transactions to add.
     let mempool_capacity = txs_to_add.iter().map(|tx| tx.tx.total_bytes()).sum();
     let mut mempool = Mempool::new(
-        MempoolConfig { capacity_in_bytes: mempool_capacity, ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: mempool_capacity,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
 
@@ -1053,7 +1070,10 @@ fn add_tx_old_transactions_cleanup() {
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
-        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
         fake_clock.clone(),
     );
 
@@ -1063,7 +1083,7 @@ fn add_tx_old_transactions_cleanup() {
     add_tx(&mut mempool, &first_tx);
 
     // Advance the clock and add another transaction.
-    fake_clock.advance(mempool.config.transaction_ttl / 2);
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2);
     let second_tx =
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 50);
     add_tx(&mut mempool, &second_tx);
@@ -1077,7 +1097,7 @@ fn add_tx_old_transactions_cleanup() {
     expected_mempool_content.assert_eq(&mempool.content());
 
     // Advance the clock and add a new transaction.
-    fake_clock.advance(mempool.config.transaction_ttl / 2 + Duration::from_secs(5));
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2 + Duration::from_secs(5));
     let third_tx =
         add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0, tip: 10);
     add_tx(&mut mempool, &third_tx);
@@ -1096,7 +1116,10 @@ fn get_txs_old_transactions_cleanup() {
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
-        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
         fake_clock.clone(),
     );
 
@@ -1106,7 +1129,7 @@ fn get_txs_old_transactions_cleanup() {
     add_tx(&mut mempool, &first_tx);
 
     // Advance the clock and add another transaction.
-    fake_clock.advance(mempool.config.transaction_ttl / 2);
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2);
 
     let second_tx =
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 50);
@@ -1122,7 +1145,7 @@ fn get_txs_old_transactions_cleanup() {
 
     // Advance the clock. Now only the second transaction should be returned from get_txs, and the
     // first should be removed.
-    fake_clock.advance(mempool.config.transaction_ttl / 2 + Duration::from_secs(5));
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2 + Duration::from_secs(5));
 
     assert_eq!(mempool.get_txs(2).unwrap(), vec![second_tx.tx.clone()]);
 
@@ -1189,7 +1212,7 @@ fn metrics_correctness() {
 
     // Add invoke_1 and advance the clock so that it will be expired.
     add_tx(&mut mempool, &invoke_1);
-    fake_clock.advance(mempool.config.transaction_ttl + Duration::from_secs(5));
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl + Duration::from_secs(5));
 
     add_tx(&mut mempool, &invoke_2);
     add_tx(&mut mempool, &invoke_3);
@@ -1211,7 +1234,7 @@ fn metrics_correctness() {
 
     // Advance the clock so that declare_1 will move to the pool and to the priority queue, and add
     // another declare tx, that would be delayed.
-    fake_clock.advance(mempool.config.declare_delay + Duration::from_secs(1));
+    fake_clock.advance(mempool.config.static_config.declare_delay + Duration::from_secs(1));
     add_tx(&mut mempool, &declare_2);
 
     // Request 1 transaction from the mempool, so that we have a staged transaction. (The staged
@@ -1223,12 +1246,13 @@ fn metrics_correctness() {
 
     // Set capacity to trigger eviction on next tx addition.
     let capacity = mempool.tx_pool.size_in_bytes();
-    mempool.config.capacity_in_bytes = capacity;
+    mempool.config.static_config.capacity_in_bytes = capacity;
     add_tx(&mut mempool, &invoke_8);
 
     // Add a long-delayed transaction to test time spent until committed.
     let invoke_9 = add_tx_input!(tx_hash: 10, address: "0x9", tx_nonce: 0, account_nonce: 0);
-    mempool.config.capacity_in_bytes = mempool.size_in_bytes() + invoke_9.tx.total_bytes();
+    mempool.config.static_config.capacity_in_bytes =
+        mempool.size_in_bytes() + invoke_9.tx.total_bytes();
     add_tx(&mut mempool, &invoke_9);
     fake_clock.advance(Duration::from_secs(20));
     commit_block(&mut mempool, [("0x9", 1)], []);
@@ -1268,7 +1292,10 @@ fn expired_staged_txs_are_not_deleted() {
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
-        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
         fake_clock.clone(),
     );
 
@@ -1282,7 +1309,7 @@ fn expired_staged_txs_are_not_deleted() {
     assert_eq!(mempool.get_txs(1).unwrap(), vec![staged_tx.tx.clone()]);
 
     // Advance the clock beyond the TTL.
-    fake_clock.advance(mempool.config.transaction_ttl + Duration::from_secs(5));
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl + Duration::from_secs(5));
 
     // Add another transaction to trigger the cleanup, and verify the staged tx is still in the
     // mempool. The non-staged tx should be removed.
@@ -1299,8 +1326,13 @@ fn delay_declare_txs() {
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let declare_delay = Duration::from_secs(5);
-    let mut mempool =
-        Mempool::new(MempoolConfig { declare_delay, ..Default::default() }, fake_clock.clone());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig { declare_delay, ..Default::default() },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
     let first_declare = declare_add_tx_input(
         declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
     );
@@ -1341,10 +1373,13 @@ fn no_delay_declare_front_run() {
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
         MempoolConfig {
-            declare_delay: Duration::from_secs(5),
-            // Always accept fee escalation to test only the delayed declare duplicate nonce.
-            enable_fee_escalation: true,
-            fee_escalation_percentage: 0,
+            static_config: MempoolStaticConfig {
+                declare_delay: Duration::from_secs(5),
+                // Always accept fee escalation to test only the delayed declare duplicate nonce.
+                enable_fee_escalation: true,
+                fee_escalation_percentage: 0,
+                ..Default::default()
+            },
             ..Default::default()
         },
         fake_clock.clone(),
@@ -1366,7 +1401,13 @@ fn no_delay_declare_front_run() {
 #[rstest]
 fn committed_account_nonce_cleanup() {
     let mut mempool = Mempool::new(
-        MempoolConfig { committed_nonce_retention_block_count: 2, ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                committed_nonce_retention_block_count: 2,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
 
@@ -1509,7 +1550,10 @@ fn gap_after_commit(
 fn gap_tracking_after_ttl_expiration_in_order(#[case] trigger_in_add_tx: bool) {
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
-        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
         fake_clock.clone(),
     );
 
@@ -1518,7 +1562,7 @@ fn gap_tracking_after_ttl_expiration_in_order(#[case] trigger_in_add_tx: bool) {
     add_tx(&mut mempool, &first_tx);
 
     // Add nonce 1 while nonce 0 is still valid.
-    fake_clock.advance(mempool.config.transaction_ttl / 2);
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2);
     let second_tx = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
     add_tx(&mut mempool, &second_tx);
 
@@ -1526,7 +1570,7 @@ fn gap_tracking_after_ttl_expiration_in_order(#[case] trigger_in_add_tx: bool) {
     assert!(!mempool.accounts_with_gap().contains(&first_tx.tx.contract_address()));
 
     // Expire nonce 0.
-    fake_clock.advance(mempool.config.transaction_ttl / 2 + Duration::from_secs(5));
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2 + Duration::from_secs(5));
 
     if trigger_in_add_tx {
         // Trigger cleanup via add_tx
@@ -1547,7 +1591,10 @@ fn gap_tracking_after_ttl_expiration_in_order(#[case] trigger_in_add_tx: bool) {
 fn account_remains_evictable_after_tx_expiry() {
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
-        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
         fake_clock.clone(),
     );
 
@@ -1556,13 +1603,13 @@ fn account_remains_evictable_after_tx_expiry() {
     assert!(mempool.accounts_with_gap().contains(&tx_nonce_2.tx.contract_address()));
 
     // Add nonce 1 while the rest are still valid.
-    fake_clock.advance(mempool.config.transaction_ttl / 2);
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2);
     let tx_nonce_1 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
     add_tx(&mut mempool, &tx_nonce_1);
     assert!(mempool.accounts_with_gap().contains(&tx_nonce_2.tx.contract_address()));
 
     // Expire tx with nonce 2 and not tx 1.
-    fake_clock.advance(mempool.config.transaction_ttl / 2 + Duration::from_secs(5));
+    fake_clock.advance(mempool.config.dynamic_config.transaction_ttl / 2 + Duration::from_secs(5));
 
     // Trigger cleanup.
     let trigger_tx = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
@@ -1577,9 +1624,11 @@ fn delayed_declare_does_not_create_gap() {
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
         MempoolConfig {
-            transaction_ttl: Duration::from_secs(1000),
-            declare_delay: Duration::from_secs(10),
-            ..Default::default()
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(1000) },
+            static_config: MempoolStaticConfig {
+                declare_delay: Duration::from_secs(10),
+                ..Default::default()
+            },
         },
         fake_clock.clone(),
     );
@@ -1600,7 +1649,13 @@ fn delayed_declare_does_not_create_gap() {
 #[rstest]
 fn declare_tx_closes_a_gap() {
     let mut mempool = Mempool::new(
-        MempoolConfig { declare_delay: Duration::from_secs(100), ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                declare_delay: Duration::from_secs(100),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
 
@@ -1627,7 +1682,10 @@ fn returns_error_when_no_evictable_accounts() {
 
     let mut mempool = Mempool::new(
         MempoolConfig {
-            capacity_in_bytes: not_evictable_tx.tx.total_bytes(),
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: not_evictable_tx.tx.total_bytes(),
+                ..Default::default()
+            },
             ..Default::default()
         },
         Arc::new(FakeClock::default()),
@@ -1646,7 +1704,13 @@ fn returns_error_when_no_evictable_accounts() {
 fn rejects_tx_that_creates_or_follows_gap_when_mempool_is_full(#[case] addr: &str) {
     let tx1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
     let mut mempool = Mempool::new(
-        MempoolConfig { capacity_in_bytes: tx1.tx.total_bytes(), ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: tx1.tx.total_bytes(),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
 
@@ -1661,7 +1725,13 @@ fn accepts_tx_that_closes_gap() {
     // Insert a transaction that creates a gap and fills the Mempool.
     let tx_creating_gap = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
     let mut mempool = Mempool::new(
-        MempoolConfig { capacity_in_bytes: tx_creating_gap.tx.total_bytes(), ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: tx_creating_gap.tx.total_bytes(),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
     add_tx(&mut mempool, &tx_creating_gap);
@@ -1683,7 +1753,13 @@ fn accepts_tx_for_active_account_without_gap() {
     // Set Mempool capacity to fit only two transactions.
     let capacity = evictable_tx.tx.total_bytes() + initial_tx.tx.total_bytes();
     let mut mempool = Mempool::new(
-        MempoolConfig { capacity_in_bytes: capacity, ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: capacity,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
 
@@ -1719,7 +1795,13 @@ fn rejects_or_accepts_tx_based_on_freed_space(
 
     let capacity = tx1.tx.total_bytes() + tx2.tx.total_bytes();
     let mut mempool = Mempool::new(
-        MempoolConfig { capacity_in_bytes: capacity, ..Default::default() },
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: capacity,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         Arc::new(FakeClock::default()),
     );
 
