@@ -15,7 +15,6 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
-    CURRENT_BLOCK_NUMBER,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
@@ -146,12 +145,12 @@ async fn declare_deploy_scenario(
         InvokeTransaction::create(deploy_contract_tx, &CHAIN_ID_FOR_TESTS).unwrap();
     test_manager.add_invoke_tx(deploy_contract_tx);
     test_manager.divide_transactions_into_n_blocks(n_blocks);
-    let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(
-            initial_block_number,
-            &TestParameters { use_kzg_da, full_output, ..Default::default() },
-        )
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            ..Default::default()
+        })
         .await;
 
     let partial_state_diff = StateDiff {
@@ -226,12 +225,12 @@ async fn trivial_diff_scenario(
     test_manager.add_invoke_tx(revert_value_tx);
 
     // Execute the test.
-    let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(
-            initial_block_number,
-            &TestParameters { use_kzg_da, full_output, ..Default::default() },
-        )
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            ..Default::default()
+        })
         .await;
 
     // Explicitly check the test contract has no storage update.
