@@ -93,6 +93,9 @@ pub struct ContextConfig {
     pub proposal_buffer_size: usize,
     /// The number of validators.
     pub num_validators: u64,
+    /// Optional explicit set of validator IDs (contract addresses) to use.
+    /// If provided, this overrides `num_validators`.
+    pub validator_ids: Option<Vec<ContractAddress>>,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
@@ -132,7 +135,7 @@ pub struct ContextConfig {
 
 impl SerializeConfig for ContextConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut config = BTreeMap::from_iter([
             ser_param(
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
@@ -227,7 +230,15 @@ impl SerializeConfig for ContextConfig {
                 "If true, sets STRK gas price to its minimum price from the versioned constants.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        config.extend(ser_optional_param(
+            &self.validator_ids,
+            Default::default(),
+            "validator_ids",
+            "Optional explicit set of validator IDs.",
+            ParamPrivacyInput::Public,
+        ));
+        config
     }
 }
 
@@ -236,6 +247,7 @@ impl Default for ContextConfig {
         Self {
             proposal_buffer_size: 100,
             num_validators: 1,
+            validator_ids: None,
             chain_id: ChainId::Mainnet,
             block_timestamp_window_seconds: 1,
             l1_da_mode: true,
