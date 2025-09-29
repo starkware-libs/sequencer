@@ -4,6 +4,7 @@ use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
+use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use tracing::{info, instrument};
@@ -37,6 +38,10 @@ impl ConfigManager {
     ) -> ConfigManagerResult<ConsensusDynamicConfig> {
         Ok(self.latest_node_dynamic_config.consensus_dynamic_config.as_ref().unwrap().clone())
     }
+
+    pub(crate) fn get_mempool_dynamic_config(&self) -> ConfigManagerResult<MempoolDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.mempool_dynamic_config.as_ref().unwrap().clone())
+    }
 }
 
 pub type LocalConfigManagerServer =
@@ -55,6 +60,9 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                 ConfigManagerResponse::GetConsensusDynamicConfig(
                     self.get_consensus_dynamic_config(),
                 )
+            }
+            ConfigManagerRequest::GetMempoolDynamicConfig => {
+                ConfigManagerResponse::GetMempoolDynamicConfig(self.get_mempool_dynamic_config())
             }
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
                 ConfigManagerResponse::SetNodeDynamicConfig(
