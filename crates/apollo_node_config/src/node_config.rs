@@ -289,7 +289,19 @@ impl Default for SequencerNodeConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct NodeDynamicConfig {
     #[validate]
-    pub consensus_dynamic_config: ConsensusDynamicConfig,
+    pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
+}
+
+impl From<&SequencerNodeConfig> for NodeDynamicConfig {
+    fn from(sequencer_node_config: &SequencerNodeConfig) -> Self {
+        // TODO(Nadin/Tsabary): consider creating a macro for this.
+        let consensus_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
+            |consensus_manager_config| {
+                consensus_manager_config.consensus_manager_config.dynamic_config.clone()
+            },
+        );
+        Self { consensus_dynamic_config }
+    }
 }
 
 macro_rules! validate_component_config_is_set_iff_running_locally {
