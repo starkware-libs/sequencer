@@ -218,6 +218,7 @@ define_string_enum! {
         (NewStateEntry),
         (NKeys),
         (Node),
+        (NPublicKeys),
         (NotOnCurve),
         (OldBlockHash),
         (OldBlockNumber),

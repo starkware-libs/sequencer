@@ -15,18 +15,18 @@ from starkware.cairo.common.alloc import alloc
 
 // Validates that the private keys are within the range [1, StarkCurve.ORDER - 1] as required by
 // the Diffie-Hellman elliptic curve encryption scheme.
-func validate_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*) {
+func validate_sn_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*) {
     if (n_keys == 0) {
         return ();
     }
     assert_not_zero(sn_private_keys[0]);
     assert_le_felt(sn_private_keys[0], StarkCurve.ORDER - 1);
 
-    return validate_private_keys(n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1);
+    return validate_sn_private_keys(n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1]);
 }
 
 // Computes the public keys from the private keys by multiplying by the EC group generator.
-func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
+func output_sn_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
     n_keys: felt, sn_private_keys: felt*
 ) {
     if (n_keys == 0) {
@@ -37,10 +37,10 @@ func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst
     );
     assert encrypted_dst[0] = sn_public_key.x;
     let encrypted_dst = &encrypted_dst[1];
-    return compute_public_keys(n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1]);
+    return output_sn_public_keys(n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1]);
 }
 
-func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
+func output_encrypted_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_dst: felt*}(
     n_keys: felt, public_keys: felt*, sn_private_keys: felt*, symmetric_key: felt
 ) {
     if (n_keys == 0) {
@@ -53,13 +53,12 @@ func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_d
 
     let (__fp__, _) = get_fp_and_pc();
     let (local shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
-    // TODO(Avi, 10/9/2025): Switch to naive encoding once the function is available.
     let (hash) = calc_blake_hash(data_len=1, data=&shared_secret.x);
 
     assert encrypted_dst[0] = symmetric_key + hash;
     let encrypted_dst = &encrypted_dst[1];
 
-    return encrypt_symmetric_key(
+    return output_encrypted_symmetric_key(
         n_keys=n_keys - 1,
         public_keys=&public_keys[1],
         sn_private_keys=&sn_private_keys[1],

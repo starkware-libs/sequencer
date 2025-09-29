@@ -185,7 +185,7 @@ fn test_compute_public_keys_function(#[case] private_keys: &[Felt]) {
         ImplicitArg::Builtin(BuiltinName::ec_op),
     ];
 
-    let entrypoint = "starkware.starknet.core.os.encrypt.compute_public_keys";
+    let entrypoint = "starkware.starknet.core.os.encrypt.output_sn_public_keys";
 
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
@@ -273,7 +273,7 @@ fn test_symmetric_key_encryption_function(#[case] private_keys: &[Felt]) {
         ImplicitArg::Builtin(BuiltinName::ec_op),
     ];
 
-    let entrypoint = "starkware.starknet.core.os.encrypt.encrypt_symmetric_key";
+    let entrypoint = "starkware.starknet.core.os.encrypt.output_encrypted_symmetric_key";
 
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
