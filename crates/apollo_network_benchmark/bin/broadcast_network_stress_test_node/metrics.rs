@@ -1,0 +1,326 @@
+use std::collections::HashMap;
+use std::fs;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::LossyIntoF64;
+use apollo_network::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    LatencyMetrics,
+    NetworkMetrics,
+    SqmrNetworkMetrics,
+    EVENT_TYPE_LABELS,
+    NETWORK_BROADCAST_DROP_LABELS,
+};
+use libp2p::gossipsub::{Sha256Topic, Topic};
+use libp2p::PeerId;
+use sysinfo::{Networks, System};
+use tokio::time::interval;
+use tracing::warn;
+
+use crate::converters::StressTestMessage;
+use crate::message_index_detector::MessageIndexTracker;
+
+lazy_static::lazy_static! {
+    pub static ref TOPIC: Sha256Topic = Topic::new("stress_test_topic".to_string());
+}
+
+define_metrics!(
+    Infra => {
+        MetricGauge { BROADCAST_MESSAGE_HEARTBEAT_MILLIS, "broadcast_message_theoretical_heartbeat_millis", "The number of ms we sleep between each two consecutive broadcasts" },
+        MetricGauge { BROADCAST_MESSAGE_THROUGHPUT, "broadcast_message_theoretical_throughput", "Throughput in bytes/second of the broadcasted " },
+        MetricGauge { BROADCAST_MESSAGE_BYTES, "broadcast_message_bytes", "Size of the stress test sent message in bytes" },
+        MetricCounter { BROADCAST_MESSAGE_COUNT, "broadcast_message_count", "Number of stress test messages sent via broadcast", init = 0 },
+        MetricCounter { BROADCAST_MESSAGE_BYTES_SUM, "broadcast_message_bytes_sum", "Sum of the stress test messages sent via broadcast", init = 0 },
+        MetricHistogram { BROADCAST_MESSAGE_SEND_DELAY_SECONDS, "broadcast_message_send_delay_seconds", "Message sending delay in seconds" },
+
+        MetricGauge { RECEIVE_MESSAGE_BYTES, "receive_message_bytes", "Size of the stress test received message in bytes" },
+        MetricGauge { RECEIVE_MESSAGE_PENDING_COUNT, "receive_message_pending_count", "Number of stress test messages pending to be received" },
+        MetricCounter { RECEIVE_MESSAGE_COUNT, "receive_message_count", "Number of stress test messages received via broadcast", init = 0 },
+        MetricCounter { RECEIVE_MESSAGE_BYTES_SUM, "receive_message_bytes_sum", "Sum of the stress test messages received via broadcast", init = 0 },
+        MetricHistogram { RECEIVE_MESSAGE_DELAY_SECONDS, "receive_message_delay_seconds", "Message delay in seconds" },
+        MetricHistogram { RECEIVE_MESSAGE_NEGATIVE_DELAY_SECONDS, "receive_message_negative_delay_seconds", "Negative message delay in seconds" },
+
+        MetricGauge { NETWORK_CONNECTED_PEERS, "network_connected_peers", "Number of connected peers in the network" },
+        MetricGauge { NETWORK_BLACKLISTED_PEERS, "network_blacklisted_peers", "Number of blacklisted peers in the network" },
+        MetricGauge { NETWORK_ACTIVE_INBOUND_SESSIONS, "network_active_inbound_sessions", "Number of active inbound SQMR sessions" },
+        MetricGauge { NETWORK_ACTIVE_OUTBOUND_SESSIONS, "network_active_outbound_sessions", "Number of active outbound SQMR sessions" },
+        MetricCounter { NETWORK_STRESS_TEST_SENT_MESSAGES, "network_stress_test_sent_messages", "Number of stress test messages sent via broadcast", init = 0 },
+        MetricCounter { NETWORK_STRESS_TEST_RECEIVED_MESSAGES, "network_stress_test_received_messages", "Number of stress test messages received via broadcast", init = 0 },
+
+        MetricGauge { SYSTEM_PROCESS_CPU_USAGE_PERCENT, "system_process_cpu_usage_percent", "CPU usage percentage of the current process" },
+        MetricGauge { SYSTEM_PROCESS_MEMORY_USAGE_BYTES, "system_process_memory_usage_bytes", "Memory usage in bytes of the current process" },
+        MetricGauge { SYSTEM_PROCESS_VIRTUAL_MEMORY_USAGE_BYTES, "system_process_virtual_memory_usage_bytes", "Virtual memory usage in bytes of the current process" },
+        MetricGauge { SYSTEM_NETWORK_BYTES_SENT_TOTAL, "system_network_bytes_sent_total", "Total bytes sent across all network interfaces since system start" },
+        MetricGauge { SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL, "system_network_bytes_received_total", "Total bytes received across all network interfaces since system start" },
+        MetricGauge { SYSTEM_NETWORK_BYTES_SENT_CURRENT, "system_network_bytes_sent_current", "Bytes sent across all network interfaces since last measurement" },
+        MetricGauge { SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT, "system_network_bytes_received_current", "Bytes received across all network interfaces since last measurement" },
+        MetricGauge { SYSTEM_TOTAL_MEMORY_BYTES, "system_total_memory_bytes", "Total system memory in bytes" },
+        MetricGauge { SYSTEM_AVAILABLE_MEMORY_BYTES, "system_available_memory_bytes", "Available system memory in bytes" },
+        MetricGauge { SYSTEM_USED_MEMORY_BYTES, "system_used_memory_bytes", "Used system memory in bytes" },
+        MetricGauge { SYSTEM_CPU_COUNT, "system_cpu_count", "Number of logical CPU cores in the system" },
+        MetricGauge { SYSTEM_TCP_RETRANSMIT_RATE_PERCENT, "system_tcp_retransmit_rate_percent", "TCP retransmission rate as a percentage of segments sent (proxy for packet loss)" },
+        MetricGauge { SYSTEM_TCP_SEGMENTS_OUT, "system_tcp_segments_out", "Total TCP segments sent by the system" },
+        MetricGauge { SYSTEM_TCP_SEGMENTS_RETRANS, "system_tcp_segments_retrans", "Total TCP segments retransmitted by the system" },
+
+        MetricCounter { NETWORK_RESET_TOTAL, "network_reset_total", "Total number of network resets performed", init = 0 },
+        LabeledMetricCounter { NETWORK_DROPPED_BROADCAST_MESSAGES, "network_dropped_broadcast_messages", "Number of dropped broadcast messages by reason", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
+        LabeledMetricCounter { NETWORK_EVENT_COUNTER, "network_event_counter", "Network events counter by type", init = 0, labels = EVENT_TYPE_LABELS },
+
+        MetricHistogram { PING_LATENCY_SECONDS, "ping_latency_seconds", "Ping latency in seconds" },
+    },
+);
+
+pub fn update_broadcast_metrics(message_size_bytes: usize, broadcast_heartbeat: Duration) {
+    BROADCAST_MESSAGE_HEARTBEAT_MILLIS.set(broadcast_heartbeat.as_millis().into_f64());
+    BROADCAST_MESSAGE_THROUGHPUT.set(get_throughput(message_size_bytes, broadcast_heartbeat));
+}
+
+pub fn receive_stress_test_message(
+    received_message: Vec<u8>,
+    sender_peer_id: Option<PeerId>,
+    message_index_tracker: Arc<Mutex<HashMap<PeerId, MessageIndexTracker>>>,
+) {
+    let end_time = SystemTime::now();
+
+    let received_message: StressTestMessage = received_message.into();
+    let start_time = received_message.metadata.time;
+    let delay_seconds = match end_time.duration_since(start_time) {
+        Ok(duration) => duration.as_secs_f64(),
+        Err(_) => {
+            let negative_duration = start_time.duration_since(end_time).unwrap();
+            -negative_duration.as_secs_f64()
+        }
+    };
+
+    // Use apollo_metrics for all metrics including labeled ones
+    RECEIVE_MESSAGE_BYTES.set(received_message.len().into_f64());
+    RECEIVE_MESSAGE_COUNT.increment(1);
+    RECEIVE_MESSAGE_BYTES_SUM.increment(
+        u64::try_from(received_message.len()).expect("Message length too large for u64"),
+    );
+
+    // Use apollo_metrics histograms for latency measurements
+    if delay_seconds.is_sign_positive() {
+        RECEIVE_MESSAGE_DELAY_SECONDS.record(delay_seconds);
+    } else {
+        RECEIVE_MESSAGE_NEGATIVE_DELAY_SECONDS.record(-delay_seconds);
+    }
+
+    let pending = {
+        let mut lock = message_index_tracker.lock().unwrap();
+        let tracker = lock.entry(sender_peer_id.unwrap()).or_default();
+        tracker.seen_message(received_message.metadata.message_index);
+        let mut pending = 0;
+        for (_, tracker) in lock.iter() {
+            pending += tracker.pending_messages_count();
+        }
+        pending
+    };
+    RECEIVE_MESSAGE_PENDING_COUNT.set(pending.into_f64());
+}
+
+pub fn seconds_since_epoch() -> u64 {
+    let now = SystemTime::now();
+    now.duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
+
+/// Calculates the throughput given the message and how much to sleep between each two consecutive
+/// broadcasts
+pub fn get_throughput(message_size_bytes: usize, heartbeat_duration: Duration) -> f64 {
+    let tps = Duration::from_secs(1).as_secs_f64() / heartbeat_duration.as_secs_f64();
+    tps * message_size_bytes.into_f64()
+}
+
+/// Creates comprehensive network metrics for monitoring the stress test network performance.
+/// Uses the lazy static metrics defined above.
+pub fn create_network_metrics() -> NetworkMetrics {
+    // Create broadcast metrics for the stress test topic
+    let stress_test_broadcast_metrics = BroadcastNetworkMetrics {
+        num_sent_broadcast_messages: NETWORK_STRESS_TEST_SENT_MESSAGES,
+        num_dropped_broadcast_messages: NETWORK_DROPPED_BROADCAST_MESSAGES,
+        num_received_broadcast_messages: NETWORK_STRESS_TEST_RECEIVED_MESSAGES,
+    };
+
+    // Create a map with broadcast metrics for our stress test topic
+    let mut broadcast_metrics_by_topic = HashMap::new();
+    broadcast_metrics_by_topic.insert(TOPIC.hash(), stress_test_broadcast_metrics);
+
+    // Create SQMR metrics for session monitoring
+    let sqmr_metrics = SqmrNetworkMetrics {
+        num_active_inbound_sessions: NETWORK_ACTIVE_INBOUND_SESSIONS,
+        num_active_outbound_sessions: NETWORK_ACTIVE_OUTBOUND_SESSIONS,
+    };
+
+    // Create event metrics for network events monitoring
+    let event_metrics = EventMetrics { event_counter: NETWORK_EVENT_COUNTER };
+
+    // Create latency metrics for ping monitoring
+    let latency_metrics = LatencyMetrics { ping_latency_seconds: PING_LATENCY_SECONDS };
+
+    NetworkMetrics {
+        num_connected_peers: NETWORK_CONNECTED_PEERS,
+        num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
+        broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
+        sqmr_metrics: Some(sqmr_metrics),
+        event_metrics: Some(event_metrics),
+        latency_metrics: Some(latency_metrics),
+    }
+}
+
+/// Reads TCP statistics from /proc/net/snmp on Linux systems
+/// Returns (segments_out, retransmitted_segments) if successful
+fn get_tcp_stats() -> Option<(u64, u64)> {
+    let content = match fs::read_to_string("/proc/net/snmp") {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("Failed to read /proc/net/snmp: {}", e);
+            return None;
+        }
+    };
+
+    // Parse Tcp statistics
+    // Format is two lines: Tcp: <keys>\nTcp: <values>
+    let lines: Vec<&str> = content.lines().collect();
+    for i in 0..lines.len().saturating_sub(1) {
+        if lines[i].starts_with("Tcp:") && lines[i + 1].starts_with("Tcp:") {
+            let keys: Vec<&str> = lines[i].split_whitespace().skip(1).collect();
+            let values: Vec<&str> = lines[i + 1].split_whitespace().skip(1).collect();
+
+            let mut out_segs = None;
+            let mut retrans_segs = None;
+
+            for (key, val) in keys.iter().zip(values.iter()) {
+                match *key {
+                    "OutSegs" => out_segs = val.parse().ok(),
+                    "RetransSegs" => retrans_segs = val.parse().ok(),
+                    _ => {}
+                }
+            }
+
+            if out_segs.is_none() || retrans_segs.is_none() {
+                warn!(
+                    "Could not find OutSegs or RetransSegs in /proc/net/snmp. Found keys: {:?}",
+                    keys
+                );
+            }
+
+            return Some((out_segs?, retrans_segs?));
+        }
+    }
+
+    warn!("Could not find Tcp: section in /proc/net/snmp");
+    None
+}
+
+pub async fn monitor_process_metrics(interval_seconds: u64) {
+    let mut interval = interval(Duration::from_secs(interval_seconds));
+    let current_pid = sysinfo::get_current_pid().expect("Failed to get current process PID");
+
+    // Initialize networks for network interface monitoring
+    let mut networks = Networks::new_with_refreshed_list();
+
+    // Initialize empty system for CPU monitoring - we'll refresh only what we need
+    let mut system = System::new_all();
+
+    // Initialize TCP stats tracking for delta calculations
+    let mut prev_tcp_out_segs: Option<u64> = None;
+    let mut prev_tcp_retrans_segs: Option<u64> = None;
+
+    loop {
+        interval.tick().await;
+
+        // Refresh only the specific data we need
+        // system.refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
+        // system.refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage());
+        // system.refresh_processes_specifics(
+        //     ProcessesToUpdate::Some(&[current_pid]),
+        //     false,
+        //     ProcessRefreshKind::everything(),
+        // );
+        // system.refresh_specifics(
+        //     RefreshKind::new()
+        //         .with_cpu(CpuRefreshKind::everything())
+        //         .with_memory(MemoryRefreshKind::everything())
+        //         .with_processes(ProcessRefreshKind::new().spe),
+        // );
+        system.refresh_all();
+        let total_memory: f64 = system.total_memory().into_f64();
+        let available_memory: f64 = system.available_memory().into_f64();
+        let used_memory: f64 = system.used_memory().into_f64();
+        let cpu_count: f64 = system.cpus().len().into_f64();
+        // let load_avg: f64 = system.load_average().one.into_f64();
+
+        SYSTEM_TOTAL_MEMORY_BYTES.set(total_memory);
+        SYSTEM_AVAILABLE_MEMORY_BYTES.set(available_memory);
+        SYSTEM_USED_MEMORY_BYTES.set(used_memory);
+        SYSTEM_CPU_COUNT.set(cpu_count);
+
+        if let Some(process) = system.process(current_pid) {
+            let cpu_usage: f64 = process.cpu_usage().into();
+            let memory_usage: f64 = process.memory().into_f64();
+            let virtual_memory_usage: f64 = process.virtual_memory().into_f64();
+
+            SYSTEM_PROCESS_CPU_USAGE_PERCENT.set(cpu_usage);
+            SYSTEM_PROCESS_MEMORY_USAGE_BYTES.set(memory_usage);
+            SYSTEM_PROCESS_VIRTUAL_MEMORY_USAGE_BYTES.set(virtual_memory_usage);
+        } else {
+            warn!("Could not find process information for PID: {}", current_pid);
+        }
+
+        // Refresh network statistics and collect metrics
+        networks.refresh(false);
+
+        let mut total_bytes_sent: u64 = 0;
+        let mut total_bytes_received: u64 = 0;
+        let mut current_bytes_sent: u64 = 0;
+        let mut current_bytes_received: u64 = 0;
+
+        for (interface_name, data) in &networks {
+            // Skip virtual interfaces used for traffic control and loopback to avoid
+            // double-counting
+            if interface_name == "lo" || interface_name.starts_with("ifb") {
+                continue;
+            }
+
+            total_bytes_sent += data.total_transmitted();
+            total_bytes_received += data.total_received();
+            current_bytes_sent += data.transmitted();
+            current_bytes_received += data.received();
+        }
+
+        SYSTEM_NETWORK_BYTES_SENT_TOTAL.set(total_bytes_sent.into_f64());
+        SYSTEM_NETWORK_BYTES_RECEIVED_TOTAL.set(total_bytes_received.into_f64());
+        SYSTEM_NETWORK_BYTES_SENT_CURRENT.set(current_bytes_sent.into_f64());
+        SYSTEM_NETWORK_BYTES_RECEIVED_CURRENT.set(current_bytes_received.into_f64());
+
+        // Collect TCP statistics and calculate retransmit rate
+        if let Some((curr_out_segs, curr_retrans_segs)) = get_tcp_stats() {
+            // Update total counters
+            SYSTEM_TCP_SEGMENTS_OUT.set(curr_out_segs.into_f64());
+            SYSTEM_TCP_SEGMENTS_RETRANS.set(curr_retrans_segs.into_f64());
+
+            // Calculate retransmit rate based on delta since last measurement
+            if let (Some(prev_out), Some(prev_retrans)) = (prev_tcp_out_segs, prev_tcp_retrans_segs)
+            {
+                let delta_out = curr_out_segs.saturating_sub(prev_out);
+                let delta_retrans = curr_retrans_segs.saturating_sub(prev_retrans);
+
+                let retransmit_rate_percent = if delta_out > 0 {
+                    (delta_retrans as f64 / delta_out as f64) * 100.0
+                } else {
+                    0.0
+                };
+
+                SYSTEM_TCP_RETRANSMIT_RATE_PERCENT.set(retransmit_rate_percent);
+            }
+
+            // Update previous values for next iteration
+            prev_tcp_out_segs = Some(curr_out_segs);
+            prev_tcp_retrans_segs = Some(curr_retrans_segs);
+        }
+        // Note: get_tcp_stats() logs detailed warnings on failure
+    }
+}
