@@ -8,6 +8,8 @@ import urllib.request
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Service,
+    get_context_list_from_args,
+    get_namespace_list_from_args,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -18,20 +20,28 @@ def main():
     usage_example = """
 Examples:
   # Restart all nodes to at the next block after current feeder block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --feeder.integration-sepolia.starknet.io
-  %(prog)s -n apollo-sepolia-integration -N 3 -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --feeder_url feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io
   
   # Restart nodes with cluster prefix
-  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -f feeder.integration-sepolia.starknet.io
   
   # Update configuration without restarting nodes
-  %(prog)s -n apollo-sepolia-integration -N 3 -f feeder.integration-sepolia.starknet.io --no-restart
+  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io --no-restart
   
   # Restart nodes starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -s 5 -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 -f feeder.integration-sepolia.starknet.io
   
   # Use different feeder URL
-  %(prog)s -n apollo-sepolia-integration -N 3 -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io
+  
+  # Use namespace list instead of prefix (restart specific namespaces)
+  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-2 -f feeder.integration-sepolia.starknet.io
+  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-2 -f feeder.integration-sepolia.starknet.io
+  
+  # Use cluster list for multiple clusters (only works with namespace-list, not namespace-prefix)
+  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-1 -C cluster1 cluster2 -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-1 --cluster-list cluster1 cluster2 -f feeder.integration-sepolia.starknet.io
         """
 
     args_builder = ApolloArgsParserBuilder(
@@ -80,11 +90,9 @@ Examples:
 
     update_config_and_restart_nodes(
         config_overrides,
-        args.namespace,
-        args.num_nodes,
-        args.start_index,
+        get_namespace_list_from_args(args),
         Service.Core,
-        args.cluster,
+        get_context_list_from_args(args),
         not args.no_restart,
     )
 
