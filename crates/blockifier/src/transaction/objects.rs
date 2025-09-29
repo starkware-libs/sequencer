@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, FeeType};
@@ -28,6 +30,7 @@ use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
+use crate::state::cached_state::StorageEntry;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use crate::utils::add_maps;
 
@@ -225,6 +228,14 @@ impl TransactionExecutionInfo {
             // For other transactions, the order is `validate`, `execute`, `fee_transfer`.
             validate_call_info.chain(execute_call_info).chain(fee_transfer_call_info)
         }
+    }
+
+    pub fn get_accessed_storage_entries(&self) -> HashSet<StorageEntry> {
+        let mut storage_entries: HashSet<StorageEntry> = HashSet::new();
+        for call_info in self.non_optional_call_infos() {
+            storage_entries.extend(call_info.get_storage_entries());
+        }
+        storage_entries
     }
 
     fn is_deploy_account(&self) -> bool {
