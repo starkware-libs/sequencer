@@ -223,10 +223,10 @@ func hash_entry_points{hash_state: HashState, range_check_ptr: felt}(
     entry_points: CompiledClassEntryPoint*, n_entry_points: felt
 ) {
     let inner_hash_state = hash_init();
-    hash_entry_points_inner{hash_state=inner_hash_state, range_check_ptr=range_check_ptr}(
+    hash_entry_points_inner{hash_state=inner_hash_state}(
         entry_points=entry_points, n_entry_points=n_entry_points
     );
-    let hash: felt = hash_finalize{range_check_ptr=range_check_ptr}(hash_state=inner_hash_state);
+    let hash: felt = hash_finalize(hash_state=inner_hash_state);
     hash_update_single(item=hash);
 
     return ();
@@ -243,7 +243,7 @@ func hash_entry_points_inner{hash_state: HashState, range_check_ptr: felt}(
     hash_update_single(item=entry_points.offset);
 
     // Hash builtins.
-    hash_update_with_nested_hash{hash_state=hash_state, range_check_ptr=range_check_ptr}(
+    hash_update_with_nested_hash(
         data_ptr=entry_points.builtin_list, data_length=entry_points.n_builtins
     );
 
