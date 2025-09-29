@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from enum import Enum
@@ -371,6 +372,16 @@ def ask_for_confirmation() -> bool:
     return response == "y"
 
 
+def wait_until_y_or_n(question: str) -> bool:
+    """Wait until user enters y or n. Cotinues asking until user enters y or n."""
+    while True:
+        response = input(f"{Colors.BLUE.value}{question} (y/n){Colors.RESET.value}").strip().lower()
+        if response == "y" or response == "n":
+            break
+        print_error(f"Invalid response: {response}")
+    return response == "y"
+
+
 def apply_configmap(
     config_content: str,
     namespace: str,
@@ -423,7 +434,7 @@ def restart_pod(
         kubectl_args.extend(get_namespace_args(namespace, cluster))
 
         try:
-            run_kubectl_command(kubectl_args, capture_output=False)
+            # run_kubectl_command(kubectl_args, capture_output=False)
             print_colored(f"Restarted {pod} for node {index}")
         except Exception as e:
             print_error(f"Failed restarting {pod} for node {index}: {e}")
@@ -436,9 +447,28 @@ def update_config_and_restart_nodes(
     service: Service,
     cluster_list: Optional[list[str]] = None,
     restart_nodes: bool = True,
+    # TODO(guy.f): Remove this once we have metrics we use to decide based on.
+    wait_between_restarts: bool = False,
+    logs_explorer_urls: Optional[list[str]] = None,
 ) -> None:
     assert config_overrides is not None, "config_overrides must be provided"
     assert namespace_list is not None and len(namespace_list) > 0, "namespaces must be provided"
+
+    # Assert logs_explorer_urls is the same size as namespace_list if it's not None
+    if logs_explorer_urls is not None:
+        assert len(logs_explorer_urls) == len(
+            namespace_list
+        ), f"logs_explorer_urls must have the same length as namespace_list. logs_explorer_urls: {len(logs_explorer_urls)}, namespace_list: {len(namespace_list)}"
+
+    # Assert logs_explorer_urls is None iff wait_between_restarts is True
+    if wait_between_restarts:
+        assert (
+            logs_explorer_urls is not None
+        ), "logs_explorer_urls must be provided when wait_between_restarts is True"
+    else:
+        assert (
+            logs_explorer_urls is None
+        ), "logs_explorer_urls must be None when wait_between_restarts is False"
 
     if not cluster_list:
         print_colored(
@@ -492,6 +522,15 @@ def update_config_and_restart_nodes(
             restart_pod(
                 namespace_list[index], service, index, cluster_list[index] if cluster_list else None
             )
+            if wait_between_restarts:
+                logs_url = logs_explorer_urls[index]
+                print_colored(f"Restarted pod.\nYou can check logs at: {logs_url}. ", Colors.YELLOW)
+                # Don't ask for the last one
+                if index != len(configs) - 1 and not wait_until_y_or_n(
+                    f"Do you want to restart the next pod?."
+                ):
+                    print_colored("\nAborting restart process.")
+                    return
         print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
     else:
         print_colored("\nSkipping pod restart (--no-restart was specified)")
