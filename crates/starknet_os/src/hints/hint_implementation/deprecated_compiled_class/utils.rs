@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use cairo_vm::serde::deserialize_program::deserialize_array_of_bigint_hex;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -18,7 +19,11 @@ use crate::vm_utils::{
     VmUtilsResult,
 };
 
-pub(crate) const DEPRECATED_COMPILED_CLASS_VERSION: Felt = Felt::ZERO;
+pub(crate) static DEPRECATED_COMPILED_CLASS_VERSION: LazyLock<Felt> = LazyLock::new(|| {
+    Const::DeprecatedCompiledClassVersion
+        .fetch_from_os_program()
+        .expect("Deprecated compiled class version not found in the program.")
+});
 
 impl<IG: IdentifierGetter> CairoSized<IG> for ContractClass {
     fn cairo_struct() -> CairoStruct {
