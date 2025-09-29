@@ -196,11 +196,12 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     previous_commitment: &CommitmentOutput,
     new_commitment: &CommitmentOutput,
     commitments: &mut MapStorage,
-    extended_state_diff: &StateMaps,
+    state_diff: &StateMaps,
+    execution_outputs: &[TransactionExecutionOutput],
 ) -> (CachedStateInput, CommitmentInfos) {
-    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
+    let os_state_selector = get_os_state_selector(execution_outputs);
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
-        extended_state_diff.get_contract_addresses().into_iter(),
+        os_state_selector.contract_addresses.iter(),
         previous_commitment.contracts_trie_root_hash,
         new_commitment.contracts_trie_root_hash,
         commitments,
@@ -216,10 +217,11 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     }
 
     // Get previous class leaves.
-    let mut class_leaf_indices: Vec<NodeIndex> = extended_state_diff
-        .compiled_class_hashes
-        .keys()
-        .chain(extended_state_diff.declared_contracts.keys())
+    let mut class_leaf_indices: Vec<NodeIndex> = os_state_selector
+        .class_hashes
+        .iter()
+        .chain(state_diff.declared_contracts.keys())
+        .chain(state_diff.compiled_class_hashes.keys())
         .map(|address| NodeIndex::from_leaf_felt(&address.0))
         .collect();
 
@@ -242,14 +244,10 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
         .collect();
 
     let mut storage = HashMap::new();
-    for address in extended_state_diff.get_contract_addresses() {
-        let mut storage_keys_indices: Vec<NodeIndex> = extended_state_diff
-            .storage
-            .keys()
-            .filter_map(|(add, key)| {
-                if add == &address { Some(NodeIndex::from_leaf_felt(&key.0)) } else { None }
-            })
-            .collect();
+    let storage_entries = get_accessed_storage_entries_by_contract(execution_outputs, state_diff);
+    for (address, keys) in storage_entries.into_iter() {
+        let mut storage_keys_indices: Vec<NodeIndex> =
+            keys.iter().map(|key| NodeIndex::from_leaf_felt(&key.0)).collect();
         let sorted_leaf_indices = SortedLeafIndices::new(&mut storage_keys_indices);
         let previous_storage_leaves: HashMap<NodeIndex, StarknetStorageValue> =
             OriginalSkeletonTreeImpl::get_leaves(
@@ -307,8 +305,8 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     )
 }
 
-pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = ContractAddress>>(
-    contract_addresses: I,
+pub(crate) fn get_previous_states_and_new_storage_roots<'a>(
+    contract_addresses: impl Iterator<Item = &'a ContractAddress>,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
     commitments: &mut MapStorage,

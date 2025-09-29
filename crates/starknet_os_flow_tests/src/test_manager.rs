@@ -436,7 +436,7 @@ impl<S: FlowTestState> TestManager<S> {
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
                 execute_transactions(state, &block_txs, block_context);
-            let extended_state_diff = final_state.cache.borrow().extended_state_diff();
+            let execution_state_diff = final_state.cache.borrow().to_state_diff().state_maps;
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap();
             state = final_state.state;
@@ -459,7 +459,8 @@ impl<S: FlowTestState> TestManager<S> {
                     &previous_commitment,
                     &new_commitment,
                     &mut map_storage,
-                    &extended_state_diff,
+                    &execution_state_diff,
+                    &execution_outputs,
                 );
             let tx_execution_infos = execution_outputs
                 .into_iter()
