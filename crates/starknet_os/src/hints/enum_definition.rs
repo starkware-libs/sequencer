@@ -596,7 +596,7 @@ vm_enter_scope(dict(
     (
         SegmentsAddTemp,
         segments_add_temp,
-        indoc! {r#"memory[fp + 8] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(segments.add_temp_segment())"#
         }
     ),
     (
@@ -1115,7 +1115,7 @@ define_hint_enum!(
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 23] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
+        indoc! {r#"memory[fp + 24] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
     not os_hints_config.full_output
 ))"#}
     ),
@@ -1618,7 +1618,7 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 24] = to_felt_or_relocatable(os_hints_config.full_output)"#}
+        indoc! {r#"memory[fp + 25] = to_felt_or_relocatable(os_hints_config.full_output)"#}
     ),
     (
         ConfigureKzgManager,

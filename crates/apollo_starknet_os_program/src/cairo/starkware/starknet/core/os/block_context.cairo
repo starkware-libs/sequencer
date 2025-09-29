@@ -43,7 +43,7 @@ struct BlockContext {
     // Some of the fields, which cannot be used in validate mode, are zeroed out.
     block_info_for_validate: BlockInfo*,
     // StarknetOsConfig instance.
-    starknet_os_config: StarknetOsConfig,
+    starknet_os_config: StarknetOsConfig*,
     // A function pointer to the 'execute_syscalls' function.
     execute_syscalls_ptr: felt*,
     // A function pointer to the 'execute_deprecated_syscalls' function.
@@ -58,6 +58,7 @@ func get_block_context{range_check_ptr}(
     execute_deprecated_syscalls_ptr: felt*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
     public_keys_hash: felt,
+    starknet_os_config: StarknetOsConfig*,
 ) -> (block_context: BlockContext*) {
     alloc_locals;
     let (builtin_params) = get_builtin_params();
@@ -85,11 +86,7 @@ func get_block_context{range_check_ptr}(
             block_timestamp=block_timestamp_for_validate,
             sequencer_address=0,
         ),
-        starknet_os_config=StarknetOsConfig(
-            chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
-            fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
-            public_keys_hash=public_keys_hash,
-        ),
+        starknet_os_config=starknet_os_config,
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
     );
