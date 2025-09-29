@@ -214,6 +214,16 @@
     "privacy": "Public",
     "value": 10000
   },
+  "context.validator_ids": {
+    "description": "Optional explicit set of validator IDs (comma separated).",
+    "privacy": "Public",
+    "value": ""
+  },
+  "context.validator_ids.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
     "pointer_target": "collect_metrics",

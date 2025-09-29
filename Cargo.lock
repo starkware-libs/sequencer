@@ -1079,6 +1079,8 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_json",
+ "starknet-types-core",
+ "starknet_api",
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
