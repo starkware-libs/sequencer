@@ -186,6 +186,23 @@ Examples:
             args.restart_strategy,
         )
 
+    # Using kubectl read the logs for all the nodes and find lines containing "crates/apollo_reverts/src/lib.rs" and print them.
+    kubectl_args = [
+        "get",
+        "pods",
+        "-o",
+        "name",
+    ]
+    pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
+    for pod in pods:
+        kubectl_args = [
+            "logs",
+            pod,
+        ]
+        logs = run_kubectl_command(kubectl_args, capture_output=True).stdout
+        if "crates/apollo_reverts/src/lib.rs" in logs:
+            print(logs)
+
 
 if __name__ == "__main__":
     main()

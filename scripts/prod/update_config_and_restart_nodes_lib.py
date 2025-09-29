@@ -471,10 +471,8 @@ def apply_configmap(
             sys.exit(1)
 
 
-def restart_pod(
-    namespace: str, service: Service, index: int, cluster: Optional[str] = None
-) -> None:
-    """Restart pod by deleting it"""
+def get_pod_name(namespace: str, service: Service, cluster: Optional[str] = None) -> list[str]:
+    """Get the list of pod names for a given service in a namespace"""
     # Get the list of pods (one string per line).
     kubectl_args = [
         "get",
@@ -491,6 +489,16 @@ def restart_pod(
         print_error(f"Could not find pods for service {service.pod_name}.")
         sys.exit(1)
 
+    return pods
+
+
+def restart_pod(
+    namespace: str, service: Service, index: int, cluster: Optional[str] = None
+) -> None:
+    """Restart pod by deleting it"""
+    # Get the pod names for this service
+    pods = get_pod_name(namespace, service, cluster)
+
     # Go over each pod and delete it.
     for pod in pods:
         kubectl_args = [
@@ -506,6 +514,19 @@ def restart_pod(
         except Exception as e:
             print_error(f"Failed restarting {pod} for node {index}: {e}")
             sys.exit(1)
+
+
+def get_logs(namespace: str, cluster: Optional[str] = None) -> str:
+    # Get the pod names for this service
+    pods = get_pod_name(namespace, service, cluster)
+
+    # Get the logs for each pod with -f in parallel.
+    with ThreadPoolExecutor(max_workers=len(pods)) as executor:
+        futures = [
+            executor.submit(run_kubectl_command, kubectl_args, capture_output=True) for pod in pods
+        ]
+        for future in futures:
+            print(future.result().stdout)
 
 
 def update_config_and_restart_nodes(
