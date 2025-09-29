@@ -42,6 +42,7 @@ strum_macros.workspace = true
 sysinfo.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
 tokio-retry.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

@@ -1,0 +1,11 @@
+# does not build, only copies the binary and entrypoint.sh from the local machine
+FROM ubuntu:24.04
+
+RUN apt update && apt -y install iproute2 kmod chrony && apt clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=tmp broadcast_network_stress_test_node /usr/local/bin/broadcast_network_stress_test_node
+COPY ./crates/apollo_network/src/bin/broadcast_network_stress_test_node/run/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use apollo_metrics::define_metrics;
@@ -12,11 +13,13 @@ use apollo_network::network_manager::metrics::{
     NETWORK_BROADCAST_DROP_LABELS,
 };
 use libp2p::gossipsub::{Sha256Topic, Topic};
+use libp2p::PeerId;
 use sysinfo::{Networks, System};
 use tokio::time::interval;
 use tracing::warn;
 
 use crate::converters::StressTestMessage;
+use crate::message_index_detector::MessageIndexTracker;
 
 lazy_static::lazy_static! {
     pub static ref TOPIC: Sha256Topic = Topic::new("stress_test_topic".to_string());
@@ -32,6 +35,7 @@ define_metrics!(
         MetricHistogram { BROADCAST_MESSAGE_SEND_DELAY_SECONDS, "broadcast_message_send_delay_seconds", "Message sending delay in seconds" },
 
         MetricGauge { RECEIVE_MESSAGE_BYTES, "receive_message_bytes", "Size of the stress test received message in bytes" },
+        MetricGauge { RECEIVE_MESSAGE_PENDING_COUNT, "receive_message_pending_count", "Number of stress test messages pending to be received" },
         MetricCounter { RECEIVE_MESSAGE_COUNT, "receive_message_count", "Number of stress test messages received via broadcast", init = 0 },
         MetricCounter { RECEIVE_MESSAGE_BYTES_SUM, "receive_message_bytes_sum", "Sum of the stress test messages received via broadcast", init = 0 },
         MetricHistogram { RECEIVE_MESSAGE_DELAY_SECONDS, "receive_message_delay_seconds", "Message delay in seconds" },
@@ -67,7 +71,11 @@ pub fn update_broadcast_metrics(message_size_bytes: usize, broadcast_heartbeat: 
     BROADCAST_MESSAGE_THROUGHPUT.set(get_throughput(message_size_bytes, broadcast_heartbeat));
 }
 
-pub fn receive_stress_test_message(received_message: Vec<u8>) {
+pub fn receive_stress_test_message(
+    received_message: Vec<u8>,
+    sender_peer_id: Option<PeerId>,
+    message_index_tracker: Arc<Mutex<HashMap<PeerId, MessageIndexTracker>>>,
+) {
     let end_time = SystemTime::now();
 
     let received_message: StressTestMessage = received_message.into();
@@ -93,6 +101,18 @@ pub fn receive_stress_test_message(received_message: Vec<u8>) {
     } else {
         RECEIVE_MESSAGE_NEGATIVE_DELAY_SECONDS.record(-delay_seconds);
     }
+
+    let pending = {
+        let mut lock = message_index_tracker.lock().unwrap();
+        let tracker = lock.entry(sender_peer_id.unwrap()).or_default();
+        tracker.seen_message(received_message.metadata.message_index);
+        let mut pending = 0;
+        for (_, tracker) in lock.iter() {
+            pending += tracker.pending_messages_count();
+        }
+        pending
+    };
+    RECEIVE_MESSAGE_PENDING_COUNT.set(pending.into_f64());
 }
 
 pub fn seconds_since_epoch() -> u64 {
