@@ -188,13 +188,16 @@ impl SequencerConsensusContext {
         } else {
             L1DataAvailabilityMode::Calldata
         };
+        let validators = if let Some(ids) = config.validator_ids.clone() {
+            ids.into_iter().collect()
+        } else {
+            (0..num_validators).map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i)).collect()
+        };
         Self {
             config,
             deps,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
-            validators: (0..num_validators)
-                .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
-                .collect(),
+            validators,
             valid_proposals: Arc::new(Mutex::new(BuiltProposals::new())),
             proposal_id: 0,
             current_height: None,
