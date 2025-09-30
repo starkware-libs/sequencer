@@ -49,13 +49,16 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
     /// of an external HTTP call.
     async fn ensure_operational(&self) -> Result<(), MonitoredBaseLayerError<B>> {
         let active_l1_endpoint = self.monitor.get_active_l1_endpoint().await;
-        let current_node_url = self.current_node_url.read().await;
+        let current_node_url;
+        {
+            current_node_url = self.current_node_url.read().await.clone();
+        } // Drop the read lock
         match active_l1_endpoint {
-            Ok(new_node_url) if new_node_url != *current_node_url => {
+            Ok(new_node_url) if new_node_url != current_node_url => {
                 info!(
                     "L1 endpoint {} is no longer operational, switching to new operational L1 \
                      endpoint: {}",
-                    to_safe_string(&Url::parse(current_node_url.as_ref()).unwrap()),
+                    to_safe_string(&current_node_url),
                     to_safe_string(&new_node_url)
                 );
 
