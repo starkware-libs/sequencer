@@ -12231,6 +12231,7 @@ dependencies = [
 name = "starknet_committer"
 version = "0.0.0"
 dependencies = [
+ "csv",
  "ethnum",
  "hex",
  "pretty_assertions",
