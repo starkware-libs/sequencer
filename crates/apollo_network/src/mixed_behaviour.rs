@@ -1,6 +1,7 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
 use std::convert::Infallible;
+use std::time::Duration;
 
 use apollo_propeller::metrics::PropellerMetrics;
 use apollo_propeller::{self as propeller};
@@ -88,6 +89,57 @@ impl MixedBehaviour {
         let kademlia_config = kad::Config::new(protocol_name);
         let connection_limits = ConnectionLimits::default(); // .with_max_established_per_peer(Some(1));
 
+        let gossipsub_config = gossipsub::ConfigBuilder::default()
+            .max_transmit_size(1 << 34)
+            .flood_publish(false)
+            .heartbeat_interval(Duration::from_millis(700))
+            // .validation_mode(ValidationMode::None)
+            .message_id_fn(|message| {
+                let mut source_string = message.source.as_ref().map(|id| id.to_bytes()).unwrap_or_default();
+                source_string
+                    .extend_from_slice(&message.sequence_number.unwrap_or_default().to_be_bytes());
+                source_string.extend_from_slice(&message.data[0..16]);
+                gossipsub::MessageId::from(source_string)
+            })
+
+            
+            // .max_messages_per_rpc(Some(1))
+            .history_length(5)
+
+            // .connection_handler_queue_len(50_000) 
+
+            .mesh_n(10)          // Target mesh peers
+            .mesh_n_low(10)       // Minimum before adding (default: 5)
+            .mesh_n_high(10)     // Maximum before pruning (default
+            // .publish_queue_duration(Duration::from_millis(500))  // default: 5s
+            // .forward_queue_duration(Duration::from_millis(100))  // default: 1s
+    
+
+            // .heartbeat_interval(Duration::from_millis(200))
+            // Set gossip_lazy to 0 - minimum number of peers to gossip to
+            .gossip_lazy(0)
+
+            // Set gossip_factor to 0.0 - factor for dynamic gossip peer selection
+            .gossip_factor(0.0)
+
+            // Set history_gossip to 0 - number of past heartbeats to gossip about
+            .history_gossip(0)
+
+            // Optional: Set max_ihave_length to 0 - maximum IHAVE message IDs per message
+            .max_ihave_length(0)
+
+            // Optional: Set max_ihave_messages to 0 - maximum IHAVE messages per heartbeat
+            .max_ihave_messages(0)
+
+            // Optional: Set gossip_retransmission to 0 - disable IWANT retries
+            .gossip_retransimission(0)
+            
+            // Enable IDONTWANT optimization
+            // .idontwant_message_size_threshold(1000)  // Adjust based on your message sizes
+            .idontwant_on_publish(true)              // Prevent echo-back on publish
+   
+            .build()
+            .expect("Failed to build gossipsub config");
         Self {
             limits: connection_limits::Behaviour::new(connection_limits),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
@@ -128,12 +180,8 @@ impl MixedBehaviour {
             ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
             gossipsub: gossipsub::Behaviour::new(
-                gossipsub::MessageAuthenticity::Signed(keypair.clone()),
-                gossipsub::ConfigBuilder::default()
-                    // TODO(shahak): try to reduce this bound.
-                    .max_transmit_size(1 << 34)
-                    .build()
-                    .expect("Failed to build gossipsub config"),
+        gossipsub::MessageAuthenticity::Signed(keypair.clone()),
+                gossipsub_config,
             )
             .unwrap_or_else(|err_string| {
                 panic!(
