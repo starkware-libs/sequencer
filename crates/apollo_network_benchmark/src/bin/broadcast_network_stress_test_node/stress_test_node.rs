@@ -91,7 +91,9 @@ impl BroadcastNetworkStressTestNode {
             &mut network_manager,
             args.user.buffer_size,
             &args.user.network_protocol,
-        );
+            &args.runner.bootstrap,
+        )
+        .await;
 
         // Setup explore configuration if needed
         let explore_config = Self::setup_explore_config(&args);
@@ -128,7 +130,9 @@ impl BroadcastNetworkStressTestNode {
             &mut network_manager,
             self.args.user.buffer_size,
             &self.args.user.network_protocol,
-        );
+            &self.args.runner.bootstrap,
+        )
+        .await;
 
         info!("Recreated Network Manager");
 
