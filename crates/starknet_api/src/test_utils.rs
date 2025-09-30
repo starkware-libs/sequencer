@@ -22,6 +22,7 @@ use crate::block::{
 use crate::contract_address;
 use crate::contract_class::{ContractClass, SierraVersion};
 use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use crate::transaction::fields::Fee;
@@ -192,6 +193,11 @@ impl BlockInfo {
 pub trait TestingTxArgs {
     fn get_rpc_tx(&self) -> RpcTransaction;
     fn get_internal_tx(&self) -> InternalRpcTransaction;
+    /// Returns the executable transaction for the transaction.
+    /// Note: In the declare transaction, `class_info` is constructed using a default compiled
+    /// contract class, so if the test requires a specific contract class this function
+    /// shouldn't be used.
+    fn get_executable_tx(&self) -> AccountTransaction;
 }
 
 impl ContractClass {

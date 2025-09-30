@@ -192,4 +192,8 @@ impl TestingTxArgs for DeployAccountTxArgs {
     fn get_internal_tx(&self) -> InternalRpcTransaction {
         internal_deploy_account_tx(self.clone())
     }
+
+    fn get_executable_tx(&self) -> AccountTransaction {
+        executable_deploy_account_tx(self.clone())
+    }
 }

@@ -964,14 +964,20 @@ dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
  "apollo_proc_macros",
+ "assert_matches",
  "async-trait",
+ "blockifier",
+ "mempool_test_utils",
  "mockall",
+ "rstest",
  "serde",
  "serde_json",
+ "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]

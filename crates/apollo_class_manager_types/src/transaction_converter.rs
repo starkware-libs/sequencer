@@ -27,7 +27,11 @@ use thiserror::Error;
 
 use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
 
-#[derive(Error, Debug, Clone)]
+#[cfg(test)]
+#[path = "transaction_converter_test.rs"]
+pub mod transaction_converter_test;
+
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum TransactionConverterError {
     #[error(transparent)]
     ClassManagerClientError(#[from] ClassManagerClientError),

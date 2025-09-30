@@ -14,7 +14,7 @@ use apollo_infra::component_definitions::{
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
-#[cfg(feature = "testing")]
+#[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
@@ -50,7 +50,7 @@ pub struct ClassHashes {
 /// Serves as the class manager's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
-#[cfg_attr(feature = "testing", automock)]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait ClassManagerClient: Send + Sync {
     async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes>;
@@ -130,7 +130,7 @@ impl From<serde_json::Error> for ClassManagerError {
     }
 }
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum ClassManagerClientError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
