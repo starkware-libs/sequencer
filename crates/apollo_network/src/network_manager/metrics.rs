@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use apollo_metrics::generate_permutation_labels;
 use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
+use apollo_propeller::metrics::PropellerMetrics;
 use libp2p::gossipsub::{PublishError, TopicHash};
 use strum::{IntoStaticStr, VariantNames};
 use strum_macros::EnumVariantNames;
@@ -132,6 +133,7 @@ pub struct NetworkMetrics {
     pub broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
     pub event_metrics: Option<EventMetrics>,
+    pub propeller_metrics: Option<PropellerMetrics>,
 }
 
 impl NetworkMetrics {
@@ -150,6 +152,9 @@ impl NetworkMetrics {
         }
         if let Some(event_metrics) = self.event_metrics.as_ref() {
             event_metrics.register();
+        }
+        if let Some(propeller_metrics) = self.propeller_metrics.as_ref() {
+            propeller_metrics.register();
         }
     }
 }

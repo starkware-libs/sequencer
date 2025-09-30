@@ -41,7 +41,7 @@ def add_shared_args_to_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--network-protocol",
         help="The network protocol to use for communication.",
-        choices=["gossipsub", "sqmr", "reversed-sqmr"],
+        choices=["gossipsub", "sqmr", "reversed-sqmr", "propeller"],
         default="gossipsub",
     )
     parser.add_argument(
