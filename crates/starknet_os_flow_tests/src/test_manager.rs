@@ -22,6 +22,7 @@ use starknet_api::executable_transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
+    L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -352,6 +353,11 @@ impl<S: FlowTestState> TestManager<S> {
         self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
             StarknetApiTransaction::Account(AccountTransaction::DeployAccount(tx)),
         ));
+    }
+
+    pub(crate) fn add_l1_handler_tx(&mut self, tx: L1HandlerTransaction) {
+        self.last_block_txs_mut()
+            .push(BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)));
     }
 
     /// Executes the test using default block contexts, starting from the given block number.
