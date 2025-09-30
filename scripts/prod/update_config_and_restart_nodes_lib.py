@@ -371,6 +371,16 @@ def ask_for_confirmation() -> bool:
     return response == "y"
 
 
+def wait_until_y_or_n(question: str) -> bool:
+    """Wait until user enters y or n. Cotinues asking until user enters y or n."""
+    while True:
+        response = input(f"{Colors.BLUE.value}{question} (y/n){Colors.RESET.value}").strip().lower()
+        if response == "y" or response == "n":
+            break
+        print_error(f"Invalid response: {response}")
+    return response == "y"
+
+
 def apply_configmap(
     config_content: str,
     namespace: str,
@@ -436,9 +446,26 @@ def update_config_and_restart_nodes(
     service: Service,
     cluster_list: Optional[list[str]] = None,
     restart_nodes: bool = True,
+    # TODO(guy.f): Remove this once we have metrics we use to decide based on.
+    wait_between_restarts: bool = False,
+    post_restart_instructions: Optional[list[str]] = None,
 ) -> None:
     assert config_overrides is not None, "config_overrides must be provided"
     assert namespace_list is not None and len(namespace_list) > 0, "namespaces must be provided"
+
+    if post_restart_instructions is not None:
+        assert len(post_restart_instructions) == len(
+            namespace_list
+        ), f"logs_explorer_urls must have the same length as namespace_list. logs_explorer_urls: {len(post_restart_instructions)}, namespace_list: {len(namespace_list)}"
+
+    if wait_between_restarts:
+        assert (
+            post_restart_instructions is not None
+        ), "logs_explorer_urls must be provided when wait_between_restarts is True"
+    else:
+        assert (
+            post_restart_instructions is None
+        ), "logs_explorer_urls must be None when wait_between_restarts is False"
 
     if not cluster_list:
         print_colored(
@@ -492,6 +519,15 @@ def update_config_and_restart_nodes(
             restart_pod(
                 namespace_list[index], service, index, cluster_list[index] if cluster_list else None
             )
+            if wait_between_restarts:
+                instructions = post_restart_instructions[index]
+                print_colored(f"Restarted pod.\n{instructions}. ", Colors.YELLOW)
+                # Don't ask in the case of the last job.
+                if index != len(configs) - 1 and not wait_until_y_or_n(
+                    f"Do you want to restart the next pod?"
+                ):
+                    print_colored("\nAborting restart process.")
+                    return
         print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
     else:
         print_colored("\nSkipping pod restart (--no-restart was specified)")
