@@ -70,6 +70,16 @@ func other_syscalls{syscall_ptr: felt*}() {
     return ();
 }
 
+@l1_handler
+func l1_handler_set_value_and_revert{syscall_ptr: felt*}(
+    from_address: felt, key: felt, value: felt
+) {
+    storage_write(address=key, value=value);
+    assert 0 = 1;
+    return ();
+}
+
+
 @external
 func bitwise_and{bitwise_ptr: BitwiseBuiltin*}(x: felt, y: felt) {
     bitwise_ptr.x = x;
