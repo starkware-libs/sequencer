@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Any, Optional
 
 import tempfile
+import urllib.parse
 import yaml
 from difflib import unified_diff
 
@@ -209,6 +210,23 @@ def get_context_list_from_args(
         f"{args.cluster_prefix}-{i}"
         for i in range(args.start_index, args.start_index + args.num_nodes)
     ]
+
+
+def get_logs_explorer_url(
+    query: str,
+    project_name: Optional[str] = None,
+) -> str:
+    # We need to double escape '(' and ')', so first we replace only them with their escaped versions.
+    query = query.replace("(", urllib.parse.quote("(")).replace(")", urllib.parse.quote(")"))
+
+    # Now "normal" escape everything else
+    query = urllib.parse.quote(query)
+
+    escaped_project_name = urllib.parse.quote(project_name)
+    return (
+        f"https://console.cloud.google.com/logs/query;query={query}"
+        f"?project={escaped_project_name}"
+    )
 
 
 def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.CompletedProcess:
