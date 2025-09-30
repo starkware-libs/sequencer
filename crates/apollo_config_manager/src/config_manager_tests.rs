@@ -11,8 +11,10 @@ async fn test_config_manager_update_config() {
     let config = ConfigManagerConfig::default();
 
     let consensus_dynamic_config = ConsensusDynamicConfig::default();
-    let node_dynamic_config =
-        NodeDynamicConfig { consensus_dynamic_config: Some(consensus_dynamic_config) };
+    let node_dynamic_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(consensus_dynamic_config),
+        ..Default::default()
+    };
     let mut config_manager = ConfigManager::new(config, node_dynamic_config.clone());
 
     // Get the consensus dynamic config and assert it is the expected one.
@@ -38,6 +40,7 @@ async fn test_config_manager_update_config() {
     config_manager
         .set_node_dynamic_config(NodeDynamicConfig {
             consensus_dynamic_config: Some(new_consensus_dynamic_config.clone()),
+            ..Default::default()
         })
         .expect("Failed to set node dynamic config");
 
