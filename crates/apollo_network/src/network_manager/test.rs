@@ -122,6 +122,7 @@ impl MockSwarm {
     }
 }
 
+#[async_trait::async_trait]
 impl SwarmTrait for MockSwarm {
     fn send_response(
         &mut self,
@@ -206,6 +207,17 @@ impl SwarmTrait for MockSwarm {
 
     // TODO(shahak): Add test for continue propagation.
     fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
+        unimplemented!()
+    }
+
+    async fn set_propeller_peers(
+        &mut self,
+        _peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), apollo_propeller::PeerSetError> {
+        Ok(())
+    }
+
+    async fn propeller_broadcast(&mut self, _message: Bytes) {
         unimplemented!()
     }
 }
