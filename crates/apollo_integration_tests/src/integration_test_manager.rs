@@ -98,7 +98,6 @@ const ALLOW_BOOTSTRAP_TXS: bool = false;
 pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
     batcher_index: usize,
-    http_server_index: usize,
     state_sync_index: usize,
     consensus_manager_index: usize,
 
@@ -116,10 +115,8 @@ impl NodeSetup {
     pub fn new(
         executables: Vec<ExecutableSetup>,
         batcher_index: usize,
-        http_server_index: usize,
         state_sync_index: usize,
         consensus_manager_index: usize,
-        add_tx_http_client: HttpTestClient,
         storage_handles: StorageTestHandles,
     ) -> Self {
         let len = executables.len();
@@ -132,14 +129,16 @@ impl NodeSetup {
         }
 
         validate_index(batcher_index, len, "Batcher");
-        validate_index(http_server_index, len, "HTTP server");
         validate_index(state_sync_index, len, "State sync");
         validate_index(consensus_manager_index, len, "Consensus manager");
+
+        let http_server_config = get_http_server_config(&executables);
+        let HttpServerConfig { ip, port } = http_server_config;
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(ip, port));
 
         Self {
             executables,
             batcher_index,
-            http_server_index,
             state_sync_index,
             consensus_manager_index,
             add_tx_http_client,
@@ -181,19 +180,20 @@ impl NodeSetup {
     }
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
+        let http_server_config = self.get_http_server_config();
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.as_ref().expect("Should have http server config").port,
+            HTTP_PORT_ARG: http_server_config.port,
             MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
         serialize_to_file(json_data, path);
     }
 
-    pub fn get_batcher_index(&self) -> usize {
-        self.batcher_index
+    fn get_http_server_config(&self) -> HttpServerConfig {
+        get_http_server_config(&self.executables)
     }
 
-    pub fn get_http_server_index(&self) -> usize {
-        self.http_server_index
+    pub fn get_batcher_index(&self) -> usize {
+        self.batcher_index
     }
 
     pub fn get_state_sync_index(&self) -> usize {
@@ -247,6 +247,17 @@ impl RunningNode {
             }
         }
     }
+}
+
+fn get_http_server_config(executables: &Vec<ExecutableSetup>) -> HttpServerConfig {
+    // TODO(Tsabary): the pattern of iterating over executables to find the relevant config
+    // should be unified and improved, throughout.
+    for executable_setup in executables {
+        if let Some(config) = &executable_setup.base_app_config.get_config().http_server_config {
+            return config.clone();
+        }
+    }
+    unreachable!("No executable with a set base layer config.");
 }
 
 pub struct IntegrationTestManager {
@@ -931,7 +942,6 @@ async fn get_sequencer_setup_configs(
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
-        let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
         let class_manager_index = node_component_config.get_class_manager_index();
         let consensus_manager_index = node_component_config.get_consensus_manager_index();
@@ -1002,22 +1012,11 @@ async fn get_sequencer_setup_configs(
             );
         }
 
-        let http_server_config = executables[http_server_index]
-            .base_app_config
-            .get_config()
-            .http_server_config
-            .as_ref()
-            .expect("Http server config should be set for this executable.");
-        let HttpServerConfig { ip, port } = http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
-
         nodes.push(NodeSetup::new(
             executables,
             batcher_index,
-            http_server_index,
             state_sync_index,
             consensus_manager_index,
-            add_tx_http_client,
             storage_setup.storage_handles,
         ));
     }
