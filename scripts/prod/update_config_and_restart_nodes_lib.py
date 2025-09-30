@@ -8,7 +8,9 @@ from enum import Enum
 from typing import Any, Optional
 
 import tempfile
+import urllib.error
 import urllib.parse
+import urllib.request
 import yaml
 from difflib import unified_diff
 
@@ -91,18 +93,13 @@ class ApolloArgsParserBuilder:
             help="Space separated list of cluster names for kubectl contexts",
         )
 
-        restart_group = self.parser.add_mutually_exclusive_group()
-        restart_group.add_argument(
-            "-r",
-            "--restart-nodes",
-            action="store_true",
-            default=None,
-            help="Restart the pods after updating configuration (default behavior)",
-        )
-        restart_group.add_argument(
-            "--no-restart",
-            action="store_true",
-            help="Do not restart the pods after updating configuration",
+        self.add_argument(
+            "-t",
+            "--restart-strategy",
+            type=restart_strategy_converter,
+            choices=list(RestartStrategy),
+            default=RestartStrategy.ONE_BY_ONE,
+            help="Strategy for restarting nodes (default: One_By_One)",
         )
 
     def add_argument(self, *args, **kwargs):
@@ -145,6 +142,29 @@ class Service(Enum):
     def __init__(self, config_map_name: str, pod_name: str) -> None:
         self.config_map_name = config_map_name
         self.pod_name = pod_name
+
+
+class RestartStrategy(Enum):
+    """Strategy for restarting nodes."""
+
+    ALL_AT_ONCE = "all_at_once"
+    ONE_BY_ONE = "one_by_one"
+    NO_RESTART = "no_restart"
+
+
+def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
+    """Convert string to RestartStrategy enum with informative error message"""
+    RESTART_STRATEGY_PREFIX = f"{RestartStrategy.__name__}."
+    if strategy_name.startswith(RESTART_STRATEGY_PREFIX):
+        strategy_name = strategy_name[len(RESTART_STRATEGY_PREFIX) :]
+
+    try:
+        return RestartStrategy(strategy_name)
+    except KeyError:
+        valid_strategies = ", ".join([strategy.value for strategy in RestartStrategy])
+        raise argparse.ArgumentTypeError(
+            f"Invalid restart strategy '{strategy_name}'. Valid options are: {valid_strategies}"
+        )
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
@@ -227,6 +247,30 @@ def get_logs_explorer_url(
         f"https://console.cloud.google.com/logs/query;query={query}"
         f"?project={escaped_project_name}"
     )
+
+
+def get_current_block_number(feeder_url: str) -> int:
+    """Get the current block number from the feeder URL."""
+    try:
+        url = f"https://{feeder_url}/feeder_gateway/get_block"
+        with urllib.request.urlopen(url) as response:
+            if response.status != 200:
+                raise urllib.error.HTTPError(
+                    url, response.status, "HTTP Error", response.headers, None
+                )
+            data = json.loads(response.read().decode("utf-8"))
+            current_block_number = data["block_number"]
+            return current_block_number
+
+    except urllib.error.URLError as e:
+        print_error(f"Failed to fetch block number from feeder URL: {e}")
+        sys.exit(1)
+    except KeyError as e:
+        print_error(f"Unexpected response format from feeder URL: {e}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print_error(f"Failed to parse JSON response from feeder URL: {e}")
+        sys.exit(1)
 
 
 def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.CompletedProcess:
@@ -462,10 +506,9 @@ def update_config_and_restart_nodes(
     config_overrides: dict[str, Any],
     namespace_list: list[str],
     service: Service,
-    cluster_list: Optional[list[str]] = None,
-    restart_nodes: bool = True,
-    # TODO(guy.f): Remove this once we have metrics we use to decide based on.
-    wait_between_restarts: bool = False,
+    cluster_list: Optional[list[str]],
+    restart_strategy: RestartStrategy,
+    # TODO(guy.f): Add more abstraction to restart strategy so that the instructions are abstracted as part of it.
     post_restart_instructions: Optional[list[str]] = None,
 ) -> None:
     assert config_overrides is not None, "config_overrides must be provided"
@@ -475,15 +518,6 @@ def update_config_and_restart_nodes(
         assert len(post_restart_instructions) == len(
             namespace_list
         ), f"logs_explorer_urls must have the same length as namespace_list. logs_explorer_urls: {len(post_restart_instructions)}, namespace_list: {len(namespace_list)}"
-
-    if wait_between_restarts:
-        assert (
-            post_restart_instructions is not None
-        ), "logs_explorer_urls must be provided when wait_between_restarts is True"
-    else:
-        assert (
-            post_restart_instructions is None
-        ), "logs_explorer_urls must be None when wait_between_restarts is False"
 
     if not cluster_list:
         print_colored(
@@ -532,14 +566,18 @@ def update_config_and_restart_nodes(
             cluster_list[index] if cluster_list else None,
         )
 
-    if restart_nodes:
+    if restart_strategy != RestartStrategy.NO_RESTART:
         for index, config in enumerate(configs):
             restart_pod(
                 namespace_list[index], service, index, cluster_list[index] if cluster_list else None
             )
-            if wait_between_restarts:
-                instructions = post_restart_instructions[index]
-                print_colored(f"Restarted pod.\n{instructions}. ", Colors.YELLOW)
+            if restart_strategy == RestartStrategy.ONE_BY_ONE:
+                instructions = (
+                    post_restart_instructions[index] if post_restart_instructions else None
+                )
+                print_colored(
+                    f"Restarted pod.\n{instructions if instructions else ''} ", Colors.YELLOW
+                )
                 # Don't ask in the case of the last job.
                 if index != len(configs) - 1 and not wait_until_y_or_n(
                     f"Do you want to restart the next pod?"
@@ -548,6 +586,6 @@ def update_config_and_restart_nodes(
                     return
         print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
     else:
-        print_colored("\nSkipping pod restart (--no-restart was specified)")
+        print_colored("\nSkipping pod restart.")
 
     print("\nOperation completed successfully!")
