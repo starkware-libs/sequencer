@@ -185,7 +185,7 @@ Examples:
     # Generate logs explorer URLs if needed
     post_restart_instructions = []
     if args.restart_strategy == RestartStrategy.ONE_BY_ONE:
-        for namespace, context in zip(namespace_list, context_list):
+        for namespace, context in zip(namespace_list, context_list or [None] * len(namespace_list)):
             url = get_logs_explorer_url(
                 namespace,
                 get_validator_id(namespace, context),
