@@ -96,11 +96,50 @@ impl SerializeConfig for DiscoveryConfig {
     }
 }
 
+/// Configuration for exponential backoff retry logic.
+///
+/// This struct defines the parameters for the exponential backoff strategy
+/// used when retrying failed operations, particularly bootstrap peer connections.
+///
+/// # Exponential Backoff Algorithm
+///
+/// The delay between retry attempts follows this pattern:
+/// - 1st retry: `base_delay_millis**1 * factor`
+/// - 2nd retry: `base_delay_millis**2 * factor`
+/// - 3rd retry: `base_delay_millis**3 * factor`
+/// - And so on, capped at `max_delay_seconds`
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::discovery::RetryConfig;
+///
+/// // Aggressive retry (fast but more network usage)
+/// let aggressive = RetryConfig {
+///     base_delay_millis: 2,                          // double each time
+///     max_delay_seconds: Duration::from_millis(100), // Cap at 0.1 seconds
+///     factor: 7,                                     // start with 7ms
+/// };
+///
+/// let mut strategy = aggressive.strategy();
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(14)));
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(28)));
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(56)));
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(100)));
+/// ```
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
+    /// Base of the exponential backoff in milliseconds, this will be the delay before the first
+    /// retry (the first delay after the first attempt)
     pub base_delay_millis: u64,
+
+    /// Maximum delay of the exponential backoff.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub max_delay_seconds: Duration,
+
+    /// Multiplication factor for the exponential backoff.
     pub factor: u64,
 }
 
@@ -136,7 +175,7 @@ impl SerializeConfig for RetryConfig {
 }
 
 impl RetryConfig {
-    fn strategy(&self) -> ExponentialBackoff {
+    pub fn strategy(&self) -> ExponentialBackoff {
         ExponentialBackoff::from_millis(self.base_delay_millis)
             .max_delay(self.max_delay_seconds)
             .factor(self.factor)
