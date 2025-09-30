@@ -2073,6 +2073,7 @@ dependencies = [
  "apollo_config",
  "apollo_metrics",
  "apollo_network_types",
+ "apollo_propeller",
  "assert_matches",
  "async-stream",
  "async-trait",
@@ -2117,6 +2118,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_network",
  "apollo_network_types",
+ "apollo_propeller",
  "assert_matches",
  "async-stream",
  "async-trait",
@@ -2312,6 +2314,37 @@ dependencies = [
  "papyrus_common",
  "prometheus-parse",
  "rstest",
+]
+
+[[package]]
+name = "apollo_propeller"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra_utils",
+ "apollo_metrics",
+ "asynchronous-codec",
+ "bytes",
+ "dashmap",
+ "futures",
+ "libp2p",
+ "libp2p-swarm-test",
+ "lru_time_cache",
+ "quick-protobuf",
+ "quick-protobuf-codec",
+ "quickcheck",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_distr",
+ "rayon",
+ "reed-solomon-simd",
+ "rstest",
+ "serde",
+ "sha2 0.10.9",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5809,6 +5842,16 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a19187fea3ac7e84da7dacf48de0c45d63c6a76f9490dae389aead16c243fce3"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
+name = "env_logger"
 version = "0.11.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c863f0904021b108aa8b2f55046443e6b1ebde8fd4a15c399893aae4fa069f"
@@ -8148,6 +8191,7 @@ dependencies = [
  "libp2p-metrics",
  "libp2p-noise",
  "libp2p-ping",
+ "libp2p-plaintext",
  "libp2p-quic",
  "libp2p-swarm",
  "libp2p-tcp",
@@ -8646,6 +8690,12 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
+
+[[package]]
+name = "lru_time_cache"
+version = "0.11.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9106e1d747ffd48e6be5bb2d97fa706ed25b144fbee4d5c02eae110cd8d6badd"
 
 [[package]]
 name = "lz4-sys"
@@ -10642,6 +10692,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "quickcheck"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "588f6378e4dd99458b60ec275b4477add41ce4fa9f64dcba6f15adccb19b50d6"
+dependencies = [
+ "env_logger 0.8.4",
+ "log",
+ "rand 0.8.5",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10857,6 +10918,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "readme-rustdocifier"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08ad765b21a08b1a8e5cdce052719188a23772bcbefb3c439f0baaf62c56ceac"
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10883,6 +10950,18 @@ dependencies = [
  "getrandom 0.2.16",
  "libredox",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "reed-solomon-simd"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffef0520d30fbd4151fb20e262947ae47fb0ab276a744a19b6398438105a072"
+dependencies = [
+ "cpufeatures",
+ "fixedbitset 0.5.7",
+ "once_cell",
+ "readme-rustdocifier",
 ]
 
 [[package]]
@@ -12924,7 +13003,7 @@ version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e33b98a582ea0be1168eba097538ee8dd4bbe0f2b01b22ac92ea30054e5be7b"
 dependencies = [
- "env_logger",
+ "env_logger 0.11.8",
  "test-log-macros",
  "tracing-subscriber",
 ]

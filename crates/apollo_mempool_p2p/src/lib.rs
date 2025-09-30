@@ -60,6 +60,7 @@ pub fn create_p2p_propagator_and_runner(
         sqmr_metrics: None,
         event_metrics: Some(EventMetrics { event_counter: MEMPOOL_P2P_NETWORK_EVENTS }),
         latency_metrics: Some(LatencyMetrics { ping_latency_seconds: MEMPOOL_P2P_PING_LATENCY }),
+        propeller_metrics: None,
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,

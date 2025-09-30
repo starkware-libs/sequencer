@@ -220,6 +220,7 @@ impl StateSyncRunner {
                 }),
                 event_metrics: None,
                 latency_metrics: None,
+                propeller_metrics: None,
             });
             NetworkManager::new(
                 network_config.clone(),

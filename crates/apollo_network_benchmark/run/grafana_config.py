@@ -156,6 +156,40 @@ SECTIONS = {
         ("tokio_mean_poll_duration_worker_max", "µs"),
         ("tokio_mean_poll_duration_worker_min", "µs"),
     ],
+    "🚀 Propeller Protocol - Throughput": [
+        ("rate(propeller_shards_published[1m])", "ops"),
+        ("rate(propeller_shards_sent[1m])", "ops"),
+        ("rate(propeller_shards_received[1m])", "ops"),
+        ("rate(propeller_shards_validated[1m])", "ops"),
+        ("rate(propeller_shards_forwarded[1m])", "ops"),
+        ("rate(propeller_shard_bytes_sent[1m])", "binBps"),
+        ("rate(propeller_shard_bytes_received[1m])", "binBps"),
+        ("rate(propeller_messages_reconstructed[1m])", "ops"),
+    ],
+    "🚀 Propeller Protocol - Failures": [
+        ("propeller_messages_reconstruction_failed", "short"),
+        ("propeller_shards_send_failed", "short"),
+        ("propeller_shards_validation_failed", "short"),
+    ],
+    "🚀 Propeller Protocol - Collection Sizes": [
+        ('propeller_collection_lengths{collection="events_queue"}', "short"),
+        ('propeller_collection_lengths{collection="connected_peers"}', "short"),
+        ('propeller_collection_lengths{collection="active_processors"}', "short"),
+        ('propeller_collection_lengths{collection="finalized_messages"}', "short"),
+        ('propeller_collection_lengths{collection="registered_channels"}', "short"),
+        ("propeller_trees_generated", "short"),
+    ],
+    "🚀 Propeller Protocol - Latency": [
+        ('propeller_shard_validation_duration{quantile="0.5"}', "s"),
+        ('propeller_shard_validation_duration{quantile="0.95"}', "s"),
+        ('propeller_shard_validation_duration{quantile="0.99"}', "s"),
+        ('propeller_message_reconstruction_duration{quantile="0.5"}', "s"),
+        ('propeller_message_reconstruction_duration{quantile="0.95"}', "s"),
+        ('propeller_message_reconstruction_duration{quantile="0.99"}', "s"),
+        ('propeller_message_end_to_end_latency{quantile="0.5"}', "s"),
+        ('propeller_message_end_to_end_latency{quantile="0.95"}', "s"),
+        ('propeller_message_end_to_end_latency{quantile="0.99"}', "s"),
+    ],
 }
 
 # Define alerts - easy to add new ones!

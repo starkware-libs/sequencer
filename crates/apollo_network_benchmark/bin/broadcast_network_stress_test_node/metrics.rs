@@ -14,6 +14,12 @@ use apollo_network::metrics::{
     EVENT_TYPE_LABELS,
     NETWORK_BROADCAST_DROP_LABELS,
 };
+use apollo_propeller::metrics::{
+    PropellerMetrics,
+    COLLECTION_LENGTH_LABELS,
+    SHARD_SEND_FAILURE_LABELS,
+    SHARD_VALIDATION_FAILURE_LABELS,
+};
 use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::PeerId;
 use sysinfo::{Networks, System};
@@ -70,6 +76,24 @@ define_metrics!(
         LabeledMetricCounter { NETWORK_EVENT_COUNTER, "network_event_counter", "Network events counter by type", init = 0, labels = EVENT_TYPE_LABELS },
 
         MetricHistogram { PING_LATENCY_SECONDS, "ping_latency_seconds", "Ping latency in seconds" },
+
+        // Propeller Protocol Metrics
+        MetricCounter { PROPELLER_SHARDS_PUBLISHED, "propeller_shards_published", "Total number of shards published (created) by this node", init = 0 },
+        MetricCounter { PROPELLER_SHARDS_SENT, "propeller_shards_sent", "Total number of shards sent to peers (includes forwarding)", init = 0 },
+        LabeledMetricCounter { PROPELLER_SHARDS_SEND_FAILED, "propeller_shards_send_failed", "Total number of shard send failures, labeled by reason", init = 0, labels = SHARD_SEND_FAILURE_LABELS },
+        MetricCounter { PROPELLER_SHARD_BYTES_SENT, "propeller_shard_bytes_sent", "Total bytes sent in shard data (payload only)", init = 0 },
+        MetricCounter { PROPELLER_SHARDS_RECEIVED, "propeller_shards_received", "Total number of shards received from peers", init = 0 },
+        MetricCounter { PROPELLER_SHARDS_VALIDATED, "propeller_shards_validated", "Total number of shards successfully validated", init = 0 },
+        LabeledMetricCounter { PROPELLER_SHARDS_VALIDATION_FAILED, "propeller_shards_validation_failed", "Total number of shards that failed validation, labeled by reason", init = 0, labels = SHARD_VALIDATION_FAILURE_LABELS },
+        MetricCounter { PROPELLER_SHARDS_FORWARDED, "propeller_shards_forwarded", "Total number of shards forwarded to children in tree", init = 0 },
+        MetricCounter { PROPELLER_SHARD_BYTES_RECEIVED, "propeller_shard_bytes_received", "Total bytes received in shard data (payload only)", init = 0 },
+        MetricCounter { PROPELLER_MESSAGES_RECONSTRUCTED, "propeller_messages_reconstructed", "Total number of messages successfully reconstructed from shards", init = 0 },
+        MetricCounter { PROPELLER_MESSAGES_RECONSTRUCTION_FAILED, "propeller_messages_reconstruction_failed", "Total number of message reconstruction failures", init = 0 },
+        MetricCounter { PROPELLER_TREES_GENERATED, "propeller_trees_generated", "Total number of tree generation operations", init = 0 },
+        LabeledMetricGauge { PROPELLER_COLLECTION_LENGTHS, "propeller_collection_lengths", "Length of various collections (queues, sets, caches) tracked by label", labels = COLLECTION_LENGTH_LABELS },
+        MetricHistogram { PROPELLER_SHARD_VALIDATION_DURATION, "propeller_shard_validation_duration", "Time to validate a single shard (seconds)" },
+        MetricHistogram { PROPELLER_MESSAGE_RECONSTRUCTION_DURATION, "propeller_message_reconstruction_duration", "Time to reconstruct a message from shards (seconds)" },
+        MetricHistogram { PROPELLER_MESSAGE_END_TO_END_LATENCY, "propeller_message_end_to_end_latency", "End-to-end latency from first shard received to message reconstructed (seconds)" },
     },
 );
 
@@ -160,6 +184,25 @@ pub fn create_network_metrics() -> NetworkMetrics {
     // Create latency metrics for ping monitoring
     let latency_metrics = LatencyMetrics { ping_latency_seconds: PING_LATENCY_SECONDS };
 
+    let propeller_metrics = PropellerMetrics {
+        shards_published: PROPELLER_SHARDS_PUBLISHED,
+        shards_sent: PROPELLER_SHARDS_SENT,
+        shards_send_failed: PROPELLER_SHARDS_SEND_FAILED,
+        shard_bytes_sent: PROPELLER_SHARD_BYTES_SENT,
+        shards_received: PROPELLER_SHARDS_RECEIVED,
+        shards_validated: PROPELLER_SHARDS_VALIDATED,
+        shards_validation_failed: PROPELLER_SHARDS_VALIDATION_FAILED,
+        shards_forwarded: PROPELLER_SHARDS_FORWARDED,
+        shard_bytes_received: PROPELLER_SHARD_BYTES_RECEIVED,
+        messages_reconstructed: PROPELLER_MESSAGES_RECONSTRUCTED,
+        messages_reconstruction_failed: PROPELLER_MESSAGES_RECONSTRUCTION_FAILED,
+        trees_generated: PROPELLER_TREES_GENERATED,
+        collection_lengths: PROPELLER_COLLECTION_LENGTHS,
+        shard_validation_duration: PROPELLER_SHARD_VALIDATION_DURATION,
+        message_reconstruction_duration: PROPELLER_MESSAGE_RECONSTRUCTION_DURATION,
+        message_end_to_end_latency: PROPELLER_MESSAGE_END_TO_END_LATENCY,
+    };
+
     NetworkMetrics {
         num_connected_peers: NETWORK_CONNECTED_PEERS,
         num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
@@ -167,6 +210,7 @@ pub fn create_network_metrics() -> NetworkMetrics {
         sqmr_metrics: Some(sqmr_metrics),
         event_metrics: Some(event_metrics),
         latency_metrics: Some(latency_metrics),
+        propeller_metrics: Some(propeller_metrics),
     }
 }
 
