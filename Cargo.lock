@@ -1809,6 +1809,7 @@ dependencies = [
  "sysinfo",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-metrics",
  "tokio-retry",
  "tokio-stream",
  "tracing",
