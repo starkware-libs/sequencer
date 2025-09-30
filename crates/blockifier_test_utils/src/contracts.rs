@@ -58,6 +58,7 @@ const META_TX_CONTRACT_BASE: u32 = 11 * CLASS_HASH_BASE;
 const EMPTY_ACCOUNT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
+const TEST_CONTRACT2_BASE: u32 = 14 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -68,6 +69,7 @@ const FAULTY_ACCOUNT_NAME: &str = "account_faulty";
 const LEGACY_CONTRACT_NAME: &str = "legacy_test_contract";
 const SECURITY_TEST_CONTRACT_NAME: &str = "security_tests_contract";
 const TEST_CONTRACT_NAME: &str = "test_contract";
+const TEST_CONTRACT2_NAME: &str = "test_contract2";
 const CAIRO_STEPS_TEST_CONTRACT_NAME: &str = "cairo_steps_test_contract";
 const EXECUTION_INFO_V1_CONTRACT_NAME: &str = "test_contract_execution_info_v1";
 const EMPTY_ACCOUNT_NAME: &str = "empty_account";
@@ -163,6 +165,7 @@ pub enum FeatureContract {
     LegacyTestContract,
     SecurityTests,
     TestContract(CairoVersion),
+    TestContract2,
     CairoStepsTestContract,
     SierraExecutionInfoV1Contract(RunnableCairo1),
     MetaTx(RunnableCairo1),
@@ -178,7 +181,7 @@ impl FeatureContract {
             | Self::FaultyAccount(version)
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
-            Self::DelegateProxy | Self::SecurityTests => CairoVersion::Cairo0,
+            Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => CairoVersion::Cairo0,
             Self::LegacyTestContract | Self::CairoStepsTestContract => {
                 CairoVersion::Cairo1(RunnableCairo1::Casm)
             }
@@ -208,6 +211,7 @@ impl FeatureContract {
             },
             Self::DelegateProxy
             | Self::SecurityTests
+            | Self::TestContract2
             | Self::CairoStepsTestContract
             | Self::LegacyTestContract => {
                 panic!("{self:?} contract has no configurable version.")
@@ -240,7 +244,7 @@ impl FeatureContract {
             Self::LegacyTestContract => {
                 (LEGACY_CONTRACT_COMPILED_CLASS_HASH_V1, LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2)
             }
-            Self::DelegateProxy | Self::SecurityTests => {
+            Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => {
                 panic!("{self:?} has no compiled class hash.")
             }
             Self::TestContract(_) => {
@@ -351,6 +355,7 @@ impl FeatureContract {
                 Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
                 Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_BASE,
                 Self::DelegateProxy => DELEGATE_PROXY_BASE,
+                Self::TestContract2 => TEST_CONTRACT2_BASE,
                 Self::Empty(_) => EMPTY_CONTRACT_BASE,
                 Self::ERC20(_) => ERC20_CONTRACT_BASE,
                 Self::FaultyAccount(_) => FAULTY_ACCOUNT_BASE,
@@ -370,6 +375,7 @@ impl FeatureContract {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
             Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
             Self::DelegateProxy => DELEGATE_PROXY_NAME,
+            Self::TestContract2 => TEST_CONTRACT2_NAME,
             Self::Empty(_) => EMPTY_CONTRACT_NAME,
             Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
             Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
@@ -468,6 +474,7 @@ impl FeatureContract {
                     FeatureContract::DelegateProxy
                     | FeatureContract::Empty(_)
                     | FeatureContract::TestContract(_)
+                    | FeatureContract::TestContract2
                     | FeatureContract::LegacyTestContract
                     | FeatureContract::CairoStepsTestContract
                     | FeatureContract::SierraExecutionInfoV1Contract(_)
@@ -533,6 +540,7 @@ impl FeatureContract {
             Self::DelegateProxy
             | Self::LegacyTestContract
             | Self::CairoStepsTestContract
+            | Self::TestContract2
             | Self::SecurityTests => {
                 vec![*self]
             }
