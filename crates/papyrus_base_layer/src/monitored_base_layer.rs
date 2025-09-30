@@ -14,6 +14,10 @@ use url::Url;
 use crate::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
+#[cfg(test)]
+#[path = "monitored_base_layer_test.rs"]
+pub mod monitored_base_layer_test;
+
 pub type MonitoredEthereumBaseLayer = MonitoredBaseLayer<EthereumBaseLayerContract>;
 
 // Using interior mutability for modifiable fields in order to comply with the base layer's
