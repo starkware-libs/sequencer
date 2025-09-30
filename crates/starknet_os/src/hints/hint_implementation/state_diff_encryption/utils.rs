@@ -138,10 +138,10 @@ fn calc_blake_hash(data: &[Felt]) -> Felt {
 pub fn naive_encode_felts_to_u32s(felts: Vec<Felt>) -> Vec<u32> {
     let mut unpacked_u32s = Vec::new();
     for felt in felts {
-        let felt_as_be_bytes = felt.to_bytes_be();
-        // big: 8 limbs, big‐endian order.
-        for chunk in felt_as_be_bytes.chunks_exact(4) {
-            unpacked_u32s.push(u32::from_be_bytes(chunk.try_into().unwrap()));
+        let felt_as_le_bytes = felt.to_bytes_le();
+        // big: 8 limbs, little-endian order.
+        for chunk in felt_as_le_bytes.chunks_exact(4) {
+            unpacked_u32s.push(u32::from_le_bytes(chunk.try_into().unwrap()));
         }
     }
     unpacked_u32s

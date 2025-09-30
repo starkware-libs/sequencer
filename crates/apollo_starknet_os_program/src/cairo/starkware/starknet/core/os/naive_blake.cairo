@@ -1,6 +1,14 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 
+// Gets a felt that represent a 256-bit unsigned integer stored as an array of eight 32-bit unsigned integers
+// represented in little-endian notation. Return the felt representation of the integer modulo prime.
+func felt_from_le_u32s(u32s: felt*) -> felt {
+    let value = u32s[7] * 2 ** 224 + u32s[6] * 2 ** 192 + u32s[5] * 2 ** 160 + u32s[4] * 2 ** 128 +
+        u32s[3] * 2 ** 96 + u32s[2] * 2 ** 64 + u32s[1] * 2 ** 32 + u32s[0];
+    return value;
+}
+
 // Computes blake2s of `input` of size 16 felts, representing 32 bits each.
 // The initial state is the standard BLAKE2s IV XORed with the parameter block P[0] = 0x01010020.
 func blake_with_opcode_for_single_16_length_word(data: felt*, out: felt*, initial_state: felt*) {
@@ -51,10 +59,9 @@ func create_initial_state_for_blake2s() -> (initial_state: felt*) {
 }
 
 // Encodes a list of felt252s to a list of u32s, each felt is mapped to eight u32s.
-// Returns the length of the resulting list of u32s.
 func naive_encode_felt252s_to_u32s(
     packed_values_len: felt, packed_values: felt*, unpacked_u32s: felt*
-) -> felt {
+) {
     alloc_locals;
 
     local end: felt* = &packed_values[packed_values_len];
@@ -65,29 +72,17 @@ func naive_encode_felt252s_to_u32s(
 
     loop:
     if (end == packed_values) {
-        return out - unpacked_u32s;
+        return ();
     }
 
     // TODO(Noa): Assert that the limbs represent a number in the range [0, PRIME-1].
     // Assert that the limbs represent the number.
-    assert packed_values[0] = (
-        (out[7] + (2 ** 32 * out[6])) +
-        2 ** (32 * 2) * (out[5] + 2 ** 32 * out[4]) +
-        2 ** (32 * 4) * (out[3] + 2 ** 32 * out[2]) +
-        2 ** (32 * 6) * (out[1] + 2 ** 32 * out[0])
-    );
+    let actual_value = felt_from_le_u32s(u32s=out);
+    assert packed_values[0] = actual_value;
 
     tempvar out = &out[8];
     tempvar packed_values = &packed_values[1];
     jmp loop;
-}
-
-// Gets a felt that represent a 256-bit unsigned integer stored as an array of eight 32-bit unsigned integers
-// represented in little-endian notation. Return the felt representation of the integer modulo prime.
-func u256_to_felt(u256: felt*) -> felt {
-    let hash = u256[7] * 2 ** 224 + u256[6] * 2 ** 192 + u256[5] * 2 ** 160 + u256[4] * 2 ** 128 +
-        u256[3] * 2 ** 96 + u256[2] * 2 ** 64 + u256[1] * 2 ** 32 + u256[0];
-    return hash;
 }
 
 // / Encodes a slice of `Felt` values into 32-bit words, then hashes the resulting byte stream
@@ -95,11 +90,12 @@ func u256_to_felt(u256: felt*) -> felt {
 func calc_blake_hash{range_check_ptr: felt}(data_len: felt, data: felt*) -> (hash: felt) {
     alloc_locals;
     let (local encoded_data: felt*) = alloc();
-    let encoded_data_len = naive_encode_felt252s_to_u32s(
+    naive_encode_felt252s_to_u32s(
         packed_values_len=data_len, packed_values=data, unpacked_u32s=encoded_data
     );
     let (local blake_output: felt*) = alloc();
-    blake_with_opcode(len=encoded_data_len, data=encoded_data, out=blake_output);
-    let hash = u256_to_felt(u256=blake_output);
+    let encoded_data_length = 8 * data_len;
+    blake_with_opcode(len=encoded_data_length, data=encoded_data, out=blake_output);
+    let hash = felt_from_le_u32s(u32s=blake_output);
     return (hash=hash);
 }
