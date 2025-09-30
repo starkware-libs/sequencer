@@ -154,7 +154,8 @@ Examples:
         get_namespace_list_from_args(args),
         args.service,
         get_context_list_from_args(args),
-        not args.no_restart,
+        args.restart_strategy,
+        None,
     )
 
 
