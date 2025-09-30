@@ -179,6 +179,10 @@ impl TestingTxArgs for InvokeTxArgs {
     fn get_internal_tx(&self) -> InternalRpcTransaction {
         internal_invoke_tx(self.clone())
     }
+
+    fn get_executable_tx(&self) -> AccountTransaction {
+        executable_invoke_tx(self.clone())
+    }
 }
 
 // TODO(Itamar): Change this to use a macro and apply the same logic to DeclareTxArgs and
