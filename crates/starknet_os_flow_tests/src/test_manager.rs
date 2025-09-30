@@ -114,6 +114,10 @@ pub(crate) struct OsTestOutput<S: FlowTestState> {
 }
 
 impl<S: FlowTestState> OsTestOutput<S> {
+    pub(crate) fn perform_default_validations(&self) {
+        self.perform_validations(true, None);
+    }
+
     pub(crate) fn perform_validations(
         &self,
         perform_global_validations: bool,
