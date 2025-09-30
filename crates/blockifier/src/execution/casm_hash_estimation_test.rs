@@ -103,8 +103,8 @@ fn add_assign_estimated_resources_success(
 
 #[test]
 fn test_u32_constants() {
-    let small_felt = FeltSizeCount::SMALL_THRESHOLD - 1_u64;
-    let large_felt = FeltSizeCount::SMALL_THRESHOLD;
+    let small_felt = Blake2Felt252::SMALL_THRESHOLD - 1_u64;
+    let large_felt = Blake2Felt252::SMALL_THRESHOLD;
 
     let small_u32s = Blake2Felt252::encode_felts_to_u32s(&[small_felt]);
     let large_u32s = Blake2Felt252::encode_felts_to_u32s(&[large_felt]);
