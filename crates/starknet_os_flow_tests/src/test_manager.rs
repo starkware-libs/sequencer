@@ -9,6 +9,7 @@ use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::contracts::FeatureContract;
 use itertools::Itertools;
@@ -87,12 +88,17 @@ pub(crate) struct TestParameters {
     pub(crate) messages_to_l2: Vec<MessageToL2>,
 }
 
+pub(crate) struct FlowTestTx {
+    tx: BlockifierTransaction,
+    revert_reason: Option<String>,
+}
+
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
 pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) execution_contracts: OsExecutionContracts,
 
-    per_block_transactions: Vec<Vec<BlockifierTransaction>>,
+    per_block_transactions: Vec<Vec<FlowTestTx>>,
 }
 
 pub(crate) struct OsTestExpectedValues {
@@ -267,7 +273,7 @@ impl<S: FlowTestState> TestManager<S> {
         self.per_block_transactions.push(vec![]);
     }
 
-    fn last_block_txs_mut(&mut self) -> &mut Vec<BlockifierTransaction> {
+    fn last_block_txs_mut(&mut self) -> &mut Vec<FlowTestTx> {
         self.per_block_transactions
             .last_mut()
             .expect("Always initialized with at least one tx list (at least one block).")
@@ -283,9 +289,12 @@ impl<S: FlowTestState> TestManager<S> {
         else {
             panic!("Expected a V1 contract class");
         };
-        self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
-            StarknetApiTransaction::Account(AccountTransaction::Declare(tx)),
-        ));
+        self.last_block_txs_mut().push(FlowTestTx {
+            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+                AccountTransaction::Declare(tx),
+            )),
+            revert_reason: None,
+        });
 
         self.execution_contracts
             .declared_class_hash_to_component_hashes
@@ -297,14 +306,25 @@ impl<S: FlowTestState> TestManager<S> {
             .insert(compiled_class_hash, casm.clone());
     }
 
-    pub(crate) fn add_invoke_tx(&mut self, tx: InvokeTransaction) {
-        self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
-            StarknetApiTransaction::Account(AccountTransaction::Invoke(tx)),
-        ));
+    pub(crate) fn add_invoke_tx(&mut self, tx: InvokeTransaction, revert_reason: Option<String>) {
+        self.last_block_txs_mut().push(FlowTestTx {
+            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+                AccountTransaction::Invoke(tx),
+            )),
+            revert_reason,
+        });
     }
 
-    pub(crate) fn add_invoke_tx_from_args(&mut self, args: InvokeTxArgs, chain_id: &ChainId) {
-        self.add_invoke_tx(InvokeTransaction::create(invoke_tx(args), chain_id).unwrap());
+    pub(crate) fn add_invoke_tx_from_args(
+        &mut self,
+        args: InvokeTxArgs,
+        chain_id: &ChainId,
+        revert_reason: Option<String>,
+    ) {
+        self.add_invoke_tx(
+            InvokeTransaction::create(invoke_tx(args), chain_id).unwrap(),
+            revert_reason,
+        );
     }
 
     pub(crate) fn add_cairo0_declare_tx(
@@ -315,9 +335,12 @@ impl<S: FlowTestState> TestManager<S> {
         let ContractClass::V0(class) = tx.class_info.contract_class.clone() else {
             panic!("Expected a V0 contract class");
         };
-        self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
-            StarknetApiTransaction::Account(AccountTransaction::Declare(tx)),
-        ));
+        self.last_block_txs_mut().push(FlowTestTx {
+            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+                AccountTransaction::Declare(tx),
+            )),
+            revert_reason: None,
+        });
         self.execution_contracts
             .executed_contracts
             .deprecated_contracts
@@ -325,14 +348,23 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     pub(crate) fn add_deploy_account_tx(&mut self, tx: DeployAccountTransaction) {
-        self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
-            StarknetApiTransaction::Account(AccountTransaction::DeployAccount(tx)),
-        ));
+        self.last_block_txs_mut().push(FlowTestTx {
+            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+                AccountTransaction::DeployAccount(tx),
+            )),
+            revert_reason: None,
+        });
     }
 
-    pub(crate) fn add_l1_handler_tx(&mut self, tx: L1HandlerTransaction) {
-        self.last_block_txs_mut()
-            .push(BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)));
+    pub(crate) fn add_l1_handler_tx(
+        &mut self,
+        tx: L1HandlerTransaction,
+        revert_reason: Option<String>,
+    ) {
+        self.last_block_txs_mut().push(FlowTestTx {
+            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
+            revert_reason,
+        });
     }
 
     /// Executes the test using default block contexts, starting from the given block number.
@@ -407,6 +439,27 @@ impl<S: FlowTestState> TestManager<S> {
         first_use_kzg_da
     }
 
+    /// Verifies all the execution outputs are as expected w.r.t. revert reasons.
+    fn verify_execution_outputs(
+        revert_reasons: &[Option<String>],
+        execution_outputs: &[(TransactionExecutionInfo, StateMaps)],
+    ) {
+        for (revert_reason, (execution_info, _)) in
+            revert_reasons.iter().zip(execution_outputs.iter())
+        {
+            if let Some(revert_reason) = revert_reason {
+                let actual_revert_reason =
+                    execution_info.revert_error.as_ref().unwrap().to_string();
+                assert!(
+                    actual_revert_reason.contains(revert_reason),
+                    "Expected '{revert_reason}' to be in revert string:\n'{actual_revert_reason}'"
+                );
+            } else {
+                assert!(execution_info.revert_error.is_none());
+            }
+        }
+    }
+
     /// Decompresses the state diff from the OS output using the given OS output, state and alias
     /// keys.
     fn get_decompressed_state_diff(
@@ -466,13 +519,19 @@ impl<S: FlowTestState> TestManager<S> {
             "use_kzg_da flag in block contexts must match the test parameter."
         );
         let mut alias_keys = HashSet::new();
-        for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
+        for (block_txs_with_reason, block_context) in
+            per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
             // Clone the block info for later use.
+            let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
+                .into_iter()
+                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.revert_reason))
+                .unzip();
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
                 execute_transactions(state, &block_txs, block_context);
+            Self::verify_execution_outputs(&revert_reasons, &execution_outputs);
             let extended_state_diff = final_state.cache.borrow().extended_state_diff();
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap();
