@@ -6,7 +6,7 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.core.os.naive_blake import (
     calc_blake_hash,
     naive_encode_felt252s_to_u32s,
-    u256_to_felt,
+    felt_from_le_u32s,
     create_initial_state_for_blake2s,
     blake_with_opcode_for_single_16_length_word,
 )
@@ -157,20 +157,20 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
     assert blake_output[7] = encoded_symmetric_key[7];
     let blake_output = &blake_output[8];
     // Write encoded index to blake output - since index is small, manually encode as [0, 0, 0, 0, 0, 0, 0, index].
-    assert blake_output[0] = 0;
+    assert blake_output[0] = index;
     assert blake_output[1] = 0;
     assert blake_output[2] = 0;
     assert blake_output[3] = 0;
     assert blake_output[4] = 0;
     assert blake_output[5] = 0;
     assert blake_output[6] = 0;
-    assert blake_output[7] = index;
+    assert blake_output[7] = 0;
     let blake_output = &blake_output[8];
     // Calculate blake hash modulo prime.
     blake_with_opcode_for_single_16_length_word(
         data=blake_encoding_start, out=blake_output, initial_state=initial_state
     );
-    let hash = u256_to_felt(u256=blake_output);
+    let hash = felt_from_le_u32s(u256=blake_output);
     let blake_output = &blake_output[8];
 
     // Encrypt the current element.
