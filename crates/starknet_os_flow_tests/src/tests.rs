@@ -36,7 +36,12 @@ use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
-use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{
+    TestManager,
+    TestParameters,
+    FUNDED_ACCOUNT_ADDRESS,
+    STRK_FEE_TOKEN_ADDRESS,
+};
 use crate::utils::{divide_vec_into_n_parts, get_class_info_of_feature_contract};
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
@@ -228,6 +233,54 @@ async fn trivial_diff_scenario(
     // Explicitly check the test contract has no storage update.
     assert!(
         !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
+    );
+
+    test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_reverted_invoke_tx(
+    #[values(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+    )]
+    test_contract: FeatureContract,
+) {
+    let (use_kzg_da, full_output) = (true, false);
+
+    let (mut test_manager, mut nonce_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    // Call a reverting function that changes the storage.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(test_contract_address, "write_and_revert", &[]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+
+    // Execute the test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            ..Default::default()
+        })
+        .await;
+
+    // Check that the storage was reverted (no change in test contract address).
+    assert!(
+        !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
+    );
+    // Check that a fee was deducted.
+    assert!(
+        test_output.decompressed_state_diff.storage_updates.contains_key(&STRK_FEE_TOKEN_ADDRESS)
     );
 
     test_output.perform_default_validations();
