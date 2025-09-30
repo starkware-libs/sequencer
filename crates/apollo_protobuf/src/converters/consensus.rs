@@ -5,7 +5,7 @@ mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
@@ -17,6 +17,7 @@ use super::common::{
 use crate::consensus::{
     ConsensusBlockInfo,
     IntoFromProto,
+    ProposalCommitment,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -57,11 +58,14 @@ impl TryFrom<protobuf::Vote> for Vote {
 
         let height = value.height;
         let round = value.round;
-        let block_hash: Option<BlockHash> =
-            value.block_hash.map(|block_hash| block_hash.try_into()).transpose()?.map(BlockHash);
+        let proposal_commitment: Option<ProposalCommitment> = value
+            .block_hash
+            .map(|block_hash| block_hash.try_into())
+            .transpose()?
+            .map(ProposalCommitment);
         let voter = value.voter.ok_or(missing("voter"))?.try_into()?;
 
-        Ok(Vote { vote_type, height, round, block_hash, voter })
+        Ok(Vote { vote_type, height, round, proposal_commitment, voter })
     }
 }
 
@@ -76,7 +80,7 @@ impl From<Vote> for protobuf::Vote {
             vote_type: i32::from(vote_type),
             height: value.height,
             round: value.round,
-            block_hash: value.block_hash.map(|hash| hash.0.into()),
+            block_hash: value.proposal_commitment.map(|hash| hash.0.into()),
             voter: Some(value.voter.into()),
         }
     }
@@ -260,7 +264,7 @@ impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
         let proposal_commitment: StarkHash =
             value.proposal_commitment.ok_or(missing("proposal_commitment"))?.try_into()?;
-        let proposal_commitment = BlockHash(proposal_commitment);
+        let proposal_commitment = ProposalCommitment(proposal_commitment);
         Ok(ProposalFin { proposal_commitment })
     }
 }
