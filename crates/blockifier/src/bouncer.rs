@@ -76,7 +76,7 @@ impl Default for BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::default(),
             builtin_weights: BuiltinWeights::default(),
-            blake_weight: 5263,
+            blake_weight: 6320,
         }
     }
 }
@@ -197,7 +197,7 @@ impl Default for BouncerWeights {
             state_diff_size: 4000,
             // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
             sierra_gas: GasAmount(5000000000),
-            proving_gas: GasAmount(5500000000),
+            proving_gas: GasAmount(6000000000),
         }
     }
 }
@@ -423,14 +423,14 @@ impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
             gas_costs: BuiltinGasCosts {
-                pedersen: 4769,
+                pedersen: 5722,
                 range_check: 70,
-                ecdsa: 1666666,
-                ecop: 714875,
+                ecdsa: 2000000,
+                ecop: 857850,
                 bitwise: 583,
-                keccak: 510707,
-                poseidon: 10000,
-                add_mod: 312,
+                keccak: 600000,
+                poseidon: 11450,
+                add_mod: 360,
                 mul_mod: 604,
                 range_check96: 56,
             },
