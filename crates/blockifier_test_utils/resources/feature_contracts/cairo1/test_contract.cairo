@@ -80,6 +80,13 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn write_and_revert(self: @ContractState, address: StorageAddress, value: felt252) {
+        let address_domain = 0;
+        syscalls::storage_write_syscall(address_domain, address, value).unwrap_syscall();
+        assert(1 == 0, 'Panic for revert');
+    }
+
+    #[external(v0)]
     fn test_count_actual_storage_changes(self: @ContractState) {
         let storage_address = 15.try_into().unwrap();
         let address_domain = 0;
