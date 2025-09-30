@@ -122,14 +122,28 @@ async fn add_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     debug!("ADD_TX_START: Http server received a new transaction.");
-    validate_supported_tx_version(&tx).inspect_err(|e| {
-        debug!("Error while validating transaction version: {}", e);
-        increment_failure_metrics(e);
-    })?;
-    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
-        debug!("Error while parsing transaction: {}", e);
-        check_supported_resource_bounds_and_increment_metrics(&tx);
-    })?;
+
+    let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
+        Ok(value) => {
+            validate_supported_tx_version_json(&tx).inspect_err(|e| {
+                debug!("Error while validating transaction version: {}", e);
+                increment_failure_metrics(e);
+            })?;
+
+            value
+        }
+        Err(e) => {
+            validate_supported_tx_version_str(&tx).inspect_err(|e| {
+                debug!("Error while validating transaction version: {}", e);
+                increment_failure_metrics(e);
+            })?;
+
+            debug!("Error while parsing transaction: {}", e);
+            check_supported_resource_bounds_and_increment_metrics(&tx);
+            return Err(e.into());
+        }
+    };
+
     let rpc_tx = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
@@ -137,7 +151,57 @@ async fn add_tx(
     add_tx_inner(app_state, headers, rpc_tx).await
 }
 
-fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
+#[allow(clippy::result_large_err)]
+fn validate_supported_tx_version_str(tx: &str) -> HttpServerResult<()> {
+    // 1. Find the literal "version" key, and get the rest of the string.
+    let after_version = tx
+        .find("\"version\"")
+        .and_then(|idx| tx.get(idx + "\"version\"".len()..))
+        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+
+    // 2. Find the colon. If a colon exists, get the part before it and ensure it's all whitespace.
+    let (_, after_colon) = after_version
+        .find(':')
+        .and_then(|idx| {
+            let before = &after_version[..idx];
+            if before.chars().all(|c| c.is_whitespace()) {
+                Some((before, &after_version[idx + 1..]))
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+
+    // 3. Find the starting quote. If a quote exists, get the part before it and ensure it's all
+    //    whitespace.
+    let (_, rest) = after_colon
+        .find('"')
+        .and_then(|idx| {
+            let before = &after_colon[..idx];
+            if before.chars().all(|c| c.is_whitespace()) {
+                Some((before, &after_colon[idx + 1..]))
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+
+    // 4. Find the ending quote and extract the substring.
+    let end_index =
+        rest.find('"').ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    let tx_version_str = &rest[..end_index];
+
+    let tx_version =
+        u64::from_be_bytes(bytes_from_hex_str::<8, true>(tx_version_str).map_err(|_| {
+            serde_json::Error::custom(format!(
+                "Version field is not a valid hex string: {tx_version_str}"
+            ))
+        })?);
+    handle_tx_version_error(&tx_version)
+}
+
+#[allow(clippy::result_large_err)]
+fn validate_supported_tx_version_json(tx: &str) -> HttpServerResult<()> {
     let tx_json_value: serde_json::Value = serde_json::from_str(tx)?;
     let tx_version_json = tx_json_value
         .get("version")
@@ -151,10 +215,14 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
                 "Version field is not a valid hex string: {tx_version}"
             ))
         })?);
-    if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
+    handle_tx_version_error(&tx_version)
+}
+
+fn handle_tx_version_error(tx_version: &u64) -> HttpServerResult<()> {
+    if !SUPPORTED_TRANSACTION_VERSIONS.contains(tx_version) {
         ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
-        return Err(HttpServerError::GatewayClientError(Box::new(
-            GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
+        Err(HttpServerError::GatewayClientError(Box::new(GatewayClientError::GatewayError(
+            GatewayError::DeprecatedGatewayError {
                 source: StarknetError {
                     code: StarknetErrorCode::KnownErrorCode(
                         KnownStarknetErrorCode::InvalidTransactionVersion,
@@ -165,10 +233,11 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
                     ),
                 },
                 p2p_message_metadata: None,
-            }),
-        )));
+            },
+        ))))
+    } else {
+        Ok(())
     }
-    Ok(())
 }
 
 fn check_supported_resource_bounds_and_increment_metrics(tx: &str) {
