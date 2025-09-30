@@ -14,6 +14,7 @@ from update_config_and_restart_nodes_lib import (
     Service,
     get_configmap,
     get_context_list_from_args,
+    get_logs_explorer_url,
     get_namespace_list_from_args,
     parse_config_from_yaml,
     print_colored,
@@ -23,7 +24,7 @@ from update_config_and_restart_nodes_lib import (
 
 
 # TODO(guy.f): Remove this once we have metrics we use to decide based on.
-def get_logs_explorer_url(
+def get_logs_explorer_url_for_proposal(
     namespace: str,
     validator_id: str,
     min_block_number: int,
@@ -38,17 +39,7 @@ def get_logs_explorer_url(
         f'textPayload =~ "DECISION_REACHED:.*proposer 0x0*{validator_id}"\n'
         f'CAST(REGEXP_EXTRACT(textPayload, "height: (\\\\d+)"), "INT64") > {min_block_number}'
     )
-    # We need to double escape '(' and ')', so first we replace only them with their escaped versions.
-    query = query.replace("(", urllib.parse.quote("(")).replace(")", urllib.parse.quote(")"))
-
-    # Now "normal" escape everything else
-    query = urllib.parse.quote(query)
-
-    escaped_project_name = urllib.parse.quote(project_name)
-    return (
-        f"https://console.cloud.google.com/logs/query;query={query}"
-        f"?project={escaped_project_name}"
-    )
+    return get_logs_explorer_url(query, project_name)
 
 
 class RestartStrategy(Enum):
@@ -186,7 +177,7 @@ Examples:
     post_restart_instructions = []
     if args.restart_strategy == RestartStrategy.ONE_BY_ONE:
         for namespace, context in zip(namespace_list, context_list):
-            url = get_logs_explorer_url(
+            url = get_logs_explorer_url_for_proposal(
                 namespace,
                 get_validator_id(namespace, context),
                 # Feeder could be behind by up to 10 blocks, so we add 10 to the current block number.
