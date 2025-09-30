@@ -8,7 +8,9 @@ from enum import Enum
 from typing import Any, Optional
 
 import tempfile
+import urllib.error
 import urllib.parse
+import urllib.request
 import yaml
 from difflib import unified_diff
 
@@ -227,6 +229,30 @@ def get_logs_explorer_url(
         f"https://console.cloud.google.com/logs/query;query={query}"
         f"?project={escaped_project_name}"
     )
+
+
+def get_current_block_number(feeder_url: str) -> int:
+    """Get the current block number from the feeder URL."""
+    try:
+        url = f"https://{feeder_url}/feeder_gateway/get_block"
+        with urllib.request.urlopen(url) as response:
+            if response.status != 200:
+                raise urllib.error.HTTPError(
+                    url, response.status, "HTTP Error", response.headers, None
+                )
+            data = json.loads(response.read().decode("utf-8"))
+            current_block_number = data["block_number"]
+            return current_block_number
+
+    except urllib.error.URLError as e:
+        print_error(f"Failed to fetch block number from feeder URL: {e}")
+        sys.exit(1)
+    except KeyError as e:
+        print_error(f"Unexpected response format from feeder URL: {e}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print_error(f"Failed to parse JSON response from feeder URL: {e}")
+        sys.exit(1)
 
 
 def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.CompletedProcess:

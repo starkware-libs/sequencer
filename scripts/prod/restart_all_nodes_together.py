@@ -14,6 +14,7 @@ from update_config_and_restart_nodes_lib import (
     Service,
     get_configmap,
     get_context_list_from_args,
+    get_current_block_number,
     get_logs_explorer_url,
     get_namespace_list_from_args,
     parse_config_from_yaml,
@@ -76,7 +77,7 @@ def main():
     usage_example = """
 Examples:
   # Restart all nodes to at the next block after current feeder block (default: One_By_One strategy)
-  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --feeder_url feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --feeder-url feeder.integration-sepolia.starknet.io
   %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io
   
   # Restart nodes one by one with project name for showing logs link
@@ -109,7 +110,7 @@ Examples:
 
     args_builder.add_argument(
         "-f",
-        "--feeder_url",
+        "--feeder-url",
         required=True,
         type=str,
         help="The feeder URL to get the current block from",
@@ -137,29 +138,11 @@ Examples:
         sys.exit(1)
 
     # Get current block number from feeder URL
-    try:
-        url = f"https://{args.feeder_url}/feeder_gateway/get_block"
-        with urllib.request.urlopen(url) as response:
-            if response.status != 200:
-                raise urllib.error.HTTPError(
-                    url, response.status, "HTTP Error", response.headers, None
-                )
-            data = json.loads(response.read().decode("utf-8"))
-            current_block_number = data["block_number"]
-            next_block_number = current_block_number + 1
+    current_block_number = get_current_block_number(args.feeder_url)
+    next_block_number = current_block_number + 1
 
-            print_colored(f"Current block number: {current_block_number}")
-            print_colored(f"Next block number: {next_block_number}")
-
-    except urllib.error.URLError as e:
-        print_error(f"Failed to fetch block number from feeder URL: {e}")
-        sys.exit(1)
-    except KeyError as e:
-        print_error(f"Unexpected response format from feeder URL: {e}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print_error(f"Failed to parse JSON response from feeder URL: {e}")
-        sys.exit(1)
+    print_colored(f"Current block number: {current_block_number}")
+    print_colored(f"Next block number: {next_block_number}")
 
     config_overrides = {
         "consensus_manager_config.immediate_active_height": next_block_number,
