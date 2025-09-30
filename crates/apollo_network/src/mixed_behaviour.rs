@@ -2,6 +2,7 @@
 
 use std::convert::Infallible;
 
+use apollo_propeller as propeller;
 use libp2p::connection_limits::ConnectionLimits;
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
@@ -17,7 +18,7 @@ use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
 use crate::network_manager::metrics::EventMetrics;
 use crate::peer_manager::PeerManagerConfig;
-use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
+use crate::{discovery, gossipsub_impl, peer_manager, propeller_impl, sqmr};
 
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
@@ -31,6 +32,7 @@ pub struct MixedBehaviour {
     pub kademlia: kad::Behaviour<MemoryStore>,
     pub sqmr: sqmr::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
+    pub propeller: propeller::Behaviour,
     pub event_tracker_metrics: Toggle<EventMetricsTracker>,
 }
 
@@ -44,6 +46,7 @@ pub enum Event {
 pub enum ExternalEvent {
     Sqmr(sqmr::behaviour::ExternalEvent),
     GossipSub(gossipsub_impl::ExternalEvent),
+    Propeller(propeller_impl::ExternalEvent),
 }
 
 #[derive(Debug)]
@@ -123,7 +126,7 @@ impl MixedBehaviour {
             ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
             gossipsub: gossipsub::Behaviour::new(
-                gossipsub::MessageAuthenticity::Signed(keypair),
+                gossipsub::MessageAuthenticity::Signed(keypair.clone()),
                 gossipsub::ConfigBuilder::default()
                     // TODO(shahak): try to reduce this bound.
                     .max_transmit_size(1 << 34)
@@ -135,6 +138,15 @@ impl MixedBehaviour {
                     "Failed creating gossipsub behaviour due to the following error: {err_string}"
                 )
             }),
+            propeller: propeller::Behaviour::new(
+                propeller::MessageAuthenticity::Signed(keypair),
+                propeller::ConfigBuilder::default()
+                    .fanout(100)
+                    .fec_coding_shreds(64)
+                    .fec_data_shreds(64)
+                    .max_shred_size(1 << 20)
+                    .build(),
+            ),
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
     }

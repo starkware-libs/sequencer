@@ -33,7 +33,7 @@ use crate::network_manager::metrics::BroadcastNetworkMetrics;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
-use crate::{gossipsub_impl, Bytes, NetworkConfig};
+use crate::{gossipsub_impl, propeller_impl, Bytes, NetworkConfig};
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkError {
@@ -41,6 +41,14 @@ pub enum NetworkError {
     DialError(#[from] libp2p::swarm::DialError),
     #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
     BroadcastChannelsDropped { topic_hash: TopicHash },
+    #[error("Channels for propeller client {client_id} were dropped.")]
+    PropellerChannelsDropped { client_id: String },
+    #[error(transparent)]
+    PropellerError(#[from] apollo_propeller::ShredPublishError),
+    #[error("Propeller peer set error: {0}")]
+    PropellerPeerSetError(String),
+    #[error(transparent)]
+    PropellerReconstructionError(#[from] apollo_propeller::ReconstructionError),
 }
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
@@ -55,6 +63,9 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     // Each receiver has a matching sender and vice versa (i.e the maps have the same keys).
     messages_to_broadcast_receivers: StreamMap<TopicHash, Receiver<Bytes>>,
     broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageMetadata)>>,
+    // Propeller message channels
+    propeller_messages_sender: Option<Sender<(apollo_propeller::MessageId, Bytes)>>,
+    messages_to_propeller_receiver: Receiver<(apollo_propeller::MessageId, Bytes)>,
     reported_peer_receivers: FuturesUnordered<BoxFuture<'static, Option<PeerId>>>,
     advertised_multiaddr: Option<Multiaddr>,
     reported_peers_receiver: Receiver<PeerId>,
@@ -84,6 +95,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                         })?,
                         topic_hash,
                     );
+                }
+                Some((message_id, message)) = self.messages_to_propeller_receiver.next() => {
+                    self.propeller_broadcast(message, message_id)?;
                 }
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
@@ -122,6 +136,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             sqmr_outbound_report_receivers_awaiting_assignment: HashMap::new(),
             messages_to_broadcast_receivers: StreamMap::new(BTreeMap::new()),
             broadcasted_messages_senders: HashMap::new(),
+            propeller_messages_sender: None,
+            messages_to_propeller_receiver: {
+                let (_sender, receiver) = futures::channel::mpsc::channel(0);
+                receiver
+            },
             reported_peer_receivers,
             advertised_multiaddr,
             reported_peers_receiver,
@@ -268,6 +287,61 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         })
     }
 
+    /// Register propeller message channels for sending and receiving messages.
+    /// Sets up the propeller network with the provided peers and returns channels for
+    /// communication. Returns both sender and receiver channels for propeller messages.
+    pub fn register_propeller_channels<T>(
+        &mut self,
+        buffer_size: usize,
+        peers: Vec<(PeerId, u64)>,
+    ) -> Result<PropellerChannels<T>, apollo_propeller::PeerSetError>
+    where
+        T: TryFrom<Bytes> + 'static,
+        Bytes: From<T>,
+    {
+        if self.propeller_messages_sender.is_some() {
+            panic!("Propeller channels have already been registered.");
+        }
+
+        // Set up propeller peers first
+        self.swarm.set_propeller_peers(peers)?;
+
+        // Channel for receiving messages from the propeller protocol
+        let (propeller_messages_sender, propeller_messages_receiver) =
+            futures::channel::mpsc::channel(buffer_size);
+
+        // Channel for sending messages to the propeller protocol
+        let (messages_to_propeller_sender, messages_to_propeller_receiver) =
+            futures::channel::mpsc::channel(buffer_size);
+
+        self.propeller_messages_sender = Some(propeller_messages_sender);
+        self.messages_to_propeller_receiver = messages_to_propeller_receiver;
+
+        let propeller_messages_fn: PropellerReceivedMessagesConverterFn<T> =
+            |(message_id, data)| (message_id, T::try_from(data));
+        let propeller_messages_receiver = propeller_messages_receiver.map(propeller_messages_fn);
+
+        let messages_to_propeller_fn: PropellerSendMessagesConverterFn<T> =
+            |(message, message_id)| ready(Ok((message_id, Bytes::from(message))));
+        let messages_to_propeller_sender =
+            messages_to_propeller_sender.with(messages_to_propeller_fn);
+
+        Ok(PropellerChannels {
+            propeller_messages_receiver,
+            propeller_client: PropellerClient::new(messages_to_propeller_sender),
+        })
+    }
+
+    /// Broadcast a message using propeller (only works if this node is the leader).
+    /// This is used internally by the network manager to forward messages from channels.
+    fn propeller_broadcast(
+        &mut self,
+        message: Bytes,
+        message_id: apollo_propeller::MessageId,
+    ) -> Result<Vec<apollo_propeller::Shred>, apollo_propeller::ShredPublishError> {
+        self.swarm.propeller_broadcast(message, message_id)
+    }
+
     fn handle_swarm_event(
         &mut self,
         event: SwarmEvent<mixed_behaviour::Event>,
@@ -369,6 +443,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             mixed_behaviour::ExternalEvent::GossipSub(event) => {
                 self.handle_gossipsub_behaviour_event(event)?;
             }
+            mixed_behaviour::ExternalEvent::Propeller(event) => {
+                self.handle_propeller_behaviour_event(event)?;
+            }
         }
         Ok(())
     }
@@ -386,6 +463,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         self.swarm.behaviour_mut().sqmr.on_other_behaviour_event(&event);
         self.swarm.behaviour_mut().peer_manager.on_other_behaviour_event(&event);
         self.swarm.behaviour_mut().gossipsub.on_other_behaviour_event(&event);
+        self.swarm.behaviour_mut().propeller.on_other_behaviour_event(&event);
     }
 
     fn handle_sqmr_event(&mut self, event: sqmr::behaviour::ExternalEvent) {
@@ -561,6 +639,41 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
                      {topic_hash:?}."
                 );
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_propeller_behaviour_event(
+        &mut self,
+        event: propeller_impl::ExternalEvent,
+    ) -> Result<(), NetworkError> {
+        match event {
+            propeller_impl::ExternalEvent::MessageReceived { message_id, data, publisher } => {
+                debug!(
+                    "Received complete propeller message with id: {message_id} from publisher: \
+                     {publisher}"
+                );
+                trace!("Propeller message data length: {} bytes", data.len());
+
+                if let Some(sender) = &mut self.propeller_messages_sender {
+                    let send_result = sender.try_send((message_id, data));
+                    if let Err(e) = send_result {
+                        if e.is_disconnected() {
+                            warn!("Propeller message channel disconnected");
+                        } else if e.is_full() {
+                            warn!(
+                                "Propeller message channel buffer is full. Dropping message with \
+                                 id: {message_id}"
+                            );
+                        }
+                    }
+                } else {
+                    debug!(
+                        "No propeller message channel registered, dropping message with id: \
+                         {message_id}"
+                    );
+                }
             }
         }
         Ok(())
@@ -1038,3 +1151,64 @@ pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
 
 type BroadcastReceivedMessagesConverterFn<T> =
     fn((Bytes, BroadcastedMessageMetadata)) -> ReceivedBroadcastedMessage<T>;
+
+// Propeller types
+#[async_trait]
+pub trait PropellerClientTrait<T> {
+    async fn send_message(
+        &mut self,
+        message: T,
+        message_id: apollo_propeller::MessageId,
+    ) -> Result<(), SendError>;
+}
+
+#[derive(Clone)]
+pub struct PropellerClient<T: TryFrom<Bytes>> {
+    messages_to_propeller_sender: PropellerSender<T>,
+}
+
+impl<T: TryFrom<Bytes>> PropellerClient<T> {
+    pub fn new(messages_to_propeller_sender: PropellerSender<T>) -> Self {
+        Self { messages_to_propeller_sender }
+    }
+}
+
+#[async_trait]
+impl<T: TryFrom<Bytes> + Send> PropellerClientTrait<T> for PropellerClient<T> {
+    async fn send_message(
+        &mut self,
+        message: T,
+        message_id: apollo_propeller::MessageId,
+    ) -> Result<(), SendError> {
+        self.messages_to_propeller_sender.send((message, message_id)).await
+    }
+}
+
+pub struct PropellerChannels<T: TryFrom<Bytes>> {
+    pub propeller_messages_receiver: PropellerMessageServer<T>,
+    pub propeller_client: PropellerClient<T>,
+}
+
+pub type PropellerSender<T> = With<
+    Sender<(apollo_propeller::MessageId, Bytes)>,
+    (apollo_propeller::MessageId, Bytes),
+    (T, apollo_propeller::MessageId),
+    Ready<Result<(apollo_propeller::MessageId, Bytes), SendError>>,
+    fn(
+        (T, apollo_propeller::MessageId),
+    ) -> Ready<Result<(apollo_propeller::MessageId, Bytes), SendError>>,
+>;
+
+pub type PropellerMessageServer<T> =
+    Map<Receiver<(apollo_propeller::MessageId, Bytes)>, PropellerReceivedMessagesConverterFn<T>>;
+
+pub type ReceivedPropellerMessage<Message> =
+    (apollo_propeller::MessageId, Result<Message, <Message as TryFrom<Bytes>>::Error>);
+
+type PropellerReceivedMessagesConverterFn<T> =
+    fn((apollo_propeller::MessageId, Bytes)) -> ReceivedPropellerMessage<T>;
+
+type PropellerSendMessagesConverterFn<T> =
+    fn(
+        (T, apollo_propeller::MessageId),
+    ) -> Ready<Result<(apollo_propeller::MessageId, Bytes), SendError>>;

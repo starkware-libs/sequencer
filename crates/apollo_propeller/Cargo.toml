@@ -1,0 +1,39 @@
+[package]
+name = "apollo_propeller"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+testing = []
+
+[dependencies]
+apollo_metrics.workspace = true
+asynchronous-codec.workspace = true
+bytes.workspace = true
+futures.workspace = true
+libp2p = { workspace = true, features = ["macros"] }
+lru_time_cache.workspace = true
+quick-protobuf.workspace = true
+quick-protobuf-codec.workspace = true
+rand = { workspace = true, features = ["std", "std_rng"] }
+rand_chacha.workspace = true
+rand_distr.workspace = true
+reed-solomon-simd.workspace = true
+serde = { workspace = true, optional = true, features = ["derive"] }
+sha2.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+libp2p = { workspace = true, features = ["macros", "plaintext", "quic", "tcp", "tokio", "yamux"] }
+libp2p-swarm-test.workspace = true
+quickcheck.workspace = true
+rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "test-util"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[lints]
+workspace = true

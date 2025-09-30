@@ -52,6 +52,17 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
     fn continue_propagation(&mut self, message_metadata: BroadcastedMessageMetadata);
+
+    fn set_propeller_peers(
+        &mut self,
+        peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), apollo_propeller::PeerSetError>;
+
+    fn propeller_broadcast(
+        &mut self,
+        message: Bytes,
+        message_id: apollo_propeller::MessageId,
+    ) -> Result<Vec<apollo_propeller::Shred>, apollo_propeller::ShredPublishError>;
 }
 
 impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
@@ -131,4 +142,25 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
 
     // TODO(shahak): Implement this function.
     fn continue_propagation(&mut self, _message_metadata: BroadcastedMessageMetadata) {}
+
+    fn set_propeller_peers(
+        &mut self,
+        peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), apollo_propeller::PeerSetError> {
+        self.behaviour_mut().propeller.set_peers(peers)
+    }
+
+    fn propeller_broadcast(
+        &mut self,
+        message: Bytes,
+        message_id: apollo_propeller::MessageId,
+    ) -> Result<Vec<apollo_propeller::Shred>, apollo_propeller::ShredPublishError> {
+        let result = self.behaviour_mut().propeller.broadcast(message, message_id);
+        if let Err(ref err) = result {
+            warn!(
+                "Error occurred while broadcasting propeller message with id {message_id}: {err:?}"
+            );
+        }
+        result
+    }
 }
