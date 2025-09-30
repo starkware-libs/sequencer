@@ -2,8 +2,11 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
-use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
+use apollo_class_manager_types::transaction_converter::{
+    MockTransactionConverterTrait,
+    TransactionConverterError,
+    TransactionConverterResult,
+};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
@@ -33,13 +36,11 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
-use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use clap::Command;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
@@ -50,21 +51,24 @@ use mempool_test_utils::starknet_api_test_utils::{
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
     RpcDeclareTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
-use starknet_api::test_utils::declare::DeclareTxArgsWithContractClass;
+use starknet_api::test_utils::declare::{
+    default_compiled_contract_class,
+    DeclareTxArgsWithContractClass,
+};
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{
-    compiled_class_hash,
     contract_address,
     declare_tx_args,
     deploy_account_tx_args,
@@ -114,34 +118,23 @@ fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTr
 }
 
 #[fixture]
-fn config() -> GatewayConfig {
-    GatewayConfig {
+fn mock_dependencies() -> MockDependencies {
+    let config = GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
         authorized_declarer_accounts: None,
-    }
-}
-
-#[fixture]
-fn state_reader_factory() -> TestStateReaderFactory {
-    local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true)
-}
-
-#[fixture]
-fn mock_dependencies(
-    config: GatewayConfig,
-    state_reader_factory: TestStateReaderFactory,
-) -> MockDependencies {
+    };
+    let state_reader_factory =
+        local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
     let mock_mempool_client = MockMempoolClient::new();
-    // TODO(noamsp): use MockTransactionConverter
-    let mock_class_manager_client = MockClassManagerClient::new();
+    let mock_transaction_converter = MockTransactionConverterTrait::new();
     MockDependencies {
         config,
         state_reader_factory,
         mock_mempool_client,
-        mock_class_manager_client,
+        mock_transaction_converter,
     }
 }
 
@@ -149,18 +142,17 @@ struct MockDependencies {
     config: GatewayConfig,
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
-    mock_class_manager_client: MockClassManagerClient,
+    mock_transaction_converter: MockTransactionConverterTrait,
 }
 
 impl MockDependencies {
     fn gateway(self) -> Gateway {
         register_metrics();
-        let chain_id = self.config.chain_info.chain_id.clone();
         Gateway::new(
             self.config,
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
-            TransactionConverter::new(Arc::new(self.mock_class_manager_client), chain_id),
+            Arc::new(self.mock_transaction_converter),
         )
     }
 
@@ -214,51 +206,25 @@ fn declare_args() -> DeclareTxArgsWithContractClass {
     args
 }
 
-fn default_compiled_contract_class() -> ContractClass {
-    let casm = CasmContractClass {
-        prime: Default::default(),
-        compiler_version: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    };
-    let sierra_version = SierraVersion::default();
-    ContractClass::V1((casm, sierra_version))
-}
-
-/// Setup MockClassManagerClient to expect the addition and retrieval of the test contract
-/// class. Returns the compiled class hash of the contract class that the mock will return.
-fn setup_class_manager_client_mock(
-    mock_class_manager_client: &mut MockClassManagerClient,
+fn setup_transaction_converter_mock(
+    mock_transaction_converter: &mut MockTransactionConverterTrait,
     rpc_tx: RpcTransaction,
+    tx_args: &impl TestingTxArgs,
 ) {
-    let RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx)) = rpc_tx else {
-        return;
-    };
-
-    let contract_class = declare_tx.contract_class;
-    let class_hash = contract_class.calculate_class_hash();
-    let casm = default_compiled_contract_class();
-
-    let executable_class_hash_v2 = casm.compiled_class_hash();
-
-    mock_class_manager_client
-        .expect_add_class()
+    let internal_tx = tx_args.get_internal_tx();
+    mock_transaction_converter
+        .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
-        .with(eq(contract_class.clone()))
-        .return_once(move |_| Ok(ClassHashes { class_hash, executable_class_hash_v2 }));
-    mock_class_manager_client
-        .expect_get_sierra()
+        .with(eq(rpc_tx))
+        .return_once(move |_| Ok(internal_tx));
+
+    let internal_tx = tx_args.get_internal_tx();
+    let executable_tx = tx_args.get_executable_tx();
+    mock_transaction_converter
+        .expect_convert_internal_rpc_tx_to_executable_tx()
         .once()
-        .with(eq(class_hash))
-        .return_once(move |_| Ok(Some(contract_class)));
-    mock_class_manager_client
-        .expect_get_executable()
-        .once()
-        .with(eq(class_hash))
-        .return_once(move |_| Ok(Some(casm)));
+        .with(eq(internal_tx))
+        .return_once(move |_| Ok(executable_tx));
 }
 
 fn check_positive_add_tx_result(tx_args: impl TestingTxArgs, result: GatewayOutput) {
@@ -297,9 +263,10 @@ async fn setup_mock_state(
     let input_tx = tx_args.get_rpc_tx();
     let expected_internal_tx = tx_args.get_internal_tx();
 
-    setup_class_manager_client_mock(
-        &mut mock_dependencies.mock_class_manager_client,
+    setup_transaction_converter_mock(
+        &mut mock_dependencies.mock_transaction_converter,
         input_tx.clone(),
+        tx_args,
     );
 
     let address = expected_internal_tx.contract_address();
@@ -374,6 +341,11 @@ fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
     }
 }
 
+// Gateway spec errors tests.
+// TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
+// result of `add_tx`).
+// TODO(shahak): Test that when an error occurs in handle_request, then it returns the given p2p
+// metadata.
 // TODO(AlonH): add test with Some broadcasted message metadata
 #[rstest]
 #[case::tx_with_duplicate_tx_hash(
@@ -436,75 +408,49 @@ async fn test_add_tx_positive(
     );
     check_positive_add_tx_result(tx_args, result.unwrap());
 }
-// Gateway spec errors tests.
-// TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
-// result of `add_tx`).
-// TODO(shahak): Test that when an error occurs in handle_request, then it returns the given p2p
-// metadata.
+
 #[rstest]
+#[case::rpc_to_internal_fails(
+    Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() }),
+    // This value is never used because the first step already fails. Provided a valid executable tx to satisfy the signature.
+    Ok(executable_invoke_tx(invoke_args())),
+)]
+#[case::internal_to_executable_fails(
+    Ok(invoke_args().get_internal_tx()),
+    Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
+)]
 #[tokio::test]
-async fn test_compiled_class_hash_mismatch(mut mock_dependencies: MockDependencies) {
-    let declare_tx = declare_tx();
-    let mut declare_tx_inner = assert_matches!(declare_tx.clone(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx_inner.compiled_class_hash = compiled_class_hash!(1_u8);
-
-    let other_compiled_class_hash = compiled_class_hash!(2_u8);
-    assert_ne!(declare_tx_inner.compiled_class_hash, other_compiled_class_hash);
-
+async fn test_transaction_converter_error(
+    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
+    #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
+    mut mock_dependencies: MockDependencies,
+) {
+    mock_dependencies.mock_mempool_client.expect_add_tx().never();
     mock_dependencies
-        .mock_class_manager_client
-        .expect_add_class()
-        .once()
-        .with(eq(declare_tx_inner.contract_class.clone()))
-        .return_once(move |_| {
-            Ok(ClassHashes {
-                class_hash: declare_tx_inner.contract_class.calculate_class_hash(),
-                executable_class_hash_v2: other_compiled_class_hash,
-            })
-        });
+        .mock_transaction_converter
+        .expect_convert_rpc_tx_to_internal_rpc_tx()
+        .return_once(|_| expect_internal_rpc_tx_result);
+    mock_dependencies
+        .mock_transaction_converter
+        .expect_convert_internal_rpc_tx_to_executable_tx()
+        .return_once(|_| expect_executable_tx_result);
 
     let gateway = mock_dependencies.gateway();
 
-    let err = gateway.add_tx(declare_tx, None).await.unwrap_err();
-    let expected_code =
-        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidCompiledClassHash);
-    assert_eq!(err.code, expected_code);
-}
-
-#[rstest]
-#[tokio::test]
-async fn test_transaction_converter_error(mut mock_dependencies: MockDependencies) {
-    mock_dependencies.mock_mempool_client.expect_add_tx().never();
-
-    let chain_id = mock_dependencies.config.chain_info.chain_id.clone();
-    let gateway = Gateway::new(
-        mock_dependencies.config,
-        Arc::new(mock_dependencies.state_reader_factory),
-        Arc::new(mock_dependencies.mock_mempool_client),
-        // TODO(AlonH): use MockTransactionConverter.
-        TransactionConverter::new(Arc::new(EmptyClassManagerClient), chain_id),
-    );
-
     let err = gateway.add_tx(declare_tx(), None).await.unwrap_err();
-    assert_matches!(err, StarknetError { code: StarknetErrorCode::KnownErrorCode(_), message: _ });
+
+    // All TransactionConverter errors are mapped to InternalError.
+    assert_eq!(
+        err.code,
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
+    );
 }
 
 #[rstest]
 #[tokio::test]
-async fn test_block_declare_config(
-    mut config: GatewayConfig,
-    state_reader_factory: TestStateReaderFactory,
-) {
-    config.block_declare = true;
-    let gateway = Gateway::new(
-        config,
-        Arc::new(state_reader_factory),
-        Arc::new(MockMempoolClient::new()),
-        TransactionConverter::new(
-            Arc::new(EmptyClassManagerClient),
-            ChainInfo::create_for_testing().chain_id,
-        ),
-    );
+async fn test_block_declare_config(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.config.block_declare = true;
+    let gateway = mock_dependencies.gateway();
 
     let result = gateway.add_tx(declare_tx(), None).await;
     let expected_code = StarknetErrorCode::UnknownErrorCode(
@@ -548,23 +494,11 @@ fn test_register_metrics() {
 
 #[rstest]
 #[tokio::test]
-async fn test_unauthorized_declare_config(
-    mut config: GatewayConfig,
-    state_reader_factory: TestStateReaderFactory,
-) {
+async fn test_unauthorized_declare_config(mut mock_dependencies: MockDependencies) {
     let authorized_address = contract_address!("0x1");
-    config.authorized_declarer_accounts = Some(vec![authorized_address]);
+    mock_dependencies.config.authorized_declarer_accounts = Some(vec![authorized_address]);
 
-    let gateway = Gateway::new(
-        config,
-        Arc::new(state_reader_factory),
-        Arc::new(MockMempoolClient::new()),
-        TransactionConverter::new(
-            Arc::new(EmptyClassManagerClient),
-            ChainInfo::create_for_testing().chain_id,
-        ),
-    );
-
+    let gateway = mock_dependencies.gateway();
     let rpc_declare_tx = declare_tx();
 
     // Ensure the sender address is different from the authorized address.
