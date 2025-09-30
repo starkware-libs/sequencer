@@ -147,7 +147,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "gateway_config.stateful_tx_validator_config.validate_resource_bounds",
                 "gateway_config.stateless_tx_validator_config.validate_resource_bounds",
-                "mempool_config.validate_resource_bounds",
+                "mempool_config.static_config.validate_resource_bounds",
             ]),
         ),
     ];
