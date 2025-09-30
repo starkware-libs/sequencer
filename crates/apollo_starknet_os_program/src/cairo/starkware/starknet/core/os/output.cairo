@@ -27,6 +27,7 @@ from starkware.starknet.core.os.encrypt import (
     output_sn_public_keys,
     output_encrypted_symmetric_key,
     encrypt,
+    encrypt_state_diff,
 )
 
 // Represents the output of the OS.
@@ -270,35 +271,12 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     }
 
     // Encrypt the compressed state updates.
-    // Generate random symmetric key and random starknet private keys.
-    local symmetric_key: felt;
-    local sn_private_keys: felt*;
-    %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
-    validate_sn_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
-
-    local encrypted_start: felt*;
-    %{
-        if use_kzg_da:
-            ids.encrypted_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.encrypted_start = segments.add_temp_segment()
-    %}
-
-    let encrypted_dst = encrypted_start;
-    assert encrypted_dst[0] = n_keys;
-    let encrypted_dst = &encrypted_dst[1];
-
-    with encrypted_dst {
-        output_sn_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
-        output_encrypted_symmetric_key(
-            n_keys=n_keys,
-            public_keys=public_keys,
-            sn_private_keys=sn_private_keys,
-            symmetric_key=symmetric_key,
-        );
-        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
-    }
+    let (encrypted_start, encrypted_dst) = encrypt_state_diff(
+        compressed_start=compressed_start,
+        compressed_dst=compressed_dst,
+        n_keys=n_keys,
+        public_keys=public_keys,
+    );
 
     return (da_start=encrypted_start, da_end=encrypted_dst);
 }
