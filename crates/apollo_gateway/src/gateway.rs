@@ -62,7 +62,7 @@ pub struct Gateway {
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
-    pub transaction_converter: Arc<TransactionConverter>,
+    pub transaction_converter: Arc<dyn TransactionConverterTrait>,
 }
 
 impl Gateway {
@@ -70,7 +70,7 @@ impl Gateway {
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
-        transaction_converter: TransactionConverter,
+        transaction_converter: Arc<dyn TransactionConverterTrait>,
     ) -> Self {
         Self {
             config: Arc::new(config.clone()),
@@ -83,7 +83,7 @@ impl Gateway {
             }),
             state_reader_factory,
             mempool_client,
-            transaction_converter: Arc::new(transaction_converter),
+            transaction_converter,
         }
     }
 
@@ -292,8 +292,10 @@ pub fn create_gateway(
         class_manager_client: class_manager_client.clone(),
         runtime,
     });
-    let transaction_converter =
-        TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
+    let transaction_converter = Arc::new(TransactionConverter::new(
+        class_manager_client,
+        config.chain_info.chain_id.clone(),
+    ));
 
     Gateway::new(config, state_reader_factory, mempool_client, transaction_converter)
 }
