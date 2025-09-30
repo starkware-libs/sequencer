@@ -13,7 +13,7 @@ workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 csv.workspace = true
 rand.workspace = true
-starknet_committer = { workspace = true, features = ["testing"] }
+starknet_committer = { workspace = true, features = ["benchmark", "testing"] }
 # TODO(Tzahi): Remove once tracing is moved to a common location.
 starknet_committer_and_os_cli.workspace = true
 starknet_patricia.workspace = true
