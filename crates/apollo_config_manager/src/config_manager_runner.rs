@@ -1,3 +1,4 @@
+use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
@@ -12,10 +13,8 @@ use tracing::{error, info};
 pub mod config_manager_runner_tests;
 
 pub struct ConfigManagerRunner {
-    // TODO(Nadin): remove dead_code once we have actual config manager runner logic
-    #[allow(dead_code)]
+    config_manager_config: ConfigManagerConfig,
     config_manager_client: SharedConfigManagerClient,
-    #[allow(dead_code)]
     cli_args: Vec<String>,
 }
 
@@ -26,21 +25,28 @@ impl ComponentStarter for ConfigManagerRunner {
 
         info!("ConfigManagerRunner: starting periodic config updates");
 
-        // TODO(Nadin): make this configurable
-        let mut update_interval = interval(TokioDuration::from_secs(60));
+        if self.config_manager_config.enable_config_updates {
+            let mut update_interval = interval(TokioDuration::from_secs_f64(
+                self.config_manager_config.config_update_interval_secs,
+            ));
 
-        loop {
-            update_interval.tick().await;
-            if let Err(e) = self.update_config().await {
-                error!("ConfigManagerRunner: failed to update config: {}", e);
+            loop {
+                update_interval.tick().await;
+                if let Err(e) = self.update_config().await {
+                    error!("ConfigManagerRunner: failed to update config: {}", e);
+                }
             }
         }
     }
 }
 
 impl ConfigManagerRunner {
-    pub fn new(config_manager_client: SharedConfigManagerClient, cli_args: Vec<String>) -> Self {
-        Self { config_manager_client, cli_args }
+    pub fn new(
+        config_manager_config: ConfigManagerConfig,
+        config_manager_client: SharedConfigManagerClient,
+        cli_args: Vec<String>,
+    ) -> Self {
+        Self { config_manager_config, config_manager_client, cli_args }
     }
 
     // TODO(Nadin): Define a proper result type instead of Box<dyn std::error::Error + Send + Sync>

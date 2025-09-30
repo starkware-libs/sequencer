@@ -138,7 +138,11 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager shared client should be available");
-            let config_manager_runner = ConfigManagerRunner::new(config_manager_client, cli_args);
+            let config_manager_runner = ConfigManagerRunner::new(
+                config_manager_config.clone(),
+                config_manager_client,
+                cli_args,
+            );
             (Some(config_manger), Some(config_manager_runner))
         }
 
@@ -193,6 +197,7 @@ pub async fn create_node_components(
             None
         }
     };
+
     let gateway = match config.components.gateway.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -216,6 +221,7 @@ pub async fn create_node_components(
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
+
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let http_server_config =
@@ -503,6 +509,7 @@ pub async fn create_node_components(
             None
         }
     };
+
     let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let base_layer_config =

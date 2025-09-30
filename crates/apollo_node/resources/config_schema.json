@@ -1459,10 +1459,15 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "config_manager_config._placeholder": {
-    "description": "Placeholder field - config cannot be empty for proper deserialization",
+  "config_manager_config.config_update_interval_secs": {
+    "description": "Update interval in seconds for config updates",
     "privacy": "Public",
-    "value": ""
+    "value": 60.0
+  },
+  "config_manager_config.enable_config_updates": {
+    "description": "Enables the resampling of the config every `config_update_interval_secs` seconds",
+    "privacy": "Public",
+    "value": false
   },
   "consensus_manager_config.#is_none": {
     "description": "Flag for an optional field.",
