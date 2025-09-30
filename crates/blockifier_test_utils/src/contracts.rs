@@ -57,10 +57,12 @@ const SIERRA_EXECUTION_INFO_V1_CONTRACT_BASE: u32 = 10 * CLASS_HASH_BASE;
 const META_TX_CONTRACT_BASE: u32 = 11 * CLASS_HASH_BASE;
 const EMPTY_ACCOUNT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
+const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
 const ACCOUNT_WITHOUT_VALIDATIONS_NAME: &str = "account_with_dummy_validate";
+const DELEGATE_PROXY_NAME: &str = "delegate_proxy";
 const EMPTY_CONTRACT_NAME: &str = "empty_contract";
 const FAULTY_ACCOUNT_NAME: &str = "account_faulty";
 const LEGACY_CONTRACT_NAME: &str = "legacy_test_contract";
@@ -153,6 +155,7 @@ pub type CairoVersionString = String;
 pub enum FeatureContract {
     AccountWithLongValidate(CairoVersion),
     AccountWithoutValidations(CairoVersion),
+    DelegateProxy,
     EmptyAccount(RunnableCairo1),
     ERC20(CairoVersion),
     Empty(CairoVersion),
@@ -175,7 +178,7 @@ impl FeatureContract {
             | Self::FaultyAccount(version)
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
-            Self::SecurityTests => CairoVersion::Cairo0,
+            Self::DelegateProxy | Self::SecurityTests => CairoVersion::Cairo0,
             Self::LegacyTestContract | Self::CairoStepsTestContract => {
                 CairoVersion::Cairo1(RunnableCairo1::Casm)
             }
@@ -203,7 +206,10 @@ impl FeatureContract {
                 CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
                 CairoVersion::Cairo1(runnable) => *rv = runnable,
             },
-            Self::SecurityTests | Self::CairoStepsTestContract | Self::LegacyTestContract => {
+            Self::DelegateProxy
+            | Self::SecurityTests
+            | Self::CairoStepsTestContract
+            | Self::LegacyTestContract => {
                 panic!("{self:?} contract has no configurable version.")
             }
         }
@@ -234,7 +240,9 @@ impl FeatureContract {
             Self::LegacyTestContract => {
                 (LEGACY_CONTRACT_COMPILED_CLASS_HASH_V1, LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2)
             }
-            Self::SecurityTests => panic!("SecurityTests contract has no compiled class hash."),
+            Self::DelegateProxy | Self::SecurityTests => {
+                panic!("{self:?} has no compiled class hash.")
+            }
             Self::TestContract(_) => {
                 (TEST_CONTRACT_COMPILED_CLASS_HASH_V1, TEST_CONTRACT_COMPILED_CLASS_HASH_V2)
             }
@@ -342,6 +350,7 @@ impl FeatureContract {
             + match self {
                 Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
                 Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_BASE,
+                Self::DelegateProxy => DELEGATE_PROXY_BASE,
                 Self::Empty(_) => EMPTY_CONTRACT_BASE,
                 Self::ERC20(_) => ERC20_CONTRACT_BASE,
                 Self::FaultyAccount(_) => FAULTY_ACCOUNT_BASE,
@@ -360,6 +369,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
             Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
+            Self::DelegateProxy => DELEGATE_PROXY_NAME,
             Self::Empty(_) => EMPTY_CONTRACT_NAME,
             Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
             Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
@@ -455,7 +465,8 @@ impl FeatureContract {
                     | FeatureContract::AccountWithoutValidations(_)
                     | FeatureContract::FaultyAccount(_) => Some("--account_contract".into()),
                     FeatureContract::SecurityTests => Some("--disable_hint_validation".into()),
-                    FeatureContract::Empty(_)
+                    FeatureContract::DelegateProxy
+                    | FeatureContract::Empty(_)
                     | FeatureContract::TestContract(_)
                     | FeatureContract::LegacyTestContract
                     | FeatureContract::CairoStepsTestContract
@@ -519,7 +530,10 @@ impl FeatureContract {
                 }
             }
 
-            Self::LegacyTestContract | Self::CairoStepsTestContract | Self::SecurityTests => {
+            Self::DelegateProxy
+            | Self::LegacyTestContract
+            | Self::CairoStepsTestContract
+            | Self::SecurityTests => {
                 vec![*self]
             }
         }
