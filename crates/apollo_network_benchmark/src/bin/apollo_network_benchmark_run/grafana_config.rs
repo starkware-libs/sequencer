@@ -130,6 +130,21 @@ pub fn get_sections() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> 
             ],
         ),
         (
+            "🚀 Propeller Protocol",
+            vec![
+                ("propeller_shards_published", "short"),
+                ("propeller_shards_sent", "short"),
+                ("propeller_shards_received", "short"),
+                ("propeller_shards_forwarded", "short"),
+                ("propeller_messages_reconstructed", "short"),
+                ("propeller_messages_reconstruction_failed", "short"),
+                ("propeller_trees_generated", "short"),
+                ("propeller_shards_send_failed", "short"),
+                ("propeller_shards_validation_failed", "short"),
+                ("propeller_collection_lengths", "short"),
+            ],
+        ),
+        (
             "⚙️ Tokio Runtime",
             vec![
                 ("tokio_total_park_count", "short"),

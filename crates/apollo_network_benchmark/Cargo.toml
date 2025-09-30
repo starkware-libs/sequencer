@@ -12,6 +12,7 @@ testing = []
 [dependencies]
 apollo_metrics.workspace = true
 apollo_network.workspace = true
+apollo_propeller.workspace = true
 chrono.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true

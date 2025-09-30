@@ -1,3 +1,5 @@
+use apollo_propeller::Channel;
+use async_trait::async_trait;
 use futures::stream::Stream;
 use libp2p::gossipsub::{MessageId, PublishError, SubscriptionError, TopicHash};
 use libp2p::swarm::dial_opts::DialOpts;
@@ -12,8 +14,12 @@ use crate::peer_manager::ReputationModifier;
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{InboundSessionId, OutboundSessionId, SessionId};
 use crate::{mixed_behaviour, Bytes};
+
 pub type Event = SwarmEvent<<mixed_behaviour::MixedBehaviour as NetworkBehaviour>::ToSwarm>;
 
+const PROPELLER_CHANNEL: Channel = Channel(10);
+
+#[async_trait]
 pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn send_response(
         &mut self,
@@ -52,8 +58,16 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
     fn continue_propagation(&mut self, message_metadata: BroadcastedMessageMetadata);
+
+    async fn set_propeller_peers(
+        &mut self,
+        peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), apollo_propeller::PeerSetError>;
+
+    async fn propeller_broadcast(&mut self, message: Bytes);
 }
 
+#[async_trait]
 impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
     fn send_response(
         &mut self,
@@ -131,4 +145,15 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
 
     // TODO(shahak): Implement this function.
     fn continue_propagation(&mut self, _message_metadata: BroadcastedMessageMetadata) {}
+
+    async fn set_propeller_peers(
+        &mut self,
+        peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), apollo_propeller::PeerSetError> {
+        self.behaviour_mut().propeller.register_channel_peers(PROPELLER_CHANNEL, peers).await
+    }
+
+    async fn propeller_broadcast(&mut self, message: Bytes) {
+        let _ = self.behaviour_mut().propeller.broadcast(PROPELLER_CHANNEL, message).await;
+    }
 }
