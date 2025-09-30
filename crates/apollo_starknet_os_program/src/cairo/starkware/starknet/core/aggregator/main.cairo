@@ -52,7 +52,7 @@ func main{
     local public_keys: felt*;
     local n_public_keys: felt;
     %{
-        public_keys = program_input.get("public_keys", [])
+        public_keys = program_input["public_keys"] if program_input["public_keys"] is not None else []
         ids.public_keys = segments.gen_arg(public_keys)
         ids.n_public_keys = len(public_keys)
     %}

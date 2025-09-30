@@ -1933,9 +1933,9 @@ if da_path is not None:
         GetPublicKeysFromAggregatorInput,
         get_public_keys_from_aggregator_input,
         indoc! {r#"
-    public_keys = program_input.get("public_keys", [])
-    ids.public_keys = segments.gen_arg(public_keys)
-    ids.n_public_keys = len(public_keys)"#
+        public_keys = program_input["public_keys"] if program_input["public_keys"] is not None else []
+        ids.public_keys = segments.gen_arg(public_keys)
+        ids.n_public_keys = len(public_keys)"#
 
         }
     ),
