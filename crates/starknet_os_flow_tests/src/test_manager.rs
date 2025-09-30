@@ -12,6 +12,7 @@ use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::contracts::FeatureContract;
 use itertools::Itertools;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
@@ -28,7 +29,7 @@ use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
-use starknet_committer::block_committer::input::{IsSubset, StateDiff};
+use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
 use starknet_os::io::os_input::{
     OsBlockInput,
     OsChainInfo,
@@ -129,6 +130,17 @@ impl<S: FlowTestState> OsTestOutput<S> {
         if let Some(partial_state_diff) = partial_state_diff {
             assert!(partial_state_diff.is_subset(&self.decompressed_state_diff));
         }
+    }
+
+    #[track_caller]
+    pub(crate) fn assert_account_balance_change(&self, account_address: ContractAddress) {
+        assert!(
+            self.decompressed_state_diff
+                .storage_updates
+                .get(&STRK_FEE_TOKEN_ADDRESS)
+                .expect("Expect balance changes.")
+                .contains_key(&StarknetStorageKey(get_fee_token_var_address(account_address)))
+        );
     }
 
     fn perform_global_validations(&self) {
