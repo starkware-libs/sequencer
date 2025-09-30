@@ -149,7 +149,7 @@ async fn declare_deploy_scenario(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
@@ -214,7 +214,7 @@ async fn trivial_diff_scenario(
         calldata: create_calldata(test_contract_address, function_name, &[key, value]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Move to next block, and add an invoke that reverts the previous change.
     test_manager.move_to_next_block();
@@ -224,7 +224,7 @@ async fn trivial_diff_scenario(
         calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Execute the test.
     let test_output = test_manager
@@ -244,13 +244,18 @@ async fn trivial_diff_scenario(
 }
 
 #[rstest]
+#[case::cairo0(
+    FeatureContract::TestContract(CairoVersion::Cairo0),
+    "ASSERT_EQ instruction failed: 1 != 0"
+)]
+#[case::cairo1(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    "Panic for revert"
+)]
 #[tokio::test]
 async fn test_reverted_invoke_tx(
-    #[values(
-        FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-    )]
-    test_contract: FeatureContract,
+    #[case] test_contract: FeatureContract,
+    #[case] revert_reason: &str,
 ) {
     let (use_kzg_da, full_output) = (true, false);
 
@@ -265,10 +270,14 @@ async fn test_reverted_invoke_tx(
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(test_contract_address, "write_and_revert", &[]),
+        calldata: create_calldata(test_contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    test_manager.add_invoke_tx_from_args(
+        invoke_tx_args,
+        &CHAIN_ID_FOR_TESTS,
+        Some(revert_reason.to_string()),
+    );
 
     // Execute the test.
     let test_output = test_manager
@@ -292,13 +301,18 @@ async fn test_reverted_invoke_tx(
 }
 
 #[rstest]
+#[case::cairo0(
+    FeatureContract::TestContract(CairoVersion::Cairo0),
+    "ASSERT_EQ instruction failed: 1 != 0."
+)]
+#[case::cairo1(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    "revert in l1 handler"
+)]
 #[tokio::test]
 async fn test_reverted_l1_handler_tx(
-    #[values(
-        FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-    )]
-    test_contract: FeatureContract,
+    #[case] test_contract: FeatureContract,
+    #[case] revert_reason: &str,
 ) {
     let (mut test_manager, _, [test_contract_address]) =
         TestManager::<DictStateReader>::new_with_default_initial_state([(
@@ -320,7 +334,7 @@ async fn test_reverted_l1_handler_tx(
         Fee(1_000_000),
     )
     .unwrap();
-    test_manager.add_l1_handler_tx(tx);
+    test_manager.add_l1_handler_tx(tx, Some(revert_reason.to_string()));
 
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
