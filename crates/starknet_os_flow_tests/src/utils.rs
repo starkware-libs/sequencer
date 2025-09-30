@@ -91,7 +91,7 @@ impl CommitmentOutput {
 /// configuration.
 pub(crate) fn execute_transactions<S: FlowTestState>(
     initial_state: S,
-    txs: &[Transaction],
+    txs: &Vec<Transaction>,
     block_context: BlockContext,
 ) -> ExecutionOutput<S> {
     let block_number_hash_pair =
@@ -110,7 +110,7 @@ pub(crate) fn execute_transactions<S: FlowTestState>(
     // Execute the transactions and make sure none of them failed.
     let execution_deadline = None;
     let execution_outputs = executor
-        .execute_txs(txs, execution_deadline)
+        .execute_txs(&txs, execution_deadline)
         .into_iter()
         .collect::<Result<_, TransactionExecutorError>>()
         .expect("Unexpected error during execution.");
