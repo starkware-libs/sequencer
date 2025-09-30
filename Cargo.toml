@@ -64,6 +64,7 @@ members = [
   "crates/apollo_p2p_sync_config",
   "crates/apollo_proc_macros",
   "crates/apollo_proc_macros_tests",
+  "crates/apollo_propeller",
   "crates/apollo_protobuf",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
@@ -179,6 +180,7 @@ apollo_p2p_sync.path = "crates/apollo_p2p_sync"
 apollo_p2p_sync_config.path = "crates/apollo_p2p_sync_config"
 apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
+apollo_propeller.path = "crates/apollo_propeller"
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
@@ -209,6 +211,7 @@ assert_matches = "1.5.0"
 async-recursion = "1.1.0"
 async-stream = "0.3.3"
 async-trait = "0.1.79"
+asynchronous-codec = "0.7.0"
 atomic_refcell = "0.1.13"
 axum = "0.6.12"
 base64 = "0.13.0"
@@ -279,6 +282,7 @@ libp2p = "0.56.0"
 libp2p-swarm-test = "0.6.0"
 log = "0.4"
 lru = "0.12.0"
+lru_time_cache = "0.11.11"
 memmap2 = "0.8.0"
 mempool_test_utils.path = "crates/mempool_test_utils"
 metrics = "0.24.1"
@@ -315,10 +319,14 @@ prost-types = "0.12.1"
 protoc-prebuilt = "0.3.0"
 pyo3 = "0.19.1"
 pyo3-log = "0.8.1"
+quick-protobuf = "0.8.1"
+quick-protobuf-codec = "0.3.1"
+quickcheck = "1.0.3"
 quote = "1.0.26"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rand_distr = "0.4.3"
+reed-solomon-simd = "3.1.0"
 regex = "1.10.4"
 replace_with = "0.1.7"
 reqwest = "0.12"

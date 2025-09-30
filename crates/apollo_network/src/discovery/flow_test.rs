@@ -31,6 +31,7 @@ impl DiscoveryMixedBehaviour {
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
             None, // No event tracker for tests
+            None,
             key,
             bootstrap_peer_multiaddr,
             ChainId::Mainnet,

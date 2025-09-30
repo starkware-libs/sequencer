@@ -33,6 +33,9 @@ pub enum NetworkProtocol {
     /// Use Reversed SQMR where receivers initiate requests to broadcasters
     #[value(name = "reversed-sqmr")]
     ReveresedSqmr,
+    /// Use Propeller for leader-based erasure-coded broadcasting
+    #[value(name = "propeller")]
+    Propeller,
 }
 
 impl Display for Mode {

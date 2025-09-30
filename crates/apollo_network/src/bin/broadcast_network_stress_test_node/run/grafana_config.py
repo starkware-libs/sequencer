@@ -104,6 +104,25 @@ SECTIONS = {
         ('network_event_counter{event_type="outbound_connections_handled"}', "short"),
         ('network_event_counter{event_type="connection_handler_events"}', "short"),
     ],
+    "🚀 Propeller Protocol": [
+        ("propeller_num_connected_peers", "short"),
+        ("rate(propeller_shards_published[1m])", "ops"),
+        ("rate(propeller_shards_sent[1m])", "ops"),
+        ("rate(propeller_shards_received[1m])", "ops"),
+        ("rate(propeller_shards_validated[1m])", "ops"),
+        ("rate(propeller_shards_forwarded[1m])", "ops"),
+        ("rate(propeller_shard_bytes_sent[1m])", "binBps"),
+        ("rate(propeller_shard_bytes_received[1m])", "binBps"),
+        ("rate(propeller_shards_send_failed[1m])", "ops"),
+        ("rate(propeller_shards_validation_failed[1m])", "ops"),
+        ("rate(propeller_messages_reconstructed[1m])", "ops"),
+        ("rate(propeller_messages_reconstruction_failed[1m])", "ops"),
+        ("rate(propeller_trees_generated[1m])", "ops"),
+        ("propeller_cached_verified_shards", "short"),
+        ("propeller_cached_reconstructed_messages", "short"),
+        ("propeller_pending_events_queue_size", "short"),
+        ("propeller_message_states_cache_size", "short"),
+    ],
 }
 
 # Define alerts - easy to add new ones!

@@ -12,6 +12,11 @@ use apollo_network::network_manager::metrics::{
     EVENT_TYPE_LABELS,
     NETWORK_BROADCAST_DROP_LABELS,
 };
+use apollo_propeller::metrics::{
+    PropellerMetrics,
+    SHARD_SEND_FAILURE_LABELS,
+    SHARD_VALIDATION_FAILURE_LABELS,
+};
 use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::PeerId;
 use sysinfo::{Networks, System};
@@ -63,6 +68,25 @@ define_metrics!(
         MetricCounter { NETWORK_RESET_TOTAL, "network_reset_total", "Total number of network resets performed", init = 0 },
         LabeledMetricCounter { NETWORK_DROPPED_BROADCAST_MESSAGES, "network_dropped_broadcast_messages", "Number of dropped broadcast messages by reason", init = 0, labels = NETWORK_BROADCAST_DROP_LABELS },
         LabeledMetricCounter { NETWORK_EVENT_COUNTER, "network_event_counter", "Network events counter by type", init = 0, labels = EVENT_TYPE_LABELS },
+
+        // Propeller Protocol Metrics
+        MetricCounter { PROPELLER_SHARDS_PUBLISHED, "propeller_shards_published", "Total number of shards published (created) by this node", init = 0 },
+        MetricCounter { PROPELLER_SHARDS_SENT, "propeller_shards_sent", "Total number of shards sent to peers (includes forwarding)", init = 0 },
+        LabeledMetricCounter { PROPELLER_SHARDS_SEND_FAILED, "propeller_shards_send_failed", "Total number of shard send failures, labeled by reason", init = 0, labels = SHARD_SEND_FAILURE_LABELS },
+        MetricCounter { PROPELLER_SHARD_BYTES_SENT, "propeller_shard_bytes_sent", "Total bytes sent in shard data (payload only)", init = 0 },
+        MetricCounter { PROPELLER_SHARDS_RECEIVED, "propeller_shards_received", "Total number of shards received from peers", init = 0 },
+        MetricCounter { PROPELLER_SHARDS_VALIDATED, "propeller_shards_validated", "Total number of shards successfully validated", init = 0 },
+        LabeledMetricCounter { PROPELLER_SHARDS_VALIDATION_FAILED, "propeller_shards_validation_failed", "Total number of shards that failed validation, labeled by reason", init = 0, labels = SHARD_VALIDATION_FAILURE_LABELS },
+        MetricCounter { PROPELLER_SHARDS_FORWARDED, "propeller_shards_forwarded", "Total number of shards forwarded to children in tree", init = 0 },
+        MetricCounter { PROPELLER_SHARD_BYTES_RECEIVED, "propeller_shard_bytes_received", "Total bytes received in shard data (payload only)", init = 0 },
+        MetricCounter { PROPELLER_MESSAGES_RECONSTRUCTED, "propeller_messages_reconstructed", "Total number of messages successfully reconstructed from shards", init = 0 },
+        MetricCounter { PROPELLER_MESSAGES_RECONSTRUCTION_FAILED, "propeller_messages_reconstruction_failed", "Total number of message reconstruction failures", init = 0 },
+        MetricCounter { PROPELLER_TREES_GENERATED, "propeller_trees_generated", "Total number of tree generation operations", init = 0 },
+        MetricGauge { PROPELLER_NUM_CONNECTED_PEERS, "propeller_num_connected_peers", "Current number of connected peers" },
+        MetricGauge { PROPELLER_CACHED_VERIFIED_SHARDS, "propeller_cached_verified_shards", "Current number of shards in the verified shards cache" },
+        MetricGauge { PROPELLER_CACHED_RECONSTRUCTED_MESSAGES, "propeller_cached_reconstructed_messages", "Current number of message IDs in the reconstructed messages cache" },
+        MetricGauge { PROPELLER_PENDING_EVENTS_QUEUE_SIZE, "propeller_pending_events_queue_size", "Current number of pending events in the events queue" },
+        MetricGauge { PROPELLER_MESSAGE_STATES_CACHE_SIZE, "propeller_message_states_cache_size", "Current number of messages being tracked in the message states cache" },
     },
 );
 
@@ -150,12 +174,33 @@ pub fn create_network_metrics() -> NetworkMetrics {
     // Create event metrics for network events monitoring
     let event_metrics = EventMetrics { event_counter: NETWORK_EVENT_COUNTER };
 
+    let propeller_metrics = PropellerMetrics {
+        shards_published: PROPELLER_SHARDS_PUBLISHED,
+        shards_sent: PROPELLER_SHARDS_SENT,
+        shards_send_failed: PROPELLER_SHARDS_SEND_FAILED,
+        shard_bytes_sent: PROPELLER_SHARD_BYTES_SENT,
+        shards_received: PROPELLER_SHARDS_RECEIVED,
+        shards_validated: PROPELLER_SHARDS_VALIDATED,
+        shards_validation_failed: PROPELLER_SHARDS_VALIDATION_FAILED,
+        shards_forwarded: PROPELLER_SHARDS_FORWARDED,
+        shard_bytes_received: PROPELLER_SHARD_BYTES_RECEIVED,
+        messages_reconstructed: PROPELLER_MESSAGES_RECONSTRUCTED,
+        messages_reconstruction_failed: PROPELLER_MESSAGES_RECONSTRUCTION_FAILED,
+        trees_generated: PROPELLER_TREES_GENERATED,
+        num_connected_peers: PROPELLER_NUM_CONNECTED_PEERS,
+        cached_verified_shards: PROPELLER_CACHED_VERIFIED_SHARDS,
+        cached_reconstructed_messages: PROPELLER_CACHED_RECONSTRUCTED_MESSAGES,
+        pending_events_queue_size: PROPELLER_PENDING_EVENTS_QUEUE_SIZE,
+        message_states_cache_size: PROPELLER_MESSAGE_STATES_CACHE_SIZE,
+    };
+
     NetworkMetrics {
         num_connected_peers: NETWORK_CONNECTED_PEERS,
         num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: Some(sqmr_metrics),
         event_metrics: Some(event_metrics),
+        propeller_metrics: Some(propeller_metrics),
     }
 }
 

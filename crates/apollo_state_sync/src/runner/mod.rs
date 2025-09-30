@@ -214,6 +214,7 @@ impl StateSyncRunner {
                     num_active_outbound_sessions: P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
                 }),
                 event_metrics: None,
+                propeller_metrics: None,
             });
             NetworkManager::new(
                 network_config.clone(),
