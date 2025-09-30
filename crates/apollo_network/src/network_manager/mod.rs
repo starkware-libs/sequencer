@@ -21,7 +21,7 @@ use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use tracing::{debug, error, trace, warn};
 
@@ -728,8 +728,11 @@ impl NetworkManager {
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
         // TODO(AndrewL): .with_quic()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-        .expect("Error building TCP transport")
+        .with_quic_config( |mut quic_config| {
+            quic_config.max_stream_data = u32::MAX;
+            quic_config.max_connection_data = u32::MAX;
+            quic_config
+        })
         .with_dns()
         .expect("Error building DNS transport")
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
@@ -747,9 +750,7 @@ impl NetworkManager {
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
         .build();
 
-        swarm
-            .listen_on(listen_address.clone())
-            .unwrap_or_else(|_| panic!("Error while binding to {listen_address}"));
+        let _ = swarm.listen_on(listen_address.clone());
 
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
             address
