@@ -27,7 +27,7 @@
   "batcher_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
     "privacy": "Public",
-    "value": 5263
+    "value": 6320
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -52,7 +52,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
-    "value": 5500000000
+    "value": 6000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
@@ -67,7 +67,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
-    "value": 312
+    "value": 360
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
     "description": "Bitwise gas weight.",
@@ -77,17 +77,17 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
     "description": "Ecdsa gas weight.",
     "privacy": "Public",
-    "value": 1666666
+    "value": 2000000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecop": {
     "description": "Ec_op gas weight.",
     "privacy": "Public",
-    "value": 714875
+    "value": 857850
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.keccak": {
     "description": "Keccak gas weight.",
     "privacy": "Public",
-    "value": 510707
+    "value": 600000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
     "description": "Mul_mod gas weight.",
@@ -97,12 +97,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 4769
+    "value": 5722
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
     "privacy": "Public",
-    "value": 10000
+    "value": 11450
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
     "description": "Range_check gas weight.",
