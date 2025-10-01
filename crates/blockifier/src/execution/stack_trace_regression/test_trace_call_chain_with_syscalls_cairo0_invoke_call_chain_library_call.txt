@@ -8,18 +8,18 @@ Unknown location (pc=0:125)
 1: Error in the called contract (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
 Error at pc=0:37:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1410)
-Unknown location (pc=0:1337)
+Unknown location (pc=0:1688)
+Unknown location (pc=0:1615)
 
 2: Error in the called contract (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
 Error at pc=0:49:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1410)
-Unknown location (pc=0:1355)
+Unknown location (pc=0:1688)
+Unknown location (pc=0:1633)
 
 3: Error in a library call (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
-Error at pc=0:1325:
+Error at pc=0:1603:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1410)
+Unknown location (pc=0:1688)
 
 Couldn't compute operand op0. Unknown value for memory cell 1:23
