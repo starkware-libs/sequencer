@@ -298,7 +298,28 @@ pub(crate) fn get_deploy_contract_tx_and_address(
     nonce: Nonce,
     resource_bounds: ValidResourceBounds,
 ) -> (Transaction, ContractAddress) {
-    let contract_address_salt = Felt::ONE;
+    let (deploy_contract_tx, contract_address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        ctor_calldata,
+        nonce,
+        resource_bounds,
+        Felt::ONE,
+    );
+    (
+        Transaction::new_for_sequencing(StarknetAPITransaction::Account(
+            AccountTransaction::Invoke(deploy_contract_tx),
+        )),
+        contract_address,
+    )
+}
+
+pub(crate) fn get_deploy_contract_tx_and_address_with_salt(
+    class_hash: ClassHash,
+    ctor_calldata: Calldata,
+    nonce: Nonce,
+    resource_bounds: ValidResourceBounds,
+    contract_address_salt: Felt,
+) -> (InvokeTransaction, ContractAddress) {
     let calldata = [class_hash.0, contract_address_salt, ctor_calldata.0.len().into()]
         .iter()
         .chain(ctor_calldata.0.iter())
@@ -328,12 +349,7 @@ pub(crate) fn get_deploy_contract_tx_and_address(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    (
-        Transaction::new_for_sequencing(StarknetAPITransaction::Account(
-            AccountTransaction::Invoke(deploy_contract_tx),
-        )),
-        contract_address,
-    )
+    (deploy_contract_tx, contract_address)
 }
 
 pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
