@@ -261,6 +261,10 @@ impl<S: FlowTestState> TestManager<S> {
         self.per_block_transactions.push(vec![]);
     }
 
+    pub(crate) fn total_txs(&self) -> usize {
+        self.per_block_transactions.iter().map(|block| block.len()).sum()
+    }
+
     fn last_block_txs_mut(&mut self) -> &mut Vec<FlowTestTx> {
         self.per_block_transactions
             .last_mut()
@@ -429,21 +433,28 @@ impl<S: FlowTestState> TestManager<S> {
 
     /// Verifies all the execution outputs are as expected w.r.t. revert reasons.
     fn verify_execution_outputs(
+        block_index: usize,
         revert_reasons: &[Option<String>],
         execution_outputs: &[(TransactionExecutionInfo, StateMaps)],
     ) {
-        for (revert_reason, (execution_info, _)) in
-            revert_reasons.iter().zip(execution_outputs.iter())
+        for ((i, revert_reason), (execution_info, _)) in
+            revert_reasons.iter().enumerate().zip(execution_outputs.iter())
         {
+            let preamble = format!("Block {block_index}, transaction {i}:");
             if let Some(revert_reason) = revert_reason {
                 let actual_revert_reason =
                     execution_info.revert_error.as_ref().unwrap().to_string();
                 assert!(
                     actual_revert_reason.contains(revert_reason),
-                    "Expected '{revert_reason}' to be in revert string:\n'{actual_revert_reason}'"
+                    "{preamble} Expected '{revert_reason}' to be in revert \
+                     string:\n'{actual_revert_reason}'"
                 );
             } else {
-                assert!(execution_info.revert_error.is_none());
+                assert!(
+                    execution_info.revert_error.is_none(),
+                    "{preamble} Expected no revert error, got: {}.",
+                    execution_info.revert_error.as_ref().unwrap()
+                );
             }
         }
     }
@@ -507,8 +518,8 @@ impl<S: FlowTestState> TestManager<S> {
             "use_kzg_da flag in block contexts must match the test parameter."
         );
         let mut alias_keys = HashSet::new();
-        for (block_txs_with_reason, block_context) in
-            per_block_txs.into_iter().zip(block_contexts.into_iter())
+        for ((block_index, block_txs_with_reason), block_context) in
+            per_block_txs.into_iter().enumerate().zip(block_contexts.into_iter())
         {
             // Clone the block info for later use.
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
@@ -519,7 +530,7 @@ impl<S: FlowTestState> TestManager<S> {
             // Execute the transactions.
             let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
                 execute_transactions(state, &block_txs, block_context);
-            Self::verify_execution_outputs(&revert_reasons, &execution_outputs);
+            Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
             let extended_state_diff = final_state.cache.borrow().extended_state_diff();
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap();
