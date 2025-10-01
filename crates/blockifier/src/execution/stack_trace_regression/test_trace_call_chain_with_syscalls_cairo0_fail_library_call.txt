@@ -8,19 +8,19 @@ Unknown location (pc=0:125)
 1: Error in the called contract (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
 Error at pc=0:37:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1410)
-Unknown location (pc=0:1337)
+Unknown location (pc=0:1682)
+Unknown location (pc=0:1609)
 
 2: Error in the called contract (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
 Error at pc=0:49:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1410)
-Unknown location (pc=0:1355)
+Unknown location (pc=0:1682)
+Unknown location (pc=0:1627)
 
 3: Error in a library call (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x032564d7e0fe091d49b4c20f4632191e4ed6986bf993849879abfef9465def25):
 Error message: You shall not pass!
-Error at pc=0:1428:
+Error at pc=0:1700:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1432)
+Unknown location (pc=0:1704)
 
 An ASSERT_EQ instruction failed: 1 != 0.

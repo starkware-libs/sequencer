@@ -6,6 +6,8 @@ from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin, EcOpBuiltin
 from starkware.cairo.common.ec import ec_op
 from starkware.cairo.common.ec_point import EcPoint
+from starkware.cairo.common.hash import hash2
+from starkware.cairo.common.math import assert_nn_le
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.messages import send_message_to_l1
@@ -32,6 +34,12 @@ from starkware.starknet.core.os.contract_address.contract_address import get_con
 // selector_from_name('transferFrom').
 const TRANSFER_FROM_SELECTOR = 0x0041b033f4a31df8067c24d1e9b550a2ce75fd4a29e1147af9752174f0e6cb20;
 
+@contract_interface
+namespace TestContract {
+    func set_value(address: felt, value: felt) {
+    }
+}
+
 @storage_var
 func number_map(key: felt) -> (value: felt) {
 }
@@ -51,6 +59,26 @@ func without_arg() {
 func with_arg(num: felt) {
     assert num = 25;
     return ();
+}
+
+@external
+func read_write_read{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*}() {
+    const address = 15;
+
+    let (value) = storage_read(address=address);
+    storage_write(address=address, value=value + 1);
+    let (new_value) = storage_read(address=address);
+
+    assert new_value = value + 1;
+    return ();
+}
+
+@external
+func test_builtins{pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (result: felt) {
+    assert_nn_le(17, 85);
+    let (result) = hash2{hash_ptr=pedersen_ptr}(x=1, y=2);
+    assert result = 2592987851775965742543459319508348457290966253241455514226127639100457844774;
+    return (result=result);
 }
 
 @external
@@ -79,6 +107,26 @@ func l1_handler_set_value_and_revert{syscall_ptr: felt*}(
     return ();
 }
 
+@l1_handler
+func deposit{syscall_ptr: felt*, range_check_ptr, pedersen_ptr: HashBuiltin*}(
+    from_address: felt, amount: felt
+) {
+    advance_counter(index=from_address, diff_0=amount, diff_1=0);
+    return ();
+}
+
+@external
+func test_library_call_l1_handler{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    class_hash: felt, selector: felt, calldata_len: felt, calldata: felt*
+) {
+    library_call_l1_handler(
+        class_hash=class_hash,
+        function_selector=selector,
+        calldata_size=calldata_len,
+        calldata=calldata,
+    );
+    return ();
+}
 
 @external
 func bitwise_and{bitwise_ptr: BitwiseBuiltin*}(x: felt, y: felt) {
@@ -150,6 +198,26 @@ func test_library_call{syscall_ptr: felt*}(
         calldata=calldata,
     );
     return (retdata_size=retdata_size, retdata=retdata);
+}
+
+@external
+func set_value{syscall_ptr: felt*}(address: felt, value: felt) {
+    return storage_write(address=address, value=value);
+}
+
+@external
+func test_library_call_syntactic_sugar{syscall_ptr: felt*, range_check_ptr}(class_hash: felt) {
+    // Set value in this contract context.
+    set_value(address=444, value=555);
+    let (value) = storage_read(address=444);
+    assert value = 555;
+
+    // Set value in this contract context using library call.
+    TestContract.library_call_set_value(class_hash=class_hash, address=444, value=666);
+    let (value) = storage_read(address=444);
+    assert value = 666;
+
+    return ();
 }
 
 @external
@@ -574,6 +642,20 @@ func send_message{syscall_ptr: felt*}(to_address: felt) {
     local payload: (felt, felt) = (12, 34);
     let (__fp__, _) = get_fp_and_pc();
     send_message_to_l1(to_address=to_address, payload_size=2, payload=cast(&payload, felt*));
+    return ();
+}
+
+@external
+func test_get_caller_address{syscall_ptr: felt*}(expected_address: felt) {
+    let (caller_address) = get_caller_address();
+    assert caller_address = expected_address;
+    return ();
+}
+
+@external
+func test_get_contract_address{syscall_ptr: felt*}(expected_address: felt) {
+    let (contract_address) = get_contract_address_syscall();
+    assert contract_address = expected_address;
     return ();
 }
 
