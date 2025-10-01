@@ -12,9 +12,9 @@ use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
     CompiledClassHash as StarknetAPICompiledClassHash,
+    ContractAddress,
     EthAddress,
     Nonce,
-    PatriciaKey,
 };
 use starknet_api::executable_transaction::{
     DeclareTransaction,
@@ -48,7 +48,7 @@ use starknet_api::transaction::{
     MessageToL1,
     TransactionVersion,
 };
-use starknet_api::{calldata, declare_tx_args, invoke_tx_args, storage_key};
+use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
@@ -376,6 +376,20 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     let (mut test_manager, mut nonce_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
     let n_expected_txs = 29;
+    let mut expected_storage_updates: HashMap<
+        ContractAddress,
+        HashMap<StarknetStorageKey, StarknetStorageValue>,
+    > = HashMap::new();
+    let mut update_expected_storage = |address: ContractAddress, key: Felt, value: Felt| {
+        let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
+        let value = StarknetStorageValue(value);
+        expected_storage_updates
+            .entry(address)
+            .and_modify(|map| {
+                map.insert(key, value);
+            })
+            .or_insert_with(|| HashMap::from([(key, value)]));
+    };
 
     // Declare a Cairo 0 test contract.
     let cairo0_test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -410,19 +424,27 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         );
         contract_addresses.push(address);
         test_manager.add_invoke_tx(deploy_tx, None);
+        // Update expected storage diff, if the ctor calldata writes a nonzero value.
+        if ctor_calldata[1] != 0 {
+            update_expected_storage(
+                address,
+                Felt::from(ctor_calldata[0]),
+                Felt::from(ctor_calldata[1]),
+            );
+        }
     }
 
     // Call set_value(address=85, value=47) on the first contract.
     // Used to test normal value update and make sure it is written to on-chain data.
+    let (key, value) = (Felt::from(85), Felt::from(47));
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            contract_addresses[0], "test_storage_read_write", &[Felt::from(85), Felt::from(47)]
-        ),
+        calldata: create_calldata(contract_addresses[0], "test_storage_read_write", &[key, value]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(contract_addresses[0], key, value);
 
     // Call set_value(address=81, value=0) on the first contract.
     // Used to test redundant value update (0 -> 0) and make sure it is not written to on-chain
@@ -457,6 +479,7 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(contract_addresses[1], Felt::from(15), Felt::ONE);
 
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
@@ -611,6 +634,11 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(
+        delegate_proxy_address,
+        **get_storage_var_address("implementation_hash", &[]),
+        test_class_hash.0,
+    );
 
     // Call test_get_contract_address(expected_address=delegate_proxy_address) through the delegate
     // proxy.
@@ -625,15 +653,15 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Call set_value(address=123, value=456) through the delegate proxy.
+    let (key, value) = (Felt::from(123), Felt::from(456));
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            delegate_proxy_address, "test_storage_read_write", &[Felt::from(123), Felt::from(456)]
-        ),
+        calldata: create_calldata(delegate_proxy_address, "test_storage_read_write", &[key, value]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(delegate_proxy_address, key, value);
 
     // Call test_get_caller_address(expected_address=account_address) through the delegate proxy.
     let invoke_tx_args = invoke_tx_args! {
@@ -689,6 +717,14 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         nonce: l1_handler_nonce,
         selector: l1_handler_selector,
     };
+    update_expected_storage(
+        delegate_proxy_address,
+        **get_storage_var_address(
+            "two_counters",
+            &[Felt::from(expected_message_to_l2.from_address)],
+        ),
+        *expected_message_to_l2.payload.0.last().unwrap(),
+    );
 
     // Call test_library_call_syntactic_sugar from contract_addresses[0] to test library calls
     // using the syntactic sugar of 'library_call_<FUNCTION>'.
@@ -703,18 +739,31 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(contract_addresses[0], Felt::from(444), Felt::from(666));
 
     // Call add_signature_to_counters(index=2021).
+    let index = Felt::from(2021);
+    let signature = TransactionSignature(Arc::new(vec![Felt::from(100), Felt::from(200)]));
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
         calldata: create_calldata(
-            contract_addresses[0], "add_signature_to_counters", &[Felt::from(2021)]
+            contract_addresses[0], "add_signature_to_counters", &[index]
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        signature: TransactionSignature(Arc::new(vec![Felt::from(100), Felt::from(200)])),
+        signature: signature.clone(),
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(
+        contract_addresses[0],
+        **get_storage_var_address("two_counters", &[index]),
+        signature.0[0],
+    );
+    update_expected_storage(
+        contract_addresses[0],
+        **get_storage_var_address("two_counters", &[index]) + Felt::ONE,
+        signature.0[1],
+    );
 
     // Declare test_contract2.
     let test_contract2 = FeatureContract::TestContract2;
@@ -732,6 +781,7 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         .add_cairo0_declare_tx(tx, StarknetAPICompiledClassHash(test_contract2_class_hash.0));
 
     // Use library_call to call test_contract2.test_storage_write(address=555, value=888).
+    let (key, value) = (Felt::from(555), Felt::from(888));
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
@@ -742,17 +792,19 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
                 test_contract2_class_hash.0,
                 selector_from_name("test_storage_write").0,
                 Felt::TWO,
-                Felt::from(555),
-                Felt::from(888)
+                key,
+                value
             ]
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         signature: TransactionSignature(Arc::new(vec![Felt::from(100)])),
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(contract_addresses[1], key, value);
 
     // Use library_call_l1_handler to invoke test_contract2.test_l1_handler_storage_write with
     // from_address=85, address=666, value=999.
+    let (key, value) = (Felt::from(666), Felt::from(999));
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
@@ -764,14 +816,15 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
                 selector_from_name("test_l1_handler_storage_write").0,
                 Felt::THREE,
                 Felt::from(85),
-                Felt::from(666),
-                Felt::from(999)
+                key,
+                value
             ]
         ),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         signature: TransactionSignature(Arc::new(vec![Felt::from(100)])),
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    update_expected_storage(contract_addresses[1], key, value);
 
     // Replace the class of contract_addresses[0] to the class of test_contract2.
     let invoke_tx_args = invoke_tx_args! {
@@ -783,63 +836,6 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
-
-    // Expected values:
-
-    // Storage updates:
-    let storage_updates = HashMap::from([
-        (
-            contract_addresses[0],
-            HashMap::from([
-                (StarknetStorageKey(storage_key!(85u16)), StarknetStorageValue(Felt::from(47))),
-                (StarknetStorageKey(storage_key!(321u16)), StarknetStorageValue(Felt::from(543))),
-                (StarknetStorageKey(storage_key!(444u16)), StarknetStorageValue(Felt::from(666))),
-                (
-                    StarknetStorageKey(get_storage_var_address(
-                        "two_counters",
-                        &[Felt::from(2021)],
-                    )),
-                    StarknetStorageValue(Felt::from(100)),
-                ),
-                (
-                    StarknetStorageKey(StorageKey(
-                        PatriciaKey::try_from(
-                            **get_storage_var_address("two_counters", &[Felt::from(2021)])
-                                + Felt::ONE,
-                        )
-                        .unwrap(),
-                    )),
-                    StarknetStorageValue(Felt::from(200)),
-                ),
-            ]),
-        ),
-        (
-            contract_addresses[1],
-            HashMap::from([
-                (StarknetStorageKey(storage_key!(15u16)), StarknetStorageValue(Felt::from(1))),
-                (StarknetStorageKey(storage_key!(111u16)), StarknetStorageValue(Felt::from(987))),
-                (StarknetStorageKey(storage_key!(555u16)), StarknetStorageValue(Felt::from(888))),
-                (StarknetStorageKey(storage_key!(666u16)), StarknetStorageValue(Felt::from(999))),
-            ]),
-        ),
-        (
-            delegate_proxy_address,
-            HashMap::from([
-                (StarknetStorageKey(storage_key!(123u16)), StarknetStorageValue(Felt::from(456))),
-                (
-                    StarknetStorageKey(get_storage_var_address("implementation_hash", &[])),
-                    StarknetStorageValue(test_class_hash.0),
-                ),
-                (
-                    StarknetStorageKey(get_storage_var_address(
-                        "two_counters",
-                        &[Felt::from(expected_message_to_l2.from_address)],
-                    )),
-                    StarknetStorageValue(*expected_message_to_l2.payload.0.last().unwrap()),
-                ),
-            ]),
-        ),
-    ]);
 
     // Expected number of txs.
     assert_eq!(test_manager.total_txs(), n_expected_txs);
@@ -856,6 +852,7 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
 
     // Perform validations.
     let perform_global_validations = true;
-    let partial_state_diff = Some(&StateDiff { storage_updates, ..Default::default() });
+    let partial_state_diff =
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
 }
