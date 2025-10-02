@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -54,6 +55,7 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
 
@@ -61,6 +63,7 @@ use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
 };
+use crate::special_contracts::V1_BOUND_CAIRO0_CONTRACT;
 use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
 use crate::utils::{
     divide_vec_into_n_parts,
@@ -780,4 +783,20 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_v1_bound_accounts_cairo0() {
+    let test_contract = &V1_BOUND_CAIRO0_CONTRACT;
+    let class_hash = ClassHash(compute_deprecated_class_hash(test_contract).unwrap());
+
+    assert!(
+        VersionedConstants::latest_constants()
+            .os_constants
+            .v1_bound_accounts_cairo0
+            .contains(&class_hash)
+    );
+
+    // TODO(Dori): Implement the test.
 }
