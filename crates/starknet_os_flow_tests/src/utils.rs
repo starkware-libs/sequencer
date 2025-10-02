@@ -27,6 +27,7 @@ use starknet_api::core::{
     GLOBAL_STATE_VERSION,
 };
 use starknet_api::declare_tx_args;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
@@ -407,18 +408,22 @@ pub(crate) fn divide_vec_into_n_parts<T>(mut vec: Vec<T>, n: usize) -> Vec<Vec<T
     items_per_part
 }
 
+pub(crate) fn get_class_info_of_cairo0_contract(
+    contract_class: DeprecatedContractClass,
+) -> ClassInfo {
+    let abi_length = contract_class.abi.as_ref().unwrap().len();
+    ClassInfo {
+        contract_class: ContractClass::V0(contract_class),
+        sierra_program_length: 0,
+        abi_length,
+        sierra_version: SierraVersion::DEPRECATED,
+    }
+}
+
 // TODO(Nimrod): Consider moving it to a method of `FeatureContract`.
 pub(crate) fn get_class_info_of_feature_contract(feature_contract: FeatureContract) -> ClassInfo {
     match feature_contract.get_class() {
-        ContractClass::V0(contract_class) => {
-            let abi_length = contract_class.abi.as_ref().unwrap().len();
-            ClassInfo {
-                contract_class: ContractClass::V0(contract_class),
-                sierra_program_length: 0,
-                abi_length,
-                sierra_version: SierraVersion::DEPRECATED,
-            }
-        }
+        ContractClass::V0(contract_class) => get_class_info_of_cairo0_contract(contract_class),
         ContractClass::V1((contract_class, sierra_version)) => {
             let sierra = feature_contract.get_sierra();
             ClassInfo {
