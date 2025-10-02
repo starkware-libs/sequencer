@@ -18,11 +18,13 @@ use starknet_api::core::{
 };
 use starknet_api::executable_transaction::{
     DeclareTransaction,
+    InvokeTransaction,
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
+use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
     CURRENT_BLOCK_TIMESTAMP,
@@ -55,6 +57,8 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_core::crypto::ecdsa_sign;
+use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
@@ -68,6 +72,7 @@ use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
 use crate::utils::{
     divide_vec_into_n_parts,
     get_class_hash_of_feature_contract,
+    get_class_info_of_cairo0_contract,
     get_class_info_of_feature_contract,
 };
 
@@ -798,13 +803,80 @@ async fn test_os_logic(
 async fn test_v1_bound_accounts_cairo0() {
     let test_contract = &V1_BOUND_CAIRO0_CONTRACT;
     let class_hash = ClassHash(compute_deprecated_class_hash(test_contract).unwrap());
+    let vc = VersionedConstants::latest_constants();
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
 
-    assert!(
-        VersionedConstants::latest_constants()
-            .os_constants
-            .v1_bound_accounts_cairo0
-            .contains(&class_hash)
+    assert!(vc.os_constants.v1_bound_accounts_cairo0.contains(&class_hash));
+
+    // Declare the V1-bound account.
+    let declare_args = declare_tx_args! {
+        version: TransactionVersion::ZERO,
+        max_fee: Fee(1_000_000_000_000_000),
+        class_hash,
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+    };
+    let account_declare_tx = declare_tx(declare_args);
+    let class_info = get_class_info_of_cairo0_contract((**test_contract).clone());
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo0_declare_tx(tx, class_hash);
+
+    // Deploy it.
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let (deploy_tx, v1_bound_account_address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        Calldata::default(),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
     );
+    test_manager.add_invoke_tx(deploy_tx, None);
 
-    // TODO(Dori): Implement the test.
+    // Initialize the account.
+    let private_key = Felt::ONE;
+    let public_key = get_public_key(&private_key);
+    let guardian = Felt::ZERO;
+    let calldata = create_calldata(v1_bound_account_address, "initialize", &[public_key, guardian]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Create a validate tx and add signature to the transaction. The dummy account used to call
+    // `__validate__` does not check the signature, so we can use the signature field for
+    // `__validate__`. This is done after creating the transaction so that we will have access
+    // to the transaction hash.
+    let validate_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            v1_bound_account_address, "__validate__", &[Felt::ZERO, Felt::ZERO]
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        tip: vc.os_constants.v1_bound_accounts_max_tip,
+    };
+    let validate_tx =
+        InvokeTransaction::create(invoke_tx(validate_tx_args.clone()), &CHAIN_ID_FOR_TESTS)
+            .unwrap();
+    assert_eq!(validate_tx.version(), TransactionVersion::THREE);
+    let Signature { r, s } = ecdsa_sign(&private_key, &validate_tx.tx_hash()).unwrap().into();
+    let validate_tx_args = invoke_tx_args! {
+        signature: TransactionSignature(Arc::new(vec![r, s])),
+        ..validate_tx_args
+    };
+    test_manager.add_invoke_tx_from_args(validate_tx_args, &CHAIN_ID_FOR_TESTS, None);
+
+    // Run test and verify the signer was set.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+
+    let expected_storage_updates = HashMap::from([(
+        v1_bound_account_address,
+        HashMap::from([(
+            StarknetStorageKey(get_storage_var_address("_signer", &[])),
+            StarknetStorageValue(public_key),
+        )]),
+    )]);
+    let perform_global_validations = true;
+    let partial_state_diff =
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
+    test_output.perform_validations(perform_global_validations, partial_state_diff);
 }
