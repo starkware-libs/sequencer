@@ -13,6 +13,8 @@ cairo-lang-starknet-classes.workspace = true
 itertools.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
+starknet-core.workspace = true
+starknet-crypto.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer = { workspace = true, features = ["testing"] }
