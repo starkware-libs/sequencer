@@ -68,7 +68,11 @@ use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
 };
-use crate::special_contracts::V1_BOUND_CAIRO0_CONTRACT;
+use crate::special_contracts::{
+    V1_BOUND_CAIRO0_CONTRACT,
+    V1_BOUND_CAIRO1_CONTRACT_CASM,
+    V1_BOUND_CAIRO1_CONTRACT_SIERRA,
+};
 use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
 use crate::utils::{
     divide_vec_into_n_parts,
@@ -948,4 +952,16 @@ async fn test_v1_bound_accounts_cairo0() {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_v1_bound_accounts_cairo1() {
+    let test_contract_sierra = &V1_BOUND_CAIRO1_CONTRACT_SIERRA;
+    let _test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;
+    let class_hash = test_contract_sierra.calculate_class_hash();
+    let vc = VersionedConstants::latest_constants();
+    assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
+
+    // TODO(Dori): Impl the test.
 }
