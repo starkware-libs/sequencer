@@ -11,6 +11,7 @@ use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -26,6 +27,7 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
+use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
@@ -389,6 +391,15 @@ impl<S: FlowTestState> TestManager<S> {
             tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
             expected_revert_reason,
         });
+    }
+
+    pub(crate) fn add_fund_address_tx(&mut self, address: ContractAddress, amount: u128) {
+        let calldata = create_calldata(
+            *STRK_FEE_TOKEN_ADDRESS,
+            "transfer",
+            &[**address, Felt::from(amount), Felt::ZERO],
+        );
+        self.add_funded_account_invoke(invoke_tx_args! { calldata });
     }
 
     /// Executes the test using default block contexts, starting from the given block number.
