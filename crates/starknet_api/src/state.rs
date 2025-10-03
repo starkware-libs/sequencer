@@ -311,7 +311,18 @@ impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for Sierra
                 .collect(),
             contract_class_version: cairo_lang_contract_class.contract_class_version,
             entry_points_by_type: cairo_lang_contract_class.entry_points_by_type.into(),
-            abi: cairo_lang_contract_class.abi.map(|abi| abi.json()).unwrap_or_default(),
+            abi: cairo_lang_contract_class
+                .abi
+                .map(|abi| {
+                    serde_json_fmt::JsonFormat::new()
+                        .comma(", ")
+                        .unwrap()
+                        .colon(": ")
+                        .unwrap()
+                        .format_to_string(&abi)
+                        .unwrap()
+                })
+                .unwrap_or_default(),
         }
     }
 }
