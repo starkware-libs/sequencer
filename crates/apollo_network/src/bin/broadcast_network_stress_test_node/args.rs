@@ -33,6 +33,9 @@ pub enum NetworkProtocol {
     /// Use Reversed SQMR where receivers initiate requests to broadcasters
     #[value(name = "reversed-sqmr")]
     ReveresedSqmr,
+    /// Use Propeller for leader-based erasure-coded broadcasting
+    #[value(name = "propeller")]
+    Propeller,
 }
 
 impl Display for Mode {
@@ -44,6 +47,41 @@ impl Display for Mode {
 impl Display for NetworkProtocol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_possible_value().unwrap().get_name())
+    }
+}
+
+impl NetworkProtocol {
+    /// Validates protocol-specific requirements for the given message size.
+    /// Returns an error message if validation fails, or Ok(()) if validation passes.
+    pub fn validate_message_size(&self, message_size_bytes: Option<usize>) -> Result<(), String> {
+        match self {
+            NetworkProtocol::Propeller => {
+                if let Some(message_size) = message_size_bytes {
+                    let default_config = libp2p::propeller::Config::default();
+                    let shreds =
+                        default_config.fec_coding_shreds() + default_config.fec_data_shreds();
+                    if message_size % shreds != 0 {
+                        return Err(format!(
+                            "Propeller protocol requires message size to be a multiple of 64 \
+                             bytes, got {}",
+                            message_size
+                        ));
+                    }
+                    let shred_size = message_size / shreds;
+                    if !(shred_size).is_multiple_of(2) {
+                        return Err(format!(
+                            "Propeller protocol requires shred size to be a multiple of 2, got {}",
+                            shred_size
+                        ));
+                    }
+                }
+                Ok(())
+            }
+            NetworkProtocol::Gossipsub | NetworkProtocol::Sqmr | NetworkProtocol::ReveresedSqmr => {
+                // These protocols don't have specific message size requirements
+                Ok(())
+            }
+        }
     }
 }
 
