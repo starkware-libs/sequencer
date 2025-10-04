@@ -10,7 +10,8 @@ use crate::common::{end_to_end_flow, TestScenario};
 mod common;
 
 /// This test checks that at least one block is full.
-#[tokio::test]
+/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn many_txs_fill_at_least_one_block() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestManyTxs,
