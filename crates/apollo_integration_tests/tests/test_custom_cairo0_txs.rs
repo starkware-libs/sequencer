@@ -20,7 +20,8 @@ mod common;
 
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 9;
 
-#[tokio::test]
+/// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn custom_cairo0_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestCustomCairo0Txs,
