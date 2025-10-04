@@ -91,6 +91,7 @@ pub trait BaseLayerContract {
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
 
+    async fn get_url(&self) -> Result<Url, Self::Error>;
     async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
 }
 

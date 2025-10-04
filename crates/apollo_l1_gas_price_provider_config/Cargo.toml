@@ -1,0 +1,16 @@
+[package]
+name = "apollo_l1_gas_price_provider_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+url.workspace = true
+validator.workspace = true

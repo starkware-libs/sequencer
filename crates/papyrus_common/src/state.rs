@@ -21,10 +21,13 @@ pub struct DeployedContract {
 
 /// A mapping from class hash to the compiled class hash.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DeclaredClassHashEntry {
+pub struct ClassHashToCompiledClassHashEntry {
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
 }
+
+pub type DeclaredClassHashEntry = ClassHashToCompiledClassHashEntry;
+pub type MigratedCompiledClassHashEntry = ClassHashToCompiledClassHashEntry;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ReplacedClass {

@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_runner::casm_run::execute_core_hint_base;
@@ -713,7 +714,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.versioned_constants()
     }
 
-    fn write_sha256_state(
+    fn write_sha256_out_state(
         &mut self,
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
@@ -759,7 +760,6 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         exec_scopes: &mut ExecutionScopes,
         hint_data: &Box<dyn Any>,
-        _constants: &HashMap<String, Felt>,
     ) -> HintExecutionResult {
         let hint = hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)?;
         // Segment arena finalization is relevant only for proof so there is no need to allocate
@@ -783,6 +783,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
         _ap_tracking_data: &ApTracking,
         _reference_ids: &HashMap<String, usize>,
         _references: &[HintReference],
+        _constants: Rc<HashMap<String, Felt>>,
     ) -> Result<Box<dyn Any>, VirtualMachineError> {
         Ok(Box::new(self.hints[hint_code].clone()))
     }

@@ -409,36 +409,84 @@ impl AccountTransactionGenerator {
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
-    pub fn generate_invoke_tx_library_call(
+    fn generate_nested_call_invoke_tx(
         &mut self,
         tip: u64,
-        inner_test_contract: &FeatureContract,
+        outer_test_contract: &FeatureContract,
+        inner_contract_pointer: &Felt,
+        outer_fn_name: &str,
         inner_fn_name: &str,
         inner_fn_args: &[Felt],
     ) -> RpcTransaction {
-        // Calldata for nested library call: called contract class hash, called entry point
-        // selector, and arguments.
-        let library_call_calldata = Calldata(
-            [
-                vec![inner_test_contract.get_class_hash().0, selector_from_name(inner_fn_name).0],
-                inner_fn_args.to_vec(),
-            ]
-            .concat()
-            .into(),
-        );
-        let calldata = create_calldata(
-            inner_test_contract.get_instance_address(0),
-            "test_library_call",
-            &library_call_calldata.0,
-        );
+        let mut inner_calldata_args =
+            vec![*inner_contract_pointer, selector_from_name(inner_fn_name).0];
+        inner_calldata_args.extend_from_slice(inner_fn_args);
+        let inner_calldata = Calldata(inner_calldata_args.into());
 
+        let calldata = create_calldata(
+            outer_test_contract.get_instance_address(0),
+            outer_fn_name,
+            &inner_calldata.0,
+        );
         self.generate_rpc_invoke_tx(tip, calldata)
+    }
+
+    pub fn generate_library_call_invoke_tx(
+        &mut self,
+        tip: u64,
+        outer_contract: &FeatureContract,
+        inner_contract: &FeatureContract,
+        fn_name: &str,
+        fn_args: &[Felt],
+    ) -> RpcTransaction {
+        self.generate_nested_call_invoke_tx(
+            tip,
+            outer_contract,
+            &inner_contract.get_class_hash().0,
+            "test_library_call",
+            fn_name,
+            fn_args,
+        )
+    }
+
+    pub fn generate_call_contract_invoke_tx(
+        &mut self,
+        tip: u64,
+        outer_contract: &FeatureContract,
+        inner_contract: &ContractAddress,
+        fn_name: &str,
+        fn_args: &[Felt],
+    ) -> RpcTransaction {
+        self.generate_nested_call_invoke_tx(
+            tip,
+            outer_contract,
+            inner_contract.0.key(),
+            "test_call_contract",
+            fn_name,
+            fn_args,
+        )
+    }
+
+    pub fn generate_rpc_declare_tx(
+        &mut self,
+        compiled_class_hash: CompiledClassHash,
+        contract_class: SierraContractClass,
+    ) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        let declare_args = declare_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            compiled_class_hash,
+        );
+        rpc_declare_tx(declare_args, contract_class)
     }
 
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
         let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
+
         starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
     }
 
@@ -495,17 +543,11 @@ impl AccountTransactionGenerator {
         rpc_deploy_account_tx(deploy_account_args)
     }
 
-    pub fn generate_declare(&mut self) -> RpcTransaction {
-        let nonce = self.next_nonce();
-        let declare_args = declare_tx_args!(
-            signature: TransactionSignature(vec![Felt::ZERO].into()),
-            sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
-            nonce,
-            compiled_class_hash: *COMPILED_CLASS_HASH,
-        );
-        let contract_class = contract_class();
-        rpc_declare_tx(declare_args, contract_class)
+    /// Generates a declare transaction for the ContractClass in contract_class.cairo file.
+    /// TODO(Itamar): Rename contract_class.json, research and if it's possible than delete
+    /// contract_class.json and use empty contract instead.
+    pub fn generate_declare_of_contract_class(&mut self) -> RpcTransaction {
+        self.generate_rpc_declare_tx(*COMPILED_CLASS_HASH, contract_class())
     }
 
     pub fn sender_address(&self) -> ContractAddress {

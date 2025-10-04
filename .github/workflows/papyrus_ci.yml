@@ -44,7 +44,7 @@ jobs:
 
       - name: Run executable
         run: >
-          target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+          target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
 
   executable-run-no-rpc:
@@ -61,7 +61,7 @@ jobs:
 
       - name: Run executable
         run: >
-          target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+          target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
 
   # FIXME: Job is currently running out of disk space, error is hidden inside the `Annoatations`

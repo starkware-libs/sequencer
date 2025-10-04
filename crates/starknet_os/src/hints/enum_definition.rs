@@ -26,6 +26,7 @@ use crate::hints::hint_implementation::aggregator::{
 };
 use crate::hints::hint_implementation::blake2s::implementation::{
     check_packed_values_end_and_size,
+    naive_unpack_felt252s_to_u32s,
     unpack_felts_to_u32s,
 };
 use crate::hints::hint_implementation::block_context::{
@@ -65,7 +66,10 @@ use crate::hints::hint_implementation::deprecated_compiled_class::implementation
     load_deprecated_class_facts,
     load_deprecated_class_inner,
 };
-use crate::hints::hint_implementation::execute_syscalls::is_block_number_in_block_hash_buffer;
+use crate::hints::hint_implementation::execute_syscalls::{
+    is_block_number_in_block_hash_buffer,
+    relocate_sha256_segment,
+};
 use crate::hints::hint_implementation::execute_transactions::implementation::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
@@ -74,7 +78,6 @@ use crate::hints::hint_implementation::execute_transactions::implementation::{
     segments_add_temp,
     set_ap_to_actual_fee,
     set_component_hashes,
-    set_sha256_segment_in_syscall_handler,
     sha2_finalize,
     skip_tx,
     start_tx,
@@ -156,6 +159,7 @@ use crate::hints::hint_implementation::os_logger::{
 use crate::hints::hint_implementation::output::{
     calculate_keys_using_sha256_hash,
     set_compressed_start,
+    set_encrypted_start,
     set_n_updates_small,
     set_state_updates_start,
     set_tree_structure,
@@ -815,11 +819,20 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         SetCompressedStart,
         set_compressed_start,
-        indoc! {r#"if use_kzg_da:
+        indoc! {r#"if use_kzg_da or ids.n_keys > 0:
     ids.compressed_start = segments.add()
 else:
     # Assign a temporary segment, to be relocated into the output segment.
     ids.compressed_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetEncryptedStart,
+        set_encrypted_start,
+        indoc! {r#"if use_kzg_da:
+    ids.encrypted_start = segments.add()
+else:
+    # Assign a temporary segment, to be relocated into the output segment.
+    ids.encrypted_start = segments.add_temp_segment()"#}
     ),
     (
         SetNUpdatesSmall,
@@ -908,6 +921,7 @@ ids.initial_carried_outputs = segments.gen_arg(
         "memory[ap] = to_felt_or_relocatable((ids.end != ids.packed_values) and \
          (memory[ids.packed_values] < 2**63))"
     ),
+    (NaiveUnpackFelts252ToU32s, naive_unpack_felt252s_to_u32s, "NaiveUnpackFelts252ToU32s"),
     (
         UnpackFeltsToU32s,
         unpack_felts_to_u32s,
@@ -1058,6 +1072,16 @@ define_hint_enum!(
         "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
         f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
         }
+    ),
+    (
+        RelocateSha256Segment,
+        relocate_sha256_segment,
+        indoc! {r#"
+    state_ptr = ids.response.state_ptr.address_
+    actual_out_state = ids.actual_out_state.address_
+    for i in range(8):
+        memory[actual_out_state + i] = memory[state_ptr + i]
+    memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)"#}
     ),
     (
         EnterScopeWithBytecodeSegmentStructure,
@@ -1244,11 +1268,6 @@ else:
         skip_tx,
         indoc! {r#"execution_helper.skip_tx()"#
         }
-    ),
-    (
-        SetSha256SegmentInSyscallHandler,
-        set_sha256_segment_in_syscall_handler,
-        indoc! {r#"syscall_handler.sha256_segment = ids.sha256_ptr"#}
     ),
     (
         SetComponentHashes,

@@ -10,7 +10,7 @@ use crate::abi::constants;
 
 #[derive(Debug, Error)]
 pub enum StateError {
-    #[error("CASM and Sierra mismatch for class hash {:#064x}: {message}.", class_hash.0)]
+    #[error("CASM and Sierra mismatch for class hash {:#066x}: {message}.", class_hash.0)]
     CasmAndSierraMismatch { class_hash: ClassHash, message: String },
     #[error(transparent)]
     FromBigUint(#[from] TryFromBigIntError<BigUint>),
@@ -23,16 +23,16 @@ pub enum StateError {
     OutOfRangeContractAddress,
     #[error(transparent)]
     ProgramError(#[from] ProgramError),
-    #[error("Deployment failed: contract already deployed at address {:#064x}", ***.0)]
+    #[error("Deployment failed: contract already deployed at address {:#066x}", ***.0)]
     UnavailableContractAddress(ContractAddress),
-    #[error("Class with hash {:#064x} is not declared.", **.0)]
+    #[error("Class with hash {:#066x} is not declared.", **.0)]
     UndeclaredClassHash(ClassHash),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     /// Represents all unexpected errors that may occur while reading from state.
     #[error("Failed to read from state: {0}.")]
     StateReadError(String),
-    #[error("Missing Sierra class for CASM class with hash {:#064x}.", **.0)]
+    #[error("Missing Sierra class for CASM class with hash {:#066x}.", **.0)]
     MissingSierra(ClassHash),
     #[error("Missing compiled class hash v2 for class with hash {:#064x}.", **.0)]
     MissingCompiledClassHashV2(ClassHash),

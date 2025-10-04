@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -21,7 +22,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
-use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -40,7 +40,6 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
-use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -117,6 +116,7 @@ async fn test_extract_state_nonce_and_run_validations(
 fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
+        chain_info: ChainInfo::create_for_testing(),
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
@@ -129,17 +129,7 @@ fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(|| latest_state_reader);
 
-    // Make sure stateful_validator uses the latest block in the following calls to the
-    // state_reader.
-    let latest_block = state_reader_factory.state_reader.block_info.block_number;
-    let state_reader = state_reader_factory.get_state_reader(latest_block);
-    mock_state_reader_factory
-        .expect_get_state_reader()
-        .with(eq(latest_block))
-        .return_once(move |_| state_reader);
-
-    let validator = stateful_validator_factory
-        .instantiate_validator(&mock_state_reader_factory, &ChainInfo::create_for_testing());
+    let validator = stateful_validator_factory.instantiate_validator(&mock_state_reader_factory);
     assert!(validator.is_ok());
 }
 
@@ -367,7 +357,6 @@ async fn test_is_valid_nonce(
         nonce: tx_nonce,
         resource_bounds: ValidResourceBounds::create_for_testing(),
     ));
-
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_transaction_validations(
             &executable_tx,

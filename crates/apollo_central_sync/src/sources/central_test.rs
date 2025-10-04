@@ -25,6 +25,7 @@ use futures_util::pin_mut;
 use indexmap::{indexmap, IndexMap};
 use lru::LruCache;
 use mockall::predicate;
+use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -300,6 +301,8 @@ async fn stream_state_updates() {
     let new_class_hash2 = class_hash!("0x222");
     let compiled_class_hash1 = CompiledClassHash(felt!("0x00111"));
     let compiled_class_hash2 = CompiledClassHash(felt!("0x00222"));
+    let migrated_class_hash = class_hash!("0x333");
+    let migrated_compiled_class_hash = CompiledClassHash(felt!("0x00333"));
     let class_hash_entry1 = DeclaredClassHashEntry {
         class_hash: new_class_hash1,
         compiled_class_hash: compiled_class_hash1,
@@ -317,6 +320,10 @@ async fn stream_state_updates() {
         ],
         old_declared_contracts: vec![class_hash1, class_hash3],
         declared_classes: vec![class_hash_entry1, class_hash_entry2],
+        migrated_compiled_classes: vec![MigratedCompiledClassHashEntry {
+            class_hash: migrated_class_hash,
+            compiled_class_hash: migrated_compiled_class_hash,
+        }],
         nonces: IndexMap::from([(contract_address1, nonce1)]),
         replaced_classes: vec![ReplacedClass {
             address: contract_address3,
@@ -441,6 +448,10 @@ async fn stream_state_updates() {
         state_diff.declared_classes,
     );
     assert_eq!(IndexMap::from([(contract_address1, nonce1)]), state_diff.nonces);
+    assert_eq!(
+        IndexMap::from([(migrated_class_hash, migrated_compiled_class_hash)]),
+        state_diff.migrated_compiled_classes
+    );
 
     let Some(Ok(state_diff_tuple)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");

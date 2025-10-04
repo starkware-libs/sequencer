@@ -1,11 +1,7 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
-from starkware.cairo.common.ec import ec_mul, recover_y, StarkCurve
-from starkware.cairo.common.ec_point import EcPoint
-from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.serialize import serialize_word
@@ -26,6 +22,12 @@ from starkware.starknet.core.os.state.output import (
     serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
+from starkware.starknet.core.os.encrypt import (
+    validate_private_keys,
+    compute_public_keys,
+    encrypt_symmetric_key,
+    encrypt,
+)
 
 // Represents the output of the OS.
 struct OsOutput {
@@ -251,7 +253,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     // Compress the state updates.
     local compressed_start: felt*;
     %{
-        if use_kzg_da:
+        if use_kzg_da or ids.n_keys > 0:
             ids.compressed_start = segments.add()
         else:
             # Assign a temporary segment, to be relocated into the output segment.
@@ -263,21 +265,42 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     }
 
     if (n_keys == 0) {
+        // No public keys - skip the state updates encryption.
         return (da_start=compressed_start, da_end=compressed_dst);
     }
 
     // Encrypt the compressed state updates.
+    // Generate random symmetric key and random starknet private keys.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
     validate_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
-    let (local sn_public_keys: felt*) = alloc();
-    compute_public_keys(
-        n_keys=n_keys, sn_private_keys=sn_private_keys, sn_public_keys=sn_public_keys
-    );
 
-    // TODO(Einat): encrypt the data with the symmetric key.
-    return (da_start=compressed_start, da_end=compressed_dst);
+    local encrypted_start: felt*;
+    %{
+        if use_kzg_da:
+            ids.encrypted_start = segments.add()
+        else:
+            # Assign a temporary segment, to be relocated into the output segment.
+            ids.encrypted_start = segments.add_temp_segment()
+    %}
+
+    let encrypted_dst = encrypted_start;
+    assert encrypted_dst[0] = n_keys;
+    let encrypted_dst = &encrypted_dst[1];
+
+    with encrypted_dst {
+        compute_public_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
+        encrypt_symmetric_key(
+            n_keys=n_keys,
+            public_keys=public_keys,
+            sn_private_keys=sn_private_keys,
+            symmetric_key=symmetric_key,
+        );
+        encrypt(data_start=compressed_start, data_end=compressed_dst, symmetric_key=symmetric_key);
+    }
+
+    return (da_start=encrypted_start, da_end=encrypted_dst);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
@@ -376,57 +399,5 @@ func serialize_contract_state_diff_conditional{range_check_ptr, res: felt*}(
     // the alias replacement.
     return serialize_full_contract_state_diff(
         n_contracts=n_contracts, contract_state_changes=contract_state_changes
-    );
-}
-
-// Validates that the private keys are within the range [1, StarkCurve.ORDER - 1] as required by
-// the Diffie-Hellman elliptic curve encryption scheme.
-func validate_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*) {
-    if (n_keys == 0) {
-        return ();
-    }
-    assert_not_zero(sn_private_keys[0]);
-    assert_le_felt(sn_private_keys[0], StarkCurve.ORDER - 1);
-
-    return validate_private_keys(n_keys=n_keys - 1, sn_private_keys=sn_private_keys + 1);
-}
-
-// Computes the public keys from the private keys by multiplying by the EC group generator.
-func compute_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    n_keys: felt, sn_private_keys: felt*, sn_public_keys: felt*
-) {
-    if (n_keys == 0) {
-        return ();
-    }
-    let (sn_public_key) = ec_mul(
-        m=sn_private_keys[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
-    );
-    assert sn_public_keys[0] = sn_public_key.x;
-    return compute_public_keys(
-        n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1], sn_public_keys=&sn_public_keys[1]
-    );
-}
-
-func encrypt_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
-    n_keys: felt,
-    public_keys: felt*,
-    sn_private_keys: felt*,
-    symmetric_key: felt,
-    symmetric_key_encryptions_dst: felt*,
-) {
-    if (n_keys == 0) {
-        return ();
-    }
-    let (public_key) = recover_y(public_keys[0]);
-    let (shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
-    // TODO(Avi, 10/9/2025): Switch to naive encoding once the function is available.
-    assert symmetric_key_encryptions_dst[0] = symmetric_key +
-        encode_felt252_data_and_calc_blake_hash(data_len=1, data=&shared_secret.x);
-    return encrypt_symmetric_key(
-        n_keys=n_keys - 1,
-        public_keys=&public_keys[1],
-        sn_private_keys=&sn_private_keys[1],
-        symmetric_key=symmetric_key,
-        symmetric_key_encryptions_dst=&symmetric_key_encryptions_dst[1],
     );
 }

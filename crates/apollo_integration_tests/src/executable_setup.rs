@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
-use apollo_node::config::config_utils::DeploymentBaseAppConfig;
-use apollo_node::config::definitions::ConfigPointersMap;
-use apollo_node::config::node_config::SequencerNodeConfig;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_node::test_utils::node_runner::NodeRunner;
+use apollo_node_config::config_utils::DeploymentBaseAppConfig;
+use apollo_node_config::definitions::ConfigPointersMap;
+use apollo_node_config::node_config::SequencerNodeConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 

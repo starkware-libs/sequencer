@@ -1,3 +1,4 @@
+use apollo_class_manager_config::config::{ClassManagerConfig, FsClassManagerConfig};
 use apollo_class_manager_types::{
     ClassHashes,
     ClassId,
@@ -17,7 +18,6 @@ use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::instrument;
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
-use crate::config::{ClassManagerConfig, FsClassManagerConfig};
 use crate::metrics::register_metrics;
 use crate::FsClassManager;
 

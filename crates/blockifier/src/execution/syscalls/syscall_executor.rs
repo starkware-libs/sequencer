@@ -71,7 +71,7 @@ pub trait SyscallExecutor {
 
     fn gas_costs(&self) -> &GasCosts;
 
-    fn write_sha256_state(
+    fn write_sha256_out_state(
         &mut self,
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
@@ -250,7 +250,7 @@ pub trait SyscallExecutor {
 
         let data: Vec<MaybeRelocatable> =
             state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
-        let response = syscall_handler.write_sha256_state(&data, vm)?;
+        let response = syscall_handler.write_sha256_out_state(&data, vm)?;
 
         Ok(Sha256ProcessBlockResponse { state_ptr: response })
     }

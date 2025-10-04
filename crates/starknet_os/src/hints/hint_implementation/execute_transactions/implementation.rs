@@ -23,16 +23,6 @@ use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
-pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let sha256_ptr = get_ptr_from_var_name(Ids::Sha256Ptr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor.get_mut_current_execution_helper()?.syscall_hint_processor.sha256_segment =
-        Some(sha256_ptr);
-    Ok(())
-}
-
 pub(crate) fn log_remaining_txs(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {

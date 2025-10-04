@@ -55,7 +55,7 @@ define_metrics!(
         LabeledMetricHistogram {
             CLASS_SIZES,
             "class_manager_class_sizes",
-            "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
+            "Size of the classes in MBs, labeled by type (sierra, casm, deprecated casm)",
             labels = CLASS_OBJECT_TYPE_LABELS
         },
     },
@@ -75,8 +75,11 @@ pub(crate) fn record_class_size<T>(class_type: ClassObjectType, class: &Serializ
             should not have gotten into the system."
         )
     });
-
-    CLASS_SIZES.record(class_size, &[(CLASS_OBJECT_TYPE_LABEL, class_type.into())]);
+    CLASS_SIZES.record(
+        // Convert bytes to MB
+        f64::from(class_size) / 1_048_576.0,
+        &[(CLASS_OBJECT_TYPE_LABEL, class_type.into())],
+    );
 }
 
 pub(crate) fn register_metrics() {
