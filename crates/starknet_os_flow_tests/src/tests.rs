@@ -230,6 +230,5 @@ async fn trivial_diff_scenario(
         !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
     );
 
-    let perform_global_validations = true;
-    test_output.perform_validations(perform_global_validations, None);
+    test_output.perform_default_validations();
 }
