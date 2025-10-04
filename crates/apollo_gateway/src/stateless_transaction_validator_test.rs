@@ -1,6 +1,8 @@
 use std::sync::LazyLock;
 use std::vec;
 
+use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
+use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::block::GasPrice;
@@ -19,8 +21,6 @@ use starknet_api::transaction::fields::{
 use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
 use starknet_types_core::felt::Felt;
 
-use crate::compiler_version::{VersionId, VersionIdError};
-use crate::config::StatelessTransactionValidatorConfig;
 use crate::errors::StatelessTransactionValidatorResult;
 use crate::stateless_transaction_validator::{
     StatelessTransactionValidator,

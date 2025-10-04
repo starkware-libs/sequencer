@@ -7,7 +7,7 @@ license-file.workspace = true
 
 [dependencies]
 apollo_class_manager_types.workspace = true
-apollo_config.workspace = true
+apollo_p2p_sync_config.workspace = true
 apollo_network.workspace = true
 apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
@@ -26,14 +26,12 @@ metrics.workspace = true
 papyrus_common.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
-serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true
-validator.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }

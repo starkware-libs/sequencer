@@ -24,7 +24,7 @@ async fn custom_syscall_invoke_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_syscall_invoke_txs_scenario(),
-        GasAmount(90000000),
+        GasAmount(110000000),
         false,
         false,
     )

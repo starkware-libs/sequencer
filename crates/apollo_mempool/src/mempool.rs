@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
+use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
     AccountState,
@@ -20,7 +21,6 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
-use crate::config::MempoolConfig;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_evicted_txs,

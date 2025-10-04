@@ -48,7 +48,7 @@ jobs:
 
       - name: Run executable
         run: >
-          target/debug/papyrus_node --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+          target/debug/papyrus_node --base_layer_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
 
   test:

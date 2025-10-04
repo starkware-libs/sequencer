@@ -6,6 +6,7 @@ use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
+use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -14,7 +15,6 @@ use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use tracing::{error, info, instrument};
 
-use crate::config::MonitoringEndpointConfig;
 use crate::tokio_metrics::setup_tokio_metrics;
 
 #[cfg(test)]

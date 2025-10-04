@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -47,14 +48,12 @@ use validator::Validate;
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
     AbortSignalSender,
-    BlockBuilderConfig,
     BlockBuilderError,
     BlockBuilderResult,
     BlockExecutionArtifacts,
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
-use crate::config::BatcherConfig;
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     LAST_SYNCED_BLOCK,
