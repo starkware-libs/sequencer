@@ -994,6 +994,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
+ "cairo-lang-starknet-classes",
  "mockall",
  "serde",
  "serde_json",

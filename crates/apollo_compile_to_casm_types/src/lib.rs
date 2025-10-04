@@ -10,11 +10,14 @@ use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_req
 use apollo_metrics::generate_permutation_labels;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
@@ -39,6 +42,10 @@ pub type SierraCompilerRequestWrapper =
 type RawClassResult<T> = Result<T, RawClassError>;
 pub type RawClass = SerializedClass<SierraContractClass>;
 pub type RawExecutableClass = SerializedClass<ContractClass>;
+// V1-only raw casm (without Sierra version)
+pub type RawCasmContractClass = SerializedClass<CasmContractClass>;
+// V0-only raw deprecated executable class
+pub type RawDeprecatedExecutableClass = SerializedClass<DeprecatedContractClass>;
 
 #[derive(Debug, Error)]
 pub enum RawClassError {
@@ -58,6 +65,13 @@ impl<T> SerializedClass<T> {
 
     pub fn size(&self) -> RawClassResult<usize> {
         Ok(serde_json::to_string_pretty(&self.0)?.len())
+    }
+
+    pub fn deserialize(&self) -> Result<T, serde_json::Error>
+    where
+        T: DeserializeOwned,
+    {
+        serde_json::from_value(self.0.clone())
     }
 
     fn new(value: serde_json::Value) -> Self {
@@ -132,6 +146,38 @@ impl TryFrom<RawExecutableClass> for ContractClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
+        serde_json::from_value(class.0)
+    }
+}
+
+impl TryFrom<CasmContractClass> for RawCasmContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
+        Ok(Self::new(serde_json::to_value(class)?))
+    }
+}
+
+impl TryFrom<RawCasmContractClass> for CasmContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: RawCasmContractClass) -> Result<Self, Self::Error> {
+        serde_json::from_value(class.0)
+    }
+}
+
+impl TryFrom<DeprecatedContractClass> for RawDeprecatedExecutableClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: DeprecatedContractClass) -> Result<Self, Self::Error> {
+        Ok(Self::new(serde_json::to_value(class)?))
+    }
+}
+
+impl TryFrom<RawDeprecatedExecutableClass> for DeprecatedContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: RawDeprecatedExecutableClass) -> Result<Self, Self::Error> {
         serde_json::from_value(class.0)
     }
 }

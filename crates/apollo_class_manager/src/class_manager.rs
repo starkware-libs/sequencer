@@ -47,8 +47,7 @@ impl<S: ClassStorage> ClassManager<S> {
 
     #[instrument(skip(self, class), ret, err)]
     pub async fn add_class(&mut self, class: RawClass) -> ClassManagerResult<ClassHashes> {
-        // TODO(Elin): think how to not clone the class to deserialize.
-        let sierra_class = SierraContractClass::try_from(class.clone())?;
+        let sierra_class = class.deserialize()?;
         let class_hash = sierra_class.calculate_class_hash();
         if let Ok(Some(executable_class_hash)) = self.classes.get_executable_class_hash(class_hash)
         {
@@ -57,7 +56,7 @@ impl<S: ClassStorage> ClassManager<S> {
         }
 
         let (raw_executable_class, executable_class_hash) =
-            self.compiler.compile(class.clone()).await.map_err(|err| match err {
+            self.compiler.compile(class).await.map_err(|err| match err {
                 SierraCompilerClientError::SierraCompilerError(error) => {
                     ClassManagerError::SierraCompiler { class_hash, error }
                 }
@@ -68,7 +67,12 @@ impl<S: ClassStorage> ClassManager<S> {
 
         self.validate_class_length(&raw_executable_class)?;
         Self::validate_class_version(&sierra_class)?;
-        self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
+        self.classes.set_class(
+            class_hash,
+            RawClass::try_from(sierra_class)?,
+            executable_class_hash,
+            raw_executable_class,
+        )?;
 
         let class_hashes = ClassHashes { class_hash, executable_class_hash };
         Ok(class_hashes)
@@ -80,6 +84,55 @@ impl<S: ClassStorage> ClassManager<S> {
         class_id: ClassId,
     ) -> ClassManagerResult<Option<RawExecutableClass>> {
         Ok(self.classes.get_executable(class_id)?)
+    }
+
+    #[instrument(skip(self), err)]
+    pub fn get_casm_v1(&self, class_id: ClassId) -> ClassManagerResult<Option<apollo_compile_to_casm_types::RawCasmContractClass>> {
+        use apollo_compile_to_casm_types::RawCasmContractClass;
+        // Try V1 path by checking existence of executable class hash
+        if self.classes.get_executable_class_hash(class_id)?.is_none() {
+            return Ok(None);
+        }
+
+        let Some(raw_executable) = self.classes.get_executable(class_id)? else {
+            return Ok(None);
+        };
+        // Deserialize to full enum then extract V1 CASM
+        let contract_class: starknet_api::contract_class::ContractClass = raw_executable.deserialize()?;
+        if let starknet_api::contract_class::ContractClass::V1((casm, _sierra_version)) = contract_class {
+            Ok(Some(RawCasmContractClass::try_from(casm)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[instrument(skip(self), err)]
+    pub fn get_deprecated_executable(&self, class_id: ClassId) -> ClassManagerResult<Option<apollo_compile_to_casm_types::RawDeprecatedExecutableClass>> {
+        use apollo_compile_to_casm_types::RawDeprecatedExecutableClass;
+        // If a V1 executable class exists, we should not return deprecated here
+        if self.classes.get_executable_class_hash(class_id)?.is_some() {
+            return Ok(None);
+        }
+
+        // Try deprecated class directly
+        if let Some(raw_deprecated) = self.classes.get_deprecated_class(class_id)? {
+            let contract_class: starknet_api::contract_class::ContractClass =
+                raw_deprecated.deserialize()?;
+            if let starknet_api::contract_class::ContractClass::V0(depr) = contract_class {
+                return Ok(Some(
+                    apollo_compile_to_casm_types::RawDeprecatedExecutableClass::try_from(depr)?,
+                ));
+            }
+        }
+
+        // As a fallback, if executable() returns V0, convert
+        if let Some(raw_exec) = self.classes.get_executable(class_id)? {
+            let contract_class: starknet_api::contract_class::ContractClass = raw_exec.deserialize()?;
+            if let starknet_api::contract_class::ContractClass::V0(depr) = contract_class {
+                return Ok(Some(RawDeprecatedExecutableClass::try_from(depr)?));
+            }
+        }
+        Ok(None)
     }
 
     #[instrument(skip(self), err)]

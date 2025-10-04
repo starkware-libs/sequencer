@@ -13,7 +13,6 @@ use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
-use starknet_api::contract_class::ContractClass;
 use thiserror::Error;
 use tracing::instrument;
 
@@ -135,12 +134,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(());
         }
 
-        self.storage.set_class(
-            class_id,
-            class.clone(),
-            executable_class_hash,
-            executable_class.clone(),
-        )?;
+        self.storage
+            .set_class(class_id, class.clone(), executable_class_hash, executable_class.clone())
+            .map_err(CachedClassStorageError::Storage)?;
 
         increment_n_classes(CairoClassType::Regular);
         record_class_size(ClassObjectType::Sierra, &class);
@@ -163,7 +159,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_sierra(class_id)? else {
+        let Some(class) =
+            self.storage.get_sierra(class_id).map_err(CachedClassStorageError::Storage)?
+        else {
             return Ok(None);
         };
 
@@ -181,20 +179,33 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_executable(class_id)? else {
-            return Ok(None);
-        };
-
-        // TODO(Elin): separate Cairo0<>1 getters to avoid deserializing here.
-        match ContractClass::try_from(class.clone()).unwrap() {
-            ContractClass::V0(_) => {
-                self.deprecated_classes.set(class_id, class.clone());
-            }
-            ContractClass::V1(_) => {
+        // Prefer Cairo 1 (V1) if an executable class hash exists.
+        if self
+            .storage
+            .get_executable_class_hash(class_id)
+            .map_err(CachedClassStorageError::Storage)?
+            .is_some()
+        {
+            if let Some(class) =
+                self.storage.get_executable(class_id).map_err(CachedClassStorageError::Storage)?
+            {
                 self.executable_classes.set(class_id, class.clone());
+                return Ok(Some(class));
+            } else {
+                return Ok(None);
             }
         }
 
+        // Otherwise, try deprecated (Cairo 0) explicitly.
+        let Some(class) = self
+            .storage
+            .get_deprecated_class(class_id)
+            .map_err(CachedClassStorageError::Storage)?
+        else {
+            return Ok(None);
+        };
+
+        self.deprecated_classes.set(class_id, class.clone());
         Ok(Some(class))
     }
 
@@ -207,7 +218,11 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class_hash));
         }
 
-        let Some(class_hash) = self.storage.get_executable_class_hash(class_id)? else {
+        let Some(class_hash) = self
+            .storage
+            .get_executable_class_hash(class_id)
+            .map_err(CachedClassStorageError::Storage)?
+        else {
             return Ok(None);
         };
 
@@ -225,7 +240,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(());
         }
 
-        self.storage.set_deprecated_class(class_id, class.clone())?;
+        self.storage
+            .set_deprecated_class(class_id, class.clone())
+            .map_err(CachedClassStorageError::Storage)?;
 
         increment_n_classes(CairoClassType::Deprecated);
         record_class_size(ClassObjectType::DeprecatedCasm, &class);
@@ -244,7 +261,11 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_deprecated_class(class_id)? else {
+        let Some(class) = self
+            .storage
+            .get_deprecated_class(class_id)
+            .map_err(CachedClassStorageError::Storage)?
+        else {
             return Ok(None);
         };
 
@@ -424,8 +445,6 @@ impl FsClassStorage {
         Ok(())
     }
 
-    // TODO(Elin): restore use of `write_[deprecated_]class_atomically`, but tmpdir
-    // should be located inside the PVC to prevent linking errors.
     #[allow(dead_code)]
     fn write_class_atomically(
         &self,
@@ -433,9 +452,10 @@ impl FsClassStorage {
         class: RawClass,
         executable_class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
-        // Write classes to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        // Write classes to a temporary directory located inside the PVC/persistent root to
+        // avoid cross-device rename issues.
+        let tmp_root = tempfile::tempdir_in(&self.persistent_root)?;
+        let tmp_dir = tmp_root.path().join(self.get_class_dir(class_id));
         class.write_to_file(concat_sierra_filename(&tmp_dir))?;
         executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
@@ -452,9 +472,10 @@ impl FsClassStorage {
         class_id: ClassId,
         class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
-        // Write class to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        // Write class to a temporary directory located inside the PVC/persistent root to
+        // avoid cross-device rename issues.
+        let tmp_root = tempfile::tempdir_in(&self.persistent_root)?;
+        let tmp_dir = tmp_root.path().join(self.get_class_dir(class_id));
         class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
@@ -480,7 +501,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_class(class_id, class, executable_class)?;
+        self.write_class_atomically(class_id, class, executable_class)?;
         self.mark_class_id_as_existent(class_id, executable_class_hash)?;
 
         Ok(())
@@ -533,7 +554,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_deprecated_class(class_id, class)?;
+        self.write_deprecated_class_atomically(class_id, class)?;
 
         Ok(())
     }
