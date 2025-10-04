@@ -7,6 +7,7 @@ use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
@@ -116,7 +117,9 @@ async fn class_manager_get_executable() {
         class_manager.add_class(class.clone()).await.unwrap();
 
     let deprecated_class_hash = ClassHash(felt!("0x1806"));
-    let deprecated_executable_class = RawExecutableClass::new_unchecked(vec![1, 2, 3].into());
+    let deprecated_executable_class =
+        RawExecutableClass::try_from(ContractClass::V0(DeprecatedContractClass::default()))
+            .unwrap();
     class_manager
         .add_deprecated_class(deprecated_class_hash, deprecated_executable_class.clone())
         .unwrap();
