@@ -11,7 +11,7 @@ use tokio::task::JoinHandle;
 use tokio::time::interval;
 use tracing::{info, trace, warn};
 
-use crate::args::{Args, Mode};
+use crate::args::{Args, Mode, NetworkProtocol};
 use crate::converters::{StressTestMessage, METADATA_SIZE};
 use crate::explore_config::{extract_explore_params, ExploreConfiguration, ExplorePhase};
 use crate::message_handling::{MessageReceiver, MessageSender};
@@ -90,6 +90,9 @@ impl BroadcastNetworkStressTestNode {
             &network_config,
             args.buffer_size,
             &args.network_protocol,
+            args.num_nodes,
+            args.id,
+            &args.bootstrap,
         );
 
         // Setup explore configuration if needed
@@ -121,6 +124,9 @@ impl BroadcastNetworkStressTestNode {
             &self.network_config,
             self.args.buffer_size,
             &self.args.network_protocol,
+            self.args.num_nodes,
+            self.args.id,
+            &self.args.bootstrap,
         );
 
         info!("Recreated Network Manager");
@@ -191,9 +197,11 @@ impl BroadcastNetworkStressTestNode {
         peers: Vec<PeerId>,
         explore_config: &Option<ExploreConfiguration>,
     ) {
-        let size_bytes = args
+        let requested_size_bytes = args
             .message_size_bytes
             .expect("Even in explore mode message size should be set automatically.");
+        let size_bytes =
+            ensure_compatible_message_size(requested_size_bytes, &args.network_protocol);
         let heartbeat = Duration::from_millis(
             args.heartbeat_millis
                 .expect("Even in explore mode heartbeat millis should be set automatically."),
@@ -377,6 +385,24 @@ fn get_message(id: u64, size_bytes: usize) -> StressTestMessage {
     let message = StressTestMessage::new(id, 0, vec![0; size_bytes - *METADATA_SIZE]);
     assert_eq!(Vec::<u8>::from(message.clone()).len(), size_bytes);
     message
+}
+
+/// Ensures message size is compatible with the protocol
+fn ensure_compatible_message_size(size_bytes: usize, protocol: &NetworkProtocol) -> usize {
+    match protocol {
+        NetworkProtocol::Propeller => {
+            // Propeller requires messages to be multiples of 64 bytes
+            let padded_size = size_bytes.div_ceil(64) * 64;
+            if padded_size != size_bytes {
+                info!(
+                    "Propeller: Padding message size from {} to {} bytes (multiple of 64)",
+                    size_bytes, padded_size
+                );
+            }
+            padded_size
+        }
+        _ => size_bytes, // Other protocols don't have special requirements
+    }
 }
 
 fn should_broadcast_round_robin(args: &Args) -> bool {

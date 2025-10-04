@@ -49,6 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         *METADATA_SIZE
     );
 
+    // Protocol-specific validation
+    if let Err(validation_error) =
+        args.network_protocol.validate_message_size(args.message_size_bytes)
+    {
+        panic!("{}", validation_error);
+    }
+
     // Set up metrics
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
         Ipv4Addr::UNSPECIFIED,
