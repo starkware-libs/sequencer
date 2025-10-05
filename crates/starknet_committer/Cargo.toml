@@ -8,10 +8,9 @@ description = "Computes and manages Starknet state."
 
 [features]
 testing = ["starknet_patricia/testing"]
-benchmark = ["csv"]
 
 [dependencies]
-csv = { workspace = true, optional = true }
+csv.workspace = true
 ethnum.workspace = true
 hex.workspace = true
 pretty_assertions.workspace = true

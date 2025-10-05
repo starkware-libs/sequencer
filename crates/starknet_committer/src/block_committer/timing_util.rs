@@ -3,50 +3,103 @@ use std::time::Instant;
 
 use csv::Writer;
 use tracing::info;
+
+use crate::block_committer::input::{ConfigImpl, Input};
+
+pub type InputImpl = Input<ConfigImpl>;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Action {
+    EndToEnd,
+    Read,
+    Compute,
+    Write,
+}
+
 pub struct TimeMeasurement {
-    timer: Option<Instant>,
-    total_time: u128,             // Total duration of all blocks (milliseconds).
-    per_fact_durations: Vec<u64>, // Average duration (microseconds) per new fact in a block.
-    n_facts: Vec<usize>,
-    block_durations: Vec<u64>, // Duration of a block (milliseconds).
-    facts_in_db: Vec<usize>,   // Number of facts in the DB prior to the current block.
-    total_facts: usize,
+    pub block_timer: Option<Instant>,
+    pub read_timer: Option<Instant>,
+    pub compute_timer: Option<Instant>,
+    pub writer_timer: Option<Instant>,
+    pub total_time: u64, // Total duration of all blocks (milliseconds).
+    pub n_new_facts: Vec<usize>,
+    pub n_read_facts: Vec<usize>,
+    pub block_durations: Vec<u64>, // Duration of an end-to-end block commit (milliseconds).
+    pub read_durations: Vec<u64>,  // Duration of a block facts read (milliseconds).
+    pub compute_durations: Vec<u64>, // Duration of a block new facts computation (milliseconds).
+    pub write_durations: Vec<u64>, // Duration of a block new facts write (milliseconds).
+    pub facts_in_db: Vec<usize>,   // Number of facts in the DB prior to the current block.
+    pub block_number: usize,
+    pub total_facts: usize,
 }
 
 impl TimeMeasurement {
-    pub fn new(n_iterations: usize) -> Self {
+    pub fn new(size: usize) -> Self {
         Self {
-            timer: None,
+            block_timer: None,
+            read_timer: None,
+            compute_timer: None,
+            writer_timer: None,
             total_time: 0,
-            per_fact_durations: Vec::with_capacity(n_iterations),
-            n_facts: Vec::with_capacity(n_iterations),
-            block_durations: Vec::with_capacity(n_iterations),
-            facts_in_db: Vec::with_capacity(n_iterations),
+            n_new_facts: Vec::with_capacity(size),
+            n_read_facts: Vec::with_capacity(size),
+            read_durations: Vec::with_capacity(size),
+            compute_durations: Vec::with_capacity(size),
+            write_durations: Vec::with_capacity(size),
+            block_durations: Vec::with_capacity(size),
+            facts_in_db: Vec::with_capacity(size),
+            block_number: 0,
             total_facts: 0,
         }
     }
 
-    pub fn start_measurement(&mut self) {
-        self.timer = Some(Instant::now());
+    fn get_mut_timer(&mut self, action: &Action) -> &mut Option<Instant> {
+        match action {
+            Action::EndToEnd => &mut self.block_timer,
+            Action::Read => &mut self.read_timer,
+            Action::Compute => &mut self.compute_timer,
+            Action::Write => &mut self.writer_timer,
+        }
     }
 
-    pub fn stop_measurement(&mut self, facts_count: usize) {
-        let duration =
-            self.timer.expect("stop_measurement called before start_measurement").elapsed();
+    pub fn start_measurement(&mut self, action: Action) {
+        *self.get_mut_timer(&action) = Some(Instant::now());
+    }
+
+    /// Stop the measurement for the given action and add the duration to the corresponding vector.
+    /// facts_count is either the number of facts read from the DB for Read action, or the number of
+    /// new facts written to the DB for the Total action.
+    pub fn stop_measurement(&mut self, facts_count: Option<usize>, action: Action) {
+        let duration = self
+            .get_mut_timer(&action)
+            .expect("stop_measurement called before start_measurement")
+            .elapsed();
         info!(
             "Time elapsed for iteration {}: {} milliseconds",
             self.n_results(),
             duration.as_millis()
         );
-        let millis = duration.as_millis();
-        self.total_time += millis;
-        #[allow(clippy::as_conversions)]
-        self.per_fact_durations
-            .push(duration.div_f32(facts_count as f32).as_micros().try_into().unwrap());
-        self.block_durations.push(millis.try_into().unwrap());
-        self.n_facts.push(facts_count);
-        self.facts_in_db.push(self.total_facts);
-        self.total_facts += facts_count;
+        let millis: u64 = duration.as_millis().try_into().unwrap();
+        match action {
+            Action::EndToEnd => {
+                self.block_durations.push(millis);
+                self.total_time += millis;
+                self.n_new_facts.push(facts_count.unwrap());
+                self.facts_in_db.push(self.total_facts);
+                self.total_facts += facts_count.unwrap();
+                self.block_number += 1;
+            }
+            Action::Read => {
+                self.read_durations.push(millis);
+                self.n_read_facts.push(facts_count.unwrap());
+            }
+            Action::Compute => {
+                self.compute_durations.push(millis);
+            }
+            Action::Write => {
+                self.write_durations.push(millis);
+            }
+        }
     }
 
     pub fn n_results(&self) -> usize {
@@ -72,7 +125,7 @@ impl TimeMeasurement {
             let sum: u64 =
                 self.block_durations[window_start..window_start + window_size].iter().sum();
             let sum_of_facts: usize =
-                self.n_facts[window_start..window_start + window_size].iter().sum();
+                self.n_new_facts[window_start..window_start + window_size].iter().sum();
             #[allow(clippy::as_conversions)]
             averages.push(1000.0 * sum as f64 / sum_of_facts as f64);
         }
@@ -116,26 +169,26 @@ impl TimeMeasurement {
         let mut wtr = Writer::from_writer(file);
         wtr.write_record([
             "block_number",
-            "n_facts",
-            "facts_in_db",
-            "time_per_fact_micros",
+            "n_new_facts",
+            "n_read_facts",
+            "initial_facts_in_db",
             "block_duration_millis",
+            "read_duration_millis",
+            "compute_duration_millis",
+            "write_duration_millis",
         ])
         .expect("Failed to write CSV header.");
-        for (i, (((&per_fact, &n_facts), &duration), &facts_in_db)) in self
-            .per_fact_durations
-            .iter()
-            .zip(self.n_facts.iter())
-            .zip(self.block_durations.iter())
-            .zip(self.facts_in_db.iter())
-            .enumerate()
-        {
+        let n_results = self.n_results();
+        for i in 0..n_results {
             wtr.write_record(&[
-                i.to_string(),
-                n_facts.to_string(),
-                facts_in_db.to_string(),
-                per_fact.to_string(),
-                duration.to_string(),
+                (self.block_number - n_results + i).to_string(),
+                self.n_new_facts[i].to_string(),
+                self.n_read_facts[i].to_string(),
+                self.facts_in_db[i].to_string(),
+                self.block_durations[i].to_string(),
+                self.read_durations[i].to_string(),
+                self.compute_durations[i].to_string(),
+                self.write_durations[i].to_string(),
             ])
             .expect("Failed to write CSV record.");
         }

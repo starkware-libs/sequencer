@@ -150,7 +150,7 @@ pub(crate) async fn commit_state_diff(
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
-        commit_block(input, commitments).await.expect("Failed to commit the given block.");
+        commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
     filled_forest.write_to_storage(commitments);
     CommitmentOutput {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
