@@ -12253,6 +12253,7 @@ dependencies = [
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra_utils",
  "apollo_starknet_os_program",
  "assert_matches",
  "blake2s",
@@ -12288,10 +12289,10 @@ dependencies = [
 name = "starknet_committer_cli"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra_utils",
  "clap",
  "rand 0.8.5",
  "starknet_committer",
- "starknet_committer_and_os_cli",
  "starknet_patricia",
  "starknet_patricia_storage",
  "tokio",

@@ -1,5 +1,5 @@
+use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
-use starknet_committer_and_os_cli::tracing_utils::{configure_tracing, modify_log_level};
 use starknet_committer_cli::commands::run_storage_benchmark;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
