@@ -118,7 +118,7 @@ pub fn decrypt_state_diff(
 }
 
 /// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
-/// `naive_encode_felt252s_to_u32s` hint does, then hashes the resulting byte stream
+/// `naive_encode_felt252_to_u32` hint does, then hashes the resulting byte stream
 /// with Blake2s-256 and returns the 256-bit digest to a
 /// 252-bit field element `Felt`.
 fn calc_blake_hash(data: &[Felt]) -> Felt {

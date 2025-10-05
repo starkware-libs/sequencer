@@ -91,25 +91,20 @@ pub(crate) fn check_packed_values_end_and_size(
     Ok(())
 }
 
-pub(crate) fn naive_unpack_felt252s_to_u32s(
+pub(crate) fn naive_unpack_felt252_to_u32s(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let (unpacked_u32s, vals) = unpack_setup(vm, ids_data, ap_tracking)?;
-    let out: Vec<MaybeRelocatable> = vals
-        .into_iter()
-        .map(|val| val.to_biguint())
-        .flat_map(|mut val| {
-            let mut limbs = vec![BigUint::from(0_u32); 8];
-            for limb in limbs.iter_mut() {
-                let (q, r) = val.div_rem(&POW2_32);
-                *limb = r;
-                val = q;
-            }
-            limbs
-        })
-        .map(Felt::from)
-        .map(MaybeRelocatable::from)
-        .collect();
+    let mut packed_value =
+        get_integer_from_var_name(Ids::PackedValue.into(), vm, ids_data, ap_tracking)?.to_biguint();
+    let unpacked_u32s = get_ptr_from_var_name(Ids::UnpackedU32s.into(), vm, ids_data, ap_tracking)?;
+    let mut limbs = vec![BigUint::from(0_u32); 8];
+    for limb in limbs.iter_mut() {
+        let (q, r) = packed_value.div_rem(&POW2_32);
+        *limb = r;
+        packed_value = q;
+    }
+    let out: Vec<MaybeRelocatable> =
+        limbs.into_iter().map(Felt::from).map(MaybeRelocatable::from).collect();
 
     vm.load_data(unpacked_u32s, &out).map_err(HintError::Memory)?;
     Ok(())
