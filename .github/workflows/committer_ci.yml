@@ -164,3 +164,11 @@ jobs:
           comment-id: ${{ steps.find-benchmark-comment.outputs.comment-id }}
           edit-mode: replace
           body: ${{ env.BENCHES_RESULT }}
+
+      # Fail the job if benchmarks exceeded the threshold (after posting the comment).
+      - name: Check benchmark results
+        run: |
+          if grep -q "CI WILL FAIL" bench_new.txt; then
+            echo "Benchmarks exceeded the 5% regression threshold. See the PR comment for details."
+            exit 1
+          fi
