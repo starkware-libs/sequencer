@@ -10,12 +10,12 @@ use mempool_test_utils::starknet_api_test_utils::{
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::test_utils::invoke::rpc_invoke_tx;
 
 use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 
 mod common;
 
-const DEFAULT_TIP: u64 = 1_u64;
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 3;
 
 #[tokio::test]
@@ -75,7 +75,7 @@ fn generate_direct_test_contract_invoke_txs_cairo_0_syscall(
     .iter()
     .map(|(fn_name, fn_args)| {
         let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, fn_args);
-        account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata)
+        rpc_invoke_tx(account_tx_generator.build_invoke_tx_args().calldata(calldata))
     })
     .collect()
 }
