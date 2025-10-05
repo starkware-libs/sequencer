@@ -116,7 +116,7 @@ pub(crate) fn execute_transactions<S: FlowTestState>(
         match result {
             Ok(output) => execution_outputs.push(output),
             Err(error) => {
-                panic!("Unexpected error during execution of tx at index {tx_index}: {error:?}.");
+                panic!("Unexpected error during execution of tx at index {tx_index}: {error}.");
             }
         }
     }
