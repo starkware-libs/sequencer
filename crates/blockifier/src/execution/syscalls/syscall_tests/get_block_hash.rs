@@ -48,7 +48,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
 
-    let calldata = calldata![block_number];
+    let calldata = calldata![block_number, block_hash];
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_get_block_hash"),
         calldata,
@@ -83,7 +83,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 15220,
+            gas_consumed: 16020,
         }
     "#]]
     .assert_debug_eq(&call_info.execution);
@@ -98,7 +98,8 @@ fn negative_flow_block_number_out_of_range(runnable_version: RunnableCairo1) {
 
     let requested_block_number = CURRENT_BLOCK_NUMBER - constants::STORED_BLOCK_HASH_BUFFER + 1;
     let block_number = felt!(requested_block_number);
-    let calldata = calldata![block_number];
+    let dummy_block_hash = felt!(66_u64);
+    let calldata = calldata![block_number, dummy_block_hash];
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_get_block_hash"),
         calldata,
