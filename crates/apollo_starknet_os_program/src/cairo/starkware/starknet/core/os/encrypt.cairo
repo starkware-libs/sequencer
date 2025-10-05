@@ -4,8 +4,8 @@ from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero, assert_le
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.core.os.naive_blake import (
-    calc_blake_hash,
-    naive_encode_felt252s_to_u32s,
+    calc_blake_hash_on_one_word,
+    naive_encode_felt252_to_u32s,
     felt_from_le_u32s,
     create_initial_state_for_blake2s,
     blake_with_opcode_for_single_16_length_word,
@@ -129,7 +129,7 @@ func output_encrypted_symmetric_key{range_check_ptr, ec_op_ptr: EcOpBuiltin*, en
 
     let (__fp__, _) = get_fp_and_pc();
     let (local shared_secret) = ec_mul(m=sn_private_keys[0], p=public_key);
-    let (hash) = calc_blake_hash(data_len=1, data=&shared_secret.x);
+    let (hash) = calc_blake_hash_on_one_word(data=shared_secret.x);
 
     assert encrypted_dst[0] = symmetric_key + hash;
     let encrypted_dst = &encrypted_dst[1];
@@ -154,9 +154,7 @@ func encrypt{range_check_ptr, encrypted_dst: felt*}(
     alloc_locals;
     let (local encoded_symmetric_key: felt*) = alloc();
     let (__fp__, _) = get_fp_and_pc();
-    naive_encode_felt252s_to_u32s(
-        packed_values_len=1, packed_values=&symmetric_key, unpacked_u32s=encoded_symmetric_key
-    );
+    naive_encode_felt252_to_u32s(packed_value=symmetric_key, unpacked_u32s=encoded_symmetric_key);
     let blake_output: felt* = alloc();
     // Ensure the data size is small - we assume this when encoding the index in encrypt_inner.
     assert_le(data_end - data_start, 2 ** 32 - 1);
