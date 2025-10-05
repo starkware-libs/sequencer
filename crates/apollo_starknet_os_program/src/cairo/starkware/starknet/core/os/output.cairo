@@ -23,7 +23,6 @@ from starkware.starknet.core.os.state.output import (
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
 from starkware.starknet.core.os.encrypt import (
-    validate_sn_private_keys,
     output_sn_public_keys,
     output_encrypted_symmetric_key,
     encrypt,
