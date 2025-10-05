@@ -6,6 +6,7 @@ use apollo_batcher_types::batcher_types::{CentralObjects, DecisionReachedRespons
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus::types::{ConsensusContext, Round};
+use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::errors::{
     EthToStrkOracleClientError,
     L1GasPriceClientError,
@@ -32,7 +33,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 
 use crate::cende::MockCendeContext;
-use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::test_utils::{

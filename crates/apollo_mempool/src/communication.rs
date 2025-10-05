@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_mempool_types::communication::{
     AddTransactionArgsWrapper,
@@ -18,7 +19,6 @@ use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use tracing::warn;
 
-use crate::config::MempoolConfig;
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
 

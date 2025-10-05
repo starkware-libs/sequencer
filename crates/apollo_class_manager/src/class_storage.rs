@@ -1,22 +1,22 @@
-use std::collections::BTreeMap;
 use std::error::Error;
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use apollo_class_manager_config::config::{
+    CachedClassStorageConfig,
+    ClassHashStorageConfig,
+    FsClassStorageConfig,
+};
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::StorageConfig;
-use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
 #[cfg(test)]
@@ -55,38 +55,6 @@ pub trait ClassStorage: Send + Sync {
         &self,
         class_id: ClassId,
     ) -> Result<Option<RawExecutableClass>, Self::Error>;
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct CachedClassStorageConfig {
-    pub class_cache_size: usize,
-    pub deprecated_class_cache_size: usize,
-}
-
-// TODO(Elin): provide default values for the fields.
-impl Default for CachedClassStorageConfig {
-    fn default() -> Self {
-        Self { class_cache_size: 10, deprecated_class_cache_size: 10 }
-    }
-}
-
-impl SerializeConfig for CachedClassStorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "class_cache_size",
-                &self.class_cache_size,
-                "Contract classes cache size.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "deprecated_class_cache_size",
-                &self.deprecated_class_cache_size,
-                "Deprecated contract classes cache size.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 pub struct CachedClassStorage<S: ClassStorage> {

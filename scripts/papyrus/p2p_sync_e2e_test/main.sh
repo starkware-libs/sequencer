@@ -73,8 +73,8 @@ main() {
     rm -rf scripts/papyrus/p2p_sync_e2e_test/data_client scripts/papyrus/p2p_sync_e2e_test/data_server
     mkdir scripts/papyrus/p2p_sync_e2e_test/data_client scripts/papyrus/p2p_sync_e2e_test/data_server
 
-    client_node_command="target/release/papyrus_node --base_layer.node_url $base_layer_node_url --config_file scripts/papyrus/p2p_sync_e2e_test/client_node_config.json"
-    server_node_command="target/release/papyrus_node --base_layer.node_url $base_layer_node_url --config_file scripts/papyrus/p2p_sync_e2e_test/server_node_config.json"
+    client_node_command="target/release/papyrus_node --base_layer_url $base_layer_node_url --config_file scripts/papyrus/p2p_sync_e2e_test/client_node_config.json"
+    server_node_command="target/release/papyrus_node --base_layer_url $base_layer_node_url --config_file scripts/papyrus/p2p_sync_e2e_test/server_node_config.json"
 
     run_nodes_and_process_output "$client_node_command" "$server_node_command"
 }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -40,7 +41,6 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
-use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -367,7 +367,6 @@ async fn test_is_valid_nonce(
         nonce: tx_nonce,
         resource_bounds: ValidResourceBounds::create_for_testing(),
     ));
-
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_transaction_validations(
             &executable_tx,

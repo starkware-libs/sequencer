@@ -9,8 +9,8 @@ license-file.workspace = true
 testing = []
 
 [dependencies]
+apollo_central_sync_config.workspace = true
 apollo_class_manager_types.workspace = true
-apollo_config.workspace = true
 apollo_proc_macros.workspace = true
 apollo_starknet_client.workspace = true
 apollo_state_sync_metrics.workspace = true
@@ -21,16 +21,12 @@ cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
 futures.workspace = true
 futures-util.workspace = true
-validator.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
-itertools.workspace = true
 lru.workspace = true
 metrics.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
-url.workspace = true
-serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true

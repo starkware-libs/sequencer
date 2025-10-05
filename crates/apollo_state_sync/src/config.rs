@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::result;
 
-use apollo_central_sync::sources::central::CentralSourceConfig;
-use apollo_central_sync::SyncConfig;
+use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_sub_config,
@@ -12,7 +11,7 @@ use apollo_config::dumping::{
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::NetworkConfig;
-use apollo_p2p_sync::client::P2pSyncClientConfig;
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
 use apollo_rpc::RpcConfig;
 use apollo_storage::db::DbConfig;

@@ -15,31 +15,37 @@ workspace = true
 alloy.workspace = true
 anyhow.workspace = true
 apollo_batcher.workspace = true
+apollo_batcher_config.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
-apollo_compile_to_casm.workspace = true
+apollo_class_manager_config.workspace = true
 apollo_config.workspace = true
 apollo_config_manager.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_consensus_orchestrator.workspace = true
+apollo_consensus_orchestrator_config.workspace = true
 apollo_deployments.workspace = true
-apollo_gateway = { workspace = true, features = ["testing"] }
+apollo_gateway_config.workspace = true
 apollo_http_server = { workspace = true, features = ["testing"] }
 apollo_http_server_config.workspace = true
 apollo_infra = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
-apollo_l1_endpoint_monitor.workspace = true
+apollo_l1_endpoint_monitor_config.workspace = true
 apollo_l1_gas_price.workspace = true
+apollo_l1_gas_price_provider_config.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_l1_provider.workspace = true
-apollo_mempool.workspace = true
-apollo_mempool_p2p.workspace = true
+apollo_l1_scraper_config.workspace = true
+apollo_mempool_config.workspace = true
+apollo_mempool_p2p_config.workspace = true
 apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
+apollo_monitoring_endpoint_config.workspace = true
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true
 apollo_rpc.workspace = true
+apollo_sierra_compilation_config.workspace = true
 apollo_state_sync.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
