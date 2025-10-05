@@ -94,7 +94,7 @@ impl BenchTestSetup {
             config.gateway_config,
             Arc::new(state_reader_factory),
             Arc::new(mempool_client),
-            transaction_converter,
+            Arc::new(transaction_converter),
         );
 
         Self { gateway: gateway_business_logic, txs }
