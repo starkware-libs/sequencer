@@ -10,6 +10,8 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-vm.workspace = true
+expect-test.workspace = true
 itertools.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
