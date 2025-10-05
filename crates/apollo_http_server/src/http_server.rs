@@ -124,14 +124,7 @@ async fn add_tx(
     debug!("ADD_TX_START: Http server received a new transaction.");
 
     let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
-        Ok(value) => {
-            validate_supported_tx_version_json(&tx).inspect_err(|e| {
-                debug!("Error while validating transaction version: {}", e);
-                increment_failure_metrics(e);
-            })?;
-
-            value
-        }
+        Ok(value) => value,
         Err(e) => {
             validate_supported_tx_version_str(&tx).inspect_err(|e| {
                 debug!("Error while validating transaction version: {}", e);
@@ -153,68 +146,29 @@ async fn add_tx(
 
 #[allow(clippy::result_large_err)]
 fn validate_supported_tx_version_str(tx: &str) -> HttpServerResult<()> {
-    // 1. Find the literal "version" key, and get the rest of the string.
-    let after_version = tx
-        .find("\"version\"")
-        .and_then(|idx| tx.get(idx + "\"version\"".len()..))
-        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    // 1. Remove all whitespace
+    let mut compact = String::with_capacity(tx.len());
+    compact.extend(tx.chars().filter(|c| !c.is_whitespace()));
 
-    // 2. Find the colon. If a colon exists, get the part before it and ensure it's all whitespace.
-    let (_, after_colon) = after_version
-        .find(':')
-        .and_then(|idx| {
-            let before = &after_version[..idx];
-            if before.chars().all(|c| c.is_whitespace()) {
-                Some((before, &after_version[idx + 1..]))
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    // 2. Find version:" marker
+    let marker = "version:\"";
+    let start =
+        compact.find(marker).ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    let rest = &compact[start + marker.len()..];
 
-    // 3. Find the starting quote. If a quote exists, get the part before it and ensure it's all
-    //    whitespace.
-    let (_, rest) = after_colon
-        .find('"')
-        .and_then(|idx| {
-            let before = &after_colon[..idx];
-            if before.chars().all(|c| c.is_whitespace()) {
-                Some((before, &after_colon[idx + 1..]))
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    // 3. Find closing quote
+    let end = rest.find('"').ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    let tx_version_str = &rest[..end];
 
-    // 4. Find the ending quote and extract the substring.
-    let end_index =
-        rest.find('"').ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
-    let tx_version_str = &rest[..end_index];
-
+    // 4. Parse version hex string
     let tx_version =
         u64::from_be_bytes(bytes_from_hex_str::<8, true>(tx_version_str).map_err(|_| {
             serde_json::Error::custom(format!(
                 "Version field is not a valid hex string: {tx_version_str}"
             ))
         })?);
-    handle_tx_version_error(&tx_version)
-}
 
-#[allow(clippy::result_large_err)]
-fn validate_supported_tx_version_json(tx: &str) -> HttpServerResult<()> {
-    let tx_json_value: serde_json::Value = serde_json::from_str(tx)?;
-    let tx_version_json = tx_json_value
-        .get("version")
-        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
-    let tx_version = tx_version_json
-        .as_str()
-        .ok_or_else(|| serde_json::Error::custom("Version field is not valid"))?;
-    let tx_version =
-        u64::from_be_bytes(bytes_from_hex_str::<8, true>(tx_version).map_err(|_| {
-            serde_json::Error::custom(format!(
-                "Version field is not a valid hex string: {tx_version}"
-            ))
-        })?);
+    // 5. Handle version errors as before
     handle_tx_version_error(&tx_version)
 }
 
