@@ -58,43 +58,28 @@ func create_initial_state_for_blake2s() -> (initial_state: felt*) {
     return (initial_state=initial_state);
 }
 
-// Encodes a list of felt252s to a list of u32s, each felt is mapped to eight u32s.
-func naive_encode_felt252s_to_u32s(
-    packed_values_len: felt, packed_values: felt*, unpacked_u32s: felt*
-) {
-    alloc_locals;
-
-    local end: felt* = &packed_values[packed_values_len];
-
-    %{ NaiveUnpackFelts252ToU32s %}
+// Encodes one felt252 into eight u32s represented in little-endian order.
+func naive_encode_felt252_to_u32s(packed_value: felt, unpacked_u32s: felt*) {
+    %{ NaiveUnpackFelt252ToU32s %}
     tempvar out = unpacked_u32s;
-    tempvar packed_values = packed_values;
-
-    loop:
-    if (end == packed_values) {
-        return ();
-    }
+    tempvar packed_values = packed_value;
 
     // TODO(Noa): Assert that the limbs represent a number in the range [0, PRIME-1].
     // Assert that the limbs represent the number.
     let actual_value = felt_from_le_u32s(u32s=out);
-    assert packed_values[0] = actual_value;
+    assert packed_values = actual_value;
 
-    tempvar out = &out[8];
-    tempvar packed_values = &packed_values[1];
-    jmp loop;
+    return ();
 }
 
-// / Encodes a slice of `Felt` values into 32-bit words, then hashes the resulting byte stream
-// / with Blake2s-256 and returns the 256-bit digest to a 252-bit field element `Felt`.
-func calc_blake_hash{range_check_ptr: felt}(data_len: felt, data: felt*) -> (hash: felt) {
+// Encodes one `Felt` into an eight 32-bit word, then hashes the resulting byte stream
+// with Blake2s-256 and returns the 256-bit digest to a 252-bit field element `Felt`.
+func calc_blake_hash_on_one_word{range_check_ptr: felt}(data: felt) -> (hash: felt) {
     alloc_locals;
     let (local encoded_data: felt*) = alloc();
-    naive_encode_felt252s_to_u32s(
-        packed_values_len=data_len, packed_values=data, unpacked_u32s=encoded_data
-    );
+    naive_encode_felt252_to_u32s(packed_value=data, unpacked_u32s=encoded_data);
     let (local blake_output: felt*) = alloc();
-    let encoded_data_length = 8 * data_len;
+    let encoded_data_length = 8;
     blake_with_opcode(len=encoded_data_length, data=encoded_data, out=blake_output);
     let hash = felt_from_le_u32s(u32s=blake_output);
     return (hash=hash);
