@@ -18,6 +18,7 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
+apollo_infra_utils.workspace = true
 # The 'test_programs' feature should be moved under `testing` feature, when it exists.
 apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 blake2s.workspace = true
