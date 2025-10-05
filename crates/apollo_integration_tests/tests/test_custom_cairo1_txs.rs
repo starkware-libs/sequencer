@@ -1,5 +1,6 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::ACCOUNT_ID_0 as CAIRO1_ACCOUNT_ID;
+use blockifier::bouncer::BouncerWeights;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -11,7 +12,6 @@ use mempool_test_utils::starknet_api_test_utils::{
 use mempool_test_utils::EMPTY_CONTRACT_CAIRO1_COMPILED_CLASS_HASH;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{calculate_contract_address, CompiledClassHash};
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{ContractAddressSalt, Tip};
@@ -31,8 +31,8 @@ async fn custom_cairo1_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_cairo1_txs_scenario(),
-        GasAmount(110000000),
-        true,
+        BouncerWeights::default().proving_gas,
+        false,
         false,
     )
     .await

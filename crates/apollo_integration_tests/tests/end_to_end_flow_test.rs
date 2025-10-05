@@ -6,9 +6,9 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_1,
     UNDEPLOYED_ACCOUNT_ID,
 };
+use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -21,7 +21,7 @@ async fn test_end_to_end_flow() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTest,
         create_test_scenarios(),
-        GasAmount(100000000), // Enough gas to cover all transactions in one block.
+        BouncerWeights::default().proving_gas,
         false,
         false,
     )
