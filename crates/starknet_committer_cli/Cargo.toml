@@ -13,7 +13,7 @@ workspace = true
 apollo_infra_utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 rand.workspace = true
-starknet_committer = { workspace = true, features = ["benchmark", "testing"] }
+starknet_committer = { workspace = true, features = ["testing"] }
 starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
