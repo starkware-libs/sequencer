@@ -88,9 +88,25 @@ pub(crate) struct TestParameters {
     pub(crate) messages_to_l2: Vec<MessageToL2>,
 }
 
-pub(crate) struct FlowTestTx {
-    tx: BlockifierTransaction,
-    revert_reason: Option<String>,
+pub(crate) enum FlowTestTx {
+    Successful(BlockifierTransaction),
+    Reverted { tx: BlockifierTransaction, revert_reason: String },
+}
+
+impl FlowTestTx {
+    pub(crate) fn tx(&self) -> &BlockifierTransaction {
+        match self {
+            FlowTestTx::Successful(tx) => tx,
+            FlowTestTx::Reverted { tx, .. } => tx,
+        }
+    }
+
+    pub(crate) fn revert_reason(&self) -> Option<&String> {
+        match self {
+            FlowTestTx::Reverted { revert_reason, .. } => Some(revert_reason),
+            FlowTestTx::Successful(_) => None,
+        }
+    }
 }
 
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
@@ -293,12 +309,11 @@ impl<S: FlowTestState> TestManager<S> {
         else {
             panic!("Expected a V1 contract class");
         };
-        self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+        self.last_block_txs_mut().push(FlowTestTx::Successful(
+            BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
-            revert_reason: None,
-        });
+        ));
 
         self.execution_contracts
             .declared_class_hash_to_component_hashes
@@ -311,11 +326,16 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     pub(crate) fn add_invoke_tx(&mut self, tx: InvokeTransaction, revert_reason: Option<String>) {
-        self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
-                AccountTransaction::Invoke(tx),
+        self.last_block_txs_mut().push(match revert_reason {
+            Some(revert_reason) => FlowTestTx::Reverted {
+                tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+                    AccountTransaction::Invoke(tx),
+                )),
+                revert_reason,
+            },
+            None => FlowTestTx::Successful(BlockifierTransaction::new_for_sequencing(
+                StarknetApiTransaction::Account(AccountTransaction::Invoke(tx)),
             )),
-            revert_reason,
         });
     }
 
@@ -339,12 +359,11 @@ impl<S: FlowTestState> TestManager<S> {
         let ContractClass::V0(class) = tx.class_info.contract_class.clone() else {
             panic!("Expected a V0 contract class");
         };
-        self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+        self.last_block_txs_mut().push(FlowTestTx::Successful(
+            BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
-            revert_reason: None,
-        });
+        ));
         self.execution_contracts
             .executed_contracts
             .deprecated_contracts
@@ -352,12 +371,11 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     pub(crate) fn add_deploy_account_tx(&mut self, tx: DeployAccountTransaction) {
-        self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
+        self.last_block_txs_mut().push(FlowTestTx::Successful(
+            BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::Account(
                 AccountTransaction::DeployAccount(tx),
             )),
-            revert_reason: None,
-        });
+        ));
     }
 
     pub(crate) fn add_l1_handler_tx(
@@ -365,9 +383,16 @@ impl<S: FlowTestState> TestManager<S> {
         tx: L1HandlerTransaction,
         revert_reason: Option<String>,
     ) {
-        self.last_block_txs_mut().push(FlowTestTx {
-            tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
-            revert_reason,
+        self.last_block_txs_mut().push(match revert_reason {
+            Some(revert_reason) => FlowTestTx::Reverted {
+                tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(
+                    tx,
+                )),
+                revert_reason,
+            },
+            None => FlowTestTx::Successful(BlockifierTransaction::new_for_sequencing(
+                StarknetApiTransaction::L1Handler(tx),
+            )),
         });
     }
 
@@ -536,7 +561,10 @@ impl<S: FlowTestState> TestManager<S> {
         {
             let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
                 .into_iter()
-                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.revert_reason))
+                .map(|flow_test_tx| match flow_test_tx {
+                    FlowTestTx::Successful(tx) => (tx, None),
+                    FlowTestTx::Reverted { tx, revert_reason } => (tx, Some(revert_reason)),
+                })
                 .unzip();
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();
