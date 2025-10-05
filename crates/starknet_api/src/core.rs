@@ -9,7 +9,7 @@ use num_traits::ToPrimitive;
 use primitive_types::H160;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 
