@@ -130,9 +130,9 @@ const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x6d9f03fde30543af9a457c4fcc13aced0ce27ef4e5a498a143d483b23711f32"];
 
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x28edb095528b9d888678d3a3160d32acb481a3b9160407a7577a765097eaed5"];
+    expect!["0x63e2ef597484dbb68c3112266f02b3aff66de1d49b85efd759bafd5375d5839"];
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x2833c37e53489206582153747f19c4385079c6a72d8252483c1b6e043ab8b5d"];
+    expect!["0x6ccdcefdc050235d2512784e156714ac4c01fafbac9aac4ada6d99c068ae15d"];
 
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x728a998871aed1335e5a7757119cdd88785e4ce9cc90bbf90075f39b34b22e5"];
