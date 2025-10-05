@@ -31,7 +31,7 @@ use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
 use starknet_os::io::os_input::{
@@ -401,6 +401,11 @@ impl<S: FlowTestState> TestManager<S> {
             tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
             expected_revert_reason,
         });
+    }
+
+    pub(crate) fn add_fund_address_tx_with_default_amount(&mut self, address: ContractAddress) {
+        let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
+        self.add_fund_address_tx(address, transfer_amount);
     }
 
     pub(crate) fn add_fund_address_tx(&mut self, address: ContractAddress, amount: u128) {

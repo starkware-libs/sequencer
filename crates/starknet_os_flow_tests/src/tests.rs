@@ -1,13 +1,18 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
+use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
@@ -17,15 +22,18 @@ use starknet_api::core::{
     ContractAddress,
     EthAddress,
     Nonce,
+    PatriciaKey,
 };
 use starknet_api::executable_transaction::{
     DeclareTransaction,
+    DeployAccountTransaction,
     InvokeTransaction,
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
+use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
@@ -42,6 +50,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     ResourceBounds,
+    Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -52,7 +61,14 @@ use starknet_api::transaction::{
     MessageToL1,
     TransactionVersion,
 };
-use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
+use starknet_api::{
+    calldata,
+    contract_address,
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+};
 use starknet_committer::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
@@ -62,6 +78,7 @@ use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
+use starknet_os::hints::vars::Const;
 use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -81,6 +98,7 @@ use crate::utils::{
     get_class_hash_of_feature_contract,
     get_class_info_of_cairo0_contract,
     get_class_info_of_feature_contract,
+    maybe_dummy_block_hash_and_number,
 };
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
@@ -932,4 +950,557 @@ async fn test_v1_bound_accounts_cairo1() {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+}
+
+#[rstest]
+#[case::use_kzg(true, 5)]
+#[case::not_use_kzg(false, 1)]
+#[tokio::test]
+async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi_block: usize) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_class_hash = get_class_hash_of_feature_contract(test_contract);
+    let (mut test_manager, [main_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ZERO, Felt::ZERO],
+        )])
+        .await;
+    let current_block_number = test_manager.initial_state.next_block_number;
+
+    assert!(
+        current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
+        "Current block number must be greater than STORED_BLOCK_HASH_BUFFER for the test to work."
+    );
+
+    // Prepare expected storage updates.
+    let mut expected_messages_to_l1 = Vec::new();
+    let mut expected_storage_updates: HashMap<
+        ContractAddress,
+        HashMap<StarknetStorageKey, StarknetStorageValue>,
+    > = HashMap::new();
+    let mut update_expected_storage = |address: ContractAddress, key: Felt, value: Felt| {
+        let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
+        let value = StarknetStorageValue(value);
+        expected_storage_updates
+            .entry(address)
+            .and_modify(|map| {
+                map.insert(key, value);
+            })
+            .or_insert_with(|| HashMap::from([(key, value)]));
+    };
+
+    // Call test_increment twice.
+    let n_calls: u8 = 2;
+    for _ in 0..n_calls {
+        let calldata = create_calldata(
+            main_contract_address,
+            "test_increment",
+            &[felt!(5u8), felt!(6u8), felt!(7u8)],
+        );
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+    update_expected_storage(
+        main_contract_address,
+        **get_storage_var_address("my_storage_var", &[]),
+        Felt::from(n_calls),
+    );
+
+    // Test get_execution_info; invoke a function that gets the expected execution info and compares
+    // it to the actual.
+    let test_execution_info_selector_name = "test_get_execution_info";
+    let test_execution_info_selector = selector_from_name(test_execution_info_selector_name);
+    let only_query = false;
+    let expected_execution_info = ExpectedExecutionInfo::new(
+        only_query,
+        *FUNDED_ACCOUNT_ADDRESS,
+        *FUNDED_ACCOUNT_ADDRESS,
+        main_contract_address,
+        CHAIN_ID_FOR_TESTS.clone(),
+        test_execution_info_selector,
+        current_block_number,
+        BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+        contract_address!(TEST_SEQUENCER_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        test_manager.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    )
+    .to_syscall_result();
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            main_contract_address, test_execution_info_selector_name, &expected_execution_info
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    // Put the tx hash in the signature.
+    let tx =
+        InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx_from_args(
+        invoke_tx_args! {
+            signature: TransactionSignature(Arc::new(vec![tx.tx_hash.0])),
+            ..invoke_tx_args
+        },
+        &CHAIN_ID_FOR_TESTS,
+        None,
+    );
+
+    // Test Cairo 1.0 deploy syscall.
+    let salt = Felt::from(7);
+    let deploy_from_zero = Felt::ZERO;
+    let ctor_calldata = vec![Felt::ZERO, Felt::ZERO];
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_deploy",
+        &[
+            test_class_hash.0,
+            salt,
+            ctor_calldata.len().into(),
+            ctor_calldata[0],
+            ctor_calldata[1],
+            deploy_from_zero,
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata, tip: Tip(1234) });
+    let contract_address2 = calculate_contract_address(
+        ContractAddressSalt(salt),
+        test_class_hash,
+        &Calldata(Arc::new(ctor_calldata)),
+        main_contract_address,
+    )
+    .unwrap();
+
+    // Test calling test_get_execution_info.
+    let test_call_contract_selector_name = "test_call_contract";
+    let expected_execution_info = ExpectedExecutionInfo::new(
+        only_query,
+        *FUNDED_ACCOUNT_ADDRESS,
+        main_contract_address,
+        contract_address2,
+        CHAIN_ID_FOR_TESTS.clone(),
+        test_execution_info_selector,
+        current_block_number,
+        BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+        contract_address!(TEST_SEQUENCER_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        test_manager.get_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    )
+    .to_syscall_result();
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            main_contract_address,
+            test_call_contract_selector_name,
+            &[
+                **contract_address2,
+                test_execution_info_selector.0,
+                expected_execution_info.len().into()
+            ].into_iter().chain(expected_execution_info.into_iter()).collect::<Vec<_>>()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    // Put the tx hash in the signature.
+    let invoke_tx =
+        InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx_from_args(
+        invoke_tx_args! {
+            signature: TransactionSignature(Arc::new(vec![invoke_tx.tx_hash.0])),
+            ..invoke_tx_args
+        },
+        &CHAIN_ID_FOR_TESTS,
+        None,
+    );
+
+    // Test calling test_storage_read_write.
+    let test_call_contract_key = Felt::from(1948);
+    let test_call_contract_value = Felt::from(1967);
+    let calldata = create_calldata(
+        main_contract_address,
+        test_call_contract_selector_name,
+        &[
+            **contract_address2,
+            selector_from_name("test_storage_read_write").0,
+            Felt::TWO,
+            test_call_contract_key,
+            test_call_contract_value,
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    update_expected_storage(contract_address2, test_call_contract_key, test_call_contract_value);
+
+    // Test the behavior of the `get_class_hash_at` syscall.
+    let deployed_address = contract_address2;
+    let expected_class_hash_of_deployed_address = test_class_hash;
+    let undeployed_address = Felt::from(123456789);
+    let calldata = create_calldata(
+        main_contract_address,
+        test_call_contract_selector_name,
+        &[
+            **contract_address2,
+            selector_from_name("test_get_class_hash_at").0,
+            Felt::THREE,
+            **deployed_address,
+            expected_class_hash_of_deployed_address.0,
+            undeployed_address,
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Test send-message-to-L1 syscall.
+    let test_send_message_to_l1_to_address = Felt::ZERO;
+    let test_send_message_to_l1_payload = vec![Felt::from(4365), Felt::from(23)];
+    let calldata = create_calldata(
+        main_contract_address,
+        test_call_contract_selector_name,
+        &[
+            **contract_address2,
+            selector_from_name("test_send_message_to_l1").0,
+            Felt::from(4),
+            test_send_message_to_l1_to_address,
+            Felt::TWO,
+            test_send_message_to_l1_payload[0],
+            test_send_message_to_l1_payload[1],
+        ],
+    );
+    expected_messages_to_l1.push(MessageToL1 {
+        from_address: contract_address2,
+        to_address: EthAddress::try_from(test_send_message_to_l1_to_address).unwrap(),
+        payload: L2ToL1Payload(test_send_message_to_l1_payload),
+    });
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_poseidon_hades_permutation.
+    let calldata = create_calldata(main_contract_address, "test_poseidon_hades_permutation", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_keccak.
+    let calldata = create_calldata(main_contract_address, "test_keccak", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Points for keccak / secp tests.
+    let x_low = Felt::from(302934307671667531413257853548643485645u128);
+    let x_high = Felt::from(328530677494498397859470651507255972949u128);
+    let y_low = Felt::from(11797905874978945418374634252637373969u128);
+    let y_high = Felt::from(188875896373816311474931247321846847606u128);
+
+    // Call test_keccak.
+    let calldata =
+        create_calldata(main_contract_address, "test_new_point_secp256k1", &[x_low, x_high]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_getter_secp256k1.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_getter_secp256k1",
+        &[x_low, x_high, y_low, y_high],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_add_secp256k1.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_add_secp256k1",
+        &[x_low, x_high, y_low, y_high],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_mul_secp256k1.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_mul_secp256k1",
+        &[Felt::from(1991), Felt::from(1996)],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_signature_verification_secp256k1.
+    let calldata =
+        create_calldata(main_contract_address, "test_signature_verification_secp256k1", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Change points for secpR.
+    let x_low = Felt::from_hex_unchecked("0x2D483FE223B12B91047D83258A958B0F");
+    let x_high = Felt::from_hex_unchecked("0x502A43CE77C6F5C736A82F847FA95F8C");
+    let y_low = Felt::from_hex_unchecked("0xCE729C7704F4DDF2EAAF0B76209FE1B0");
+    let y_high = Felt::from_hex_unchecked("0xDB0A2E6710C71BA80AFEB3ABDF69D306");
+
+    // Call test_new_point_secp256r1.
+    let calldata =
+        create_calldata(main_contract_address, "test_new_point_secp256r1", &[x_low, x_high]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_add_secp256r1.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_add_secp256r1",
+        &[x_low, x_high, y_low, y_high],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_getter_secp256r1.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_getter_secp256r1",
+        &[x_low, x_high, y_low, y_high],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_mul_secp256r1.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_mul_secp256r1",
+        &[Felt::from(1991), Felt::from(1996)],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_signature_verification_secp256r1.
+    let calldata =
+        create_calldata(main_contract_address, "test_signature_verification_secp256r1", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Declare the experimental contract.
+    let experimental_contract = FeatureContract::Experimental;
+    let experimental_contract_sierra = experimental_contract.get_sierra();
+    let experimental_class_hash = experimental_contract_sierra.calculate_class_hash();
+    let experimental_compiled_class_hash =
+        experimental_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: experimental_class_hash,
+        compiled_class_hash: experimental_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(experimental_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
+
+    // Deploy it.
+    let salt = Felt::ZERO;
+    let (deploy_tx, _experimental_contract_address) = get_deploy_contract_tx_and_address_with_salt(
+        experimental_class_hash,
+        Calldata::default(),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Call test_sha256.
+    let calldata = create_calldata(main_contract_address, "test_sha256", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_circuit.
+    let calldata = create_calldata(main_contract_address, "test_circuit", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_rc96_holes.
+    let calldata = create_calldata(main_contract_address, "test_rc96_holes", &[]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Call test_get_block_hash.
+    // Get the block hash at current block number minus STORED_BLOCK_HASH_BUFFER.
+    let queried_block_number = BlockNumber(current_block_number.0 - STORED_BLOCK_HASH_BUFFER);
+    let (_old_block_number, old_block_hash) =
+        maybe_dummy_block_hash_and_number(current_block_number).unwrap();
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_get_block_hash",
+        &[Felt::from(queried_block_number.0), old_block_hash.0],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Test library call.
+    // TODO(Yoni): test execution info on library call.
+    let test_library_call_key = Felt::from(1973);
+    let test_library_call_value = Felt::from(1982);
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_library_call",
+        &[
+            test_class_hash.0,
+            selector_from_name("test_storage_read_write").0,
+            Felt::TWO,
+            test_library_call_key,
+            test_library_call_value,
+        ],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    update_expected_storage(main_contract_address, test_library_call_key, test_library_call_value);
+
+    // Test segment_arena.
+    for _ in 0..2 {
+        let calldata = create_calldata(main_contract_address, "test_segment_arena", &[]);
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
+    // Declare a Cairo 1.0 account contract.
+    // TODO(Noa): Replace the main account of the test with this Cairo 1 account.
+    let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let faulty_account_sierra = faulty_account.get_sierra();
+    let faulty_account_class_hash = faulty_account_sierra.calculate_class_hash();
+    let faulty_account_compiled_class_hash =
+        faulty_account.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: faulty_account_class_hash,
+        compiled_class_hash: faulty_account_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(faulty_account);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &faulty_account_sierra);
+
+    // Deploy it.
+    let salt = Felt::ZERO;
+    let validate_constructor = Felt::ZERO; // false.
+    let ctor_calldata = calldata![validate_constructor];
+    let (deploy_tx, _) = get_deploy_contract_tx_and_address_with_salt(
+        faulty_account_class_hash,
+        ctor_calldata.clone(),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Prepare deploying an instance of the account by precomputing the address and funding it.
+    let valid = Felt::ZERO;
+    let salt = Felt::from(1993);
+    let faulty_account_address = calculate_contract_address(
+        ContractAddressSalt(salt),
+        faulty_account_class_hash,
+        &ctor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap();
+    // Fund the address.
+    test_manager.add_fund_address_tx_with_default_amount(faulty_account_address);
+
+    // Create a DeployAccount transaction.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash: faulty_account_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: ContractAddressSalt(salt),
+        signature: TransactionSignature(Arc::new(vec![valid])),
+        constructor_calldata: ctor_calldata,
+    };
+    let deploy_account_tx =
+        deploy_account_tx(deploy_tx_args, test_manager.next_nonce(faulty_account_address));
+    test_manager.add_deploy_account_tx(
+        DeployAccountTransaction::create(deploy_account_tx, &CHAIN_ID_FOR_TESTS).unwrap(),
+    );
+
+    // Declare a contract using the newly deployed account.
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let empty_contract_sierra = empty_contract.get_sierra();
+    let empty_contract_class_hash = empty_contract_sierra.calculate_class_hash();
+    let empty_contract_compiled_class_hash =
+        empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: faulty_account_address,
+        class_hash: empty_contract_class_hash,
+        compiled_class_hash: empty_contract_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(faulty_account_address),
+        signature: TransactionSignature(Arc::new(vec![valid])),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &empty_contract_sierra);
+    // The faulty account's __execute__ sends a message to L1.
+    expected_messages_to_l1.push(MessageToL1 {
+        from_address: faulty_account_address,
+        to_address: EthAddress::default(),
+        payload: L2ToL1Payload::default(),
+    });
+
+    // Invoke a function on the new account.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: faulty_account_address,
+        nonce: test_manager.next_nonce(faulty_account_address),
+        calldata: create_calldata(faulty_account_address, "foo", &[]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        signature: TransactionSignature(Arc::new(vec![valid])),
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    // The faulty account's __execute__ sends a message to L1.
+    expected_messages_to_l1.push(MessageToL1 {
+        from_address: faulty_account_address,
+        to_address: EthAddress::default(),
+        payload: L2ToL1Payload::default(),
+    });
+
+    // The OS is expected to write the (number -> hash) mapping of this block. Make sure the current
+    // block number is greater than STORED_BLOCK_HASH_BUFFER.
+    let old_block_number = current_block_number.0 - STORED_BLOCK_HASH_BUFFER;
+    assert!(
+        old_block_number > 0,
+        "Block number must be big enough to test a non-trivial block hash mapping update."
+    );
+
+    // Add old block hashes to expected storage updates.
+    let block_hash_contract_address = ContractAddress(
+        PatriciaKey::try_from(Const::BlockHashContractAddress.fetch_from_os_program().unwrap())
+            .unwrap(),
+    );
+    for block_number in current_block_number.0
+        ..(current_block_number.0 + u64::try_from(n_blocks_in_multi_block).unwrap())
+    {
+        let (old_block_number, old_block_hash) =
+            maybe_dummy_block_hash_and_number(BlockNumber(block_number)).unwrap();
+        update_expected_storage(
+            block_hash_contract_address,
+            Felt::from(old_block_number.0),
+            old_block_hash.0,
+        );
+    }
+
+    // Run the test.
+    test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            messages_to_l1: expected_messages_to_l1,
+            ..Default::default()
+        })
+        .await;
+
+    // Perform general validations and storage update validations.
+    let perform_global_validations = true;
+    test_output.perform_validations(
+        perform_global_validations,
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() }),
+    );
+
+    // Verify that the funded account, the new account and the sequencer all have changed balances.
+    test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
+    test_output.assert_account_balance_change(faulty_account_address);
+    test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+
+    // Validate poseidon usage.
+    let poseidons = test_output
+        .runner_output
+        .metrics
+        .execution_resources
+        .builtin_instance_counter
+        .get(&BuiltinName::poseidon)
+        .unwrap();
+    if use_kzg_da {
+        expect![[r#"
+            679
+        "#]]
+        .assert_debug_eq(poseidons);
+    } else {
+        expect![[r#"
+            562
+        "#]]
+        .assert_debug_eq(poseidons);
+    }
 }
