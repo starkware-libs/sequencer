@@ -4,6 +4,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_gateway::gateway::Gateway;
 use apollo_gateway::state_reader_test_utils::local_test_state_reader_factory;
+use apollo_gateway::stateless_transaction_validator::StatelessTransactionValidator;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_mempool_types::communication::MockMempoolClient;
 use blockifier::context::ChainInfo;
@@ -82,12 +83,14 @@ impl BenchTestSetup {
 
         let state_reader_factory = local_test_state_reader_factory(cairo_version, false);
         let mut mempool_client = MockMempoolClient::new();
-        // TODO(noamsp): use MockTransactionConverter
         let class_manager_client = Arc::new(EmptyClassManagerClient);
         let transaction_converter = TransactionConverter::new(
             class_manager_client.clone(),
             config.gateway_config.chain_info.chain_id.clone(),
         );
+        let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
+            config: config.gateway_config.stateless_tx_validator_config.clone(),
+        });
         mempool_client.expect_add_tx().returning(|_| Ok(()));
 
         let gateway_business_logic = Gateway::new(
@@ -95,6 +98,7 @@ impl BenchTestSetup {
             Arc::new(state_reader_factory),
             Arc::new(mempool_client),
             Arc::new(transaction_converter),
+            stateless_tx_validator,
         );
 
         Self { gateway: gateway_business_logic, txs }

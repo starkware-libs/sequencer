@@ -58,7 +58,7 @@ pub mod gateway_test;
 #[derive(Clone)]
 pub struct Gateway {
     pub config: Arc<GatewayConfig>,
-    pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
+    pub stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
@@ -71,12 +71,11 @@ impl Gateway {
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<dyn TransactionConverterTrait>,
+        stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     ) -> Self {
         Self {
             config: Arc::new(config.clone()),
-            stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-                config: config.stateless_tx_validator_config.clone(),
-            }),
+            stateless_tx_validator,
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
@@ -125,6 +124,9 @@ impl Gateway {
             }
         }
 
+        // Perform stateless validations.
+        self.stateless_tx_validator.validate(&tx)?;
+
         let tx_signature = tx.signature().clone();
         let internal_tx = self
             .transaction_converter
@@ -149,7 +151,6 @@ impl Gateway {
 
         let blocking_task = ProcessTxBlockingTask::new(
             self,
-            tx.clone(),
             internal_tx,
             executable_tx,
             tokio::runtime::Handle::current(),
@@ -232,11 +233,9 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
-    tx: RpcTransaction,
     internal_tx: InternalRpcTransaction,
     executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
@@ -245,17 +244,14 @@ struct ProcessTxBlockingTask {
 impl ProcessTxBlockingTask {
     pub fn new(
         gateway: &Gateway,
-        tx: RpcTransaction,
         internal_tx: InternalRpcTransaction,
         executable_tx: AccountTransaction,
         runtime: tokio::runtime::Handle,
     ) -> Self {
         Self {
-            stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
-            tx,
             internal_tx,
             executable_tx,
             runtime,
@@ -263,9 +259,6 @@ impl ProcessTxBlockingTask {
     }
 
     fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
-        // Perform stateless validations.
-        self.stateless_tx_validator.validate(&self.tx)?;
-
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref())?;
@@ -296,8 +289,17 @@ pub fn create_gateway(
         class_manager_client,
         config.chain_info.chain_id.clone(),
     ));
+    let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
+        config: config.stateless_tx_validator_config.clone(),
+    });
 
-    Gateway::new(config, state_reader_factory, mempool_client, transaction_converter)
+    Gateway::new(
+        config,
+        state_reader_factory,
+        mempool_client,
+        transaction_converter,
+        stateless_tx_validator,
+    )
 }
 
 #[async_trait]
