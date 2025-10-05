@@ -13,6 +13,7 @@ use crate::block_committer::input::{
     Input,
     StateDiff,
 };
+use crate::block_committer::timing_util::{Action, TimeMeasurement};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
@@ -25,6 +26,7 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 pub async fn commit_block<S: Storage>(
     input: Input<ConfigImpl>,
     storage: &mut S,
+    #[cfg(feature = "benchmark")] time_measurement: &mut TimeMeasurement,
 ) -> BlockCommitmentResult<FilledForest> {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);
@@ -38,6 +40,9 @@ pub async fn commit_block<S: Storage>(
     };
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
+    // Reads - fetch_nodes.
+    #[cfg(feature = "benchmark")]
+    time_measurement.start_measurement(Action::Read);
     let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
         storage,
         input.contracts_trie_root_hash,
@@ -47,6 +52,9 @@ pub async fn commit_block<S: Storage>(
         &forest_sorted_indices,
         &input.config,
     )?;
+    let n_read_facts = original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
+    #[cfg(feature = "benchmark")]
+    time_measurement.stop_measurement(Some(n_read_facts), Action::Read);
     info!("Original skeleton forest created successfully.");
 
     if input.config.warn_on_trivial_modifications() {
@@ -57,6 +65,9 @@ pub async fn commit_block<S: Storage>(
         );
     }
 
+    // Compute the new topology.
+    #[cfg(feature = "benchmark")]
+    time_measurement.start_measurement(Action::Compute);
     let updated_forest = UpdatedSkeletonForest::create(
         &mut original_forest,
         &input.state_diff.skeleton_classes_updates(),
@@ -67,6 +78,7 @@ pub async fn commit_block<S: Storage>(
     )?;
     info!("Updated skeleton forest created successfully.");
 
+    // Compute the new hashes.
     let filled_forest = FilledForest::create::<TreeHashFunctionImpl>(
         updated_forest,
         actual_storage_updates,
@@ -76,6 +88,8 @@ pub async fn commit_block<S: Storage>(
         &input.state_diff.address_to_nonce,
     )
     .await?;
+    #[cfg(feature = "benchmark")]
+    time_measurement.stop_measurement(None, Action::Compute);
     info!("Filled forest created successfully.");
 
     Ok(filled_forest)
