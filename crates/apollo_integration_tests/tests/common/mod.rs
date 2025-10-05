@@ -142,21 +142,22 @@ fn get_total_batched_txs_count(recorder_handle: &PrometheusHandle) -> usize {
 }
 
 fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_blocks: bool) {
-    let metrics = recorder_handle.render();
-    let full_blocks_metric = apollo_batcher::metrics::BLOCK_CLOSE_REASON
-        .parse_numeric_metric::<u64>(
-            &metrics,
-            &[(
-                apollo_batcher::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
-                apollo_batcher::metrics::BlockCloseReason::FullBlock.into(),
-            )],
-        )
-        .unwrap();
     if expecting_full_blocks {
+        let metrics = recorder_handle.render();
+        let full_blocks_metric = apollo_batcher::metrics::BLOCK_CLOSE_REASON
+            .parse_numeric_metric::<u64>(
+                &metrics,
+                &[(
+                    apollo_batcher::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                    apollo_batcher::metrics::BlockCloseReason::FullBlock.into(),
+                )],
+            )
+            .unwrap();
         assert!(full_blocks_metric > 0);
-    } else {
-        assert_eq!(full_blocks_metric, 0);
     }
+    // Just because we don't expect full blocks, doesn't mean we should assert that the metric is 0.
+    // It is possible that a block is filled, no need to assert that this is not the case.
+    // TODO(AlonH): In the `else` case, assert that some block closed due to time.
 }
 
 fn assert_no_reverted_transactions_flow(recorder_handle: &PrometheusHandle) {
