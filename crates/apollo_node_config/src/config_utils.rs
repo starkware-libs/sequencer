@@ -98,7 +98,8 @@ pub fn config_to_preset(config_map: &Value) -> Value {
     }
 }
 
-/// Keep "{prefix}.#is_none": true, remove all other "{prefix}.*" keys.
+/// Keep "{prefix}.#is_none": true, remove all other "{prefix}.*" keys and also the bare
+/// "{prefix}" key.
 pub fn prune_by_is_none(mut v: Value) -> Value {
     let obj: &mut Map<String, Value> =
         v.as_object_mut().expect("prune_by_is_none: expected a JSON object");
@@ -115,9 +116,13 @@ pub fn prune_by_is_none(mut v: Value) -> Value {
         }
     }
 
-    // Remove keys that begin with any such prefix, except the "#is_none" flag itself
+    // Remove keys that begin with any such prefix, or equal the bare prefix, except the "#is_none"
+    // flag itself
     obj.retain(|k, _| {
-        if let Some(p) = unset_optional_param_paths.iter().find(|p| k.starts_with(&***p)) {
+        if let Some(p) = unset_optional_param_paths
+            .iter()
+            .find(|p| k.starts_with(&***p) || k.as_str() == p.trim_end_matches(FIELD_SEPARATOR))
+        {
             // keep only the "{prefix}.#is_none" key
             k == &format!("{p}{IS_NONE_MARK}")
         } else {
@@ -202,6 +207,7 @@ impl DeploymentBaseAppConfig {
 
         // Extract only the required fields from the config map.
         let preset = config_to_preset(&config_as_map);
+        let preset = prune_by_is_none(preset);
         validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
         preset
     }
