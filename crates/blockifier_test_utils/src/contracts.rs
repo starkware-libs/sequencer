@@ -14,7 +14,7 @@ use starknet_api::{class_hash, contract_address, felt};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
+use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts, LibfuncArg};
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo1";
@@ -59,6 +59,7 @@ const EMPTY_ACCOUNT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
 const TEST_CONTRACT2_BASE: u32 = 14 * CLASS_HASH_BASE;
+const EXPERIMENTAL_CONTRACT_BASE: u32 = 15 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -75,6 +76,7 @@ const EXECUTION_INFO_V1_CONTRACT_NAME: &str = "test_contract_execution_info_v1";
 const EMPTY_ACCOUNT_NAME: &str = "empty_account";
 const META_TX_CONTRACT_NAME: &str = "meta_tx_test_contract";
 const MOCK_STAKING_CONTRACT_NAME: &str = "mock_staking";
+const EXPERIMENTAL_CONTRACT_NAME: &str = "experimental_contract";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -119,6 +121,11 @@ const EMPTY_COMPILED_CLASS_HASH_V1: expect_test::Expect =
 const EMPTY_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x6ee46561691e785d643a8296b9bf08008e432df405a1a4beb6ed784541b571c"];
 
+const EXPERIMENTAL_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x3e72aadba820fb1ec7cf27240d4b4279a9e7e947d6f387d44b5688599bd6988"];
+const EXPERIMENTAL_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x50902d0815548ad1af6b4d95908f822b634f731ca28f5f436f8a03d3324749e"];
+
 const FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0xfdb78bea47a0b1464f38b2d29997edac084bbed4e63e1eef240ffb86a34ab2"];
 const FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
@@ -161,6 +168,7 @@ pub enum FeatureContract {
     EmptyAccount(RunnableCairo1),
     ERC20(CairoVersion),
     Empty(CairoVersion),
+    Experimental,
     FaultyAccount(CairoVersion),
     LegacyTestContract,
     SecurityTests,
@@ -182,7 +190,7 @@ impl FeatureContract {
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
             Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => CairoVersion::Cairo0,
-            Self::LegacyTestContract | Self::CairoStepsTestContract => {
+            Self::LegacyTestContract | Self::CairoStepsTestContract | Self::Experimental => {
                 CairoVersion::Cairo1(RunnableCairo1::Casm)
             }
             Self::SierraExecutionInfoV1Contract(runnable_version)
@@ -213,6 +221,7 @@ impl FeatureContract {
             | Self::SecurityTests
             | Self::TestContract2
             | Self::CairoStepsTestContract
+            | Self::Experimental
             | Self::LegacyTestContract => {
                 panic!("{self:?} contract has no configurable version.")
             }
@@ -238,6 +247,9 @@ impl FeatureContract {
                 ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V2,
             ),
             Self::Empty(_) => (EMPTY_COMPILED_CLASS_HASH_V1, EMPTY_COMPILED_CLASS_HASH_V2),
+            Self::Experimental => {
+                (EXPERIMENTAL_COMPILED_CLASS_HASH_V1, EXPERIMENTAL_COMPILED_CLASS_HASH_V2)
+            }
             Self::FaultyAccount(_) => {
                 (FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V1, FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V2)
             }
@@ -358,6 +370,7 @@ impl FeatureContract {
                 Self::TestContract2 => TEST_CONTRACT2_BASE,
                 Self::Empty(_) => EMPTY_CONTRACT_BASE,
                 Self::ERC20(_) => ERC20_CONTRACT_BASE,
+                Self::Experimental => EXPERIMENTAL_CONTRACT_BASE,
                 Self::FaultyAccount(_) => FAULTY_ACCOUNT_BASE,
                 Self::LegacyTestContract => LEGACY_CONTRACT_BASE,
                 Self::SecurityTests => SECURITY_TEST_CONTRACT_BASE,
@@ -375,6 +388,7 @@ impl FeatureContract {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
             Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
             Self::DelegateProxy => DELEGATE_PROXY_NAME,
+            Self::Experimental => EXPERIMENTAL_CONTRACT_NAME,
             Self::TestContract2 => TEST_CONTRACT2_NAME,
             Self::Empty(_) => EMPTY_CONTRACT_NAME,
             Self::FaultyAccount(_) => FAULTY_ACCOUNT_NAME,
@@ -481,11 +495,19 @@ impl FeatureContract {
                     | FeatureContract::EmptyAccount(_)
                     | FeatureContract::MetaTx(_)
                     | FeatureContract::MockStakingContract(_) => None,
-                    FeatureContract::ERC20(_) => unreachable!(),
+                    FeatureContract::ERC20(_) | FeatureContract::Experimental => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
-            CairoVersion::Cairo1(_) => cairo1_compile(self.get_source_path(), self.fixed_version()),
+            CairoVersion::Cairo1(_) => {
+                let libfunc_list_arg = match self {
+                    Self::Experimental => {
+                        LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
+                    }
+                    _ => LibfuncArg::ListName("all".to_string()),
+                };
+                cairo1_compile(self.get_source_path(), self.fixed_version(), libfunc_list_arg)
+            }
         }
     }
 
@@ -540,6 +562,7 @@ impl FeatureContract {
             Self::DelegateProxy
             | Self::LegacyTestContract
             | Self::CairoStepsTestContract
+            | Self::Experimental
             | Self::TestContract2
             | Self::SecurityTests => {
                 vec![*self]
