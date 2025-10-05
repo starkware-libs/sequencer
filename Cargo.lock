@@ -12231,6 +12231,7 @@ dependencies = [
 name = "starknet_committer"
 version = "0.0.0"
 dependencies = [
+ "csv",
  "ethnum",
  "hex",
  "pretty_assertions",
@@ -12288,7 +12289,6 @@ name = "starknet_committer_cli"
 version = "0.0.0"
 dependencies = [
  "clap",
- "csv",
  "rand 0.8.5",
  "starknet_committer",
  "starknet_committer_and_os_cli",
