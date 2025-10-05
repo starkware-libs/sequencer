@@ -107,28 +107,50 @@ pub fn cairo0_compile(
     CompilationArtifacts::Cairo0 { casm: compile_output.stdout }
 }
 
+pub enum LibfuncArg {
+    ListName(String),
+    ListFile(String),
+}
+
+impl LibfuncArg {
+    pub fn add_to_command<'a>(&self, command: &'a mut Command) -> &'a mut Command {
+        match self {
+            Self::ListName(name) => command.args(["--allowed-libfuncs-list-name", name]),
+            Self::ListFile(file) => command.args(["--allowed-libfuncs-list-file", file]),
+        }
+    }
+}
+
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
-pub fn cairo1_compile(path: String, version: String) -> CompilationArtifacts {
+pub fn cairo1_compile(
+    path: String,
+    version: String,
+    libfunc_list_arg: LibfuncArg,
+) -> CompilationArtifacts {
     assert!(cairo1_package_exists(&version));
 
-    let sierra_output = starknet_compile(path, &version);
+    let sierra_output = starknet_compile(path, &version, &libfunc_list_arg);
 
     let mut temp_file = NamedTempFile::new().unwrap();
     temp_file.write_all(&sierra_output).unwrap();
     let temp_path_str = temp_file.into_temp_path();
 
     // Sierra -> CASM.
-    let casm_output =
-        starknet_sierra_compile(temp_path_str.to_str().unwrap().to_string(), &version);
+    let casm_output = starknet_sierra_compile(
+        temp_path_str.to_str().unwrap().to_string(),
+        &version,
+        &libfunc_list_arg,
+    );
 
     CompilationArtifacts::Cairo1 { casm: casm_output, sierra: sierra_output }
 }
 
 /// Compiles Cairo1 contracts into their Sierra version using the given compiler version.
 /// Assumes the relevant compiler version was already downloaded.
-pub fn starknet_compile(path: String, version: &String) -> Vec<u8> {
+pub fn starknet_compile(path: String, version: &String, libfunc_list_arg: &LibfuncArg) -> Vec<u8> {
     let mut starknet_compile_commmand = Command::new(starknet_compile_binary_path(version));
-    starknet_compile_commmand.args(["--single-file", &path, "--allowed-libfuncs-list-name", "all"]);
+    starknet_compile_commmand.args(["--single-file", &path]);
+    libfunc_list_arg.add_to_command(&mut starknet_compile_commmand);
     let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
 
     sierra_output.stdout
@@ -136,9 +158,14 @@ pub fn starknet_compile(path: String, version: &String) -> Vec<u8> {
 
 /// Compiles Sierra code into CASM using the given compiler version.
 /// Assumes the relevant compiler version was already downloaded.
-fn starknet_sierra_compile(path: String, version: &String) -> Vec<u8> {
+fn starknet_sierra_compile(
+    path: String,
+    version: &String,
+    libfunc_list_arg: &LibfuncArg,
+) -> Vec<u8> {
     let mut sierra_compile_command = Command::new(starknet_sierra_compile_binary_path(version));
-    sierra_compile_command.args([&path, "--allowed-libfuncs-list-name", "all"]);
+    sierra_compile_command.args([&path]);
+    libfunc_list_arg.add_to_command(&mut sierra_compile_command);
     let casm_output = run_and_verify_output(&mut sierra_compile_command);
     casm_output.stdout
 }
