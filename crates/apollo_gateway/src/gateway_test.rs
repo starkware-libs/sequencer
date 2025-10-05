@@ -130,11 +130,13 @@ fn mock_dependencies() -> MockDependencies {
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
     let mock_mempool_client = MockMempoolClient::new();
     let mock_transaction_converter = MockTransactionConverterTrait::new();
+    let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     MockDependencies {
         config,
         state_reader_factory,
         mock_mempool_client,
         mock_transaction_converter,
+        mock_stateless_transaction_validator,
     }
 }
 
@@ -143,6 +145,7 @@ struct MockDependencies {
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
     mock_transaction_converter: MockTransactionConverterTrait,
+    mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
 }
 
 impl MockDependencies {
@@ -153,6 +156,7 @@ impl MockDependencies {
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
             Arc::new(self.mock_transaction_converter),
+            Arc::new(self.mock_stateless_transaction_validator),
         )
     }
 
@@ -309,28 +313,13 @@ async fn run_add_tx_and_extract_metrics(
     AddTxResults { result, metric_handle_for_queries, metrics }
 }
 
-#[derive(Default)]
-pub struct ProcessTxOverrides {
-    pub mock_stateful_transaction_validator_factory:
-        Option<MockStatefulTransactionValidatorFactoryTrait>,
-    pub mock_stateless_transaction_validator: Option<MockStatelessTransactionValidatorTrait>,
-}
-
-fn process_tx_task(overrides: ProcessTxOverrides) -> ProcessTxBlockingTask {
-    let mock_validator_factory = overrides
-        .mock_stateful_transaction_validator_factory
-        .unwrap_or_else(mock_stateful_transaction_validator_factory);
-
-    let mock_stateless_transaction_validator = overrides
-        .mock_stateless_transaction_validator
-        .unwrap_or_else(mock_stateless_transaction_validator);
-
+fn process_tx_task(
+    stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+) -> ProcessTxBlockingTask {
     ProcessTxBlockingTask {
-        stateless_tx_validator: Arc::new(mock_stateless_transaction_validator),
-        stateful_tx_validator_factory: Arc::new(mock_validator_factory),
+        stateful_tx_validator_factory: Arc::new(stateful_transaction_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
-        tx: invoke_args().get_rpc_tx(),
         internal_tx: invoke_args().get_internal_tx(),
         executable_tx: executable_invoke_tx(invoke_args()),
         runtime: tokio::runtime::Handle::current(),
@@ -577,13 +566,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
         .expect_instantiate_validator()
         .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
-    let overrides = ProcessTxOverrides {
-        mock_stateful_transaction_validator_factory: Some(
-            mock_stateful_transaction_validator_factory,
-        ),
-        ..Default::default()
-    };
-    let process_tx_task = process_tx_task(overrides);
+    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
@@ -593,27 +576,20 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
 #[rstest]
 #[tokio::test]
-async fn process_tx_returns_error_for_one_stateless_error_variant() {
+async fn stateless_transaction_validator_error(mut mock_dependencies: MockDependencies) {
     let arbitrary_validation_error = Err(StatelessTransactionValidatorError::SignatureTooLong {
         signature_length: 5001,
         max_signature_length: 4000,
     });
     let error_code =
         StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.SIGNATURE_TOO_LONG".into());
-
     let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
     mock_stateless_transaction_validator
         .expect_validate()
         .return_once(|_| arbitrary_validation_error);
-
-    let overrides = ProcessTxOverrides {
-        mock_stateless_transaction_validator: Some(mock_stateless_transaction_validator),
-        ..Default::default()
-    };
-    let task = process_tx_task(overrides);
-
-    let result: Result<AddTransactionArgs, StarknetError> =
-        tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
+    mock_dependencies.mock_stateless_transaction_validator = mock_stateless_transaction_validator;
+    let gateway = mock_dependencies.gateway();
+    let result = gateway.add_tx(invoke_args().get_rpc_tx(), None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -633,13 +609,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
         .expect_instantiate_validator()
         .return_once(|_| Err(expected_error));
 
-    let overrides = ProcessTxOverrides {
-        mock_stateful_transaction_validator_factory: Some(
-            mock_stateful_transaction_validator_factory,
-        ),
-        ..Default::default()
-    };
-    let process_tx_task = process_tx_task(overrides);
+    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
