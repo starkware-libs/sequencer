@@ -107,8 +107,6 @@ fn get_test_sync_config(verify_blocks: bool) -> SyncConfig {
         state_updates_max_stream_size: STREAM_SIZE,
         verify_blocks,
         collect_pending_data: false,
-        // TODO(Shahak): Add test where store_sierras_and_casms is set to false.
-        store_sierras_and_casms: true,
     }
 }
 

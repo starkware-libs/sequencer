@@ -112,7 +112,6 @@ pub struct SyncConfig {
     pub state_updates_max_stream_size: u32,
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
-    pub store_sierras_and_casms: bool,
 }
 
 impl SerializeConfig for SyncConfig {
@@ -161,16 +160,6 @@ impl SerializeConfig for SyncConfig {
                 "Whether to collect data on pending blocks.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "store_sierras_and_casms",
-                &self.store_sierras_and_casms,
-                "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This \
-                 is needed for backward compatibility with the native blockifier. Behavior: \
-                 \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for \
-                 **legacy** classes (compiled with a version < \
-                 `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
-                ParamPrivacyInput::Public,
-            ),
         ])
     }
 }
@@ -185,7 +174,6 @@ impl Default for SyncConfig {
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
             collect_pending_data: false,
-            store_sierras_and_casms: false,
         }
     }
 }
