@@ -25,6 +25,7 @@ use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
+    InvokeTransaction,
     TransactionType,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -35,7 +36,7 @@ use starknet_api::test_utils::deploy_account::{
     executable_deploy_account_tx,
     DeployAccountTxArgs,
 };
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
     CHAIN_ID_FOR_TESTS,
@@ -66,6 +67,7 @@ use starknet_api::transaction::{
     EventContent,
     EventData,
     EventKey,
+    InvokeTransaction as ApiInvokeTransaction,
     L2ToL1Payload,
     TransactionVersion,
 };
@@ -2623,13 +2625,23 @@ fn test_only_query_flag(
         ), // Calldata length.
     ];
     let execute_calldata = Calldata([execute_calldata, expected_execution_info].concat().into());
-    let tx = executable_invoke_tx(invoke_tx_args! {
+    let invoke_args = invoke_tx_args! {
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,
         sender_address: account_address,
-    });
+    };
+    let invoke_tx =
+        InvokeTransaction::create(invoke_tx(invoke_args), &block_context.chain_info.chain_id)
+            .unwrap();
+    let tx_hash = invoke_tx.tx_hash;
+    let ApiInvokeTransaction::V3(mut tx) = invoke_tx.tx else {
+        panic!("Expected V3 transaction");
+    };
+    tx.signature = TransactionSignature(Arc::new(vec![tx_hash.0]));
+    let invoke_tx = InvokeTransaction { tx: ApiInvokeTransaction::V3(tx), tx_hash };
     let execution_flags = ExecutionFlags { only_query, ..Default::default() };
-    let invoke_tx = AccountTransaction { tx, execution_flags };
+    let invoke_tx =
+        AccountTransaction { tx: ApiExecutableTransaction::Invoke(invoke_tx), execution_flags };
 
     let tx_execution_info = invoke_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.revert_error, None);
