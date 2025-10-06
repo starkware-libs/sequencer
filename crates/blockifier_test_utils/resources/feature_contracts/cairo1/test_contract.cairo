@@ -248,7 +248,40 @@ mod TestContract {
         assert(block_info == expected_block_info, 'BLOCK_INFO_MISMATCH');
 
         let tx_info = execution_info.tx_info.unbox();
-        assert(tx_info == expected_tx_info, 'TX_INFO_MISMATCH');
+
+        // Signature is expected to contain the tx hash.
+        assert(tx_info.signature.len() == 1_u32, 'SIGNATURE_MISMATCH');
+        let transaction_hash = *tx_info.signature.at(0_u32);
+        assert(tx_info.transaction_hash == transaction_hash, 'TRANSACTION_HASH_MISMATCH');
+
+        // Compare the rest of the fields explicitly.
+        assert(tx_info.version == expected_tx_info.version, 'VERSION_MISMATCH');
+        assert(
+            tx_info.account_contract_address == expected_tx_info.account_contract_address,
+            'ACCOUNT_MISMATCH',
+        );
+        assert(tx_info.max_fee == expected_tx_info.max_fee, 'MAX_FEE_MISMATCH');
+        assert(tx_info.chain_id == expected_tx_info.chain_id, 'CHAIN_ID_MISMATCH');
+        assert(tx_info.nonce == expected_tx_info.nonce, 'NONCE_MISMATCH');
+        assert(
+            tx_info.resource_bounds == expected_tx_info.resource_bounds, 'RESOURCE_BOUND_MISMATCH'
+        );
+        assert(tx_info.tip == expected_tx_info.tip, 'TIP_MISMATCH');
+        assert(
+            tx_info.paymaster_data == expected_tx_info.paymaster_data, 'PAYMASTER_DATA_MISMATCH',
+        );
+        assert(
+            tx_info.nonce_data_availability_mode == expected_tx_info.nonce_data_availability_mode,
+            'NONCE_DA_MODE_MISMATCH',
+        );
+        assert(
+            tx_info.fee_data_availability_mode == expected_tx_info.fee_data_availability_mode,
+            'FEE_DA_MODE_MISMATCH',
+        );
+        assert(
+            tx_info.account_deployment_data == expected_tx_info.account_deployment_data,
+            'DEPLOYMENT_DATA_MISMATCH',
+        );
 
         assert(execution_info.caller_address.into() == expected_caller_address, 'CALLER_MISMATCH');
         assert(
