@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use blockifier::state::cached_state::StateMaps;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -10,13 +9,11 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::calculate_contract_address;
-use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::declare_tx;
-use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
     CHAIN_ID_FOR_TESTS,
-    CURRENT_BLOCK_NUMBER,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
@@ -29,12 +26,18 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     ValidResourceBounds,
 };
-use starknet_api::{declare_tx_args, invoke_tx_args};
+use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
 use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
-use crate::utils::{divide_vec_into_n_parts, get_class_info_of_cairo_1_feature_contract};
+use crate::utils::{divide_vec_into_n_parts, get_class_info_of_feature_contract};
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
     LazyLock::new(|| {
@@ -56,7 +59,7 @@ pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
 
 #[tokio::test]
 async fn test_initial_state_creation() {
-    let _initial_state = create_default_initial_state_data::<DictStateReader>().await;
+    let _initial_state = create_default_initial_state_data::<DictStateReader, 0>([]).await;
 }
 
 #[rstest]
@@ -85,8 +88,9 @@ async fn declare_deploy_scenario(
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
-    let (mut test_manager, mut nonce_manager) =
-        TestManager::<DictStateReader>::new_with_default_initial_state().await;
+
+    let (mut test_manager, mut nonce_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
 
     // Declare a test contract.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -101,7 +105,7 @@ async fn declare_deploy_scenario(
         nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_cairo_1_feature_contract(test_contract);
+    let class_info = get_class_info_of_feature_contract(test_contract);
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     // Add the transaction to the test manager.
@@ -135,32 +139,96 @@ async fn declare_deploy_scenario(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    let deploy_contract_tx = invoke_tx(invoke_tx_args);
-    let deploy_contract_tx =
-        InvokeTransaction::create(deploy_contract_tx, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_invoke_tx(deploy_contract_tx);
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
     test_manager.divide_transactions_into_n_blocks(n_blocks);
-    let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
     let test_output = test_manager
-        .execute_test_with_default_block_contexts(
-            initial_block_number,
-            &TestParameters { use_kzg_da, full_output, ..Default::default() },
-        )
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            ..Default::default()
+        })
         .await;
 
-    let partial_state_diff = StateMaps {
+    let partial_state_diff = StateDiff {
         // Deployed contract.
-        class_hashes: HashMap::from([(expected_contract_address, class_hash)]),
+        address_to_class_hash: HashMap::from([(expected_contract_address, class_hash)]),
         // Storage update from the contract's constructor.
-        storage: HashMap::from([(
-            (expected_contract_address, get_storage_var_address("my_storage_var", &[])),
-            arg1 + arg2,
+        storage_updates: HashMap::from([(
+            expected_contract_address,
+            HashMap::from([(
+                StarknetStorageKey(get_storage_var_address("my_storage_var", &[])),
+                StarknetStorageValue(arg1 + arg2),
+            )]),
         )]),
         // Declared class.
-        compiled_class_hashes: HashMap::from([(class_hash, compiled_class_hash)]),
+        class_hash_to_compiled_class_hash: HashMap::from([(
+            class_hash,
+            CompiledClassHash(compiled_class_hash.0),
+        )]),
         ..Default::default()
     };
 
     let perform_global_validations = true;
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
+}
+
+/// Test state diffs in separate blocks that become trivial in a multiblock.
+#[rstest]
+#[tokio::test]
+async fn trivial_diff_scenario(
+    #[values(false, true)] use_kzg_da: bool,
+    #[values(false, true)] full_output: bool,
+    #[values(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+    )]
+    test_contract: FeatureContract,
+) {
+    // Initialize the test manager with a default initial state and get the nonce manager to help
+    // keep track of nonces.
+
+    let (mut test_manager, mut nonce_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    let key = Felt::from(10u8);
+    let value = Felt::from(11u8);
+    let function_name = "test_storage_read_write";
+    // Invoke a function on the test contract that changes the key to the new value.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(test_contract_address, function_name, &[key, value]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+
+    // Move to next block, and add an invoke that reverts the previous change.
+    test_manager.move_to_next_block();
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+
+    // Execute the test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            ..Default::default()
+        })
+        .await;
+
+    // Explicitly check the test contract has no storage update.
+    assert!(
+        !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
+    );
+
+    test_output.perform_default_validations();
 }

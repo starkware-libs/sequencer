@@ -26,6 +26,9 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::Duration;
 use tracing::{info, trace, Level};
 
+#[cfg(test)]
+mod converters_test;
+
 mod converters;
 mod utils;
 
@@ -77,18 +80,18 @@ struct Args {
 async fn send_stress_test_messages(
     mut broadcast_topic_client: BroadcastTopicClient<StressTestMessage>,
     args: &Args,
-    peer_id: String,
+    _peer_id: String,
 ) {
     let mut message = StressTestMessage::new(
         args.id.try_into().unwrap(),
-        vec![0; args.message_size_bytes - METADATA_SIZE],
-        peer_id.clone(),
+        0, // message_index, will be updated in loop
+        vec![0; args.message_size_bytes - *METADATA_SIZE],
     );
     let duration = Duration::from_millis(args.heartbeat_millis);
 
     for i in 0.. {
-        message.time = SystemTime::now();
-        // message.id = i;
+        message.metadata.time = SystemTime::now();
+        message.metadata.message_index = i;
         broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
         trace!("Sent message {i}: {:?}", message);
         counter!("sent_messages").increment(1);
@@ -103,7 +106,7 @@ fn receive_stress_test_message(
     let end_time = SystemTime::now();
 
     let received_message = message_result.unwrap();
-    let start_time = received_message.time;
+    let start_time = received_message.metadata.time;
     let duration = match end_time.duration_since(start_time) {
         Ok(duration) => duration,
         Err(_) => panic!("Got a negative duration, the clocks are not synced!"),
@@ -114,16 +117,19 @@ fn receive_stress_test_message(
 
     // TODO(AndrewL): Concentrate all string metrics to constants in a different file
     counter!("message_received").increment(1);
-    counter!(format!("message_received_from_{}", received_message.id)).increment(1);
+    counter!(format!("message_received_from_{}", received_message.metadata.sender_id)).increment(1);
 
     // TODO(AndrewL): This should be a historgram
     gauge!("message_received_delay_seconds").set(delay_seconds);
-    gauge!(format!("message_received_delay_seconds_from_{}", received_message.id))
+    gauge!(format!("message_received_delay_seconds_from_{}", received_message.metadata.sender_id))
         .set(delay_seconds);
 
     counter!("message_received_delay_micros_sum").increment(delay_micros);
-    counter!(format!("message_received_delay_micros_sum_from_{}", received_message.id))
-        .increment(delay_micros);
+    counter!(format!(
+        "message_received_delay_micros_sum_from_{}",
+        received_message.metadata.sender_id
+    ))
+    .increment(delay_micros);
     // TODO(AndrewL): Figure out what to log here
 }
 
@@ -168,8 +174,9 @@ async fn main() {
     println!("Starting network stress test with args:\n{args:?}");
 
     assert!(
-        args.message_size_bytes >= METADATA_SIZE,
-        "Message size must be at least {METADATA_SIZE} bytes"
+        args.message_size_bytes >= *METADATA_SIZE,
+        "Message size must be at least {} bytes",
+        *METADATA_SIZE
     );
 
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(

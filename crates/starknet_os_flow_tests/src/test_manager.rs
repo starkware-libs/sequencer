@@ -6,14 +6,16 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_test_utils::contracts::FeatureContract;
+use itertools::Itertools;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -22,8 +24,11 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetApiTransaction,
 };
 use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
+use starknet_committer::block_committer::input::{IsSubset, StateDiff};
 use starknet_os::io::os_input::{
     OsBlockInput,
     OsChainInfo,
@@ -58,7 +63,6 @@ use crate::utils::{
     create_committer_state_diff,
     divide_vec_into_n_parts,
     execute_transactions,
-    hashmap_contains_other,
     maybe_dummy_block_hash_and_number,
     CommitmentOutput,
     ExecutionOutput,
@@ -99,25 +103,31 @@ pub(crate) struct OsTestExpectedValues {
     pub(crate) full_output: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
+    pub(crate) committed_state_diff: StateDiff,
 }
 
-pub(crate) struct OsTestOutput {
+pub(crate) struct OsTestOutput<S: FlowTestState> {
     pub(crate) runner_output: StarknetOsRunnerOutput,
-    pub(crate) decompressed_state_diff: StateMaps,
+    pub(crate) decompressed_state_diff: StateDiff,
+    pub(crate) final_state: S,
     pub(crate) expected_values: OsTestExpectedValues,
 }
 
-impl OsTestOutput {
+impl<S: FlowTestState> OsTestOutput<S> {
+    pub(crate) fn perform_default_validations(&self) {
+        self.perform_validations(true, None);
+    }
+
     pub(crate) fn perform_validations(
         &self,
         perform_global_validations: bool,
-        partial_state_diff: Option<&StateMaps>,
+        partial_state_diff: Option<&StateDiff>,
     ) {
         if perform_global_validations {
             self.perform_global_validations();
         }
         if let Some(partial_state_diff) = partial_state_diff {
-            self.assert_contains_state_diff(partial_state_diff);
+            assert!(partial_state_diff.is_subset(&self.decompressed_state_diff));
         }
     }
 
@@ -184,29 +194,32 @@ impl OsTestOutput {
             self.runner_output.os_output.common_os_output.messages_to_l2,
             self.expected_values.messages_to_l2
         );
-    }
 
-    fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.class_hashes,
-            &partial_state_diff.class_hashes
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.nonces,
-            &partial_state_diff.nonces
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.storage,
-            &partial_state_diff.storage
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.compiled_class_hashes,
-            &partial_state_diff.compiled_class_hashes
-        ));
-        assert!(hashmap_contains_other(
-            &self.decompressed_state_diff.declared_contracts,
-            &partial_state_diff.declared_contracts
-        ));
+        // State diff.
+        // Storage diffs should always be equal, but in full output mode there is extra data in the
+        // OS output - any contract address with any change (nonce, class hash or storage) will have
+        // both nonce and class hash in the output.
+        if self.runner_output.os_output.full_output() {
+            // Fill in class hashes / nonces for all addresses with changes.
+            let mut full_state_diff = self.expected_values.committed_state_diff.clone();
+            for address in self
+                .decompressed_state_diff
+                .address_to_class_hash
+                .keys()
+                .chain(self.decompressed_state_diff.address_to_nonce.keys())
+                .chain(self.decompressed_state_diff.storage_updates.keys())
+                .unique()
+            {
+                // Read the current nonce / class hash from the state.
+                let nonce = self.final_state.get_nonce_at(*address).unwrap();
+                let class_hash = self.final_state.get_class_hash_at(*address).unwrap();
+                full_state_diff.address_to_nonce.insert(*address, nonce);
+                full_state_diff.address_to_class_hash.insert(*address, class_hash);
+            }
+            assert_eq!(self.decompressed_state_diff, full_state_diff);
+        } else {
+            assert_eq!(self.decompressed_state_diff, self.expected_values.committed_state_diff);
+        }
     }
 }
 
@@ -222,10 +235,18 @@ impl<S: FlowTestState> TestManager<S> {
 
     /// Creates a new `TestManager` with the default initial state.
     /// Returns the manager and a nonce manager to help keep track of nonces.
-    pub(crate) async fn new_with_default_initial_state() -> (Self, NonceManager) {
-        let (default_initial_state_data, nonce_manager) =
-            create_default_initial_state_data::<S>().await;
-        (Self::new_with_initial_state_data(default_initial_state_data), nonce_manager)
+    /// Optionally provide an array of extra contracts to declare and deploy - the addresses of
+    /// these contracts will be returned as an array of the same length.
+    pub(crate) async fn new_with_default_initial_state<const N: usize>(
+        extra_contracts: [(FeatureContract, Calldata); N],
+    ) -> (Self, NonceManager, [ContractAddress; N]) {
+        let (default_initial_state_data, nonce_manager, extra_addresses) =
+            create_default_initial_state_data::<S, N>(extra_contracts).await;
+        (
+            Self::new_with_initial_state_data(default_initial_state_data),
+            nonce_manager,
+            extra_addresses,
+        )
     }
 
     /// Advances the manager to the next block when adding new transactions.
@@ -269,6 +290,10 @@ impl<S: FlowTestState> TestManager<S> {
         ));
     }
 
+    pub(crate) fn add_invoke_tx_from_args(&mut self, args: InvokeTxArgs, chain_id: &ChainId) {
+        self.add_invoke_tx(InvokeTransaction::create(invoke_tx(args), chain_id).unwrap());
+    }
+
     pub(crate) fn add_cairo0_declare_tx(
         &mut self,
         tx: DeclareTransaction,
@@ -295,14 +320,13 @@ impl<S: FlowTestState> TestManager<S> {
     /// Executes the test using default block contexts, starting from the given block number.
     pub(crate) async fn execute_test_with_default_block_contexts(
         self,
-        initial_block_number: u64,
         test_params: &TestParameters,
-    ) -> OsTestOutput {
+    ) -> OsTestOutput<S> {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
                 block_context_for_flow_tests(
-                    BlockNumber(initial_block_number + u64::try_from(i).unwrap()),
+                    BlockNumber(self.initial_state.next_block_number.0 + u64::try_from(i).unwrap()),
                     test_params.use_kzg_da,
                 )
             })
@@ -316,7 +340,7 @@ impl<S: FlowTestState> TestManager<S> {
         self,
         block_contexts: Vec<BlockContext>,
         test_params: &TestParameters,
-    ) -> OsTestOutput {
+    ) -> OsTestOutput<S> {
         assert_eq!(
             block_contexts.len(),
             self.per_block_transactions.len(),
@@ -399,10 +423,11 @@ impl<S: FlowTestState> TestManager<S> {
         self,
         block_contexts: Vec<BlockContext>,
         test_params: &TestParameters,
-    ) -> OsTestOutput {
+    ) -> OsTestOutput<S> {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let mut cached_state_inputs = vec![];
+        let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
         let mut map_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
@@ -411,6 +436,7 @@ impl<S: FlowTestState> TestManager<S> {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let mut entire_state_diff = StateDiff::default();
         let expected_previous_global_root = previous_commitment.global_root();
         let previous_block_number =
             PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
@@ -437,6 +463,7 @@ impl<S: FlowTestState> TestManager<S> {
             state.apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
+            entire_state_diff.extend(committer_state_diff.clone());
             let new_commitment = commit_state_diff(
                 &mut map_storage,
                 previous_commitment.contracts_trie_root_hash,
@@ -511,12 +538,14 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let (os_output, _) = run_os_stateless_for_testing(layout, os_hints).unwrap();
-        let decompressed_state_diff =
-            Self::get_decompressed_state_diff(&os_output, &state, alias_keys);
+        let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
+            Self::get_decompressed_state_diff(&os_output, &state, alias_keys),
+        ));
 
         OsTestOutput {
             runner_output: os_output,
             decompressed_state_diff,
+            final_state: state,
             expected_values: OsTestExpectedValues {
                 previous_global_root: expected_previous_global_root,
                 new_global_root: expected_new_global_root,
@@ -528,6 +557,7 @@ impl<S: FlowTestState> TestManager<S> {
                 use_kzg_da: use_kzg_da && !test_params.full_output,
                 messages_to_l1: test_params.messages_to_l1.clone(),
                 messages_to_l2: test_params.messages_to_l2.clone(),
+                committed_state_diff: initial_state.nontrivial_diff(entire_state_diff),
             },
         }
     }
@@ -538,7 +568,9 @@ impl<S: FlowTestState> TestManager<S> {
 pub fn block_context_for_flow_tests(block_number: BlockNumber, use_kzg_da: bool) -> BlockContext {
     let fee_token_addresses = FeeTokenAddresses {
         strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
-        eth_fee_token_address: ContractAddress::default(),
+        // Reuse the same token address for ETH fee token, for ease of testing (only need to fund
+        // accounts with one token to send deprecated declares).
+        eth_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
     };
     BlockContext::new(
         BlockInfo { block_number, use_kzg_da, ..BlockInfo::create_for_testing() },

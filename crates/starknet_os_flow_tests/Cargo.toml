@@ -6,13 +6,15 @@ repository.workspace = true
 license-file.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
+itertools.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_committer.workspace = true
+starknet_committer = { workspace = true, features = ["testing"] }
 starknet_os = { workspace = true, features = ["include_program_output", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }

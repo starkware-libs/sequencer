@@ -88,7 +88,7 @@ impl OsChainInfo {
     /// Computes the OS config hash for the given chain info.
     pub fn compute_os_config_hash(&self) -> Result<Felt, OsInputError> {
         Ok(Pedersen::hash_array(&[
-            STARKNET_OS_CONFIG_HASH_VERSION,
+            *STARKNET_OS_CONFIG_HASH_VERSION,
             (&self.chain_id)
                 .try_into()
                 .map_err(|_| OsInputError::InvalidChainId(self.chain_id.clone()))?,

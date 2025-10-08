@@ -1,12 +1,12 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use blockifier::context::BlockContext;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
     calculate_contract_address,
@@ -25,22 +25,29 @@ use starknet_api::executable_transaction::{
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
-use starknet_api::{deploy_account_tx_args, invoke_tx_args};
+use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::state_trait::FlowTestState;
-use crate::test_manager::{FUNDED_ACCOUNT_ADDRESS, STRK_FEE_TOKEN_ADDRESS};
+use crate::test_manager::{
+    block_context_for_flow_tests,
+    FUNDED_ACCOUNT_ADDRESS,
+    STRK_FEE_TOKEN_ADDRESS,
+};
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
     create_cairo1_bootstrap_declare_tx,
     create_committer_state_diff,
+    create_declare_tx,
     execute_transactions,
+    get_class_hash_of_feature_contract,
     CommitmentOutput,
     ExecutionOutput,
 };
@@ -112,25 +119,34 @@ pub(crate) struct InitialState<S: FlowTestState> {
     // Current patricia roots.
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
+    // Next available block number.
+    pub(crate) next_block_number: BlockNumber,
 }
 
 /// Creates the initial state for the flow test which includes:
 /// Declares token and account contracts.
 /// Deploys both contracts and funds the account.
-pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
--> (InitialStateData<S>, NonceManager) {
-    let InitialTransactionsData {
-        transactions: default_initial_state_txs,
-        execution_contracts,
-        nonce_manager,
-    } = create_default_initial_state_txs_and_contracts();
+/// Also deploys extra contracts as requested (and declares them if they are not already declared).
+pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N: usize>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+) -> (InitialStateData<S>, NonceManager, [ContractAddress; N]) {
+    let (
+        InitialTransactionsData {
+            transactions: default_initial_state_txs,
+            execution_contracts,
+            nonce_manager,
+        },
+        extra_contracts_addresses,
+    ) = create_default_initial_state_txs_and_contracts(extra_contracts);
     // Execute these 4 txs.
     let initial_state_reader = S::create_empty_state();
+    let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
+    let use_kzg_da = false;
     let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
         execute_transactions(
             initial_state_reader,
             &default_initial_state_txs,
-            BlockContext::create_for_testing(),
+            block_context_for_flow_tests(initial_block_number, use_kzg_da),
         );
     assert_eq!(
         execution_outputs.len(),
@@ -163,9 +179,14 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState>()
         commitment_storage,
         contracts_trie_root_hash: commitment_output.contracts_trie_root_hash,
         classes_trie_root_hash: commitment_output.classes_trie_root_hash,
+        next_block_number: initial_block_number.next().unwrap(),
     };
 
-    (InitialStateData { initial_state, execution_contracts }, nonce_manager)
+    (
+        InitialStateData { initial_state, execution_contracts },
+        nonce_manager,
+        extra_contracts_addresses,
+    )
 }
 
 struct InitialTransactionsData {
@@ -174,7 +195,9 @@ struct InitialTransactionsData {
     pub(crate) nonce_manager: NonceManager,
 }
 
-fn create_default_initial_state_txs_and_contracts() -> InitialTransactionsData {
+fn create_default_initial_state_txs_and_contracts<const N: usize>(
+    extra_contracts: [(FeatureContract, Calldata); N],
+) -> (InitialTransactionsData, [ContractAddress; N]) {
     let mut os_execution_contracts = OsExecutionContracts::default();
     // Declare account and ERC20 contracts.
     let account_contract =
@@ -207,11 +230,38 @@ fn create_default_initial_state_txs_and_contracts() -> InitialTransactionsData {
     let nonce = nonce_manager.next(account_contract_address);
     let (deploy_contract_tx, _) = get_deploy_fee_token_tx_and_address(nonce);
     txs.push(deploy_contract_tx);
-    InitialTransactionsData {
-        transactions: txs,
-        execution_contracts: os_execution_contracts,
-        nonce_manager,
+
+    // Deploy extra contracts. Declare contracts that are not already declared.
+    let mut declared_contracts = HashSet::from([account_contract, erc20_contract]);
+    let mut extra_addresses = Vec::new();
+    for (contract, calldata) in extra_contracts {
+        if !declared_contracts.contains(&contract) {
+            // Add a declare transaction for the contract.
+            // No need for bootstrap mode: funded account already exists at this point.
+            txs.push(Transaction::new_for_sequencing(StarknetAPITransaction::Account(
+                create_declare_tx(contract, &mut nonce_manager, &mut os_execution_contracts, false),
+            )));
+            declared_contracts.insert(contract);
+        }
+        // Deploy.
+        let (deploy_tx, address) = get_deploy_contract_tx_and_address(
+            get_class_hash_of_feature_contract(contract),
+            calldata,
+            nonce_manager.next(account_contract_address),
+            *NON_TRIVIAL_RESOURCE_BOUNDS,
+        );
+        txs.push(deploy_tx);
+        extra_addresses.push(address);
     }
+
+    (
+        InitialTransactionsData {
+            transactions: txs,
+            execution_contracts: os_execution_contracts,
+            nonce_manager,
+        },
+        extra_addresses.try_into().unwrap(),
+    )
 }
 
 pub(crate) async fn commit_initial_state_diff(
@@ -241,27 +291,20 @@ pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {
     DeployAccountTransaction::create(deploy_tx, &CHAIN_ID_FOR_TESTS).unwrap()
 }
 
-pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
-    let class_hash = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
-        .get_sierra()
-        .calculate_class_hash();
+/// Creates a deploy-contract tx (from the funded account) and returns the tx and the expected
+/// contract address.
+pub(crate) fn get_deploy_contract_tx_and_address(
+    class_hash: ClassHash,
+    ctor_calldata: Calldata,
+    nonce: Nonce,
+    resource_bounds: ValidResourceBounds,
+) -> (Transaction, ContractAddress) {
     let contract_address_salt = Felt::ONE;
-
-    let constructor_calldata = [
-        9.into(), // constructor length
-        Felt::from_bytes_be_slice(STRK_TOKEN_NAME),
-        Felt::from_bytes_be_slice(STRK_SYMBOL),
-        STRK_DECIMALS.into(),
-        INITIAL_TOKEN_SUPPLY.into(),     // initial supply lsb
-        0.into(),                        // initial supply msb
-        *FUNDED_ACCOUNT_ADDRESS.0.key(), // recipient address
-        *FUNDED_ACCOUNT_ADDRESS.0.key(), // permitted minter
-        *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
-        10.into(),                       // upgrade delay
-    ];
-
-    let calldata: Vec<_> =
-        [class_hash.0, contract_address_salt].into_iter().chain(constructor_calldata).collect();
+    let calldata = [class_hash.0, contract_address_salt, ctor_calldata.0.len().into()]
+        .iter()
+        .chain(ctor_calldata.0.iter())
+        .cloned()
+        .collect::<Vec<Felt>>();
 
     let deploy_contract_calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
@@ -273,7 +316,7 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce,
         calldata: deploy_contract_calldata,
-        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement()
+        resource_bounds,
     };
     let deploy_contract_tx = invoke_tx(invoke_tx_args);
     let deploy_contract_tx =
@@ -282,7 +325,7 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
     let contract_address = calculate_contract_address(
         ContractAddressSalt(contract_address_salt),
         class_hash,
-        &Calldata(constructor_calldata[1..].to_vec().into()), // Ignore the length.
+        &ctor_calldata,
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
@@ -291,5 +334,29 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
             AccountTransaction::Invoke(deploy_contract_tx),
         )),
         contract_address,
+    )
+}
+
+pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
+    let class_hash = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
+        .get_sierra()
+        .calculate_class_hash();
+
+    let constructor_calldata = calldata![
+        Felt::from_bytes_be_slice(STRK_TOKEN_NAME),
+        Felt::from_bytes_be_slice(STRK_SYMBOL),
+        STRK_DECIMALS.into(),
+        INITIAL_TOKEN_SUPPLY.into(),     // initial supply lsb
+        0.into(),                        // initial supply msb
+        *FUNDED_ACCOUNT_ADDRESS.0.key(), // recipient address
+        *FUNDED_ACCOUNT_ADDRESS.0.key(), // permitted minter
+        *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
+        10.into()                        // upgrade delay
+    ];
+    get_deploy_contract_tx_and_address(
+        class_hash,
+        constructor_calldata,
+        nonce,
+        ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     )
 }

@@ -48,25 +48,80 @@ use tokio_retry::strategy::ExponentialBackoff;
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
 
-/// Discovery event type.
-/// Discovery has no external events and outputs only events for other behaviours
+/// Events emitted by the discovery behavior to coordinate with other network behaviors.
+///
+/// The discovery behavior doesn't emit external events directly but instead
+/// coordinates with other behaviors (like Kademlia) to implement the full
+/// discovery process.
 #[derive(Debug)]
 pub enum ToOtherBehaviourEvent {
+    /// Request a Kademlia query for the specified peer.
+    ///
+    /// This event is used to trigger Kademlia DHT queries to find peers
+    /// or gather routing table information.
     RequestKadQuery(PeerId),
-    FoundListenAddresses { peer_id: PeerId, listen_addresses: Vec<Multiaddr> },
+
+    /// Discovered listen addresses for a peer.
+    ///
+    /// This event is emitted when the discovery process finds new listening
+    /// addresses for a known peer, typically through the identify protocol
+    /// or DHT queries.
+    FoundListenAddresses {
+        /// The peer whose addresses were discovered.
+        peer_id: PeerId,
+        /// The discovered listening addresses.
+        listen_addresses: Vec<Multiaddr>,
+    },
 }
 
-/// Discovery behaviour that handles the bootstrapping and Kademlia requesting
+/// Main discovery behavior that orchestrates peer discovery mechanisms.
+///
+/// This behavior combines bootstrapping and Kademlia requesting to provide
+/// a comprehensive peer discovery system. It handles:
+///
+/// - Initial bootstrapping with configured peers
+/// - Periodic Kademlia queries for ongoing peer discovery
+/// - Address resolution and validation
+/// - Retry logic for failed connections
+///
+/// The behavior operates continuously in the background, maintaining
+/// network connectivity and discovering new peers as needed.
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "ToOtherBehaviourEvent")]
 pub struct Behaviour {
+    /// Handles initial bootstrapping with configured peers.
     boot_strapping: BootstrappingBehaviour,
+    /// Manages ongoing Kademlia queries for peer discovery.
     kad_requesting: KadRequestingBehaviour,
 }
 
+/// Configuration for the peer discovery system.
+///
+/// This struct contains all parameters needed to configure the discovery
+/// behavior, including retry policies and timing intervals.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::discovery::{DiscoveryConfig, RetryConfig};
+///
+/// let config = DiscoveryConfig {
+///     bootstrap_dial_retry_config: RetryConfig {
+///         base_delay_millis: 100,
+///         max_delay_seconds: Duration::from_secs(10),
+///         factor: 2,
+///     },
+///     heartbeat_interval: Duration::from_millis(500),
+/// };
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
+    /// Configuration for retrying failed bootstrap peer connections.
     pub bootstrap_dial_retry_config: RetryConfig,
+
+    /// Interval between periodic discovery operations.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub heartbeat_interval: Duration,
 }
@@ -96,11 +151,50 @@ impl SerializeConfig for DiscoveryConfig {
     }
 }
 
+/// Configuration for exponential backoff retry logic.
+///
+/// This struct defines the parameters for the exponential backoff strategy
+/// used when retrying failed operations, particularly bootstrap peer connections.
+///
+/// # Exponential Backoff Algorithm
+///
+/// The delay between retry attempts follows this pattern:
+/// - 1st retry: `base_delay_millis**1 * factor`
+/// - 2nd retry: `base_delay_millis**2 * factor`
+/// - 3rd retry: `base_delay_millis**3 * factor`
+/// - And so on, capped at `max_delay_seconds`
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::discovery::RetryConfig;
+///
+/// // Aggressive retry (fast but more network usage)
+/// let aggressive = RetryConfig {
+///     base_delay_millis: 2,                          // double each time
+///     max_delay_seconds: Duration::from_millis(100), // Cap at 0.1 seconds
+///     factor: 7,                                     // start with 7ms
+/// };
+///
+/// let mut strategy = aggressive.strategy();
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(14)));
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(28)));
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(56)));
+/// assert_eq!(strategy.next(), Some(Duration::from_millis(100)));
+/// ```
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
+    /// Base of the exponential backoff in milliseconds, this will be the delay before the first
+    /// retry (the first delay after the first attempt)
     pub base_delay_millis: u64,
+
+    /// Maximum delay of the exponential backoff.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub max_delay_seconds: Duration,
+
+    /// Multiplication factor for the exponential backoff.
     pub factor: u64,
 }
 
@@ -136,7 +230,7 @@ impl SerializeConfig for RetryConfig {
 }
 
 impl RetryConfig {
-    fn strategy(&self) -> ExponentialBackoff {
+    pub fn strategy(&self) -> ExponentialBackoff {
         ExponentialBackoff::from_millis(self.base_delay_millis)
             .max_delay(self.max_delay_seconds)
             .factor(self.factor)
