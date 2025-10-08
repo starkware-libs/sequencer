@@ -151,7 +151,7 @@ fn validate_supported_tx_version_str(tx: &str) -> HttpServerResult<()> {
     compact.extend(tx.chars().filter(|c| !c.is_whitespace()));
 
     // 2. Find version:" marker
-    let marker = "version:\"";
+    let marker = "\"version\":\"";
     let start =
         compact.find(marker).ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
     let rest = &compact[start + marker.len()..];

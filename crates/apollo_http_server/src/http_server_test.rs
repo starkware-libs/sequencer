@@ -238,7 +238,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     Some("bad version"),
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        message: "Version field is not a valid hex string: bad version".to_string(),
+        message: "Version field is not a valid hex string: badversion".to_string(), //Note: whitespaces are removed when parsing malformed tx jsons
     }
 )]
 #[case::old_version(2, Some("0x1"), StarknetError {
