@@ -23,10 +23,13 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::executable_transaction::{
+    AccountTransaction,
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
+    Transaction,
+    TransactionType,
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::declare_tx;
@@ -1610,5 +1613,156 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
 
     // Verify that the funded account and the sequencer have both updated their balances.
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
+    test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_deprecated_tx_info() {
+    let tx_info_writer = FeatureContract::TxInfoWriter;
+    let class_hash = get_class_hash_of_feature_contract(tx_info_writer);
+    // Initialize the test manager with the tx info writer already declared.
+    // We can ignore the address of the dpeloyed instance.
+    let (mut test_manager, _) = TestManager::<DictStateReader>::new_with_default_initial_state([(
+        tx_info_writer,
+        calldata![],
+    )])
+    .await;
+
+    // Prepare to deploy: precompute the address.
+    let salt = Felt::ZERO;
+    let tx_info_account_address = calculate_contract_address(
+        ContractAddressSalt(salt),
+        class_hash,
+        &calldata![],
+        ContractAddress::default(),
+    )
+    .unwrap();
+
+    // Fund the address.
+    test_manager.add_fund_address_tx_with_default_amount(tx_info_account_address);
+
+    // Deploy the account.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: ContractAddressSalt(salt),
+    };
+    let deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(deploy_tx_args, test_manager.next_nonce(tx_info_account_address)),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap();
+    test_manager.add_deploy_account_tx(deploy_account_tx.clone());
+
+    // Invoke (call write).
+    let invoke_args = invoke_tx_args! {
+        sender_address: tx_info_account_address,
+        nonce: test_manager.next_nonce(tx_info_account_address),
+        calldata: calldata![Felt::ZERO],
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_invoke_tx(invoke_tx.clone(), None);
+
+    // Declare.
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let empty_contract_sierra = empty_contract.get_sierra();
+    let empty_contract_class_hash = empty_contract_sierra.calculate_class_hash();
+    let empty_contract_compiled_class_hash =
+        empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: tx_info_account_address,
+        class_hash: empty_contract_class_hash,
+        compiled_class_hash: empty_contract_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(tx_info_account_address),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let declare_tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(declare_tx.clone(), &empty_contract_sierra);
+
+    // L1 handler (call `l1_write`).
+    let from_address = Felt::from(85);
+    let selector = selector_from_name("l1_write");
+    let l1_handler_tx = ExecutableL1HandlerTransaction::create(
+        L1HandlerTransaction {
+            version: L1HandlerTransaction::VERSION,
+            nonce: Nonce::default(),
+            contract_address: tx_info_account_address,
+            entry_point_selector: selector,
+            // from_address (L1 address), key, value.
+            calldata: calldata![from_address],
+        },
+        &CHAIN_ID_FOR_TESTS,
+        Fee(1_000_000),
+    )
+    .unwrap();
+    test_manager.add_l1_handler_tx(l1_handler_tx.clone(), None);
+
+    // Run the test.
+    let messages_to_l2 = vec![MessageToL2 {
+        from_address: from_address.try_into().unwrap(),
+        to_address: tx_info_account_address,
+        selector,
+        payload: L1ToL2Payload::default(),
+        nonce: Nonce::default(),
+    }];
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            messages_to_l2,
+            ..Default::default()
+        })
+        .await;
+
+    // Perform general validations and storage update validations.
+    let mut contract_storage_updates = HashMap::new();
+    for tx in [
+        Transaction::Account(AccountTransaction::DeployAccount(deploy_account_tx)),
+        Transaction::Account(AccountTransaction::Invoke(invoke_tx)),
+        Transaction::Account(AccountTransaction::Declare(declare_tx)),
+        Transaction::L1Handler(l1_handler_tx),
+    ] {
+        let tx_type = &[tx.tx_type().tx_type_as_felt()];
+        contract_storage_updates
+            .insert(get_storage_var_address("transaction_hash", tx_type), tx.tx_hash().0);
+        contract_storage_updates.insert(get_storage_var_address("max_fee", tx_type), Felt::ZERO);
+        contract_storage_updates.insert(get_storage_var_address("nonce", tx_type), tx.nonce().0);
+        contract_storage_updates.insert(
+            get_storage_var_address("account_contract_address", tx_type),
+            **tx_info_account_address,
+        );
+        contract_storage_updates
+            .insert(get_storage_var_address("signature_len", tx_type), Felt::ZERO);
+        contract_storage_updates.insert(
+            get_storage_var_address("chain_id", tx_type),
+            Felt::try_from(&*CHAIN_ID_FOR_TESTS).unwrap(),
+        );
+        if !matches!(tx.tx_type(), TransactionType::L1Handler) {
+            contract_storage_updates
+                .insert(get_storage_var_address("version", tx_type), tx.version().0);
+        } else {
+            contract_storage_updates
+                .insert(get_storage_var_address("version", tx_type), Felt::ZERO);
+        }
+    }
+    // Add the offset to all storage update values and convert types.
+    let offset = Felt::from_hex_unchecked("0x1234");
+    let contract_storage_updates = contract_storage_updates
+        .into_iter()
+        .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value + offset)))
+        .collect();
+
+    let expected_storage_updates =
+        HashMap::from([(tx_info_account_address, contract_storage_updates)]);
+
+    let perform_global_validations = true;
+    test_output.perform_validations(
+        perform_global_validations,
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() }),
+    );
+    test_output.assert_account_balance_change(tx_info_account_address);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
 }
