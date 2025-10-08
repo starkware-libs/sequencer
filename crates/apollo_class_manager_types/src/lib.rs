@@ -87,9 +87,14 @@ pub trait ClassManagerClient: Send + Sync {
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
 pub enum CachedClassStorageError<E: Error> {
-    // TODO(Elin): remove from, it's too permissive.
     #[error(transparent)]
-    Storage(#[from] E),
+    Storage(E),
+}
+
+impl<E: Error> From<E> for CachedClassStorageError<E> {
+    fn from(e: E) -> Self {
+        Self::Storage(e)
+    }
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
