@@ -103,12 +103,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(());
         }
 
-        self.storage.set_class(
-            class_id,
-            class.clone(),
-            executable_class_hash_v2,
-            executable_class.clone(),
-        )?;
+        self.storage
+            .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
+            .map_err(CachedClassStorageError::Storage)?;
 
         increment_n_classes(CairoClassType::Regular);
         record_class_size(ClassObjectType::Sierra, &class);
@@ -131,7 +128,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_sierra(class_id)? else {
+        let Some(class) =
+            self.storage.get_sierra(class_id).map_err(CachedClassStorageError::Storage)?
+        else {
             return Ok(None);
         };
 
@@ -149,7 +148,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_executable(class_id)? else {
+        let Some(class) =
+            self.storage.get_executable(class_id).map_err(CachedClassStorageError::Storage)?
+        else {
             return Ok(None);
         };
 
@@ -175,7 +176,10 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(compiled_class_hash_v2));
         }
 
-        let Some(compiled_class_hash_v2) = self.storage.get_executable_class_hash_v2(class_id)?
+        let Some(compiled_class_hash_v2) = self
+            .storage
+            .get_executable_class_hash_v2(class_id)
+            .map_err(CachedClassStorageError::Storage)?
         else {
             return Ok(None);
         };
@@ -194,7 +198,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(());
         }
 
-        self.storage.set_deprecated_class(class_id, class.clone())?;
+        self.storage
+            .set_deprecated_class(class_id, class.clone())
+            .map_err(CachedClassStorageError::Storage)?;
 
         increment_n_classes(CairoClassType::Deprecated);
         record_class_size(ClassObjectType::DeprecatedCasm, &class);
@@ -213,7 +219,11 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_deprecated_class(class_id)? else {
+        let Some(class) = self
+            .storage
+            .get_deprecated_class(class_id)
+            .map_err(CachedClassStorageError::Storage)?
+        else {
             return Ok(None);
         };
 
