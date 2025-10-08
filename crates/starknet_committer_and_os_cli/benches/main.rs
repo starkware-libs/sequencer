@@ -8,6 +8,7 @@
 // gcloud storage cp LOCAL_FILE gs://committer-testing-artifacts/NEW_PREFIX/tree_flow_inputs.json).
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use starknet_committer::block_committer::input::StarknetStorageValue;
@@ -45,6 +46,9 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         benchmark.iter_batched(
             || leaf_modifications.clone(),
             |leaf_modifications_input| {
+                // TODO(REMOVE): Artificial delay to test CI failure on regression
+                std::thread::sleep(Duration::from_millis(100));
+
                 runtime.block_on(
                     tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
                         leaf_modifications_input,
