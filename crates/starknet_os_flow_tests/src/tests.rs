@@ -13,7 +13,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
@@ -1738,4 +1738,137 @@ async fn test_deploy_syscall() {
         )
         .is_subset(&allowed_changed_addresses)
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
+    let cairo_version =
+        if is_cairo0 { CairoVersion::Cairo0 } else { CairoVersion::Cairo1(RunnableCairo1::Casm) };
+    let test_contract = FeatureContract::BlockInfoTestContract(cairo_version);
+    let class_hash = get_class_hash_of_feature_contract(test_contract);
+    let is_validate = Felt::ONE;
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Prepare block info data.
+    let next_block_number = test_manager.initial_state.next_block_number;
+    let rounded_block_number = (next_block_number.0 / 100) * 100;
+    let next_block_timestamp = BlockInfo::create_for_testing().block_timestamp.0;
+    let rounded_next_block_timestamp = (next_block_timestamp / 3600) * 3600;
+    assert!(
+        rounded_block_number != next_block_number.0,
+        "For the test the rounded block number must be different from the next block number; both \
+         are {rounded_block_number}."
+    );
+    assert!(
+        rounded_next_block_timestamp != next_block_timestamp,
+        "For the test the rounded block timestamp must be different from the next block \
+         timestamp; both are {rounded_next_block_timestamp}."
+    );
+
+    // Declare the block info contract.
+    let class_info = get_class_info_of_feature_contract(test_contract);
+    if is_cairo0 {
+        let declare_args = declare_tx_args! {
+            version: TransactionVersion::ZERO,
+            max_fee: Fee(1_000_000_000_000_000),
+            class_hash,
+            sender_address: *FUNDED_ACCOUNT_ADDRESS,
+            nonce: Nonce::default(),
+        };
+        let account_declare_tx = declare_tx(declare_args);
+        let tx = DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS)
+            .unwrap();
+        test_manager.add_cairo0_declare_tx(tx, StarknetAPICompiledClassHash(class_hash.0));
+    } else {
+        let test_contract_sierra = test_contract.get_sierra();
+        let test_contract_compiled_class_hash =
+            test_contract.get_compiled_class_hash(&HashVersion::V2);
+        let declare_tx_args = declare_tx_args! {
+            sender_address: *FUNDED_ACCOUNT_ADDRESS,
+            class_hash,
+            compiled_class_hash: test_contract_compiled_class_hash,
+            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+            nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        };
+        let account_declare_tx = declare_tx(declare_tx_args);
+        let declare_tx =
+            DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS)
+                .unwrap();
+        test_manager.add_cairo1_declare_tx(declare_tx.clone(), &test_contract_sierra);
+    }
+
+    // Prepare to deploy: precompute the address.
+    let salt = Felt::ZERO;
+    let block_info_account_address = calculate_contract_address(
+        ContractAddressSalt(salt),
+        class_hash,
+        &calldata![is_validate],
+        ContractAddress::default(),
+    )
+    .unwrap();
+
+    // Fund the address.
+    test_manager.add_fund_address_tx_with_default_amount(block_info_account_address);
+
+    // Deploy the contract using a DeployAccount transaction.
+    let deploy_account_tx_args = deploy_account_tx_args! {
+        class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: ContractAddressSalt(Felt::ZERO),
+        constructor_calldata: calldata![is_validate],
+        nonce: Nonce::default(),
+    };
+    let deploy_account_tx = DeployAccountTransaction::create(
+        deploy_account_tx(
+            deploy_account_tx_args,
+            test_manager.next_nonce(block_info_account_address),
+        ),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap();
+    test_manager.add_deploy_account_tx(deploy_account_tx);
+
+    // Test validate_declare.
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let empty_class_hash = get_class_hash_of_feature_contract(empty_contract);
+    let empty_compiled_class_hash = empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: block_info_account_address,
+        class_hash: empty_class_hash,
+        compiled_class_hash: empty_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(block_info_account_address),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let declare_tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(declare_tx.clone(), &empty_contract.get_sierra());
+
+    // Test `validate` and `execute`.
+    let invoke_args = invoke_tx_args! {
+        sender_address: block_info_account_address,
+        nonce: test_manager.next_nonce(block_info_account_address),
+        // Dummy contract address and selector, calldata length of zero.
+        calldata: calldata![Felt::ZERO, Felt::ZERO, Felt::ZERO],
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+
+    // Test `constructor` in execute mode.
+    let ctor_calldata = [Felt::ZERO]; // Not validate mode (execute mode).
+    let salt = Felt::ZERO;
+    let calldata = create_calldata(
+        *FUNDED_ACCOUNT_ADDRESS,
+        "deploy_contract",
+        &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0]],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
 }
