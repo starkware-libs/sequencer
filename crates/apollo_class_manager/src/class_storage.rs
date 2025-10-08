@@ -88,7 +88,11 @@ impl<S: ClassStorage> CachedClassStorage<S> {
     }
 }
 
-impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
+impl<S> ClassStorage for CachedClassStorage<S>
+where
+    S: ClassStorage,
+    CachedClassStorageError<S::Error>: From<S::Error>,
+{
     type Error = CachedClassStorageError<S::Error>;
 
     #[instrument(skip(self, class, executable_class), level = "debug", ret, err)]
@@ -306,6 +310,12 @@ pub enum FsClassStorageError {
     IoError(#[from] std::io::Error),
     #[error(transparent)]
     RawClass(#[from] RawClassError),
+}
+
+impl From<FsClassStorageError> for CachedClassStorageError<FsClassStorageError> {
+    fn from(e: FsClassStorageError) -> Self {
+        CachedClassStorageError::Storage(e)
+    }
 }
 
 impl FsClassStorage {
