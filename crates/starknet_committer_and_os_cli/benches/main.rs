@@ -45,6 +45,9 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         benchmark.iter_batched(
             || leaf_modifications.clone(),
             |leaf_modifications_input| {
+                // TODO(REMOVE): Artificial delay to test CI failure on regression
+                // std::thread::sleep(Duration::from_millis(100));
+
                 runtime.block_on(
                     tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
                         leaf_modifications_input,
