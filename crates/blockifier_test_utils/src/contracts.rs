@@ -61,10 +61,12 @@ const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
 const TEST_CONTRACT2_BASE: u32 = 14 * CLASS_HASH_BASE;
 const EXPERIMENTAL_CONTRACT_BASE: u32 = 15 * CLASS_HASH_BASE;
 const TX_INFO_WRITER_CONTRACT_BASE: u32 = 16 * CLASS_HASH_BASE;
+const BLOCK_INFO_TEST_CONTRACT_BASE: u32 = 17 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
 const ACCOUNT_WITHOUT_VALIDATIONS_NAME: &str = "account_with_dummy_validate";
+const BLOCK_INFO_TEST_CONTRACT_NAME: &str = "block_info_test_contract";
 const DELEGATE_PROXY_NAME: &str = "delegate_proxy";
 const EMPTY_CONTRACT_NAME: &str = "empty_contract";
 const FAULTY_ACCOUNT_NAME: &str = "account_faulty";
@@ -112,6 +114,11 @@ const EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x561f74c8dd8511924642f035ba8bed9e90e0a6b1ee496ee59a5390cb79219e1"];
 const EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0xba5304be050bccfedab3b61e695e55da30f9584b6547319da9e2f3516dae37"];
+
+const BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x293e2b67d6baf0c52cdfc88d86385eac6b4189b1fd91596f5814a28edf0ce63"];
+const BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x21c4848bc2c3f591305c1ba19f177e7cf0f90ea0b430e7d01a92ed16534b549"];
 
 const ERC20_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x266f53b3f6cc2367c334b75ea86aff748ca27aa321019778af81be69d549159"];
@@ -166,6 +173,7 @@ pub type CairoVersionString = String;
 pub enum FeatureContract {
     AccountWithLongValidate(CairoVersion),
     AccountWithoutValidations(CairoVersion),
+    BlockInfoTestContract(CairoVersion),
     DelegateProxy,
     EmptyAccount(RunnableCairo1),
     ERC20(CairoVersion),
@@ -188,6 +196,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(version)
             | Self::AccountWithoutValidations(version)
+            | Self::BlockInfoTestContract(version)
             | Self::Empty(version)
             | Self::FaultyAccount(version)
             | Self::TestContract(version)
@@ -212,6 +221,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(v)
             | Self::AccountWithoutValidations(v)
+            | Self::BlockInfoTestContract(v)
             | Self::Empty(v)
             | Self::FaultyAccount(v)
             | Self::TestContract(v)
@@ -252,6 +262,10 @@ impl FeatureContract {
             Self::AccountWithoutValidations(_) => (
                 ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V1,
                 ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V2,
+            ),
+            Self::BlockInfoTestContract(_) => (
+                BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V1,
+                BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V2,
             ),
             Self::Empty(_) => (EMPTY_COMPILED_CLASS_HASH_V1, EMPTY_COMPILED_CLASS_HASH_V2),
             Self::Experimental => {
@@ -376,6 +390,7 @@ impl FeatureContract {
             + match self {
                 Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_BASE,
                 Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_BASE,
+                Self::BlockInfoTestContract(_) => BLOCK_INFO_TEST_CONTRACT_BASE,
                 Self::DelegateProxy => DELEGATE_PROXY_BASE,
                 Self::TestContract2 => TEST_CONTRACT2_BASE,
                 Self::Empty(_) => EMPTY_CONTRACT_BASE,
@@ -398,6 +413,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(_) => ACCOUNT_LONG_VALIDATE_NAME,
             Self::AccountWithoutValidations(_) => ACCOUNT_WITHOUT_VALIDATIONS_NAME,
+            Self::BlockInfoTestContract(_) => BLOCK_INFO_TEST_CONTRACT_NAME,
             Self::DelegateProxy => DELEGATE_PROXY_NAME,
             Self::Experimental => EXPERIMENTAL_CONTRACT_NAME,
             Self::TestContract2 => TEST_CONTRACT2_NAME,
@@ -495,6 +511,7 @@ impl FeatureContract {
                     // Account contracts require the account_contract flag.
                     FeatureContract::AccountWithLongValidate(_)
                     | FeatureContract::AccountWithoutValidations(_)
+                    | FeatureContract::BlockInfoTestContract(_)
                     | FeatureContract::FaultyAccount(_)
                     | FeatureContract::TxInfoWriter => Some("--account_contract".into()),
                     FeatureContract::SecurityTests => Some("--disable_hint_validation".into()),
@@ -539,6 +556,7 @@ impl FeatureContract {
         match self {
             Self::AccountWithLongValidate(_)
             | Self::AccountWithoutValidations(_)
+            | Self::BlockInfoTestContract(_)
             | Self::Empty(_)
             | Self::FaultyAccount(_)
             | Self::TestContract(_)
