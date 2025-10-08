@@ -372,6 +372,7 @@ impl FsClassStorage {
             .set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
     }
 
+    #[allow(dead_code)]
     fn write_class(
         &self,
         class_id: ClassId,
@@ -385,6 +386,7 @@ impl FsClassStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn write_deprecated_class(
         &self,
         class_id: ClassId,
@@ -396,9 +398,6 @@ impl FsClassStorage {
         Ok(())
     }
 
-    // TODO(Elin): restore use of `write_[deprecated_]class_atomically`, but tmpdir
-    // should be located inside the PVC to prevent linking errors.
-    #[allow(dead_code)]
     fn write_class_atomically(
         &self,
         class_id: ClassId,
@@ -406,8 +405,9 @@ impl FsClassStorage {
         executable_class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write classes to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        std::fs::create_dir_all(&self.persistent_root)?;
+        let tmp_root = tempfile::tempdir_in(&self.persistent_root)?;
+        let tmp_dir = tmp_root.path().join(self.get_class_dir(class_id));
         class.write_to_file(concat_sierra_filename(&tmp_dir))?;
         executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
@@ -418,15 +418,15 @@ impl FsClassStorage {
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn write_deprecated_class_atomically(
         &self,
         class_id: ClassId,
         class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write class to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        std::fs::create_dir_all(&self.persistent_root)?;
+        let tmp_root = tempfile::tempdir_in(&self.persistent_root)?;
+        let tmp_dir = tmp_root.path().join(self.get_class_dir(class_id));
         class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
@@ -452,7 +452,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_class(class_id, class, executable_class)?;
+        self.write_class_atomically(class_id, class, executable_class)?;
         self.mark_class_id_as_existent(class_id, executable_class_hash)?;
 
         Ok(())
@@ -505,7 +505,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_deprecated_class(class_id, class)?;
+        self.write_deprecated_class_atomically(class_id, class)?;
 
         Ok(())
     }
@@ -550,6 +550,7 @@ fn concat_deprecated_executable_filename(path: &Path) -> PathBuf {
 
 // Creates a tmp directory and returns a owned representation of it.
 // As long as the returned directory object is lived, the directory is not deleted.
+#[allow(dead_code)]
 pub(crate) fn create_tmp_dir() -> FsClassStorageResult<tempfile::TempDir> {
     Ok(tempfile::tempdir()?)
 }
