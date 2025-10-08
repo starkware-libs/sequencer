@@ -25,6 +25,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
+use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -149,19 +150,15 @@ impl Gateway {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let blocking_task = ProcessTxBlockingTask::new(
-            self,
-            internal_tx,
-            executable_tx,
-            tokio::runtime::Handle::current(),
-        );
+        let blocking_task =
+            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current());
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let handle =
             tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()));
         let handle_result = handle.await;
-        let add_tx_args = match handle_result {
-            Ok(Ok(add_tx_args)) => add_tx_args,
+        let nonce = match handle_result {
+            Ok(Ok(nonce)) => nonce,
             Ok(Err(starknet_err)) => {
                 info!(
                     "Gateway validation failed for tx with signature: {:?} with error: {}",
@@ -182,9 +179,12 @@ impl Gateway {
             }
         };
 
-        let gateway_output = create_gateway_output(&add_tx_args.tx);
+        let gateway_output = create_gateway_output(&internal_tx);
 
-        let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
+        let add_tx_args = AddTransactionArgsWrapper {
+            args: AddTransactionArgs::new(internal_tx, nonce),
+            p2p_message_metadata,
+        };
         match mempool_client_result_to_deprecated_gw_result(
             tx.signature(),
             self.mempool_client.add_tx(add_tx_args).await,
@@ -236,7 +236,6 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
-    internal_tx: InternalRpcTransaction,
     executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
 }
@@ -244,7 +243,6 @@ struct ProcessTxBlockingTask {
 impl ProcessTxBlockingTask {
     pub fn new(
         gateway: &Gateway,
-        internal_tx: InternalRpcTransaction,
         executable_tx: AccountTransaction,
         runtime: tokio::runtime::Handle,
     ) -> Self {
@@ -252,13 +250,12 @@ impl ProcessTxBlockingTask {
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
-            internal_tx,
             executable_tx,
             runtime,
         }
     }
 
-    fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
+    fn process_tx(self) -> GatewayResult<Nonce> {
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
             .instantiate_validator(self.state_reader_factory.as_ref())?;
@@ -269,7 +266,7 @@ impl ProcessTxBlockingTask {
             self.runtime,
         )?;
 
-        Ok(AddTransactionArgs::new(self.internal_tx, nonce))
+        Ok(nonce)
     }
 }
 

@@ -320,7 +320,6 @@ fn process_tx_task(
         stateful_tx_validator_factory: Arc::new(stateful_transaction_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
         mempool_client: Arc::new(MockMempoolClient::new()),
-        internal_tx: invoke_args().get_internal_tx(),
         executable_tx: executable_invoke_tx(invoke_args()),
         runtime: tokio::runtime::Handle::current(),
     }
