@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -78,6 +79,7 @@ use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
+use starknet_os::hints::vars::Const;
 use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -91,7 +93,12 @@ use crate::special_contracts::{
     V1_BOUND_CAIRO1_CONTRACT_CASM,
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
 };
-use crate::test_manager::{TestManager, TestParameters, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{
+    TestManager,
+    TestParameters,
+    FUNDED_ACCOUNT_ADDRESS,
+    STRK_FEE_TOKEN_ADDRESS,
+};
 use crate::utils::{
     divide_vec_into_n_parts,
     get_class_hash_of_feature_contract,
@@ -1765,4 +1772,79 @@ async fn test_deprecated_tx_info() {
     );
     test_output.assert_account_balance_change(tx_info_account_address);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_deploy_syscall() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
+    let class_hash = get_class_hash_of_feature_contract(test_contract);
+    let empty_class_hash = get_class_hash_of_feature_contract(empty_contract);
+    // Initialize the test manager with the test contract and empty contract already declared.
+    // We can ignore the addresses of the deployed instances.
+    let (mut test_manager, _) = TestManager::<DictStateReader>::new_with_default_initial_state([
+        (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+        (empty_contract, calldata![]),
+    ])
+    .await;
+
+    let ctor_calldata = vec![Felt::from(1979), Felt::from(1989)];
+    let salt = ContractAddressSalt(Felt::from(12));
+
+    // Call deploy_contract(...).
+    let (deploy_tx, deployed_test_address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        Calldata(Arc::new(ctor_calldata.clone())),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+    let expected_storage_updates = HashMap::from([(
+        deployed_test_address,
+        HashMap::from([(
+            StarknetStorageKey(ctor_calldata[0].try_into().unwrap()),
+            StarknetStorageValue(ctor_calldata[1]),
+        )]),
+    )]);
+
+    // Deploy a contract with no constructor using deploy syscall.
+    let calldata = create_calldata(
+        *FUNDED_ACCOUNT_ADDRESS,
+        "deploy_contract",
+        &[empty_class_hash.0, salt.0, Felt::ZERO],
+    );
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test and verify storage changes.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let perform_global_validations = true;
+    test_output.perform_validations(
+        perform_global_validations,
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() }),
+    );
+
+    // Make sure only the newly deployed contract and the fee contract have changed storage.
+    let block_hash_contract_address = ContractAddress(
+        Const::BlockHashContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
+    );
+    let allowed_changed_addresses = HashSet::from([
+        &deployed_test_address,
+        &*STRK_FEE_TOKEN_ADDRESS,
+        &*ALIAS_CONTRACT_ADDRESS,
+        &block_hash_contract_address,
+    ]);
+    assert!(
+        HashSet::from_iter(
+            test_output
+                .decompressed_state_diff
+                .storage_updates
+                .into_keys()
+                .collect::<Vec<_>>()
+                .iter()
+        )
+        .is_subset(&allowed_changed_addresses)
+    );
 }
