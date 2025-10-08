@@ -23,7 +23,7 @@ ark-ff.workspace = true
 ark-poly.workspace = true
 ark-secp256k1.workspace = true
 ark-secp256r1.workspace = true
-blake2s.workspace = true
+blake2.workspace = true
 blockifier.workspace = true
 c-kzg.workspace = true
 cairo-lang-casm.workspace = true
@@ -35,6 +35,7 @@ cairo-vm = { workspace = true, features = [
   "extensive_hints",
 ] }
 derive_more.workspace = true
+digest.workspace = true
 indexmap.workspace = true
 indoc.workspace = true
 log.workspace = true
