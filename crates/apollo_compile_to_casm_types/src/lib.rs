@@ -120,6 +120,15 @@ impl TryFrom<RawClass> for SierraContractClass {
     }
 }
 
+impl TryFrom<&RawClass> for SierraContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: &RawClass) -> Result<Self, Self::Error> {
+        // Deserialize from the underlying JSON value without cloning the wrapper.
+        serde_json::from_value(class.0.clone())
+    }
+}
+
 impl TryFrom<ContractClass> for RawExecutableClass {
     type Error = serde_json::Error;
 
