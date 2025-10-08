@@ -7,7 +7,7 @@
 //! types. Each of the functions measure the performance of the gateway handling randomly created
 //! txs of the respective type.
 //!
-//! Run the benchmarks using `cargo bench --bench apollo_gateway`.
+//! Run the benchmarks using `CC=clang cargo bench --bench apollo_gateway`.
 
 // import the Gateway test utilities.
 mod utils;
