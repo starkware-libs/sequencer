@@ -31,7 +31,7 @@ use apollo_l1_gas_price_provider_config::config::{
 };
 use apollo_l1_provider_config::config::L1ProviderConfig;
 use apollo_l1_scraper_config::config::L1ScraperConfig;
-use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
@@ -290,6 +290,8 @@ impl Default for SequencerNodeConfig {
 pub struct NodeDynamicConfig {
     #[validate]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
+    #[validate]
+    pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
 }
 
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {
@@ -300,7 +302,11 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
             },
         );
-        Self { consensus_dynamic_config }
+        let mempool_dynamic_config = sequencer_node_config
+            .mempool_config
+            .as_ref()
+            .map(|mempool_config| mempool_config.dynamic_config.clone());
+        Self { consensus_dynamic_config, mempool_dynamic_config }
     }
 }
 
