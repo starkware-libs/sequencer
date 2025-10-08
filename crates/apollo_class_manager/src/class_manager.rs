@@ -31,7 +31,11 @@ pub struct ClassManager<S: ClassStorage> {
     pub classes: CachedClassStorage<S>,
 }
 
-impl<S: ClassStorage> ClassManager<S> {
+impl<S> ClassManager<S>
+where
+    S: ClassStorage,
+    apollo_class_manager_types::CachedClassStorageError<S::Error>: From<S::Error>,
+{
     pub fn new(
         config: ClassManagerConfig,
         compiler: SharedSierraCompilerClient,
