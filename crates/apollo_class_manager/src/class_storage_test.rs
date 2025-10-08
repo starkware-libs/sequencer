@@ -5,7 +5,6 @@ use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
 use crate::class_storage::{
-    create_tmp_dir,
     ClassHashStorage,
     ClassHashStorageConfig,
     ClassStorage,
@@ -40,14 +39,15 @@ impl FsClassStorage {
         class_hash_storage_path_prefix: &tempfile::TempDir,
     ) -> Self {
         let class_hash_storage = ClassHashStorage::new_for_testing(class_hash_storage_path_prefix);
+        std::fs::create_dir_all(persistent_root.path()).unwrap();
         Self { persistent_root: persistent_root.path().to_path_buf(), class_hash_storage }
     }
 }
 
 #[test]
 fn fs_storage() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -81,8 +81,8 @@ fn fs_storage() {
 
 #[test]
 fn fs_storage_deprecated_class_api() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -108,8 +108,8 @@ fn fs_storage_deprecated_class_api() {
 // TODO(Elin): should this flow return an error?
 #[test]
 fn fs_storage_partial_write_only_atomic_marker() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -126,8 +126,8 @@ fn fs_storage_partial_write_only_atomic_marker() {
 
 #[test]
 fn fs_storage_partial_write_no_atomic_marker() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 

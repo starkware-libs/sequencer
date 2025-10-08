@@ -311,6 +311,7 @@ pub enum FsClassStorageError {
 impl FsClassStorage {
     pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
         let class_hash_storage = ClassHashStorage::new(config.class_hash_storage_config)?;
+        std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
 
@@ -362,6 +363,22 @@ impl FsClassStorage {
         concat_deprecated_executable_filename(&self.get_persistent_dir(class_id))
     }
 
+    fn create_tmp_dir(
+        &self,
+        class_id: ClassId,
+    ) -> FsClassStorageResult<(tempfile::TempDir, PathBuf)> {
+        let persistent_dir = self.get_persistent_dir(class_id);
+        let parent_dir = persistent_dir
+            .parent()
+            .expect("Class persistent dir should have a parent")
+            .to_path_buf();
+        std::fs::create_dir_all(&parent_dir)?;
+        let tmp_root = tempfile::tempdir_in(&parent_dir)?;
+        let leaf = persistent_dir.file_name().expect("Class dir leaf should exist");
+        let tmp_dir = tmp_root.path().join(leaf);
+        Ok((tmp_root, tmp_dir))
+    }
+
     fn mark_class_id_as_existent(
         &mut self,
         class_id: ClassId,
@@ -372,6 +389,7 @@ impl FsClassStorage {
             .set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
     }
 
+    #[allow(dead_code)]
     fn write_class(
         &self,
         class_id: ClassId,
@@ -385,6 +403,7 @@ impl FsClassStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn write_deprecated_class(
         &self,
         class_id: ClassId,
@@ -396,9 +415,6 @@ impl FsClassStorage {
         Ok(())
     }
 
-    // TODO(Elin): restore use of `write_[deprecated_]class_atomically`, but tmpdir
-    // should be located inside the PVC to prevent linking errors.
-    #[allow(dead_code)]
     fn write_class_atomically(
         &self,
         class_id: ClassId,
@@ -406,8 +422,7 @@ impl FsClassStorage {
         executable_class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write classes to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        let (_tmp_root, tmp_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_sierra_filename(&tmp_dir))?;
         executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
@@ -418,15 +433,13 @@ impl FsClassStorage {
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn write_deprecated_class_atomically(
         &self,
         class_id: ClassId,
         class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write class to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        let (_tmp_root, tmp_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
@@ -452,7 +465,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_class(class_id, class, executable_class)?;
+        self.write_class_atomically(class_id, class, executable_class)?;
         self.mark_class_id_as_existent(class_id, executable_class_hash)?;
 
         Ok(())
@@ -505,7 +518,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_deprecated_class(class_id, class)?;
+        self.write_deprecated_class_atomically(class_id, class)?;
 
         Ok(())
     }
@@ -546,10 +559,4 @@ fn concat_executable_filename(path: &Path) -> PathBuf {
 
 fn concat_deprecated_executable_filename(path: &Path) -> PathBuf {
     path.join("deprecated_casm")
-}
-
-// Creates a tmp directory and returns a owned representation of it.
-// As long as the returned directory object is lived, the directory is not deleted.
-pub(crate) fn create_tmp_dir() -> FsClassStorageResult<tempfile::TempDir> {
-    Ok(tempfile::tempdir()?)
 }
