@@ -303,8 +303,11 @@ impl FlowSequencerSetup {
             node_config.http_server_config.as_ref().unwrap().to_owned();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        // Run the sequencer node.
-        tokio::spawn(run_component_servers(servers));
+        // Run the sequencer node on a new Tokio runtime inside a new OS thread.
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+            rt.block_on(run_component_servers(servers));
+        });
 
         Self {
             node_index,
