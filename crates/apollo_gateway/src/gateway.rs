@@ -6,6 +6,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -24,16 +25,14 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
-use blockifier::context::ChainInfo;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
 };
-use tracing::{debug, info, instrument, warn, Span};
+use tracing::{debug, info, warn, Span};
 
-use crate::config::GatewayConfig;
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
     transaction_converter_err_to_deprecated_gw_err,
@@ -63,7 +62,6 @@ pub struct Gateway {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<TransactionConverter>,
-    pub chain_info: Arc<ChainInfo>,
 }
 
 impl Gateway {
@@ -80,15 +78,14 @@ impl Gateway {
             }),
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
+                chain_info: config.chain_info.clone(),
             }),
             state_reader_factory,
             mempool_client,
-            chain_info: Arc::new(config.chain_info.clone()),
             transaction_converter: Arc::new(transaction_converter),
         }
     }
 
-    #[instrument(skip_all, fields(is_p2p = p2p_message_metadata.is_some()), ret)]
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
@@ -96,43 +93,79 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
         debug!("Processing tx with signature: {:?}", tx.signature());
+        let is_p2p = p2p_message_metadata.is_some();
 
-        let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
+        let start_time = std::time::Instant::now();
+        let ret = self.add_tx_inner(&tx, p2p_message_metadata).await;
+        let elapsed = start_time.elapsed().as_secs_f64();
+
+        debug!(
+            "Processed tx with signature: {:?}. duration: {elapsed} sec, ret: {ret:?}, is_p2p: \
+             {is_p2p}, tx: {:?}",
+            tx.signature(),
+            tx
+        );
+
+        ret
+    }
+
+    async fn add_tx_inner(
+        &self,
+        tx: &RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<GatewayOutput> {
+        let mut metric_counters = GatewayMetricHandle::new(tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
-            self.check_declare_permissions(declare_tx)?;
+            if let Err(e) = self.check_declare_permissions(declare_tx) {
+                metric_counters.record_add_tx_failure(&e);
+                return Err(e);
+            }
         }
 
         let blocking_task =
             ProcessTxBlockingTask::new(self, tx.clone(), tokio::runtime::Handle::current());
         // Run the blocking task in the current span.
         let curr_span = Span::current();
-        let add_tx_args =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
-                .await
-                .map_err(|join_err| {
-                    StarknetError::internal_with_signature_logging(
-                        "Failed to process tx",
-                        tx.signature(),
-                        join_err,
-                    )
-                })?
-                .inspect_err(|starknet_error| {
-                    info!(
-                        "Gateway validation failed for tx with signature: {:?} with error: {}",
-                        tx.signature(),
-                        starknet_error
-                    );
-                })?;
+        let handle =
+            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()));
+        let handle_result = handle.await;
+        let add_tx_args = match handle_result {
+            Ok(Ok(add_tx_args)) => add_tx_args,
+            Ok(Err(starknet_err)) => {
+                info!(
+                    "Gateway validation failed for tx with signature: {:?} with error: {}",
+                    tx.signature(),
+                    starknet_err
+                );
+                metric_counters.record_add_tx_failure(&starknet_err);
+                return Err(starknet_err);
+            }
+            Err(join_err) => {
+                let err = StarknetError::internal_with_signature_logging(
+                    "Failed to process tx",
+                    tx.signature(),
+                    join_err,
+                );
+                metric_counters.record_add_tx_failure(&err);
+                return Err(err);
+            }
+        };
 
         let gateway_output = create_gateway_output(&add_tx_args.tx);
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        mempool_client_result_to_deprecated_gw_result(
+        match mempool_client_result_to_deprecated_gw_result(
             tx.signature(),
             self.mempool_client.add_tx(add_tx_args).await,
-        )?;
+        ) {
+            Ok(()) => {}
+            Err(e) => {
+                metric_counters.record_add_tx_failure(&e);
+                return Err(e);
+            }
+        };
 
         metric_counters.transaction_sent_to_mempool();
 
@@ -175,7 +208,6 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
-    chain_info: Arc<ChainInfo>,
     tx: RpcTransaction,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     runtime: tokio::runtime::Handle,
@@ -188,7 +220,6 @@ impl ProcessTxBlockingTask {
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             mempool_client: gateway.mempool_client.clone(),
-            chain_info: gateway.chain_info.clone(),
             tx,
             transaction_converter: gateway.transaction_converter.clone(),
             runtime,
@@ -226,7 +257,7 @@ impl ProcessTxBlockingTask {
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
+            .instantiate_validator(self.state_reader_factory.as_ref())?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &executable_tx,

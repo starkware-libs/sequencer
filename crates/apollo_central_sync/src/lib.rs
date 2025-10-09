@@ -8,14 +8,11 @@ pub mod sources;
 mod sync_test;
 
 use std::cmp::min;
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_central_sync_config::config::SyncConfig;
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
-use apollo_config::converters::deserialize_seconds_to_duration;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
@@ -47,7 +44,6 @@ use futures::stream;
 use futures_util::{pin_mut, select, Stream, StreamExt};
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
-use serde::{Deserialize, Serialize};
 use sources::base_layer::BaseLayerSourceError;
 use starknet_api::block::{
     Block,
@@ -86,96 +82,6 @@ const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
 // The first starknet version where we can send sierras to the class manager without casms and it
 // will compile them, in a backward-compatible manner.
 const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12_0;
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub struct SyncConfig {
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub block_propagation_sleep_duration: Duration,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub base_layer_propagation_sleep_duration: Duration,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub recoverable_error_sleep_duration: Duration,
-    pub blocks_max_stream_size: u32,
-    pub state_updates_max_stream_size: u32,
-    pub verify_blocks: bool,
-    pub collect_pending_data: bool,
-    pub store_sierras_and_casms: bool,
-}
-
-impl SerializeConfig for SyncConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "block_propagation_sleep_duration",
-                &self.block_propagation_sleep_duration.as_secs(),
-                "Time in seconds before checking for a new block after the node is synchronized.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "base_layer_propagation_sleep_duration",
-                &self.base_layer_propagation_sleep_duration.as_secs(),
-                "Time in seconds to poll the base layer to get the latest proved block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "recoverable_error_sleep_duration",
-                &self.recoverable_error_sleep_duration.as_secs(),
-                "Waiting time in seconds before restarting synchronization after a recoverable \
-                 error.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "blocks_max_stream_size",
-                &self.blocks_max_stream_size,
-                "Max amount of blocks to download in a stream.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "state_updates_max_stream_size",
-                &self.state_updates_max_stream_size,
-                "Max amount of state updates to download in a stream.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "verify_blocks",
-                &self.verify_blocks,
-                "Whether to verify incoming blocks.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "collect_pending_data",
-                &self.collect_pending_data,
-                "Whether to collect data on pending blocks.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "store_sierras_and_casms",
-                &self.store_sierras_and_casms,
-                "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This \
-                 is needed for backward compatibility with the native blockifier. Behavior: \
-                 \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for \
-                 **legacy** classes (compiled with a version < \
-                 `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-impl Default for SyncConfig {
-    fn default() -> Self {
-        SyncConfig {
-            block_propagation_sleep_duration: Duration::from_secs(2),
-            base_layer_propagation_sleep_duration: Duration::from_secs(10),
-            recoverable_error_sleep_duration: Duration::from_secs(3),
-            blocks_max_stream_size: 1000,
-            state_updates_max_stream_size: 1000,
-            verify_blocks: true,
-            collect_pending_data: false,
-            store_sierras_and_casms: false,
-        }
-    }
-}
 
 // Orchestrates specific network interfaces (e.g. central, p2p, l1) and writes to Storage and shared
 // memory.
@@ -468,7 +374,7 @@ impl<
     #[instrument(
         skip(self, block),
         level = "debug",
-        fields(block_hash = format_args!("{:#064x}", block.header.block_hash.0)),
+        fields(block_hash = format_args!("{:#066x}", block.header.block_hash.0)),
         err
     )]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -1137,20 +1043,25 @@ fn check_sync_progress(
     store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
-        let txn=reader.begin_ro_txn()?;
-        let mut header_marker=txn.get_header_marker()?;
-        let mut state_marker=txn.get_state_marker()?;
-        let mut casm_marker=txn.get_compiled_class_marker()?;
-        drop(txn); // Drop txn so we don't unnecessarily hold it open while sleeping.
+        let (mut header_marker, mut state_marker, mut casm_marker) = {
+            let txn = reader.begin_ro_txn()?;
+            let header_marker = txn.get_header_marker()?;
+            let state_marker = txn.get_state_marker()?;
+            let casm_marker = txn.get_compiled_class_marker()?;
+            (header_marker, state_marker, casm_marker)
+        };
 
         loop{
             tokio::time::sleep(SLEEP_TIME_SYNC_PROGRESS).await;
             debug!("Checking if sync stopped progress.");
-            let txn=reader.begin_ro_txn()?;
-            let new_header_marker=txn.get_header_marker()?;
-            let new_state_marker=txn.get_state_marker()?;
-            let new_casm_marker=txn.get_compiled_class_marker()?;
-            let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
+            let (new_header_marker, new_state_marker, new_casm_marker, compiler_backward_compatibility_marker) = {
+                let txn = reader.begin_ro_txn()?;
+                let new_header_marker = txn.get_header_marker()?;
+                let new_state_marker = txn.get_state_marker()?;
+                let new_casm_marker = txn.get_compiled_class_marker()?;
+                let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
+                (new_header_marker, new_state_marker, new_casm_marker, compiler_backward_compatibility_marker)
+            };
             let is_casm_stuck = casm_marker == new_casm_marker && (new_casm_marker < compiler_backward_compatibility_marker || store_sierras_and_casms);
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event. Header marker: {header_marker}, \

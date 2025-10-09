@@ -67,6 +67,7 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 ethnum.workspace = true
 expect-test.workspace = true
+itertools.workspace = true
 rstest.workspace = true
 starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }

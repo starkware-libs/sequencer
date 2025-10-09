@@ -1,25 +1,24 @@
 use std::sync::Arc;
 
+use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
-use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
+use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use serde_json::Value;
 use tracing::{info, instrument};
 
-use crate::config::ConfigManagerConfig;
-
 /// Internal state management for the ConfigManager.
 #[derive(Clone)]
 pub struct ConfigManagerState {
-    pub consensus_dynamic_config: Arc<ConsensusDynamicConfig>,
+    pub node_dynamic_config: Arc<NodeDynamicConfig>,
 }
 
 impl Default for ConfigManagerState {
     fn default() -> Self {
-        Self { consensus_dynamic_config: Arc::new(ConsensusDynamicConfig::default()) }
+        Self { node_dynamic_config: Arc::new(NodeDynamicConfig::default()) }
     }
 }
 
@@ -46,13 +45,13 @@ impl ConfigManager {
     }
 
     pub fn get_current_config(&self) -> Arc<Value> {
-        let config_json = serde_json::to_value(&*self.state.consensus_dynamic_config)
+        let config_json = serde_json::to_value(&*self.state.node_dynamic_config)
             .unwrap_or_else(|_| serde_json::json!({}));
         Arc::new(config_json)
     }
 
-    pub fn get_consensus_dynamic_config(&self) -> Arc<ConsensusDynamicConfig> {
-        self.state.consensus_dynamic_config.clone()
+    pub fn get_node_dynamic_config(&self) -> Arc<NodeDynamicConfig> {
+        self.state.node_dynamic_config.clone()
     }
 }
 
@@ -72,11 +71,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                 let result = Ok((*config_data).clone());
                 ConfigManagerResponse::ReadConfig(result)
             }
-            ConfigManagerRequest::GetConsensusDynamicConfig => {
-                info!("ConfigManager: handling GetConsensusDynamicConfig request");
-                let consensus_config = self.get_consensus_dynamic_config();
-                let result = Ok((*consensus_config).clone());
-                ConfigManagerResponse::GetConsensusDynamicConfig(result)
+            ConfigManagerRequest::GetNodeDynamicConfig => {
+                info!("ConfigManager: handling GetNodeDynamicConfig request");
+                let node_config = self.get_node_dynamic_config();
+                let result = Ok((*node_config).clone());
+                ConfigManagerResponse::GetNodeDynamicConfig(result)
             }
         }
     }

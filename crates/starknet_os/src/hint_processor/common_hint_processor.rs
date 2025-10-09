@@ -25,6 +25,8 @@ pub(crate) trait CommonHintProcessor<'a> {
     // Indicates wether to create pages or not when serializing data-availability.
     fn get_serialize_data_availability_create_pages(&self) -> bool;
     fn get_builtin_hint_processor(&mut self) -> &mut BuiltinHintProcessor;
+    // Gets the current randomness.
+    fn get_rng(&mut self) -> &mut rand::rngs::StdRng;
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
     fn get_mut_unused_hints(
@@ -57,7 +59,6 @@ macro_rules! impl_common_hint_processor_logic {
             _vm: &mut VirtualMachine,
             _exec_scopes: &mut ExecutionScopes,
             _hint_data: &Box<dyn Any>,
-            _constants: &HashMap<String, Felt>,
         ) -> VmHintResult {
             Ok(())
         }
@@ -67,7 +68,6 @@ macro_rules! impl_common_hint_processor_logic {
             vm: &mut VirtualMachine,
             exec_scopes: &mut ExecutionScopes,
             hint_data: &Box<dyn Any>,
-            constants: &HashMap<String, Felt>,
         ) -> VmHintExtensionResult {
             if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
                 // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
@@ -76,7 +76,7 @@ macro_rules! impl_common_hint_processor_logic {
                     exec_scopes,
                     ids_data: &hint_processor_data.ids_data,
                     ap_tracking: &hint_processor_data.ap_tracking,
-                    constants,
+                    constants: &self.program.constants,
                 };
                 let hint_str = hint_processor_data.code.as_str();
                 if let Ok(hint) = AllHints::from_str(hint_str) {
@@ -94,18 +94,39 @@ macro_rules! impl_common_hint_processor_logic {
                     };
                 } else {
                     // Cairo0 core hint.
-                    self.get_builtin_hint_processor().execute_hint(
-                        vm,
-                        exec_scopes,
-                        hint_data,
-                        constants,
-                    )?;
+                    self.get_builtin_hint_processor().execute_hint(vm, exec_scopes, hint_data)?;
                     return Ok(HintExtension::default());
                 }
             }
 
+            // TODO(Dori): Consider moving cairo1 hint handling and the [get_rng] method to the
+            //   [SnosHintProcessor], as the aggregator should not use randomness.
             // Cairo1 syscall or Cairo1 core hint.
             match hint_data.downcast_ref::<Cairo1Hint>().ok_or(VmHintError::WrongHintData)? {
+                // Override the [CoreHint::RandomEcPoint] implementation to make the output
+                // deterministic (using seeded randomness).
+                Cairo1Hint::Core(CoreHintBase::Core(CoreHint::RandomEcPoint { x, y })) => {
+                    // TODO(Dori): use the random_ec_point function from the compiler repo when
+                    //   available, instead of inlining the implementation.
+                    /// The Beta value of the Starkware elliptic curve.
+                    pub const BETA: Felt = Felt::from_hex_unchecked(
+                        "0x6f21413efbe40de150e596d72f7a8c5609ad26c15c915c1f4cdfcb99cee9e89",
+                    );
+                    // Use the seeded randomness.
+                    let rng = self.get_rng();
+                    let (random_x, random_y) = loop {
+                        // Randomizing 31 bytes to make sure it is in range.
+                        let x_bytes: [u8; 31] = rng.gen();
+                        let random_x = Felt::from_bytes_be_slice(&x_bytes);
+                        let random_y_squared = random_x * random_x * random_x + random_x + BETA;
+                        if let Some(random_y) = random_y_squared.sqrt() {
+                            break (random_x, random_y);
+                        }
+                    };
+                    cairo_lang_runner::insert_value_to_cellref!(vm, x, random_x)?;
+                    cairo_lang_runner::insert_value_to_cellref!(vm, y, random_y)?;
+                    Ok(HintExtension::default())
+                }
                 Cairo1Hint::Core(hint) => {
                     let no_temporary_segments = false;
                     execute_core_hint_base(vm, exec_scopes, &hint, no_temporary_segments)?;

@@ -15,14 +15,10 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
-use apollo_p2p_sync::client::{
-    P2pSyncClient,
-    P2pSyncClientChannels,
-    P2pSyncClientConfig,
-    P2pSyncClientError,
-};
+use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientError};
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
+use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
 use apollo_rpc::{run_server, RpcConfig};
 use apollo_starknet_client::reader::objects::pending_data::{
@@ -30,6 +26,7 @@ use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlockOrDeprecated,
 };
 use apollo_starknet_client::reader::PendingData;
+use apollo_state_sync_config::config::{CentralSyncClientConfig, StateSyncConfig};
 use apollo_state_sync_metrics::metrics::{
     register_metrics,
     update_marker_metrics,
@@ -42,7 +39,8 @@ use apollo_state_sync_metrics::metrics::{
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
-use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageWriter};
+use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
+use apollo_storage::{open_storage_with_metric, StorageConfig, StorageReader, StorageWriter};
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
 use futures::future::{self, pending, BoxFuture};
@@ -54,8 +52,6 @@ use starknet_api::felt;
 use tokio::sync::RwLock;
 use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
-
-use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
@@ -106,7 +102,8 @@ pub struct StateSyncResources {
 impl StateSyncResources {
     pub fn new(storage_config: &StorageConfig) -> Self {
         let (storage_reader, storage_writer) =
-            open_storage(storage_config.clone()).expect("StateSyncRunner failed opening storage");
+            open_storage_with_metric(storage_config.clone(), &SYNC_STORAGE_OPEN_READ_TRANSACTIONS)
+                .expect("StateSyncRunner failed opening storage");
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the

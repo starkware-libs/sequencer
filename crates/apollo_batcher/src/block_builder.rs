@@ -1,7 +1,8 @@
 use std::cmp::min;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
@@ -10,14 +11,11 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
-use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     CompiledClassHashesForMigration,
@@ -25,10 +23,10 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
-use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
-use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -38,7 +36,6 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -53,7 +50,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
-use crate::metrics::FULL_BLOCKS;
+use crate::metrics::{PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
@@ -241,6 +238,13 @@ impl BlockBuilder {
                 if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::Deadline.into(),
+                    )],
+                );
                 break;
             }
             if final_n_executed_txs.is_none() {
@@ -263,7 +267,13 @@ impl BlockBuilder {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
-                FULL_BLOCKS.increment(1);
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::FullBlock.into(),
+                    )],
+                );
                 break;
             }
 
@@ -286,9 +296,19 @@ impl BlockBuilder {
             self.n_executed_txs
         };
 
+        if self.execution_params.is_validator {
+            // Validator wasted txs: executed locally but not included in final block.
+            let wasted = self.n_executed_txs.saturating_sub(final_n_executed_txs_nonopt);
+            VALIDATOR_WASTED_TXS.set_lossy(wasted);
+        } else {
+            // Proposer deferred txs: started but not executed by end of proposal.
+            let not_executed = self.block_txs.len().saturating_sub(self.n_executed_txs);
+            PROPOSER_DEFERRED_TXS.set_lossy(not_executed);
+        }
         info!(
-            "Finished building block. Started executing {} transactions. Finished executing {} \
-             transactions. Final number of transactions (as set by the proposer): {}.",
+            "Finished building block as {}. Started executing {} transactions. Finished executing \
+             {} transactions. Final number of transactions (as set by the proposer): {}.",
+            if self.execution_params.is_validator { "validator" } else { "proposer" },
             self.block_txs.len(),
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
@@ -621,56 +641,6 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct BlockBuilderConfig {
-    pub chain_info: ChainInfo,
-    pub execute_config: WorkerPoolConfig,
-    pub bouncer_config: BouncerConfig,
-    pub n_concurrent_txs: usize,
-    pub tx_polling_interval_millis: u64,
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
-}
-
-impl Default for BlockBuilderConfig {
-    fn default() -> Self {
-        Self {
-            // TODO(AlonH): update the default values once the actual values are known.
-            chain_info: ChainInfo::default(),
-            execute_config: WorkerPoolConfig::default(),
-            bouncer_config: BouncerConfig::default(),
-            n_concurrent_txs: 100,
-            tx_polling_interval_millis: 10,
-            versioned_constants_overrides: VersionedConstantsOverrides::default(),
-        }
-    }
-}
-
-impl SerializeConfig for BlockBuilderConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = prepend_sub_config_name(self.chain_info.dump(), "chain_info");
-        dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
-        dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_concurrent_txs",
-            &self.n_concurrent_txs,
-            "Number of transactions in each request from the tx_provider.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "tx_polling_interval_millis",
-            &self.tx_polling_interval_millis,
-            "Time to wait (in milliseconds) between transaction requests when the previous \
-             request returned no transactions.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.dump(),
-            "versioned_constants_overrides",
-        ));
-        dump
-    }
 }
 
 pub struct BlockBuilderFactory {

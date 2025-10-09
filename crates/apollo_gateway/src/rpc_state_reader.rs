@@ -1,3 +1,4 @@
+use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc::CompiledContractClass;
 use apollo_state_sync_types::communication::StateSyncClientResult;
 use blockifier::execution::contract_class::{
@@ -16,7 +17,6 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::config::RpcStateReaderConfig;
 use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
 use crate::rpc_objects::{
     BlockHeader,
@@ -190,9 +190,5 @@ impl StateReaderFactory for RpcStateReaderFactory {
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
         Ok(Box::new(RpcStateReader::from_latest(&self.config)))
-    }
-
-    fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
-        Box::new(RpcStateReader::from_number(&self.config, block_number))
     }
 }

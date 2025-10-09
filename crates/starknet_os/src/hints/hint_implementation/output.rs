@@ -24,6 +24,14 @@ use crate::hints::vars::{Const, Ids, Scope};
 const MAX_PAGE_SIZE: usize = 3800;
 pub(crate) const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
 
+fn felt_to_bool(felt: Felt, id: Ids) -> Result<bool, OsHintError> {
+    match felt {
+        x if x == Felt::ONE => Ok(true),
+        x if x == Felt::ZERO => Ok(false),
+        _ => Err(OsHintError::BooleanIdExpected { id, felt }),
+    }
+}
+
 pub(crate) fn load_public_keys_into_memory(
     vm: &mut VirtualMachine,
     ids_data: &HashMap<String, HintReference>,
@@ -97,39 +105,19 @@ pub(crate) fn set_state_updates_start(
     let compress_state_updates =
         get_integer_from_var_name(Ids::CompressStateUpdates.into(), vm, ids_data, ap_tracking)?;
 
-    let use_kzg_da = match use_kzg_da_felt {
-        x if x == Felt::ONE => Ok(true),
-        x if x == Felt::ZERO => Ok(false),
-        _ => Err(OsHintError::BooleanIdExpected { id: Ids::UseKzgDa, felt: use_kzg_da_felt }),
-    }?;
+    let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 
-    let use_compress_state_updates = match compress_state_updates {
-        x if x == Felt::ONE => Ok(true),
-        x if x == Felt::ZERO => Ok(false),
-        _ => Err(OsHintError::BooleanIdExpected {
-            id: Ids::CompressStateUpdates,
-            felt: compress_state_updates,
-        }),
-    }?;
+    let use_compress_state_updates =
+        felt_to_bool(compress_state_updates, Ids::CompressStateUpdates)?;
 
-    if use_kzg_da || use_compress_state_updates {
-        insert_value_from_var_name(
-            Ids::StateUpdatesStart.into(),
-            vm.add_memory_segment(),
-            vm,
-            ids_data,
-            ap_tracking,
-        )?;
+    let segment = if use_kzg_da || use_compress_state_updates {
+        vm.add_memory_segment()
     } else {
         // Assign a temporary segment, to be relocated into the output segment.
-        insert_value_from_var_name(
-            Ids::StateUpdatesStart.into(),
-            vm.add_temporary_segment(),
-            vm,
-            ids_data,
-            ap_tracking,
-        )?;
-    }
+        vm.add_temporary_segment()
+    };
+
+    insert_value_from_var_name(Ids::StateUpdatesStart.into(), segment, vm, ids_data, ap_tracking)?;
 
     Ok(())
 }
@@ -137,32 +125,38 @@ pub(crate) fn set_state_updates_start(
 pub(crate) fn set_compressed_start(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
+    let n_keys = get_integer_from_var_name(Ids::NKeys.into(), vm, ids_data, ap_tracking)?;
     let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
-    let use_kzg_da = match use_kzg_da_felt {
-        x if x == Felt::ONE => Ok(true),
-        x if x == Felt::ZERO => Ok(false),
-        _ => Err(OsHintError::BooleanIdExpected { id: Ids::UseKzgDa, felt: use_kzg_da_felt }),
-    }?;
+    let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
 
-    if use_kzg_da {
-        insert_value_from_var_name(
-            Ids::CompressedStart.into(),
-            vm.add_memory_segment(),
-            vm,
-            ids_data,
-            ap_tracking,
-        )?;
+    let segment = if use_kzg_da || n_keys > Felt::ZERO {
+        vm.add_memory_segment()
     } else {
         // Assign a temporary segment, to be relocated into the output segment.
-        insert_value_from_var_name(
-            Ids::CompressedStart.into(),
-            vm.add_temporary_segment(),
-            vm,
-            ids_data,
-            ap_tracking,
-        )?;
-    }
+        vm.add_temporary_segment()
+    };
+
+    insert_value_from_var_name(Ids::CompressedStart.into(), segment, vm, ids_data, ap_tracking)?;
+
+    Ok(())
+}
+
+pub(crate) fn set_encrypted_start(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+
+    let use_kzg_da = felt_to_bool(use_kzg_da_felt, Ids::UseKzgDa)?;
+
+    let segment = if use_kzg_da {
+        vm.add_memory_segment()
+    } else {
+        // Assign a temporary segment, to be relocated into the output segment.
+        vm.add_temporary_segment()
+    };
+
+    insert_value_from_var_name(Ids::EncryptedStart.into(), segment, vm, ids_data, ap_tracking)?;
 
     Ok(())
 }

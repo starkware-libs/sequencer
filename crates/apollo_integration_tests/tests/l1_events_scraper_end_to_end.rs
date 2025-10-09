@@ -4,9 +4,9 @@ use std::time::Duration;
 use alloy::primitives::U256;
 use apollo_integration_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig};
+use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
-use mockall::predicate::eq;
+use apollo_l1_scraper_config::config::L1ScraperConfig;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
@@ -136,13 +136,23 @@ async fn scraper_end_to_end() {
         cancellation_request_timestamp: cancel_timestamp,
     };
 
+    let expected_events = vec![first_expected_log, second_expected_log, expected_cancel_message];
+
     let mut sequence = Sequence::new();
     // Expect first call to return all the events defined further down.
     l1_provider_client
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
-        .with(eq(vec![first_expected_log, second_expected_log, expected_cancel_message]))
+        .withf(move |events| {
+            if events.len() != expected_events.len() {
+                return false;
+            }
+            for (event, expected_event) in events.iter().zip(expected_events.iter()) {
+                event.assert_event_almost_eq(expected_event);
+            }
+            true
+        })
         .returning(|_| Ok(()));
 
     // Expect second call to return nothing, no events left to scrape.

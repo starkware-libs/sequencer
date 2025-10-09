@@ -701,6 +701,118 @@
       "observer_applicable": "false"
     },
     {
+      "name": "sync_storage_open_read_transactions",
+      "title": "sync - High number of open read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(sync_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "batcher_storage_open_read_transactions",
+      "title": "batcher - High number of open read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(batcher_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "class_manager_storage_open_read_transactions",
+      "title": "class_manager - High number of open read transactions",
+      "ruleGroup": "state_sync",
+      "expr": "max_over_time(class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              7500.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "http_server_high_transaction_failure_ratio",
+      "title": "http server high transaction failure ratio",
+      "ruleGroup": "http_server",
+      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.3
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
       "name": "batched_transactions_stuck",
       "title": "Batched transactions stuck",
       "ruleGroup": "batcher",
@@ -893,7 +1005,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "p4",
       "observer_applicable": "false"
     },
     {
@@ -1102,34 +1214,6 @@
           "evaluator": {
             "params": [
               2.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p2",
-      "observer_applicable": "false"
-    },
-    {
-      "name": "http_server_high_transaction_failure_ratio",
-      "title": "http server high transaction failure ratio",
-      "ruleGroup": "http_server",
-      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              0.3
             ],
             "type": "gt"
           },
