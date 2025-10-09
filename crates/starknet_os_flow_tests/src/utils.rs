@@ -45,13 +45,18 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
+use starknet_committer::patricia_merkle_tree::types::{
+    CompiledClassHash,
+    RootHashes,
+    StarknetForestProofs,
+};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
@@ -300,34 +305,55 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             .collect();
         storage.insert(address, previous_storage_leaves);
     }
-    // Note: The generic type `<CompiledClassHash>` here is arbitrary.
-    let commitments = filter_inner_nodes_from_commitments::<CompiledClassHash>(commitments);
+
+    let storage_proofs = fetch_storage_proofs_from_state_maps(
+        extended_state_diff,
+        commitments,
+        RootHashes {
+            previous_root_hash: previous_commitment.classes_trie_root_hash,
+            new_root_hash: new_commitment.classes_trie_root_hash,
+        },
+        RootHashes {
+            previous_root_hash: previous_commitment.contracts_trie_root_hash,
+            new_root_hash: new_commitment.contracts_trie_root_hash,
+        },
+    );
     let contracts_trie_commitment_info = CommitmentInfo {
         previous_root: previous_commitment.contracts_trie_root_hash,
         updated_root: new_commitment.contracts_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-        commitment_facts: commitments.clone(),
+        commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
     };
     let classes_trie_commitment_info = CommitmentInfo {
         previous_root: previous_commitment.classes_trie_root_hash,
         updated_root: new_commitment.classes_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-        commitment_facts: commitments.clone(),
+        commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
     };
     let storage_tries_commitment_infos = address_to_previous_storage_root_hash
         .iter()
         .map(|(address, previous_root_hash)| {
+            // Not all contracts in `address_to_previous_storage_root_hash` are in
+            // `extended_state_diff`. For example a contract that only its Nonce was
+            // changed.
+            let storage_proof = flatten_preimages(
+                storage_proofs
+                    .contracts_trie_storage_proofs
+                    .get(address)
+                    .unwrap_or(&HashMap::new()),
+            );
             (
                 *address,
                 CommitmentInfo {
                     previous_root: *previous_root_hash,
                     updated_root: new_storage_roots[address],
                     tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-                    commitment_facts: commitments.clone(),
+                    commitment_facts: storage_proof,
                 },
             )
         })
         .collect();
+
     (
         CachedStateInput {
             storage,
@@ -402,7 +428,6 @@ pub(crate) fn divide_vec_into_n_parts<T>(mut vec: Vec<T>, n: usize) -> Vec<Vec<T
     items_per_part
 }
 
-// TODO(Nimrod): Consider moving it to a method of `FeatureContract`.
 pub(crate) fn get_class_info_of_feature_contract(feature_contract: FeatureContract) -> ClassInfo {
     match feature_contract.get_class() {
         ContractClass::V0(contract_class) => {
@@ -431,4 +456,37 @@ pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContra
         ContractClass::V0(class) => ClassHash(compute_deprecated_class_hash(&class).unwrap()),
         ContractClass::V1(_) => feature_contract.get_sierra().calculate_class_hash(),
     }
+}
+
+fn fetch_storage_proofs_from_state_maps(
+    state_maps: &StateMaps,
+    storage: &mut MapStorage,
+    classes_trie_root_hashes: RootHashes,
+    contracts_trie_root_hashes: RootHashes,
+) -> StarknetForestProofs {
+    let class_hashes: Vec<ClassHash> = state_maps
+        .compiled_class_hashes
+        .keys()
+        .cloned()
+        .chain(state_maps.class_hashes.values().cloned())
+        .collect();
+    let contract_addresses =
+        &state_maps.get_contract_addresses().iter().cloned().collect::<Vec<_>>();
+    let contract_storage_keys = state_maps.storage.keys().fold(
+        HashMap::<ContractAddress, Vec<StarknetStorageKey>>::new(),
+        |mut acc, (address, key)| {
+            acc.entry(*address).or_default().push(StarknetStorageKey(*key));
+            acc
+        },
+    );
+
+    fetch_previous_and_new_patricia_paths(
+        storage,
+        classes_trie_root_hashes,
+        contracts_trie_root_hashes,
+        &class_hashes,
+        contract_addresses,
+        &contract_storage_keys,
+    )
+    .unwrap()
 }
