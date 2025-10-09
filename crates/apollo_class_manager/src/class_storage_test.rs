@@ -102,7 +102,33 @@ fn fs_storage_deprecated_class_api() {
     storage.set_deprecated_class(class_id, executable_class).unwrap();
 }
 
-// TODO(Elin): check a nonexistent persistent root (should be created).
+#[test]
+fn fs_storage_nonexistent_persistent_root_is_created() {
+    let parent_dir = create_tmp_dir().unwrap();
+    let nonexistent_root = parent_dir.path().join("nonexistent_root");
+    assert!(!nonexistent_root.exists());
+
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let class_hash_storage = ClassHashStorage::new_for_testing(&class_hash_storage_path_prefix);
+    let mut storage =
+        FsClassStorage { persistent_root: nonexistent_root.clone(), class_hash_storage };
+
+    // Write a new class, which should create the persistent root directories as needed.
+    let class_id = ClassHash(felt!("0x1234"));
+    let class = RawClass::try_from(SierraContractClass::default()).unwrap();
+    let executable_class =
+        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class_hash_v2 = CompiledClassHash(felt!("0x5678"));
+    storage
+        .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
+        .unwrap();
+
+    assert!(nonexistent_root.exists());
+
+    assert_eq!(storage.get_sierra(class_id).unwrap(), Some(class));
+    assert_eq!(storage.get_executable(class_id).unwrap(), Some(executable_class));
+}
+
 // TODO(Elin): add unimplemented skeletons for test above and rest of missing tests.
 
 /// This scenario simulates a (manual) DB corruption; e.g., files were deleted.
