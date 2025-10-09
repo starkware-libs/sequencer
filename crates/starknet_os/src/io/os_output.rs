@@ -111,12 +111,12 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
 pub struct MessageToL2 {
     // The L1 address of the contract sending the message.
-    pub(crate) from_address: EthAddress,
+    pub from_address: EthAddress,
     // The L2 address of the contract receiving the message.
-    pub(crate) to_address: ContractAddress,
-    pub(crate) nonce: Nonce,
-    pub(crate) selector: EntryPointSelector,
-    pub(crate) payload: L1ToL2Payload,
+    pub to_address: ContractAddress,
+    pub nonce: Nonce,
+    pub selector: EntryPointSelector,
+    pub payload: L1ToL2Payload,
 }
 
 impl TryFromOutputIter for MessageToL2 {
