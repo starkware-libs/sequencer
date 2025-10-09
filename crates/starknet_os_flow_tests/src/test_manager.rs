@@ -11,6 +11,7 @@ use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -26,10 +27,11 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
+use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
 use starknet_os::io::os_input::{
@@ -60,6 +62,7 @@ use crate::initial_state::{
     OsExecutionContracts,
 };
 use crate::state_trait::FlowTestState;
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
     create_cached_state_input_and_commitment_infos,
@@ -369,6 +372,32 @@ impl<S: FlowTestState> TestManager<S> {
             tx: BlockifierTransaction::new_for_sequencing(StarknetApiTransaction::L1Handler(tx)),
             expected_revert_reason,
         });
+    }
+
+    pub(crate) fn add_fund_address_tx_with_default_amount(
+        &mut self,
+        address: ContractAddress,
+        nonce_manager: &mut NonceManager,
+    ) {
+        let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
+        self.add_fund_address_tx(address, nonce_manager, transfer_amount);
+    }
+
+    pub(crate) fn add_fund_address_tx(
+        &mut self,
+        address: ContractAddress,
+        nonce_manager: &mut NonceManager,
+        amount: u128,
+    ) {
+        let transfer_tx_args = invoke_tx_args! {
+            sender_address: *FUNDED_ACCOUNT_ADDRESS,
+            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+            calldata: create_calldata(
+                *STRK_FEE_TOKEN_ADDRESS, "transfer", &[**address, Felt::from(amount), Felt::ZERO]
+            ),
+            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        };
+        self.add_invoke_tx_from_args(transfer_tx_args, &CHAIN_ID_FOR_TESTS, None);
     }
 
     /// Executes the test using default block contexts, starting from the given block number.
