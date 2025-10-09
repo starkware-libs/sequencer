@@ -27,11 +27,17 @@ RUN RUSTFLAGS="--cfg tokio_unstable" cargo build --release --bin broadcast_netwo
 # --- Final Stage: Runtime image ---
 FROM ubuntu:24.04 AS final_stage
 
-RUN apt update && apt -y install iproute2 kmod chrony && apt clean && rm -rf /var/lib/apt/lists/*
+# Install network tools and BBR congestion control support
+RUN apt update && apt -y install iproute2 kmod chrony net-tools tcpdump && apt clean && rm -rf /var/lib/apt/lists/*
 
+# Copy application and TCP configuration script (runs at container startup)
 COPY --from=builder /app/target/release/broadcast_network_stress_test_node /usr/local/bin/broadcast_network_stress_test_node
 COPY --from=builder /app/crates/apollo_network/src/bin/broadcast_network_stress_test_node/run/entrypoint.sh /entrypoint.sh
+COPY --from=builder /app/crates/apollo_network/src/bin/broadcast_network_stress_test_node/run/tcp_config.sh /tcp_config.sh
 
 RUN chmod +x /entrypoint.sh
+RUN chmod +x /tcp_config.sh
+
+RUN /tcp_config.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

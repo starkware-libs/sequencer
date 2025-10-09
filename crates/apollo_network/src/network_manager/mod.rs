@@ -831,10 +831,39 @@ impl NetworkManager {
             }
             None => Keypair::generate_ed25519(),
         };
+        // Configure TCP transport for HIGH THROUGHPUT, HIGH LATENCY scenarios
+        // Note: TCP keepalive to maintain long-lived connections during inactivity is typically
+        // configured at the OS level via sysctl parameters (tcp_keepalive_time,
+        // tcp_keepalive_intvl, tcp_keepalive_probes). Nodelay is enabled by default to
+        // reduce latency.
+        let tcp_config = libp2p::tcp::Config::default().nodelay(true); // Explicitly disable Nagle's algorithm for immediate sending
+
+        // Configure Yamux for MAXIMUM THROUGHPUT without waiting for acknowledgments
+        let yamux_config = {
+            let mut config = libp2p::yamux::Config::default();
+            // CRITICAL: Set receive window size to 32 MiB per stream (matching TCP buffer capacity)
+            // This allows the sender to transmit up to 32 MiB of data per stream before
+            // waiting for window updates, which works with our 64MB TCP buffers and is essential
+            // for high-bandwidth, high-latency scenarios.
+            // Note: This method is deprecated but functional. It will be replaced with
+            // a connection-level receive window in a future libp2p release.
+            #[allow(deprecated)]
+            config.set_receive_window_size(32 * 1024 * 1024); // 32 MiB per stream
+
+            // Set max buffer size to match the receive window
+            #[allow(deprecated)]
+            config.set_max_buffer_size(32 * 1024 * 1024); // 32 MiB per stream
+
+            // Allow maximum concurrent streams for parallel data transmission
+            config.set_max_num_streams(4096); // increased from default 512 for maximum parallelism
+
+            config
+        };
+
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
         // TODO(AndrewL): .with_quic()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+        .with_tcp(tcp_config, noise::Config::new, || yamux_config.clone())
         .expect("Error building TCP transport")
         .with_dns()
         .expect("Error building DNS transport")
