@@ -267,7 +267,7 @@
             },
             "CONTRACT_CLASS_SIZE_IS_TOO_LARGE": {
                 "code": 57,
-                "message": "Contract class size it too large"
+                "message": "Contract class size is too large"
             },
             "NON_ACCOUNT": {
                 "code": 58,

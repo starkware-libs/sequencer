@@ -98,7 +98,7 @@ pub const COMPILATION_FAILED: JsonRpcError<String> =
     JsonRpcError { code: 56, message: "Compilation failed", data: None };
 
 pub const CONTRACT_CLASS_SIZE_IS_TOO_LARGE: JsonRpcError<String> =
-    JsonRpcError { code: 57, message: "Contract class size it too large", data: None };
+    JsonRpcError { code: 57, message: "Contract class size is too large", data: None };
 
 pub const NON_ACCOUNT: JsonRpcError<String> =
     JsonRpcError { code: 58, message: "Sender address in not an account contract", data: None };
