@@ -95,13 +95,12 @@ pub(crate) fn naive_unpack_felt252s_to_u32s(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let (unpacked_u32s, vals) = unpack_setup(vm, ids_data, ap_tracking)?;
-
     let out: Vec<MaybeRelocatable> = vals
         .into_iter()
         .map(|val| val.to_biguint())
         .flat_map(|mut val| {
             let mut limbs = vec![BigUint::from(0_u32); 8];
-            for limb in limbs.iter_mut().rev() {
+            for limb in limbs.iter_mut() {
                 let (q, r) = val.div_rem(&POW2_32);
                 *limb = r;
                 val = q;
