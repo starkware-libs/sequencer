@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_mempool_config::config::MempoolConfig;
@@ -29,10 +30,12 @@ pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResp
 pub fn create_mempool(
     config: MempoolConfig,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+    config_manager_client: SharedConfigManagerClient,
 ) -> MempoolCommunicationWrapper {
     MempoolCommunicationWrapper::new(
         Mempool::new(config, Arc::new(DefaultClock)),
         mempool_p2p_propagator_client,
+        config_manager_client,
     )
 }
 
@@ -40,14 +43,20 @@ pub fn create_mempool(
 pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+    config_manager_client: SharedConfigManagerClient,
 }
 
 impl MempoolCommunicationWrapper {
     pub fn new(
         mempool: Mempool,
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> Self {
-        MempoolCommunicationWrapper { mempool, mempool_p2p_propagator_client }
+        MempoolCommunicationWrapper {
+            mempool,
+            mempool_p2p_propagator_client,
+            config_manager_client,
+        }
     }
 
     async fn send_tx_to_p2p(
@@ -70,6 +79,15 @@ impl MempoolCommunicationWrapper {
                 Ok(())
             }
         }
+    }
+
+    async fn update_dynamic_config(&mut self) {
+        let mempool_dynamic_config = self
+            .config_manager_client
+            .get_mempool_dynamic_config()
+            .await
+            .expect("Should be able to get mempool dynamic config");
+        self.mempool.update_dynamic_config(mempool_dynamic_config);
     }
 
     pub(crate) async fn add_tx(
@@ -115,6 +133,8 @@ impl MempoolCommunicationWrapper {
 #[async_trait]
 impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommunicationWrapper {
     async fn handle_request(&mut self, request: MempoolRequest) -> MempoolResponse {
+        // Update the dynamic config before handling the request.
+        self.update_dynamic_config().await;
         match request {
             MempoolRequest::AddTransaction(args) => {
                 MempoolResponse::AddTransaction(self.add_tx(args).await)

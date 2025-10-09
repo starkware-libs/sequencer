@@ -1771,6 +1771,7 @@ dependencies = [
 name = "apollo_mempool"
 version = "0.16.0-rc.0"
 dependencies = [
+ "apollo_config_manager_types",
  "apollo_infra",
  "apollo_mempool_config",
  "apollo_mempool_p2p_types",
