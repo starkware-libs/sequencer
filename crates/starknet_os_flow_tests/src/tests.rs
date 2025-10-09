@@ -232,3 +232,52 @@ async fn trivial_diff_scenario(
 
     test_output.perform_default_validations();
 }
+
+/// This test verifies that when an entry point modifies storage and then reverts (panics):
+/// 1. All storage changes made before the revert are properly rolled back.
+/// 2. The transaction fee is still deducted from the caller's account.
+#[rstest]
+#[tokio::test]
+async fn test_reverted_invoke_tx(
+    #[values(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+    )]
+    test_contract: FeatureContract,
+) {
+    let (use_kzg_da, full_output) = (true, false);
+
+    let (mut test_manager, mut nonce_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    // Call a reverting function that changes the storage.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(test_contract_address, "write_and_revert", &[]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+
+    // Execute the test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            ..Default::default()
+        })
+        .await;
+
+    // Check that the storage was reverted (no change in test contract address).
+    assert!(
+        !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
+    );
+    // Check that a fee was deducted.
+    test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
+
+    test_output.perform_default_validations();
+}
