@@ -529,11 +529,6 @@
     "privacy": "Public",
     "value": 1000
   },
-  "sync.store_sierras_and_casms": {
-    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
-    "privacy": "Public",
-    "value": true
-  },
   "sync.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
     "privacy": "Public",

@@ -287,7 +287,6 @@ impl<
             self.config.block_propagation_sleep_duration,
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
-            self.config.store_sierras_and_casms,
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -302,8 +301,7 @@ impl<
         };
         // TODO(dvir): try use interval instead of stream.
         // TODO(DvirYo): fix the bug and remove this check.
-        let check_sync_progress =
-            check_sync_progress(self.reader.clone(), self.config.store_sierras_and_casms).fuse();
+        let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
         pin_mut!(
             block_stream,
             state_diff_stream,
@@ -513,7 +511,6 @@ impl<
             }
         }
         let has_class_manager = self.class_manager_client.is_some();
-        let store_sierras_and_casms = self.config.store_sierras_and_casms;
         self.perform_storage_writes(move |writer| {
             if has_class_manager {
                 writer
@@ -527,16 +524,10 @@ impl<
             // Non backwards compatible classes must be stored for later use since we will only be
             // be adding them to the class manager later, once we have their compiled
             // classes.
-            //
-            // TODO(guy.f): Properly fix handling non backwards compatible classes.
-            if store_sierras_and_casms || block_contains_non_backwards_compatible_classes {
-                let store_reason = if store_sierras_and_casms {
-                    "store_sierras_and_casms is true"
-                } else {
-                    "block_contains_non_backwards_compatible_classes is true"
-                };
+            if block_contains_non_backwards_compatible_classes {
                 debug!(
-                    "Appending classes {:?} to storage since {store_reason}",
+                    "Appending classes {:?} to storage since it contains classes that are not \
+                     backwards compatible with the compiler",
                     classes.keys().collect::<Vec<_>>()
                 );
                 txn = txn.append_classes(
@@ -552,8 +543,8 @@ impl<
                 )?;
             } else {
                 trace!(
-                    "Skipping appending classes {:?} to storage since store_sierras_and_casms is \
-                     false and block_contains_non_backwards_compatible_classes is false",
+                    "Skipping appending classes {:?} to storage since its classes are backward \
+                     compatible with the compiler",
                     classes.keys().collect::<Vec<_>>()
                 );
             }
@@ -601,9 +592,6 @@ impl<
                     .await
                     .expect("Failed adding class and compiled class to class manager.");
             }
-        }
-        if !self.config.store_sierras_and_casms {
-            return Ok(());
         }
         let result = self
             .perform_storage_writes(move |writer| {
@@ -937,7 +925,6 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
-    store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
@@ -973,12 +960,10 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 up_to = compiler_backward_compatibility_marker;
             }
 
-            // No point in downloading casms if we don't store them and don't send them to the
-            // class manager
-            if are_casms_backward_compatible && !store_sierras_and_casms {
+            // No point in downloading casms if we don't send them to the class manager
+            if are_casms_backward_compatible {
                 info!("Compiled classes stream reached a block that has backward compatibility for \
-                      the compiler, and store_sierras_and_casms is set to false. \
-                      Finishing the compiled class stream");
+                      the compiler. Finishing the compiled class stream");
                 pending::<()>().await;
                 continue;
             }
@@ -1039,7 +1024,6 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
 // TODO(dvir): add a test for this scenario.
 fn check_sync_progress(
     reader: StorageReader,
-    store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         let (mut header_marker, mut state_marker, mut casm_marker) = {
@@ -1061,7 +1045,7 @@ fn check_sync_progress(
                 let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
                 (new_header_marker, new_state_marker, new_casm_marker, compiler_backward_compatibility_marker)
             };
-            let is_casm_stuck = casm_marker == new_casm_marker && (new_casm_marker < compiler_backward_compatibility_marker || store_sierras_and_casms);
+            let is_casm_stuck = casm_marker == new_casm_marker && new_casm_marker < compiler_backward_compatibility_marker;
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event. Header marker: {header_marker}, \
                        State marker: {state_marker}, Casm marker: {casm_marker}.");
