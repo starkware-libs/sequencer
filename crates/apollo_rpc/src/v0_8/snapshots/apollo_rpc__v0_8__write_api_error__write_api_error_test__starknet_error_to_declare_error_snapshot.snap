@@ -81,7 +81,7 @@ expression: get_conversion_snapshot(starknet_error_to_declare_error)
       "code": {
         "$serde_json::private::Number": "57"
       },
-      "message": "Contract class size it too large"
+      "message": "Contract class size is too large"
     },
     {
       "code": "StarknetErrorCode.CONTRACT_CLASS_OBJECT_SIZE_TOO_LARGE",
