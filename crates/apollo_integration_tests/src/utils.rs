@@ -281,7 +281,7 @@ pub fn create_node_config(
     let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
     let class_manager_config =
         wrap_if_component_config_expected!(class_manager, class_manager_config);
-    let config_manager_config = ConfigManagerConfig::default();
+    let config_manager_config = ConfigManagerConfig::disabled();
     let config_manager_config =
         wrap_if_component_config_expected!(config_manager, config_manager_config);
     let consensus_manager_config =

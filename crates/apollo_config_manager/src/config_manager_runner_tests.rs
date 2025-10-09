@@ -2,6 +2,7 @@ use std::fs;
 use std::sync::Arc;
 
 use apollo_config::CONFIG_FILE_ARG;
+use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{
     MockConfigManagerClient,
     SharedConfigManagerClient,
@@ -91,11 +92,15 @@ async fn test_config_manager_runner_update_config_with_changed_values() {
     mock_client.expect_set_node_dynamic_config().times(1..).return_const(Ok(()));
     let config_manager_client: SharedConfigManagerClient = Arc::new(mock_client);
 
+    // Set a config manager config.
+    let config_manager_config = ConfigManagerConfig::default();
+
     // Create a temporary config file and get the validator id value.
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
 
     // Create a config manager runner and update the config.
-    let config_manager_runner = ConfigManagerRunner::new(config_manager_client, cli_args);
+    let config_manager_runner =
+        ConfigManagerRunner::new(config_manager_config, config_manager_client, cli_args);
 
     // Helper function to convert a hex string to a u128.
     fn hex_to_u128(s: &str) -> u128 {

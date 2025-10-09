@@ -3,7 +3,6 @@ use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigMan
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
@@ -43,11 +42,6 @@ impl ConfigManager {
         Ok(self.latest_node_dynamic_config.mempool_dynamic_config.as_ref().unwrap().clone())
     }
 }
-
-pub type LocalConfigManagerServer =
-    ConcurrentLocalComponentServer<ConfigManager, ConfigManagerRequest, ConfigManagerResponse>;
-pub type RemoteConfigManagerServer =
-    RemoteComponentServer<ConfigManagerRequest, ConfigManagerResponse>;
 
 #[async_trait]
 impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for ConfigManager {
