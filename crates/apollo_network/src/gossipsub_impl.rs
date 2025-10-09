@@ -40,10 +40,38 @@ pub type Topic = gossipsub::IdentTopic;
 #[cfg(not(test))]
 pub type Topic = gossipsub::Sha256Topic;
 
+/// External events emitted by the GossipSub behavior.
+///
+/// These events represent significant occurrences in the GossipSub protocol
+/// that need to be handled by the broader networking system.
 #[derive(Debug)]
 pub enum ExternalEvent {
+    /// A message was received from another peer.
+    ///
+    /// This event is triggered whenever a valid message is received through
+    /// the GossipSub network for a subscribed topic.
+    ///
+    /// # Fields
+    ///
+    /// * `originated_peer_id` - The peer ID of the message originator
+    /// * `message` - The raw message bytes
+    /// * `topic_hash` - Hash identifying the topic this message belongs to
+    ///
+    /// # Message Handling
+    ///
+    /// Upon receiving this event, the network manager will:
+    /// 1. Forward the message to registered topic subscribers
+    /// 2. Provide metadata about the message originator
+    /// 3. Enable validation and potential peer reporting
     #[allow(dead_code)]
-    Received { originated_peer_id: PeerId, message: Bytes, topic_hash: TopicHash },
+    Received {
+        /// The peer ID of the node that originally sent this message.
+        originated_peer_id: PeerId,
+        /// The raw message content as bytes.
+        message: Bytes,
+        /// The hash of the topic this message was sent on.
+        topic_hash: TopicHash,
+    },
 }
 
 impl From<gossipsub::Event> for mixed_behaviour::Event {
