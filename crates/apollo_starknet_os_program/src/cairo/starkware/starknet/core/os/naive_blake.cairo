@@ -1,18 +1,33 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
-from starkware.cairo.common.cairo_blake2s.blake2s import BLAKE2S_FINALIZE_INSTRUCTION
 
 // Computes blake2s of `input` of size 16 felts, representing 32 bits each.
 // The initial state is the standard BLAKE2s IV XORed with the parameter block P[0] = 0x01010020.
 func blake_with_opcode_for_single_16_length_word(data: felt*, out: felt*, initial_state: felt*) {
+    const BLAKE2S_FINALIZE_OPCODE_EXT = 2;
+    const OP0_REG = 1;  // State is fp-based.
+    const OP1_FP = 3;  // Data is fp-based.
+    const AP_ADD1 = 11;  // Increment ap by 1 after the instruction.
+    const BLAKE2S_FLAGS = 2 ** OP0_REG + 2 ** OP1_FP + 2 ** AP_ADD1;
+
+    const STATE_OFFSET = -3;
+    const MESSAGE_OFFSET = -5;
+    const COUNTER_OFFSET = -1;
+
+    const POS_STATE_OFFSET = 2 ** 15 + STATE_OFFSET;
+    const POS_MESSAGE_OFFSET = 2 ** 15 + MESSAGE_OFFSET;
+    const POS_COUNTER_OFFSET = 2 ** 15 + COUNTER_OFFSET;
+
+    const BLAKE2S_FINALIZE_INSTRUCTION = POS_COUNTER_OFFSET + POS_STATE_OFFSET * 2 ** 16 +
+        POS_MESSAGE_OFFSET * 2 ** 32 + BLAKE2S_FLAGS * 2 ** 48 + BLAKE2S_FINALIZE_OPCODE_EXT * 2 **
+        63;
+
     tempvar counter = 64;
-    [ap] = initial_state, ap++;
-    [ap] = data, ap++;
-    [ap] = counter, ap++;
     [ap] = out;
+    static_assert [ap + COUNTER_OFFSET] == counter;
+    static_assert [fp + STATE_OFFSET] == initial_state;
+    static_assert [fp + MESSAGE_OFFSET] == data;
     dw BLAKE2S_FINALIZE_INSTRUCTION;
-    // Increment AP after blake opcode.
-    ap += 1;
     return ();
 }
 
