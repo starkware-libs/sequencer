@@ -43,7 +43,7 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 26450,
+            gas_consumed: 26150,
         }
     "#]]
     .assert_debug_eq(&execution);

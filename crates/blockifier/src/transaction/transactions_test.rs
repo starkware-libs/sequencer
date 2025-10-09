@@ -556,17 +556,17 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: ExecutionResources::default(),
-        validate_gas_consumed: 8990, // The gas consumption results from parsing the input
+        validate_gas_consumed: 8590, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 115190,
+        execute_gas_consumed: 114690,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
     ExpectedResultTestInvokeTx{
         resources: ExecutionResources::default(),
-        validate_gas_consumed: 8990, // The gas consumption results from parsing the input
+        validate_gas_consumed: 8590, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 115190,
+        execute_gas_consumed: 114690,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -1781,7 +1781,7 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
 #[rstest]
 fn test_declare_redeposit_amount_regression() {
     expect![[r#"
-        7160
+        7260
     "#]]
     .assert_debug_eq(&*DECLARE_REDEPOSIT_AMOUNT);
 }
@@ -2025,7 +2025,7 @@ fn test_declare_tx_v0(
 #[rstest]
 fn test_deploy_account_redeposit_amount_regression() {
     expect![[r#"
-        6760
+        6860
     "#]]
     .assert_debug_eq(&*DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT);
 }
@@ -2774,7 +2774,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Regression-test the gas consumed, and then set to zero to compare the rest of the resources.
     let expected_gas = expect![[r#"
-        15850
+        15550
     "#]];
     expected_gas.assert_debug_eq(&actual_execution_info.receipt.resources.computation.sierra_gas.0);
     actual_execution_info.receipt.resources.computation.sierra_gas.0 = 0;
@@ -2790,7 +2790,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    200875,
+                    200575,
                 ),
             }
         "#]]
@@ -2804,7 +2804,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    149975,
+                    149675,
                 ),
             }
         "#]]
