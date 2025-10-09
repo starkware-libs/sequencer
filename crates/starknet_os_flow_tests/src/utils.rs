@@ -9,7 +9,6 @@ use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutionOutput,
     TransactionExecutor,
-    TransactionExecutorError,
 };
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
@@ -109,11 +108,17 @@ pub(crate) fn execute_transactions<S: FlowTestState>(
 
     // Execute the transactions and make sure none of them failed.
     let execution_deadline = None;
-    let execution_outputs = executor
-        .execute_txs(txs, execution_deadline)
-        .into_iter()
-        .collect::<Result<_, TransactionExecutorError>>()
-        .expect("Unexpected error during execution.");
+    let execution_results =
+        executor.execute_txs(txs, execution_deadline).into_iter().collect::<Vec<Result<_, _>>>();
+    let mut execution_outputs = Vec::new();
+    for (tx_index, result) in execution_results.into_iter().enumerate() {
+        match result {
+            Ok(output) => execution_outputs.push(output),
+            Err(error) => {
+                panic!("Unexpected error during execution of tx at index {tx_index}: {error:?}.");
+            }
+        }
+    }
 
     // Finalize the block to get the state diff.
     let block_summary = executor.finalize().expect("Failed to finalize block.");
