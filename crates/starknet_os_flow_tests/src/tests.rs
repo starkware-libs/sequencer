@@ -1034,17 +1034,7 @@ async fn test_v1_bound_accounts_cairo1() {
 
     // Transfer funds to the account.
     let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(max_tip).0;
-    let transfer_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            *STRK_FEE_TOKEN_ADDRESS,
-            "transfer",
-            &[**v1_bound_account_address, Felt::from(transfer_amount), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(transfer_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_fund_address_tx(v1_bound_account_address, &mut nonce_manager, transfer_amount);
 
     // Create an invoke tx, compute the hash, sign the hash and update the signature on the tx.
     let invoke_tx_args = invoke_tx_args! {
@@ -1627,18 +1617,8 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     )
     .unwrap();
     // Fund the address.
-    let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
-    let transfer_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            *STRK_FEE_TOKEN_ADDRESS,
-            "transfer",
-            &[**faulty_account_address, Felt::from(transfer_amount), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(transfer_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager
+        .add_fund_address_tx_with_default_amount(faulty_account_address, &mut nonce_manager);
 
     // Create a DeployAccount transaction.
     let deploy_tx_args = deploy_account_tx_args! {
@@ -1789,18 +1769,8 @@ async fn test_deprecated_tx_info() {
     .unwrap();
 
     // Fund the address.
-    let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
-    let transfer_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            *STRK_FEE_TOKEN_ADDRESS,
-            "transfer",
-            &[**tx_info_account_address, Felt::from(transfer_amount), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(transfer_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager
+        .add_fund_address_tx_with_default_amount(tx_info_account_address, &mut nonce_manager);
 
     // Deploy the account.
     let deploy_tx_args = deploy_account_tx_args! {
@@ -2078,18 +2048,8 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     .unwrap();
 
     // Fund the address.
-    let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
-    let transfer_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            *STRK_FEE_TOKEN_ADDRESS,
-            "transfer",
-            &[**block_info_account_address, Felt::from(transfer_amount), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(transfer_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager
+        .add_fund_address_tx_with_default_amount(block_info_account_address, &mut nonce_manager);
 
     // Deploy the contract using a DeployAccount transaction.
     let deploy_account_tx_args = deploy_account_tx_args! {
@@ -2166,18 +2126,7 @@ async fn test_initial_sierra_gas() {
         .await;
 
     // Fund the account.
-    let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
-    let fund_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            *STRK_FEE_TOKEN_ADDRESS,
-            "transfer",
-            &[**account_address, Felt::from(transfer_amount), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(fund_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_fund_address_tx_with_default_amount(account_address, &mut nonce_manager);
 
     // Test invoke gas limits.
     let os_constants = &VersionedConstants::latest_constants().os_constants;
