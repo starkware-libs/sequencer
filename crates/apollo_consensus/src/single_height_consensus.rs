@@ -351,12 +351,14 @@ impl SingleHeightConsensus {
         }
 
         let (votes, sm_vote) = match vote.vote_type {
-            VoteType::Prevote => {
-                (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, vote.round))
-            }
-            VoteType::Precommit => {
-                (&mut self.precommits, StateMachineEvent::Precommit(vote.block_hash, vote.round))
-            }
+            VoteType::Prevote => (
+                &mut self.prevotes,
+                StateMachineEvent::Prevote(vote.proposal_commitment, vote.round),
+            ),
+            VoteType::Precommit => (
+                &mut self.precommits,
+                StateMachineEvent::Precommit(vote.proposal_commitment, vote.round),
+            ),
         };
 
         match votes.entry((vote.round, vote.voter)) {
@@ -365,7 +367,7 @@ impl SingleHeightConsensus {
             }
             Entry::Occupied(entry) => {
                 let old = entry.get();
-                if old.block_hash != vote.block_hash {
+                if old.proposal_commitment != vote.proposal_commitment {
                     warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
                     CONSENSUS_CONFLICTING_VOTES.increment(1);
                     return Ok(ShcReturn::Tasks(Vec::new()));
@@ -525,7 +527,7 @@ impl SingleHeightConsensus {
             vote_type,
             height: self.height.0,
             round,
-            block_hash: proposal_id,
+            proposal_commitment: proposal_id,
             voter: self.id,
         };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
@@ -573,7 +575,8 @@ impl SingleHeightConsensus {
             })?;
         if block != proposal_id {
             return Err(invalid_decision(format!(
-                "StateMachine block hash should match the stored block. Shc.block_id: {block}"
+                "StateMachine proposal commitment should match the stored block. Shc.block_id: \
+                 {block}"
             )));
         }
         let supporting_precommits: Vec<Vote> = self
@@ -581,7 +584,11 @@ impl SingleHeightConsensus {
             .iter()
             .filter_map(|v| {
                 let vote = self.precommits.get(&(round, *v))?;
-                if vote.block_hash == Some(proposal_id) { Some(vote.clone()) } else { None }
+                if vote.proposal_commitment == Some(proposal_id) {
+                    Some(vote.clone())
+                } else {
+                    None
+                }
             })
             .collect();
 
