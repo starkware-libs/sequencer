@@ -198,7 +198,9 @@ fn test_send_compilation_request_channel_full() {
 #[rstest]
 #[case::success(create_test_request(), true, false)]
 #[case::failure(create_faulty_request(), false, false)]
-#[should_panic(expected = "Compilation failed")]
+#[should_panic(expected = "Compilation of class hash: \
+                           0x0000000000000000000000000000000000000000000000000000000080070000 \
+                           failed")]
 #[case::panics_on_failure(create_faulty_request(), false, true)]
 fn test_process_compilation_request(
     #[case] request: CompilationRequest,
