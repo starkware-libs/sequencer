@@ -1,10 +1,19 @@
 pub mod class_manager;
-pub mod class_storage;
+mod class_storage;
 pub mod communication;
 pub mod metrics;
 
+// Re-export selected items from the now-private class_storage module.
+pub use class_storage::{
+    CachedClassStorage,
+    ClassHashStorage,
+    ClassHashStorageError,
+    ClassStorage,
+    FsClassStorage,
+    FsClassStorageError,
+};
+
 use crate::class_manager::ClassManager as GenericClassManager;
-use crate::class_storage::FsClassStorage;
 
 pub struct FsClassManager(pub GenericClassManager<FsClassStorage>);
 
