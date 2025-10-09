@@ -238,7 +238,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     Some("bad version"),
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        message: "Version field is not a valid hex string: bad version".to_string(),
+        message: "Version field is not a valid hex string: badversion".to_string(), //Note: whitespaces are removed when parsing malformed tx jsons
     }
 )]
 #[case::old_version(2, Some("0x1"), StarknetError {
@@ -288,7 +288,8 @@ async fn sanitizing_error_message() {
     let mut tx_json =
         TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
     let tx_object = tx_json.0.as_object_mut().unwrap();
-    let malicious_version: &'static str = "<script>alert(1)\n</script>\"'`[](){}_!@#$%^&*+=~";
+    let malicious_version: &'static str =
+        "<script>alert(1)\n</script>'`[](){}_!@#$%^&*+=~\"'`[](){}_!@#$%^&*+=~";
     tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
 
     let mock_gateway_client = MockGatewayClient::new();
@@ -312,7 +313,7 @@ async fn sanitizing_error_message() {
 
     // Make sure it is escaped correctly.
     assert!(
-        starknet_error.message.contains(" script alert(1)   script '''[](){}_           "),
+        starknet_error.message.contains(" script alert(1) n  script ''[](){}_            "),
         "Escaped message not found. This is the returned error message: {}",
         starknet_error.message
     );
