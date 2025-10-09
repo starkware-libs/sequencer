@@ -83,7 +83,6 @@ members = [
   "crates/apollo_task_executor",
   "crates/apollo_test_utils",
   "crates/apollo_time",
-  "crates/blake2s",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/blockifier_test_utils",
@@ -216,7 +215,6 @@ bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
 blake2 = "0.10.6"
-blake2s = { path = "crates/blake2s" }
 blockifier = { path = "crates/blockifier", version = "0.16.0-rc.0" }
 blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.16.0-rc.0" }
