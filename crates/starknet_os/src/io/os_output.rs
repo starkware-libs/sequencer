@@ -371,13 +371,17 @@ impl OsOutput {
 #[derive(Debug)]
 pub struct StarknetOsRunnerOutput {
     pub raw_os_output: Vec<Felt>,
-    #[cfg(feature = "include_program_output")]
-    pub os_output: OsOutput,
     pub cairo_pie: CairoPie,
     pub da_segment: Option<Vec<Felt>>,
     pub metrics: OsMetrics,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
+}
+
+impl StarknetOsRunnerOutput {
+    pub fn get_os_output(&self) -> Result<OsOutput, StarknetOsError> {
+        Ok(OsOutput::try_from_output_iter(&mut self.raw_os_output.clone().into_iter())?)
+    }
 }
 
 pub struct StarknetAggregatorRunnerOutput {
