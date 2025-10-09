@@ -34,6 +34,7 @@ validator.workspace = true
 
 [dev-dependencies]
 alloy = { workspace = true, features = ["node-bindings"] }
+apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 colored.workspace = true
 ethers-core.workspace = true
