@@ -12546,6 +12546,8 @@ dependencies = [
  "itertools 0.12.1",
  "rstest",
  "serde_json",
+ "starknet-core",
+ "starknet-crypto",
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",
