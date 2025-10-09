@@ -13,7 +13,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
@@ -2151,5 +2151,119 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     // Run the test.
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_initial_sierra_gas() {
+    let account_contract = FeatureContract::Experimental;
+    let (mut test_manager, mut nonce_manager, [account_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            account_contract,
+            calldata![],
+        )])
+        .await;
+
+    // Fund the account.
+    let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(Tip(0)).0;
+    let fund_tx_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            *STRK_FEE_TOKEN_ADDRESS,
+            "transfer",
+            &[**account_address, Felt::from(transfer_amount), Felt::ZERO]
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(fund_tx_args, &CHAIN_ID_FOR_TESTS, None);
+
+    // Test invoke gas limits.
+    let os_constants = &VersionedConstants::latest_constants().os_constants;
+    let validate_max_sierra_gas = os_constants.validate_max_sierra_gas.0;
+    let execute_max_sierra_gas = os_constants.execute_max_sierra_gas.0;
+    for l2_gas_amount in [
+        validate_max_sierra_gas - 123456,
+        validate_max_sierra_gas + 123456,
+        10 * execute_max_sierra_gas,
+    ] {
+        // Set up gas parameters.
+        let resource_bounds = match *NON_TRIVIAL_RESOURCE_BOUNDS {
+            ValidResourceBounds::AllResources(all_resource_bounds) => {
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l2_gas: ResourceBounds {
+                        max_amount: GasAmount(l2_gas_amount),
+                        max_price_per_unit: GasPrice(1 << 40),
+                    },
+                    ..all_resource_bounds
+                })
+            }
+            _ => panic!("Resource bounds are not all resources"),
+        };
+        let expected_validate_gas_upper_limit = u64::min(l2_gas_amount, validate_max_sierra_gas);
+        let expected_validate_gas_lower_limit = expected_validate_gas_upper_limit - 50000;
+        let expected_execute_gas_upper_limit =
+            u64::min(l2_gas_amount - 50000, execute_max_sierra_gas);
+        let expected_execute_gas_lower_limit = expected_execute_gas_upper_limit - 150000;
+
+        // Invoke verify_gas_limits.
+        let invoke_args = invoke_tx_args! {
+            sender_address: account_address,
+            nonce: nonce_manager.next(account_address),
+            calldata: create_calldata(
+                account_address,
+                "verify_gas_limits",
+                &[
+                    Felt::from(expected_validate_gas_lower_limit),
+                    Felt::from(expected_validate_gas_upper_limit),
+                    Felt::from(expected_execute_gas_lower_limit),
+                    Felt::from(expected_execute_gas_upper_limit)
+                ]
+            ),
+            resource_bounds: resource_bounds,
+        };
+        test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+    }
+
+    // L1 handler bounds test.
+    let expected_l1_handler_gas_upper_bound = os_constants.l1_handler_max_amount_bounds.l2_gas.0;
+    let expected_l1_handler_gas_lower_bound = expected_l1_handler_gas_upper_bound - 10001;
+    let from_address = Felt::from_hex_unchecked("0xDEADACC");
+    let selector = selector_from_name("verify_gas_limits_l1_handler");
+    let calldata = vec![
+        Felt::from(expected_l1_handler_gas_lower_bound),
+        Felt::from(expected_l1_handler_gas_upper_bound),
+    ];
+    let l1_handler_tx = ExecutableL1HandlerTransaction::create(
+        L1HandlerTransaction {
+            version: L1HandlerTransaction::VERSION,
+            nonce: Nonce::default(),
+            contract_address: account_address,
+            entry_point_selector: selector,
+            calldata: Calldata(Arc::new([vec![from_address], calldata.clone()].concat())),
+        },
+        &CHAIN_ID_FOR_TESTS,
+        Fee(1_000_000),
+    )
+    .unwrap();
+    test_manager.add_l1_handler_tx(l1_handler_tx.clone(), None);
+    let messages_to_l2 = vec![MessageToL2 {
+        from_address: EthAddress::try_from(from_address).unwrap(),
+        to_address: account_address,
+        nonce: Nonce::default(),
+        selector,
+        payload: L1ToL2Payload(calldata),
+    }];
+
+    // Run test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            messages_to_l2,
+            ..Default::default()
+        })
+        .await;
+
     test_output.perform_default_validations();
 }
