@@ -116,7 +116,8 @@ async fn class_manager_get_executable() {
         class_manager.add_class(class.clone()).await.unwrap();
 
     let deprecated_class_hash = ClassHash(felt!("0x1806"));
-    let deprecated_executable_class = RawExecutableClass::new_unchecked(vec![1, 2, 3].into());
+    let deprecated_executable_class =
+        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
     class_manager
         .add_deprecated_class(deprecated_class_hash, deprecated_executable_class.clone())
         .unwrap();
