@@ -59,7 +59,7 @@ def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
     start = time.time()
     while time.time() - start < timeout:
         try:
-            with socket.create_connection((host, port), timeout=1):
+            with socket.create_connection((host, port), timeout=5):
                 return True
         except OSError:
             time.sleep(0.5)
@@ -74,8 +74,6 @@ def check_service_alive(
     retry: int = 3,
     retry_delay: int = 1,
 ) -> bool:
-    print(f"Initial delay: {initial_delay}s")
-
     time.sleep(initial_delay)
     start_time = time.time()
 
@@ -116,35 +114,50 @@ def run_service_check(
         local_port = monitoring_port + offset
         print(f"[{service_name}] 🚀 Port-forwarding on {local_port} -> {monitoring_port}")
 
+        # Start port-forward process, capture output
         pf_process = subprocess.Popen(
             ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         )
 
-        try:
-            if not wait_for_port("127.0.0.1", local_port, timeout=15):
-                process_queue.put((service_name, False, "Port-forward did not establish"))
-                return
+        # Check for port availability
+        print(f"[{service_name}] ⏳ Waiting for localhost:{local_port} to become available...")
+        if not wait_for_port("127.0.0.1", local_port, timeout=30):
+            # Dump last 20 lines of kubectl output for diagnosis
+            try:
+                output = pf_process.stdout.read()
+                print(
+                    f"[{service_name}] ❌ Port-forward did not establish.\n--- kubectl output ---\n{output}\n----------------------"
+                )
+            except Exception as e:
+                print(f"[{service_name}] ❌ Port-forward failed, could not read output: {e}")
+            process_queue.put((service_name, False, "Port-forward did not establish successfully."))
+            return
 
-            address = f"http://localhost:{local_port}/monitoring/alive"
-            success = check_service_alive(
-                address=address,
-                timeout=timeout,
-                interval=interval,
-                initial_delay=initial_delay,
-            )
-            if success:
-                print(f"[{service_name}] ✅ Passed for {timeout}s")
-                process_queue.put((service_name, True, "Health check passed"))
-            else:
-                print(f"[{service_name}] ❌ Failed health check")
-                process_queue.put((service_name, False, "Health check failed"))
-        finally:
-            pf_process.terminate()
-            pf_process.wait()
+        address = f"http://localhost:{local_port}/monitoring/alive"
+        success = check_service_alive(
+            address=address,
+            timeout=timeout,
+            interval=interval,
+            initial_delay=initial_delay,
+        )
+        if success:
+            print(f"[{service_name}] ✅ Passed for {timeout}s")
+            process_queue.put((service_name, True, "Health check passed"))
+        else:
+            print(f"[{service_name}] ❌ Failed health check")
+            process_queue.put((service_name, False, "Health check failed"))
+
     except Exception as e:
+        print(f"[{service_name}] 💥 Exception during service check: {e}")
         process_queue.put((service_name, False, str(e)))
+    finally:
+        if "pf_process" in locals():
+            print(f"[{service_name}] 🔚 Cleaning up port-forward process...")
+            pf_process.terminate()
+            pf_process.wait(timeout=5)
 
 
 def main(
