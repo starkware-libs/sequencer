@@ -16,6 +16,7 @@ mod TestContract {
     use core::sha256::{SHA256_INITIAL_STATE, compute_sha256_u32_array, sha256_state_handle_init};
     use dict::Felt252DictTrait;
     use ec::EcPointTrait;
+    use starknet::class_hash::ClassHashZero;
     use starknet::eth_address::U256IntoEthAddress;
     use starknet::eth_signature::verify_eth_signature;
     use starknet::info::v2::{ExecutionInfo, ResourceBounds, TxInfo};
@@ -68,6 +69,16 @@ mod TestContract {
             storage_base_address_from_felt252(address), 0_u8,
         );
         storage_write_syscall(domain_address, storage_address, value).unwrap_syscall();
+    }
+
+    // TODO(Dori): Delete this function, use `test` instead.
+    #[external(v0)]
+    fn test_increment(
+        ref self: ContractState, ref arg: felt252, arg1: felt252, arg2: felt252
+    ) -> felt252 {
+        let x = self.my_storage_var.read();
+        self.my_storage_var.write(x + 1);
+        x + 1
     }
 
     #[external(v0)]
@@ -222,15 +233,32 @@ mod TestContract {
 
     #[external(v0)]
     fn test_get_class_hash_at(
-        self: @ContractState, address: ContractAddress, expected_class_hash: ClassHash,
+        self: @ContractState,
+        address: ContractAddress,
+        expected_class_hash: ClassHash,
+        undeployed_address: ContractAddress,
     ) {
         let class_hash = syscalls::get_class_hash_at_syscall(address).unwrap_syscall();
         assert(class_hash == expected_class_hash, 'WRONG_CLASS_HASH');
+
+        // Validate the class hash of an undeployed contract.
+        let actual_class_hash_of_undeployed = starknet::syscalls::get_class_hash_at_syscall(
+            undeployed_address
+        )
+        .unwrap_syscall();
+        assert(
+            actual_class_hash_of_undeployed == ClassHashZero::zero(),
+            'WRONG_CLASS_HASH',
+        );
     }
 
     #[external(v0)]
-    fn test_get_block_hash(self: @ContractState, block_number: u64) -> felt252 {
-        syscalls::get_block_hash_syscall(block_number).unwrap_syscall()
+    fn test_get_block_hash(
+        self: @ContractState, block_number: u64, expected_block_hash: felt252
+    ) -> felt252 {
+        let block_hash = syscalls::get_block_hash_syscall(block_number).unwrap_syscall();
+        assert(block_hash == expected_block_hash, 'Unexpected block hash.');
+        block_hash
     }
 
     #[external(v0)]
@@ -370,6 +398,23 @@ mod TestContract {
         panic_with_felt252('revert in l1 handler');
     }
 
+    /// Tests the segment arena builtin, by creating dictionaries (`felt252_dict_new()` and
+    /// `squash()` use the segment arena builtin).
+    ///
+    /// Expected return value: 200.
+    #[external(v0)]
+    fn test_segment_arena(ref self: ContractState) -> felt252 {
+        let mut x = felt252_dict_new::<felt252>();
+        let mut y = felt252_dict_new::<felt252>();
+        x.insert(0, 100);
+        y.insert(1, 200);
+        // x.get(1) returns 0 (the default value), y.get(1) returns 200.
+        let z = x.get(1) + y.get(1);
+        y.squash();
+        x.squash();
+        z
+    }
+
     #[external(v0)]
     fn test_deploy(
         self: @ContractState,
@@ -391,6 +436,14 @@ mod TestContract {
 
     fn non_trivial_recursion(depth: u128) -> u128 {
         non_trivial_recursion(depth - 1) + 2 * non_trivial_recursion(depth - 2)
+    }
+
+    #[external(v0)]
+    fn test_poseidon_hades_permutation(ref self: ContractState) {
+        let (s0, s1, s2) = poseidon::hades_permutation(1, 2, 3);
+        assert(s0 == 0xfa8c9b6742b6176139365833d001e30e932a9bf7456d009b1b174f36d558c5, 'wrong s0');
+        assert(s1 == 0x4f04deca4cb7f9f2bd16b1d25b817ca2d16fba2151e4252a2e2111cde08bfe6, 'wrong s1');
+        assert(s2 == 0x58dde0a2a785b395ee2dc7b60b79e9472ab826e9bb5383a8018b59772964892, 'wrong s2');
     }
 
     #[external(v0)]
@@ -476,6 +529,29 @@ mod TestContract {
         let expected_p1_y = secp256k1_prime - expected_y;
         let (x_coord, y_coord) = starknet::secp256k1::secp256k1_get_xy_syscall(p1).unwrap_syscall();
         assert(x_coord == x && y_coord == expected_p1_y, 'Unexpected coordinates');
+    }
+
+    #[external(v0)]
+    fn test_getter_secp256k1(ref self: ContractState, x: u256, y: u256) {
+        let p0 = starknet::secp256k1::secp256k1_new_syscall(x, y).unwrap_syscall().unwrap();
+
+        let (x_coord, y_coord) = starknet::secp256k1::secp256k1_get_xy_syscall(p0).unwrap_syscall();
+        assert(x_coord == x && y_coord == y, 'Unexpected coordinates');
+    }
+
+    #[external(v0)]
+    fn test_add_secp256k1(ref self: ContractState, x: u256, y: u256) {
+        let p0 = starknet::secp256k1::secp256k1_new_syscall(x, y).unwrap_syscall().unwrap();
+        let generator = starknet::secp256_trait::Secp256Trait::get_generator_point();
+
+        starknet::secp256k1::secp256k1_add_syscall(p0, p1: generator).unwrap_syscall();
+    }
+
+    #[external(v0)]
+    fn test_mul_secp256k1(ref self: ContractState, scalar: u256) {
+        let generator = starknet::secp256_trait::Secp256Trait::get_generator_point();
+
+        starknet::secp256k1::secp256k1_mul_syscall(p: generator, :scalar).unwrap_syscall();
     }
 
     /// Returns a golden valid message hash and its signature, for testing.
@@ -594,26 +670,26 @@ mod TestContract {
         // Test a point not on the curve.
         assert(
             starknet::secp256r1::secp256r1_new_syscall(x: 0, y: 1).unwrap_syscall().is_none(),
-            'Should be none',
+            'Should be none'
         );
 
         // Test a point with x == Secp256r1_prime.
         match starknet::secp256r1::secp256r1_new_syscall(
-            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y: 1,
+            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y: 1
         ) {
             Result::Ok(_) => panic_with_felt252('Should fail'),
             Result::Err(revert_reason) => assert(
-                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg',
+                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg'
             ),
         }
 
         // Test a point with x == Secp_prime.
         match starknet::secp256r1::secp256r1_get_point_from_x_syscall(
-            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y_parity: true,
+            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y_parity: true
         ) {
             Result::Ok(_) => panic_with_felt252('Should fail'),
             Result::Err(revert_reason) => assert(
-                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg',
+                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg'
             ),
         }
 
@@ -631,8 +707,31 @@ mod TestContract {
             starknet::secp256r1::secp256r1_get_point_from_x_syscall(:x, y_parity: true)
                 .unwrap_syscall()
                 .is_some(),
-            'Should be some',
+            'Should be some'
         );
+    }
+
+    #[external(v0)]
+    fn test_getter_secp256r1(ref self: ContractState, x: u256, y: u256) {
+        let p0 = starknet::secp256r1::secp256r1_new_syscall(x, y).unwrap_syscall().unwrap();
+
+        let (x_coord, y_coord) = starknet::secp256r1::secp256r1_get_xy_syscall(p0).unwrap_syscall();
+        assert(x_coord == x && y_coord == y, 'Unexpected coordinates');
+    }
+
+    #[external(v0)]
+    fn test_add_secp256r1(ref self: ContractState, x: u256, y: u256) {
+        let p0 = starknet::secp256r1::secp256r1_new_syscall(x, y).unwrap_syscall().unwrap();
+        let generator = starknet::secp256_trait::Secp256Trait::get_generator_point();
+
+        starknet::secp256r1::secp256r1_add_syscall(p0, p1: generator).unwrap_syscall();
+    }
+
+    #[external(v0)]
+    fn test_mul_secp256r1(ref self: ContractState, scalar: u256) {
+        let generator = starknet::secp256_trait::Secp256Trait::get_generator_point();
+
+        starknet::secp256r1::secp256r1_mul_syscall(p: generator, :scalar).unwrap_syscall();
     }
 
     /// Returns a golden valid message hash and its signature, for testing.
@@ -879,7 +978,7 @@ mod TestContract {
         let mul = circuit_mul(inv, sub);
 
         let modulus = TryInto::<_, CircuitModulus>::try_into([7, 0, 0, 0]).unwrap();
-        let outputs = (mul,)
+        let outputs = (mul, add, inv)
             .new_inputs()
             .next([3, 0, 0, 0])
             .next([6, 0, 0, 0])
@@ -887,6 +986,9 @@ mod TestContract {
             .eval(modulus)
             .unwrap();
 
+        assert!(outputs.get_output(add) == u384 { limb0: 2, limb1: 0, limb2: 0, limb3: 0 });
+        assert!(outputs.get_output(inv) == u384 { limb0: 4, limb1: 0, limb2: 0, limb3: 0 });
+        assert!(outputs.get_output(sub) == u384 { limb0: 5, limb1: 0, limb2: 0, limb3: 0 });
         assert!(outputs.get_output(mul) == u384 { limb0: 6, limb1: 0, limb2: 0, limb3: 0 });
     }
 
