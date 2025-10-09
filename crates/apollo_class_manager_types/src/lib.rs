@@ -3,7 +3,7 @@ pub mod transaction_converter;
 use std::error::Error;
 use std::sync::Arc;
 
-use apollo_compile_to_casm_types::SierraCompilerError;
+use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, SierraCompilerError};
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{
     ComponentClient,
@@ -145,9 +145,9 @@ pub enum ClassManagerClientError {
     strum(serialize_all = "snake_case")
 )]
 pub enum ClassManagerRequest {
-    AddClass(Class),
-    AddClassAndExecutableUnsafe(ClassId, Class, ExecutableClassHash, ExecutableClass),
-    AddDeprecatedClass(ClassId, DeprecatedClass),
+    AddClass(RawClass),
+    AddClassAndExecutableUnsafe(ClassId, RawClass, ExecutableClassHash, RawExecutableClass),
+    AddDeprecatedClass(ClassId, RawExecutableClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
     GetExecutableClassHashV2(ClassId),
@@ -174,8 +174,8 @@ pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ClassHashes>),
     AddClassAndExecutableUnsafe(ClassManagerResult<()>),
     AddDeprecatedClass(ClassManagerResult<()>),
-    GetExecutable(ClassManagerResult<Option<ExecutableClass>>),
-    GetSierra(ClassManagerResult<Option<Class>>),
+    GetExecutable(ClassManagerResult<Option<RawExecutableClass>>),
+    GetSierra(ClassManagerResult<Option<RawClass>>),
     GetExecutableClassHashV2(ClassManagerResult<Option<ExecutableClassHash>>),
 }
 impl_debug_for_infra_requests_and_responses!(ClassManagerResponse);
@@ -186,7 +186,8 @@ where
     ComponentClientType: Send + Sync + ComponentClient<ClassManagerRequest, ClassManagerResponse>,
 {
     async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes> {
-        let request = ClassManagerRequest::AddClass(class);
+        let raw_class = RawClass::try_from(class).map_err(ClassManagerError::from)?;
+        let request = ClassManagerRequest::AddClass(raw_class);
         handle_all_response_variants!(
             ClassManagerResponse,
             AddClass,
@@ -201,7 +202,9 @@ where
         class_id: ClassId,
         class: DeprecatedClass,
     ) -> ClassManagerClientResult<()> {
-        let request = ClassManagerRequest::AddDeprecatedClass(class_id, class);
+        let raw_executable = RawExecutableClass::try_from(ContractClass::V0(class))
+            .map_err(ClassManagerError::from)?;
+        let request = ClassManagerRequest::AddDeprecatedClass(class_id, raw_executable);
         handle_all_response_variants!(
             ClassManagerResponse,
             AddDeprecatedClass,
@@ -216,24 +219,34 @@ where
         class_id: ClassId,
     ) -> ClassManagerClientResult<Option<ExecutableClass>> {
         let request = ClassManagerRequest::GetExecutable(class_id);
-        handle_all_response_variants!(
+        let raw_result = handle_all_response_variants!(
             ClassManagerResponse,
             GetExecutable,
             ClassManagerClientError,
             ClassManagerError,
             Direct
-        )
+        )?;
+        let converted = match raw_result {
+            Some(raw) => Some(ExecutableClass::try_from(raw).map_err(ClassManagerError::from)?),
+            None => None,
+        };
+        Ok(converted)
     }
 
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
         let request = ClassManagerRequest::GetSierra(class_id);
-        handle_all_response_variants!(
+        let raw_result = handle_all_response_variants!(
             ClassManagerResponse,
             GetSierra,
             ClassManagerClientError,
             ClassManagerError,
             Direct
-        )
+        )?;
+        let converted = match raw_result {
+            Some(raw) => Some(Class::try_from(raw).map_err(ClassManagerError::from)?),
+            None => None,
+        };
+        Ok(converted)
     }
 
     async fn get_executable_class_hash_v2(
@@ -259,9 +272,9 @@ where
     ) -> ClassManagerClientResult<()> {
         let request = ClassManagerRequest::AddClassAndExecutableUnsafe(
             class_id,
-            class,
+            RawClass::try_from(class).map_err(ClassManagerError::from)?,
             executable_class_hash_v2,
-            executable_class,
+            RawExecutableClass::try_from(executable_class).map_err(ClassManagerError::from)?,
         );
         handle_all_response_variants!(
             ClassManagerResponse,
