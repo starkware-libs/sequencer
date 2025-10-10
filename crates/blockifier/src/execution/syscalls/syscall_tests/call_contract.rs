@@ -12,6 +12,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::{calldata as calldata_macro, felt};
+use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::context::{BlockContext, ChainInfo};
@@ -32,12 +33,16 @@ fn test_call_contract_that_panics(runnable_version: RunnableCairo1) {
 
     let new_class_hash = empty_contract.get_class_hash();
     let to_panic = true.into();
+    let is_meta_tx = false.into();
     let outer_entry_point_selector = selector_from_name("test_call_contract_revert");
-    let calldata = create_calldata(
-        test_contract.get_instance_address(0),
-        "test_revert_helper",
-        &[new_class_hash.0, to_panic],
-    );
+    let calldata = calldata_macro![
+        **test_contract.get_instance_address(0),
+        selector_from_name("test_revert_helper").0,
+        Felt::TWO,
+        new_class_hash.0,
+        to_panic,
+        is_meta_tx
+    ];
     let entry_point_call = CallEntryPoint {
         entry_point_selector: outer_entry_point_selector,
         calldata,
@@ -97,11 +102,19 @@ fn test_call_contract_and_than_revert(#[case] runnable_version: RunnableCairo1) 
     );
 
     // Calldata of contract A
-    let calldata = create_calldata(
-        test_contract.get_instance_address(0),
-        "middle_revert_contract",
-        &middle_call_data.0,
-    );
+    let is_meta_tx = false.into();
+    let calldata = Calldata(Arc::new(
+        [
+            vec![
+                **test_contract.get_instance_address(0),
+                selector_from_name("middle_revert_contract").0,
+                middle_call_data.0.len().into(),
+            ],
+            middle_call_data.0.to_vec(),
+            vec![is_meta_tx],
+        ]
+        .concat(),
+    ));
 
     // Create the entry point call to contract A.
     let outer_entry_point_selector = selector_from_name("test_call_contract_revert");

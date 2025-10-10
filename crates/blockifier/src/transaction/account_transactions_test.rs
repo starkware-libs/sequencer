@@ -2109,6 +2109,7 @@ fn test_call_contract_that_panics(
 
     let new_class_hash = FeatureContract::TestContract(cairo_version).get_class_hash();
     let to_panic = true.into();
+    let meta_tx = false.into();
 
     let calldata = [
         *contract_address.0.key(),
@@ -2116,6 +2117,7 @@ fn test_call_contract_that_panics(
         felt!(2_u8),
         new_class_hash.0,
         to_panic,
+        meta_tx,
     ];
 
     // Invoke a function that changes the state and reverts.
@@ -2123,9 +2125,9 @@ fn test_call_contract_that_panics(
         sender_address: account_address,
         calldata: create_calldata(
             contract_address,
-               "test_call_contract_revert",
-                &calldata
-            ),
+            "test_call_contract_revert",
+            &calldata
+        ),
         nonce: nonce_manager.next(account_address)
     };
     let tx_execution_info = run_invoke_tx(
