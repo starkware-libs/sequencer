@@ -1,4 +1,4 @@
-#[starknet::contract]
+#[starknet::contract(account)]
 mod TestContract {
     use array::ArrayTrait;
     use box::BoxTrait;
@@ -164,6 +164,17 @@ mod TestContract {
         }
     }
 
+    // `__validate__` must be implemented if `__execute__` is.
+    #[external(v0)]
+    fn __validate__(ref self: ContractState, argument: felt252) {}
+
+    // `__execute__` is used in `test_call_contract_revert` to test the revert behavior of
+    // `meta_tx_v0_syscall`.
+    #[external(v0)]
+    fn __execute__(ref self: ContractState, class_hash: ClassHash, to_panic: bool) {
+        test_revert_helper(ref self, class_hash, to_panic);
+    }
+
     #[external(v0)]
     fn write_10_to_my_storage_var(ref self: ContractState) {
         self.my_storage_var.write(10);
@@ -200,6 +211,8 @@ mod TestContract {
             Result::Err(_revert_reason) => {
                 // Verify that the changes made by the second call are reverted.
                 assert(self.my_storage_var.read() == 10, 'Wrong_storage_value.');
+                // Reset the storage variable back to its initial value.
+                self.my_storage_var.write(0);
             },
         }
     }
@@ -1042,42 +1055,59 @@ mod TestContract {
         (in1,).new_inputs().next([3, 0, 0, 0]);
     }
 
+    extern fn meta_tx_v0_syscall(
+        address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Span<felt252>,
+        signature: Span<felt252>,
+    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
+
     #[external(v0)]
     fn test_call_contract_revert(
         ref self: ContractState,
         contract_address: ContractAddress,
         entry_point_selector: felt252,
         calldata: Array<felt252>,
+        is_meta_tx: bool,
     ) {
-        let class_hash_before_call = syscalls::get_class_hash_at_syscall(contract_address)
+        let class_hash_before_revert = syscalls::get_class_hash_at_syscall(contract_address)
             .unwrap_syscall();
         self.revert_test_storage_var.write(7);
-        match syscalls::call_contract_syscall(
-            contract_address, entry_point_selector, calldata.span(),
-        ) {
-            Result::Ok(_) => panic!("Expected revert"),
-            Result::Err(errors) => {
-                let mut error_span = errors.span();
+        let syscall_result = if is_meta_tx {
+            meta_tx_v0_syscall(
+                contract_address, entry_point_selector, calldata.span(), array![].span(),
+            )
+        } else {
+            syscalls::call_contract_syscall(contract_address, entry_point_selector, calldata.span())
+        };
+        match syscall_result {
+            Result::Ok(_) => panic!("Expected revert but got success"),
+            Result::Err(err) => {
+                let mut error_span = err.span();
                 assert(*error_span.pop_back().unwrap() == 'ENTRYPOINT_FAILED', 'Unexpected error');
                 let inner_error = *error_span.pop_back().unwrap();
-                if entry_point_selector == selector!("bad_selector") {
-                    assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'Unexpected error');
-                } else if entry_point_selector == selector!("test_revert_helper") {
-                    assert(inner_error == 'test_revert_helper', 'Unexpected error');
+                if entry_point_selector == selector!("test_revert_helper")
+                    || entry_point_selector == selector!("__execute__") {
+                    assert(inner_error == 'test_revert_helper', 'ENTRYPOINT_FAILED');
+                } else if entry_point_selector == selector!("middle_revert_contract") {
+                    assert(inner_error == 'execute_and_revert', 'Wrong_error');
                 } else {
                     assert(
-                        entry_point_selector == selector!("middle_revert_contract"),
-                        'Wrong Entry Point',
+                        entry_point_selector == selector!("bad_selector"), 'Unexpected selector',
                     );
-                    assert(inner_error == 'execute_and_revert', 'Wrong_error');
+                    assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'ENTRYPOINT_FAILED');
                 }
             },
         }
-        let class_hash_after_call = syscalls::get_class_hash_at_syscall(contract_address)
+        let class_hash_after_revert = syscalls::get_class_hash_at_syscall(contract_address)
             .unwrap_syscall();
-        assert(self.my_storage_var.read() == 0, 'values should not change.');
-        assert(class_hash_before_call == class_hash_after_call, 'class hash should not change.');
+        assert(self.my_storage_var.read() == 0, 'Value shoud be 0');
+        // Ensure that the inner call hasnt changed revert_test_storage_var.
         assert(self.revert_test_storage_var.read() == 7, 'test_storage_var_changed.');
+        // After we ensured that the inner call had not changed revert_test_storage_var
+        // we can set it back to 0.
+        self.revert_test_storage_var.write(0);
+        assert(class_hash_before_revert == class_hash_after_revert, 'Class hash should not change');
     }
 
     #[external(v0)]
