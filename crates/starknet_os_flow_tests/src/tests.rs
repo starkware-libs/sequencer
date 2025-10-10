@@ -1733,12 +1733,12 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         .unwrap();
     if use_kzg_da {
         expect![[r#"
-            679
+            673
         "#]]
         .assert_debug_eq(poseidons);
     } else {
         expect![[r#"
-            562
+            560
         "#]]
         .assert_debug_eq(poseidons);
     }
