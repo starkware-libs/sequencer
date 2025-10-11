@@ -48,7 +48,10 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
-use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
+use starknet_api::transaction::constants::{
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+    EXECUTE_ENTRY_POINT_NAME,
+};
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -2364,4 +2367,208 @@ async fn test_direct_execute_call() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(test_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(dummy_account_address, HashMap::default());
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_meta_tx() {
+    let meta_tx_contract = FeatureContract::MetaTx(RunnableCairo1::Casm);
+    let tx_info_contract = FeatureContract::TxInfoWriter;
+    let (mut test_manager, [meta_tx_contract_address, tx_info_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (meta_tx_contract, calldata![]),
+            (tx_info_contract, calldata![]),
+        ])
+        .await;
+
+    let argument = Felt::from(1234);
+    let signature = vec![Felt::from(5432), Felt::from(100)];
+
+    // Create and run an invoke tx.
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            meta_tx_contract_address,
+            "execute_meta_tx_v0",
+            &[
+                vec![
+                    **meta_tx_contract_address,
+                    selector_from_name(EXECUTE_ENTRY_POINT_NAME).0,
+                    Felt::ONE, // Calldata length.
+                    argument,
+                    signature.len().into()
+                ],
+                signature.clone(),
+                vec![false.into()], // Should revert.
+            ].concat()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx0 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx0_hash = tx0.tx_hash();
+    let tx0_nonce = tx0.nonce();
+    assert!(tx0.nonce() != Nonce(Felt::ZERO));
+    test_manager.add_invoke_tx(tx0, None);
+
+    // Compute the meta-tx hash.
+    let meta_tx_hash0 = InvokeTransaction::create(
+        invoke_tx(invoke_tx_args! {
+            version: TransactionVersion::ZERO,
+            sender_address: meta_tx_contract_address,
+            calldata: calldata![argument],
+            max_fee: Fee(0),
+        }),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap()
+    .tx_hash();
+
+    // Call `tx_info_writer` with a meta transaction.
+    let argument1 = Felt::ONE;
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            meta_tx_contract_address,
+            "execute_meta_tx_v0",
+            &[
+                vec![
+                    **tx_info_contract_address,
+                    selector_from_name(EXECUTE_ENTRY_POINT_NAME).0,
+                    Felt::ONE, // Calldata length.
+                    argument1,
+                    signature.len().into(),
+                ],
+                signature.clone(),
+                vec![false.into()], // Should revert.
+            ].concat()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx1 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    assert!(tx1.nonce() != Nonce(Felt::ZERO));
+    let tx1_hash = tx1.tx_hash();
+    let tx1_nonce = tx1.nonce();
+    test_manager.add_invoke_tx(tx1, None);
+
+    // Compute the meta-tx hash.
+    let meta_tx_hash1 = InvokeTransaction::create(
+        invoke_tx(invoke_tx_args! {
+            version: TransactionVersion::ZERO,
+            sender_address: tx_info_contract_address,
+            calldata: calldata![argument1],
+            max_fee: Fee(0),
+        }),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap()
+    .tx_hash();
+
+    // Check that calling an entry point other than '__execute__` fails.
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            meta_tx_contract_address,
+            "execute_meta_tx_v0",
+            &[
+                vec![
+                    **meta_tx_contract_address,
+                    selector_from_name("foo").0,
+                    Felt::ZERO,
+                    signature.len().into()
+                ],
+                signature.clone(),
+                vec![true.into()] // Should revert.
+            ].concat()
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx2 = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    assert!(tx2.nonce() != Nonce(Felt::ZERO));
+    let tx2_hash = tx2.tx_hash();
+    let tx2_nonce = tx2.nonce();
+    test_manager.add_invoke_tx(tx2, None);
+
+    // Construct the expected storage diff for each of the two contracts.
+    // All zero-valued keys should be filtered out (as they don't appear in the state diff).
+    let calldata_key = selector_from_name("call_data").0;
+    let calldata_item_keys: Vec<Felt> =
+        (0..4u8).map(|i| Pedersen::hash(&calldata_key, &i.into())).collect();
+    let no_argument = Felt::from_bytes_be_slice(b"NO_ARGUMENT");
+    let no_signature = Felt::from_bytes_be_slice(b"NO_SIGNATURE");
+    let expected_meta_tx_contract_diffs: HashMap<Felt, Felt> = HashMap::from_iter([
+        (calldata_key, Felt::from(4)), // Size of `call_data` vector.
+        // Inside the meta-tx.
+        (calldata_item_keys[0], Felt::ZERO), // caller_address.
+        (calldata_item_keys[0] + Felt::ONE, **meta_tx_contract_address), /* account_contract_address. */
+        (calldata_item_keys[0] + Felt::TWO, Felt::ZERO),                 // tx_version.
+        (calldata_item_keys[0] + Felt::THREE, argument),                 // Argument.
+        (calldata_item_keys[0] + Felt::from(4u8), *meta_tx_hash0),       // transaction_hash.
+        (calldata_item_keys[0] + Felt::from(5u8), signature[0]),         // signature.
+        (calldata_item_keys[0] + Felt::from(6u8), Felt::ZERO),           // max_fee.
+        (calldata_item_keys[0] + Felt::from(7u8), Felt::ZERO),           // resource_bound_len.
+        (calldata_item_keys[0] + Felt::from(8u8), Felt::ZERO),           // nonce.
+        // Outside the meta-tx.
+        (calldata_item_keys[1], ***FUNDED_ACCOUNT_ADDRESS), // caller_address.
+        (calldata_item_keys[1] + Felt::ONE, ***FUNDED_ACCOUNT_ADDRESS), // account_contract_address.
+        (calldata_item_keys[1] + Felt::TWO, Felt::THREE),   // tx_version.
+        (calldata_item_keys[1] + Felt::THREE, no_argument), // Argument.
+        (calldata_item_keys[1] + Felt::from(4u8), *tx0_hash), // transaction_hash.
+        (calldata_item_keys[1] + Felt::from(5u8), no_signature), // signature.
+        (calldata_item_keys[1] + Felt::from(6u8), Felt::ZERO), // max_fee.
+        (calldata_item_keys[1] + Felt::from(7u8), Felt::THREE), // resource_bound_len.
+        (calldata_item_keys[1] + Felt::from(8u8), *tx0_nonce), // nonce.
+        // Outside the meta-tx (second tx).
+        (calldata_item_keys[2], ***FUNDED_ACCOUNT_ADDRESS), // caller_address.
+        (calldata_item_keys[2] + Felt::ONE, ***FUNDED_ACCOUNT_ADDRESS), // account_contract_address.
+        (calldata_item_keys[2] + Felt::TWO, Felt::THREE),   // tx_version.
+        (calldata_item_keys[2] + Felt::THREE, no_argument), // Argument.
+        (calldata_item_keys[2] + Felt::from(4u8), *tx1_hash), // transaction_hash.
+        (calldata_item_keys[2] + Felt::from(5u8), no_signature), // signature.
+        (calldata_item_keys[2] + Felt::from(6u8), Felt::ZERO), // max_fee.
+        (calldata_item_keys[2] + Felt::from(7u8), Felt::THREE), // resource_bound_len.
+        (calldata_item_keys[2] + Felt::from(8u8), *tx1_nonce), // nonce.
+        // Outside the meta-tx (third tx).
+        (calldata_item_keys[3], ***FUNDED_ACCOUNT_ADDRESS), // caller_address.
+        (calldata_item_keys[3] + Felt::ONE, ***FUNDED_ACCOUNT_ADDRESS), // account_contract_address.
+        (calldata_item_keys[3] + Felt::TWO, Felt::THREE),   // tx_version.
+        (calldata_item_keys[3] + Felt::THREE, no_argument), // Argument.
+        (calldata_item_keys[3] + Felt::from(4u8), *tx2_hash), // transaction_hash.
+        (calldata_item_keys[3] + Felt::from(5u8), no_signature), // signature.
+        (calldata_item_keys[3] + Felt::from(6u8), Felt::ZERO), // max_fee.
+        (calldata_item_keys[3] + Felt::from(7u8), Felt::THREE), // resource_bound_len.
+        (calldata_item_keys[3] + Felt::from(8u8), *tx2_nonce), // nonce.
+    ].into_iter().filter(|(_, v)| *v != Felt::ZERO));
+    let expected_tx_info_writer_diffs: HashMap<Felt, Felt> = HashMap::from_iter(
+        [
+            (**get_storage_var_address("version", &[Felt::ZERO]), Felt::ZERO),
+            (
+                **get_storage_var_address("account_contract_address", &[Felt::ZERO]),
+                **tx_info_contract_address,
+            ),
+            (**get_storage_var_address("max_fee", &[Felt::ZERO]), Felt::ZERO),
+            (**get_storage_var_address("signature_len", &[Felt::ZERO]), Felt::TWO),
+            (**get_storage_var_address("transaction_hash", &[Felt::ZERO]), *meta_tx_hash1),
+            (
+                **get_storage_var_address("chain_id", &[Felt::ZERO]),
+                Felt::try_from(&*CHAIN_ID_FOR_TESTS).unwrap(),
+            ),
+            (**get_storage_var_address("nonce", &[Felt::ZERO]), Felt::ZERO),
+        ]
+        .into_iter()
+        .filter(|(_, v)| *v != Felt::ZERO),
+    );
+
+    // Run the test and verify the storage changes.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(meta_tx_contract_address, expected_meta_tx_contract_diffs);
+    test_output.assert_storage_diff_eq(tx_info_contract_address, expected_tx_info_writer_diffs);
 }
