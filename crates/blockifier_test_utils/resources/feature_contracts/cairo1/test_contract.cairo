@@ -365,6 +365,30 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_direct_execute_call(
+        ref self: ContractState, contract_address: ContractAddress, calldata: Array::<felt252>
+    ) {
+        let call_execute_result = syscalls::call_contract_syscall(
+            contract_address, selector!("__execute__"), calldata.span()
+        );
+        match call_execute_result {
+            Result::Ok(_) => panic!("Calling execute directly should fail."),
+            Result::Err(err) => {
+                let mut error_span = err.span();
+                let expected_error_msg = 'Invalid argument';
+                let actual_error_msg = *error_span.pop_back().unwrap();
+                if expected_error_msg != actual_error_msg {
+                    panic!(
+                        "Unexpected inner error during direct execute call. Expected {}. Got: {}",
+                        expected_error_msg,
+                        actual_error_msg
+                    )
+                }
+            },
+        }
+    }
+
+    #[external(v0)]
     #[raw_output]
     fn test_library_call(
         self: @ContractState,
