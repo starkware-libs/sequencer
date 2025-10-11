@@ -2635,3 +2635,35 @@ async fn test_declare_and_deploy_in_separate_blocks() {
         compiled_class_hash.0
     );
 }
+
+/// Test the behavior of an empty multi-block.
+/// We test the case n_blocks_in_multi_block = `STORED_BLOCK_HASH_BUFFER` to additionally verify
+/// that the last block in the multi-block contains the block-hash of the first block in this case.
+#[rstest]
+#[tokio::test]
+async fn test_empty_multi_block() {
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let next_block_number = test_manager.initial_state.next_block_number.0;
+    assert!(next_block_number > STORED_BLOCK_HASH_BUFFER);
+
+    // Create empty blocks.
+    let n_blocks = STORED_BLOCK_HASH_BUFFER + 1;
+    for _ in 0..n_blocks - 1 {
+        test_manager.move_to_next_block();
+    }
+
+    // Run the test and verify the storage changes.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(
+        Const::BlockHashContractAddress.fetch_from_os_program().unwrap().try_into().unwrap(),
+        HashMap::from_iter((0..n_blocks).map(|block_index| {
+            let (old_block_number, old_block_hash) =
+                maybe_dummy_block_hash_and_number(BlockNumber(block_index + next_block_number))
+                    .unwrap();
+            (Felt::from(old_block_number.0), old_block_hash.0)
+        })),
+    );
+}
