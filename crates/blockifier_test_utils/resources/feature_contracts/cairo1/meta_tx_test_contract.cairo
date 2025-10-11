@@ -16,6 +16,7 @@ struct CallData {
 #[starknet::contract(account)]
 mod MetaTxTestContract {
     use starknet::ContractAddress;
+    use starknet::SyscallResultTrait;
     use starknet::storage::MutableVecTrait;
     use super::CallData;
 
@@ -71,8 +72,15 @@ mod MetaTxTestContract {
         entry_point_selector: felt252,
         calldata: Span<felt252>,
         signature: Span<felt252>,
+        should_revert: bool,
     ) {
-        meta_tx_v0_syscall(:address, :entry_point_selector, :calldata, :signature).unwrap();
+        let res = meta_tx_v0_syscall(:address, :entry_point_selector, :calldata, :signature);
+        if should_revert {
+            let err = res.unwrap_err();
+            assert!(err == array!['Invalid argument'], "Unexpected error: {:?}", err);
+        } else {
+            res.unwrap_syscall();
+        }
         self.add_call_info(argument: 'NO_ARGUMENT');
     }
 }
