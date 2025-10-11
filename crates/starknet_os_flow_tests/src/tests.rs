@@ -2552,3 +2552,49 @@ async fn test_data_gas_accounts() {
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
 }
+
+/// Verify OS blocks direct calls to `__execute__` entry point.
+#[rstest]
+#[tokio::test]
+async fn test_direct_execute_call() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let dummy_account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_manager, mut nonce_manager, [test_contract_address, dummy_account_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (dummy_account, calldata![]),
+        ])
+        .await;
+
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(
+            test_contract_address,
+            "test_direct_execute_call",
+            &[
+                **dummy_account_address,
+                Felt::from(5),                      // Outer calldata length.
+                **test_contract_address,
+                selector_from_name("assert_eq").0,
+                Felt::TWO,                          // Inner calldata length.
+                Felt::ONE,                          // Arg 1.
+                Felt::ONE                           // Arg 2.
+            ],
+        ),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+
+    // Run test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(test_contract_address, HashMap::default());
+    test_output.assert_storage_diff_eq(dummy_account_address, HashMap::default());
+}
