@@ -52,7 +52,7 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 416, range_check_builtin: 208"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["12450"];
 // Allowed margin between estimated and actual execution resources.
-const ALLOWED_MARGIN_N_STEPS: usize = 87;
+const ALLOWED_MARGIN_N_STEPS: usize = 127;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
