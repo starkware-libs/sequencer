@@ -248,6 +248,10 @@ async fn declare_deploy_scenario(
 
     let perform_global_validations = true;
     test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
+    test_output.expect_hint_coverage(&format!(
+        "declare_deploy_scenario_n_blocks_{}_use_kzg_da_{}_full_output_{}",
+        n_blocks, use_kzg_da, full_output
+    ));
 }
 
 /// Test state diffs in separate blocks that become trivial in a multiblock.
@@ -309,6 +313,12 @@ async fn trivial_diff_scenario(
     );
 
     test_output.perform_default_validations();
+    let contract_type =
+        if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!(
+        "trivial_diff_scenario_use_kzg_da_{}_full_output_{}_contract_{}",
+        use_kzg_da, full_output, contract_type
+    ));
 }
 
 /// This test verifies that when an entry point modifies storage and then reverts (panics):
@@ -367,6 +377,9 @@ async fn test_reverted_invoke_tx(
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
 
     test_output.perform_default_validations();
+    let contract_type =
+        if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!("test_reverted_invoke_tx_{}", contract_type));
 }
 
 /// Verifies that when an L1 handler modifies storage and then reverts, all storage changes made
@@ -416,6 +429,9 @@ async fn test_reverted_l1_handler_tx(
         !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
     );
     test_output.perform_default_validations();
+    let contract_type =
+        if test_contract.cairo_version() == CairoVersion::Cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!("test_reverted_l1_handler_tx_{}", contract_type));
 }
 
 #[rstest]
@@ -903,6 +919,8 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+    test_output
+        .expect_hint_coverage(&format!("test_os_logic_n_blocks_{}", n_blocks_in_multi_block));
 }
 
 #[rstest]
@@ -991,6 +1009,7 @@ async fn test_v1_bound_accounts_cairo0() {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+    test_output.expect_hint_coverage("test_v1_bound_accounts_cairo0");
 }
 
 #[rstest]
@@ -1087,6 +1106,7 @@ async fn test_v1_bound_accounts_cairo1() {
     let partial_state_diff =
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
     test_output.perform_validations(perform_global_validations, partial_state_diff);
+    test_output.expect_hint_coverage("test_v1_bound_accounts_cairo1");
 }
 
 #[rstest]
@@ -1749,6 +1769,10 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         "#]]
         .assert_debug_eq(poseidons);
     }
+    test_output.expect_hint_coverage(&format!(
+        "test_new_class_flow_use_kzg_da_{}_n_blocks_{}",
+        use_kzg_da, n_blocks_in_multi_block
+    ));
 }
 
 #[rstest]
@@ -1902,6 +1926,7 @@ async fn test_deprecated_tx_info() {
     );
     test_output.assert_account_balance_change(tx_info_account_address);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+    test_output.expect_hint_coverage("test_deprecated_tx_info");
 }
 
 #[rstest]
@@ -1961,6 +1986,7 @@ async fn test_deploy_syscall() {
         perform_global_validations,
         Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() }),
     );
+    test_output.expect_hint_coverage("test_deploy_syscall");
 
     // Make sure only the newly deployed contract and the fee contract have changed storage.
     let block_hash_contract_address = ContractAddress(
@@ -2119,6 +2145,8 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
+    let cairo_type = if is_cairo0 { "cairo0" } else { "cairo1" };
+    test_output.expect_hint_coverage(&format!("test_block_info_{}", cairo_type));
 }
 
 #[rstest]
@@ -2222,6 +2250,7 @@ async fn test_initial_sierra_gas() {
         .await;
 
     test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_initial_sierra_gas");
 }
 
 #[rstest]
@@ -2383,6 +2412,7 @@ async fn test_reverted_call() {
          addresses are {actual_changed_addresses:#?}, expected changed addresses are \
          {expected_changed_addresses:#?}"
     );
+    test_output.expect_hint_coverage("test_reverted_call");
 }
 
 /// Tests that the OS correctly handles calls between Cairo 1.0 contracts that count resources by
@@ -2491,6 +2521,7 @@ async fn test_resources_type() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(cairo_steps_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(sierra_gas_contract_address, expected_storage_updates);
+    test_output.expect_hint_coverage("test_resources_type");
 }
 
 /// Runs the OS test for data gas Cairo1 accounts.
@@ -2554,6 +2585,7 @@ async fn test_data_gas_accounts() {
     let test_output =
         test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_data_gas_accounts");
 }
 
 /// Verify OS blocks direct calls to `__execute__` entry point.
@@ -2600,6 +2632,7 @@ async fn test_direct_execute_call() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(test_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(dummy_account_address, HashMap::default());
+    test_output.expect_hint_coverage("test_direct_execute_call");
 }
 
 #[rstest]
@@ -2804,6 +2837,7 @@ async fn test_meta_tx() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(meta_tx_contract_address, expected_meta_tx_contract_diffs);
     test_output.assert_storage_diff_eq(tx_info_contract_address, expected_tx_info_writer_diffs);
+    test_output.expect_hint_coverage("test_meta_tx");
 }
 
 #[rstest]
@@ -2867,6 +2901,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
             .0,
         compiled_class_hash.0
     );
+    test_output.expect_hint_coverage("test_declare_and_deploy_in_separate_blocks");
 }
 
 /// Test the behavior of an empty multi-block.
@@ -2899,4 +2934,5 @@ async fn test_empty_multi_block() {
             (Felt::from(old_block_number.0), old_block_hash.0)
         })),
     );
+    test_output.expect_hint_coverage("test_empty_multi_block");
 }
