@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
@@ -13,6 +14,7 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
+use itertools::Itertools;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
@@ -86,6 +88,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
+use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
 use starknet_os::io::os_output::MessageToL2;
@@ -154,6 +157,50 @@ fn division(#[case] length: usize, #[case] n_parts: usize, #[case] expected_leng
     let divided = divide_vec_into_n_parts(to_divide, n_parts);
     let actual_lengths: Vec<usize> = divided.iter().map(|part| part.len()).collect();
     assert_eq!(actual_lengths, expected_lengths);
+}
+
+/// Tests that the set of uncovered hints is up to date.
+#[rstest]
+fn test_coverage_regression() {
+    // Iterate over all JSON files in the coverage directory.
+    let covered_hints = fs::read_dir("resources/hint_coverage")
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .flat_map(|entry| {
+            serde_json::from_str::<Vec<String>>(&fs::read_to_string(entry.path()).unwrap()).unwrap()
+        })
+        .unique()
+        .sorted()
+        .collect::<Vec<_>>();
+    let uncovered_hints = AllHints::all_iter()
+        .filter(|hint| !covered_hints.contains(&format!("{hint:?}")))
+        .map(|hint| format!("{hint:?}"))
+        .unique()
+        .sorted()
+        .collect::<Vec<_>>();
+    expect![[r#"
+        [
+          "AggregatorHint(DisableDaPageCreation)",
+          "AggregatorHint(GetAggregatorOutput)",
+          "AggregatorHint(GetChainIdFromInput)",
+          "AggregatorHint(GetFeeTokenAddressFromInput)",
+          "AggregatorHint(GetFullOutputFromInput)",
+          "AggregatorHint(GetOsOuputForInnerBlocks)",
+          "AggregatorHint(GetPublicKeysFromAggregatorInput)",
+          "AggregatorHint(GetUseKzgDaFromInput)",
+          "AggregatorHint(WriteDaSegment)",
+          "DeprecatedSyscallHint(DelegateCall)",
+          "DeprecatedSyscallHint(DelegateL1Handler)",
+          "DeprecatedSyscallHint(Deploy)",
+          "OsHint(GetClassHashAndCompiledClassHashV2)",
+          "OsHint(InitializeAliasCounter)",
+          "OsHint(LoadBottom)",
+          "StatelessHint(GenerateKeysUsingSha256Hash)",
+          "StatelessHint(NaiveUnpackFelts252ToU32s)",
+          "StatelessHint(SetApToSegmentHashPoseidon)",
+          "StatelessHint(SetEncryptedStart)"
+        ]"#]]
+    .assert_eq(&serde_json::to_string_pretty(&uncovered_hints).unwrap());
 }
 
 /// Scenario of declaring and deploying the test contract.
