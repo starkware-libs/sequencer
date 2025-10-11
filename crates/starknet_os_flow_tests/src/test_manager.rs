@@ -33,7 +33,12 @@ use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
-use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
+use starknet_committer::block_committer::input::{
+    IsSubset,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -154,6 +159,27 @@ impl<S: FlowTestState> OsTestOutput<S> {
                 .get(&STRK_FEE_TOKEN_ADDRESS)
                 .expect("Expect balance changes.")
                 .contains_key(&StarknetStorageKey(get_fee_token_var_address(account_address)))
+        );
+    }
+
+    #[track_caller]
+    pub(crate) fn assert_storage_diff_eq(
+        &self,
+        contract_address: ContractAddress,
+        storage_updates: HashMap<Felt, Felt>,
+    ) {
+        assert_eq!(
+            self.decompressed_state_diff
+                .storage_updates
+                .get(&contract_address)
+                .unwrap_or(&HashMap::default()),
+            &storage_updates
+                .into_iter()
+                .map(|(key, value)| (
+                    StarknetStorageKey(key.try_into().unwrap()),
+                    StarknetStorageValue(value)
+                ))
+                .collect::<HashMap<_, _>>()
         );
     }
 
