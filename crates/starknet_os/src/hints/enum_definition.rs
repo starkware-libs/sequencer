@@ -1,7 +1,7 @@
 use blockifier::state::state_api::StateReader;
 use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use starknet_types_core::hash::{Blake2Felt252, Poseidon};
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
@@ -261,7 +261,10 @@ pub(crate) const TEST_HINT_PREFIX: &str = "# TEST HINT";
 
 macro_rules! all_hints_enum {
     ($($inner_enum:ident),+) => {
-        #[cfg_attr(any(test, feature = "testing"),derive(Serialize, strum_macros::EnumIter))]
+        #[cfg_attr(
+            any(test, feature = "testing"),
+            derive(Deserialize, Serialize, Ord, PartialOrd, strum_macros::EnumIter)
+        )]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum AllHints {
             $($inner_enum($inner_enum),)+
