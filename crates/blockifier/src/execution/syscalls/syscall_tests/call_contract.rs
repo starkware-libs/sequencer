@@ -249,7 +249,7 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 129870,
+            gas_consumed: 129070,
         }
     "#]]
     .assert_debug_eq(&execution);

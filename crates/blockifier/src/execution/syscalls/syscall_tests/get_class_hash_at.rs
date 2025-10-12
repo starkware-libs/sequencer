@@ -51,7 +51,7 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 16460,
+            gas_consumed: 15960,
         }
     "#]]
     .assert_debug_eq(&positive_call_info.execution);
