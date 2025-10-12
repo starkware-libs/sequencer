@@ -25,4 +25,6 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+blockifier_test_utils.workspace = true
 mockall.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }

@@ -994,6 +994,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
+ "blockifier_test_utils",
  "mockall",
  "serde",
  "serde_json",
