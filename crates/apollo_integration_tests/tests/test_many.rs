@@ -15,7 +15,7 @@ async fn many_txs_fill_at_least_one_block() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestManyTxs,
         create_many_txs_scenario(),
-        GasAmount(30000000),
+        GasAmount(40000000),
         true,
         false,
     )
