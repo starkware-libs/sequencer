@@ -27,7 +27,7 @@ impl Peer {
     }
 
     pub fn blacklist_peer(&mut self, timeout_duration: Duration) {
-        self.timed_out_until = get_instant_now() + timeout_duration;
+        // self.timed_out_until = get_instant_now() + timeout_duration;
         info!(
             "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
             self.peer_id,
