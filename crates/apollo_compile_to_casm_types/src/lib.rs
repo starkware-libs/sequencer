@@ -20,6 +20,10 @@ use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "test.rs"]
+pub mod test;
+
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 pub type SierraCompilerClientResult<T> = Result<T, SierraCompilerClientError>;
 
