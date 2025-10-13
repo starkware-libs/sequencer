@@ -252,12 +252,6 @@ async fn declare_deploy_scenario(
         DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
         &calldata,
     );
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: deploy_contract_calldata,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
     let expected_contract_address = calculate_contract_address(
         contract_address_salt,
         class_hash,
@@ -265,7 +259,10 @@ async fn declare_deploy_scenario(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: deploy_contract_calldata },
+    );
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
@@ -328,23 +325,21 @@ async fn trivial_diff_scenario(
     let value = Felt::from(11u8);
     let function_name = "test_storage_read_write";
     // Invoke a function on the test contract that changes the key to the new value.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(test_contract_address, function_name, &[key, value]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(test_contract_address, function_name, &[key, value])
+        },
+    );
 
     // Move to next block, and add an invoke that reverts the previous change.
     test_manager.move_to_next_block();
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO])
+        },
+    );
 
     // Execute the test.
     let test_output = test_manager
@@ -396,14 +391,15 @@ async fn test_reverted_invoke_tx(
         .await;
 
     // Call a reverting function that changes the storage.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(test_contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
     test_manager.add_invoke_tx_from_args(
-        invoke_tx_args,
+        invoke_tx_args! {
+            sender_address: *FUNDED_ACCOUNT_ADDRESS,
+            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+            calldata: create_calldata(
+                test_contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]
+            ),
+            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        },
         &CHAIN_ID_FOR_TESTS,
         Some(revert_reason.to_string()),
     );
@@ -549,85 +545,66 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     // Call set_value(address=85, value=47) on the first contract.
     // Used to test normal value update and make sure it is written to on-chain data.
     let (key, value) = (Felt::from(85), Felt::from(47));
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(contract_addresses[0], "test_storage_read_write", &[key, value]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata:
+            create_calldata(contract_addresses[0], "test_storage_read_write", &[key, value])
+        },
+    );
     update_expected_storage(contract_addresses[0], key, value);
 
     // Call set_value(address=81, value=0) on the first contract.
     // Used to test redundant value update (0 -> 0) and make sure it is not written to on-chain
     // data.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0], "test_storage_read_write", &[Felt::from(81), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call set_value(address=97, value=0).
     // Used to test redundant value update (0 -> 0) in contract with only redundant updates
     // and make sure the whole contract is not written to on-chain data.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[2], "test_storage_read_write", &[Felt::from(97), Felt::ZERO]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(contract_addresses[1], "entry_point", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(contract_addresses[1], "entry_point", &[]) },
+    );
     update_expected_storage(contract_addresses[1], Felt::from(15), Felt::ONE);
 
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(contract_addresses[0], "test_builtins", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(contract_addresses[0], "test_builtins", &[]) },
+    );
 
     // Call test_get_block_timestamp with the current (testing) block timestamp.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[1],
             "test_get_block_timestamp",
             &[Felt::from(CURRENT_BLOCK_TIMESTAMP)]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // TODO(Yoni): test the effect of the event emission on the block hash, once calculated in the
     //   OS.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[1],
             "test_emit_events",
             // n_events, keys_len, keys, data_len, data.
             &[Felt::ONE, Felt::ONE, Felt::from(1991), Felt::ONE, Felt::from(2021)]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Calculate the block number of the next transaction.
     let txs_per_block = n_expected_txs / n_blocks_in_multi_block;
@@ -645,23 +622,19 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     // Call test_get_block_number(expected_block_number).
     let expected_block_number = test_manager.initial_state.next_block_number.0 - 1
         + u64::try_from(block_number_offset).unwrap();
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0],
             "test_get_block_number",
             &[Felt::from(expected_block_number)]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call contract -> send message to L1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0],
             "test_call_contract",
             &[
@@ -670,10 +643,8 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
                 Felt::ONE,
                 Felt::from(85),
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
     let expected_message_to_l1 = MessageToL1 {
         from_address: contract_addresses[0],
         to_address: EthAddress::try_from(Felt::from(85)).unwrap(),
@@ -681,10 +652,9 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     };
 
     // Test get_contract_address.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0],
             "test_call_contract",
             &[
@@ -693,22 +663,17 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
                 Felt::ONE,
                 **contract_addresses[0], // Expected caller address.
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0],
             "test_get_contract_address",
             &[**contract_addresses[0]]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Delegate proxy tests.
 
@@ -739,13 +704,12 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
     test_manager.add_invoke_tx(deploy_tx, None);
 
     // Set implementation to the test contract.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(delegate_proxy_address, "set_implementation_hash", &[test_class_hash.0]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
+            delegate_proxy_address, "set_implementation_hash", &[test_class_hash.0]
+        ) },
+    );
     update_expected_storage(
         delegate_proxy_address,
         **get_storage_var_address("implementation_hash", &[]),
@@ -754,43 +718,35 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
 
     // Call test_get_contract_address(expected_address=delegate_proxy_address) through the delegate
     // proxy.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             delegate_proxy_address, "test_get_contract_address", &[**delegate_proxy_address]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call set_value(address=123, value=456) through the delegate proxy.
     let (key, value) = (Felt::from(123), Felt::from(456));
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(delegate_proxy_address, "test_storage_read_write", &[key, value]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
+            delegate_proxy_address, "test_storage_read_write", &[key, value]
+        ) },
+    );
     update_expected_storage(delegate_proxy_address, key, value);
 
     // Call test_get_caller_address(expected_address=account_address) through the delegate proxy.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             delegate_proxy_address, "test_get_caller_address", &[***FUNDED_ACCOUNT_ADDRESS]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // call_contract -> get_sequencer_address.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             delegate_proxy_address,
             "test_call_contract",
             &[
@@ -799,10 +755,8 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
                 Felt::ONE,
                 Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS)
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Invoke the l1_handler deposit(from_address=85, amount=2) through the delegate proxy, and
     // define the expected consumed message.
@@ -840,32 +794,26 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
 
     // Call test_library_call_syntactic_sugar from contract_addresses[0] to test library calls
     // using the syntactic sugar of 'library_call_<FUNCTION>'.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0],
             "test_library_call_syntactic_sugar",
             &[test_class_hash.0]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
     update_expected_storage(contract_addresses[0], Felt::from(444), Felt::from(666));
 
     // Call add_signature_to_counters(index=2021).
     let index = Felt::from(2021);
     let signature = TransactionSignature(Arc::new(vec![Felt::from(100), Felt::from(200)]));
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            contract_addresses[0], "add_signature_to_counters", &[index]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        signature: signature.clone(),
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(contract_addresses[0], "add_signature_to_counters", &[index]),
+            signature: signature.clone()
+        },
+    );
     update_expected_storage(
         contract_addresses[0],
         **get_storage_var_address("two_counters", &[index]),
@@ -894,60 +842,55 @@ async fn test_os_logic(#[values(1, 3)] n_blocks_in_multi_block: usize) {
 
     // Use library_call to call test_contract2.test_storage_write(address=555, value=888).
     let (key, value) = (Felt::from(555), Felt::from(888));
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            contract_addresses[1],
-            "test_library_call",
-            &[
-                test_contract2_class_hash.0,
-                selector_from_name("test_storage_write").0,
-                Felt::TWO,
-                key,
-                value
-            ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        signature: TransactionSignature(Arc::new(vec![Felt::from(100)])),
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(
+                contract_addresses[1],
+                "test_library_call_l1_handler",
+                &[
+                    test_contract2_class_hash.0,
+                    selector_from_name("test_storage_write").0,
+                    Felt::TWO,
+                    key,
+                    value
+                ]
+            ),
+            signature: TransactionSignature(Arc::new(vec![Felt::from(100)])),
+        },
+    );
     update_expected_storage(contract_addresses[1], key, value);
 
     // Use library_call_l1_handler to invoke test_contract2.test_l1_handler_storage_write with
     // from_address=85, address=666, value=999.
     let (key, value) = (Felt::from(666), Felt::from(999));
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            contract_addresses[1],
-            "test_library_call_l1_handler",
-            &[
-                test_contract2_class_hash.0,
-                selector_from_name("test_l1_handler_storage_write").0,
-                Felt::THREE,
-                Felt::from(85),
-                key,
-                value
-            ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        signature: TransactionSignature(Arc::new(vec![Felt::from(100)])),
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(
+                contract_addresses[1],
+                "test_library_call_l1_handler",
+                &[
+                    test_contract2_class_hash.0,
+                    selector_from_name("test_l1_handler_storage_write").0,
+                    Felt::THREE,
+                    Felt::from(85),
+                    key,
+                    value
+                ]
+            ),
+            signature: TransactionSignature(Arc::new(vec![Felt::from(100)])),
+        },
+    );
     update_expected_storage(contract_addresses[1], key, value);
 
     // Replace the class of contract_addresses[0] to the class of test_contract2.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             contract_addresses[0], "test_replace_class", &[test_contract2_class_hash.0]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Expected number of txs.
     assert_eq!(test_manager.total_txs(), n_expected_txs);
@@ -1010,13 +953,12 @@ async fn test_v1_bound_accounts_cairo0() {
     let private_key = Felt::ONE;
     let public_key = get_public_key(&private_key);
     let guardian = Felt::ZERO;
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(v1_bound_account_address, "initialize", &[public_key, guardian]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
+            v1_bound_account_address, "initialize", &[public_key, guardian]
+        ) },
+    );
 
     // Create a validate tx and add signature to the transaction. The dummy account used to call
     // `__validate__` does not check the signature, so we can use the signature field for
@@ -1197,15 +1139,12 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     // Call test_increment twice.
     let n_calls: u8 = 2;
     for _ in 0..n_calls {
-        let invoke_tx_args = invoke_tx_args! {
-            sender_address: *FUNDED_ACCOUNT_ADDRESS,
-            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-            calldata: create_calldata(
+        test_manager.add_funded_account_invoke(
+            &mut nonce_manager,
+            invoke_tx_args! { calldata: create_calldata(
                 main_contract_address, "test_increment", &[felt!(5u8), felt!(6u8), felt!(7u8)]
-            ),
-            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        };
-        test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+            ) },
+        );
     }
     update_expected_storage(
         main_contract_address,
@@ -1256,25 +1195,24 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     let salt = Felt::from(7);
     let deploy_from_zero = Felt::ZERO;
     let ctor_calldata = vec![Felt::ZERO, Felt::ZERO];
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
-            main_contract_address,
-            "test_deploy",
-            &[
-                test_class_hash.0,
-                salt,
-                ctor_calldata.len().into(),
-                ctor_calldata[0],
-                ctor_calldata[1],
-                deploy_from_zero
-            ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        tip: Tip(1234)
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(
+                main_contract_address,
+                "test_deploy",
+                &[
+                    test_class_hash.0,
+                    salt,
+                    ctor_calldata.len().into(),
+                    ctor_calldata[0],
+                    ctor_calldata[1],
+                    deploy_from_zero
+                ]
+            ),
+            tip: Tip(1234),
+        },
+    );
     let contract_address2 = calculate_contract_address(
         ContractAddressSalt(salt),
         test_class_hash,
@@ -1328,10 +1266,9 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     // Test calling test_storage_read_write.
     let test_call_contract_key = Felt::from(1948);
     let test_call_contract_value = Felt::from(1967);
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address,
             test_call_contract_selector_name,
             &[
@@ -1341,20 +1278,17 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
                 test_call_contract_key,
                 test_call_contract_value
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
     update_expected_storage(contract_address2, test_call_contract_key, test_call_contract_value);
 
     // Test the behavior of the `get_class_hash_at` syscall.
     let deployed_address = contract_address2;
     let expected_class_hash_of_deployed_address = test_class_hash;
     let undeployed_address = Felt::from(123456789);
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address,
             test_call_contract_selector_name,
             &[
@@ -1365,18 +1299,15 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
                 expected_class_hash_of_deployed_address.0,
                 undeployed_address
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Test send-message-to-L1 syscall.
     let test_send_message_to_l1_to_address = Felt::ZERO;
     let test_send_message_to_l1_payload = vec![Felt::from(4365), Felt::from(23)];
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address,
             test_call_contract_selector_name,
             &[
@@ -1388,33 +1319,27 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
                 test_send_message_to_l1_payload[0],
                 test_send_message_to_l1_payload[1],
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
+        ) },
+    );
     expected_messages_to_l1.push(MessageToL1 {
         from_address: contract_address2,
         to_address: EthAddress::try_from(test_send_message_to_l1_to_address).unwrap(),
-        payload: L2ToL1Payload(test_send_message_to_l1_payload),
+        payload: L2ToL1Payload(test_send_message_to_l1_payload.clone()),
     });
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Call test_poseidon_hades_permutation.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(main_contract_address, "test_poseidon_hades_permutation", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(main_contract_address, "test_poseidon_hades_permutation", &[])
+        },
+    );
 
     // Call test_keccak.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(main_contract_address, "test_keccak", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(main_contract_address, "test_keccak", &[]) },
+    );
 
     // Points for keccak / secp tests.
     let x_low = Felt::from(302934307671667531413257853548643485645u128);
@@ -1423,59 +1348,44 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     let y_high = Felt::from(188875896373816311474931247321846847606u128);
 
     // Call test_keccak.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_new_point_secp256k1", &[x_low, x_high]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_getter_secp256k1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_getter_secp256k1", &[x_low, x_high, y_low, y_high]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_add_secp256k1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_add_secp256k1", &[x_low, x_high, y_low, y_high]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_mul_secp256k1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_mul_secp256k1", &[Felt::from(1991), Felt::from(1996)]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_signature_verification_secp256k1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_signature_verification_secp256k1", &[]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Change points for secpR.
     let x_low = Felt::from_hex_unchecked("0x2D483FE223B12B91047D83258A958B0F");
@@ -1484,59 +1394,44 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     let y_high = Felt::from_hex_unchecked("0xDB0A2E6710C71BA80AFEB3ABDF69D306");
 
     // Call test_new_point_secp256r1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_new_point_secp256r1", &[x_low, x_high]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_add_secp256r1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_add_secp256r1", &[x_low, x_high, y_low, y_high]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_getter_secp256r1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_getter_secp256r1", &[x_low, x_high, y_low, y_high]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_mul_secp256r1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_mul_secp256r1", &[Felt::from(1991), Felt::from(1996)]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Call test_signature_verification_secp256r1.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_signature_verification_secp256r1", &[]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Declare the experimental contract.
     let experimental_contract = FeatureContract::Experimental;
@@ -1569,59 +1464,49 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     test_manager.add_invoke_tx(deploy_tx, None);
 
     // Call test_sha256.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(main_contract_address, "test_sha256", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(main_contract_address, "test_sha256", &[]) },
+    );
 
     // Call test_circuit.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(main_contract_address, "test_circuit", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(main_contract_address, "test_circuit", &[]) },
+    );
 
     // Call test_rc96_holes.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(main_contract_address, "test_rc96_holes", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! {
+            calldata: create_calldata(main_contract_address, "test_rc96_holes", &[])
+        },
+    );
 
     // Call test_get_block_hash.
     // Get the block hash at current block number minus STORED_BLOCK_HASH_BUFFER.
     let queried_block_number = BlockNumber(current_block_number.0 - STORED_BLOCK_HASH_BUFFER);
     let (_old_block_number, old_block_hash) =
         maybe_dummy_block_hash_and_number(current_block_number).unwrap();
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address,
             "test_get_block_hash",
             &[
                 Felt::from(queried_block_number.0),
                 old_block_hash.0,
-            ]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+            ]
+        ) },
+    );
 
     // Test library call.
     // TODO(Yoni): test execution info on library call.
     let test_library_call_key = Felt::from(1973);
     let test_library_call_value = Felt::from(1982);
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address,
             "test_library_call",
             &[
@@ -1631,21 +1516,18 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
                 test_library_call_key,
                 test_library_call_value
             ]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
     update_expected_storage(main_contract_address, test_library_call_key, test_library_call_value);
 
     // Test segment_arena.
     for _ in 0..2 {
-        let invoke_tx_args = invoke_tx_args! {
-            sender_address: *FUNDED_ACCOUNT_ADDRESS,
-            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-            calldata: create_calldata(main_contract_address, "test_segment_arena", &[]),
-            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        };
-        test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+        test_manager.add_funded_account_invoke(
+            &mut nonce_manager,
+            invoke_tx_args! {
+                calldata: create_calldata(main_contract_address, "test_segment_arena", &[])
+            },
+        );
     }
 
     // Declare a Cairo 1.0 account contract.
@@ -2014,17 +1896,14 @@ async fn test_deploy_syscall() {
     )]);
 
     // Deploy a contract with no constructor using deploy syscall.
-    let invoke_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             *FUNDED_ACCOUNT_ADDRESS,
             "deploy_contract",
             &[empty_class_hash.0, salt, Felt::ZERO],
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Run the test and verify storage changes.
     let test_output =
@@ -2177,17 +2056,14 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     // Test `constructor` in execute mode.
     let ctor_calldata = [Felt::ZERO]; // Not validate mode (execute mode).
     let salt = Felt::ZERO;
-    let invoke_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             *FUNDED_ACCOUNT_ADDRESS,
             "deploy_contract",
             &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0]]
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Run the test.
     let test_output =
@@ -2329,10 +2205,9 @@ async fn test_reverted_call() {
         [("test_revert_helper", false), ("bad_selector", false), ("__execute__", true)]
     {
         // Test contract call to test_revert_helper.
-        let invoke_args = invoke_tx_args! {
-            sender_address: *FUNDED_ACCOUNT_ADDRESS,
-            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-            calldata: create_calldata(
+        test_manager.add_funded_account_invoke(
+            &mut nonce_manager,
+            invoke_tx_args! { calldata: create_calldata(
                 main_contract_address,
                 "test_call_contract_revert",
                 &[
@@ -2343,10 +2218,8 @@ async fn test_reverted_call() {
                     to_panic.into(),
                     is_meta_tx.into(),
                 ]
-            ),
-            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        };
-        test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+            ) },
+        );
     }
 
     // Test call to cairo0 contracts with 0 and more then 0 entry points.
@@ -2354,10 +2227,9 @@ async fn test_reverted_call() {
         [(empty_contract, empty_contract_address), (test_contract2, test_contract2_address)]
     {
         let class_hash = get_class_hash_of_feature_contract(contract);
-        let invoke_args = invoke_tx_args! {
-            sender_address: *FUNDED_ACCOUNT_ADDRESS,
-            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-            calldata: create_calldata(
+        test_manager.add_funded_account_invoke(
+            &mut nonce_manager,
+            invoke_tx_args! { calldata: create_calldata(
                 main_contract_address,
                 "test_call_contract_revert",
                 &[
@@ -2368,10 +2240,8 @@ async fn test_reverted_call() {
                     to_panic.into(),
                     false.into(),
                 ]
-            ),
-            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        };
-        test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+            ) },
+        );
 
         // Test 3:
         // - Contract A calls Contract B.
@@ -2379,17 +2249,14 @@ async fn test_reverted_call() {
         // - Contract A calls Contract C.
         // - Contract C changes the storage value from 10 to 17 and raises an exception.
         // - Contract A checks that the storage value == 10.
-        let invoke_args = invoke_tx_args! {
-            sender_address: *FUNDED_ACCOUNT_ADDRESS,
-            nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-            calldata: create_calldata(
+        test_manager.add_funded_account_invoke(
+            &mut nonce_manager,
+            invoke_tx_args! { calldata: create_calldata(
                 main_contract_address,
                 "test_revert_with_inner_call_and_reverted_storage",
                 &[**main_contract_address, test_class_hash.0]
-            ),
-            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        };
-        test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+            ) },
+        );
     }
 
     // Test 4:
@@ -2423,15 +2290,12 @@ async fn test_reverted_call() {
     .concat();
 
     // Call contract A.
-    let invoke_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             main_contract_address, "test_call_contract_revert", &contract_a_calldata
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Run the test and assert only the fee token contract and the OS contracts have storage
     // updates.
@@ -2544,17 +2408,14 @@ async fn test_resources_type() {
         key + Felt::ONE,
         value + Felt::ONE,
     ];
-    let invoke_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             sierra_gas_contract_address,
             "test_call_two_contracts",
             &[calldata_0, calldata_1].concat()
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Run test and check storage updates.
     let test_output = test_manager
@@ -2650,10 +2511,9 @@ async fn test_direct_execute_call() {
         ])
         .await;
 
-    let invoke_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(
+    test_manager.add_funded_account_invoke(
+        &mut nonce_manager,
+        invoke_tx_args! { calldata: create_calldata(
             test_contract_address,
             "test_direct_execute_call",
             &[
@@ -2665,10 +2525,8 @@ async fn test_direct_execute_call() {
                 Felt::ONE,                          // Arg 1.
                 Felt::ONE                           // Arg 2.
             ],
-        ),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_args, &CHAIN_ID_FOR_TESTS, None);
+        ) },
+    );
 
     // Run test.
     let test_output = test_manager

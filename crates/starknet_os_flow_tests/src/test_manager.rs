@@ -371,6 +371,25 @@ impl<S: FlowTestState> TestManager<S> {
         );
     }
 
+    /// Similar to `add_invoke_tx_from_args`, but with the sender address set to the funded account,
+    /// nonce set (and incremented) and resource bounds set to the default (non-trivial).
+    pub(crate) fn add_funded_account_invoke(
+        &mut self,
+        nonce_manager: &mut NonceManager,
+        additional_args: InvokeTxArgs,
+    ) {
+        self.add_invoke_tx_from_args(
+            InvokeTxArgs {
+                sender_address: *FUNDED_ACCOUNT_ADDRESS,
+                nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                ..additional_args
+            },
+            &CHAIN_ID_FOR_TESTS,
+            None,
+        );
+    }
+
     pub(crate) fn add_cairo0_declare_tx(
         &mut self,
         tx: DeclareTransaction,
