@@ -25,7 +25,12 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
         inbound_session_id: InboundSessionId,
     ) -> Result<(), SessionIdNotFoundError>;
 
-    fn send_query(&mut self, query: Vec<u8>, protocol: StreamProtocol) -> OutboundSessionId;
+    fn send_query(
+        &mut self,
+        query: Vec<u8>,
+        protocol: StreamProtocol,
+        peer_id: Option<PeerId>,
+    ) -> OutboundSessionId;
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError>;
 
@@ -74,8 +79,13 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         self.behaviour_mut().sqmr.send_response(response, inbound_session_id)
     }
 
-    fn send_query(&mut self, query: Vec<u8>, protocol: StreamProtocol) -> OutboundSessionId {
-        self.behaviour_mut().sqmr.start_query(query, protocol)
+    fn send_query(
+        &mut self,
+        query: Vec<u8>,
+        protocol: StreamProtocol,
+        peer_id: Option<PeerId>,
+    ) -> OutboundSessionId {
+        self.behaviour_mut().sqmr.start_query(query, protocol, peer_id)
     }
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError> {

@@ -706,8 +706,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         protocol: StreamProtocol,
         client_payload: SqmrClientPayload,
     ) {
-        let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
-        let outbound_session_id = self.swarm.send_query(query, protocol.clone());
+        let SqmrClientPayload { query, report_receiver, responses_sender, peer_id } =
+            client_payload;
+        // Use the peer_id from the payload (None for round-robin, Some for specific peer)
+        let outbound_session_id = self.swarm.send_query(query, protocol.clone(), peer_id);
         if let Some(sqmr_metrics) =
             self.metrics.as_ref().and_then(|metrics| metrics.sqmr_metrics.as_ref())
         {
@@ -945,7 +947,25 @@ where
         let query = Bytes::from(query);
         let responses_sender =
             Box::new(responses_sender.with(|response| ready(Ok(Response::try_from(response)))));
-        let payload = SqmrClientPayload { query, report_receiver, responses_sender };
+        let payload = SqmrClientPayload { query, report_receiver, responses_sender, peer_id: None };
+        self.sender.send(payload).await?;
+        Ok(ClientResponsesManager { report_sender, responses_receiver })
+    }
+
+    pub async fn send_new_query_to_peer(
+        &mut self,
+        query: Query,
+        peer_id: PeerId,
+    ) -> Result<ClientResponsesManager<Response>, SendError> {
+        let (report_sender, report_receiver) = oneshot::channel::<()>();
+        let (responses_sender, responses_receiver) =
+            futures::channel::mpsc::channel(self.buffer_size);
+        let responses_receiver = Box::new(responses_receiver);
+        let query = Bytes::from(query);
+        let responses_sender =
+            Box::new(responses_sender.with(|response| ready(Ok(Response::try_from(response)))));
+        let payload =
+            SqmrClientPayload { query, report_receiver, responses_sender, peer_id: Some(peer_id) };
         self.sender.send(payload).await?;
         Ok(ClientResponsesManager { report_sender, responses_receiver })
     }
@@ -980,6 +1000,7 @@ pub struct SqmrClientPayload {
     query: Bytes,
     report_receiver: ReportReceiver,
     responses_sender: ResponsesSender,
+    peer_id: Option<PeerId>,
 }
 
 pub struct SqmrServerReceiver<Query, Response>

@@ -129,24 +129,55 @@ impl Behaviour {
         }
     }
 
-    /// Assign some peer and start a query. Return the id of the new session.
+    /// Start a query and return the id of the new session.
+    ///
+    /// If `peer_id` is `Some`, the query will be sent to that specific peer using any available
+    /// connection. If `peer_id` is `None`, a peer will be assigned via the peer manager (typically
+    /// using round-robin selection).
     pub fn start_query(
         &mut self,
         query: Bytes,
         protocol_name: StreamProtocol,
+        peer_id: Option<PeerId>,
     ) -> OutboundSessionId {
         let outbound_session_id = self.next_outbound_session_id;
         self.next_outbound_session_id.value += 1;
 
-        self.outbound_sessions_pending_peer_assignment
-            .insert(outbound_session_id, (query, protocol_name));
-        debug!(
-            "Network received new outbound query. Requesting peer assignment for {:?}.",
-            outbound_session_id
-        );
-        self.add_event_to_queue(ToSwarm::GenerateEvent(Event::ToOtherBehaviourEvent(
-            ToOtherBehaviourEvent::RequestPeerAssignment { outbound_session_id },
-        )));
+        if let Some(peer_id) = peer_id {
+            // Peer specified directly - send the query immediately without peer assignment
+            debug!(
+                "Network received new outbound query for peer {:?}. Sending directly. {:?}",
+                peer_id, outbound_session_id
+            );
+
+            // We don't have a specific connection ID, so we use NotifyHandler::Any to send to
+            // any connection with this peer
+            self.add_event_to_queue(ToSwarm::NotifyHandler {
+                peer_id,
+                handler: NotifyHandler::Any,
+                event: RequestFromBehaviourEvent::CreateOutboundSession {
+                    query,
+                    outbound_session_id,
+                    protocol_name,
+                },
+            });
+
+            // Store the mapping without a specific connection_id (using a dummy value)
+            // The actual connection will be determined by NotifyHandler::Any
+            self.session_id_to_peer_id_and_connection_id
+                .insert(outbound_session_id.into(), (peer_id, ConnectionId::new_unchecked(0)));
+        } else {
+            // No peer specified - use peer assignment (round-robin)
+            self.outbound_sessions_pending_peer_assignment
+                .insert(outbound_session_id, (query, protocol_name));
+            debug!(
+                "Network received new outbound query. Requesting peer assignment for {:?}.",
+                outbound_session_id
+            );
+            self.add_event_to_queue(ToSwarm::GenerateEvent(Event::ToOtherBehaviourEvent(
+                ToOtherBehaviourEvent::RequestPeerAssignment { outbound_session_id },
+            )));
+        }
 
         outbound_session_id
     }

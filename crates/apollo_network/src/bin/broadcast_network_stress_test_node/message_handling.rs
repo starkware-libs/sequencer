@@ -90,19 +90,22 @@ impl MessageSender {
                 client.broadcast_message(message).await.unwrap();
             }
             MessageSender::Sqmr(client) => {
-                // Send query and properly handle the response manager to avoid session warnings
-                match client.send_new_query(message).await {
-                    Ok(mut response_manager) => {
-                        // Consume the response manager to properly close the session
-                        // This prevents the "finished with no messages" warning
-                        tokio::spawn(async move {
-                            while let Some(_response) = response_manager.next().await {
-                                // Process any responses if they come, but don't block the sender
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        error!("Failed to send SQMR query: {:?}", e);
+                // Send query to all specified peers
+                for peer_id in _peers {
+                    match client.send_new_query_to_peer(message.clone(), *peer_id).await {
+                        Ok(mut response_manager) => {
+                            // Consume the response manager to properly close the session
+                            // This prevents the "finished with no messages" warning
+                            tokio::spawn(async move {
+                                while let Some(_response) = response_manager.next().await {
+                                    // Process any responses if they come, but don't block the
+                                    // sender
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            error!("Failed to send SQMR query to peer {:?}: {:?}", peer_id, e);
+                        }
                     }
                 }
             }
