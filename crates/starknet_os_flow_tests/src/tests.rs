@@ -126,12 +126,6 @@ async fn declare_deploy_scenario(
         DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
         &calldata,
     );
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: deploy_contract_calldata,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
     let expected_contract_address = calculate_contract_address(
         contract_address_salt,
         class_hash,
@@ -139,7 +133,7 @@ async fn declare_deploy_scenario(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata });
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
@@ -198,23 +192,13 @@ async fn trivial_diff_scenario(
     let value = Felt::from(11u8);
     let function_name = "test_storage_read_write";
     // Invoke a function on the test contract that changes the key to the new value.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(test_contract_address, function_name, &[key, value]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    let calldata = create_calldata(test_contract_address, function_name, &[key, value]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Move to next block, and add an invoke that reverts the previous change.
     test_manager.move_to_next_block();
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS);
+    let calldata = create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Execute the test.
     let test_output = test_manager
