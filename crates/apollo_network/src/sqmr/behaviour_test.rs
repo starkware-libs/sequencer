@@ -7,7 +7,14 @@ use futures::{FutureExt, Stream, StreamExt};
 use lazy_static::lazy_static;
 use libp2p::core::transport::PortUse;
 use libp2p::core::{ConnectedPoint, Endpoint};
-use libp2p::swarm::{ConnectionClosed, ConnectionId, FromSwarm, NetworkBehaviour, ToSwarm};
+use libp2p::swarm::{
+    ConnectionClosed,
+    ConnectionId,
+    FromSwarm,
+    NetworkBehaviour,
+    NotifyHandler,
+    ToSwarm,
+};
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
 
 use super::super::handler::{RequestFromBehaviourEvent, RequestToBehaviourEvent};
@@ -319,7 +326,7 @@ async fn create_and_process_outbound_session() {
 
     let peer_id = *DUMMY_PEER_ID;
 
-    let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone());
+    let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone(), None);
 
     validate_request_peer_assignment_event(&mut behaviour, outbound_session_id).await;
     validate_no_events(&mut behaviour);
@@ -354,7 +361,7 @@ async fn connection_closed() {
     let peer_id = *DUMMY_PEER_ID;
 
     // Add an outbound session on the connection.
-    let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone());
+    let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone(), None);
     // Consume the event to request peer assignment.
     behaviour.next().await.unwrap();
     simulate_peer_assigned(&mut behaviour, peer_id, outbound_session_id);
@@ -400,7 +407,7 @@ async fn drop_outbound_session() {
 
     let peer_id = *DUMMY_PEER_ID;
 
-    let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone());
+    let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone(), None);
     // Consume the event to request peer assignment.
     behaviour.next().await.unwrap();
     simulate_peer_assigned(&mut behaviour, peer_id, outbound_session_id);
@@ -463,4 +470,41 @@ fn send_response_non_existing_session_fails() {
     for response in dummy_data() {
         behaviour.send_response(response, InboundSessionId::default()).unwrap_err();
     }
+}
+
+#[tokio::test]
+async fn create_outbound_session_with_specified_peer() {
+    let mut behaviour = Behaviour::new(Config::get_test_config());
+
+    let peer_id = *DUMMY_PEER_ID;
+
+    // Start a query with a specific peer ID
+    let outbound_session_id =
+        behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone(), Some(peer_id));
+
+    // Should not generate a RequestPeerAssignment event since peer is specified
+    // Instead, should directly generate a NotifyHandler event
+    let event = behaviour.next().await.unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::NotifyHandler {
+            peer_id: event_peer_id,
+            handler: NotifyHandler::Any,
+            event: RequestFromBehaviourEvent::CreateOutboundSession {
+                query: event_query,
+                outbound_session_id: event_outbound_session_id,
+                protocol_name,
+            },
+        } if event_peer_id == peer_id
+            && event_outbound_session_id == outbound_session_id
+            && event_query == QUERY.clone()
+            && protocol_name == PROTOCOL_NAME.clone()
+    );
+    validate_no_events(&mut behaviour);
+
+    // Verify the session is tracked
+    let (tracked_peer_id, _connection_id) = behaviour
+        .get_peer_id_and_connection_id_from_session_id(outbound_session_id.into())
+        .unwrap();
+    assert_eq!(tracked_peer_id, peer_id);
 }
