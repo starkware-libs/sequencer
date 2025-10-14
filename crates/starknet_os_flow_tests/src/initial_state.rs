@@ -60,6 +60,7 @@ const STRK_DECIMALS: u8 = 18;
 /// Gathers the information needed to execute a flow test.
 pub(crate) struct InitialStateData<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
+    pub(crate) nonce_manager: NonceManager,
     pub(crate) execution_contracts: OsExecutionContracts,
 }
 
@@ -129,7 +130,7 @@ pub(crate) struct InitialState<S: FlowTestState> {
 /// Also deploys extra contracts as requested (and declares them if they are not already declared).
 pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N: usize>(
     extra_contracts: [(FeatureContract, Calldata); N],
-) -> (InitialStateData<S>, NonceManager, [ContractAddress; N]) {
+) -> (InitialStateData<S>, [ContractAddress; N]) {
     let (
         InitialTransactionsData {
             transactions: default_initial_state_txs,
@@ -183,8 +184,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     };
 
     (
-        InitialStateData { initial_state, execution_contracts },
-        nonce_manager,
+        InitialStateData { initial_state, nonce_manager, execution_contracts },
         extra_contracts_addresses,
     )
 }

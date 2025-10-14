@@ -89,7 +89,7 @@ async fn declare_deploy_scenario(
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
-    let (mut test_manager, mut nonce_manager, _) =
+    let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
 
     // Declare a test contract.
@@ -102,7 +102,7 @@ async fn declare_deploy_scenario(
         class_hash,
         compiled_class_hash,
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
     let class_info = get_class_info_of_feature_contract(test_contract);
@@ -128,7 +128,7 @@ async fn declare_deploy_scenario(
     );
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         calldata: deploy_contract_calldata,
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
@@ -187,7 +187,7 @@ async fn trivial_diff_scenario(
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
-    let (mut test_manager, mut nonce_manager, [test_contract_address]) =
+    let (mut test_manager, [test_contract_address]) =
         TestManager::<DictStateReader>::new_with_default_initial_state([(
             test_contract,
             calldata![Felt::ONE, Felt::TWO],
@@ -200,7 +200,7 @@ async fn trivial_diff_scenario(
     // Invoke a function on the test contract that changes the key to the new value.
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         calldata: create_calldata(test_contract_address, function_name, &[key, value]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
@@ -210,7 +210,7 @@ async fn trivial_diff_scenario(
     test_manager.move_to_next_block();
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         calldata: create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
@@ -247,7 +247,7 @@ async fn test_reverted_invoke_tx(
 ) {
     let (use_kzg_da, full_output) = (true, false);
 
-    let (mut test_manager, mut nonce_manager, [test_contract_address]) =
+    let (mut test_manager, [test_contract_address]) =
         TestManager::<DictStateReader>::new_with_default_initial_state([(
             test_contract,
             calldata![Felt::ONE, Felt::TWO],
@@ -257,7 +257,7 @@ async fn test_reverted_invoke_tx(
     // Call a reverting function that changes the storage.
     let invoke_tx_args = invoke_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: nonce_manager.next(*FUNDED_ACCOUNT_ADDRESS),
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         calldata: create_calldata(test_contract_address, "write_and_revert", &[]),
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
