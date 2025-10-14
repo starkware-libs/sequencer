@@ -90,6 +90,7 @@ pub(crate) struct TestParameters {
 pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) execution_contracts: OsExecutionContracts,
+    pub(crate) nonce_manager: NonceManager,
 
     per_block_transactions: Vec<Vec<BlockifierTransaction>>,
 }
@@ -233,10 +234,14 @@ impl<S: FlowTestState> OsTestOutput<S> {
 
 impl<S: FlowTestState> TestManager<S> {
     /// Creates a new `TestManager` with the provided initial state data.
-    pub(crate) fn new_with_initial_state_data(initial_state_data: InitialStateData<S>) -> Self {
+    pub(crate) fn new_with_initial_state_data(
+        initial_state_data: InitialStateData<S>,
+        nonce_manager: NonceManager,
+    ) -> Self {
         Self {
             initial_state: initial_state_data.initial_state,
             execution_contracts: initial_state_data.execution_contracts,
+            nonce_manager,
             per_block_transactions: vec![vec![]],
         }
     }
@@ -247,14 +252,21 @@ impl<S: FlowTestState> TestManager<S> {
     /// these contracts will be returned as an array of the same length.
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
-    ) -> (Self, NonceManager, [ContractAddress; N]) {
+    ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, nonce_manager, extra_addresses) =
             create_default_initial_state_data::<S, N>(extra_contracts).await;
         (
-            Self::new_with_initial_state_data(default_initial_state_data),
-            nonce_manager,
+            Self::new_with_initial_state_data(default_initial_state_data, nonce_manager),
             extra_addresses,
         )
+    }
+
+    pub(crate) fn next_nonce(&mut self, account_address: ContractAddress) -> Nonce {
+        self.nonce_manager.next(account_address)
+    }
+
+    pub(crate) fn get_nonce(&self, account_address: ContractAddress) -> Nonce {
+        self.nonce_manager.get(account_address)
     }
 
     /// Advances the manager to the next block when adding new transactions.
