@@ -58,6 +58,7 @@ use crate::initial_state::{
     OsExecutionContracts,
 };
 use crate::state_trait::FlowTestState;
+use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
     create_cached_state_input_and_commitment_infos,
@@ -312,6 +313,22 @@ impl<S: FlowTestState> TestManager<S> {
 
     pub(crate) fn add_invoke_tx_from_args(&mut self, args: InvokeTxArgs, chain_id: &ChainId) {
         self.add_invoke_tx(InvokeTransaction::create(invoke_tx(args), chain_id).unwrap());
+    }
+
+    /// Similar to `add_invoke_tx_from_args`, but with the sender address set to the funded account,
+    /// nonce set (and incremented) and resource bounds set to the default (non-trivial).
+    /// Assumes the tx should not be reverted.
+    pub(crate) fn add_funded_account_invoke(&mut self, additional_args: InvokeTxArgs) {
+        let nonce = self.next_nonce(*FUNDED_ACCOUNT_ADDRESS);
+        self.add_invoke_tx_from_args(
+            InvokeTxArgs {
+                sender_address: *FUNDED_ACCOUNT_ADDRESS,
+                nonce,
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                ..additional_args
+            },
+            &CHAIN_ID_FOR_TESTS,
+        );
     }
 
     pub(crate) fn add_cairo0_declare_tx(
