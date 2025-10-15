@@ -2531,3 +2531,66 @@ async fn test_meta_tx() {
     test_output.assert_storage_diff_eq(meta_tx_contract_address, expected_meta_tx_contract_diffs);
     test_output.assert_storage_diff_eq(tx_info_contract_address, expected_tx_info_writer_diffs);
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_declare_and_deploy_in_separate_blocks() {
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare a test contract.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract_sierra = test_contract.get_sierra();
+    let class_hash = test_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(test_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &test_contract_sierra);
+
+    // Move on to the next block, with an empty block in between.
+    test_manager.move_to_next_block();
+    test_manager.move_to_next_block();
+
+    // Deploy the test contract using the deploy contract syscall.
+    let (arg1, arg2) = (Felt::from(7), Felt::from(90));
+    let salt = Felt::ZERO;
+    let (deploy_tx, address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        calldata![arg1, arg2],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Run the test and verify the storage changes.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da: true,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+    test_output.assert_storage_diff_eq(
+        address,
+        HashMap::from([(**get_storage_var_address("my_storage_var", &[]), arg1 + arg2)]),
+    );
+    assert_eq!(
+        test_output
+            .decompressed_state_diff
+            .class_hash_to_compiled_class_hash
+            .get(&class_hash)
+            .unwrap()
+            .0,
+        compiled_class_hash.0
+    );
+}
