@@ -1137,6 +1137,7 @@ name = "apollo_consensus"
 version = "0.16.0-rc.0"
 dependencies = [
  "apollo_consensus_config",
+ "apollo_infra_utils",
  "apollo_metrics",
  "apollo_network",
  "apollo_network_types",

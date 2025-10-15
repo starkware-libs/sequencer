@@ -12,7 +12,10 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
+const REBROADCAST_LOG_PERIOD_SECS: u64 = 10;
+
 use apollo_consensus_config::config::TimeoutsConfig;
+use apollo_infra_utils::trace_every_n_sec;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
@@ -247,7 +250,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                trace!("Rebroadcasting {last_vote:?}");
+                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
@@ -264,7 +267,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                trace!("Rebroadcasting {last_vote:?}");
+                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
