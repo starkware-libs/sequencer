@@ -247,7 +247,7 @@ where
     Bytes: From<Response>,
 {
     fn from(payload: SqmrClientPayload) -> Self {
-        let SqmrClientPayload { query, report_receiver, responses_sender } = payload;
+        let SqmrClientPayload { query, report_receiver, responses_sender, peer_id: _ } = payload;
         let query = Query::try_from(query);
         let responses_sender =
             Box::new(responses_sender.with(|response: Response| ready(Ok(Bytes::from(response)))));
