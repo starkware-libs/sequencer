@@ -52,7 +52,6 @@ func encrypt_state_diff{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     local symmetric_key: felt;
     local sn_private_keys: felt*;
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys) %}
-    validate_sn_private_keys(n_keys=n_keys, sn_private_keys=sn_private_keys);
 
     local encrypted_start: felt*;
     %{
@@ -81,17 +80,6 @@ func encrypt_state_diff{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     return (encrypted_start=encrypted_start, encrypted_dst=encrypted_dst);
 }
 
-// Validates that the private keys are within the range [1, StarkCurve.ORDER - 1].
-func validate_sn_private_keys{range_check_ptr}(n_keys: felt, sn_private_keys: felt*) {
-    if (n_keys == 0) {
-        return ();
-    }
-    assert_not_zero(sn_private_keys[0]);
-    assert_le_felt(sn_private_keys[0], StarkCurve.ORDER - 1);
-
-    return validate_sn_private_keys(n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1]);
-}
-
 // Compute public keys from private keys.
 // Step-by-step for each key:
 // 1) Multiply the private key by the curve generator to get the public point (x, y).
@@ -102,11 +90,15 @@ func output_sn_public_keys{range_check_ptr, ec_op_ptr: EcOpBuiltin*, encrypted_d
     if (n_keys == 0) {
         return ();
     }
+
     let (sn_public_key) = ec_mul(
         m=sn_private_keys[0], p=EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y)
     );
     assert encrypted_dst[0] = sn_public_key.x;
     let encrypted_dst = &encrypted_dst[1];
+    // Validates that the private keys are within the range [1, StarkCurve.ORDER - 1].
+    assert_not_zero(sn_private_keys[0]);
+    assert_le_felt(sn_private_keys[0], StarkCurve.ORDER - 1);
     return output_sn_public_keys(n_keys=n_keys - 1, sn_private_keys=&sn_private_keys[1]);
 }
 
@@ -157,7 +149,7 @@ func encrypt{range_check_ptr, encrypted_dst: felt*}(
     naive_encode_felt252s_to_u32s(
         packed_values_len=1, packed_values=&symmetric_key, unpacked_u32s=encoded_symmetric_key
     );
-    let blake_output: felt* = alloc();
+    let blake_segment: felt* = alloc();
     // Ensure the data size is small - we assume this when encoding the index in encrypt_inner.
     assert_le(data_end - data_start, 2 ** 32 - 1);
     let (initial_state: felt*) = create_initial_state_for_blake2s();
@@ -166,7 +158,7 @@ func encrypt{range_check_ptr, encrypted_dst: felt*}(
         data_end=data_end,
         index=0,
         encoded_symmetric_key=encoded_symmetric_key,
-        blake_output=blake_output,
+        blake_segment=blake_segment,
         initial_state=initial_state,
     );
     return ();
@@ -179,41 +171,40 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
     data_end: felt*,
     index: felt,
     encoded_symmetric_key: felt*,
-    blake_output: felt*,
+    blake_segment: felt*,
     initial_state: felt*,
 ) {
     if (data_start == data_end) {
         return ();
     }
-    let blake_encoding_start = blake_output;
+    let blake_input = blake_segment;
 
     // Write encoded symmetric key to blake output.
-    assert blake_output[0] = encoded_symmetric_key[0];
-    assert blake_output[1] = encoded_symmetric_key[1];
-    assert blake_output[2] = encoded_symmetric_key[2];
-    assert blake_output[3] = encoded_symmetric_key[3];
-    assert blake_output[4] = encoded_symmetric_key[4];
-    assert blake_output[5] = encoded_symmetric_key[5];
-    assert blake_output[6] = encoded_symmetric_key[6];
-    assert blake_output[7] = encoded_symmetric_key[7];
-    let blake_output = &blake_output[8];
-    // Write encoded index to blake output - since index is small,
-    // manually encode in little-endian notion as [index, 0, 0, 0, 0, 0, 0, 0].
-    assert blake_output[0] = index;
-    assert blake_output[1] = 0;
-    assert blake_output[2] = 0;
-    assert blake_output[3] = 0;
-    assert blake_output[4] = 0;
-    assert blake_output[5] = 0;
-    assert blake_output[6] = 0;
-    assert blake_output[7] = 0;
-    let blake_output = &blake_output[8];
+    assert blake_segment[0] = encoded_symmetric_key[0];
+    assert blake_segment[1] = encoded_symmetric_key[1];
+    assert blake_segment[2] = encoded_symmetric_key[2];
+    assert blake_segment[3] = encoded_symmetric_key[3];
+    assert blake_segment[4] = encoded_symmetric_key[4];
+    assert blake_segment[5] = encoded_symmetric_key[5];
+    assert blake_segment[6] = encoded_symmetric_key[6];
+    assert blake_segment[7] = encoded_symmetric_key[7];
+    let blake_segment = &blake_segment[8];
+    // Write encoded index to blake output - since index is small, manually encode as [0, 0, 0, 0, 0, 0, 0, index].
+    assert blake_segment[0] = index;
+    assert blake_segment[1] = 0;
+    assert blake_segment[2] = 0;
+    assert blake_segment[3] = 0;
+    assert blake_segment[4] = 0;
+    assert blake_segment[5] = 0;
+    assert blake_segment[6] = 0;
+    assert blake_segment[7] = 0;
+    let blake_segment = &blake_segment[8];
     // Calculate blake hash modulo prime.
     blake_with_opcode_for_single_16_length_word(
-        data=blake_encoding_start, out=blake_output, initial_state=initial_state
+        data=blake_input, out=blake_segment, initial_state=initial_state
     );
-    let hash = felt_from_le_u32s(u32s=blake_output);
-    let blake_output = &blake_output[8];
+    let hash = felt_from_le_u32s(u32s=blake_segment);
+    let blake_segment = &blake_segment[8];
 
     // Encrypt the current element.
     assert encrypted_dst[0] = hash + data_start[0];
@@ -225,7 +216,7 @@ func encrypt_inner{range_check_ptr, encrypted_dst: felt*}(
         data_end=data_end,
         index=index + 1,
         encoded_symmetric_key=encoded_symmetric_key,
-        blake_output=blake_output,
+        blake_segment=blake_segment,
         initial_state=initial_state,
     );
 }
