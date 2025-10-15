@@ -17,6 +17,7 @@ pub mod config_manager_runner_tests;
 pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
     config_manager_client: SharedConfigManagerClient,
+    latest_node_dynamic_config: NodeDynamicConfig,
     cli_args: Vec<String>,
 }
 
@@ -50,30 +51,45 @@ impl ConfigManagerRunner {
     pub fn new(
         config_manager_config: ConfigManagerConfig,
         config_manager_client: SharedConfigManagerClient,
+        initial_node_dynamic_config: NodeDynamicConfig,
         cli_args: Vec<String>,
     ) -> Self {
-        Self { config_manager_config, config_manager_client, cli_args }
+        Self {
+            config_manager_config,
+            config_manager_client,
+            latest_node_dynamic_config: initial_node_dynamic_config,
+            cli_args,
+        }
     }
 
     // TODO(Nadin): Define a proper result type instead of Box<dyn std::error::Error + Send + Sync>
     pub(crate) async fn update_config(
-        &self,
+        &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
         let config = load_and_validate_config(self.cli_args.clone())?;
         let node_dynamic_config = NodeDynamicConfig::from(&config);
-        info!("Extracted NodeDynamicConfig: {:?}", node_dynamic_config);
 
-        // TODO(Nadin/Tsabary): Store the last loaded config, compare for changes and only send the
-        // changes to the config manager.
-        match self.config_manager_client.set_node_dynamic_config(node_dynamic_config.clone()).await
-        {
-            Ok(()) => {
-                info!("Successfully updated dynamic config");
-                Ok(node_dynamic_config)
-            }
-            Err(e) => {
-                error!("Failed to update dynamic config: {:?}", e);
-                Err(format!("Failed to update dynamic config: {:?}", e).into())
+        // Compare the previous and the newly read node dynamic config.
+        if self.latest_node_dynamic_config == node_dynamic_config {
+            // No change, so no action is needed.
+            Ok(node_dynamic_config)
+        } else {
+            // TODO(Nadin/Tsabary): log the diff between the latest and the new node dynamic config.
+            // Update the latest node dynamic config.
+            self.latest_node_dynamic_config = node_dynamic_config.clone();
+            match self
+                .config_manager_client
+                .set_node_dynamic_config(node_dynamic_config.clone())
+                .await
+            {
+                Ok(()) => {
+                    info!("Successfully updated dynamic config");
+                    Ok(node_dynamic_config)
+                }
+                Err(e) => {
+                    error!("Failed to update dynamic config: {:?}", e);
+                    Err(format!("Failed to update dynamic config: {:?}", e).into())
+                }
             }
         }
     }
