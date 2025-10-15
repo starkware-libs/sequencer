@@ -38,6 +38,9 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     let (hash_state_ptr) = hash_update_single(
         hash_state_ptr=hash_state_ptr, item=starknet_os_config.fee_token_address
     );
+    static_assert StarknetOsConfig.SIZE == 3;
+    // If in the future another optional field is added to StarknetOsConfig,
+    // remove the following `if`.
     if (starknet_os_config.public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH) {
         let (hash_state_ptr) = hash_update_single(
             hash_state_ptr=hash_state_ptr, item=starknet_os_config.public_keys_hash
@@ -57,7 +60,7 @@ func get_public_keys_hash{hash_ptr: HashBuiltin*}(n_public_keys: felt, public_ke
     public_keys_hash: felt
 ) {
     if (n_public_keys == 0) {
-        return (public_keys_hash=0);
+        return (public_keys_hash=DEFAULT_PUBLIC_KEYS_HASH);
     }
     let (hash_state_ptr) = hash_init();
     let (hash_state_ptr) = hash_update(
