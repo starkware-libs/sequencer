@@ -43,12 +43,12 @@ pub enum FftError {
 }
 
 static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
-    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP)
+    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP, 0)
         .unwrap_or_else(|error| panic!("Failed to load trusted setup: {error}."))
 });
 
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
-    Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
+    Ok(KZG_SETTINGS.blob_to_kzg_commitment(blob)?)
 }
 
 fn pad_bytes(input_bytes: Vec<u8>, length: usize) -> Vec<u8> {
