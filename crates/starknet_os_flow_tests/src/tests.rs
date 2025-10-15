@@ -316,3 +316,47 @@ async fn test_reverted_l1_handler_tx(
     assert!(test_output.expected_values.messages_to_l2.is_empty());
     test_output.perform_default_validations();
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_encrypted_state_diff(
+    #[values(false, true)] use_kzg_da: bool,
+    #[values(false, true)] full_output: bool,
+    #[values(None, Some(vec![]), Some(vec![Felt::THREE, Felt::ONE]))] private_keys: Option<
+        Vec<Felt>,
+    >,
+) {
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    // Invoke a function on the test contract that changes the storage.
+    let (key, value) = (Felt::from(10u8), Felt::from(11u8));
+    let calldata = create_calldata(test_contract_address, "test_storage_read_write", &[key, value]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test and assert the diff is as expected.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            full_output,
+            private_keys,
+            ..Default::default()
+        })
+        .await;
+    let perform_global_validations = true;
+    let partial_state_diff = StateDiff {
+        storage_updates: HashMap::from([(
+            test_contract_address,
+            HashMap::from([(
+                StarknetStorageKey(key.try_into().unwrap()),
+                StarknetStorageValue(value),
+            )]),
+        )]),
+        ..Default::default()
+    };
+    test_output.perform_validations(perform_global_validations, Some(&partial_state_diff));
+}

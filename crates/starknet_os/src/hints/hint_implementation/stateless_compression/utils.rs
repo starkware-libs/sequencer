@@ -549,7 +549,10 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
 
     let header = unpack_chunk_to_usize(compressed, HEADER_LEN, HEADER_ELM_BOUND);
     let version = &header[0];
-    assert!(version == &usize::from(COMPRESSION_VERSION), "Unsupported compression version.");
+    assert!(
+        version == &usize::from(COMPRESSION_VERSION),
+        "Unsupported compression version {version}."
+    );
 
     let data_len = &header[1];
     let unique_value_bucket_lengths: Vec<usize> = header[2..2 + N_UNIQUE_BUCKETS].to_vec();
