@@ -9,6 +9,7 @@
   "gateway_config.stateless_tx_validator_config.max_calldata_length": 5000,
   "gateway_config.stateless_tx_validator_config.max_contract_bytecode_size": 81920,
   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
+  "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": 1100000000,
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": 1,
   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": 7,
   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": 0,

@@ -87,7 +87,12 @@ use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateR
 #[fixture]
 fn config() -> GatewayConfig {
     GatewayConfig {
-        stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
+        stateless_tx_validator_config: StatelessTransactionValidatorConfig {
+            // TODO(Arni): Set to default. First change the default gas amount used by transactions
+            // (currently 100,000,000,000).
+            max_l2_gas_amount: 200_000_000_000,
+            ..Default::default()
+        },
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
