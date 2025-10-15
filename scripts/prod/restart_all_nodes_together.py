@@ -115,9 +115,11 @@ Examples:
     print_colored(f"Next block number: {next_block_number}")
 
     config_overrides = {
-        "consensus_manager_config.immediate_active_height": next_block_number,
         "consensus_manager_config.cende_config.skip_write_height": next_block_number,
     }
+
+    if args.restart_strategy != RestartStrategy.ONE_BY_ONE:
+        config_overrides["consensus_manager_config.immediate_active_height"] = next_block_number
 
     namespace_list = get_namespace_list_from_args(args)
     context_list = get_context_list_from_args(args)
