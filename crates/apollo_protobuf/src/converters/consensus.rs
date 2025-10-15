@@ -27,7 +27,8 @@ use crate::consensus::{
     VoteType,
 };
 use crate::converters::ProtobufConversionError;
-use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
+use crate::protobuf::{PublicKeyAndChallenge, SignedChallengeAndIdentity};
+use crate::{auto_impl_into_and_try_from_vec_u8, impl_proto_into_and_try_from_vec_u8, protobuf};
 
 impl TryFrom<protobuf::vote::VoteType> for VoteType {
     type Error = ProtobufConversionError;
@@ -317,3 +318,8 @@ impl From<ProposalPart> for protobuf::ProposalPart {
 }
 
 auto_impl_into_and_try_from_vec_u8!(ProposalPart, protobuf::ProposalPart);
+
+// Messages that are part of the authentication protocol.
+
+impl_proto_into_and_try_from_vec_u8!(PublicKeyAndChallenge);
+impl_proto_into_and_try_from_vec_u8!(SignedChallengeAndIdentity);
