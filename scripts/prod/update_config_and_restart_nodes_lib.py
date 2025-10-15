@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import ABC, abstractmethod
 import argparse
 import json
 import subprocess
@@ -130,6 +131,69 @@ class ApolloArgsParserBuilder:
         return args
 
 
+class ConfigValuesUpdater(ABC):
+    """Abstract class for updating configuration values for different service instances."""
+
+    def get_updated_config(self, orig_config_yaml: str, instance_index: int) -> str:
+        """Get updated configuration YAML for a specific instance.
+
+        Args:
+            orig_config_yaml: Original configuration as YAML string
+            instance_index: Index of the instance to update configuration for
+
+        Returns:
+            Updated configuration as YAML string
+        """
+        config, config_data = parse_config_from_yaml(orig_config_yaml)
+        updated_config_data = self._update_config_for_instance(config_data, instance_index)
+        return serialize_config_to_yaml(config, updated_config_data)
+
+    @abstractmethod
+    def _update_config_for_instance(self, config_data: dict, instance_index: int) -> dict[str, any]:
+        """Update configuration data for a specific instance.
+
+        Args:
+            config_data: Current configuration data dictionary
+            instance_index: Index of the instance to update configuration for
+
+        Returns:
+            Updated configuration data dictionary
+        """
+        pass
+
+
+class ConstConfigValuesUpdater(ConfigValuesUpdater):
+    """Concrete implementation that applies constant configuration overrides."""
+
+    def __init__(self, config_overrides: dict[str, any]):
+        """Initialize with configuration overrides.
+
+        Args:
+            config_overrides: Dictionary of configuration keys and values to override
+        """
+        self.config_overrides = config_overrides
+
+    def _update_config_for_instance(self, config_data: dict, instance_index: int) -> dict[str, any]:
+        """Apply the same configuration overrides to the config data for each instance.
+
+        Args:
+            config_data: Current configuration data dictionary
+            instance_index: Index of the instance (not used in this implementation)
+
+        Returns:
+            Updated configuration data dictionary with overrides applied
+        """
+        # Create a copy to avoid modifying the original
+        updated_config = config_data.copy()
+
+        # Apply all overrides
+        for key, value in self.config_overrides.items():
+            print_colored(f"  Overriding config: {key} = {value}")
+            updated_config[key] = value
+
+        return updated_config
+
+
 class Service(Enum):
     """Service types mapping to their configmap and pod names."""
 
@@ -174,6 +238,111 @@ def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
         raise argparse.ArgumentTypeError(
             f"Invalid restart strategy '{strategy_name}'. Valid options are: {valid_strategies}"
         )
+
+
+class ServiceRestarter(ABC):
+    """Abstract class for restarting service instances."""
+
+    def __init__(self, namespace_list: list[str], service: Service, cluster_list: list[str]):
+        # TODO: Asserts.
+
+        assert len(namespace_list) == len(
+            cluster_list
+        ), "namespace_list and cluster_list must have the same length"
+        self.namespace_list = namespace_list
+        self.service = service
+        self.cluster_list = cluster_list
+
+    @abstractmethod
+    def restart_service(self, service: Service, instance_index: int) -> bool:
+        """Restart service for a specific instance. If returns False, the restart process should be aborted."""
+        pass
+
+    # from_restart_strategy is a static method that returns the appropriate ServiceRestarter based on the restart strategy.
+    @staticmethod
+    def from_restart_strategy(
+        restart_strategy: RestartStrategy,
+        namespace_list: list[str],
+        service: Service,
+        cluster_list: list[str],
+        post_restart_instructions: Optional[list[str]] = None,
+    ) -> "ServiceRestarter":
+        if restart_strategy == RestartStrategy.ONE_BY_ONE:
+            return OneByOneServiceRestarter(
+                namespace_list, service, cluster_list, post_restart_instructions
+            )
+        else:
+            assert (
+                not post_restart_instructions
+            ), f"post_restart_instructions is not allowed for this {restart_strategy} strategy"
+
+            if restart_strategy == RestartStrategy.ALL_AT_ONCE:
+                return ImmediateServiceRestarter(namespace_list, service, cluster_list)
+            elif restart_strategy == RestartStrategy.NO_RESTART:
+                return NoOpServiceRestarter(namespace_list, service, cluster_list)
+            else:
+                raise ValueError(f"Invalid restart strategy: {restart_strategy}")
+
+
+class OneByOneServiceRestarter(ServiceRestarter):
+    """Restart service instances one by one. Show the instructions after each restart and wait for user confirmation."""
+
+    def __init__(
+        self,
+        namespace_list: list[str],
+        service: Service,
+        cluster_list: list[str],
+        post_restart_instructions: list[str],
+    ):
+        assert (
+            post_restart_instructions
+        ), "post_restart_instructions is required for one_by_one restart strategy"
+        assert len(namespace_list) == len(
+            post_restart_instructions
+        ), "namespace_list and post_restart_instructions must have the same length"
+        super().__init__(namespace_list, service, cluster_list)
+        self.post_restart_instructions = post_restart_instructions
+
+    def restart_service(self, service: Service, instance_index: int) -> bool:
+        """Restart the instance one by one, waiting for user confirmation after each restart."""
+        # restart_pod(
+        #     self.namespace_list[instance_index],
+        #     service,
+        #     instance_index,
+        #     self.cluster_list[instance_index],
+        # )
+        instructions = self.post_restart_instructions[instance_index]
+        print_colored(f"Restarted pod.\n{instructions} ", Colors.YELLOW)
+        # Don't ask in the case of the last instance.
+        if instance_index != len(self.post_restart_instructions) - 1 and not wait_until_y_or_n(
+            f"Do you want to restart the next pod?"
+        ):
+            return False
+
+        return True
+
+
+class NoOpServiceRestarter(ServiceRestarter):
+    """No-op service restarter."""
+
+    def restart_service(self, service: Service, instance_index: int) -> bool:
+        """No-op."""
+        print_colored("\nSkipping pod restart.")
+        return True
+
+
+class ImmediateServiceRestarter(ServiceRestarter):
+    """Restart service instances immediately."""
+
+    def restart_service(self, service: Service, instance_index: int) -> bool:
+        """Restart the instance immediately without waiting."""
+        # restart_pod(
+        #     self.namespace_list[instance_index],
+        #     service,
+        #     instance_index,
+        #     self.cluster_list[instance_index],
+        # )
+        return True
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
@@ -632,12 +801,12 @@ def apply_configmap(
 
 
 def update_config_and_restart_nodes(
-    config_overrides: dict[str, Any],
+    config_updater: ConfigValuesUpdater,
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
     restarter: ServiceRestarter,
 ) -> None:
-    assert config_overrides is not None, "config_overrides must be provided"
+    assert config_updater is not None, "config_updater must be provided"
     assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
 
     if not namespace_and_instruction_args.cluster_list:
@@ -645,6 +814,14 @@ def update_config_and_restart_nodes(
             "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
             Colors.RED,
         )
+
+    service_restarter = ServiceRestarter.from_restart_strategy(
+        restart_strategy, namespace_list, service, cluster_list, post_restart_instructions
+    )
+
+    service_restarter = ServiceRestarter.from_restart_strategy(
+        restart_strategy, namespace_list, service, cluster_list, post_restart_instructions
+    )
 
     # Store original and updated configs for all nodes
     configs = []
@@ -668,7 +845,7 @@ def update_config_and_restart_nodes(
         )
 
         # Update config
-        updated_config = update_config_values(original_config, config_overrides)
+        updated_config = config_updater.get_updated_config(original_config, index)
 
         # Store configs
         configs.append({"original": original_config, "updated": updated_config})
@@ -684,12 +861,12 @@ def update_config_and_restart_nodes(
     print_colored("\nApplying configurations...")
     for index, config in enumerate(configs):
         print(f"Applying config {index}...")
-        apply_configmap(
-            config["updated"],
-            namespace_and_instruction_args.get_namespace(index),
-            index,
-            namespace_and_instruction_args.get_cluster(index),
-        )
+        # apply_configmap(
+        #     config["updated"],
+        #     namespace_and_instruction_args.get_namespace(index),
+        #     index,
+        #     namespace_and_instruction_args.get_cluster(index),
+        # )
 
     for index, config in enumerate(configs):
         if not restarter.restart_service(index):

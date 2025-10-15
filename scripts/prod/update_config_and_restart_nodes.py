@@ -8,6 +8,7 @@ from typing import Any
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Colors,
+    ConstConfigValuesUpdater,
     NamespaceAndInstructionArgs,
     Service,
     ServiceRestarter,
@@ -149,6 +150,7 @@ Examples:
         print_error("No config overrides provided")
         sys.exit(1)
 
+<<<<<<< HEAD
     namespace_and_instruction_args = NamespaceAndInstructionArgs(
         NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
         NamespaceAndInstructionArgs.get_context_list_from_args(args),
@@ -156,6 +158,16 @@ Examples:
     )
 
     restarter = ServiceRestarter.from_restart_strategy(
+=======
+    update_config_and_restart_nodes(
+        ConstConfigValuesUpdater(config_overrides),
+        NamespaceAndInstructionArgs(
+            NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
+            NamespaceAndInstructionArgs.get_context_list_from_args(args),
+            None,
+        ),
+        args.service,
+>>>>>>> ceefbbe64 (scripts: Abstraction that allows updates to values calculated dynamically)
         args.restart_strategy,
         namespace_and_instruction_args,
         args.service,

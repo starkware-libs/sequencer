@@ -6,6 +6,7 @@ from typing import Optional
 import urllib.parse
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
+    ConstConfigValuesUpdater,
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
@@ -65,7 +66,7 @@ def set_revert_mode(
     )
 
     update_config_and_restart_nodes(
-        config_overrides,
+        ConstConfigValuesUpdater(config_overrides),
         namespace_and_instruction_args,
         Service.Core,
         restarter,
@@ -80,8 +81,8 @@ Examples:
   %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -b 12345
   
   # Set revert mode using feeder URL to get current block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --revert-only --feeder-url feeder.integration-sepolia.starknet.io   
-  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --feeder-url feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Disable revert mode
   %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --disable-revert-only
