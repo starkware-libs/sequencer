@@ -2304,6 +2304,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "sierra_compiler_config.audited_libfuncs_only": {
+    "description": "If true, restrict to audited libfuncs. Otherwise allow all.",
+    "privacy": "Public",
+    "value": true
+  },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
     "privacy": "TemporaryValue",

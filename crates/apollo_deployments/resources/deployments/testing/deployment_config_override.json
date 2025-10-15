@@ -9,6 +9,7 @@
   "l1_provider_config.provider_startup_height_override.#is_none": false,
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "",
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": true,
+  "sierra_compiler_config.audited_libfuncs_only": false,
   "starknet_url": "https://integration-sepolia.starknet.io/",
   "state_sync_config.central_sync_client_config.#is_none": true,
   "state_sync_config.network_config.#is_none": false,
