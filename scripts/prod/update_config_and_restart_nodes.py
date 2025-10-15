@@ -8,6 +8,7 @@ from typing import Any
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Colors,
+    ConstConfigValuesUpdater,
     Service,
     get_context_list_from_args,
     get_namespace_list_from_args,
@@ -150,7 +151,7 @@ Examples:
         sys.exit(1)
 
     update_config_and_restart_nodes(
-        config_overrides,
+        ConstConfigValuesUpdater(config_overrides),
         get_namespace_list_from_args(args),
         args.service,
         get_context_list_from_args(args),
