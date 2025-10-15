@@ -112,7 +112,7 @@ for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     filename=config${i}.yaml
     command="kubectl get cm sequencer-core-config -n ${NAMESPACE_PREFIX}-${i} -o yaml"
     if [ -n "${CLUSTER_PREFIX}" ]; then
-        command="${command} --context=${CLUSTER_PREFIX}-${i}"
+        command="${command} --context=${CLUSTER_PREFIX}-$(($i-$START_INDEX))"
     fi
     $(${command} > ${filename})
     cp ${filename} ${filename}_old
@@ -132,14 +132,14 @@ fi
 for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     command="kubectl apply -f config${i}.yaml -n ${NAMESPACE_PREFIX}-${i}"
     if [ -n "${CLUSTER_PREFIX}" ]; then
-        command="${command} --context=${CLUSTER_PREFIX}-${i}"
+        command="${command} --context=${CLUSTER_PREFIX}-$(($i-$START_INDEX))"
     fi
     bash -c "${command}" || { echo "Failed applying config for node ${i}"; exit 1; }
 done
 for i in $(seq $START_INDEX $((START_INDEX + NUM_NODES - 1))); do
     command="kubectl delete pod sequencer-core-statefulset-0 -n ${NAMESPACE_PREFIX}-${i}"
     if [ -n "${CLUSTER_PREFIX}" ]; then
-        command="${command} --context=${CLUSTER_PREFIX}-${i}"
+        command="${command} --context=${CLUSTER_PREFIX}-$(($i-$START_INDEX))"
     fi
     bash -c "${command}" || { echo "Failed restarting core pod for node ${i}"; exit 1; }
 done
