@@ -1,7 +1,11 @@
 use std::fs::{self, File};
+use std::path::Path;
 use std::time::Instant;
 
 use csv::Writer;
+use serde::{Deserialize, Serialize};
+use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_types_core::felt::Felt;
 use tracing::info;
 
 use crate::block_committer::input::{ConfigImpl, Input};
@@ -60,6 +64,16 @@ impl TimeMeasurement {
             Action::Compute => &mut self.compute_timer,
             Action::Write => &mut self.writer_timer,
         }
+    }
+
+    fn clear(&mut self) {
+        self.n_new_facts.clear();
+        self.block_durations.clear();
+        self.facts_in_db.clear();
+        self.n_read_facts.clear();
+        self.read_durations.clear();
+        self.compute_durations.clear();
+        self.write_durations.clear();
     }
 
     pub fn start_measurement(&mut self, action: Action) {
@@ -162,7 +176,7 @@ impl TimeMeasurement {
         }
     }
 
-    pub fn to_csv(&self, path: &str, output_dir: &str) {
+    pub fn to_csv(&mut self, path: &str, output_dir: &str) {
         fs::create_dir_all(output_dir).expect("Failed to create output directory.");
         let file =
             File::create(format!("{output_dir}/{path}")).expect("Failed to create CSV file.");
@@ -193,5 +207,60 @@ impl TimeMeasurement {
             .expect("Failed to write CSV record.");
         }
         wtr.flush().expect("Failed to flush CSV writer.");
+        self.clear();
+    }
+
+    pub fn try_load_from_checkpoint(&mut self, checkpoint_dir: &str) -> Option<HashOutput> {
+        let largest_file_index = get_largest_file_index(checkpoint_dir, "json");
+        if let Some(largest_file_index) = largest_file_index {
+            let checkpoint = serde_json::from_str::<Checkpoint>(
+                &fs::read_to_string(format!("{checkpoint_dir}/{largest_file_index}.json")).unwrap(),
+            )
+            .unwrap();
+            self.total_facts = checkpoint.total_facts;
+            self.block_number = checkpoint.block_number + 1;
+            Some(HashOutput(checkpoint.contracts_trie_root_hash))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Checkpoint {
+    block_number: usize,
+    contracts_trie_root_hash: Felt,
+    total_facts: usize,
+}
+
+/// Save a checkpoint of the benchmark, allowing to resume the benchmark after a crash.
+pub fn save_checkpoint(
+    checkpoint_dir: &str,
+    block_number: usize,
+    contracts_trie_root_hash: &HashOutput,
+    total_facts: usize,
+) {
+    let checkpoint = Checkpoint {
+        block_number,
+        contracts_trie_root_hash: contracts_trie_root_hash.0,
+        total_facts,
+    };
+    fs::create_dir_all(checkpoint_dir).expect("Failed to create checkpoint directory.");
+
+    let json = serde_json::to_string_pretty(&checkpoint).unwrap();
+    fs::write(format!("{checkpoint_dir}/{block_number}.json"), json).unwrap();
+    info!("Saved checkpoint to {checkpoint_dir}/{block_number}.json");
+}
+
+fn get_largest_file_index(output_dir: &str, file_suffix: &str) -> Option<usize> {
+    if Path::new(output_dir).is_dir() {
+        fs::read_dir(output_dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().unwrap() == file_suffix)
+            .map(|path| path.file_stem().unwrap().to_str().unwrap().parse::<usize>().unwrap())
+            .max()
+    } else {
+        None
     }
 }

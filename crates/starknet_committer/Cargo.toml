@@ -17,6 +17,7 @@ pretty_assertions.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 rstest.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
