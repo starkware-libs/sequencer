@@ -158,6 +158,8 @@ def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
     if strategy_name.startswith(RESTART_STRATEGY_PREFIX):
         strategy_name = strategy_name[len(RESTART_STRATEGY_PREFIX) :]
 
+    strategy_name = strategy_name.lower()
+
     try:
         return RestartStrategy(strategy_name)
     except KeyError:
