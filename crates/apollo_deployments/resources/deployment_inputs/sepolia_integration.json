@@ -1,5 +1,22 @@
 {
-  "node_and_validator_ids": [[0, "0x64"], [1,"0x65"], [2,"0x66"], [12,"0x1"]],
+  "node_and_validator_ids": [
+    [
+      0,
+      "0x64"
+    ],
+    [
+      1,
+      "0x65"
+    ],
+    [
+      2,
+      "0x66"
+    ],
+    [
+      12,
+      "0x1"
+    ]
+  ],
   "num_validators": 3,
   "http_server_ingress_alternative_name": "integration-sepolia.starknet.io",
   "ingress_domain": "starknet.io",
@@ -14,5 +31,6 @@
   "state_sync_type": "Central",
   "p2p_communication_type": "Internal",
   "deployment_environment": "SepoliaIntegration",
+  "audited_libfuncs_only": false,
   "requires_k8s_service_config_params": false
 }

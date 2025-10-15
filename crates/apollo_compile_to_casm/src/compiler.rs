@@ -35,7 +35,7 @@ impl SierraToCasmCompiler {
             &self.config.max_bytecode_size.to_string(),
             // TODO(Shahak, Elin): Fix this in a safe way.
             "--allowed-libfuncs-list-name",
-            "audited",
+            if self.config.audited_libfuncs_only { "audited" } else { "all" },
         ];
         let resource_limits = ResourceLimits::new(None, None, self.config.max_memory_usage);
 

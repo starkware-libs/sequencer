@@ -36,6 +36,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         StateSyncType::P2P,
         PeerToPeerBootstrapConfig::new(None),
         PeerToPeerBootstrapConfig::new(None),
+        false,
     )
 }
 

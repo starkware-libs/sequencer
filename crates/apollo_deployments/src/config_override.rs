@@ -132,6 +132,8 @@ pub struct DeploymentConfigOverride {
     l1_provider_config_provider_startup_height_override_is_none: bool,
     #[serde(rename = "consensus_manager_config.context_config.num_validators")]
     consensus_manager_config_context_config_num_validators: usize,
+    #[serde(rename = "sierra_compiler_config.audited_libfuncs_only")]
+    sierra_compiler_config_audited_libfuncs_only: bool,
     #[serde(flatten)]
     state_sync_config: StateSyncConfig,
     #[serde(flatten, with = "consensus_prefix")]
@@ -153,6 +155,7 @@ impl DeploymentConfigOverride {
         state_sync_type: StateSyncType,
         consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
         mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+        sierra_compiler_config_audited_libfuncs_only: bool,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -171,6 +174,7 @@ impl DeploymentConfigOverride {
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
             consensus_manager_config_context_config_num_validators,
+            sierra_compiler_config_audited_libfuncs_only,
             state_sync_config: state_sync_type.get_state_sync_config(),
             consensus_p2p_bootstrap_config,
             mempool_p2p_bootstrap_config,

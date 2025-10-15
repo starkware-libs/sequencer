@@ -87,6 +87,7 @@ pub struct DeploymentInputs {
     pub p2p_communication_type: P2PCommunicationType,
     pub deployment_environment: Environment,
     pub requires_k8s_service_config_params: bool,
+    pub audited_libfuncs_only: bool,
 }
 
 impl DeploymentInputs {
