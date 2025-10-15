@@ -20,6 +20,10 @@ use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "test.rs"]
+pub mod test;
+
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 pub type SierraCompilerClientResult<T> = Result<T, SierraCompilerClientError>;
 
@@ -48,6 +52,30 @@ pub enum RawClassError {
     WriteError(#[from] serde_json::Error),
 }
 
+struct CounterWriter {
+    size_counter: usize,
+}
+
+impl std::io::Write for CounterWriter {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        self.size_counter += buf.len();
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+}
+
+fn size_of_serialized<T>(value: &T) -> Result<usize, serde_json::Error>
+where
+    T: ?Sized + Serialize,
+{
+    let mut counter = CounterWriter { size_counter: 0 };
+    serde_json::to_writer(&mut counter, value)?;
+    Ok(counter.size_counter)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SerializedClass<T>(Arc<serde_json::Value>, std::marker::PhantomData<T>);
 
@@ -57,7 +85,7 @@ impl<T> SerializedClass<T> {
     }
 
     pub fn size(&self) -> RawClassResult<usize> {
-        Ok(serde_json::to_string_pretty(&*self.0)?.len())
+        Ok(size_of_serialized(&self.0)?)
     }
 
     fn new(value: serde_json::Value) -> Self {
