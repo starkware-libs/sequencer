@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "bench_tools",
   "crates/apollo_batcher",
   "crates/apollo_batcher_config",
   "crates/apollo_batcher_types",
@@ -211,6 +212,7 @@ async-trait = "0.1.79"
 atomic_refcell = "0.1.13"
 axum = "0.6.12"
 base64 = "0.13.0"
+bench_tools.path = "bench_tools"
 bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
