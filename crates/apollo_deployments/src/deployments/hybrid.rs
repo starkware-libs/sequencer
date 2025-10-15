@@ -32,7 +32,7 @@ use crate::deployment_definitions::{
     NodeAndValidatorId,
     ServicePort,
 };
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+use crate::deployments::{IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES, RETRIES_FOR_L1_SERVICES};
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -693,6 +693,8 @@ impl HybridNodeServiceName {
             port,
         );
         match self {
+            // Force new connections when connecting to autoscaled services. This is to ensure
+            // better load balancing.
             HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
                 let remote_client_config_ref = base
                     .remote_client_config
@@ -700,11 +702,19 @@ impl HybridNodeServiceName {
                     .expect("Remote client config should be available");
                 remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
             }
+            // Fast failures when connecting to the l1 services.
+            HybridNodeServiceName::L1 => {
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.retries = RETRIES_FOR_L1_SERVICES
+            }
             HybridNodeServiceName::Core
             | HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool => {}
         };
+
         base
     }
 
