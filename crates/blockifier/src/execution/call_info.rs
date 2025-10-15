@@ -210,6 +210,20 @@ impl AddAssign<&ChargedResources> for ChargedResources {
     }
 }
 
+/// Set of contract addresses and class hashes that were accessed during execution.
+#[derive(Default)]
+pub struct StateSelector {
+    pub class_hashes: HashSet<ClassHash>,
+    pub contract_addresses: HashSet<ContractAddress>,
+}
+
+impl StateSelector {
+    pub(crate) fn extend(&mut self, other: Self) {
+        self.class_hashes.extend(other.class_hashes);
+        self.contract_addresses.extend(other.contract_addresses);
+    }
+}
+
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -324,6 +338,26 @@ impl CallInfo {
         versioned_constants: &VersionedConstants,
     ) -> ExecutionSummary {
         call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
+    }
+
+    pub fn get_state_selector(&self) -> StateSelector {
+        let code_address = self.call.code_address.unwrap_or(self.call.storage_address);
+        let mut state_selector = StateSelector {
+            class_hashes: HashSet::from([self
+                .call
+                .class_hash
+                .expect("Class hash must be set after execution.")]),
+            contract_addresses: HashSet::from_iter(
+                [code_address, self.call.storage_address]
+                    .into_iter()
+                    .chain(self.storage_access_tracker.accessed_contract_addresses.iter().copied()),
+            ),
+        };
+        for call_info in self.inner_calls.iter() {
+            let inner_state_selector = call_info.get_state_selector();
+            state_selector.extend(inner_state_selector);
+        }
+        state_selector
     }
 
     pub fn summarize_vm_resources<'a>(
