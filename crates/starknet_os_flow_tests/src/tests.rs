@@ -8,7 +8,8 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -63,6 +64,7 @@ use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::initial_state::{
     create_default_initial_state_data,
@@ -840,10 +842,94 @@ async fn test_v1_bound_accounts_cairo0() {
 #[tokio::test]
 async fn test_v1_bound_accounts_cairo1() {
     let test_contract_sierra = &V1_BOUND_CAIRO1_CONTRACT_SIERRA;
-    let _test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;
+    let test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;
     let class_hash = test_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
     let vc = VersionedConstants::latest_constants();
+    let max_tip = vc.os_constants.v1_bound_accounts_max_tip;
     assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
 
-    // TODO(Dori): Impl the test.
+    // Declare the V1-bound account.
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let account_declare_tx = declare_tx(declare_args);
+    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
+        sierra_program_length: test_contract_sierra.sierra_program.len(),
+        abi_length: test_contract_sierra.abi.len(),
+        sierra_version,
+    };
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, test_contract_sierra);
+
+    // Deploy it (from funded account).
+    let private_key = Felt::ONE;
+    let public_key = get_public_key(&private_key);
+    let salt = Felt::ZERO;
+    let (deploy_tx, v1_bound_account_address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        Calldata(Arc::new(vec![public_key])),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Transfer funds to the account.
+    let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(max_tip).0;
+    test_manager.add_fund_address_tx(v1_bound_account_address, transfer_amount);
+
+    // Create an invoke tx, compute the hash, sign the hash and update the signature on the tx.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: v1_bound_account_address,
+        nonce: test_manager.next_nonce(v1_bound_account_address),
+        calldata: Calldata(Arc::new(vec![Felt::ZERO])),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let invoke_tx =
+        InvokeTransaction::create(invoke_tx(invoke_tx_args.clone()), &CHAIN_ID_FOR_TESTS).unwrap();
+    assert_eq!(invoke_tx.version(), TransactionVersion::THREE);
+    let Signature { r, s } = ecdsa_sign(&private_key, &invoke_tx.tx_hash()).unwrap().into();
+    let invoke_tx_args = invoke_tx_args! {
+        signature: TransactionSignature(Arc::new(vec![r, s])),
+        ..invoke_tx_args
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+
+    // Run the test, and make sure the account storage has the expected changes.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let isrc6_id = Felt::from_hex_unchecked(
+        "0x2CECCEF7F994940B3962A6C67E0BA4FCD37DF7D131417C604F91E03CAECC1CD",
+    );
+    let expected_storage_updates = HashMap::from([(
+        v1_bound_account_address,
+        HashMap::from([
+            (
+                StarknetStorageKey(selector_from_name("Account_public_key").0.try_into().unwrap()),
+                StarknetStorageValue(public_key),
+            ),
+            (
+                StarknetStorageKey(
+                    Pedersen::hash(&selector_from_name("SRC5_supported_interfaces").0, &isrc6_id)
+                        .try_into()
+                        .unwrap(),
+                ),
+                StarknetStorageValue(Felt::ONE),
+            ),
+        ]),
+    )]);
+    let perform_global_validations = true;
+    let partial_state_diff =
+        Some(&StateDiff { storage_updates: expected_storage_updates, ..Default::default() });
+    test_output.perform_validations(perform_global_validations, partial_state_diff);
 }
