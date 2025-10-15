@@ -25,6 +25,7 @@ use crate::{RawClass, SierraCompiler};
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
     max_memory_usage: None,
+    audited_libfuncs_only: false,
 };
 
 fn compiler() -> SierraToCasmCompiler {
@@ -75,6 +76,7 @@ fn test_max_bytecode_size() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
         max_memory_usage: None,
+        audited_libfuncs_only: false,
     });
     let casm_contract_class = compiler
         .compile(contract_class.clone())
@@ -85,6 +87,7 @@ fn test_max_bytecode_size() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
         max_memory_usage: None,
+        audited_libfuncs_only: false,
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
@@ -139,16 +142,14 @@ fn test_max_memory_usage() {
     let contract_class = get_test_contract();
 
     // Compile the contract class without any memory usage limit to get the expected output.
-    let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
-        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-        max_memory_usage: None,
-    });
+    let compiler = compiler();
     let expected_executable_class = compiler.compile(contract_class.clone()).unwrap();
 
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
+        audited_libfuncs_only: false,
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();
     assert_eq!(executable_class, expected_executable_class);
@@ -157,6 +158,7 @@ fn test_max_memory_usage() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: Some(8 * 1024 * 1024),
+        audited_libfuncs_only: false,
     });
     let compilation_result = compiler.compile(contract_class);
     assert_matches!(compilation_result, Err(CompilationUtilError::CompilationError(string))
