@@ -6,10 +6,13 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
-use starknet_api::abi::abi_utils::get_storage_var_address;
+use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::calculate_contract_address;
-use starknet_api::executable_transaction::DeclareTransaction;
+use starknet_api::core::{calculate_contract_address, Nonce};
+use starknet_api::executable_transaction::{
+    DeclareTransaction,
+    L1HandlerTransaction as ExecutableL1HandlerTransaction,
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{
@@ -23,9 +26,11 @@ use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
     ResourceBounds,
     ValidResourceBounds,
 };
+use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::{
     StarknetStorageKey,
@@ -263,5 +268,51 @@ async fn test_reverted_invoke_tx(
     // Check that a fee was deducted.
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
 
+    test_output.perform_default_validations();
+}
+
+/// Verifies that when an L1 handler modifies storage and then reverts, all storage changes made
+/// before the revert are properly rolled back.
+#[rstest]
+#[tokio::test]
+async fn test_reverted_l1_handler_tx(
+    #[values(
+        FeatureContract::TestContract(CairoVersion::Cairo0),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+    )]
+    test_contract: FeatureContract,
+) {
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
+
+    // Add a reverting L1 handler transaction that changes the storage.
+    let tx = ExecutableL1HandlerTransaction::create(
+        L1HandlerTransaction {
+            version: L1HandlerTransaction::VERSION,
+            nonce: Nonce::default(),
+            contract_address: test_contract_address,
+            entry_point_selector: selector_from_name("l1_handler_set_value_and_revert"),
+            // from_address (L1 address), key, value.
+            calldata: calldata![Felt::THREE, Felt::ONE, Felt::TWO],
+        },
+        &CHAIN_ID_FOR_TESTS,
+        Fee(1_000_000),
+    )
+    .unwrap();
+    test_manager.add_l1_handler_tx(tx);
+
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+
+    // Check that the storage was reverted (no change in test contract address).
+    assert!(
+        !test_output.decompressed_state_diff.storage_updates.contains_key(&test_contract_address)
+    );
+    // Make sure we expect no messages were sent to L2, explicitly, before validating actual output.
+    assert!(test_output.expected_values.messages_to_l2.is_empty());
     test_output.perform_default_validations();
 }
