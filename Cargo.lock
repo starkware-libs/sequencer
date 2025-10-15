@@ -1029,6 +1029,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
+ "expect-test",
  "mockall",
  "serde",
  "serde_json",
