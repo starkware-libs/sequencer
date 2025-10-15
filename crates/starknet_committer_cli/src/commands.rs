@@ -5,7 +5,7 @@ use starknet_committer::block_committer::input::{ConfigImpl, Input};
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::Storage;
 use tracing::info;
 
 pub type InputImpl = Input<ConfigImpl>;
@@ -13,11 +13,12 @@ pub type InputImpl = Input<ConfigImpl>;
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-pub async fn run_storage_benchmark(
+pub async fn run_storage_benchmark<S: Storage>(
     seed: u64,
     n_iterations: usize,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
+    mut storage: S,
     checkpoint_interval: usize,
 ) {
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval);
@@ -29,7 +30,6 @@ pub async fn run_storage_benchmark(
     };
     let curr_block_number = time_measurement.block_number;
 
-    let mut storage = MapStorage::default();
     let mut classes_trie_root_hash = HashOutput::default();
 
     for i in curr_block_number..n_iterations {
