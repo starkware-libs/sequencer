@@ -12543,6 +12543,8 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
+ "cairo-vm",
+ "expect-test",
  "itertools 0.12.1",
  "rstest",
  "serde_json",
