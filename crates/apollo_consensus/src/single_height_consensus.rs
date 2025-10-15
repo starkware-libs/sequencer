@@ -294,8 +294,8 @@ impl SingleHeightConsensus {
                 let old = self.proposals.insert(round, proposal_id);
                 let old = old.unwrap_or_else(|| {
                     panic!("Proposal entry should exist from init. round={round}")
-                });
-                assert!(old.is_none(), "Proposal already exists for this round={round}. {old:?}");
+                }); // Panic OK.
+                assert!(old.is_none(), "Proposal already exists for this round={round}. {old:?}"); // Panic OK.
                 let sm_events = self.state_machine.handle_event(
                     StateMachineEvent::Proposal(proposal_id, round, valid_round),
                     &leader_fn,
