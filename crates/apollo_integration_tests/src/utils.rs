@@ -611,6 +611,8 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 10,
         max_signature_length: 2,
+        // TODO(Arni): Set to default. First change the default gas amount used by transactions.
+        max_l2_gas_amount: 101_000_000_000,
         ..Default::default()
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
