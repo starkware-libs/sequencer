@@ -95,6 +95,9 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
+/// Alerts that depend on round time can use this value to define their rule.
+pub(crate) static ROUND_TIME_SEC: f64 = 6.0;
+
 pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> String {
     format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{}.json", alert_env_filtering)
 }

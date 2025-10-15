@@ -2,6 +2,7 @@ use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZE
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 
+use crate::alert_definitions::ROUND_TIME_SEC;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -51,7 +52,6 @@ pub(crate) fn get_consensus_round_above_zero_vec() -> Vec<Alert> {
     ]
 }
 
-/// There were 5 times in the last 30 minutes that the round was larger than zero.
 fn get_consensus_round_above_zero_multiple_times(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
@@ -63,7 +63,7 @@ fn get_consensus_round_above_zero_multiple_times(
         format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 30.0,
+            comparison_value: 180.0 / ROUND_TIME_SEC,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
@@ -174,7 +174,6 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
     )
 }
 
-/// Block number progressed slowly (< 10) in the last 2 minutes.
 fn get_consensus_block_number_progress_is_slow(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
@@ -189,7 +188,7 @@ fn get_consensus_block_number_progress_is_slow(
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 10.0,
+            comparison_value: 60.0 / ROUND_TIME_SEC,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
