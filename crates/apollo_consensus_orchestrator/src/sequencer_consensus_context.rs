@@ -44,7 +44,6 @@ use apollo_time::time::Clock;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
-use num_rational::Ratio;
 use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
@@ -73,7 +72,7 @@ use crate::metrics::{
     CONSENSUS_L2_GAS_PRICE,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
+use crate::utils::{convert_to_sn_api_block_info, make_gas_price_params, StreamSender};
 use crate::validate_proposal::{
     validate_proposal,
     BlockInfoValidation,
@@ -252,17 +251,7 @@ impl ConsensusContext for SequencerConsensusContext {
         info!(?proposal_init, ?timeout, %proposal_id, "Start building proposal");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let gas_price_params = GasPriceParams {
-            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
-            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
-            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
-            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
-            l1_data_gas_price_multiplier: Ratio::new(
-                self.config.l1_data_gas_price_multiplier_ppt,
-                1000,
-            ),
-            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
-        };
+        let gas_price_params = make_gas_price_params(&self.config);
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
@@ -470,8 +459,9 @@ impl ConsensusContext for SequencerConsensusContext {
             .collect();
 
         let gas_target = VersionedConstants::latest_constants().gas_target;
-        if self.config.constant_l2_gas_price {
-            self.l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
+        if let Some(override_value) = self.config.override_l2_gas_price {
+            info!("Overriding L2 gas price to {override_value}");
+            self.l2_gas_price = GasPrice(override_value);
         } else {
             self.l2_gas_price =
                 calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
@@ -697,17 +687,7 @@ impl SequencerConsensusContext {
 
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let gas_price_params = GasPriceParams {
-            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
-            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
-            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
-            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
-            l1_data_gas_price_multiplier: Ratio::new(
-                self.config.l1_data_gas_price_multiplier_ppt,
-                1000,
-            ),
-            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
-        };
+        let gas_price_params = make_gas_price_params(&self.config);
         let args = ProposalValidateArguments {
             deps: self.deps.clone(),
             block_info_validation,
