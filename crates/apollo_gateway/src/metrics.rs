@@ -90,6 +90,7 @@ pub enum GatewayAddTxFailureReason {
     NonEmptyField,
     SignatureTooLong,
     StarknetApiError,
+    MaxGasAmountTooHigh,
     NonceTooLarge,
     BlockedTransactionType,
     InternalError,
@@ -218,6 +219,8 @@ fn map_starknet_error_to_gateway_add_tx_failure_reason(
                 GatewayAddTxFailureReason::SignatureTooLong
             } else if s.contains("STARKNET_API_ERROR") {
                 GatewayAddTxFailureReason::StarknetApiError
+            } else if s.contains("MAX_GAS_AMOUNT_TOO_HIGH") {
+                GatewayAddTxFailureReason::MaxGasAmountTooHigh
             } else if s.contains("NONCE_TOO_LARGE") {
                 GatewayAddTxFailureReason::NonceTooLarge
             } else if s.contains("InternalError") {
