@@ -10,6 +10,7 @@ pub mod template;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 pub mod tracing;
+pub mod tracing_utils;
 pub mod type_name;
 
 pub extern crate apollo_proc_macros as _apollo_proc_macros;
