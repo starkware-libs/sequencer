@@ -57,7 +57,7 @@ impl<T> SerializedClass<T> {
     }
 
     pub fn size(&self) -> RawClassResult<usize> {
-        Ok(serde_json::to_string_pretty(&self.0)?.len())
+        Ok(serde_json::to_string(&self.0)?.len())
     }
 
     fn new(value: serde_json::Value) -> Self {
