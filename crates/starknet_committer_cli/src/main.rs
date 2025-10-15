@@ -1,6 +1,11 @@
+use std::fs;
+use std::path::Path;
+
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -12,6 +17,12 @@ pub struct CommitterCliCommand {
     command: Command,
 }
 
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+pub enum StorageType {
+    MapStorage,
+    Mdbx,
+}
+
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 #[derive(Debug, Args)]
 struct StorageArgs {
@@ -21,14 +32,21 @@ struct StorageArgs {
     /// Number of iterations to run the benchmark.
     #[clap(default_value = "1000")]
     n_iterations: usize,
+    #[clap(long, default_value = "mdbx")]
+    /// Storage impl to use. Note that MapStorage isn't persisted in the file system, so
+    /// checkpointing is ignored.
+    storage_type: StorageType,
     #[clap(long, default_value = "1000")]
     checkpoint_interval: usize,
     #[clap(long, default_value = "warn")]
     log_level: String,
-    /// A path to a directory to store the output and checkpoints unless they are
+    /// A path to a directory to store the DB, output and checkpoints unless they are
     /// explicitly provided. Defaults to "/tmp/committer_storage_benchmark/".
     #[clap(short = 'd', long, default_value = None)]
     data_path: Option<String>,
+    /// A path to a directory to store the DB if needed.
+    #[clap(long, default_value = None)]
+    storage_path: Option<String>,
     /// A path to a directory to store the csv outputs. If not given, creates a dir according to
     /// the  n_iterations (i.e., rwo runs with different n_iterations will have different csv
     /// outputs)
@@ -55,19 +73,54 @@ pub async fn run_committer_cli(
         Command::StorageBenchmark(StorageArgs {
             seed,
             n_iterations,
+            storage_type,
             checkpoint_interval,
             log_level,
             data_path,
+            storage_path,
             output_dir,
             checkpoint_dir,
         }) => {
             modify_log_level(log_level, log_filter_handle);
             let data_path = data_path.unwrap_or_else(|| DEFAULT_DATA_PATH.to_string());
-            let output_dir =
-                output_dir.unwrap_or_else(|| format!("{data_path}/csvs/{n_iterations}"));
-            let _checkpoint_dir =
-                checkpoint_dir.unwrap_or_else(|| format!("{data_path}/checkpoints/{n_iterations}"));
-            run_storage_benchmark(seed, n_iterations, &output_dir, None, checkpoint_interval).await;
+            let output_dir = output_dir
+                .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
+            let checkpoint_dir = checkpoint_dir.unwrap_or_else(|| {
+                format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}")
+            });
+
+            match storage_type {
+                StorageType::MapStorage => {
+                    let storage = MapStorage::default();
+                    run_storage_benchmark(
+                        seed,
+                        n_iterations,
+                        &output_dir,
+                        None,
+                        storage,
+                        checkpoint_interval,
+                    )
+                    .await;
+                }
+                StorageType::Mdbx => {
+                    let storage_path = storage_path
+                        .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
+                    fs::create_dir_all(&storage_path).expect(
+                        "Failed to create storage
+                    directory.",
+                    );
+                    let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
+                    run_storage_benchmark(
+                        seed,
+                        n_iterations,
+                        &output_dir,
+                        Some(&checkpoint_dir),
+                        storage,
+                        checkpoint_interval,
+                    )
+                    .await;
+                }
+            }
         }
     }
 }
