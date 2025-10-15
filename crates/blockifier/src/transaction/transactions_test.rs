@@ -18,7 +18,7 @@ use starknet_api::abi::abi_utils::{
     selector_from_name,
 };
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::block::{FeeType, GasPriceVector};
+use starknet_api::block::{BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, Nonce};
@@ -43,9 +43,6 @@ use starknet_api::test_utils::{
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
@@ -71,7 +68,6 @@ use starknet_api::transaction::{
     EventKey,
     L2ToL1Payload,
     TransactionVersion,
-    QUERY_VERSION_BASE,
 };
 use starknet_api::{
     calldata,
@@ -168,6 +164,7 @@ use crate::transaction::test_utils::{
     invoke_tx_with_default_flags,
     l1_resource_bounds,
     versioned_constants,
+    ExpectedExecutionInfo,
     FaultyAccountTxCreatorArgs,
     TestInitData,
     CALL_CONTRACT,
@@ -2589,76 +2586,31 @@ fn test_only_query_flag(
         &block_context.chain_info,
         CairoVersion::Cairo1(RunnableCairo1::Casm),
     );
-    let mut version = Felt::from(3_u8);
-    if only_query {
-        version += *QUERY_VERSION_BASE;
-    }
-    let expected_tx_info = vec![
-        version,                              // Transaction version.
-        *account_address.0.key(),             // Account address.
-        Felt::ZERO,                           // Max fee.
-        Felt::ZERO,                           // Signature.
-        Felt::ZERO,                           // Transaction hash.
-        felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
-        Felt::ZERO,                           // Nonce.
-    ];
-
-    let expected_resource_bounds = vec![
-        Felt::THREE,                                   // Length of ResourceBounds array.
-        felt!(L1Gas.to_hex()),                         // Resource.
-        felt!(DEFAULT_L1_GAS_AMOUNT.0),                // Max amount.
-        felt!(DEFAULT_STRK_L1_GAS_PRICE.get().0),      // Max price per unit.
-        felt!(L2Gas.to_hex()),                         // Resource.
-        felt!(DEFAULT_L2_GAS_MAX_AMOUNT.0),            // Max amount.
-        felt!(DEFAULT_STRK_L2_GAS_PRICE.get().0),      // Max price per unit.
-        felt!(L1DataGas.to_hex()),                     // Resource.
-        felt!(DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0),       // Max amount.
-        felt!(DEFAULT_STRK_L1_DATA_GAS_PRICE.get().0), // Max price per unit.
-    ];
-
-    let expected_unsupported_fields = vec![
-        Felt::ZERO, // Tip.
-        Felt::ZERO, // Paymaster data.
-        Felt::ZERO, // Nonce DA.
-        Felt::ZERO, // Fee DA.
-        Felt::ZERO, // Account data.
-    ];
-
     let entry_point_selector = selector_from_name("test_get_execution_info");
-    let expected_call_info = vec![
-        *account_address.0.key(),  // Caller address.
-        *contract_address.0.key(), // Storage address.
-        entry_point_selector.0,    // Entry point selector.
-    ];
-    let expected_block_info = [
-        felt!(CURRENT_BLOCK_NUMBER),    // Block number.
-        felt!(CURRENT_BLOCK_TIMESTAMP), // Block timestamp.
-        felt!(TEST_SEQUENCER_ADDRESS),  // Sequencer address.
-    ];
-    let calldata_len = expected_block_info.len()
-        + expected_tx_info.len()
-        + expected_resource_bounds.len()
-        + expected_unsupported_fields.len()
-        + expected_call_info.len();
+    let expected_execution_info = ExpectedExecutionInfo::new(
+        only_query,
+        account_address,
+        account_address,
+        contract_address,
+        CHAIN_ID_FOR_TESTS.clone(),
+        entry_point_selector,
+        BlockNumber(CURRENT_BLOCK_NUMBER),
+        BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+        ContractAddress(felt!(TEST_SEQUENCER_ADDRESS).try_into().unwrap()),
+        default_all_resource_bounds,
+        Nonce::default(),
+    )
+    .to_syscall_result();
     let execute_calldata = vec![
         *contract_address.0.key(), // Contract address.
         entry_point_selector.0,    // EP selector.
         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
         // works.
-        felt!(u64::try_from(calldata_len).expect("Failed to convert usize to u64.")), /* Calldata length. */
+        felt!(
+            u64::try_from(expected_execution_info.len()).expect("Failed to convert usize to u64.")
+        ), // Calldata length.
     ];
-    let execute_calldata = Calldata(
-        [
-            execute_calldata,
-            expected_block_info.clone().to_vec(),
-            expected_tx_info,
-            expected_resource_bounds,
-            expected_unsupported_fields,
-            expected_call_info,
-        ]
-        .concat()
-        .into(),
-    );
+    let execute_calldata = Calldata([execute_calldata, expected_execution_info].concat().into());
     let tx = executable_invoke_tx(invoke_tx_args! {
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,
