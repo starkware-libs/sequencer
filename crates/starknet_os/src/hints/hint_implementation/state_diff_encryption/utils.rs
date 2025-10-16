@@ -23,7 +23,6 @@ fn recover_y(x: Felt) -> Felt {
 
 /// Computes elliptic curve public keys from private keys using the generator point.
 /// Returns only the x-coordinates of the resulting public key points.
-#[allow(dead_code)]
 pub fn compute_public_keys(private_keys: &[Felt]) -> Vec<Felt> {
     let mut public_keys = Vec::with_capacity(private_keys.len());
     for &private_key in private_keys {

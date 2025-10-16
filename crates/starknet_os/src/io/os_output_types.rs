@@ -26,8 +26,11 @@ const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
 const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 pub trait TryFromOutputIter {
+    /// Tries to parse an item from the Felt iterator.
+    /// Assumes input data is encrypted if and only if (at least one) private keys are provided.
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError>
     where
         Self: Sized;
@@ -36,12 +39,13 @@ pub trait TryFromOutputIter {
 impl<T: TryFromOutputIter> TryFromOutputIter for Vec<T> {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let n_items =
             wrap_missing_as(iter.next(), &format!("n_items of {}", std::any::type_name::<T>()))?;
         let mut items = Vec::with_capacity(n_items);
         for _ in 0..n_items {
-            items.push(T::try_from_output_iter(iter)?);
+            items.push(T::try_from_output_iter(iter, private_keys)?);
         }
         Ok(items)
     }
@@ -109,6 +113,7 @@ pub(crate) struct PartialContractStorageUpdate {
 impl TryFromOutputIter for FullContractStorageUpdate {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        _private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
             key: wrap_missing_as(iter.next(), "storage key")?,
@@ -121,6 +126,7 @@ impl TryFromOutputIter for FullContractStorageUpdate {
 impl TryFromOutputIter for PartialContractStorageUpdate {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        _private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
             key: wrap_missing_as(iter.next(), "storage key")?,
@@ -147,6 +153,7 @@ pub struct PartialCompiledClassHashUpdate {
 impl TryFromOutputIter for FullCompiledClassHashUpdate {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        _private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
             class_hash: ClassHash(wrap_missing_as(iter.next(), "class_hash")?),
@@ -165,6 +172,7 @@ impl TryFromOutputIter for FullCompiledClassHashUpdate {
 impl TryFromOutputIter for PartialCompiledClassHashUpdate {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        _private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
             class_hash: ClassHash(wrap_missing_as(iter.next(), "class_hash")?),
@@ -214,6 +222,7 @@ pub struct FullContractChanges {
 impl TryFromOutputIter for FullContractChanges {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
             addr: wrap_missing_as(iter.next(), "addr")?,
@@ -221,7 +230,10 @@ impl TryFromOutputIter for FullContractChanges {
             new_nonce: Nonce(wrap_missing_as(iter.next(), "new_nonce")?),
             prev_class_hash: ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?),
             new_class_hash: ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?),
-            storage_changes: Vec::<FullContractStorageUpdate>::try_from_output_iter(iter)?,
+            storage_changes: Vec::<FullContractStorageUpdate>::try_from_output_iter(
+                iter,
+                private_keys,
+            )?,
         })
     }
 }
@@ -243,6 +255,7 @@ pub struct PartialContractChanges {
 impl TryFromOutputIter for PartialContractChanges {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let addr = wrap_missing_as(iter.next(), "addr")?;
         // Parse packed info.
@@ -277,7 +290,10 @@ impl TryFromOutputIter for PartialContractChanges {
                 let n_changes = try_into_custom_error(n_changes, "n_changes")?;
                 let mut storage_changes = Vec::with_capacity(n_changes);
                 for _ in 0..n_changes {
-                    storage_changes.push(PartialContractStorageUpdate::try_from_output_iter(iter)?);
+                    storage_changes.push(PartialContractStorageUpdate::try_from_output_iter(
+                        iter,
+                        private_keys,
+                    )?);
                 }
                 storage_changes
             },
@@ -301,10 +317,11 @@ pub struct FullOsStateDiff {
 impl TryFromOutputIter for FullOsStateDiff {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
-            contracts: Vec::<FullContractChanges>::try_from_output_iter(iter)?,
-            classes: Vec::<FullCompiledClassHashUpdate>::try_from_output_iter(iter)?,
+            contracts: Vec::<FullContractChanges>::try_from_output_iter(iter, private_keys)?,
+            classes: Vec::<FullCompiledClassHashUpdate>::try_from_output_iter(iter, private_keys)?,
         })
     }
 }
@@ -324,12 +341,19 @@ pub struct PartialOsStateDiff {
 impl TryFromOutputIter for PartialOsStateDiff {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let decompressed = &mut decompress(iter).into_iter().chain(iter);
 
         Ok(Self {
-            contracts: Vec::<PartialContractChanges>::try_from_output_iter(decompressed)?,
-            classes: Vec::<PartialCompiledClassHashUpdate>::try_from_output_iter(decompressed)?,
+            contracts: Vec::<PartialContractChanges>::try_from_output_iter(
+                decompressed,
+                private_keys,
+            )?,
+            classes: Vec::<PartialCompiledClassHashUpdate>::try_from_output_iter(
+                decompressed,
+                private_keys,
+            )?,
         })
     }
 }
