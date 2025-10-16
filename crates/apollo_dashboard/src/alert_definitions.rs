@@ -97,7 +97,7 @@ use crate::alerts::{
 };
 
 /// Alerts that depend on block time can use this value to define their rule.
-pub(crate) const BLOCK_TIME_SEC: f64 = 6.0;
+pub(crate) const BLOCK_TIME_SEC: f64 = 9.0;
 
 pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> String {
     format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{}.json", alert_env_filtering)
