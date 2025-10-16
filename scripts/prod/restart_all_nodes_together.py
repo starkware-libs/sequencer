@@ -52,7 +52,7 @@ def get_validator_id(namespace: str, context: Optional[str]) -> str:
 def main():
     usage_example = """
 Examples:
-  # Restart all nodes to at the next block after current feeder block (default: One_By_One strategy)
+  # Restart all nodes at once.
   %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --feeder-url feeder.integration-sepolia.starknet.io
   %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io
   
@@ -61,9 +61,6 @@ Examples:
   
   # Restart nodes with cluster prefix
   %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -f feeder.integration-sepolia.starknet.io
-  
-  # Update configuration without restarting nodes
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io --no-restart
   
   # Restart nodes starting from specific node index
   %(prog)s -n apollo-sepolia-integration -m 3 -s 5 -f feeder.integration-sepolia.starknet.io
@@ -100,6 +97,10 @@ Examples:
 
     args = args_builder.build()
 
+    if args.restart_strategy == RestartStrategy.NO_RESTART:
+        print_error("Using No_Restart strategy with this script is a No-Op.")
+        sys.exit(1)
+
     if args.restart_strategy == RestartStrategy.ONE_BY_ONE and args.project_name is None:
         print_error("Error: --project-name is required when using One_By_One strategy")
         sys.exit(1)
@@ -111,10 +112,13 @@ Examples:
     print_colored(f"Current block number: {current_block_number}")
     print_colored(f"Next block number: {next_block_number}")
 
-    config_overrides = {
-        "consensus_manager_config.immediate_active_height": next_block_number,
-        "consensus_manager_config.cende_config.skip_write_height": next_block_number,
-    }
+    if args.restart_strategy == RestartStrategy.ALL_AT_ONCE:
+        config_overrides = {
+            "consensus_manager_config.cende_config.skip_write_height": next_block_number,
+            "consensus_manager_config.immediate_active_height": next_block_number,
+        }
+    else:
+        config_overrides = {}
 
     namespace_list = get_namespace_list_from_args(args)
     context_list = get_context_list_from_args(args)
