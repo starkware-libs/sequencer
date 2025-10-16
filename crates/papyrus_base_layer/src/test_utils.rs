@@ -109,6 +109,10 @@ pub fn anvil(port: Option<u16>) -> AnvilInstance {
         anvil = anvil.port(port);
     }
 
+    // Mine a new block every second to provide continuous L1 blocks for scrapers
+    anvil = anvil.block_time(1);
+
+
     anvil.try_spawn().unwrap_or_else(|error| match error {
         AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
             panic!(
