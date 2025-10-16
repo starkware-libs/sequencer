@@ -52,7 +52,7 @@ impl L1Provider {
     // Start the provider, get first-scrape events, start L2 sync.
     pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
         info!("Initializing l1 provider");
-        if !self.state.is_bootstrapping() {
+        if !self.state.uninitialized() {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
             // restart from the infra, since this CAN happen if the scraper recovered from a crash.
             // Right now this is effectively a KILL message when called in steady state.
@@ -186,6 +186,7 @@ impl L1Provider {
                 Err(L1ProviderError::OutOfSessionGetTransactions)
             }
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
+            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
     }
 
@@ -211,6 +212,7 @@ impl L1Provider {
             ProviderState::Pending | ProviderState::Bootstrap => {
                 Err(L1ProviderError::OutOfSessionValidate)
             }
+            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
     }
 
