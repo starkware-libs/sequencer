@@ -16,7 +16,7 @@ use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -329,7 +329,7 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) fn add_cairo0_declare_tx(
         &mut self,
         tx: DeclareTransaction,
-        compiled_class_hash: CompiledClassHash,
+        compiled_class_hash: ClassHash,
     ) {
         let ContractClass::V0(class) = tx.class_info.contract_class.clone() else {
             panic!("Expected a V0 contract class");
