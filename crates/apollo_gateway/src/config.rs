@@ -17,6 +17,10 @@ use validator::Validate;
 
 use crate::compiler_version::VersionId;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+pub mod config_test;
+
 const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
@@ -122,12 +126,14 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_sierra_version: VersionId,
 }
 
+const DEFAULT_MAX_L2_GAS_AMOUNT: u64 = 1_100_000_000;
+
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
             min_gas_price: 3_000_000_000,
-            max_l2_gas_amount: 1_100_000_000,
+            max_l2_gas_amount: DEFAULT_MAX_L2_GAS_AMOUNT,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
