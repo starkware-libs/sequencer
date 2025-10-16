@@ -5,5 +5,4 @@ pub mod input;
 pub mod random_structs;
 #[cfg(any(feature = "testing", test))]
 pub mod state_diff_generator;
-#[cfg(feature = "benchmark")]
 pub mod timing_util;
