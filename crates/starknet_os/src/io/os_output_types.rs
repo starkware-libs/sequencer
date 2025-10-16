@@ -4,6 +4,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 
 use crate::hints::hint_implementation::aggregator_utils::ToMaybeRelocatables;
+use crate::hints::hint_implementation::state_diff_encryption::utils::maybe_decrypt_iter;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output::{
     felt_as_bool,
@@ -343,6 +344,7 @@ impl TryFromOutputIter for PartialOsStateDiff {
         iter: &mut It,
         private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
+        let iter = &mut maybe_decrypt_iter(iter, private_keys);
         let decompressed = &mut decompress(iter).into_iter().chain(iter);
 
         Ok(Self {
