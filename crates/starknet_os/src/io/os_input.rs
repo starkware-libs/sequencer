@@ -18,6 +18,20 @@ use tracing::level_filters::LevelFilter;
 
 use crate::io::os_output::STARKNET_OS_CONFIG_HASH_VERSION;
 
+const DEFAULT_PUBLIC_KEYS_HASH: Felt = Felt::ZERO;
+
+fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
+    if let Some(public_keys) = public_keys {
+        if public_keys.is_empty() {
+            DEFAULT_PUBLIC_KEYS_HASH
+        } else {
+            Pedersen::hash_array(public_keys)
+        }
+    } else {
+        DEFAULT_PUBLIC_KEYS_HASH
+    }
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 #[derive(Debug)]
@@ -86,14 +100,22 @@ impl Default for OsChainInfo {
 
 impl OsChainInfo {
     /// Computes the OS config hash for the given chain info.
-    pub fn compute_os_config_hash(&self) -> Result<Felt, OsInputError> {
-        Ok(Pedersen::hash_array(&[
+    pub fn compute_os_config_hash(
+        &self,
+        public_keys: Option<&Vec<Felt>>,
+    ) -> Result<Felt, OsInputError> {
+        let mut data = vec![
             *STARKNET_OS_CONFIG_HASH_VERSION,
             (&self.chain_id)
                 .try_into()
                 .map_err(|_| OsInputError::InvalidChainId(self.chain_id.clone()))?,
             self.strk_fee_token_address.into(),
-        ]))
+        ];
+        let public_keys_hash = compute_public_keys_hash(public_keys);
+        if public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH {
+            data.push(public_keys_hash);
+        }
+        Ok(Pedersen::hash_array(&data))
     }
 }
 
