@@ -1,4 +1,11 @@
-use bench_tools::types::benchmark_config::{find_benchmarks_by_package, BENCHMARKS};
+use std::path::PathBuf;
+
+use bench_tools::gcs;
+use bench_tools::types::benchmark_config::{
+    find_benchmark_by_name,
+    find_benchmarks_by_package,
+    BENCHMARKS,
+};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -25,9 +32,19 @@ enum Commands {
         #[arg(short, long)]
         package: Option<String>,
     },
+    /// Upload benchmark input files to GCS.
+    UploadInputs {
+        /// Benchmark name.
+        #[arg(long)]
+        benchmark: String,
+        /// Local directory containing input files.
+        #[arg(long)]
+        input_dir: String,
+    },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
     match cli.command {
         Commands::Run { package: _, out: _ } => {
@@ -59,5 +76,16 @@ fn main() {
                 }
             }
         },
+        Commands::UploadInputs { benchmark, input_dir } => {
+            // Validate benchmark exists
+            if find_benchmark_by_name(&benchmark).is_none() {
+                panic!("Unknown benchmark: {}", benchmark);
+            }
+
+            let input_path = PathBuf::from(&input_dir);
+            gcs::upload_inputs(&benchmark, &input_path).await;
+
+            println!("Input files uploaded successfully!");
+        }
     }
 }

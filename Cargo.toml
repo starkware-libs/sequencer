@@ -383,6 +383,7 @@ url = "2.5.0"
 validator = "0.12"
 void = "1.0.2"
 waker-fn = "1.2.0"
+walkdir = "2.5"
 workspace_tests.path = "workspace_tests"
 zstd = "0.13.1"
 

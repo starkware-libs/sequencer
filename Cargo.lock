@@ -3328,6 +3328,7 @@ dependencies = [
  "glob",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
