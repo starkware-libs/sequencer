@@ -4,7 +4,15 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_FIELD_ELEMENT};
+use c_kzg::{
+    Blob,
+    Cell,
+    KzgCommitment,
+    KzgProof,
+    KzgSettings,
+    BYTES_PER_FIELD_ELEMENT,
+    CELLS_PER_EXT_BLOB,
+};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
@@ -12,6 +20,10 @@ use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
+
+// Type aliases that match the c-kzg internal definitions.
+pub type CellsPerExtBlob = [Cell; CELLS_PER_EXT_BLOB];
+pub type ProofsPerExtBlob = [KzgProof; CELLS_PER_EXT_BLOB];
 
 pub static BASE: LazyLock<BigInt> = LazyLock::new(|| BigInt::from(1u128 << 86));
 pub static BLS_PRIME: LazyLock<BigUint> = LazyLock::new(|| {
@@ -237,4 +249,75 @@ pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<Blobs, FftErr
     }
 
     Ok(Blobs { blobs, commitments, proofs, versioned_hashes })
+}
+
+/// Structure to hold blob data, commitments, cell proofs, and versioned hashes.
+pub struct CellBlobs {
+    pub blobs: Vec<Vec<u8>>,
+    pub commitments: Vec<KzgCommitment>,
+    pub cell_proofs: Vec<Box<ProofsPerExtBlob>>,
+    pub versioned_hashes: Vec<[u8; 32]>,
+}
+
+/// Serializable structure to hold blob data, commitments, cell proofs, and versioned hashes.
+/// All cryptographic objects are converted to byte arrays for easy serialization.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SerializableCellBlobs {
+    pub blobs: Vec<Vec<u8>>,
+    pub commitments: Vec<Vec<u8>>,      // 48 bytes each
+    pub cell_proofs: Vec<Vec<u8>>,      // 48 bytes each, CELLS_PER_EXT_BLOB per blob
+    pub versioned_hashes: Vec<Vec<u8>>, // 32 bytes each
+}
+impl From<CellBlobs> for SerializableCellBlobs {
+    fn from(CellBlobs { blobs, commitments, cell_proofs, versioned_hashes }: CellBlobs) -> Self {
+        Self {
+            blobs,
+            commitments: commitments
+                .into_iter()
+                .map(|commitment| commitment.to_bytes().as_ref().to_vec())
+                .collect(),
+            cell_proofs: cell_proofs
+                .into_iter()
+                .flat_map(|proofs| {
+                    proofs
+                        .iter()
+                        .map(|kzg_proof| kzg_proof.to_bytes().as_ref().to_vec())
+                        .collect::<Vec<_>>()
+                })
+                .collect(),
+            versioned_hashes: versioned_hashes.into_iter().map(|hash| hash.to_vec()).collect(),
+        }
+    }
+}
+
+/// Computes KZG commitments, cell proofs, and versioned hashes for a list of raw blobs.
+///
+/// For each blob, computes the KZG commitment and the corresponding KZG cell proofs that is used
+/// to verify the commitment. Returns the internal `CellBlobs` structure with native KZG types.
+pub fn compute_blob_cell_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<CellBlobs, FftError> {
+    let mut blobs = Vec::new();
+    let mut commitments = Vec::new();
+    let mut cell_proofs = Vec::new();
+    let mut versioned_hashes = Vec::new();
+
+    for raw_blob in raw_blobs.iter() {
+        // Convert raw blob bytes to Blob.
+        let blob = Blob::from_bytes(raw_blob)?;
+
+        // Compute KZG commitment.
+        let commitment = blob_to_kzg_commitment(&blob)?;
+
+        // Compute KZG cell proofs.
+        let (_, blob_cell_proofs) = KZG_SETTINGS.compute_cells_and_kzg_proofs(&blob)?;
+
+        // Compute versioned hash.
+        let versioned_hash = kzg_to_versioned_hash(&commitment);
+
+        blobs.push(raw_blob.clone());
+        commitments.push(commitment);
+        cell_proofs.push(blob_cell_proofs);
+        versioned_hashes.push(versioned_hash);
+    }
+
+    Ok(CellBlobs { blobs, commitments, cell_proofs, versioned_hashes })
 }
