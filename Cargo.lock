@@ -3330,6 +3330,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
