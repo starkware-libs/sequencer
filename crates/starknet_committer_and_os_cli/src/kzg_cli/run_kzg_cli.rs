@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 use starknet_os::hints::hint_implementation::kzg::utils::{
+    compute_blob_cell_commitments,
     compute_blob_commitments,
     SerializableBlobs,
+    SerializableCellBlobs,
 };
 use tracing::info;
 
@@ -20,6 +22,10 @@ enum Command {
         #[clap(flatten)]
         io_args: IoArgs,
     },
+    ComputeBlobCellCommitments {
+        #[clap(flatten)]
+        io_args: IoArgs,
+    },
 }
 
 pub fn run_kzg_cli(kzg_command: KzgCliCommand) {
@@ -30,6 +36,13 @@ pub fn run_kzg_cli(kzg_command: KzgCliCommand) {
             let blobs = compute_blob_commitments(raw_blobs)
                 .unwrap_or_else(|error| panic!("Failed to calculate blob commitments: {error}"));
             let serializable_blobs = SerializableBlobs::from(blobs);
+            write_to_file(&output_path, &serializable_blobs);
+        }
+        Command::ComputeBlobCellCommitments { io_args: IoArgs { input_path, output_path } } => {
+            let raw_blobs: Vec<Vec<u8>> = load_input(input_path);
+            let blobs = compute_blob_cell_commitments(raw_blobs)
+                .unwrap_or_else(|error| panic!("Failed to calculate blob commitments: {error}"));
+            let serializable_blobs = SerializableCellBlobs::from(blobs);
             write_to_file(&output_path, &serializable_blobs);
         }
     };
