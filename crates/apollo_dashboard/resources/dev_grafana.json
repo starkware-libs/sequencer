@@ -915,6 +915,16 @@
           "extra_params": {
             "unit": "percentunit"
           }
+        },
+        {
+          "title": "Transactions Per Block",
+          "description": "The number of transactions per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
