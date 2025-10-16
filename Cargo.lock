@@ -3323,7 +3323,13 @@ dependencies = [
 name = "bench_tools"
 version = "0.16.0-rc.0"
 dependencies = [
+ "apollo_infra_utils",
  "clap",
+ "criterion",
+ "glob",
+ "rstest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

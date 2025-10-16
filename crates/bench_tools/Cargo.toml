@@ -8,3 +8,16 @@ workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
+criterion.workspace = true
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+apollo_infra_utils = { path = "../apollo_infra_utils" }
+glob.workspace = true
+rstest.workspace = true
+serde_json.workspace = true
+
+[[bench]]
+harness = false
+name = "dummy_bench"
+path = "src/benches/dummy_bench.rs"
