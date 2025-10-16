@@ -83,35 +83,35 @@ def main():
     usage_example = """
 Examples:
   # Basic usage with namespace prefix and node count
-  %(prog)s -n apollo-sepolia-integration -m 3 --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42
   
   # Using namespace list mode (no num-nodes or start-index allowed)
-  %(prog)s -N apollo-sepolia-test-0 apollo-sepolia-test-1 apollo-sepolia-test-2 --config-overrides consensus_manager_config.timeout=5000
+  %(prog)s -N apollo-sepolia-test-0 apollo-sepolia-test-1 apollo-sepolia-test-2 -t one_by_one --config-overrides consensus_manager_config.timeout=5000
   
   # Using cluster prefix with namespace prefix
-  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -t all_at_once --config-overrides validator_id=0x42
   
   # Using cluster list with namespace list (must have same number of items)
-  %(prog)s -N apollo-sepolia-test-0 apollo-sepolia-test-2 -C cluster0 cluster2 --config-overrides validator_id=0x42
+  %(prog)s -N apollo-sepolia-test-0 apollo-sepolia-test-2 -C cluster0 cluster2 -t one_by_one --config-overrides validator_id=0x42
   
   # Update different service types
-  %(prog)s -n apollo-sepolia-integration -m 3 -j Gateway --config-overrides gateway_config.port=8080
-  %(prog)s -n apollo-sepolia-integration -m 3 -j Mempool --config-overrides mempool_config.max_size=1000
-  %(prog)s -n apollo-sepolia-integration -m 3 -j L1 --config-overrides l1_config.endpoint=\"https://eth-mainnet.alchemyapi.io/v2/your-key\"
-  %(prog)s -n apollo-sepolia-integration -m 3 -j HttpServer --config-overrides http_server_config.port=8081
-  %(prog)s -n apollo-sepolia-integration -m 3 -j SierraCompiler --config-overrides sierra_compiler_config.timeout=30000
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j Gateway --config-overrides gateway_config.port=8080
+  %(prog)s -n apollo-sepolia-integration -m 3 -t one_by_one -j Mempool --config-overrides mempool_config.max_size=1000
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j L1 --config-overrides l1_config.endpoint=\"https://eth-mainnet.alchemyapi.io/v2/your-key\"
+  %(prog)s -n apollo-sepolia-integration -m 3 -t one_by_one -j HttpServer --config-overrides http_server_config.port=8081
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j SierraCompiler --config-overrides sierra_compiler_config.timeout=30000
   
   # Update starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 --config-overrides validator_id=0x42
+  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 -t one_by_one --config-overrides validator_id=0x42
   
   # Update without restart
-  %(prog)s -n apollo-sepolia-integration -m 3 --config-overrides validator_id=0x42 --no-restart
+  %(prog)s -n apollo-sepolia-integration -m 3 -t no_restart --config-overrides validator_id=0x42
   
-  # Update with explicit restart (default behavior)
-  %(prog)s -n apollo-sepolia-integration -m 3 --config-overrides validator_id=0x42 -r
+  # Update with explicit restart (all at once)
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once --config-overrides validator_id=0x42
   
   # Complex example with multiple config overrides
-  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -j Core --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42 --config-overrides components.gateway.url=\"localhost\"
+  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -t one_by_one -j Core --config-overrides consensus_manager_config.timeout=5000 --config-overrides validator_id=0x42 --config-overrides components.gateway.url=\"localhost\"
   
         """
 

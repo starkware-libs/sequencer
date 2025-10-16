@@ -53,31 +53,31 @@ def main():
     usage_example = """
 Examples:
   # Restart all nodes to at the next block after current feeder block (default: One_By_One strategy)
-  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --feeder-url feeder.integration-sepolia.starknet.io
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 -t one_by_one --feeder-url feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -f feeder.integration-sepolia.starknet.io
   
   # Restart nodes one by one with project name for showing logs link
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io -t One_By_One --project-name my-gcp-project
+  %(prog)s -n apollo-sepolia-integration -m 3 -t one_by_one -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
   
   # Restart nodes with cluster prefix
-  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -t all_at_once -f feeder.integration-sepolia.starknet.io
   
   # Update configuration without restarting nodes
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io --no-restart
+  %(prog)s -n apollo-sepolia-integration -m 3 -t no_restart -f feeder.integration-sepolia.starknet.io
   
   # Restart nodes starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 -t one_by_one -f feeder.integration-sepolia.starknet.io
   
   # Use different feeder URL
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -f feeder.integration-sepolia.starknet.io
   
   # Use namespace list instead of prefix (restart specific namespaces)
-  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-2 -f feeder.integration-sepolia.starknet.io
-  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-2 -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-2 -t one_by_one -f feeder.integration-sepolia.starknet.io
+  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-2 -t all_at_once -f feeder.integration-sepolia.starknet.io
   
   # Use cluster list for multiple clusters (only works with namespace-list, not namespace-prefix)
-  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-1 -C cluster1 cluster2 -f feeder.integration-sepolia.starknet.io
-  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-1 --cluster-list cluster1 cluster2 -f feeder.integration-sepolia.starknet.io
+  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-1 -C cluster1 cluster2 -t one_by_one -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-1 --cluster-list cluster1 cluster2 -t all_at_once -f feeder.integration-sepolia.starknet.io
         """
 
     args_builder = ApolloArgsParserBuilder(
