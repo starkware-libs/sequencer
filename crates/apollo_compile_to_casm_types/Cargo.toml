@@ -25,4 +25,5 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+expect-test.workspace = true
 mockall.workspace = true
