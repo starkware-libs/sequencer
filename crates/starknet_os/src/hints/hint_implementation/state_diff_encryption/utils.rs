@@ -74,7 +74,28 @@ pub fn decrypt_symmetric_key(
     encrypted_symmetric_key - calc_blake_hash(&[shared_secret])
 }
 
+fn decrypt_felt(encrypted_felt: &Felt, symmetric_key: Felt, i: usize) -> Felt {
+    encrypted_felt - calc_blake_hash(&[symmetric_key, Felt::from(i)])
+}
+
+fn decrypt_iter<'a, It: Iterator<Item = Felt> + 'a>(
+    iter: It,
+    symmetric_key: Felt,
+) -> impl Iterator<Item = Felt> + 'a {
+    iter.enumerate().map(move |(i, encrypted_felt)| decrypt_felt(&encrypted_felt, symmetric_key, i))
+}
+
 #[allow(dead_code)]
+pub fn encrypt_state_diff(symmetric_key: Felt, state_diff: &[Felt]) -> Vec<Felt> {
+    // Encrypt the state_diff using the symmetric key.
+    let encrypted_state_diff = state_diff
+        .iter()
+        .enumerate()
+        .map(|(i, felt)| felt + calc_blake_hash(&[symmetric_key, Felt::from(i)]))
+        .collect();
+    encrypted_state_diff
+}
+
 pub fn decrypt_state_diff(
     private_key: Felt,
     sn_public_key: Felt,
@@ -85,13 +106,45 @@ pub fn decrypt_state_diff(
 
     // Decrypt the state diff using the symmetric key.
     // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
-    encrypted_state_diff
-        .iter()
-        .enumerate()
-        .map(|(i, encrypted_felt)| {
-            encrypted_felt - calc_blake_hash(&[symmetric_key, Felt::from(i)])
-        })
-        .collect()
+    decrypt_iter(encrypted_state_diff.iter().map(Felt::clone), symmetric_key).collect()
+}
+
+/// Assumes input data is encrypted if and only if (at least one) private keys are provided.
+/// If data is encrypted, assumes the encryption structure is as follows:
+/// - The first element is the number of keys.
+/// - The next `n_keys` elements are the Starknet public keys.
+/// - The next `n_keys` elements are the encrypted symmetric keys, in order of the private keys.
+/// - The remaining elements are the encrypted data.
+///
+/// Returns an iterator that yields decrypted data.
+pub fn maybe_decrypt_iter<'a, It: Iterator<Item = Felt> + 'a>(
+    iter: &'a mut It,
+    private_keys: Option<&Vec<Felt>>,
+) -> Box<dyn Iterator<Item = Felt> + 'a> {
+    let private_keys = match private_keys {
+        Some(keys) if !keys.is_empty() => keys,
+        _ => return Box::new(iter),
+    };
+    let n_keys = private_keys.len();
+    // The first element in the DA segment should be the number of keys.
+    assert_eq!(iter.next().unwrap(), n_keys.into());
+    // The next `n_keys` elements should be the Starknet public keys.
+    let sn_public_keys: Vec<Felt> = (0..n_keys).map(|_| iter.next().unwrap()).collect();
+    // The next `n_keys` elements should the the encrypted symmetric keys, in order of the private
+    // keys.
+    let encrypted_symmetric_keys: Vec<Felt> = (0..n_keys).map(|_| iter.next().unwrap()).collect();
+    // Decrypt the symmetric key. As a sanity check, make sure any key pair results in the same
+    // decrypted key.
+    let decrypted_symmetric_key =
+        decrypt_symmetric_key(private_keys[0], sn_public_keys[0], encrypted_symmetric_keys[0]);
+    for i in 1..n_keys {
+        assert_eq!(
+            decrypt_symmetric_key(private_keys[i], sn_public_keys[i], encrypted_symmetric_keys[i]),
+            decrypted_symmetric_key
+        );
+    }
+    // Return an iterator that yields decrypted data.
+    Box::new(decrypt_iter(iter, decrypted_symmetric_key))
 }
 
 /// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
