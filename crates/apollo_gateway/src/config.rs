@@ -8,14 +8,19 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
+use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use blockifier::context::ChainInfo;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_types_core::felt::Felt;
-use validator::Validate;
+use tracing::error;
+use validator::{Validate, ValidationError};
 
 use crate::compiler_version::VersionId;
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+pub mod config_test;
 
 const JSON_RPC_VERSION: &str = "2.0";
 
@@ -111,6 +116,7 @@ pub struct StatelessTransactionValidatorConfig {
     // TODO(AlonH): Remove the `min_gas_price` field from this struct and use the one from the
     // versioned constants.
     pub min_gas_price: u128,
+    #[validate(custom = "max_l2_gas_accounts_for_os_constants")]
     pub max_l2_gas_amount: u64,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
@@ -122,12 +128,39 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_sierra_version: VersionId,
 }
 
+fn max_l2_gas_accounts_for_os_constants(max_l2_gas_amount: u64) -> Result<(), ValidationError> {
+    let versioned_constants = VersionedConstants::latest_constants();
+
+    let validate_max_sierra_gas = versioned_constants.os_constants.validate_max_sierra_gas;
+    let execute_max_sierra_gas = versioned_constants.os_constants.execute_max_sierra_gas;
+
+    let expected_max_l2_gas_amount = validate_max_sierra_gas
+        .checked_add(execute_max_sierra_gas)
+        .ok_or({
+            error!("Failed adding validate max sierra gas with execute max sierra gas.");
+            ValidationError::new("failed adding validate with execute max sierra gas.")
+        })?
+        .0;
+    if max_l2_gas_amount != expected_max_l2_gas_amount {
+        error!(
+            "Insufficient max_l2_gas_amount; max_l2_gas_amount: {max_l2_gas_amount}, the OS \
+             bounds are validate: {validate_max_sierra_gas}, execute: {execute_max_sierra_gas}. \
+             The expected max_l2_gas_amount is {expected_max_l2_gas_amount}.",
+        );
+        return Err(ValidationError::new("incompatible max_l2_gas_amount"));
+    }
+
+    Ok(())
+}
+
+const DEFAULT_MAX_L2_GAS_AMOUNT: u64 = 1_100_000_000;
+
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
             min_gas_price: 3_000_000_000,
-            max_l2_gas_amount: 1_100_000_000,
+            max_l2_gas_amount: DEFAULT_MAX_L2_GAS_AMOUNT,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
