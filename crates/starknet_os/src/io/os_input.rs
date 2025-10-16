@@ -61,7 +61,7 @@ pub struct OsHints {
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+    pub deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
