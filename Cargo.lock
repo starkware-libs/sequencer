@@ -3323,6 +3323,10 @@ name = "bench_tools"
 version = "0.16.0-rc.0"
 dependencies = [
  "clap",
+ "criterion",
+ "glob",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
