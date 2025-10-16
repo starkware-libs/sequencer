@@ -575,10 +575,11 @@ fn test_allocate_addresses_for_state_diff_and_replace(
         .chain([Felt::ZERO]) // Number of declared classes, zero in this case.
         .collect();
     let os_state_diff =
-        FullOsStateDiff::try_from_output_iter(&mut contract_state_diff_as_felts.into_iter())
+        FullOsStateDiff::try_from_output_iter(&mut contract_state_diff_as_felts.into_iter(), None)
             .unwrap();
     let os_state_diff_with_aliases = FullOsStateDiff::try_from_output_iter(
         &mut contract_state_diff_with_aliases_as_felts.into_iter(),
+        None,
     )
     .unwrap();
 
