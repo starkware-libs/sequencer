@@ -190,13 +190,12 @@ pub(crate) fn create_declare_tx(
     let nonce = if bootstrap { Nonce::default() } else { nonce_manager.next(sender_address) };
     let declare_args = match feature_contract.get_class() {
         ContractClass::V0(class) => {
-            let class_hash =
-                StarknetAPICompiledClassHash(compute_deprecated_class_hash(&class).unwrap());
+            let class_hash = ClassHash(compute_deprecated_class_hash(&class).unwrap());
             execution_contracts.add_deprecated_contract(class_hash, class);
             declare_tx_args! {
                 version: TransactionVersion::ONE,
                 max_fee: if bootstrap { Fee::default() } else { Fee(1_000_000_000_000_000) },
-                class_hash: ClassHash(class_hash.0),
+                class_hash,
                 sender_address,
                 nonce,
             }

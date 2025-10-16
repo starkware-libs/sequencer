@@ -14,7 +14,7 @@ use cairo_vm::vm::runners::cairo_pie::{
     OutputBuiltinAdditionalData,
 };
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-use starknet_api::core::CompiledClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -135,7 +135,7 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     os_hints_config: OsHintsConfig,
     os_block_inputs: &'a [OsBlockInput],
     cached_state_inputs: Vec<CachedStateInput>,
-    deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+    deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
 ) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>, bool), StarknetOsError> {

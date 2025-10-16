@@ -86,18 +86,17 @@ impl OsExecutionContracts {
 
     pub(crate) fn add_deprecated_contract(
         &mut self,
-        compiled_class_hash: CompiledClassHash,
+        class_hash: ClassHash,
         deprecated_contract_class: DeprecatedContractClass,
     ) {
-        self.executed_contracts
-            .add_deprecated_contract(compiled_class_hash, deprecated_contract_class);
+        self.executed_contracts.add_deprecated_contract(class_hash, deprecated_contract_class);
     }
 }
 
 #[derive(Default)]
 pub(crate) struct ExecutedContracts {
     pub(crate) contracts: HashMap<CompiledClassHash, CasmContractClass>,
-    pub(crate) deprecated_contracts: HashMap<CompiledClassHash, DeprecatedContractClass>,
+    pub(crate) deprecated_contracts: HashMap<ClassHash, DeprecatedContractClass>,
 }
 
 impl ExecutedContracts {
@@ -107,10 +106,10 @@ impl ExecutedContracts {
 
     pub(crate) fn add_deprecated_contract(
         &mut self,
-        compiled_class_hash: CompiledClassHash,
+        class_hash: ClassHash,
         deprecated_contract_class: DeprecatedContractClass,
     ) {
-        self.deprecated_contracts.insert(compiled_class_hash, deprecated_contract_class);
+        self.deprecated_contracts.insert(class_hash, deprecated_contract_class);
     }
 }
 
