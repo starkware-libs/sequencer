@@ -568,7 +568,7 @@ impl<S: FlowTestState> TestManager<S> {
         };
         let public_keys =
             test_params.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
-        let expected_config_hash = chain_info.compute_os_config_hash().unwrap();
+        let expected_config_hash = chain_info.compute_os_config_hash(public_keys.as_ref()).unwrap();
         let os_hints_config = OsHintsConfig {
             chain_info,
             use_kzg_da,
