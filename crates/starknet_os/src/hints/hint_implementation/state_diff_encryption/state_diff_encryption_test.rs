@@ -6,6 +6,9 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use itertools::Itertools;
+use num_bigint::BigUint;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
@@ -13,7 +16,9 @@ use crate::hints::hint_implementation::state_diff_encryption::utils::{
     compute_public_keys,
     decrypt_state_diff,
     decrypt_symmetric_key,
+    encrypt_state_diff,
     encrypt_symmetric_key,
+    maybe_decrypt_iter,
 };
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
@@ -34,6 +39,21 @@ fn add_memory_segment_and_load_explicit_arg(
         .load_data(start, &data.iter().map(Into::into).collect::<Vec<MaybeRelocatable>>())
         .unwrap();
     (start, end)
+}
+
+fn generate_committee_private_keys_and_symmetric_key(
+    seed: u64,
+    num_keys: usize,
+) -> (Vec<Felt>, Felt) {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut get_random_nonzero_felt =
+        || Felt::from(rng.gen_range(BigUint::new(vec![1])..Felt::prime()));
+
+    let private_keys = (0..num_keys).map(|_| get_random_nonzero_felt()).collect();
+
+    let symmetric_key = get_random_nonzero_felt();
+
+    (private_keys, symmetric_key)
 }
 
 /// Tests the state diff encryption functionality using the Cairo OS encrypt function.
@@ -351,4 +371,54 @@ fn test_symmetric_key_encryption_function(#[case] private_keys: &[Felt]) {
             decrypt_symmetric_key(private_key, sn_public_key, encrypted_symmetric_key);
         assert_eq!(decrypted_symmetric_key, symmetric_key);
     }
+}
+
+/// Encrypt data, construct DA segment, and decrypt it. Make sure the result is identical to the
+/// original data.
+#[rstest]
+#[case::single_member(43, Some(1))]
+#[case::null_committee(457, None)]
+#[case::empty_committee(458, Some(0))]
+#[case::large_committee(790, Some(10))]
+fn test_da_segment_encrypt_decrypt(
+    #[case] seed: u64,
+    #[case] num_committee_members: Option<usize>,
+) {
+    let original_data = vec![Felt::ZERO, Felt::ONE, Felt::TWO, Felt::THREE];
+
+    // Generate committee private keys and symmetric key using randomness with the provided seed.
+    let (private_keys, symmetric_key) =
+        generate_committee_private_keys_and_symmetric_key(seed, num_committee_members.unwrap_or(0));
+
+    // Set up committee keys for encryption/decryption.
+    let public_keys_vector: Vec<Felt> = compute_public_keys(&private_keys);
+
+    // Set up starknet private and public keys.
+    let sn_private_keys_vector: Vec<Felt> =
+        private_keys.iter().map(|&private_key| private_key + Felt::from(1000)).collect();
+    let sn_public_keys = compute_public_keys(&sn_private_keys_vector);
+
+    // Compute the encrypted symmetric keys.
+    let encrypted_symmetric_keys =
+        encrypt_symmetric_key(&sn_private_keys_vector, &public_keys_vector, symmetric_key);
+
+    // Construct the DA segment.
+    // If the committee is empty or null, the DA segment should be identical to the original data.
+    // Otherwise, the DA segment should be encrypted.
+    let da_segment = match num_committee_members {
+        Some(n) if n > 0 => {
+            let suffix = encrypt_state_diff(symmetric_key, &original_data);
+            [vec![Felt::from(n)], sn_public_keys, encrypted_symmetric_keys, suffix].concat()
+        }
+        _ => original_data.clone(),
+    };
+
+    // Decrypt the DA segment.
+    // Verify that the decrypted data matches the original data.
+    let mut da_iter = da_segment.into_iter();
+    let decrypted = maybe_decrypt_iter(
+        &mut da_iter,
+        if num_committee_members.is_some() { Some(&private_keys) } else { None },
+    );
+    assert_eq!(decrypted.collect::<Vec<Felt>>(), original_data);
 }
