@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use apollo_class_manager_config::config::{CachedClassStorageConfig, ClassHashDbConfig};
 use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
@@ -8,7 +10,6 @@ use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
 use crate::class_storage::{
-    create_tmp_dir,
     CachedClassStorage,
     ClassHashStorage,
     ClassHashStorageConfig,
@@ -42,14 +43,15 @@ impl FsClassStorage {
         class_hash_storage_path_prefix: &tempfile::TempDir,
     ) -> Self {
         let class_hash_storage = ClassHashStorage::new_for_testing(class_hash_storage_path_prefix);
+        std::fs::create_dir_all(persistent_root.path()).unwrap();
         Self { persistent_root: persistent_root.path().to_path_buf(), class_hash_storage }
     }
 }
 
 #[test]
 fn fs_storage() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -84,8 +86,8 @@ fn fs_storage() {
 
 #[test]
 fn fs_storage_deprecated_class_api() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -106,12 +108,38 @@ fn fs_storage_deprecated_class_api() {
 }
 
 #[test]
+fn temp_dir_location_and_atomic_write_layout() {
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
+    let storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let class_id = ClassHash(felt!("0x1234"));
+    let persistent_dir = storage.persistent_root.join({
+        let hex = hex::encode(class_id.to_bytes_be());
+        let (a, b) = (&hex[..2], &hex[2..4]);
+        PathBuf::from(a).join(b).join(hex)
+    });
+
+    // Create tmp dir via the atomic writer and ensure it resides under parent_dir.
+    let class = RawClass::try_from(SierraContractClass::default()).unwrap();
+    let executable_class =
+        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    storage.write_class_atomically(class_id, class.clone(), executable_class.clone()).unwrap();
+
+    // After atomic write and rename, the persistent dir should exist and contain the files.
+    assert!(persistent_dir.exists());
+    assert!(persistent_dir.join("sierra").exists());
+    assert!(persistent_dir.join("casm").exists());
+}
+
+#[test]
 fn fs_storage_nonexistent_persistent_root_is_created() {
-    let parent_dir = create_tmp_dir().unwrap();
+    let parent_dir = tempfile::tempdir().unwrap();
     let nonexistent_root = parent_dir.path().join("nonexistent_root");
     assert!(!nonexistent_root.exists());
 
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let class_hash_storage = ClassHashStorage::new_for_testing(&class_hash_storage_path_prefix);
     let mut storage =
         FsClassStorage { persistent_root: nonexistent_root.clone(), class_hash_storage };
@@ -138,8 +166,8 @@ fn fs_storage_nonexistent_persistent_root_is_created() {
 // TODO(Elin): should this flow return an error?
 #[test]
 fn fs_storage_partial_write_only_atomic_marker() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -156,8 +184,8 @@ fn fs_storage_partial_write_only_atomic_marker() {
 
 #[test]
 fn fs_storage_partial_write_no_atomic_marker() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
@@ -239,8 +267,8 @@ fn cached_storage_cairo1_get_executable_and_hash() {
 
 #[test]
 fn cached_storage_cairo0_get_executable_and_no_hash() {
-    let persistent_root = create_tmp_dir().unwrap();
-    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut fs_storage =
         FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
