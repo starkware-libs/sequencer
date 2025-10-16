@@ -67,6 +67,7 @@ use crate::metrics::{
     LAST_BATCHED_BLOCK_HEIGHT,
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
+    NUM_TRANSACTION_IN_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
@@ -633,6 +634,7 @@ impl Batcher {
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         REVERTED_TRANSACTIONS.increment(n_reverted_count);
+        NUM_TRANSACTION_IN_BLOCK.record_lossy(n_txs);
 
         Ok(DecisionReachedResponse {
             state_diff,
