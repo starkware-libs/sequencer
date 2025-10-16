@@ -98,8 +98,10 @@ pub fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddr
     ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
 }
 
+/// Spin up Anvil instance, a local Ethereum node, dies when dropped.
+/// # Arguments
+/// * `port` - Port to bind to (if None, uses random ephemeral port)
 // TODO(Arni): Make port non-optional.
-// Spin up Anvil instance, a local Ethereum node, dies when dropped.
 pub fn anvil(port: Option<u16>) -> AnvilInstance {
     let mut anvil = Anvil::new();
     // If the port is not set explicitly, a random ephemeral port is bound and used.
