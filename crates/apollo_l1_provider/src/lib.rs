@@ -20,7 +20,6 @@ use papyrus_base_layer::constants::{
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
 
-use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManagerConfig;
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
@@ -32,7 +31,7 @@ pub enum ProviderState {
     /// Provider is ready for proposing. Use commit_block to finish and return to Pending.
     Propose,
     /// Provider is catching up using sync. Only happens on startup.
-    Bootstrap(Bootstrapper),
+    Bootstrap,
     /// Provider is ready for validating. Use validate to validate a transaction.
     Validate,
 }
@@ -42,32 +41,17 @@ impl ProviderState {
         match self {
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
-            ProviderState::Bootstrap(_) => "Bootstrap",
+            ProviderState::Bootstrap => "Bootstrap",
             ProviderState::Validate => "Validate",
         }
     }
 
-    /// Checks if the provider is in its uninitialized state. In this state, the provider has
-    /// started, but its startup sequence, triggered via the initialization API, has not yet
-    /// begun.
-    pub fn uninitialized(&mut self) -> bool {
-        self.get_bootstrapper().is_some_and(|bootstrapper| !bootstrapper.sync_started())
-    }
-
     pub fn is_bootstrapping(&self) -> bool {
-        if let ProviderState::Bootstrap { .. } = self {
+        if let ProviderState::Bootstrap = self {
             return true;
         }
 
         false
-    }
-
-    pub fn get_bootstrapper(&mut self) -> Option<&mut Bootstrapper> {
-        if let ProviderState::Bootstrap(bootstrapper) = self {
-            return Some(bootstrapper);
-        }
-
-        None
     }
 
     fn transition_to_pending(&self) -> ProviderState {
