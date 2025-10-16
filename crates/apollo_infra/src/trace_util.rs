@@ -14,14 +14,14 @@ pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process
 pub async fn configure_tracing() {
     TRACING_INITIALIZED
         .get_or_init(|| async {
-            // Use default time formatting with subsecond precision limited to three digits.
+            // Use default time formatting with sub-second precision limited to three digits.
             let time_format = format_description!(
                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
             );
             let timer = UtcTime::new(time_format);
 
             let fmt_layer = fmt::layer()
-                .compact()
+                .json()
                 .with_timer(timer)
                 .with_target(false) // No module name.
                 // Instead, file name and line number.
