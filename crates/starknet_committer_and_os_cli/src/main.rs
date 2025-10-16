@@ -7,6 +7,7 @@ use starknet_committer_and_os_cli::committer_cli::run_committer_cli::{
     run_committer_cli,
     CommitterCliCommand,
 };
+use starknet_committer_and_os_cli::kzg_cli::run_kzg_cli::{run_kzg_cli, KzgCliCommand};
 use starknet_committer_and_os_cli::os_cli::run_os_cli::{run_os_cli, OsCliCommand};
 use starknet_committer_and_os_cli::tracing_utils::configure_tracing;
 use tracing::info;
@@ -28,6 +29,8 @@ enum CommitterOrOsCommand {
     Committer(CommitterCliCommand),
     /// Run BlockHash CLI.
     BlockHash(BlockHashCliCommand),
+    /// Run KZG CLI.
+    Kzg(KzgCliCommand),
     /// Run OS CLI.
     OS(OsCliCommand),
 }
@@ -54,6 +57,9 @@ async fn main() {
         }
         CommitterOrOsCommand::BlockHash(command) => {
             run_block_hash_cli(command).await;
+        }
+        CommitterOrOsCommand::Kzg(command) => {
+            run_kzg_cli(command).await;
         }
     }
 }
