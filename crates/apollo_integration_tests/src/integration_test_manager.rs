@@ -11,6 +11,7 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_endpoint_monitor::monitor::MIN_EXPECTED_BLOCK_NUMBER;
 use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -35,10 +36,9 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     StarknetL1Contract,
 };
 use papyrus_base_layer::test_utils::{
+    anvil_mine_blocks,
     ethereum_base_layer_config_for_anvil,
-    make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
-    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
@@ -312,21 +312,19 @@ impl IntegrationTestManager {
 
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
-        // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
-            + l1_gas_price_scraper_config.finality)
-            .try_into()
-            .unwrap();
-        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
-        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+        let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
+            + l1_gas_price_scraper_config.finality;
 
-        make_block_history_on_anvil(
-            sender_address,
-            receiver_address,
-            base_layer_config.clone(),
+        assert!(
+            num_blocks_needed_on_l1 <= MIN_EXPECTED_BLOCK_NUMBER,
+            "num_blocks_needed_on_l1 ({}) exceeds MIN_EXPECTED_BLOCK_NUMBER ({})",
             num_blocks_needed_on_l1,
-        )
-        .await;
+            MIN_EXPECTED_BLOCK_NUMBER
+        );
+
+        // Mine the required number of blocks instantly.
+        anvil_mine_blocks(base_layer_config.clone(), MIN_EXPECTED_BLOCK_NUMBER)
+            .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
