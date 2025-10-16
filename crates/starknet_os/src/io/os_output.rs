@@ -122,6 +122,7 @@ pub struct MessageToL2 {
 impl TryFromOutputIter for MessageToL2 {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
+        _private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let from_address = wrap_missing_as(iter.next(), "MessageToL2::from_address")?;
         let to_address = wrap_missing_as(iter.next(), "MessageToL2::to_address")?;
@@ -167,6 +168,7 @@ pub struct OsKzgCommitmentInfo {
 impl TryFromOutputIter for OsKzgCommitmentInfo {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
+        _private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
         let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
@@ -199,6 +201,7 @@ struct OutputIterParsedData {
 impl TryFromOutputIter for OutputIterParsedData {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
         let final_root = wrap_missing(output_iter.next(), "final_root")?;
@@ -213,7 +216,7 @@ impl TryFromOutputIter for OutputIterParsedData {
         let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
 
         let kzg_commitment_info = if use_kzg_da {
-            Some(OsKzgCommitmentInfo::try_from_output_iter(output_iter)?)
+            Some(OsKzgCommitmentInfo::try_from_output_iter(output_iter, private_keys)?)
         } else {
             None
         };
@@ -241,7 +244,8 @@ impl TryFromOutputIter for OutputIterParsedData {
         let mut messages_to_l2 = Vec::<MessageToL2>::new();
 
         while messages_to_l2_iter.peek().is_some() {
-            let message = MessageToL2::try_from_output_iter(&mut messages_to_l2_iter)?;
+            let message =
+                MessageToL2::try_from_output_iter(&mut messages_to_l2_iter, private_keys)?;
             messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
             messages_to_l2.push(message);
         }
@@ -333,19 +337,23 @@ pub struct OsOutput {
 impl TryFromOutputIter for OsOutput {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
+        private_keys: Option<&Vec<Felt>>,
     ) -> Result<Self, OsOutputError> {
         let OutputIterParsedData { common_os_output, kzg_commitment_info, full_output } =
-            OutputIterParsedData::try_from_output_iter(output_iter)?;
+            OutputIterParsedData::try_from_output_iter(output_iter, private_keys)?;
 
         let state_diff = match (kzg_commitment_info, full_output) {
             (Some(info), true) => OsStateDiff::FullCommitment(FullCommitmentOsStateDiff(info)),
             (Some(info), false) => {
                 OsStateDiff::PartialCommitment(PartialCommitmentOsStateDiff(info))
             }
-            (None, true) => OsStateDiff::Full(FullOsStateDiff::try_from_output_iter(output_iter)?),
-            (None, false) => {
-                OsStateDiff::Partial(PartialOsStateDiff::try_from_output_iter(output_iter)?)
+            (None, true) => {
+                OsStateDiff::Full(FullOsStateDiff::try_from_output_iter(output_iter, private_keys)?)
             }
+            (None, false) => OsStateDiff::Partial(PartialOsStateDiff::try_from_output_iter(
+                output_iter,
+                private_keys,
+            )?),
         };
 
         Ok(Self { common_os_output, state_diff })
@@ -379,8 +387,14 @@ pub struct StarknetOsRunnerOutput {
 }
 
 impl StarknetOsRunnerOutput {
-    pub fn get_os_output(&self) -> Result<OsOutput, StarknetOsError> {
-        Ok(OsOutput::try_from_output_iter(&mut self.raw_os_output.clone().into_iter())?)
+    pub fn get_os_output(
+        &self,
+        private_keys: Option<&Vec<Felt>>,
+    ) -> Result<OsOutput, StarknetOsError> {
+        Ok(OsOutput::try_from_output_iter(
+            &mut self.raw_os_output.clone().into_iter(),
+            private_keys,
+        )?)
     }
 }
 
