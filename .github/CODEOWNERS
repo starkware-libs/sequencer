@@ -1,0 +1,6 @@
+# GitHub CODEOWNERS file
+# This file defines who must review and approve changes to specific files or directories
+# For more information, see: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Require approval from the sequencer-cargo-owners team for workspace dependency changes
+Cargo.toml @starkware-libs/sequencer-cargo-owners
