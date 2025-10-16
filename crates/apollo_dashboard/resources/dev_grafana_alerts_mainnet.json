@@ -1317,6 +1317,34 @@
       "observer_applicable": "false"
     },
     {
+      "name": "high_empty_blocks_ratio",
+      "title": "High ratio of empty blocks",
+      "ruleGroup": "batcher",
+      "expr": "sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"0\"}[60s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[60s])), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              30.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
       "name": "l1_gas_price_provider_insufficient_history",
       "title": "L1 gas price provider insufficient history",
       "ruleGroup": "l1_gas_price",

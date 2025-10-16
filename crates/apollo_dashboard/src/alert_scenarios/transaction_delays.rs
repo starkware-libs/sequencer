@@ -1,3 +1,4 @@
+use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 
@@ -127,6 +128,52 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert_vec() -> Vec<Alert> {
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
+fn get_high_empty_blocks_ratio_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    let zero_bucket = format!(
+        "{}, le=\"0\"}}",
+        NUM_TRANSACTION_IN_BLOCK
+            .get_name_with_filter()
+            .strip_suffix("}")
+            .expect("Metric name with filter should end with }")
+    );
+    let total_count = NUM_TRANSACTION_IN_BLOCK.get_name_count_with_filter();
+
+    Alert::new(
+        "high_empty_blocks_ratio",
+        "High ratio of empty blocks",
+        AlertGroup::Batcher,
+        format!(
+            "sum(increase({zero_bucket}[60s])) / clamp_min(sum(increase({total_count}[60s])), 1)"
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.3,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        ObserverApplicability::NotApplicable,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_high_empty_blocks_ratio_alert_vec() -> Vec<Alert> {
+    vec![
+        get_high_empty_blocks_ratio_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_high_empty_blocks_ratio_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::Regular,
         ),
     ]
 }
