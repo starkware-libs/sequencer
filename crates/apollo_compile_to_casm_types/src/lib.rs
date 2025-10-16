@@ -49,19 +49,19 @@ pub enum RawClassError {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SerializedClass<T>(serde_json::Value, std::marker::PhantomData<T>);
+pub struct SerializedClass<T>(Arc<serde_json::Value>, std::marker::PhantomData<T>);
 
 impl<T> SerializedClass<T> {
     pub fn into_value(self) -> serde_json::Value {
-        self.0
+        Arc::unwrap_or_clone(self.0)
     }
 
     pub fn size(&self) -> RawClassResult<usize> {
-        Ok(serde_json::to_string_pretty(&self.0)?.len())
+        Ok(serde_json::to_string_pretty(&*self.0)?.len())
     }
 
     fn new(value: serde_json::Value) -> Self {
-        Self(value, std::marker::PhantomData)
+        Self(Arc::new(value), std::marker::PhantomData)
     }
 
     pub fn from_file(path: PathBuf) -> RawClassResult<Option<Self>> {
@@ -116,7 +116,16 @@ impl TryFrom<RawClass> for SierraContractClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawClass) -> Result<Self, Self::Error> {
-        serde_json::from_value(class.0)
+        serde_json::from_value(Arc::unwrap_or_clone(class.0))
+    }
+}
+
+impl TryFrom<&RawClass> for SierraContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: &RawClass) -> Result<Self, Self::Error> {
+        // Deserialize from the underlying JSON value without cloning the wrapper.
+        serde_json::from_value((*class.0).clone())
     }
 }
 
@@ -132,7 +141,7 @@ impl TryFrom<RawExecutableClass> for ContractClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
-        serde_json::from_value(class.0)
+        serde_json::from_value(Arc::unwrap_or_clone(class.0))
     }
 }
 
