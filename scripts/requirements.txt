@@ -45,6 +45,7 @@ multidict==6.6.3
 mypy_extensions==1.1.0
 numpy==2.0.2
 packaging==25.0
+pandas==2.3.3
 parsimonious==0.10.0
 pathspec==0.12.1
 pipdeptree==2.28.0
