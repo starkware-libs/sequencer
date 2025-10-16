@@ -67,37 +67,37 @@ def main():
     usage_example = """
 Examples:
   # Set revert mode up to a specific block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --revert_up_to_block 12345
-  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -b 12345
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --revert-only --revert_up_to_block 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -b 12345
   
   # Set revert mode using feeder URL to get current block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --feeder-url feeder.integration-sepolia.starknet.io   
-  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --revert-only --feeder-url feeder.integration-sepolia.starknet.io   
+  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Disable revert mode
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --disable-revert-only
-  %(prog)s -n apollo-sepolia-integration -N 3 --disable-revert-only
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --disable-revert-only
+  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --disable-revert-only
   
   # Set revert mode with cluster prefix
-  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --revert-only -b 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster -t all_at_once --revert-only -b 12345
   
   # Set revert mode with feeder URL and cluster prefix
-  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Disable revert mode without restarting nodes
-  %(prog)s -n apollo-sepolia-integration -N 3 --disable-revert-only --no-restart
+  %(prog)s -n apollo-sepolia-integration -N 3 -t no_restart --disable-revert-only
   
   # Set revert mode with explicit restart
-  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -b 12345 -r
+  %(prog)s -n apollo-sepolia-integration -N 3 -t all_at_once --revert-only -b 12345
   
   # Set revert mode with feeder URL and explicit restart
-  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -f feeder.integration-sepolia.starknet.io -r
+  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Set revert mode starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --revert-only -b 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 -t all_at_once --revert-only -b 12345
   
   # Set revert mode with feeder URL starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
         """
 
     args_builder = ApolloArgsParserBuilder(
