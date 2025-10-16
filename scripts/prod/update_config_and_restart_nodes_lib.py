@@ -104,8 +104,8 @@ class ApolloArgsParserBuilder:
                 "--restart-strategy",
                 type=restart_strategy_converter,
                 choices=list(RestartStrategy),
-                default=RestartStrategy.ONE_BY_ONE,
-                help="Strategy for restarting nodes (default: One_By_One)",
+                required=True,
+                help="Strategy for restarting nodes",
             )
 
     def add_argument(self, *args, **kwargs):
