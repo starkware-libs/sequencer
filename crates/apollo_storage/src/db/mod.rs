@@ -222,6 +222,8 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
                 no_rdahead: true,
                 // LIFO policy for recycling a Garbage Collection items should be faster.
                 liforeclaim: true,
+                // Exclusive access - prevent other processes from opening the same database.
+                exclusive: true,
                 ..Default::default()
             })
             .open(&config.path())?,
