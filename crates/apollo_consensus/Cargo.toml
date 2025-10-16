@@ -11,6 +11,7 @@ testing = []
 
 [dependencies]
 apollo_consensus_config.workspace = true
+apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
