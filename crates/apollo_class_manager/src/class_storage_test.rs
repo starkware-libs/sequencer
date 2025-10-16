@@ -1,12 +1,15 @@
-use apollo_class_manager_config::config::ClassHashDbConfig;
+use apollo_class_manager_config::config::{CachedClassStorageConfig, ClassHashDbConfig};
+use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
 use crate::class_storage::{
     create_tmp_dir,
+    CachedClassStorage,
     ClassHashStorage,
     ClassHashStorageConfig,
     ClassStorage,
@@ -143,4 +146,87 @@ fn fs_storage_partial_write_no_atomic_marker() {
     // Query class, should be considered non-existent.
     assert_eq!(storage.get_sierra(class_id), Ok(None));
     assert_eq!(storage.get_executable(class_id), Ok(None));
+}
+
+#[test]
+fn cached_storage_none_flows_do_not_cache() {
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
+    let fs_storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let cached = CachedClassStorage::new(CachedClassStorageConfig::default(), fs_storage);
+
+    let class_id = ClassHash(felt!("0x1111"));
+    // Neither Cairo 1 nor Cairo 0 class exists.
+    assert_eq!(cached.get_executable(class_id), Ok(None));
+    assert_eq!(cached.get_deprecated_class(class_id), Ok(None));
+    assert_eq!(cached.get_executable_class_hash_v2(class_id), Ok(None));
+}
+
+#[test]
+fn cached_storage_cairo1_marker_only_returns_error() {
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
+    let mut fs_storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let cached = CachedClassStorage::new(CachedClassStorageConfig::default(), fs_storage.clone());
+
+    let class_id = ClassHash(felt!("0x1111"));
+    let executable_class_hash_v2 = CompiledClassHash(felt!("0x2222"));
+    // Simulate marker exists without files.
+    fs_storage.mark_class_id_as_existent(class_id, executable_class_hash_v2).unwrap();
+
+    let expected_err =
+        CachedClassStorageError::Storage(FsClassStorageError::ClassNotFound { class_id });
+    assert_eq!(cached.get_executable(class_id).unwrap_err(), expected_err);
+}
+
+#[test]
+fn cached_storage_cairo1_get_executable_and_hash() {
+    let persistent_root = tempfile::tempdir().unwrap();
+    let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
+    let mut fs_storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let cached = CachedClassStorage::new(CachedClassStorageConfig::default(), fs_storage.clone());
+
+    let class_id = ClassHash(felt!("0x1111"));
+    let class = RawClass::try_from(SierraContractClass::default()).unwrap();
+    let executable_class =
+        RawExecutableClass::try_from(ContractClass::test_casm_contract_class()).unwrap();
+    let executable_class_hash_v2 = CompiledClassHash(felt!("0x2222"));
+
+    fs_storage
+        .set_class(class_id, class, executable_class_hash_v2, executable_class.clone())
+        .unwrap();
+
+    assert_eq!(cached.get_executable(class_id).unwrap(), Some(executable_class));
+    assert_eq!(
+        cached.get_executable_class_hash_v2(class_id).unwrap(),
+        Some(executable_class_hash_v2)
+    );
+    // No deprecated class for Cairo 1.
+    assert_eq!(cached.get_deprecated_class(class_id).unwrap(), None);
+}
+
+#[test]
+fn cached_storage_cairo0_get_executable_and_no_hash() {
+    let persistent_root = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let mut fs_storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    let cached = CachedClassStorage::new(CachedClassStorageConfig::default(), fs_storage.clone());
+
+    let class_id = ClassHash(felt!("0x1111"));
+    let deprecated_executable_class =
+        RawExecutableClass::try_from(ContractClass::V0(DeprecatedContractClass::default()))
+            .unwrap();
+
+    fs_storage.set_deprecated_class(class_id, deprecated_executable_class.clone()).unwrap();
+
+    assert_eq!(cached.get_executable(class_id).unwrap(), Some(deprecated_executable_class));
+    assert_eq!(cached.get_executable_class_hash_v2(class_id).unwrap(), None);
 }

@@ -14,7 +14,6 @@ use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter}
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
-use starknet_api::contract_class::ContractClass;
 use thiserror::Error;
 use tracing::instrument;
 
@@ -149,20 +148,19 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_executable(class_id)? else {
-            return Ok(None);
-        };
-
-        // TODO(Elin): separate Cairo0<>1 getters to avoid deserializing here.
-        match ContractClass::try_from(class.clone()).unwrap() {
-            ContractClass::V0(_) => {
-                self.deprecated_classes.set(class_id, class.clone());
-            }
-            ContractClass::V1(_) => {
-                self.executable_classes.set(class_id, class.clone());
-            }
+        // If compiled_class_hash_v2 exists, it'll be Cairo 1.
+        if self.get_executable_class_hash_v2(class_id)?.is_some() {
+            let Some(class) = self.storage.get_executable(class_id)? else {
+                return Ok(None);
+            };
+            self.executable_classes.set(class_id, class.clone());
+            return Ok(Some(class));
         }
 
+        let Some(class) = self.storage.get_deprecated_class(class_id)? else {
+            return Ok(None);
+        };
+        self.deprecated_classes.set(class_id, class.clone());
         Ok(Some(class))
     }
 
