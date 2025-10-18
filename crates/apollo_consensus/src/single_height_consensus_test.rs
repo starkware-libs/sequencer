@@ -3,7 +3,7 @@ use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDA
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -11,7 +11,7 @@ use super::SingleHeightConsensus;
 use crate::single_height_consensus::{ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
-use crate::types::ValidatorId;
+use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -21,7 +21,8 @@ lazy_static! {
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
-    static ref BLOCK: TestBlock = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
+    static ref BLOCK: TestBlock =
+        TestBlock { content: vec![1, 2, 3], id: ProposalCommitment(Felt::ONE) };
     static ref PROPOSAL_INIT: ProposalInit =
         ProposalInit { proposer: *PROPOSER_ID, ..Default::default() };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
@@ -38,14 +39,14 @@ const CHANNEL_SIZE: usize = 1;
 fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
     ShcTask::Prevote(
         TIMEOUTS.prevote_timeout,
-        StateMachineEvent::Prevote(block_felt.map(BlockHash), round),
+        StateMachineEvent::Prevote(block_felt.map(ProposalCommitment), round),
     )
 }
 
 fn precommit_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
     ShcTask::Precommit(
         TIMEOUTS.precommit_timeout,
-        StateMachineEvent::Precommit(block_felt.map(BlockHash), round),
+        StateMachineEvent::Precommit(block_felt.map(ProposalCommitment), round),
     )
 }
 

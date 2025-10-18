@@ -17,6 +17,7 @@ required-features = ["bin-deps"]
 [dependencies]
 apollo_test_utils = { workspace = true, optional = true }
 bytes.workspace = true
+derive_more.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 papyrus_common.workspace = true
