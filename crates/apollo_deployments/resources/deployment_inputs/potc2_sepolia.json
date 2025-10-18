@@ -14,5 +14,6 @@
   "state_sync_type": "Central",
   "p2p_communication_type": "Internal",
   "deployment_environment": "Potc2",
+  "audited_libfuncs_only": true,
   "requires_k8s_service_config_params": true
 }
