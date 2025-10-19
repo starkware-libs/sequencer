@@ -24,7 +24,7 @@ use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
-#[path = "papyrus_state_test.rs"]
+#[path = "apollo_state_test.rs"]
 mod test;
 
 type RawApolloReader<'env> = apollo_storage::StorageTxn<'env, RO>;

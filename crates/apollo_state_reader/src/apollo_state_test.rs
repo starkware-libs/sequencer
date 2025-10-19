@@ -19,7 +19,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::state::{StateDiff, StorageKey};
 use starknet_api::{calldata, felt};
 
-use crate::papyrus_state::ApolloReader;
+use crate::apollo_state::ApolloReader;
 
 #[test]
 fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
