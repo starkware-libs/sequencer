@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{
@@ -28,7 +29,6 @@ use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
 use crate::build_proposal::BuildProposalError;
-use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
 use crate::validate_proposal::ValidateProposalError;
 
