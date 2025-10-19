@@ -105,8 +105,6 @@ func main{
     ) = deprecated_load_compiled_class_facts();
 
     let (local os_outputs: OsOutput*) = alloc();
-    local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
-    let txs_range_check_ptr = initial_txs_range_check_ptr;
     %{
         from starkware.starknet.core.os.execution_helper import StateUpdatePointers
         state_update_pointers = StateUpdatePointers(segments=segments)
@@ -119,17 +117,25 @@ func main{
     );
 
     local public_keys: felt*;
-    local n_keys: felt;
-    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_keys) %}
+    local n_public_keys: felt;
+    %{ fill_public_keys_array(os_hints['public_keys'], public_keys, n_public_keys) %}
     let (public_keys_hash) = get_public_keys_hash{hash_ptr=pedersen_ptr}(
-        n_keys=n_keys, public_keys=public_keys
+        n_public_keys=n_public_keys, public_keys=public_keys
     );
+    local starknet_os_config: StarknetOsConfig* = new StarknetOsConfig(
+        chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
+        fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
+        public_keys_hash=public_keys_hash,
+    );
+
+    local initial_txs_range_check_ptr = nondet %{ segments.add_temp_segment() %};
+    let txs_range_check_ptr = initial_txs_range_check_ptr;
     with txs_range_check_ptr {
         execute_blocks(
             n_blocks=n_blocks,
             os_output_per_block_dst=os_outputs,
             compiled_class_facts_bundle=compiled_class_facts_bundle,
-            public_keys_hash=public_keys_hash,
+            starknet_os_config=starknet_os_config,
         );
     }
 
@@ -173,7 +179,7 @@ func main{
     serialize_os_output(
         os_output=final_os_output,
         replace_keys_with_aliases=TRUE,
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
 
@@ -243,7 +249,7 @@ func execute_blocks{
     n_blocks: felt,
     os_output_per_block_dst: OsOutput*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
-    public_keys_hash: felt,
+    starknet_os_config: StarknetOsConfig*,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -287,7 +293,7 @@ func execute_blocks{
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
         compiled_class_facts_bundle=compiled_class_facts_bundle,
-        public_keys_hash=public_keys_hash,
+        starknet_os_config=starknet_os_config,
     );
 
     // Pre-process block.
@@ -370,7 +376,7 @@ func execute_blocks{
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
         compiled_class_facts_bundle=compiled_class_facts_bundle,
-        public_keys_hash=public_keys_hash,
+        starknet_os_config=starknet_os_config,
     );
 }
 
@@ -473,33 +479,19 @@ func migrate_classes_to_v2_casm_hash{
     if (n_classes == 0) {
         return ();
     }
-    // Guess the class hash and compiled class hash v2.
+    // Guess the class hash and compiled class fact.
     local class_hash;
-    local expected_casm_hash_v2;
-    %{ GetClassHashAndCompiledClassHashV2 %}
-
-    // Find the compiled class fact using the guessed v2 hash.
-    static_assert CompiledClassFact.hash == 0;
-    let (compiled_class_fact: CompiledClassFact*) = find_element(
-        array_ptr=block_context.compiled_class_facts,
-        elm_size=CompiledClassFact.SIZE,
-        n_elms=block_context.n_compiled_class_facts,
-        key=expected_casm_hash_v2,
-    );
-    let compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
-    // Compute the full compiled class hash, both v1 and v2,
-    // using the compiled class from the block context:
-    // The full hash is needed to verify the migration;
-    // taking the class from the block context is not necessary,
-    // it's for future optimization (to skip the additional hash on these classes at the end).
-
+    local compiled_class_fact: CompiledClassFact*;
+    %{ GetClassHashAndCompiledClassFact %}
+    let compiled_class = compiled_class_fact.compiled_class;
+    // Compute the full compiled class hash, both v1 and v2.
     // This hint enters a new scope that contains the bytecode segment structure of the class.
     %{ EnterScopeWithBytecodeSegmentStructure %}
     let (casm_hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
     let (casm_hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
     %{ vm_exit_scope() %}
     // Verify the guessed v2 hash.
-    assert expected_casm_hash_v2 = casm_hash_v2;
+    assert compiled_class_fact.hash = casm_hash_v2;
     // Update the casm hash from v1 to v2.
     dict_update{dict_ptr=contract_class_changes}(
         key=class_hash, prev_value=casm_hash_v1, new_value=casm_hash_v2
