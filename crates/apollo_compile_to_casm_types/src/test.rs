@@ -3,7 +3,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 
-use crate::{size_of_serialized, RawClass, RawExecutableClass};
+use crate::{bounded_size_of_serialized, RawClass, RawExecutableClass};
 
 #[test]
 fn test_size_of_serialized() {
@@ -13,7 +13,7 @@ fn test_size_of_serialized() {
         "c": [1, 2, 3],
     });
 
-    let size = size_of_serialized(&value).unwrap();
+    let size = bounded_size_of_serialized(&value, None).unwrap();
     let serialized_size = serde_json::to_vec(&value).unwrap().len();
 
     assert_eq!(size, serialized_size);
@@ -55,4 +55,26 @@ fn consistent_serialization_size() {
     let raw_casm_class_size = raw_casm_class.size().unwrap();
 
     assert_eq!(raw_casm_class_size, casm_class_length);
+}
+
+#[test]
+fn bounded_size() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let sierra_class = test_contract.get_sierra();
+    let sierra_class_length = serde_json::to_vec(&sierra_class).unwrap().len();
+
+    let raw_sierra_class: RawClass = sierra_class.try_into().unwrap();
+    assert_eq!(raw_sierra_class.bounded_size(sierra_class_length).unwrap(), sierra_class_length);
+    assert_eq!(
+        raw_sierra_class.bounded_size(sierra_class_length - 1).unwrap(),
+        sierra_class_length
+    );
+
+    // Some arbitrary upper bound that is much smaller than the serialized size.
+    let upper_bound = sierra_class_length / 10;
+    assert!(10 < upper_bound);
+    let serialized_size = raw_sierra_class.bounded_size(upper_bound).unwrap();
+    assert!(serialized_size < sierra_class_length);
+    assert!(upper_bound < serialized_size);
 }
