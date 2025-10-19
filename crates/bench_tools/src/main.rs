@@ -25,6 +25,10 @@ enum Commands {
         /// Output directory for results.
         #[arg(short, long)]
         out: String,
+        /// Optional: Local directory containing input files. If not provided, inputs will be
+        /// downloaded from GCS for benchmarks that require them.
+        #[arg(long)]
+        input_dir: Option<String>,
     },
     /// List benchmarks for a package.
     List {
@@ -47,8 +51,14 @@ enum Commands {
 async fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Run { package: _, out: _ } => {
-            unimplemented!()
+        Commands::Run { package, out, input_dir } => {
+            let benchmarks = find_benchmarks_by_package(&package);
+
+            if benchmarks.is_empty() {
+                panic!("No benchmarks found for package: {}", package);
+            }
+
+            bench_tools::runner::run_benchmarks(&benchmarks, input_dir.as_deref(), &out).await;
         }
         Commands::List { package } => match package {
             Some(package_name) => {

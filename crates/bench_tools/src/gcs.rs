@@ -58,7 +58,7 @@ pub async fn download_inputs(benchmark_name: &str, local_input_dir: &Path) {
         .args(["storage", "cp", "-r", &source, &dest])
         .output()
         .await
-        .expect("Failed to cp inputs from GCS");
+        .unwrap_or_else(|e| panic!("Failed to cp inputs from GCS: {}", e));
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
