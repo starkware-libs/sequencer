@@ -54,11 +54,27 @@ pub enum RawClassError {
 
 struct CounterWriter {
     size_counter: usize,
+    upper_bound: usize,
+}
+
+impl CounterWriter {
+    fn new(upper_bound: Option<usize>) -> Self {
+        Self { size_counter: 0, upper_bound: upper_bound.unwrap_or(usize::MAX) }
+    }
+
+    fn is_over_bound(&self) -> bool {
+        self.size_counter > self.upper_bound
+    }
 }
 
 impl std::io::Write for CounterWriter {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.size_counter += buf.len();
+        if self.is_over_bound() {
+            // Stops the serialization process. We know the serialized size exceeds the bound,
+            // so we can return an error.
+            return Err(std::io::Error::other("serialized size exceeds bound"));
+        }
         Ok(buf.len())
     }
 
@@ -67,13 +83,30 @@ impl std::io::Write for CounterWriter {
     }
 }
 
-fn size_of_serialized<T>(value: &T) -> Result<usize, serde_json::Error>
+/// Returns the size of the serialized value if it is under the upper bound.
+/// If the serialized size exceeds the upper bound, returns the amount of bytes that were
+/// serialized before the serialization process was stopped.
+///
+/// The size of the serialized value is computed using a proprietary serialization method that stops
+/// the serialization process if the size exceeds the upper bound.
+fn bounded_size_of_serialized<T>(
+    value: &T,
+    upper_bound: Option<usize>,
+) -> Result<usize, serde_json::Error>
 where
     T: ?Sized + Serialize,
 {
-    let mut counter = CounterWriter { size_counter: 0 };
-    serde_json::to_writer(&mut counter, value)?;
-    Ok(counter.size_counter)
+    let mut counter = CounterWriter::new(upper_bound);
+    match serde_json::to_writer(&mut counter, value) {
+        Ok(()) => Ok(counter.size_counter),
+        Err(e) => {
+            if e.is_io() && e.to_string().contains("serialized size exceeds bound") {
+                Ok(counter.size_counter)
+            } else {
+                Err(e)
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,8 +117,12 @@ impl<T> SerializedClass<T> {
         Arc::unwrap_or_clone(self.0)
     }
 
+    pub fn bounded_size(&self, upper_bound: usize) -> RawClassResult<usize> {
+        Ok(bounded_size_of_serialized(&self.0, Some(upper_bound))?)
+    }
+
     pub fn size(&self) -> RawClassResult<usize> {
-        Ok(size_of_serialized(&self.0)?)
+        Ok(bounded_size_of_serialized(&self.0, None)?)
     }
 
     fn new(value: serde_json::Value) -> Self {

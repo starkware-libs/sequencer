@@ -56,3 +56,25 @@ fn consistent_serialization_size() {
 
     assert_eq!(raw_casm_class_size, casm_class_length);
 }
+
+#[test]
+fn bounded_size() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let sierra_class = test_contract.get_sierra();
+    let sierra_class_length = serde_json::to_vec(&sierra_class).unwrap().len();
+
+    let raw_sierra_class: RawClass = sierra_class.try_into().unwrap();
+    assert_eq!(raw_sierra_class.bounded_size(sierra_class_length).unwrap(), sierra_class_length);
+    assert_eq!(
+        raw_sierra_class.bounded_size(sierra_class_length - 1).unwrap(),
+        sierra_class_length
+    );
+
+    let upper_bound = 1563;
+    let expect = expect!["1609"];
+    let expected_bad_size = expect.data.parse::<usize>().unwrap();
+    assert!(expected_bad_size < sierra_class_length);
+    assert!(upper_bound + 1 < expected_bad_size);
+    expect.assert_eq(&raw_sierra_class.bounded_size(upper_bound).unwrap().to_string());
+}
