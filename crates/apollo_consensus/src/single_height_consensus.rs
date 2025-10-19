@@ -295,10 +295,10 @@ impl SingleHeightConsensus {
                 // this round. While this prevents spam attacks it also prevents re-receiving after
                 // a network issue.
                 let old = self.proposals.insert(round, proposal_id);
-                let old = old.unwrap_or_else(|| {
-                    panic!("Proposal entry should exist from init. round={round}")
-                });
-                assert!(old.is_none(), "Proposal already exists for this round={round}. {old:?}");
+                assert!(
+                    old.is_some_and(|p| p.is_none()),
+                    "Proposal entry for round {round} should exist and be empty: {old:?}"
+                );
                 let sm_events = self.state_machine.handle_event(
                     StateMachineEvent::Proposal(proposal_id, round, valid_round),
                     &leader_fn,
@@ -479,14 +479,15 @@ impl SingleHeightConsensus {
         };
         let proposal_id = proposal_id.expect("Reproposal must have a valid ID");
 
-        let id = self
-            .proposals
-            .get(&valid_round)
-            .unwrap_or_else(|| panic!("A proposal should exist for valid_round: {valid_round}"))
-            .unwrap_or_else(|| {
-                panic!("A valid proposal should exist for valid_round: {valid_round}")
-            });
-        assert_eq!(id, proposal_id, "reproposal should match the stored proposal");
+        // Make sure there is an existing proposal for the valid round and it matches the proposal
+        // ID.
+        let existing = self.proposals.get(&valid_round).and_then(|&inner| inner);
+        assert!(
+            existing.is_some_and(|id| id == proposal_id),
+            "A proposal with ID {proposal_id:?} should exist for valid_round: {valid_round}. \
+             Found: {existing:?}",
+        );
+
         let old = self.proposals.insert(round, Some(proposal_id));
         assert!(old.is_none(), "There should be no proposal for round {round}.");
         let init = ProposalInit {
@@ -496,7 +497,7 @@ impl SingleHeightConsensus {
             valid_round: Some(valid_round),
         };
         CONSENSUS_REPROPOSALS.increment(1);
-        context.repropose(id, init).await;
+        context.repropose(proposal_id, init).await;
     }
 
     async fn handle_state_machine_vote<ContextT: ConsensusContext>(
