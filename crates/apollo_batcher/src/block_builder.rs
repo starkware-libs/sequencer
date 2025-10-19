@@ -12,7 +12,7 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
-use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
+use apollo_state_reader::papyrus_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
@@ -622,7 +622,7 @@ pub struct BlockMetadata {
 // Type definitions for the abort channel required to abort the block builder.
 pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
 pub type BatcherWorkerPool =
-    Arc<WorkerPool<CachedState<StateReaderAndContractManager<PapyrusReader>>>>;
+    Arc<WorkerPool<CachedState<StateReaderAndContractManager<ApolloReader>>>>;
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
@@ -658,7 +658,7 @@ impl BlockBuilderFactory {
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<
-        ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
+        ConcurrentTransactionExecutor<StateReaderAndContractManager<ApolloReader>>,
     > {
         info!(
             "preprocess and create transaction executor for block {}",
@@ -678,7 +678,7 @@ impl BlockBuilderFactory {
 
         let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
         let apollo_reader =
-            PapyrusReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
+            ApolloReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
         let state_reader = StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),

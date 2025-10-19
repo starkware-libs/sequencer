@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use apollo_state_reader::papyrus_state::PapyrusReader;
+use apollo_state_reader::papyrus_state::ApolloReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -79,7 +79,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManager<PapyrusReader>>>,
+    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManager<ApolloReader>>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
@@ -394,17 +394,17 @@ impl PyBlockExecutor {
 impl PyBlockExecutor {
     pub fn tx_executor(
         &mut self,
-    ) -> &mut TransactionExecutor<StateReaderAndContractManager<PapyrusReader>> {
+    ) -> &mut TransactionExecutor<StateReaderAndContractManager<ApolloReader>> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 
     fn get_aligned_reader(
         &self,
         next_block_number: BlockNumber,
-    ) -> StateReaderAndContractManager<PapyrusReader> {
+    ) -> StateReaderAndContractManager<ApolloReader> {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
-        let apollo_reader = PapyrusReader::new(self.storage.reader().clone(), next_block_number);
+        let apollo_reader = ApolloReader::new(self.storage.reader().clone(), next_block_number);
 
         StateReaderAndContractManager {
             state_reader: apollo_reader,
