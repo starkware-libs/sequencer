@@ -3354,6 +3354,7 @@ dependencies = [
  "apollo_infra_utils",
  "clap",
  "criterion",
+ "fs_extra",
  "glob",
  "rstest",
  "serde",
