@@ -677,10 +677,10 @@ impl BlockBuilderFactory {
         );
 
         let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
-        let papyrus_reader =
+        let apollo_reader =
             PapyrusReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
         let state_reader = StateReaderAndContractManager {
-            state_reader: papyrus_reader,
+            state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
         };
 

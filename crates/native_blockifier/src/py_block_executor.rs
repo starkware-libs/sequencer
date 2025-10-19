@@ -404,10 +404,10 @@ impl PyBlockExecutor {
     ) -> StateReaderAndContractManager<PapyrusReader> {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
-        let papyrus_reader = PapyrusReader::new(self.storage.reader().clone(), next_block_number);
+        let apollo_reader = PapyrusReader::new(self.storage.reader().clone(), next_block_number);
 
         StateReaderAndContractManager {
-            state_reader: papyrus_reader,
+            state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
         }
     }

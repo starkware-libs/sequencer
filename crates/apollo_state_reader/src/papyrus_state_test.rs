@@ -49,8 +49,8 @@ fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
 
     // BlockNumber is 1 due to the initialization step above.
     let block_number = BlockNumber(1);
-    let papyrus_reader = PapyrusReader::new(storage_reader, block_number);
-    let mut state = CachedState::from(papyrus_reader);
+    let apollo_reader = PapyrusReader::new(storage_reader, block_number);
+    let mut state = CachedState::from(apollo_reader);
 
     // Call entrypoint that want to write to storage, which updates the cached state's write cache.
     let key = felt!(1234_u16);
