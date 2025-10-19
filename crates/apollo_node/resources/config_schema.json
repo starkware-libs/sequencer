@@ -1634,6 +1634,16 @@
     "privacy": "Public",
     "value": 10000
   },
+  "consensus_manager_config.context_config.validator_ids": {
+    "description": "Optional explicit set of validator IDs (comma separated).",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.context_config.validator_ids.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
@@ -2289,6 +2299,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "sierra_compiler_config.audited_libfuncs_only": {
+    "description": "If true, restrict to audited libfuncs. Otherwise allow all.",
+    "privacy": "Public",
+    "value": true
+  },
   "sierra_compiler_config.max_bytecode_size": {
     "description": "Limitation of compiled CASM bytecode size (felts).",
     "privacy": "Public",
@@ -2303,11 +2318,6 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
-  },
-  "sierra_compiler_config.audited_libfuncs_only": {
-    "description": "If true, restrict to audited libfuncs. Otherwise allow all.",
-    "privacy": "Public",
-    "value": true
   },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
