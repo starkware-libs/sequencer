@@ -106,8 +106,8 @@ pub enum ClassManagerError {
         error: SierraCompilerError,
     },
     #[error(
-        "Cannot declare contract class with size of {contract_class_object_size}; max allowed \
-         size: {max_contract_class_object_size}."
+        "Cannot declare contract class with size of more than {contract_class_object_size} bytes; \
+         max allowed size: {max_contract_class_object_size} bytes."
     )]
     ContractClassObjectSizeTooLarge {
         contract_class_object_size: usize,

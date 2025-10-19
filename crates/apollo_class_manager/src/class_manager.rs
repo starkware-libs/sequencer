@@ -131,12 +131,14 @@ where
     ) -> ClassManagerResult<()> {
         // Note: The class bytecode length is validated in the compiler.
 
-        let contract_class_object_size =
-            serialized_class.size().expect("Unexpected error serializing contract class.");
-        if contract_class_object_size > self.config.max_compiled_contract_class_object_size {
+        let max_contract_class_object_size = self.config.max_compiled_contract_class_object_size;
+        let contract_class_object_size = serialized_class
+            .bounded_size(max_contract_class_object_size)
+            .expect("Unexpected error serializing contract class.");
+        if contract_class_object_size > max_contract_class_object_size {
             return Err(ClassManagerError::ContractClassObjectSizeTooLarge {
                 contract_class_object_size,
-                max_contract_class_object_size: self.config.max_compiled_contract_class_object_size,
+                max_contract_class_object_size,
             });
         }
 
