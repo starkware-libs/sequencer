@@ -561,6 +561,8 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
                 return;
             }
 
+            // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics.
+            // We should have a way to report an error and continue to the next height.
             Err(BatcherClientError::BatcherError(e)) => {
                 panic!("Batcher failed to abort proposal {proposal_id:?}: {e:?}");
             }
