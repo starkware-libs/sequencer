@@ -1,8 +1,5 @@
 use clap::{Parser, Subcommand};
-use starknet_os::hints::hint_implementation::kzg::utils::{
-    compute_blob_commitments,
-    SerializableBlobs,
-};
+use starknet_os::hints::hint_implementation::kzg::utils::compute_blob_commitments;
 use tracing::info;
 
 use crate::shared_utils::read::{load_input, write_to_file};
@@ -29,8 +26,7 @@ pub fn run_kzg_cli(kzg_command: KzgCliCommand) {
             let raw_blobs: Vec<Vec<u8>> = load_input(input_path);
             let blobs = compute_blob_commitments(raw_blobs)
                 .unwrap_or_else(|error| panic!("Failed to calculate blob commitments: {error}"));
-            let serializable_blobs = SerializableBlobs::from(blobs);
-            write_to_file(&output_path, &serializable_blobs);
+            write_to_file(&output_path, &blobs);
         }
     };
 }
