@@ -19,7 +19,7 @@ use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_n
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
-use apollo_storage::StorageConfig;
+use apollo_storage::{StorageConfig, StorageReader};
 use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
@@ -111,8 +111,12 @@ pub struct NodeSetup {
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
     #[allow(dead_code)]
     storage_handles: StorageTestHandles,
+
+    // Storage reader for the state sync component, used to query transaction counts in tests.
+    state_sync_storage_reader: StorageReader,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl NodeSetup {
     pub fn new(
         executables: Vec<ExecutableSetup>,
@@ -122,6 +126,7 @@ impl NodeSetup {
         consensus_manager_index: usize,
         add_tx_http_client: HttpTestClient,
         storage_handles: StorageTestHandles,
+        state_sync_storage_reader: StorageReader,
     ) -> Self {
         let len = executables.len();
 
@@ -145,6 +150,7 @@ impl NodeSetup {
             consensus_manager_index,
             add_tx_http_client,
             storage_handles,
+            state_sync_storage_reader,
         }
     }
 
@@ -199,6 +205,10 @@ impl NodeSetup {
 
     pub fn get_state_sync_index(&self) -> usize {
         self.state_sync_index
+    }
+
+    pub fn state_sync_storage_reader(&self) -> &StorageReader {
+        &self.state_sync_storage_reader
     }
 
     pub fn run(self) -> RunningNode {
@@ -1029,6 +1039,7 @@ async fn get_sequencer_setup_configs(
             consensus_manager_index,
             add_tx_http_client,
             storage_setup.storage_handles,
+            storage_setup.state_sync_storage_reader,
         ));
     }
 

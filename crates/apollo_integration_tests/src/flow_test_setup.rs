@@ -242,7 +242,7 @@ impl FlowSequencerSetup {
         allow_bootstrap_txs: bool,
     ) -> Self {
         let path = None;
-        let StorageTestSetup { storage_config, storage_handles } =
+        let StorageTestSetup { storage_config, storage_handles, .. } =
             StorageTestSetup::new(accounts, &chain_info, path);
 
         let (recorder_url, _join_handle) =

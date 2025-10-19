@@ -9,7 +9,7 @@ use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::TestStorageBuilder;
-use apollo_storage::{StorageConfig, StorageScope, StorageWriter};
+use apollo_storage::{StorageConfig, StorageReader, StorageScope, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::context::ChainInfo;
@@ -95,10 +95,10 @@ impl StorageTestHandles {
     }
 }
 
-#[derive(Debug)]
 pub struct StorageTestSetup {
     pub storage_config: StorageTestConfig,
     pub storage_handles: StorageTestHandles,
+    pub state_sync_storage_reader: StorageReader,
 }
 
 impl StorageTestSetup {
@@ -129,7 +129,7 @@ impl StorageTestSetup {
         let state_sync_db_path =
             storage_exec_paths.as_ref().map(|p| p.get_state_sync_path_with_db_suffix());
         let (
-            (_, mut state_sync_storage_writer),
+            (state_sync_storage_reader, mut state_sync_storage_writer),
             state_sync_storage_config,
             state_sync_storage_handle,
         ) = TestStorageBuilder::new(state_sync_db_path)
@@ -175,6 +175,7 @@ impl StorageTestSetup {
                 state_sync_storage_handle,
                 class_manager_storage_handles,
             ),
+            state_sync_storage_reader,
         }
     }
 }
