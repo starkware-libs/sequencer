@@ -939,7 +939,7 @@ ids.initial_carried_outputs = segments.gen_arg(
     (
         GenerateKeysUsingSha256Hash,
         calculate_keys_using_sha256_hash,
-        "generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys)"
+        "generate_keys_from_hash(ids.compressed_start, ids.compressed_end, ids.n_keys)"
     )
 );
 
