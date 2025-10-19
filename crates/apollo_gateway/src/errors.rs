@@ -15,14 +15,8 @@ use reqwest::StatusCode;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
-<<<<<<< HEAD
-use starknet_api::transaction::fields::{AllResourceBounds, TransactionSignature};
-||||||| 9f5c80194
-use starknet_api::transaction::fields::AllResourceBounds;
-=======
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::AllResourceBounds;
->>>>>>> origin/main-v0.14.0
+use starknet_api::transaction::fields::{AllResourceBounds, TransactionSignature};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};

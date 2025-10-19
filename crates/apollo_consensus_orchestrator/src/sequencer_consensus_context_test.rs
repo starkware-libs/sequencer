@@ -859,53 +859,44 @@ async fn override_prices_behavior(
         // In this case the L2 gas price must match the given override.
         assert_eq!(
             actual_l2_gas_price, override_l2_gas_price,
-            "Expected L2 gas price ({}) to match override_l2_gas_price ({})",
-            actual_l2_gas_price, override_l2_gas_price
+            "Expected L2 gas price ({actual_l2_gas_price}) to match override_l2_gas_price \
+             ({override_l2_gas_price})",
         );
     } else {
         // In this case the regular L2 gas calculation takes place, and gives a higher price.
         assert!(
             actual_l2_gas_price > min_gas_price,
-<<<<<<< HEAD
-            "Expected L2 gas price > min ({min_gas_price}) due to high usage (EIP-1559), but got \
-             {actual_l2_gas_price}"
-||||||| 9f5c80194
-            "Expected L2 gas price > min ({}) due to high usage (EIP-1559), but got {}",
-            min_gas_price,
-            actual_l2_gas_price
-=======
-            "Expected L2 gas price ({}) > minimum l2 gas price ({}) due to high usage (EIP-1559)",
-            actual_l2_gas_price,
-            min_gas_price
+            "Expected L2 gas price ({actual_l2_gas_price}) > minimum l2 gas price \
+             ({min_gas_price}) due to high usage (EIP-1559)",
         );
     }
 
     if let Some(override_l1_gas_price) = override_l1_gas_price {
         assert_eq!(
             actual_l1_gas_price, override_l1_gas_price,
-            "Expected L1 gas price ({}) to match input l1 gas price ({})",
-            actual_l1_gas_price, override_l1_gas_price
+            "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price \
+             ({override_l1_gas_price})",
         );
     } else {
         assert_eq!(
             actual_l1_gas_price, expected_l1_prices.base_fee_per_gas.0,
-            "Expected L1 gas price ({}) to match input l1 gas price ({})",
-            actual_l1_gas_price, expected_l1_prices.base_fee_per_gas.0
+            "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price ({})",
+            expected_l1_prices.base_fee_per_gas.0
         );
     }
 
     if let Some(override_l1_data_gas_price) = override_l1_data_gas_price {
         assert_eq!(
             actual_l1_data_gas_price, override_l1_data_gas_price,
-            "Expected L1 data gas price ({}) to match input l1 data gas price ({})",
-            actual_l1_data_gas_price, override_l1_data_gas_price
+            "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
+             price ({override_l1_data_gas_price})",
         );
     } else {
         assert_eq!(
             actual_l1_data_gas_price, expected_l1_prices.blob_fee.0,
-            "Expected L1 data gas price ({}) to match input l1 data gas price ({})",
-            actual_l1_data_gas_price, expected_l1_prices.blob_fee.0
->>>>>>> origin/main-v0.14.0
+            "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
+             price ({})",
+            expected_l1_prices.blob_fee.0
         );
     }
 }

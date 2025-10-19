@@ -1,5 +1,18 @@
 {
-  "node_and_validator_ids": [[0, "0x64"], [1, "0x65"], [2, "0x66"]],
+  "node_and_validator_ids": [
+    [
+      0,
+      "0x64"
+    ],
+    [
+      1,
+      "0x65"
+    ],
+    [
+      2,
+      "0x66"
+    ]
+  ],
   "num_validators": 3,
   "http_server_ingress_alternative_name": "potc-testnet-mock-sepolia.starknet.io",
   "ingress_domain": "starknet.io",
@@ -13,15 +26,7 @@
   "l1_startup_height_override": null,
   "state_sync_type": "Central",
   "p2p_communication_type": "Internal",
-<<<<<<< HEAD:crates/apollo_deployments/resources/deployment_inputs/potc2_sepolia.json
-  "deployment_environment": "Potc2",
-  "audited_libfuncs_only": true,
-  "requires_k8s_service_config_params": true
-||||||| 9f5c80194:crates/apollo_deployments/resources/deployment_inputs/potc2_sepolia.json
-  "deployment_environment": "Potc2",
-  "requires_k8s_service_config_params": true
-=======
   "deployment_environment": "PotcMock",
+  "audited_libfuncs_only": true,
   "requires_k8s_service_config_params": false
->>>>>>> origin/main-v0.14.0:crates/apollo_deployments/resources/deployment_inputs/potc_mock.json
 }

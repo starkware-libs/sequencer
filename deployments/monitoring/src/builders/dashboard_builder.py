@@ -83,21 +83,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                 }
             ],
         },
-<<<<<<< HEAD
-        "options": {"showPercentChange": show_percent_change},
         "links": ([{"url": link, "title": "GCP Logs", "targetBlank": True}]),
-||||||| 9f5c80194
-        "options": {
-            "showPercentChange": show_percent_change
-        },
-        "links": (
-            [{"url": link, "title": "GCP Logs", "targetBlank": True}]
-        ),
-=======
-        "links": (
-            [{"url": link, "title": "GCP Logs", "targetBlank": True}]
-        ),
->>>>>>> origin/main-v0.14.0
         "transformations": [
             # Renames labels of the form {label="value"} to just "value"
             {

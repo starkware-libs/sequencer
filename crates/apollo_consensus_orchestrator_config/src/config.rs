@@ -2,19 +2,11 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
-<<<<<<< HEAD:crates/apollo_consensus_orchestrator_config/src/config.rs
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
-||||||| 9f5c80194:crates/apollo_consensus_orchestrator/src/config.rs
-use apollo_config::converters::deserialize_milliseconds_to_duration;
-use apollo_config::dumping::{ser_param, SerializeConfig};
-=======
-use apollo_config::converters::deserialize_milliseconds_to_duration;
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
->>>>>>> origin/main-v0.14.0:crates/apollo_consensus_orchestrator/src/config.rs
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
