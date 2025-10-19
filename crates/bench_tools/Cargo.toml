@@ -17,6 +17,7 @@ apollo_infra_utils = { path = "../apollo_infra_utils" }
 glob.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 
 [[bench]]
 harness = false
