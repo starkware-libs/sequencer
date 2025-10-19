@@ -137,9 +137,9 @@ fn test_state_diff_encryption_function(
         HashMap::new(),
     )
     .unwrap();
-    let encrypted_dst = runner.vm.add_memory_segment();
+    let output_pointer = runner.vm.add_memory_segment();
     implicit_args
-        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(encrypted_dst.into()))));
+        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(output_pointer.into()))));
 
     // Use the parameterized data instead of hardcoded values.
     let (data_start, data_end) = add_memory_segment_and_load_explicit_arg(&mut runner, &data);
@@ -173,13 +173,13 @@ fn test_state_diff_encryption_function(
         );
     };
 
-    let encrypted_dst_length = (encrypted_dst_end - encrypted_dst).unwrap();
+    let encrypted_dst_length = (encrypted_dst_end - output_pointer).unwrap();
     assert_eq!(data.len(), encrypted_dst_length);
 
     // Only try to get encrypted data if there is data to encrypt.
     let encrypted_data = if encrypted_dst_length > 0 {
         let encrypted_range =
-            runner.vm.get_integer_range(encrypted_dst, encrypted_dst_length).unwrap();
+            runner.vm.get_integer_range(output_pointer, encrypted_dst_length).unwrap();
         encrypted_range.into_iter().map(|felt| *felt).collect()
     } else {
         vec![]
@@ -242,9 +242,9 @@ fn test_compute_public_keys_function(#[case] seed: u64, #[case] num_committee_me
     )
     .unwrap();
 
-    let encrypted_dst = runner.vm.add_memory_segment();
+    let output_pointer = runner.vm.add_memory_segment();
     implicit_args
-        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(encrypted_dst.into()))));
+        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(output_pointer.into()))));
 
     let (sn_private_keys, _) =
         add_memory_segment_and_load_explicit_arg(&mut runner, &sn_private_keys_vector);
@@ -275,13 +275,13 @@ fn test_compute_public_keys_function(#[case] seed: u64, #[case] num_committee_me
         panic!("Unexpected implicit return value");
     };
 
-    let actual_public_keys_length = (encrypted_dst_end - encrypted_dst).unwrap();
+    let actual_public_keys_length = (encrypted_dst_end - output_pointer).unwrap();
     assert_eq!(sn_private_keys_vector.len(), actual_public_keys_length);
 
     // Only try to get public keys if there are private keys.
     let sn_public_keys_from_memory = if actual_public_keys_length > 0 {
         let public_keys_range =
-            runner.vm.get_integer_range(encrypted_dst, actual_public_keys_length).unwrap();
+            runner.vm.get_integer_range(output_pointer, actual_public_keys_length).unwrap();
         public_keys_range.into_iter().map(|felt| *felt).collect()
     } else {
         vec![]
@@ -336,9 +336,9 @@ fn test_symmetric_key_encryption_function(#[case] seed: u64, #[case] num_committ
     )
     .unwrap();
 
-    let encrypted_dst = runner.vm.add_memory_segment();
+    let output_pointer = runner.vm.add_memory_segment();
     implicit_args
-        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(encrypted_dst.into()))));
+        .push(ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(output_pointer.into()))));
 
     let (sn_private_keys, _) =
         add_memory_segment_and_load_explicit_arg(&mut runner, &sn_private_keys_vector);
@@ -375,13 +375,13 @@ fn test_symmetric_key_encryption_function(#[case] seed: u64, #[case] num_committ
         panic!("Unexpected implicit return value");
     };
 
-    let actual_symmetric_keys_length = (encrypted_dst_end - encrypted_dst).unwrap();
+    let actual_symmetric_keys_length = (encrypted_dst_end - output_pointer).unwrap();
     assert_eq!(public_keys_vector.len(), actual_symmetric_keys_length);
 
     // Only try to get encrypted symmetric keys if there are keys to encrypt.
     let encrypted_symmetric_keys = if actual_symmetric_keys_length > 0 {
         let encrypted_range =
-            runner.vm.get_integer_range(encrypted_dst, actual_symmetric_keys_length).unwrap();
+            runner.vm.get_integer_range(output_pointer, actual_symmetric_keys_length).unwrap();
         encrypted_range.into_iter().map(|felt| *felt).collect()
     } else {
         vec![]
