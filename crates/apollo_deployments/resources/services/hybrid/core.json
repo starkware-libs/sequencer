@@ -55,7 +55,7 @@
   "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": 30000,
   "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": 1,
   "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": 1000,
-  "components.l1_endpoint_monitor.remote_client_config.retries": 150,
+  "components.l1_endpoint_monitor.remote_client_config.retries": 2,
   "components.l1_endpoint_monitor.url": "sequencer-l1-service",
   "components.l1_gas_price_provider.execution_mode": "Remote",
   "components.l1_gas_price_provider.ip": "0.0.0.0",
