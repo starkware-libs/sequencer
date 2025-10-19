@@ -27,7 +27,7 @@ use starknet_types_core::felt::Felt;
 #[path = "papyrus_state_test.rs"]
 mod test;
 
-type RawPapyrusReader<'env> = apollo_storage::StorageTxn<'env, RO>;
+type RawApolloReader<'env> = apollo_storage::StorageTxn<'env, RO>;
 
 pub struct ClassReader {
     pub reader: SharedClassManagerClient,
@@ -88,14 +88,14 @@ impl ClassReader {
     }
 }
 
-pub struct PapyrusReader {
+pub struct ApolloReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
     // Reader is `None` for reader invoked through `native_blockifier`.
     class_reader: Option<ClassReader>,
 }
 
-impl PapyrusReader {
+impl ApolloReader {
     pub fn new_with_class_reader(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
@@ -108,7 +108,7 @@ impl PapyrusReader {
         Self { storage_reader, latest_block, class_reader: None }
     }
 
-    fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
+    fn reader(&self) -> StateResult<RawApolloReader<'_>> {
         self.storage_reader
             .begin_ro_txn()
             .map_err(|error| StateError::StateReadError(error.to_string()))
@@ -195,7 +195,7 @@ impl PapyrusReader {
 }
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.
-impl StateReader for PapyrusReader {
+impl StateReader for ApolloReader {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -261,7 +261,7 @@ impl StateReader for PapyrusReader {
     }
 }
 
-impl FetchCompiledClasses for PapyrusReader {
+impl FetchCompiledClasses for ApolloReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         self.get_compiled_class_from_db(class_hash)
     }
