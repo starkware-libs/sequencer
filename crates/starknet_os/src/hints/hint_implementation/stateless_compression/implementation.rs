@@ -45,7 +45,7 @@ pub(crate) fn compression_hint(
     let data_size = (data_end - data_start)?;
 
     let compressed_dst =
-        get_ptr_from_var_name(Ids::CompressedDst.into(), vm, ids_data, ap_tracking)?;
+        get_ptr_from_var_name(Ids::CompressedEnd.into(), vm, ids_data, ap_tracking)?;
     let data =
         vm.get_integer_range(data_start, data_size)?.into_iter().map(|f| *f).collect::<Vec<_>>();
     let compress_result =

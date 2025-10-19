@@ -265,14 +265,14 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     }
 
     // Encrypt the compressed state updates.
-    let (encrypted_start, encrypted_dst) = encrypt_state_diff(
+    let (encrypted_start, encrypted_end) = encrypt_state_diff(
         compressed_start=compressed_start,
-        compressed_dst=compressed_dst,
+        compressed_end=compressed_dst,
         n_keys=n_keys,
         public_keys=public_keys,
     );
 
-    return (da_start=encrypted_start, da_end=encrypted_dst);
+    return (da_start=encrypted_start, da_end=encrypted_end);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {

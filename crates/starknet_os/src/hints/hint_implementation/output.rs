@@ -196,9 +196,9 @@ pub(crate) fn calculate_keys_using_sha256_hash(
     // randomness source.
     let compressed_start =
         get_ptr_from_var_name(Ids::CompressedStart.into(), vm, ids_data, ap_tracking)?;
-    let compressed_dst =
-        get_ptr_from_var_name(Ids::CompressedDst.into(), vm, ids_data, ap_tracking)?;
-    let array_size = (compressed_dst - compressed_start)?;
+    let compressed_end =
+        get_ptr_from_var_name(Ids::CompressedEnd.into(), vm, ids_data, ap_tracking)?;
+    let array_size = (compressed_end - compressed_start)?;
     for i in 0..array_size {
         let felt = vm.get_integer((compressed_start + i)?)?;
         hasher.update(felt.to_bytes_be());
