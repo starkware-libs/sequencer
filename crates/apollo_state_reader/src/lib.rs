@@ -1,1 +1,1 @@
-pub mod papyrus_state;
+pub mod apollo_state;
