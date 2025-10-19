@@ -74,7 +74,7 @@ async fn main() {
     integration_test_manager.send_declare_txs_and_verify().await;
 
     let mut nodes_accepted_txs_mapping =
-        integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
+        integration_test_manager.get_n_txs_in_storage_on_all_running_nodes().await;
 
     // Create a simulator for sustained transaction sending.
     let simulator = integration_test_manager.create_simulator();
@@ -160,7 +160,7 @@ async fn main() {
              {expected_n_accepted_txs}"
         );
         integration_test_manager
-            .await_txs_accepted_on_all_running_nodes(expected_n_accepted_txs)
+            .await_n_txs_in_storage_on_all_running_nodes(expected_n_accepted_txs)
             .await;
     };
 
@@ -215,7 +215,7 @@ async fn update_processed_txs(
     curr_processed_txs: &mut HashMap<usize, usize>,
     prev_txs: &HashMap<usize, usize>,
 ) -> bool {
-    let curr_txs = integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
+    let curr_txs = integration_test_manager.get_n_txs_in_storage_on_all_running_nodes().await;
     for (node_idx, curr_n_processed) in curr_txs {
         curr_processed_txs.insert(node_idx, curr_n_processed).expect("Num txs not found");
 

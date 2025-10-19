@@ -11,6 +11,8 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_PROCESSED_TRANSACTIONS,
     STATE_SYNC_STATE_MARKER,
 };
+use apollo_storage::body::BodyStorageReader;
+use apollo_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use tokio::try_join;
 use tracing::info;
@@ -141,6 +143,8 @@ pub async fn await_block(
     });
 }
 
+// TODO(noamsp): Delete this function and use await variant instead since both behaviours are the
+// same.
 pub async fn verify_txs_accepted(
     monitoring_client: &MonitoringClient,
     sequencer_idx: usize,
@@ -157,6 +161,7 @@ pub async fn verify_txs_accepted(
     run_until(INTERVAL_MS, MAX_ATTEMPTS, n_accepted_txs_closure, condition, None).await;
 }
 
+// TODO(noamsp): rename from accepted to processed to better reflect the metric's name.
 pub async fn await_txs_accepted(
     monitoring_client: &MonitoringClient,
     sequencer_idx: usize,
@@ -203,4 +208,67 @@ pub async fn assert_no_reverted_txs(monitoring_client: &MonitoringClient, sequen
     let reverted =
         monitoring_client.get_metric::<usize>(REVERTED_TRANSACTIONS.get_name()).await.unwrap();
     assert_eq!(reverted, 0, "Sequencer {sequencer_idx} has {reverted} reverted transactions");
+}
+
+// TODO(noamsp): Delete this function and use await variant instead since both behaviours are the
+// same.
+pub async fn verify_n_txs_in_storage(
+    storage_reader: &StorageReader,
+    sequencer_idx: usize,
+    expected_n_txs: usize,
+) {
+    const INTERVAL_MS: u64 = 5_000;
+    const MAX_ATTEMPTS: usize = 20;
+
+    info!("Verifying that sequencer {sequencer_idx} has {expected_n_txs} txs in storage.");
+    let condition = |num_txs: &usize| *num_txs >= expected_n_txs;
+
+    let n_txs_closure = || sequencer_n_txs_in_storage(storage_reader);
+
+    run_until(INTERVAL_MS, MAX_ATTEMPTS, n_txs_closure, condition, None).await;
+}
+
+pub async fn await_n_txs_in_storage(
+    storage_reader: &StorageReader,
+    sequencer_idx: usize,
+    target_n_txs: usize,
+) {
+    const INTERVAL_MILLIS: u64 = 5000;
+    const MAX_ATTEMPTS: usize = 50;
+    info!("Waiting until sequencer's {sequencer_idx} storage has {target_n_txs} txs.");
+
+    let condition = |&current_n_txs: &usize| current_n_txs >= target_n_txs;
+
+    let get_current_n_txs_closure = || sequencer_n_txs_in_storage(storage_reader);
+
+    let logger = CustomLogger::new(
+        TraceLevel::Info,
+        Some(format!(
+            "Waiting for sequencer {sequencer_idx} to have {target_n_txs} txs in storage.",
+        )),
+    );
+
+    run_until(INTERVAL_MILLIS, MAX_ATTEMPTS, get_current_n_txs_closure, condition, Some(logger))
+        .await
+        .unwrap_or_else(|| {
+            panic!("Sequencer {sequencer_idx} did not have {target_n_txs} txs in storage.")
+        });
+}
+
+/// Counts the number of transactions in storage by iterating through all blocks.
+pub async fn sequencer_n_txs_in_storage(storage_reader: &StorageReader) -> usize {
+    let txn = storage_reader.begin_ro_txn().expect("Failed to begin read transaction");
+    let block_marker = txn.get_body_marker().expect("Should have a body marker");
+
+    let mut total_transactions = 0;
+
+    for block_number in 0..block_marker.0 {
+        if let Ok(Some(transaction_hashes)) =
+            txn.get_block_transaction_hashes(BlockNumber(block_number))
+        {
+            total_transactions += transaction_hashes.len();
+        }
+    }
+
+    total_transactions
 }

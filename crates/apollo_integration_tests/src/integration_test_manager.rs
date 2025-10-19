@@ -55,10 +55,10 @@ use crate::monitoring_utils::{
     assert_no_reverted_txs,
     await_batcher_block,
     await_block,
+    await_n_txs_in_storage,
     await_sync_block,
-    await_txs_accepted,
-    sequencer_num_accepted_txs,
-    verify_txs_accepted,
+    sequencer_n_txs_in_storage,
+    verify_n_txs_in_storage,
 };
 use crate::node_component_configs::{
     create_consolidated_component_configs,
@@ -586,10 +586,10 @@ impl IntegrationTestManager {
         self.rpc_verify_class_declared(BLOCK_TO_WAIT_FOR_DECLARE).await;
     }
 
-    pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
+    pub async fn await_n_txs_in_storage_on_all_running_nodes(&mut self, target_n_txs: usize) {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
-            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            await_txs_accepted(monitoring_client, sequencer_idx, target_n_txs)
+            let storage_reader = running_node.node_setup.state_sync_storage_reader();
+            await_n_txs_in_storage(storage_reader, sequencer_idx, target_n_txs)
         })
         .await;
     }
@@ -614,10 +614,10 @@ impl IntegrationTestManager {
         sender_account: AccountId,
         wait_for_block: BlockNumber,
     ) {
-        self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
+        self.verify_txs_on_all_running_nodes(sender_account).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_block_on_all_running_nodes(wait_for_block).await;
-        self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
+        self.verify_txs_on_all_running_nodes(sender_account).await;
         self.assert_no_reverted_txs_on_all_running_nodes().await;
     }
 
@@ -787,19 +787,15 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn verify_txs_accepted_on_all_running_nodes(&self, sender_account: AccountId) {
-        // We use state syncs processed txs metric via its monitoring client to verify that the
-        // transactions were accepted.
+    async fn verify_txs_on_all_running_nodes(&self, sender_account: AccountId) {
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_accepted_account_txs = nonce_to_usize(account.get_nonce());
         let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
         let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
-            // We use state syncs processed txs metric via its monitoring client to verify that the
-            // transactions were accepted.
-            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            verify_txs_accepted(monitoring_client, sequencer_idx, expected_n_accepted_txs)
+            let storage_reader = running_node.node_setup.state_sync_storage_reader();
+            verify_n_txs_in_storage(storage_reader, sequencer_idx, expected_n_accepted_txs)
         })
         .await;
     }
@@ -833,15 +829,15 @@ impl IntegrationTestManager {
         unreachable!("No executable with a set batcher.")
     }
 
-    /// This function returns the number of accepted transactions on all running nodes.
-    /// It queries the state sync monitoring client to get the latest value of the processed txs
-    /// metric.
-    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+    /// This function returns the number of transactions in stored by the state sync component on
+    /// all running nodes. It queries the state sync component's storage directly to get the
+    /// transactions count.
+    pub async fn get_n_txs_in_storage_on_all_running_nodes(&self) -> HashMap<usize, usize> {
         let mut result = HashMap::new();
         for (index, running_node) in self.running_nodes.iter() {
-            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            let num_accepted = sequencer_num_accepted_txs(monitoring_client).await;
-            result.insert(*index, num_accepted);
+            let storage_reader = running_node.node_setup.state_sync_storage_reader();
+            let n_txs = sequencer_n_txs_in_storage(storage_reader).await;
+            result.insert(*index, n_txs);
         }
         result
     }
