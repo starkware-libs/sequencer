@@ -31,6 +31,7 @@ use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
+use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
     OsChainInfo,
@@ -86,6 +87,7 @@ pub(crate) struct TestParameters {
     pub(crate) full_output: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
+    pub(crate) private_keys: Option<Vec<Felt>>,
 }
 
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
@@ -112,6 +114,7 @@ pub(crate) struct OsTestExpectedValues {
 
 pub(crate) struct OsTestOutput<S: FlowTestState> {
     pub(crate) runner_output: StarknetOsRunnerOutput,
+    pub(crate) private_keys: Option<Vec<Felt>>,
     pub(crate) decompressed_state_diff: StateDiff,
     pub(crate) final_state: S,
     pub(crate) expected_values: OsTestExpectedValues,
@@ -153,7 +156,7 @@ impl<S: FlowTestState> OsTestOutput<S> {
 
         let os_output = self
             .runner_output
-            .get_os_output()
+            .get_os_output(self.private_keys.as_ref())
             .expect("Getting OsOutput from raw OS output should not fail.");
 
         // Validate state roots.
@@ -432,9 +435,10 @@ impl<S: FlowTestState> TestManager<S> {
         runner_output: &StarknetOsRunnerOutput,
         state: &S,
         alias_keys: HashSet<StorageKey>,
+        private_keys: Option<&Vec<Felt>>,
     ) -> StateMaps {
         let os_output = runner_output
-            .get_os_output()
+            .get_os_output(private_keys)
             .expect("Getting OsOutput from raw OS output should not fail.");
         let os_state_diff_maps = match os_output.state_diff {
             OsStateDiff::Partial(ref partial_os_state_diff) => {
@@ -444,13 +448,13 @@ impl<S: FlowTestState> TestManager<S> {
             // In commitment modes, state diff should be deserialized from the DA segment.
             OsStateDiff::PartialCommitment(_) => {
                 let da_segment = runner_output.da_segment.clone().unwrap();
-                PartialOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
+                PartialOsStateDiff::try_from_output_iter(&mut da_segment.into_iter(), private_keys)
                     .unwrap()
                     .as_state_maps()
             }
             OsStateDiff::FullCommitment(_) => {
                 let da_segment = runner_output.da_segment.clone().unwrap();
-                FullOsStateDiff::try_from_output_iter(&mut da_segment.into_iter())
+                FullOsStateDiff::try_from_output_iter(&mut da_segment.into_iter(), private_keys)
                     .unwrap()
                     .as_state_maps()
             }
@@ -568,22 +572,31 @@ impl<S: FlowTestState> TestManager<S> {
                 .into_iter()
                 .collect(),
         };
+        let public_keys =
+            test_params.private_keys.as_ref().map(|private_keys| compute_public_keys(private_keys));
         let expected_config_hash = chain_info.compute_os_config_hash().unwrap();
         let os_hints_config = OsHintsConfig {
             chain_info,
             use_kzg_da,
             full_output: test_params.full_output,
-            ..Default::default()
+            public_keys,
+            debug_mode: false,
         };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let (os_output, _) = run_os_stateless_for_testing(layout, os_hints).unwrap();
         let decompressed_state_diff = create_committer_state_diff(CommitmentStateDiff::from(
-            Self::get_decompressed_state_diff(&os_output, &state, alias_keys),
+            Self::get_decompressed_state_diff(
+                &os_output,
+                &state,
+                alias_keys,
+                test_params.private_keys.as_ref(),
+            ),
         ));
 
         OsTestOutput {
             runner_output: os_output,
+            private_keys: test_params.private_keys.clone(),
             decompressed_state_diff,
             final_state: state,
             expected_values: OsTestExpectedValues {

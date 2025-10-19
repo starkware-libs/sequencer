@@ -64,7 +64,9 @@ pub(crate) fn get_os_output_for_inner_blocks(
             program_hash.get_or_insert(current_output_program_hash),
             &current_output_program_hash
         );
-        outputs.0.push(OsOutput::try_from_output_iter(&mut bootloader_iter)?.try_into()?);
+        // Regardless of encryption mode: OS outputs that reach the aggregator are never encrypted.
+        // No need to pass any decryption data here.
+        outputs.0.push(OsOutput::try_from_output_iter(&mut bootloader_iter, None)?.try_into()?);
     }
 
     insert_value_from_var_name(
