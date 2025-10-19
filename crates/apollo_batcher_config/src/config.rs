@@ -159,6 +159,12 @@ impl SerializeConfig for BatcherConfig {
                 "The maximum number of L1 handler transactions to include in a block proposal.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "propose_l1_txs_every",
+                &self.propose_l1_txs_every,
+                "Only propose L1 transactions every N proposals.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
         dump.append(&mut prepend_sub_config_name(
