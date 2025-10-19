@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use apollo_state_reader::papyrus_state::ApolloReader;
+use apollo_state_reader::apollo_state::ApolloReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,

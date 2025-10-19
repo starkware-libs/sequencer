@@ -12,7 +12,7 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
-use apollo_state_reader::papyrus_state::{ApolloReader, ClassReader};
+use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
