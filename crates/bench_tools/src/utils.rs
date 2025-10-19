@@ -14,7 +14,6 @@ use std::path::Path;
 /// - Reading the source directory
 /// - Copying files
 /// - Accessing file metadata
-#[allow(dead_code)]
 pub(crate) fn copy_dir_contents(src: &Path, dst: &Path) {
     // Ensure destination exists.
     fs::create_dir_all(dst)
