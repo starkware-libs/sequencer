@@ -2473,7 +2473,7 @@ dependencies = [
  "insta",
  "integer-encoding",
  "lazy_static",
- "libmdbx",
+ "libmdbx 0.3.5",
  "memmap2",
  "metrics 0.24.2",
  "metrics-exporter-prometheus",
@@ -3397,6 +3397,24 @@ dependencies = [
  "itertools 0.13.0",
  "log",
  "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.1",
+ "shlex",
+ "syn 2.0.106",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.72.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
+dependencies = [
+ "bitflags 2.9.3",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -8094,9 +8112,25 @@ dependencies = [
  "indexmap 1.9.3",
  "libc",
  "lifetimed-bytes",
- "mdbx-sys",
+ "mdbx-sys 0.12.7",
  "parking_lot 0.12.4",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "libmdbx"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a2e924d395775a465889e167cd6559f6b142c41a5a2bee06aeb5bfd7d674b22"
+dependencies = [
+ "bitflags 2.9.3",
+ "derive_more 2.0.1",
+ "indexmap 2.11.0",
+ "libc",
+ "mdbx-sys 13.8.0",
+ "parking_lot 0.12.4",
+ "sealed",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -8692,6 +8726,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21a329f8d655fb646cc9511c00886eefcddb6ef131869ef2d4b02c24c66825ac"
 dependencies = [
  "bindgen 0.66.1",
+ "cc",
+ "libc",
+]
+
+[[package]]
+name = "mdbx-sys"
+version = "13.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad61901fd9a1817214822b951cc1366dcff1a0d396c1448faa8b31612a7420d6"
+dependencies = [
+ "bindgen 0.72.1",
  "cc",
  "libc",
 ]
@@ -11781,6 +11826,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sealed"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22f968c5ea23d555e670b449c1c5e7b2fc399fdaec1d304a17cd48e288abc107"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "sec1"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12622,7 +12678,7 @@ name = "starknet_patricia_storage"
 version = "0.0.0"
 dependencies = [
  "hex",
- "libmdbx",
+ "libmdbx 0.6.3",
  "lru 0.12.5",
  "page_size",
  "rstest",

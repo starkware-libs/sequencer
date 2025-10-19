@@ -14,7 +14,7 @@ workspace = true
 
 [dependencies]
 hex.workspace = true
-libmdbx.workspace = true
+libmdbx = "0.6.3"
 lru.workspace = true
 page_size.workspace = true
 serde = { workspace = true, features = ["derive"] }
