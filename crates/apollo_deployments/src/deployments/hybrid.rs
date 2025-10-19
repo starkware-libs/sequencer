@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use apollo_infra::component_client::DEFAULT_RETRIES;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::template::Template;
 use apollo_node_config::component_config::ComponentConfig;
@@ -33,12 +34,7 @@ use crate::deployment_definitions::{
     CONSENSUS_P2P_PORT,
     MEMPOOL_P2P_PORT,
 };
-<<<<<<< HEAD
-||||||| 9f5c80194
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
-=======
-use crate::deployments::{IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES, RETRIES_FOR_L1_SERVICES};
->>>>>>> origin/main-v0.14.0
+use crate::deployments::distributed::RETRIES_FOR_L1_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -191,6 +187,17 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
                 ScalePolicy::AutoScaled
             }
+        }
+    }
+
+    fn get_retries(&self) -> usize {
+        match self {
+            Self::Core
+            | Self::HttpServer
+            | Self::Mempool
+            | Self::Gateway
+            | Self::SierraCompiler => DEFAULT_RETRIES,
+            Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
     }
 
@@ -702,140 +709,6 @@ impl ServiceNameInner for HybridNodeServiceName {
     }
 }
 
-<<<<<<< HEAD
-||||||| 9f5c80194
-impl HybridNodeServiceName {
-    /// Returns a component execution config for a component that runs locally, and accepts inbound
-    /// connections from remote components.
-    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-    }
-
-    /// Returns a component execution config for a component that is accessed remotely.
-    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        let mut base = ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        );
-        match self {
-            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                let remote_client_config_ref = base
-                    .remote_client_config
-                    .as_mut()
-                    .expect("Remote client config should be available");
-                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
-            }
-            HybridNodeServiceName::Core
-            | HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool => {}
-        };
-        base
-    }
-
-    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
-        HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(port),
-            remote: self.component_config_for_remote_service(port),
-        }
-    }
-}
-
-/// Component config bundling for services of a hybrid node: a config to run a component
-/// locally while being accessible to other services, and a suitable config enabling such services
-/// the access.
-struct HybridNodeServiceConfigPair {
-    local: ReactiveComponentExecutionConfig,
-    remote: ReactiveComponentExecutionConfig,
-}
-
-impl HybridNodeServiceConfigPair {
-    fn local(&self) -> ReactiveComponentExecutionConfig {
-        self.local.clone()
-    }
-
-    fn remote(&self) -> ReactiveComponentExecutionConfig {
-        self.remote.clone()
-    }
-}
-
-=======
-impl HybridNodeServiceName {
-    /// Returns a component execution config for a component that runs locally, and accepts inbound
-    /// connections from remote components.
-    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-    }
-
-    /// Returns a component execution config for a component that is accessed remotely.
-    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
-        let mut base = ReactiveComponentExecutionConfig::remote(
-            self.k8s_service_name(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        );
-        match self {
-            // Force new connections when connecting to autoscaled services. This is to ensure
-            // better load balancing.
-            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                let remote_client_config_ref = base
-                    .remote_client_config
-                    .as_mut()
-                    .expect("Remote client config should be available");
-                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
-            }
-            // Fast failures when connecting to the l1 services.
-            HybridNodeServiceName::L1 => {
-                let remote_client_config_ref = base
-                    .remote_client_config
-                    .as_mut()
-                    .expect("Remote client config should be available");
-                remote_client_config_ref.retries = RETRIES_FOR_L1_SERVICES
-            }
-            HybridNodeServiceName::Core
-            | HybridNodeServiceName::HttpServer
-            | HybridNodeServiceName::Mempool => {}
-        };
-
-        base
-    }
-
-    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
-        HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(port),
-            remote: self.component_config_for_remote_service(port),
-        }
-    }
-}
-
-/// Component config bundling for services of a hybrid node: a config to run a component
-/// locally while being accessible to other services, and a suitable config enabling such services
-/// the access.
-struct HybridNodeServiceConfigPair {
-    local: ReactiveComponentExecutionConfig,
-    remote: ReactiveComponentExecutionConfig,
-}
-
-impl HybridNodeServiceConfigPair {
-    fn local(&self) -> ReactiveComponentExecutionConfig {
-        self.local.clone()
-    }
-
-    fn remote(&self) -> ReactiveComponentExecutionConfig {
-        self.remote.clone()
-    }
-}
-
->>>>>>> origin/main-v0.14.0
 #[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,

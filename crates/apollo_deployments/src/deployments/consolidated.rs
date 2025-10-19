@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use apollo_infra::component_client::remote_component_client::DEFAULT_RETRIES;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -66,6 +67,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
             ConsolidatedNodeServiceName::Node => ScalePolicy::StaticallyScaled,
+        }
+    }
+
+    fn get_retries(&self) -> usize {
+        match self {
+            Self::Node => DEFAULT_RETRIES,
         }
     }
 

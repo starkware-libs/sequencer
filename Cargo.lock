@@ -1329,6 +1329,7 @@ dependencies = [
  "alloy",
  "apollo_config",
  "apollo_http_server_config",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_monitoring_endpoint_config",
  "apollo_network",

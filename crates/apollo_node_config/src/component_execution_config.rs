@@ -189,6 +189,14 @@ impl ReactiveComponentExecutionConfig {
         self
     }
 
+    pub fn with_retries(mut self, retries: usize) -> Self {
+        self.remote_client_config
+            .as_mut()
+            .expect("Remote client config should be available")
+            .retries = retries;
+        self
+    }
+
     #[cfg(any(feature = "testing", test))]
     pub fn set_url_to_localhost(&mut self) {
         self.url = Ipv4Addr::LOCALHOST.to_string();

@@ -271,6 +271,8 @@ pub(crate) trait ServiceNameInner: Display {
 
     fn get_scale_policy(&self) -> ScalePolicy;
 
+    fn get_retries(&self) -> usize;
+
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration>;
 
     fn get_ingress(
@@ -429,12 +431,14 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     /// Returns a component execution config for a component that is accessed remotely.
     fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         let idle_connections = self.get_scale_policy().idle_connections();
+        let retries = self.get_retries();
         ReactiveComponentExecutionConfig::remote(
             self.k8s_service_name(),
             IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )
         .with_idle_connections(idle_connections)
+        .with_retries(retries)
     }
 
     fn component_config_pair(&self, port: u16) -> ComponentConfigPair {
