@@ -6,7 +6,7 @@ pub const BENCHMARKS_BUCKET: &str = "benchmarks_ci";
 /// Uploads all files from a local directory to Google Cloud Storage.
 ///
 /// Uses gcloud CLI to upload files. Before running, authenticate with:
-/// `gcloud auth application-default login`
+/// `gcloud auth login`
 ///
 /// Files are uploaded to: `gs://{BENCHMARKS_BUCKET}/{benchmark_name}/input/`
 pub async fn upload_inputs(benchmark_name: &str, input_dir: &Path) {
@@ -34,4 +34,37 @@ pub async fn upload_inputs(benchmark_name: &str, input_dir: &Path) {
 
     println!("{}", String::from_utf8_lossy(&output.stdout).trim());
     println!("Input files uploaded successfully!");
+}
+
+/// Downloads all input files for a benchmark from Google Cloud Storage.
+///
+/// Uses gcloud CLI to download files. Before running, authenticate with:
+/// `gcloud auth login`
+///
+/// Downloads from: `gs://{BENCHMARKS_BUCKET}/{benchmark_name}/input/` to the local input directory.
+pub async fn download_inputs(benchmark_name: &str, local_input_dir: &Path) {
+    println!(
+        "Downloading inputs from gs://{}/{}/input/ to {}",
+        BENCHMARKS_BUCKET,
+        benchmark_name,
+        local_input_dir.display()
+    );
+
+    let source = format!("gs://{}/{}/input/*", BENCHMARKS_BUCKET, benchmark_name);
+    let dest = local_input_dir.display().to_string();
+
+    // Use gcloud storage cp command to download files.
+    let output = tokio::process::Command::new("gcloud")
+        .args(["storage", "cp", "-r", &source, &dest])
+        .output()
+        .await
+        .expect("Failed to cp inputs from GCS");
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        panic!("Failed to download inputs from GCS: {}", stderr);
+    }
+
+    println!("{}", String::from_utf8_lossy(&output.stdout).trim());
+    println!("Input files downloaded successfully!");
 }

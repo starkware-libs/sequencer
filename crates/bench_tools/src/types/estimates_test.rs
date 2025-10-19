@@ -5,15 +5,8 @@ use std::process::Command;
 use apollo_infra_utils::path::project_path;
 use rstest::{fixture, rstest};
 
+use crate::test_utils::bench_tools_crate_dir;
 use crate::types::estimates::Estimates;
-
-/// Returns the bench_tools crate directory.
-#[fixture]
-fn bench_tools_crate_dir() -> PathBuf {
-    std::env::var("CARGO_MANIFEST_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| std::env::current_dir().unwrap())
-}
 
 /// Returns the directory where dummy benchmark estimate results are stored.
 #[fixture]
