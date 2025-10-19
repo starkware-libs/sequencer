@@ -21,7 +21,6 @@ use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
-use num_rational::Ratio;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -39,7 +38,7 @@ use crate::test_utils::{
     STATE_DIFF_COMMITMENT,
     TIMEOUT,
 };
-use crate::utils::{GasPriceParams, StreamSender};
+use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
 
 struct TestProposalBuildArguments {
     pub deps: TestDeps,
@@ -89,17 +88,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
     let stream_sender = StreamSender { proposal_sender };
     let context_config = ContextConfig::default();
 
-    let gas_price_params = GasPriceParams {
-        min_l1_gas_price_wei: GasPrice(context_config.min_l1_gas_price_wei),
-        max_l1_gas_price_wei: GasPrice(context_config.max_l1_gas_price_wei),
-        min_l1_data_gas_price_wei: GasPrice(context_config.min_l1_data_gas_price_wei),
-        max_l1_data_gas_price_wei: GasPrice(context_config.max_l1_data_gas_price_wei),
-        l1_data_gas_price_multiplier: Ratio::new(
-            context_config.l1_data_gas_price_multiplier_ppt,
-            1000,
-        ),
-        l1_gas_tip_wei: GasPrice(context_config.l1_gas_tip_wei),
-    };
+    let gas_price_params = make_gas_price_params(&context_config);
     let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
     let proposal_id = ProposalId(1);
     let cende_write_success = AbortOnDropHandle::new(tokio::spawn(async { true }));

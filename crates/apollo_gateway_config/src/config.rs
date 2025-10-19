@@ -108,8 +108,10 @@ where
 pub struct StatelessTransactionValidatorConfig {
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds: bool,
-    // TODO(AlonH): Remove this field and use the one from the versioned constants.
+    // TODO(AlonH): Remove the `min_gas_price` field from this struct and use the one from the
+    // versioned constants.
     pub min_gas_price: u128,
+    pub max_l2_gas_amount: u64,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
 
@@ -125,6 +127,7 @@ impl Default for StatelessTransactionValidatorConfig {
         StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
             min_gas_price: 3_000_000_000,
+            max_l2_gas_amount: 1_100_000_000,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
@@ -173,6 +176,12 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "min_gas_price",
                 &self.min_gas_price,
                 "Minimum gas price for transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l2_gas_amount",
+                &self.max_l2_gas_amount,
+                "Maximum allowed L2 gas amount for transactions.",
                 ParamPrivacyInput::Public,
             ),
         ]);

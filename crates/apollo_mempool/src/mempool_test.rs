@@ -1270,12 +1270,11 @@ fn metrics_correctness() {
     commit_block(&mut mempool, [("0x9", 1)], []);
 
     let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 9,
+        txs_received_invoke: 8,
         txs_received_declare: 2,
         txs_received_deploy_account: 0,
         txs_committed: 2,
         txs_dropped_expired: 1,
-        txs_dropped_failed_add_tx_checks: 1,
         txs_dropped_rejected: 1,
         txs_dropped_evicted: 1,
         pool_size: 4,

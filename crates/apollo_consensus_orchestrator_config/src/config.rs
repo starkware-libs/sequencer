@@ -2,11 +2,19 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
+<<<<<<< HEAD:crates/apollo_consensus_orchestrator_config/src/config.rs
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+||||||| 9f5c80194:crates/apollo_consensus_orchestrator/src/config.rs
+use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::dumping::{ser_param, SerializeConfig};
+=======
+use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+>>>>>>> origin/main-v0.14.0:crates/apollo_consensus_orchestrator/src/config.rs
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -126,13 +134,17 @@ pub struct ContextConfig {
     pub l1_data_gas_price_multiplier_ppt: u128,
     /// This additional gas is added to the L1 gas price.
     pub l1_gas_tip_wei: u128,
-    /// If true, sets STRK gas price to its minimum price from the versioned constants.
-    pub constant_l2_gas_price: bool,
+    /// If given, will override the L2 gas price.
+    pub override_l2_gas_price: Option<u128>,
+    /// If given, will override the L1 gas price.
+    pub override_l1_gas_price: Option<u128>,
+    /// If given, will override the L1 data gas price.
+    pub override_l1_data_gas_price: Option<u128>,
 }
 
 impl SerializeConfig for ContextConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
@@ -221,13 +233,29 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "constant_l2_gas_price",
-                &self.constant_l2_gas_price,
-                "If true, sets STRK gas price to its minimum price from the versioned constants.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        ]);
+        dump.extend(ser_optional_param(
+            &self.override_l2_gas_price,
+            0,
+            "override_l2_gas_price",
+            "Replace the L2 gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_l1_gas_price,
+            0,
+            "override_l1_gas_price",
+            "Replace the L1 gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_l1_data_gas_price,
+            0,
+            "override_l1_data_gas_price",
+            "Replace the L1 data gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 
@@ -248,7 +276,9 @@ impl Default for ContextConfig {
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
-            constant_l2_gas_price: false,
+            override_l2_gas_price: None,
+            override_l1_gas_price: None,
+            override_l1_data_gas_price: None,
         }
     }
 }

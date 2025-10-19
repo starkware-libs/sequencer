@@ -4,6 +4,7 @@ use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 
+use crate::alert_definitions::BLOCK_TIME_SEC;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -185,7 +186,7 @@ fn get_consensus_round_high(
         format!("max_over_time({}[2m])", CONSENSUS_ROUND.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 20.0,
+            comparison_value: 120.0 / BLOCK_TIME_SEC,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,

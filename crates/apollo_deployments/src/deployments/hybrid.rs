@@ -33,6 +33,12 @@ use crate::deployment_definitions::{
     CONSENSUS_P2P_PORT,
     MEMPOOL_P2P_PORT,
 };
+<<<<<<< HEAD
+||||||| 9f5c80194
+use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+=======
+use crate::deployments::{IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES, RETRIES_FOR_L1_SERVICES};
+>>>>>>> origin/main-v0.14.0
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -198,7 +204,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     CloudK8sEnvironment::Mainnet
                     | CloudK8sEnvironment::SepoliaTestnet
                     | CloudK8sEnvironment::StressTest => Some(Toleration::ApolloCoreServiceC2D56),
-                    CloudK8sEnvironment::Potc2 => Some(Toleration::Batcher864),
+                    CloudK8sEnvironment::PotcMock => Some(Toleration::Batcher864),
                 },
                 HybridNodeServiceName::HttpServer
                 | HybridNodeServiceName::Gateway
@@ -264,30 +270,29 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
             Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
-                    match self {
-                        HybridNodeServiceName::Core => {
-                            Resources::new(Resource::new(2, 4), Resource::new(7, 14))
-                        }
-                        HybridNodeServiceName::HttpServer => {
-                            Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                        }
-                        HybridNodeServiceName::Gateway => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::L1 => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::Mempool => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
-                        HybridNodeServiceName::SierraCompiler => {
-                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                        }
+                CloudK8sEnvironment::PotcMock
+                | CloudK8sEnvironment::SepoliaIntegration
+                | CloudK8sEnvironment::UpgradeTest => match self {
+                    HybridNodeServiceName::Core => {
+                        Resources::new(Resource::new(2, 4), Resource::new(7, 14))
                     }
-                }
-                CloudK8sEnvironment::Potc2
-                | CloudK8sEnvironment::Mainnet
+                    HybridNodeServiceName::HttpServer => {
+                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                    }
+                    HybridNodeServiceName::Gateway => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::L1 => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::Mempool => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::SierraCompiler => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                },
+                CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
                     HybridNodeServiceName::Core => {
@@ -697,6 +702,140 @@ impl ServiceNameInner for HybridNodeServiceName {
     }
 }
 
+<<<<<<< HEAD
+||||||| 9f5c80194
+impl HybridNodeServiceName {
+    /// Returns a component execution config for a component that runs locally, and accepts inbound
+    /// connections from remote components.
+    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        )
+    }
+
+    /// Returns a component execution config for a component that is accessed remotely.
+    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        let mut base = ReactiveComponentExecutionConfig::remote(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        );
+        match self {
+            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
+            }
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::L1
+            | HybridNodeServiceName::Mempool => {}
+        };
+        base
+    }
+
+    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
+        HybridNodeServiceConfigPair {
+            local: self.component_config_for_local_service(port),
+            remote: self.component_config_for_remote_service(port),
+        }
+    }
+}
+
+/// Component config bundling for services of a hybrid node: a config to run a component
+/// locally while being accessible to other services, and a suitable config enabling such services
+/// the access.
+struct HybridNodeServiceConfigPair {
+    local: ReactiveComponentExecutionConfig,
+    remote: ReactiveComponentExecutionConfig,
+}
+
+impl HybridNodeServiceConfigPair {
+    fn local(&self) -> ReactiveComponentExecutionConfig {
+        self.local.clone()
+    }
+
+    fn remote(&self) -> ReactiveComponentExecutionConfig {
+        self.remote.clone()
+    }
+}
+
+=======
+impl HybridNodeServiceName {
+    /// Returns a component execution config for a component that runs locally, and accepts inbound
+    /// connections from remote components.
+    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        )
+    }
+
+    /// Returns a component execution config for a component that is accessed remotely.
+    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        let mut base = ReactiveComponentExecutionConfig::remote(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        );
+        match self {
+            // Force new connections when connecting to autoscaled services. This is to ensure
+            // better load balancing.
+            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.idle_connections = IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
+            }
+            // Fast failures when connecting to the l1 services.
+            HybridNodeServiceName::L1 => {
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.retries = RETRIES_FOR_L1_SERVICES
+            }
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::Mempool => {}
+        };
+
+        base
+    }
+
+    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
+        HybridNodeServiceConfigPair {
+            local: self.component_config_for_local_service(port),
+            remote: self.component_config_for_remote_service(port),
+        }
+    }
+}
+
+/// Component config bundling for services of a hybrid node: a config to run a component
+/// locally while being accessible to other services, and a suitable config enabling such services
+/// the access.
+struct HybridNodeServiceConfigPair {
+    local: ReactiveComponentExecutionConfig,
+    remote: ReactiveComponentExecutionConfig,
+}
+
+impl HybridNodeServiceConfigPair {
+    fn local(&self) -> ReactiveComponentExecutionConfig {
+        self.local.clone()
+    }
+
+    fn remote(&self) -> ReactiveComponentExecutionConfig {
+        self.remote.clone()
+    }
+}
+
+>>>>>>> origin/main-v0.14.0
 #[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,

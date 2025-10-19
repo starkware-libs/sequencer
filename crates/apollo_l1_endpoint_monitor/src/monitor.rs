@@ -43,8 +43,8 @@ impl L1EndpointMonitor {
             if self.is_operational(idx).await {
                 warn!(
                     "L1 endpoint {} down; switched to {}",
-                    self.get_node_url(current_l1_endpoint_index),
-                    self.get_node_url(idx)
+                    to_safe_string(self.get_node_url(current_l1_endpoint_index)),
+                    to_safe_string(self.get_node_url(idx))
                 );
 
                 self.current_l1_endpoint_index = idx;
@@ -88,7 +88,16 @@ impl L1EndpointMonitor {
                 error!("L1 endpoint {l1_endpoint_url} is not operational: {e}");
                 false
             }
-            Ok(Ok(_)) => {
+            Ok(Ok(block_number)) => {
+                // TODO(guyn): remove this once we understand where these low numbers are coming
+                // from.
+                if block_number < U64::from(1000) {
+                    warn!(
+                        "L1 endpoint {l1_endpoint_url} is operational, but block number is too \
+                         low: {block_number}"
+                    );
+                }
+
                 info_every_n!(1000, "L1 endpoint {l1_endpoint_url} is operational");
                 true
             }

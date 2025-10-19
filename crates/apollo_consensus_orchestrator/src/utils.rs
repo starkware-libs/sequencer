@@ -28,6 +28,7 @@ use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
 use crate::build_proposal::BuildProposalError;
+use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
 use crate::validate_proposal::ValidateProposalError;
 
@@ -41,6 +42,7 @@ impl StreamSender {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct GasPriceParams {
     pub min_l1_gas_price_wei: GasPrice,
     pub max_l1_gas_price_wei: GasPrice,
@@ -48,6 +50,8 @@ pub(crate) struct GasPriceParams {
     pub min_l1_data_gas_price_wei: GasPrice,
     pub l1_data_gas_price_multiplier: Ratio<u128>,
     pub l1_gas_tip_wei: GasPrice,
+    pub override_l1_gas_price: Option<GasPrice>,
+    pub override_l1_data_gas_price: Option<GasPrice>,
 }
 
 impl From<StateSyncClientError> for BuildProposalError {
@@ -82,6 +86,8 @@ pub(crate) async fn get_oracle_rate_and_prices(
         l1_gas_price_provider_client.get_eth_to_fri_rate(timestamp),
         l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp))
     );
+    let mut return_values;
+
     if price_info.is_err() {
         warn!("Failed to get l1 gas price from provider: {:?}", price_info);
         CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
@@ -91,39 +97,57 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
 
     if let (Ok(eth_to_strk_rate), Ok(mut price_info)) = (eth_to_strk_rate, price_info) {
+        // Both L1 prices and rate are Ok, so we can use them.
         info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
         apply_fee_transformations(&mut price_info, gas_price_params);
-        return (eth_to_strk_rate, price_info);
+        return_values = (eth_to_strk_rate, price_info);
+    } else {
+        // One or both have failed, need to use previous block info (or default values)
+        match previous_block_info {
+            Some(block_info) => {
+                let prev_l1_gas_price = PriceInfo {
+                    base_fee_per_gas: block_info.l1_gas_price_wei,
+                    blob_fee: block_info.l1_data_gas_price_wei,
+                };
+                info!(
+                    "Using values from previous block info. eth_to_strk_rate: {}, l1 gas price: \
+                     {:?}",
+                    block_info.eth_to_fri_rate, prev_l1_gas_price
+                );
+                return_values = (block_info.eth_to_fri_rate, prev_l1_gas_price);
+            }
+            None => {
+                let l1_gas_price = PriceInfo {
+                    base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
+                    blob_fee: gas_price_params.min_l1_data_gas_price_wei,
+                };
+                info!(
+                    "No previous block info available, using default values. eth_to_strk_rate: \
+                     {}, l1 gas price: {:?}",
+                    DEFAULT_ETH_TO_FRI_RATE, l1_gas_price
+                );
+                return_values = (DEFAULT_ETH_TO_FRI_RATE, l1_gas_price);
+            }
+        }
     }
 
-    match previous_block_info {
-        Some(block_info) => {
-            let prev_l1_gas_price = PriceInfo {
-                base_fee_per_gas: block_info.l1_gas_price_wei,
-                blob_fee: block_info.l1_data_gas_price_wei,
-            };
-            info!(
-                "Using values from previous block info. eth_to_strk_rate: {}, l1 gas price: {:?}",
-                block_info.eth_to_fri_rate, prev_l1_gas_price
-            );
-            (block_info.eth_to_fri_rate, prev_l1_gas_price)
-        }
-        None => {
-            let l1_gas_price = PriceInfo {
-                base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
-                blob_fee: gas_price_params.min_l1_data_gas_price_wei,
-            };
-            info!(
-                "No previous block info available, using default values. eth_to_strk_rate: {}, l1 \
-                 gas price: {:?}",
-                DEFAULT_ETH_TO_FRI_RATE, l1_gas_price
-            );
-            (DEFAULT_ETH_TO_FRI_RATE, l1_gas_price)
-        }
+    // If there is an override to L1 gas price or data gas price, apply it here:
+    if let Some(override_value) = gas_price_params.override_l1_gas_price {
+        info!("Overriding L1 gas price to {override_value}");
+        return_values.1.base_fee_per_gas = override_value;
     }
+    if let Some(override_value) = gas_price_params.override_l1_data_gas_price {
+        info!("Overriding L1 data gas price to {override_value}");
+        return_values.1.blob_fee = override_value;
+    }
+
+    return_values
 }
 
-fn apply_fee_transformations(price_info: &mut PriceInfo, gas_price_params: &GasPriceParams) {
+pub(crate) fn apply_fee_transformations(
+    price_info: &mut PriceInfo,
+    gas_price_params: &GasPriceParams,
+) {
     price_info.base_fee_per_gas = price_info
         .base_fee_per_gas
         .saturating_add(gas_price_params.l1_gas_tip_wei)
@@ -211,4 +235,17 @@ pub(crate) fn truncate_to_executed_txs(
     }
 
     executed_content
+}
+
+pub(crate) fn make_gas_price_params(config: &ContextConfig) -> GasPriceParams {
+    GasPriceParams {
+        min_l1_gas_price_wei: GasPrice(config.min_l1_gas_price_wei),
+        max_l1_gas_price_wei: GasPrice(config.max_l1_gas_price_wei),
+        min_l1_data_gas_price_wei: GasPrice(config.min_l1_data_gas_price_wei),
+        max_l1_data_gas_price_wei: GasPrice(config.max_l1_data_gas_price_wei),
+        l1_data_gas_price_multiplier: Ratio::new(config.l1_data_gas_price_multiplier_ppt, 1000),
+        l1_gas_tip_wei: GasPrice(config.l1_gas_tip_wei),
+        override_l1_gas_price: config.override_l1_gas_price.map(GasPrice),
+        override_l1_data_gas_price: config.override_l1_data_gas_price.map(GasPrice),
+    }
 }

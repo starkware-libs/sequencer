@@ -9,6 +9,8 @@ from common.grafana10_objects import empty_dashboard, row_object, templating_obj
 from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
 from urllib.parse import quote
 
+MAX_ALLOWED_JSON_SIZE = 1024 * 1024  # 1MB
+
 
 def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
     exprs = panel["exprs"]
@@ -81,8 +83,21 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
                 }
             ],
         },
+<<<<<<< HEAD
         "options": {"showPercentChange": show_percent_change},
         "links": ([{"url": link, "title": "GCP Logs", "targetBlank": True}]),
+||||||| 9f5c80194
+        "options": {
+            "showPercentChange": show_percent_change
+        },
+        "links": (
+            [{"url": link, "title": "GCP Logs", "targetBlank": True}]
+        ),
+=======
+        "links": (
+            [{"url": link, "title": "GCP Logs", "targetBlank": True}]
+        ),
+>>>>>>> origin/main-v0.14.0
         "transformations": [
             # Renames labels of the form {label="value"} to just "value"
             {
@@ -98,6 +113,12 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 
     if thresholds:
         grafana_panel["fieldConfig"]["defaults"]["color"] = {"mode": "thresholds"}
+
+    if panel["type"] == "stat":
+        grafana_panel["options"] = {
+            "textMode": "value_and_name",
+            "showPercentChange": show_percent_change,
+        }
 
     return grafana_panel
 
@@ -226,8 +247,10 @@ def dashboard_builder(args: argparse.Namespace) -> None:
         if args.out_dir:
             output_dir = f"{args.out_dir}/dashboards"
             os.makedirs(output_dir, exist_ok=True)
-            with open(dashboard_file_name(output_dir, dashboard_name), "w") as f:
-                json.dump(dashboard, f, indent=4)
+            json_data = json.dumps(dashboard, indent=1, ensure_ascii=False)
+            assert len(json_data) < MAX_ALLOWED_JSON_SIZE, "Grafana dashboard JSON is too large"
+            with open(dashboard_file_name(output_dir, dashboard_name), "w", encoding="utf-8") as f:
+                f.write(json_data)
         if not args.dry_run:
             upload_dashboards_local(dashboard=dashboard)
 
