@@ -147,6 +147,7 @@ define_string_enum! {
         (CompiledClassFact),
         (CompiledClassFacts),
         (CompiledClassHash),
+        (CompressedDst),
         (CompressedEnd),
         (CompressedStart),
         (CompressStateUpdates),
