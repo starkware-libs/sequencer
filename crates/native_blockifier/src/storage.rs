@@ -297,7 +297,7 @@ pub struct StorageConfig {
     path_prefix: PathBuf,
     chain_id: ChainId,
     enforce_file_exists: bool,
-    max_size: usize,
+    max_size: isize,
 }
 
 #[pymethods]
@@ -308,7 +308,7 @@ impl StorageConfig {
         path_prefix: PathBuf,
         #[pyo3(from_py_with = "int_to_chain_id")] chain_id: ChainId,
         enforce_file_exists: bool,
-        max_size: usize,
+        max_size: isize,
     ) -> Self {
         Self { path_prefix, chain_id, enforce_file_exists, max_size }
     }

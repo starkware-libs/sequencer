@@ -2473,7 +2473,7 @@ dependencies = [
  "insta",
  "integer-encoding",
  "lazy_static",
- "libmdbx 0.3.5",
+ "libmdbx",
  "memmap2",
  "metrics 0.24.2",
  "metrics-exporter-prometheus",
@@ -3322,26 +3322,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
 dependencies = [
  "virtue",
-]
-
-[[package]]
-name = "bindgen"
-version = "0.66.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2b84e06fc203107bfbad243f4aba2af864eb7db3b1cf46ea0a023b0b433d2a7"
-dependencies = [
- "bitflags 2.9.3",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "peeking_take_while",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 1.1.0",
- "shlex",
- "syn 2.0.106",
 ]
 
 [[package]]
@@ -8102,23 +8082,6 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libmdbx"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f0bee397dc9a7003e7bd34fffc1dc2d4c4fdc96530a0c439a5f98c9402bc7bf"
-dependencies = [
- "bitflags 2.9.3",
- "byteorder",
- "derive_more 0.99.20",
- "indexmap 1.9.3",
- "libc",
- "lifetimed-bytes",
- "mdbx-sys 0.12.7",
- "parking_lot 0.12.4",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "libmdbx"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a2e924d395775a465889e167cd6559f6b142c41a5a2bee06aeb5bfd7d674b22"
@@ -8127,7 +8090,8 @@ dependencies = [
  "derive_more 2.0.1",
  "indexmap 2.11.0",
  "libc",
- "mdbx-sys 13.8.0",
+ "lifetimed-bytes",
+ "mdbx-sys",
  "parking_lot 0.12.4",
  "sealed",
  "thiserror 2.0.16",
@@ -8717,17 +8681,6 @@ checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
-]
-
-[[package]]
-name = "mdbx-sys"
-version = "0.12.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21a329f8d655fb646cc9511c00886eefcddb6ef131869ef2d4b02c24c66825ac"
-dependencies = [
- "bindgen 0.66.1",
- "cc",
- "libc",
 ]
 
 [[package]]
@@ -9949,12 +9902,6 @@ dependencies = [
  "digest 0.10.7",
  "hmac",
 ]
-
-[[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
 name = "pem"
@@ -12678,7 +12625,7 @@ name = "starknet_patricia_storage"
 version = "0.0.0"
 dependencies = [
  "hex",
- "libmdbx 0.6.3",
+ "libmdbx",
  "lru 0.12.5",
  "page_size",
  "rstest",
