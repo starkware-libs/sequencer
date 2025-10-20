@@ -115,8 +115,7 @@ pub(crate) async fn setup_scraper_and_provider(
         l1_scraper_config,
         Arc::new(l1_provider_client.clone()),
         base_layer.ethereum_base_layer.clone(),
-        &[],
-        START_L1_BLOCK,
+        event_identifiers_to_track(),
     )
     .await
     .expect("Should be able to create the scraper");

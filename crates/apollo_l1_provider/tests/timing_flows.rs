@@ -69,6 +69,7 @@ async fn timing_flows() {
 
     l1_provider
         .initialize(
+            BlockNumber(time_starts_at),
             [
                 cancellation_request(1, BlockTimestamp(1)), // Unknown, dropped silently.
                 message_to_l2(2),
