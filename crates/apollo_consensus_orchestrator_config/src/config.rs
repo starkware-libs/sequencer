@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_comma_separated_str,
     deserialize_milliseconds_to_duration,
-    deserialize_optional_contract_addresses,
     deserialize_seconds_to_duration,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
@@ -96,7 +96,7 @@ pub struct ContextConfig {
     pub num_validators: u64,
     /// Optional explicit set of validator IDs (contract addresses) to use.
     /// If provided, this overrides `num_validators`.
-    #[serde(default, deserialize_with = "deserialize_optional_contract_addresses")]
+    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub validator_ids: Option<Vec<ContractAddress>>,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
