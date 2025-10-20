@@ -205,7 +205,7 @@ impl StateMachine {
                         return output_events;
                     }
                     StateMachineEvent::GetProposal(_, _) => {
-                        // LOC 18.
+                        // LOC 18 in the paper.
                         assert!(resultant_events.is_empty());
                         assert!(!self.is_observer);
                         output_events.push_back(e);

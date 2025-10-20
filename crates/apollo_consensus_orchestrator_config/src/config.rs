@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
+    deserialize_optional_contract_addresses,
     deserialize_seconds_to_duration,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
@@ -93,6 +94,10 @@ pub struct ContextConfig {
     pub proposal_buffer_size: usize,
     /// The number of validators.
     pub num_validators: u64,
+    /// Optional explicit set of validator IDs (contract addresses) to use.
+    /// If provided, this overrides `num_validators`.
+    #[serde(default, deserialize_with = "deserialize_optional_contract_addresses")]
+    pub validator_ids: Option<Vec<ContractAddress>>,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
@@ -136,7 +141,13 @@ pub struct ContextConfig {
 
 impl SerializeConfig for ContextConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+<<<<<<< HEAD
         let mut dump = BTreeMap::from_iter([
+||||||| 9552005d0
+        BTreeMap::from_iter([
+=======
+        let mut config = BTreeMap::from_iter([
+>>>>>>> origin/main-v0.14.1
             ser_param(
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
@@ -225,6 +236,7 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
+<<<<<<< HEAD
         ]);
         dump.extend(ser_optional_param(
             &self.override_l2_gas_price,
@@ -248,6 +260,33 @@ impl SerializeConfig for ContextConfig {
             ParamPrivacyInput::Public,
         ));
         dump
+||||||| 9552005d0
+            ser_param(
+                "constant_l2_gas_price",
+                &self.constant_l2_gas_price,
+                "If true, sets STRK gas price to its minimum price from the versioned constants.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+=======
+            ser_param(
+                "constant_l2_gas_price",
+                &self.constant_l2_gas_price,
+                "If true, sets STRK gas price to its minimum price from the versioned constants.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        config.extend(ser_optional_param(
+            &self.validator_ids.as_ref().map(|accounts| {
+                accounts.iter().map(|addr| addr.0.to_string()).collect::<Vec<_>>().join(",")
+            }),
+            "".to_string(),
+            "validator_ids",
+            "Optional explicit set of validator IDs (comma separated).",
+            ParamPrivacyInput::Public,
+        ));
+        config
+>>>>>>> origin/main-v0.14.1
     }
 }
 
@@ -256,6 +295,7 @@ impl Default for ContextConfig {
         Self {
             proposal_buffer_size: 100,
             num_validators: 1,
+            validator_ids: None,
             chain_id: ChainId::Mainnet,
             block_timestamp_window_seconds: 1,
             l1_da_mode: true,

@@ -1664,6 +1664,16 @@
     "privacy": "Public",
     "value": 10000
   },
+  "consensus_manager_config.context_config.validator_ids": {
+    "description": "Optional explicit set of validator IDs (comma separated).",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.context_config.validator_ids.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",

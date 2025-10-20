@@ -295,6 +295,16 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.validator_ids": {
+    "description": "Optional explicit set of validator IDs (comma separated).",
+    "value": "",
+    "privacy": "Public"
+  },
+  "context.validator_ids.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
     "value": false,

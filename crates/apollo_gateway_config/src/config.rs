@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
+use apollo_config::converters::deserialize_optional_contract_addresses;
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
@@ -10,7 +10,7 @@ use apollo_config::dumping::{
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_types_core::felt::Felt;
 use validator::Validate;
@@ -67,41 +67,6 @@ impl GatewayConfig {
             None => true,
         }
     }
-}
-
-fn deserialize_optional_contract_addresses<'de, D>(
-    de: D,
-) -> Result<Option<Vec<ContractAddress>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw: String = match Option::deserialize(de)? {
-        Some(addresses) => addresses,
-        None => return Ok(None),
-    };
-
-    if raw.is_empty() {
-        return Err(de::Error::custom(
-            "Empty string is not a valid input for contract addresses. The config field \
-             `gateway_config.authorized_declarer_accounts.#is_none` is false and should be true \
-             if you don't want to use this feature.",
-        ));
-    }
-
-    let mut result = Vec::new();
-    for addresses_str in raw.split(',') {
-        let felt = Felt::from_str(addresses_str).map_err(|err| {
-            de::Error::custom(format!("Failed to parse Felt from '{addresses_str}': {err}"))
-        })?;
-
-        let addr = ContractAddress::try_from(felt).map_err(|err| {
-            de::Error::custom(format!("Invalid contract address '{addresses_str}': {err}"))
-        })?;
-
-        result.push(addr);
-    }
-
-    Ok(Some(result))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]

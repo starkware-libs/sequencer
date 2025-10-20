@@ -12,12 +12,17 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
-use apollo_protobuf::consensus::{ProposalFin, ProposalPart, TransactionBatch};
+use apollo_protobuf::consensus::{
+    ProposalCommitment as ConsensusProposalCommitment,
+    ProposalFin,
+    ProposalPart,
+    TransactionBatch,
+};
 use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::PoseidonHash;
@@ -112,12 +117,14 @@ async fn validate_empty_proposal() {
     let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Send an empty proposal.
     content_sender
-        .send(ProposalPart::Fin(ProposalFin { proposal_commitment: BlockHash::default() }))
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+        }))
         .await
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Ok(val) if val == BlockHash::default());
+    assert_matches!(res, Ok(val) if val == ConsensusProposalCommitment::default());
 }
 
 #[tokio::test]
@@ -139,12 +146,14 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::Fin(ProposalFin { proposal_commitment: BlockHash::default() }))
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+        }))
         .await
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Ok(val) if val == BlockHash::default());
+    assert_matches!(res, Ok(val) if val == ConsensusProposalCommitment::default());
 }
 
 #[tokio::test]
@@ -253,7 +262,9 @@ async fn receive_fin_without_executed_transaction_count() {
     content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     // Send Fin part without sending executed transaction count.
     content_sender
-        .send(ProposalPart::Fin(ProposalFin { proposal_commitment: BlockHash::default() }))
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+        }))
         .await
         .unwrap();
 
@@ -323,7 +334,7 @@ async fn proposal_fin_mismatch() {
         .await
         .unwrap();
     // Send Fin part.
-    let received_fin = BlockHash::default();
+    let received_fin = ConsensusProposalCommitment::default();
     content_sender
         .send(ProposalPart::Fin(ProposalFin { proposal_commitment: received_fin }))
         .await
@@ -361,7 +372,9 @@ async fn batcher_returns_invalid_proposal() {
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::Fin(ProposalFin { proposal_commitment: BlockHash::default() }))
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+        }))
         .await
         .unwrap();
 

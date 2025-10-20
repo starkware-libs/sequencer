@@ -5,7 +5,7 @@ mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
@@ -17,6 +17,7 @@ use super::common::{
 use crate::consensus::{
     ConsensusBlockInfo,
     IntoFromProto,
+    ProposalCommitment,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -28,6 +29,21 @@ use crate::consensus::{
 };
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
+
+impl TryFrom<protobuf::Hash> for ProposalCommitment {
+    type Error = ProtobufConversionError;
+
+    fn try_from(value: protobuf::Hash) -> Result<Self, Self::Error> {
+        let stark_hash: StarkHash = value.try_into()?;
+        Ok(ProposalCommitment(stark_hash))
+    }
+}
+
+impl From<ProposalCommitment> for protobuf::Hash {
+    fn from(value: ProposalCommitment) -> Self {
+        value.0.into()
+    }
+}
 
 impl TryFrom<protobuf::vote::VoteType> for VoteType {
     type Error = ProtobufConversionError;
@@ -57,11 +73,14 @@ impl TryFrom<protobuf::Vote> for Vote {
 
         let height = value.height;
         let round = value.round;
-        let block_hash: Option<BlockHash> =
-            value.block_hash.map(|block_hash| block_hash.try_into()).transpose()?.map(BlockHash);
+        let proposal_commitment: Option<ProposalCommitment> = value
+            .block_hash
+            .map(|block_hash| block_hash.try_into())
+            .transpose()?
+            .map(ProposalCommitment);
         let voter = value.voter.ok_or(missing("voter"))?.try_into()?;
 
-        Ok(Vote { vote_type, height, round, block_hash, voter })
+        Ok(Vote { vote_type, height, round, proposal_commitment, voter })
     }
 }
 
@@ -76,7 +95,7 @@ impl From<Vote> for protobuf::Vote {
             vote_type: i32::from(vote_type),
             height: value.height,
             round: value.round,
-            block_hash: value.block_hash.map(|hash| hash.0.into()),
+            block_hash: value.proposal_commitment.map(|hash| hash.0.into()),
             voter: Some(value.voter.into()),
         }
     }
@@ -258,16 +277,15 @@ auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
-        let proposal_commitment: StarkHash =
+        let proposal_commitment: ProposalCommitment =
             value.proposal_commitment.ok_or(missing("proposal_commitment"))?.try_into()?;
-        let proposal_commitment = BlockHash(proposal_commitment);
         Ok(ProposalFin { proposal_commitment })
     }
 }
 
 impl From<ProposalFin> for protobuf::ProposalFin {
     fn from(value: ProposalFin) -> Self {
-        protobuf::ProposalFin { proposal_commitment: Some(value.proposal_commitment.0.into()) }
+        protobuf::ProposalFin { proposal_commitment: Some(value.proposal_commitment.into()) }
     }
 }
 

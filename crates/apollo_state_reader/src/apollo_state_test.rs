@@ -19,7 +19,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::state::{StateDiff, StorageKey};
 use starknet_api::{calldata, felt};
 
-use crate::papyrus_state::PapyrusReader;
+use crate::apollo_state::ApolloReader;
 
 #[test]
 fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
@@ -49,8 +49,8 @@ fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
 
     // BlockNumber is 1 due to the initialization step above.
     let block_number = BlockNumber(1);
-    let papyrus_reader = PapyrusReader::new(storage_reader, block_number);
-    let mut state = CachedState::from(papyrus_reader);
+    let apollo_reader = ApolloReader::new(storage_reader, block_number);
+    let mut state = CachedState::from(apollo_reader);
 
     // Call entrypoint that want to write to storage, which updates the cached state's write cache.
     let key = felt!(1234_u16);
