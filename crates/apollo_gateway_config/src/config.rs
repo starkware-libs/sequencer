@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::converters::deserialize_optional_contract_addresses;
+use apollo_config::converters::deserialize_comma_separated_str;
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
@@ -25,7 +25,7 @@ pub struct GatewayConfig {
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
-    #[serde(default, deserialize_with = "deserialize_optional_contract_addresses")]
+    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 }
 
