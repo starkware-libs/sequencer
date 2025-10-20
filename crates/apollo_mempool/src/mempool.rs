@@ -650,6 +650,7 @@ impl Mempool {
     /// Given a chunk of transactions, removes from the pool those that are old, and returns the
     /// remaining valid ones.
     /// Note: This function assumes that the given transactions were already removed from the queue.
+    #[instrument(skip_all, parent = None)]
     fn prune_expired_nonqueued_txs(
         &mut self,
         txs: Vec<TransactionReference>,
@@ -673,6 +674,7 @@ impl Mempool {
                 self.tx_pool
                     .remove(tx.tx_hash)
                     .expect("Transaction hash from queue must appear in pool.");
+                info!("Removed expired transaction: {0:?}", tx.tx_hash);
                 (tx.address, self.state.resolve_nonce(tx.address, tx.nonce))
             })
             .collect();
