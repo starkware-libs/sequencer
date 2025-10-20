@@ -271,7 +271,6 @@ impl Mempool {
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
-    // TODO(AlonH): Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
         self.add_ready_declares();

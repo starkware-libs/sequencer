@@ -24,7 +24,6 @@ pub struct BlockBuilderConfig {
 impl Default for BlockBuilderConfig {
     fn default() -> Self {
         Self {
-            // TODO(AlonH): update the default values once the actual values are known.
             chain_info: ChainInfo::default(),
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
@@ -192,7 +191,6 @@ impl Default for BatcherConfig {
                 scope: apollo_storage::StorageScope::StateOnly,
                 ..Default::default()
             },
-            // TODO(AlonH): set a more reasonable default value.
             outstream_content_buffer_size: 100,
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),

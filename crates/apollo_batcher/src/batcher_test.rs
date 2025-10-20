@@ -604,7 +604,6 @@ async fn send_proposal_content_abort() {
     // The block builder is running in a separate task, and the proposal metrics are emitted from
     // that task, so we need to wait for them (we don't have a way to wait for the completion of the
     // abort).
-    // TODO(AlonH): Find a way to wait for the metrics to be emitted.
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 0, 0, 1);

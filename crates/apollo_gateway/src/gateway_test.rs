@@ -330,7 +330,6 @@ fn process_tx_task(
 // result of `add_tx`).
 // TODO(shahak): Test that when an error occurs in handle_request, then it returns the given p2p
 // metadata.
-// TODO(AlonH): add test with Some broadcasted message metadata
 #[rstest]
 #[case::tx_with_duplicate_tx_hash(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),

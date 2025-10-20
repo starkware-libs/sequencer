@@ -270,8 +270,6 @@ fn test_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
 #[rstest]
 fn test_commit_block_from_different_leader(mut mempool: Mempool) {
     // Setup.
-    // TODO(AlonH): set the mempool to `validate` mode once supported.
-
     let tx_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
     let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 2);
     let tx_nonce_4 = add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 4, account_nonce: 2);

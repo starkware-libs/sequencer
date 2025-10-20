@@ -135,7 +135,6 @@ impl BlockExecutionArtifacts {
             class_hash_to_compiled_class_hash: commitment_state_diff
                 .class_hash_to_compiled_class_hash,
             nonces: commitment_state_diff.address_to_nonce,
-            // TODO(AlonH): Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
         }
     }

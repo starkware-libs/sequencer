@@ -42,8 +42,6 @@ pub struct AddTransactionArgsWrapper {
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
-    // TODO(AlonH): Add Option<BroadcastedMessageMetadata> as an argument for add_transaction
-    // TODO(AlonH): Rename tx to transaction
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>>;

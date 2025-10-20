@@ -95,7 +95,6 @@ impl MempoolCommunicationWrapper {
         args_wrapper: AddTransactionArgsWrapper,
     ) -> MempoolResult<()> {
         self.mempool.add_tx(args_wrapper.args.clone())?;
-        // TODO(AlonH): Verify that only transactions that were added to the mempool are sent.
         if let Err(p2p_client_err) =
             self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
         {
