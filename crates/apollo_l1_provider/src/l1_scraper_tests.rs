@@ -399,10 +399,12 @@ async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayer
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference::default(),
     )
     .await
     .unwrap();
+
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(Default::default());
 
     // Test.
     assert_eq!(scraper.send_events_to_l1_provider().await, Err(L1ScraperError::NeedsRestart));
@@ -435,10 +437,12 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference::default(),
     )
     .await
     .unwrap();
+
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(Default::default());
 
     // Test.
     // Can send messages to the provider.
@@ -473,10 +477,12 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference::default(),
     )
     .await
     .unwrap();
+
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(Default::default());
 
     // Test.
     // can send messages to the provider.
@@ -506,6 +512,7 @@ async fn latest_block_number_goes_down() {
     // This should always be returned, even if we set the "response" to a lower block number.
     let expected_block_reference =
         L1BlockReference { number: L1_LATEST_BLOCK_NUMBER, hash: L1_BLOCK_HASH };
+    let initial_block_reference = L1BlockReference { number: 0, hash: L1_BLOCK_HASH };
 
     let latest_l1_block_response = Arc::new(Mutex::new(expected_block_reference));
     let latest_l1_block_response_clone = latest_l1_block_response.clone();
@@ -525,13 +532,15 @@ async fn latest_block_number_goes_down() {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference { number: 0, hash: L1_BLOCK_HASH },
     )
     .await
     .unwrap();
 
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(initial_block_reference);
+
     // Test.
-    // can send messages to the provider.
+    // Can send messages to the provider.
     // This should also set the scraper's last_l1_block_processed to block number 10.
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 
