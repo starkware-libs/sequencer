@@ -1333,7 +1333,6 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_monitoring_endpoint_config",
- "apollo_network",
  "apollo_node",
  "apollo_node_config",
  "indexmap 2.11.0",

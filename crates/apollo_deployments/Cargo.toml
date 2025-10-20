@@ -15,7 +15,6 @@ apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_monitoring_endpoint_config.workspace = true
-apollo_network.workspace = true
 apollo_node_config.workspace = true
 indexmap.workspace = true
 libp2p.workspace = true

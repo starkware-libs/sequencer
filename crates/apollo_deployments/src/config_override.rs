@@ -1,9 +1,9 @@
 use std::path::Path;
 
+use apollo_config::converters::serialize_optional_comma_separated;
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use apollo_network::serialize_multi_addrs;
 use libp2p::Multiaddr;
 use serde::{Serialize, Serializer};
 use serde_json::to_value;
@@ -185,7 +185,10 @@ impl DeploymentConfigOverride {
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PeerToPeerBootstrapConfig {
     // Bootstrap peer address.
-    #[serde(rename = "bootstrap_peer_multiaddr", serialize_with = "serialize_multi_addrs_wrapper")]
+    #[serde(
+        rename = "bootstrap_peer_multiaddr",
+        serialize_with = "serialize_optional_comma_separated_wrapper"
+    )]
     bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
     #[serde(rename = "bootstrap_peer_multiaddr.#is_none")]
     bootstrap_peer_multiaddr_is_none: bool,
@@ -244,23 +247,19 @@ impl InstanceConfigOverride {
     }
 }
 
-// Wrapper function for the custom `serialize_multi_addrs` function, to be
+// Wrapper function for the generic `serialize_optional_comma_separated` function, to be
 // compatible with serde's `serialize_with` attribute. It first applies the custom serialization
 // logic to convert the optional list into a `String`, and then serializes that string.
-fn serialize_multi_addrs_wrapper<S>(
-    optional_multi_addrs: &Option<Vec<Multiaddr>>,
+fn serialize_optional_comma_separated_wrapper<S, T>(
+    optional_list: &Option<Vec<T>>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
+    T: ToString,
 {
-    match optional_multi_addrs {
+    match serialize_optional_comma_separated(optional_list) {
         None => serializer.serialize_none(),
-        Some(multi_addrs) => {
-            // Call the implemented custom serialization function
-            let s = serialize_multi_addrs(&Some(multi_addrs.clone()));
-            // Serialize the returned String
-            serializer.serialize_some(&s)
-        }
+        Some(s) => serializer.serialize_some(&s),
     }
 }
