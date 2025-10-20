@@ -164,7 +164,7 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
 /// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BlobArtifacts {
+pub struct LegacyBlobArtifacts {
     #[serde_as(as = "Vec<Bytes>")]
     pub commitments: Vec<[u8; 48]>,
     #[serde_as(as = "Vec<Bytes>")]
@@ -189,11 +189,13 @@ fn kzg_to_versioned_hash(commitment: &KzgCommitment) -> [u8; 32] {
     hash.into()
 }
 
-/// Computes KZG commitments, proofs, and versioned hashes for a list of raw blobs.
+/// Computes KZG commitments, legacy proofs, and versioned hashes for a list of raw blobs.
 ///
 /// For each blob, computes the KZG commitment and the corresponding KZG proof that is used
-/// to verify the commitment. Returns `BlobArtifacts` structure.
-pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts, FftError> {
+/// to verify the commitment. Returns `LegacyBlobArtifacts` structure.
+pub fn compute_legacy_blob_commitments(
+    raw_blobs: Vec<Vec<u8>>,
+) -> Result<LegacyBlobArtifacts, FftError> {
     let mut commitments = Vec::new();
     let mut proofs = Vec::new();
     let mut versioned_hashes = Vec::new();
@@ -216,5 +218,48 @@ pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts
         versioned_hashes.push(versioned_hash);
     }
 
-    Ok(BlobArtifacts { commitments, proofs, versioned_hashes })
+    Ok(LegacyBlobArtifacts { commitments, proofs, versioned_hashes })
+}
+
+/// Structure to hold blob artifacts: commitments, cell proofs (CELLS_PER_EXT_BLOB per blob), and
+/// versioned hashes.
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BlobArtifacts {
+    #[serde_as(as = "Vec<Bytes>")]
+    pub commitments: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub cell_proofs: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub versioned_hashes: Vec<[u8; 32]>,
+}
+
+/// Computes KZG commitments, cell proofs, and versioned hashes for a list of raw blobs.
+///
+/// For each blob, computes the KZG commitment and the corresponding KZG cell proofs that is used
+/// to verify the commitment. Returns the internal `CellBlobs` structure with native KZG types.
+pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts, FftError> {
+    let mut commitments = Vec::new();
+    let mut cell_proofs = Vec::new();
+    let mut versioned_hashes = Vec::new();
+
+    for raw_blob in raw_blobs.iter() {
+        // Convert raw blob bytes to Blob.
+        let blob = Blob::from_bytes(raw_blob)?;
+
+        // Compute KZG commitment.
+        let commitment = blob_to_kzg_commitment(&blob)?;
+
+        // Compute KZG cell proofs.
+        let (_, blob_cell_proofs) = KZG_SETTINGS.compute_cells_and_kzg_proofs(&blob)?;
+
+        // Compute versioned hash.
+        let versioned_hash = kzg_to_versioned_hash(&commitment);
+
+        commitments.push(*commitment);
+        cell_proofs.extend(blob_cell_proofs.into_iter().map(|proof| *proof));
+        versioned_hashes.push(versioned_hash);
+    }
+
+    Ok(BlobArtifacts { commitments, cell_proofs, versioned_hashes })
 }
