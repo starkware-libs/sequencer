@@ -21,7 +21,6 @@ use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
-    L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
@@ -41,7 +40,6 @@ pub struct L1Scraper<B: BaseLayerContract> {
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
     pub clock: Arc<dyn Clock>,
-    last_successful_scrape_timestamp: Option<u64>,
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
@@ -59,7 +57,6 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
             clock: Arc::new(DefaultClock),
-            last_successful_scrape_timestamp: None,
         })
     }
 
@@ -179,17 +176,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                     warn!("BaseLayerError during scraping: {e:?}");
                 }
                 Ok(_) => {
-                    self.last_successful_scrape_timestamp = Some(self.clock.unix_now());
                     L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
                 }
                 Err(e) => return Err(e),
-            }
-
-            // Can reach this if Ok or if baselayer error. Other cases would return Err, crashing
-            // the node.
-            if let Some(last_successful_scrape_timestamp) = self.last_successful_scrape_timestamp {
-                L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE
-                    .set_lossy(self.clock.unix_now() - last_successful_scrape_timestamp);
             }
         }
     }

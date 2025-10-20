@@ -682,11 +682,11 @@
     "L1 Provider": {
       "panels": [
         {
-          "title": "l1_message_scraper_seconds_since_last_successful_scrape",
-          "description": "Number of seconds since the last successful scrape of the L1 message scraper",
+          "title": "Seconds since last successful l1 event scrape",
+          "description": "The number of seconds since the last successful scrape of the L1 message scraper (assuming there was a scrape in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "l1_message_scraper_seconds_since_last_successful_scrape{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "time() - max_over_time((timestamp(increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h]) != 0))[12h:])"
           ],
           "extra_params": {}
         },
@@ -722,6 +722,24 @@
     },
     "ETH→STRK Rate & L1 Gas Price": {
       "panels": [
+        {
+          "title": "Seconds since last successful L1 gas price scrape",
+          "description": "The number of seconds since the last successful scrape of the L1 gas price scraper (assuming there was a scrape in the last 12 hours)",
+          "type": "timeseries",
+          "exprs": [
+            "time() - max_over_time((timestamp(increase(l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h]) != 0))[12h:])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Seconds since last successful ETH→STRK rate update",
+          "description": "The number of seconds since the last successful ETH→STRK rate update (assuming there was an update in the last 12 hours)",
+          "type": "timeseries",
+          "exprs": [
+            "time() - max_over_time((timestamp(increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h]) != 0))[12h:])"
+          ],
+          "extra_params": {}
+        },
         {
           "title": "ETH→STRK Rate Query Success (binary)",
           "description": "Indicates whether the ETH→STRK rate query succeeded (1m window) \nExpected to be 1 every 15 minutes.",
