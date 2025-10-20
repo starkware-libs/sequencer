@@ -6,6 +6,7 @@ use apollo_config::converters::{
     deserialize_comma_separated_str,
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
+    serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -234,9 +235,7 @@ impl SerializeConfig for ContextConfig {
             ),
         ]);
         config.extend(ser_optional_param(
-            &self.validator_ids.as_ref().map(|accounts| {
-                accounts.iter().map(|addr| addr.0.to_string()).collect::<Vec<_>>().join(",")
-            }),
+            &serialize_optional_comma_separated(&self.validator_ids),
             "".to_string(),
             "validator_ids",
             "Optional explicit set of validator IDs (comma separated).",

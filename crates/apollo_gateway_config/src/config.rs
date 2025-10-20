@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use apollo_config::converters::deserialize_comma_separated_str;
+use apollo_config::converters::{
+    deserialize_comma_separated_str,
+    serialize_optional_comma_separated,
+};
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
@@ -47,9 +50,7 @@ impl SerializeConfig for GatewayConfig {
         ));
         dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
         dump.extend(ser_optional_param(
-            &self.authorized_declarer_accounts.as_ref().map(|accounts| {
-                accounts.iter().map(|addr| addr.0.to_string()).collect::<Vec<_>>().join(",")
-            }),
+            &serialize_optional_comma_separated(&self.authorized_declarer_accounts),
             "".to_string(),
             "authorized_declarer_accounts",
             "Authorized declarer accounts. If set, only these accounts can declare new contracts. \

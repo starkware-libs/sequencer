@@ -273,6 +273,18 @@ where
         .collect()
 }
 
+/// Serializes an optional list into a comma-separated string.
+/// Returns `None` if the input is `None`.
+pub fn serialize_optional_comma_separated<T>(list: &Option<Vec<T>>) -> Option<String>
+where
+    T: ToString,
+{
+    match list {
+        None => None,
+        Some(list) => Some(list.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(",")),
+    }
+}
+
 /// Deserializes an optional comma-separated list of values implementing `FromStr` into
 /// `Option<Vec<T>>`. Returns `None` for empty or missing strings.
 pub fn deserialize_comma_separated_str<'de, D, T>(de: D) -> Result<Option<Vec<T>>, D::Error>

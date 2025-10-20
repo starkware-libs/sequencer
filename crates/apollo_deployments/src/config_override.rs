@@ -1,9 +1,9 @@
 use std::path::Path;
 
+use apollo_config::converters::serialize_optional_comma_separated;
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use apollo_network::serialize_multi_addrs;
 use libp2p::Multiaddr;
 use serde::{Serialize, Serializer};
 use serde_json::to_value;
@@ -254,13 +254,8 @@ fn serialize_multi_addrs_wrapper<S>(
 where
     S: Serializer,
 {
-    match optional_multi_addrs {
+    match serialize_optional_comma_separated(optional_multi_addrs) {
         None => serializer.serialize_none(),
-        Some(multi_addrs) => {
-            // Call the implemented custom serialization function
-            let s = serialize_multi_addrs(&Some(multi_addrs.clone()));
-            // Serialize the returned String
-            serializer.serialize_some(&s)
-        }
+        Some(s) => serializer.serialize_some(&s),
     }
 }
