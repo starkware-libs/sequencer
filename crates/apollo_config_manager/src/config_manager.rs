@@ -6,7 +6,7 @@ use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStar
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
-use tracing::{info, instrument};
+use tracing::info;
 
 #[cfg(test)]
 #[path = "config_manager_tests.rs"]
@@ -45,7 +45,6 @@ impl ConfigManager {
 
 #[async_trait]
 impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for ConfigManager {
-    #[instrument(skip(self), ret)]
     async fn handle_request(&mut self, request: ConfigManagerRequest) -> ConfigManagerResponse {
         match request {
             // TODO(Nadin/Tsabary): consider using a macro to generate the responses for each type
