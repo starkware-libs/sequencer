@@ -41,6 +41,12 @@ jobs:
           # be computed.
           fetch-depth: 0
 
+      # Install rust components + lld.
+      - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
@@ -53,11 +59,6 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-      # Install rust components.
-      - uses: ./.github/actions/bootstrap
-        with:
-          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Check Cargo.lock is up to date.
       - name: "Check Cargo.lock"
