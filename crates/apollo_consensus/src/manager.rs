@@ -84,7 +84,10 @@ where
     register_metrics();
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(run_consensus_args.consensus_delay).await;
+
+    // Ensure the node begins observing consensus no later than it becomes active.
     assert!(run_consensus_args.start_observe_height <= run_consensus_args.start_active_height);
+
     let mut current_height = run_consensus_args.start_observe_height;
     let mut manager = MultiHeightManager::new(
         run_consensus_args.validator_id,
