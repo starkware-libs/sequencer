@@ -9,6 +9,7 @@ use apollo_time::time::{Clock, DateTime};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::{info, instrument};
 
 use crate::mempool::TransactionReference;
 use crate::metrics::TRANSACTION_TIME_SPENT_UNTIL_COMMITTED;
@@ -383,6 +384,7 @@ impl TimedTransactionMap {
     /// Removes all transactions that were submitted to the pool before the given duration.
     /// Transactions for accounts listed in exclude_txs with nonces lower than the specified nonce
     /// are preserved.
+    #[instrument(skip_all, parent = None)]
     pub fn remove_txs_older_than(
         &mut self,
         duration: Duration,
@@ -404,6 +406,7 @@ impl TimedTransactionMap {
                     "Transaction should have a submission ID if it is in the timed transaction \
                      map.",
                 );
+                info!("Removing expired transaction {:?}", tx.tx_hash);
                 removed_txs.push(tx);
             }
         }
