@@ -25,6 +25,7 @@ use apollo_config::converters::{
     deserialize_comma_separated_str,
     deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
+    serialize_optional_comma_separated,
     serialize_optional_vec_u8,
 };
 use apollo_config::dumping::{
@@ -44,18 +45,6 @@ use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
 pub(crate) type Bytes = Vec<u8>;
-
-// TODO(Tsabary): move to the config converter module.
-pub fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
-    match multi_addrs {
-        None => "".to_owned(),
-        Some(multi_addrs) => multi_addrs
-            .iter()
-            .map(|multiaddr| multiaddr.to_string())
-            .collect::<Vec<String>>()
-            .join(","),
-    }
-}
 
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
@@ -123,11 +112,7 @@ impl SerializeConfig for NetworkConfig {
         // TODO(Tsabary): this is not the proper way to dump a config. Needs fixing, and
         // specifically, need to move the condition to be part of the serialization fn.
         config.extend(ser_optional_param(
-            &if self.bootstrap_peer_multiaddr.is_some(){
-                Some(serialize_multi_addrs(&self.bootstrap_peer_multiaddr))
-            } else {
-                None
-            },
+            &serialize_optional_comma_separated(&self.bootstrap_peer_multiaddr),
             String::from(""),
             "bootstrap_peer_multiaddr",
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
