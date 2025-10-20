@@ -13,7 +13,7 @@ use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
+use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -33,8 +33,7 @@ use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
-use papyrus_base_layer::BaseLayerContract;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::clients::SequencerNodeClients;
 
@@ -367,6 +366,7 @@ pub async fn create_node_components(
 
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            // TODO(guyn): make base layer config a pointer, to be included in the scraper config.
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
             let l1_endpoint_monitor_config = config
@@ -381,13 +381,6 @@ pub async fn create_node_components(
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer =
                 EthereumBaseLayerContract::new(base_layer_config.clone(), initial_node_url.clone());
-            // TODO(guyn): figure out how to start in case we can't reach L1 to get the start block.
-            // TODO(guyn): maybe put the fetch_start_block logic inside the scraper loop?
-            let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
-                .await
-                .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
-
-            debug!("L1 start block: {l1_start_block:?}");
             let monitored_base_layer =
                 MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 
@@ -397,7 +390,6 @@ pub async fn create_node_components(
                     l1_provider_client,
                     monitored_base_layer,
                     event_identifiers_to_track(),
-                    l1_start_block,
                 )
                 .await
                 .unwrap(),
@@ -414,16 +406,9 @@ pub async fn create_node_components(
     let l1_provider = match config.components.l1_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let base_layer_config =
-                config.base_layer_config.as_ref().expect("Base Layer config should be set");
-            let l1_endpoint_monitor_config = config
-                .l1_endpoint_monitor_config
-                .as_ref()
-                .expect("L1 Endpoint Monitor config should be set");
-            let initial_node_url = l1_endpoint_monitor_config.ordered_l1_endpoint_urls[0].clone();
             let l1_provider_config =
                 config.l1_provider_config.expect("L1 Provider config should be set");
-            let mut l1_provider_builder = L1ProviderBuilder::new(
+            let l1_provider_builder = L1ProviderBuilder::new(
                 l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
                 clients.get_batcher_shared_client().unwrap(),
@@ -463,41 +448,11 @@ pub async fn create_node_components(
                     .catchup_height(batcher_height)
                     .build();
                 provider
-                    .initialize(vec![])
+                    .initialize(batcher_height, vec![])
                     .await
                     .expect("Failed to initialize L1 provider in dummy mode");
                 Some(provider)
             } else {
-                let l1_scraper = l1_scraper.as_ref().expect(
-                    "L1 provider's initialization requires the L1 scraper to be set up in order \
-                     to align to its height",
-                );
-                let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
-                let base_layer = EthereumBaseLayerContract::new(
-                    base_layer_config.clone(),
-                    initial_node_url.clone(),
-                );
-                // Which L2 block is already proved at the L1 height the scraper was initialized on.
-                // It is safe to start syncing the provider from this height.
-                let scraper_synced_startup_height = base_layer
-                        .get_proved_block_at(l1_scraper_start_l1_height)
-                        .await
-                        .map(|block| block.number)
-                        // This will likely only fail on tests, or on nodes that want to reexecute from
-                        // genesis. The former should override the height, or setup Anvil accordingly, and
-                        // the latter should use the correct L1 height.
-                        .inspect_err(|err|{
-                            debug!("Error while attempting to get the L2 block at the L1 height \
-                            the scraper was initialized on. This is either due to running a \
-                            test with faulty Anvil state, or if the scraper was initialized too \
-                            far back.  Will attempt to use provider startup height override \
-                            instead (read its docstring before using!).\n {err}")})
-                        .ok();
-
-                if let Some(height) = scraper_synced_startup_height {
-                    l1_provider_builder = l1_provider_builder.startup_height(height);
-                }
-
                 Some(l1_provider_builder.build())
             }
         }

@@ -74,7 +74,10 @@ pub enum L1ProviderRequest {
         n_txs: usize,
         height: BlockNumber,
     },
-    Initialize(Vec<Event>),
+    Initialize {
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    },
     StartBlock {
         state: SessionState,
         height: BlockNumber,
@@ -132,7 +135,11 @@ pub trait L1ProviderClient: Send + Sync {
     ) -> L1ProviderClientResult<()>;
 
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
-    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
+    async fn initialize(
+        &self,
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    ) -> L1ProviderClientResult<()>;
     async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot>;
 }
 
@@ -217,8 +224,12 @@ where
         )
     }
 
-    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
-        let request = L1ProviderRequest::Initialize(events);
+    async fn initialize(
+        &self,
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    ) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::Initialize { historic_l2_height, events };
         handle_all_response_variants!(
             L1ProviderResponse,
             Initialize,
