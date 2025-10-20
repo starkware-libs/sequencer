@@ -16,7 +16,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
-use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::communication::BatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{
     ConsensusContext,
@@ -747,7 +747,7 @@ impl SequencerConsensusContext {
     async fn interrupt_active_proposal(&mut self) {
         if let Some((token, handle)) = self.active_proposal.take() {
             token.cancel();
-            handle.await.expect("Proposal task failed, propogating panic");
+            handle.await.expect("Proposal task failed, propagating panic");
         }
     }
 
@@ -755,19 +755,13 @@ impl SequencerConsensusContext {
         &mut self,
         proposal_id: ProposalId,
     ) -> DecisionReachedResponse {
-        loop {
-            let input = DecisionReachedInput { proposal_id };
-            match self.deps.batcher.decision_reached(input).await {
-                Ok(response) => break response,
-                Err(BatcherClientError::BatcherError(e)) => {
-                    panic!("Failed to add decision due to batcher error: {e:?}");
-                }
-                Err(BatcherClientError::ClientError(e)) => {
-                    error!("Failed to add decision due to client error: {e:?}");
-                }
-            }
-            tokio::task::yield_now().await;
-        }
+        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
+        // should have a way to report an error and continue to the next height.
+        self.deps
+            .batcher
+            .decision_reached(DecisionReachedInput { proposal_id })
+            .await
+            .expect("Failed to add decision due to batcher error: {e:?}")
     }
 
     async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
@@ -775,50 +769,34 @@ impl SequencerConsensusContext {
             "Adding sync block to Batcher for height {}",
             sync_block.block_header_without_hash.block_number,
         );
-        loop {
-            match self.deps.batcher.add_sync_block(sync_block.clone()).await {
-                Ok(_) => break,
-                Err(BatcherClientError::BatcherError(e)) => {
-                    panic!("Failed to add sync block due to batcher error: {e:?}");
-                }
-                Err(BatcherClientError::ClientError(e)) => {
-                    error!("Failed to add sync block due to client error: {e:?}");
-                }
-            }
-            tokio::task::yield_now().await;
-        }
+        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
+        // should have a way to report an error and continue to the next height.
+        self.deps
+            .batcher
+            .add_sync_block(sync_block.clone())
+            .await
+            .expect("Failed to add sync block due to batcher error: {e:?}");
     }
 
     // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
     async fn sync_add_new_block(&mut self, sync_block: SyncBlock) {
-        loop {
-            match self.deps.state_sync_client.add_new_block(sync_block.clone()).await {
-                Ok(_) => break,
-                Err(StateSyncClientError::StateSyncError(e)) => {
-                    panic!("Failed to add new block due to sync error: {e:?}");
-                }
-                Err(StateSyncClientError::ClientError(e)) => {
-                    error!("Failed to add new block due to client error: {e:?}");
-                }
-            }
-            tokio::task::yield_now().await;
-        }
+        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
+        // should have a way to report an error and continue to the next height.
+        self.deps
+            .state_sync_client
+            .add_new_block(sync_block.clone())
+            .await
+            .expect("Failed to add new block due to sync error: {e:?}");
     }
 
     async fn batcher_start_height(&mut self, height: BlockNumber) {
-        loop {
-            let input = StartHeightInput { height };
-            match self.deps.batcher.start_height(input).await {
-                Ok(_) => break,
-                Err(BatcherClientError::BatcherError(e)) => {
-                    panic!("Failed to start height due to batcher error: height={height} {e:?}");
-                }
-                Err(BatcherClientError::ClientError(e)) => {
-                    error!("Failed to start height due to client error: height={height} {e:?}");
-                }
-            }
-            tokio::task::yield_now().await;
-        }
+        // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
+        // should have a way to report an error and continue to the next height.
+        self.deps
+            .batcher
+            .start_height(StartHeightInput { height })
+            .await
+            .expect("Failed to start height due to batcher error: {e:?}");
     }
 }
 
