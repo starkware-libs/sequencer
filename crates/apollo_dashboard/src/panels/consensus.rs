@@ -366,10 +366,10 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
 
 fn get_panel_consensus_network_events_by_type() -> Panel {
     Panel::new(
-        CONSENSUS_NETWORK_EVENTS.get_name(),
-        CONSENSUS_NETWORK_EVENTS.get_description(),
+        "Consensus Network Events By Type",
+        "Network events received by consensus p2p, by event type (10m window)",
         vec![format!(
-            "sum by ({}) ({})",
+            "sum by ({}) (increase({}[10m]))",
             LABEL_NAME_EVENT_TYPE,
             CONSENSUS_NETWORK_EVENTS.get_name_with_filter()
         )],
@@ -379,10 +379,10 @@ fn get_panel_consensus_network_events_by_type() -> Panel {
 
 fn get_panel_consensus_votes_dropped_messages_by_reason() -> Panel {
     Panel::new(
-        CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name(),
-        CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_description(),
+        "Consensus Votes Dropped Messages By Reason",
+        "The number of dropped consensus votes messages, by reason (10m window)",
         vec![format!(
-            "sum by ({}) ({})",
+            "sum by ({}) (increase({}[10m]))",
             LABEL_NAME_BROADCAST_DROP_REASON,
             CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name_with_filter()
         )],
@@ -392,10 +392,10 @@ fn get_panel_consensus_votes_dropped_messages_by_reason() -> Panel {
 
 fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
     Panel::new(
-        CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name(),
-        CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_description(),
+        "Consensus Proposals Dropped Messages By Reason",
+        "The number of dropped consensus proposals messages, by reason (10m window)",
         vec![format!(
-            "sum by ({}) ({})",
+            "sum by ({}) (increase({}[10m]))",
             LABEL_NAME_BROADCAST_DROP_REASON,
             CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name_with_filter()
         )],

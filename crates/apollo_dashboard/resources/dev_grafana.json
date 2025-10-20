@@ -803,7 +803,7 @@
           "extra_params": {}
         },
         {
-          "title": "eth_to_strk_rate",
+          "title": "ETH→STRK rate",
           "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1000000000000000000000)",
           "type": "timeseries",
           "exprs": [
@@ -1010,11 +1010,11 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_votes_num_dropped_messages",
-          "description": "The number of messages dropped by the consensus p2p component over the Votes topic",
+          "title": "Consensus Votes Dropped Messages By Reason",
+          "description": "The number of dropped consensus votes messages, by reason (10m window)",
           "type": "timeseries",
           "exprs": [
-            "sum by (drop_reason) (apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "sum by (drop_reason) (increase(apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {}
         },
@@ -1046,20 +1046,20 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_proposals_num_dropped_messages",
-          "description": "The number of messages dropped by the consensus p2p component over the Proposals topic",
+          "title": "Consensus Proposals Dropped Messages By Reason",
+          "description": "The number of dropped consensus proposals messages, by reason (10m window)",
           "type": "timeseries",
           "exprs": [
-            "sum by (drop_reason) (apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "sum by (drop_reason) (increase(apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_network_events",
-          "description": "Network events counter by event type for consensus",
+          "title": "Consensus Network Events By Type",
+          "description": "Network events received by consensus p2p, by event type (10m window)",
           "type": "timeseries",
           "exprs": [
-            "sum by (event_type) (apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "sum by (event_type) (increase(apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
           "extra_params": {}
         }
