@@ -566,17 +566,7 @@ impl AccountTransaction {
                 && self.tx.version() >= TransactionVersion::THREE
             {
                 if let Transaction::Declare(declare_tx) = &self.tx {
-                    if let Err((class_hash, compiled_class_hash, compiled_class_hash_v2)) =
-                        declare_tx.check_compile_class_hash_v2_declaration()
-                    {
-                        return Err(
-                            TransactionExecutionError::DeclareTransactionCasmHashMissMatch {
-                                class_hash,
-                                compiled_class_hash,
-                                compiled_class_hash_v2,
-                            },
-                        );
-                    }
+                    declare_tx.check_compile_class_hash_v2_declaration()?;
                 }
             }
             validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
