@@ -45,7 +45,6 @@ impl ConfigManager {
 
 #[async_trait]
 impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for ConfigManager {
-    #[instrument(skip(self), ret)]
     async fn handle_request(&mut self, request: ConfigManagerRequest) -> ConfigManagerResponse {
         match request {
             // TODO(Nadin/Tsabary): consider using a macro to generate the responses for each type
