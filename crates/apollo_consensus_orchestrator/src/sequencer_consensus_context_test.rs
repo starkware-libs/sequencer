@@ -13,7 +13,14 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceProviderError,
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote};
+use apollo_protobuf::consensus::{
+    ProposalCommitment,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
+};
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -23,7 +30,6 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
-    BlockHash,
     BlockNumber,
     GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
@@ -83,7 +89,7 @@ async fn validate_proposal_success() {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -145,7 +151,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         .await
         .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
-        proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver =
@@ -154,7 +160,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     let init = ProposalInit { round: 1, ..Default::default() };
-    context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), init).await;
+    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), init).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(receiver.next().await.unwrap(), block_info);
@@ -185,7 +191,7 @@ async fn proposals_from_different_rounds() {
     let prop_part_executed_count =
         ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap());
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
-        proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
     });
 
     // The proposal from the past round is ignored.
@@ -255,7 +261,7 @@ async fn interrupt_active_proposal() {
         .unwrap();
     content_sender_1
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -304,7 +310,7 @@ async fn build_proposal() {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -405,7 +411,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     // Re-propose.
     context
         .repropose(
-            BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             ProposalInit { round: 1, ..Default::default() },
         )
         .await;
@@ -504,7 +510,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -513,7 +519,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
     // the proposal should be still be valid due to the clamping of limit prices.
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
-    assert_eq!(fin_receiver.await, Ok(BlockHash(STATE_DIFF_COMMITMENT.0.0)));
+    assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
 }
 
 #[tokio::test]
@@ -565,7 +571,10 @@ async fn decision_reached_sends_correct_values() {
         ..Default::default()
     };
 
-    context.decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![vote]).await.unwrap();
+    context
+        .decision_reached(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), vec![vote])
+        .await
+        .unwrap();
 
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
@@ -638,7 +647,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -726,22 +735,22 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    let block_hash = fin_receiver.await.unwrap().0;
-    assert_eq!(block_hash, STATE_DIFF_COMMITMENT.0.0);
+    let proposal_commitment = fin_receiver.await.unwrap();
+    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Decision reached
 
     context
         .decision_reached(
-            BlockHash(block_hash),
-            vec![Vote { block_hash: Some(BlockHash(block_hash)), ..Default::default() }],
+            proposal_commitment,
+            vec![Vote { proposal_commitment: Some(proposal_commitment), ..Default::default() }],
         )
         .await
         .unwrap();
@@ -779,7 +788,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -820,7 +829,7 @@ async fn constant_l2_gas_price_behavior(
     // Run proposal and decision logic.
     let _fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
     context
-        .decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
+        .decision_reached(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
         .await
         .unwrap();
 

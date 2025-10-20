@@ -23,7 +23,7 @@ use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_time::time::{sleep_until, Clock, DateTime};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
@@ -463,7 +463,7 @@ async fn handle_proposal_part(
                     unreachable!("Unexpected batcher status for fin: {status:?}");
                 }
             };
-            let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
+            let batcher_block_id = ProposalCommitment(response_id.state_diff_commitment.0.0);
 
             info!(
                 network_block_id = ?fin.proposal_commitment,

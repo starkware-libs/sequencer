@@ -2143,6 +2143,7 @@ version = "0.16.0-rc.0"
 dependencies = [
  "apollo_test_utils",
  "bytes",
+ "derive_more 0.99.20",
  "indexmap 2.11.0",
  "lazy_static",
  "papyrus_common",

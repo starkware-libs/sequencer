@@ -26,7 +26,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
 };
 use apollo_time::time::{Clock, DateTime};
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -241,7 +241,7 @@ async fn get_proposal_content(
                     .expect("Failed to broadcast proposal content");
             }
             GetProposalContent::Finished { id, final_n_executed_txs } => {
-                let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
+                let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
                 content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
 
                 info!(
