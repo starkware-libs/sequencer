@@ -77,6 +77,7 @@ pub(crate) fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
         PanelType::TimeSeries,
     )
 }
+
 pub(crate) fn get_panel_consensus_round() -> Panel {
     Panel::new(
         "Consensus Round",
@@ -87,6 +88,7 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 pub(crate) fn get_panel_consensus_round_advanced() -> Panel {
     Panel::new(
         "Consensus Round Advanced",
@@ -122,6 +124,7 @@ pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     )
     .with_unit(Unit::Seconds)
 }
+
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
         "Decisions Reached By Consensus",
@@ -135,6 +138,7 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     .with_log_query("DECISION_REACHED: Decision reached for round")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
         "Decisions Reached By Sync",
@@ -148,6 +152,7 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     .with_log_query("Decision learned via sync protocol.")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Received Proposals",
@@ -156,6 +161,7 @@ fn get_panel_consensus_proposals_received() -> Panel {
         PanelType::TimeSeries,
     )
 }
+
 fn get_panel_consensus_proposals_validated() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Validated Proposals",
@@ -166,6 +172,7 @@ fn get_panel_consensus_proposals_validated() -> Panel {
     .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Invalid Proposals",
@@ -176,6 +183,7 @@ fn get_panel_consensus_proposals_invalid() -> Panel {
     .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Validation: Proposal Failure by Reason",
@@ -190,6 +198,7 @@ fn get_panel_validate_proposal_failure() -> Panel {
     .with_log_query("PROPOSAL_FAILED: Proposal failed as validator")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
         "Proposal Build: Number of Proposals Started",
@@ -198,6 +207,7 @@ fn get_panel_consensus_build_proposal_total() -> Panel {
         PanelType::TimeSeries,
     )
 }
+
 fn get_panel_consensus_build_proposal_failed() -> Panel {
     Panel::new(
         "Proposal Build: Number of Proposals Failed",
@@ -206,6 +216,7 @@ fn get_panel_consensus_build_proposal_failed() -> Panel {
         PanelType::TimeSeries,
     )
 }
+
 fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Build: Proposal Failure by Reason",
@@ -220,6 +231,7 @@ fn get_panel_build_proposal_failure() -> Panel {
     .with_log_query("PROPOSAL_FAILED: Proposal failed as proposer")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
         "Consensus Timeouts By Type",
@@ -239,6 +251,7 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
     .with_log_query("Applying Timeout")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
+
 fn get_panel_consensus_l2_gas_price() -> Panel {
     Panel::new(
         "L2 Gas Price (GFri)",
@@ -247,66 +260,7 @@ fn get_panel_consensus_l2_gas_price() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_consensus_num_connected_peers() -> Panel {
-    Panel::new(
-        "Number of Connected Peers",
-        "The number of connected peers in Consensus P2P",
-        vec![CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter().to_string()],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_votes_num_sent_messages() -> Panel {
-    Panel::new(
-        "Consensus Votes Number of Sent Messages",
-        "The increase in the number of vote messages sent by consensus p2p (10m window)",
-        vec![format!(
-            "increase({}[10m])",
-            CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_votes_num_received_messages() -> Panel {
-    Panel::new(
-        "Consensus Votes Number of Received Messages",
-        "The increase in the number of vote messages received by consensus p2p (10m window)",
-        vec![format!(
-            "increase({}[10m])",
-            CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
-    Panel::new(
-        "Consensus Proposals Number of Sent Messages",
-        "The increase in the number of proposal messages sent by consensus p2p (10m window)",
-        vec![format!(
-            "increase({}[10m])",
-            CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_proposals_num_received_messages() -> Panel {
-    Panel::new(
-        "Consensus Proposals Number of Received Messages",
-        "The increase in the number of proposal messages received by consensus p2p (10m window)",
-        vec![format!(
-            "increase({}[10m])",
-            CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES.get_name_with_filter()
-        )],
-        PanelType::TimeSeries,
-    )
-}
-fn get_panel_consensus_conflicting_votes() -> Panel {
-    Panel::new(
-        "Consensus Conflicting Votes",
-        "The increase in the number of conflicting votes (12h window)",
-        vec![format!("increase({}[12h])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter())],
-        PanelType::TimeSeries,
-    )
-}
+
 fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
     Panel::new(
         "Last Prepared Blob Block Number",
@@ -316,6 +270,7 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
     )
     .with_log_query("Blob for block number")
 }
+
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
     Panel::from_hist(
         &CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
@@ -324,6 +279,7 @@ fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
     )
     .with_unit(Unit::Seconds)
 }
+
 fn get_panel_cende_write_blob_success() -> Panel {
     let query_expression = [
         "\"Blob for block number\"",
@@ -340,6 +296,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
     )
     .with_log_query(query_expression)
 }
+
 fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
@@ -353,6 +310,7 @@ fn get_panel_cende_write_blob_failure() -> Panel {
     )
     .with_log_query("CENDE_FAILURE")
 }
+
 fn get_panel_cende_write_preconfirmed_block() -> Panel {
     Panel::new(
         "Write Preconfirmed Block Success",
@@ -364,42 +322,113 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
     .with_log_query("write_pre_confirmed_block request succeeded.")
 }
 
+fn get_panel_consensus_num_connected_peers() -> Panel {
+    Panel::new(
+        "Number of Connected Peers",
+        "The number of connected peers in Consensus P2P",
+        vec![CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter().to_string()],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_votes_num_sent_messages() -> Panel {
+    Panel::new(
+        "Consensus Votes Number of Sent Messages",
+        "The increase in the number of vote messages sent by consensus p2p (over the selected \
+         time range)",
+        vec![format!(
+            "increase({}[$__range])",
+            CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_votes_num_received_messages() -> Panel {
+    Panel::new(
+        "Consensus Votes Number of Received Messages",
+        "The increase in the number of vote messages received by consensus p2p (over the selected \
+         time range)",
+        vec![format!(
+            "increase({}[$__range])",
+            CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
+    Panel::new(
+        "Consensus Proposals Number of Sent Messages",
+        "The increase in the number of proposal messages sent by consensus p2p (over the selected \
+         time range)",
+        vec![format!(
+            "increase({}[$__range])",
+            CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_proposals_num_received_messages() -> Panel {
+    Panel::new(
+        "Consensus Proposals Number of Received Messages",
+        "The increase in the number of proposal messages received by consensus p2p (over the \
+         selected time range)",
+        vec![format!(
+            "increase({}[$__range])",
+            CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES.get_name_with_filter()
+        )],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_consensus_conflicting_votes() -> Panel {
+    Panel::new(
+        "Consensus Conflicting Votes",
+        "The increase in the number of conflicting votes (over the selected time range)",
+        vec![format!("increase({}[$__range])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter())],
+        PanelType::Stat,
+    )
+}
+
 fn get_panel_consensus_network_events_by_type() -> Panel {
     Panel::new(
-        CONSENSUS_NETWORK_EVENTS.get_name(),
-        CONSENSUS_NETWORK_EVENTS.get_description(),
+        "Consensus Network Events By Type",
+        "Network events received by consensus p2p, by event type (over the selected time range)",
         vec![format!(
-            "sum by ({}) ({})",
+            "sum by ({}) (increase({}[$__range])) > 0",
             LABEL_NAME_EVENT_TYPE,
             CONSENSUS_NETWORK_EVENTS.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
 }
 
 fn get_panel_consensus_votes_dropped_messages_by_reason() -> Panel {
     Panel::new(
-        CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name(),
-        CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_description(),
+        "Consensus Votes Dropped Messages By Reason",
+        "The number of dropped consensus votes messages, by reason (over the selected time range)",
         vec![format!(
-            "sum by ({}) ({})",
+            "sum by ({}) (increase({}[$__range])) > 0",
             LABEL_NAME_BROADCAST_DROP_REASON,
             CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
 }
 
 fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
     Panel::new(
-        CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name(),
-        CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_description(),
+        "Consensus Proposals Dropped Messages By Reason",
+        "The number of dropped consensus proposals messages, by reason (over the selected time \
+         range)",
         vec![format!(
-            "sum by ({}) ({})",
+            "sum by ({}) (increase({}[$__range])) > 0",
             LABEL_NAME_BROADCAST_DROP_REASON,
             CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
 }
 

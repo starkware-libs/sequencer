@@ -36,7 +36,7 @@ fn get_panel_eth_to_strk_success_count() -> Panel {
 
 fn get_panel_eth_to_strk_rate() -> Panel {
     Panel::new(
-        ETH_TO_STRK_RATE.get_name(),
+        "ETH→STRK rate",
         format!("ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE={DEFAULT_ETH_TO_FRI_RATE})"),
         vec![format!("{} / {}", ETH_TO_STRK_RATE.get_name_with_filter(), DEFAULT_ETH_TO_FRI_RATE)],
         PanelType::TimeSeries,
