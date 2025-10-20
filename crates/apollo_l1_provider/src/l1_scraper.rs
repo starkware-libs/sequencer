@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
+use starknet_api::block::BlockNumber;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::time::sleep;
@@ -37,7 +38,7 @@ const L1_BLOCK_TIME: u64 = 10;
 pub struct L1Scraper<B: BaseLayerContract> {
     pub config: L1ScraperConfig,
     pub base_layer: B,
-    pub last_l1_block_processed: L1BlockReference,
+    pub scrape_from_this_l1_block: Option<L1BlockReference>,
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
     pub clock: Arc<dyn Clock>,
@@ -49,39 +50,108 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         l1_provider_client: SharedL1ProviderClient,
         base_layer: B,
         events_identifiers_to_track: &[EventIdentifier],
-        l1_start_block: L1BlockReference,
     ) -> L1ScraperResult<Self, B> {
         Ok(Self {
             l1_provider_client,
             base_layer,
-            last_l1_block_processed: l1_start_block,
+            scrape_from_this_l1_block: None,
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
             clock: Arc::new(DefaultClock),
         })
     }
 
-    /// Send an initialize message to the L1 provider, including events scraped on the first
-    /// iteration. The provider will return an error if it was already initialized (e.g., if the
-    /// scraper was restarted).
+    /// Use config.startup_rewind_time_seconds to estimate an L1 block number
+    /// that is far enough back to start scraping from.
+    pub async fn fetch_start_block(&self) -> Result<L1BlockReference, L1ScraperError<B>> {
+        let finality = self.config.finality;
+        let latest_l1_block_number = self
+            .base_layer
+            .latest_l1_block_number(finality)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?;
+        debug!("Latest L1 block number: {latest_l1_block_number:?}");
+
+        // Estimate the number of blocks in the interval, to rewind from the latest block.
+        let blocks_in_interval = self.config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
+        debug!("Blocks in interval: {blocks_in_interval}");
+
+        // Add 50% safety margin.
+        let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
+        debug!("Safe blocks in interval: {safe_blocks_in_interval}");
+
+        let l1_block_number_rewind = latest_l1_block_number.saturating_sub(safe_blocks_in_interval);
+        debug!("L1 block number rewind: {l1_block_number_rewind}");
+
+        let block_reference_rewind = self
+            .base_layer
+            .l1_block_at(l1_block_number_rewind)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?
+            .unwrap_or_else(|| {
+                panic!(
+                    "Rewound L1 block number is between 0 and the verified latest L1 block \
+                     {latest_l1_block_number}, so should exist",
+                )
+            });
+        debug!("Block reference rewind: {block_reference_rewind:?}");
+
+        Ok(block_reference_rewind)
+    }
+
+    /// Get the last historic L2 height that was proved before the start block number.
+    async fn get_last_historic_l2_height(&self) -> L1ScraperResult<BlockNumber, B> {
+        let Some(start_block) = self.scrape_from_this_l1_block else {
+            panic!(
+                "Should never get last historic L2 height without first getting the last \
+                 processed L1 block."
+            );
+        };
+        // On a new L1 chain (e.g., in a test), there is no way to get a proved block. We just
+        // assume the historic L2 height is 0.
+        if start_block.number == 0 {
+            return Ok(BlockNumber(0));
+        }
+        let last_historic_l2_height = self
+            .base_layer
+            .get_proved_block_at(start_block.number)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?
+            .number;
+        Ok(last_historic_l2_height)
+    }
+
+    /// Send an initialize message to the L1 provider, including the last L2 height that was proved
+    /// before the start block number, and all events scraped from that L1 block until current
+    /// block. The provider will return an error if it was already initialized (e.g., if the scraper
+    /// was restarted).
     #[instrument(skip(self), err)]
-    async fn initialize(&mut self) -> L1ScraperResult<(), B> {
+    async fn initialize(&mut self, last_historic_l2_height: BlockNumber) -> L1ScraperResult<(), B> {
         let (latest_l1_block, events) = self.fetch_events().await?;
 
         debug!("Latest L1 block for initialize: {latest_l1_block:?}");
         debug!("All events scraped during initialize: {events:?}");
 
         // If this gets too high, send in batches.
-        let initialize_result = self.l1_provider_client.initialize(events).await;
+        let initialize_result =
+            self.l1_provider_client.initialize(last_historic_l2_height, events).await;
         handle_client_error(initialize_result)?;
 
-        self.last_l1_block_processed = latest_l1_block;
+        // Successfully scraped events up to latest l1 block.
+        self.scrape_from_this_l1_block = Some(latest_l1_block);
 
         Ok(())
     }
 
     /// Scrape recent events and send them to the L1 provider.
     pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
+        if self.scrape_from_this_l1_block.is_none() {
+            panic!(
+                "Scraper initialization was skipped. Must provide a value for \
+                 scrape_from_this_l1_block. Value is given by a call to fetch_start_block() in \
+                 run(). Did you forget to call run()?"
+            )
+        }
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
@@ -95,12 +165,13 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let add_events_result = self.l1_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
-        self.last_l1_block_processed = latest_l1_block;
+        // Successfully scraped events up to latest l1 block.
+        self.scrape_from_this_l1_block = Some(latest_l1_block);
 
         Ok(())
     }
 
-    /// Query the L1 base layer for all events since last_l1_block_processed.
+    /// Query the L1 base layer for all events since scrape_from_this_l1_block.
     async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
         let scrape_timestamp = self.clock.unix_now();
 
@@ -116,17 +187,20 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
             );
         };
+        let Some(scrape_from_this_l1_block) = self.scrape_from_this_l1_block else {
+            panic!("Should never fetch events without first getting the last processed L1 block.");
+        };
         // This can happen if, e.g., changing base layers. Should ignore and try scraping again.
-        if latest_l1_block.number <= self.last_l1_block_processed.number {
+        if latest_l1_block.number <= scrape_from_this_l1_block.number {
             warn!(
                 "Latest L1 block number {} is not greater than the last processed L1 block number \
                  {}. Ignoring, will try again on the next interval.",
-                latest_l1_block.number, self.last_l1_block_processed.number
+                latest_l1_block.number, scrape_from_this_l1_block.number
             );
-            return Ok((self.last_l1_block_processed, vec![]));
+            return Ok((scrape_from_this_l1_block, vec![]));
         }
 
-        let scraping_start_number = self.last_l1_block_processed.number + 1;
+        let scraping_start_number = scrape_from_this_l1_block.number + 1;
         let scraping_result = self
             .base_layer
             .events(scraping_start_number..=latest_l1_block.number, &self.tracked_event_identifiers)
@@ -189,24 +263,69 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok((latest_l1_block, events))
     }
 
+    async fn sleep_for_base_layer_error(
+        &self,
+        description: &str,
+        e: L1ScraperError<B>,
+    ) -> L1ScraperResult<(), B> {
+        match &e {
+            L1ScraperError::BaseLayerError(_) => {
+                warn!("Error while {description}: {e}");
+                L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                // TODO(guyn): do we want a different interval here? Maybe doesn't really matter.
+                sleep(self.config.polling_interval_seconds).await;
+                Ok(())
+            }
+            _ => Err(e),
+        }
+    }
+
     #[instrument(skip(self), err)]
     pub async fn run(&mut self) -> L1ScraperResult<(), B> {
+        // This is the startup loop, getting start blocks (on L1 and L2) and sending the first batch
+        // of scraped events to the provider.
         loop {
-            match self.initialize().await {
-                Err(L1ScraperError::BaseLayerError(e)) => {
-                    warn!("BaseLayerError during initialization: {e:?}");
-                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+            match self.fetch_start_block().await {
+                Ok(start_block) => {
+                    // We didn't scrape anything up to this block, but it is far enough in the past
+                    // that we can ignore events up to this block (inclusive).
+                    self.scrape_from_this_l1_block = Some(start_block);
+                    debug!("Start block on L1 is: {start_block:?}");
                 }
-                Ok(_) => break,
-                Err(e) => return Err(e),
+                Err(e) => {
+                    self.sleep_for_base_layer_error("fetching start block", e).await?;
+                    continue;
+                }
+            }
+
+            // TODO(guyn): add an override in case the chain does not have any proved blocks yet.
+            let last_historic_l2_height = match self.get_last_historic_l2_height().await {
+                Ok(height) => {
+                    debug!("Last historic L2 height is: {height}");
+                    height
+                }
+                Err(e) => {
+                    self.sleep_for_base_layer_error("fetching last historic L2 height", e).await?;
+                    continue;
+                }
             };
 
-            // Outside of the match branch due to lifetime issues.
-            sleep(self.config.polling_interval_seconds).await;
+            // Initialize fetches events from start block up to latest, sends them to the provider.
+            // TODO(guyn): the next comment will be implemented in one of the next PRs:
+            // It also sends the provider the start l1 block number, to allow it to find the l2
+            // block height to start sync from.
+            match self.initialize(last_historic_l2_height).await {
+                Err(e) => {
+                    self.sleep_for_base_layer_error("initializing", e).await?;
+                    continue;
+                }
+                Ok(_) => break,
+            };
         }
 
+        // This is the main (steady state) loop.
         loop {
-            // TODO(guyn): move sleep to the end of the loop.
+            // Sleep at start of loop, as we get here right after successful initialize+break.
             sleep(self.config.polling_interval_seconds).await;
 
             match self.send_events_to_l1_provider().await {
@@ -222,12 +341,18 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         }
     }
 
-    /// Fetch last_l1_block_processed again, check it still exists and that its hash is the same.
+    /// Fetch scrape_from_this_l1_block again, check it still exists and that its hash is the same.
     /// If a reorg occurred up to this block, return an error (existing data in the provider is
     /// stale).
     async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
-        let last_processed_l1_block_number = self.last_l1_block_processed.number;
-        let last_processed_l1_block_hash = self.last_l1_block_processed.hash;
+        let Some(scrape_from_this_l1_block) = self.scrape_from_this_l1_block else {
+            panic!(
+                "Should never assert no l1 reorgs without first getting the last processed L1 \
+                 block."
+            );
+        };
+        let last_processed_l1_block_number = scrape_from_this_l1_block.number;
+        let last_processed_l1_block_hash = scrape_from_this_l1_block.hash;
         let last_block_processed_fresh = self
             .base_layer
             .l1_block_at(last_processed_l1_block_number)
@@ -259,45 +384,6 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         Ok(())
     }
-}
-
-/// Use config.startup_rewind_time_seconds to estimate an L1 block number
-/// that is far enough back to start scraping from.
-pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
-    base_layer: &B,
-    config: &L1ScraperConfig,
-) -> Result<L1BlockReference, L1ScraperError<B>> {
-    let finality = config.finality;
-    let latest_l1_block_number = base_layer
-        .latest_l1_block_number(finality)
-        .await
-        .map_err(L1ScraperError::BaseLayerError)?;
-    debug!("Latest L1 block number: {latest_l1_block_number:?}");
-
-    // Estimate the number of blocks in the interval, to rewind from the latest block.
-    let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
-    debug!("Blocks in interval: {blocks_in_interval}");
-
-    // Add 50% safety margin.
-    let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
-    debug!("Safe blocks in interval: {safe_blocks_in_interval}");
-
-    let l1_block_number_rewind = latest_l1_block_number.saturating_sub(safe_blocks_in_interval);
-    debug!("L1 block number rewind: {l1_block_number_rewind}");
-
-    let block_reference_rewind = base_layer
-        .l1_block_at(l1_block_number_rewind)
-        .await
-        .map_err(L1ScraperError::BaseLayerError)?
-        .unwrap_or_else(|| {
-            panic!(
-                "Rewound L1 block number is between 0 and the verified latest L1 block \
-                 {latest_l1_block_number}, so should exist",
-            )
-        });
-    debug!("Block reference rewind: {block_reference_rewind:?}");
-
-    Ok(block_reference_rewind)
 }
 
 #[async_trait]

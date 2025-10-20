@@ -103,10 +103,10 @@ impl From<L1ProviderContent> for L1Provider {
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             // Defaulting to Pending state, since a provider with a "default" Bootstrapper
             // is functionally equivalent to Pending for testing purposes.
-            state: content.state.unwrap_or(ProviderState::Pending),
+            state: content.state.unwrap_or(ProviderState::Uninitialized),
             bootstrapper,
             current_height: content.current_height.unwrap_or_default(),
-            start_height: content.current_height.unwrap_or_default(),
+            start_height: content.current_height,
             clock: content.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }
@@ -621,7 +621,11 @@ impl L1ProviderClient for FakeL1ProviderClient {
         todo!()
     }
 
-    async fn initialize(&self, _events: Vec<Event>) -> L1ProviderClientResult<()> {
+    async fn initialize(
+        &self,
+        _last_historic_l2_height: BlockNumber,
+        _events: Vec<Event>,
+    ) -> L1ProviderClientResult<()> {
         todo!()
     }
 
