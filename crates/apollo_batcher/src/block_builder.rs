@@ -55,6 +55,10 @@ use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender}
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
+/// Minimum timeout for block building before finishing due to timeout without new transactions.
+// TODO(dan): Make this configurable and fix the corresponding test.
+pub const MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS: u64 = 2;
+
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
     #[error(transparent)]
@@ -181,6 +185,9 @@ pub struct BlockBuilder {
     n_concurrent_txs: usize,
     tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
+
+    /// Timestamp when block building started.
+    block_building_start: tokio::time::Instant,
 }
 
 impl BlockBuilder {
@@ -214,6 +221,7 @@ impl BlockBuilder {
             n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
+            block_building_start: tokio::time::Instant::now(),
         }
     }
 }
@@ -278,7 +286,24 @@ impl BlockBuilder {
             }
 
             match self.add_txs_to_executor().await? {
-                AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
+                AddTxsToExecutorResult::NoNewTxs => {
+                    if self.should_finish_due_to_timeout_while_propose() {
+                        info!(
+                            "No new transaction received and {} passed since block building \
+                             started, finishing block building.",
+                            MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+                        );
+                        crate::metrics::BLOCK_CLOSE_REASON.increment(
+                            1,
+                            &[(
+                                crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                                crate::metrics::BlockCloseReason::NoNewTxsTimeout.into(),
+                            )],
+                        );
+                        break;
+                    }
+                    self.sleep().await;
+                }
                 AddTxsToExecutorResult::NewTxs => {}
             }
         }
@@ -498,6 +523,15 @@ impl BlockBuilder {
                 );
             }
         }
+    }
+
+    fn should_finish_due_to_timeout_while_propose(&self) -> bool {
+        if self.execution_params.is_validator {
+            return false;
+        };
+        let now = tokio::time::Instant::now();
+        let time_since_start = now.duration_since(self.block_building_start);
+        time_since_start.as_secs() >= MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
     }
 
     async fn sleep(&mut self) {

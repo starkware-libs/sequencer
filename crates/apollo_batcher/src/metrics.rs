@@ -58,6 +58,10 @@ pub const LABEL_NAME_BLOCK_CLOSE_REASON: &str = "block_close_reason";
 pub enum BlockCloseReason {
     FullBlock,
     Deadline,
+    /// Block building finished because no new transactions were received from the provider and the
+    ///  minimal timeout ([`crate::block_builder::MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS`])
+    /// passed.
+    NoNewTxsTimeout,
 }
 
 generate_permutation_labels! {

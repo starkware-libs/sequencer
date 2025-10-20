@@ -432,6 +432,47 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     }
 }
 
+fn timeout_no_new_txs_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..2); // Start with some transactions
+    let input_txs_clone = input_txs.clone();
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_successful_get_new_results(input_txs.len());
+    helper.expect_is_done(false);
+    // After processing initial transactions, no more transactions will be provided
+    // This will trigger the timeout after TEST_TIMEOUT_SECS
+    helper.deadline_expectations();
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut helper.mock_transaction_executor, input_txs.len());
+
+    // Mock provider that returns initial transactions, then empty chunks
+    let mut mock_tx_provider = MockTransactionProvider::new();
+
+    // First call returns the initial transactions
+    mock_tx_provider.expect_get_final_n_executed_txs().times(1).return_const(None);
+    mock_tx_provider
+        .expect_get_txs()
+        .times(1)
+        .with(eq(N_CONCURRENT_TXS))
+        .return_once(move |_n_txs| Ok(input_txs));
+
+    // Subsequent calls return empty (no new transactions)
+    mock_tx_provider.expect_get_final_n_executed_txs().return_const(None);
+    mock_tx_provider.expect_get_txs().with(eq(N_CONCURRENT_TXS)).returning(|_n_txs| Ok(vec![]));
+
+    TestExpectations {
+        mock_transaction_executor: helper.mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: input_txs_clone,
+        expected_full_blocks_metric: 0,
+    }
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(
@@ -680,6 +721,64 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
         &recorder.handle().render(),
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_build_block_timeout_no_new_txs() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    BLOCK_CLOSE_REASON.register();
+    let metrics = recorder.handle().render();
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(
+        &metrics,
+        0,
+        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::NoNewTxsTimeout.into())],
+    );
+
+    let test_expectations = timeout_no_new_txs_test_expectations();
+    let (output_tx_sender, output_tx_receiver) = output_channel();
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    // Use a longer deadline than the timeout to ensure timeout triggers first
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(5);
+    let transaction_converter = TransactionConverter::new(
+        Arc::new(MockClassManagerClient::new()),
+        CHAIN_ID_FOR_TESTS.clone(),
+    );
+    let mut block_builder = BlockBuilder::new(
+        test_expectations.mock_transaction_executor,
+        Box::new(test_expectations.mock_tx_provider),
+        Some(output_tx_sender),
+        None,
+        None,
+        abort_receiver,
+        transaction_converter,
+        N_CONCURRENT_TXS,
+        TX_POLLING_INTERVAL,
+        BlockBuilderExecutionParams { deadline, is_validator: false },
+    );
+
+    // This test will actually wait for the 2-second timeout
+    // TODO(dan): Make the timeout configurable so we can use a shorter timeout for testing
+    // For now, this test takes ~2 seconds to complete due to the hardcoded timeout
+    let result_block_artifacts = block_builder.build_block().await.unwrap();
+
+    verify_build_block_output(
+        test_expectations.expected_txs_output,
+        test_expectations.expected_block_artifacts,
+        result_block_artifacts,
+        output_tx_receiver,
+        test_expectations.expected_full_blocks_metric,
+        &recorder.handle().render(),
+    )
+    .await;
+
+    // Verify the timeout metric was recorded
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(
+        &recorder.handle().render(),
+        1,
+        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::NoNewTxsTimeout.into())],
+    );
 }
 
 #[tokio::test]
