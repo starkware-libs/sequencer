@@ -21,15 +21,7 @@ use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
-<<<<<<< HEAD
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
-||||||| 9552005d0
-use num_rational::Ratio;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
-=======
-use num_rational::Ratio;
 use starknet_api::block::{BlockNumber, GasPrice};
->>>>>>> origin/main-v0.14.1
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tokio_util::sync::CancellationToken;
