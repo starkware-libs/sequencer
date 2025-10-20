@@ -3,6 +3,7 @@
 mod core_test;
 
 use std::fmt::Debug;
+use std::str::FromStr;
 use std::sync::LazyLock;
 
 use num_traits::ToPrimitive;
@@ -153,6 +154,15 @@ impl From<u128> for ContractAddress {
 }
 
 impl_from_through_intermediate!(u128, ContractAddress, u8, u16, u32, u64);
+
+impl FromStr for ContractAddress {
+    type Err = StarknetApiError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let felt = Felt::from_str(s)
+            .map_err(|e| StarknetApiError::OutOfRange { string: format!("{e}") })?;
+        Ok(ContractAddress(PatriciaKey::try_from(felt)?))
+    }
+}
 
 /// The maximal size of storage var.
 pub const MAX_STORAGE_ITEM_SIZE: u16 = 256;
