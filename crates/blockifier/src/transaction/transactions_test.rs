@@ -21,7 +21,7 @@ use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ascii_as_felt, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
@@ -1789,7 +1789,9 @@ fn test_declare_redeposit_amount_regression() {
 #[apply(cairo_version)]
 #[case(TransactionVersion::ZERO, CairoVersion::Cairo0, None)]
 #[case(TransactionVersion::ONE, CairoVersion::Cairo0, None)]
-#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), None)]
+#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), Some(HashVersion::V2))]
+#[should_panic(expected = "DeclareTransactionCasmHashMissMatch")]
+#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), Some(HashVersion::V1))]
 #[case(
     TransactionVersion::THREE,
     CairoVersion::Cairo1(RunnableCairo1::Casm),
@@ -1819,11 +1821,10 @@ fn test_declare_tx(
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
-    let hash_version = match hash_version {
-        Some(hash_version) => hash_version,
-        None => HashVersion::V2,
-    };
-    let compiled_class_hash = empty_contract.get_compiled_class_hash(&hash_version);
+    let mut compiled_class_hash = CompiledClassHash::default();
+    if let Some(hash_version) = hash_version {
+        compiled_class_hash = empty_contract.get_compiled_class_hash(&hash_version);
+    }
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
