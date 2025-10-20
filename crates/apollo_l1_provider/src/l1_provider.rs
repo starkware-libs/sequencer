@@ -52,6 +52,8 @@ impl L1Provider {
     // Start the provider, get first-scrape events, start L2 sync.
     pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
         info!("Initializing l1 provider");
+        // TODO(guyn): a future PR will replace this check. It will also no longer trigger the
+        // start_l2_sync call.
         if !self.state.is_bootstrapping() {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
             // restart from the infra, since this CAN happen if the scraper recovered from a crash.
@@ -190,6 +192,7 @@ impl L1Provider {
             }
             ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionGetTransactions),
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
+            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
     }
 
@@ -219,6 +222,7 @@ impl L1Provider {
                 );
             }
             ProviderState::Bootstrap => Err(L1ProviderError::OutOfSessionValidate),
+            ProviderState::Uninitialized => Err(L1ProviderError::Uninitialized),
         }
     }
 
@@ -534,6 +538,7 @@ impl L1ProviderBuilder {
                 self.config.l1_handler_cancellation_timelock_seconds,
                 self.config.l1_handler_consumption_timelock_seconds,
             ),
+            // TODO(guyn): in a future PR, this will be replaced with ProviderState::Uninitialized.
             state: ProviderState::Bootstrap,
             config: self.config,
             clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
