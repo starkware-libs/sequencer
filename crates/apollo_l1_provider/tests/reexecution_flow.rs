@@ -27,7 +27,7 @@ async fn reexecution_flow_historical_blocks_ignored() {
     .build();
 
     // Initialize the provider
-    l1_provider.initialize(vec![]).await.unwrap();
+    l1_provider.initialize(start_height, vec![]).await.unwrap();
 
     let unchanged_l1_provider = l1_provider.clone();
     for historical_height in catch_up_height.iter_up_to(start_height) {

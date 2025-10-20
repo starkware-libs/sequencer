@@ -4,7 +4,7 @@ use std::time::Duration;
 use alloy::primitives::U256;
 use apollo_integration_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
+use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use mockall::predicate::eq;
@@ -146,16 +146,18 @@ async fn scraper_end_to_end() {
         startup_rewind_time_seconds: Duration::from_secs(100),
         ..Default::default()
     };
-    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client),
         base_layer.ethereum_base_layer.clone(),
         event_identifiers_to_track(),
-        l1_start_block,
     )
     .await
     .unwrap();
+
+    // Make sure to initialize the scraper with the start block.
+    let start_block = scraper.fetch_start_block().await.unwrap();
+    scraper.scrape_from_this_l1_block = Some(start_block);
 
     // Test.
     scraper.send_events_to_l1_provider().await.unwrap();

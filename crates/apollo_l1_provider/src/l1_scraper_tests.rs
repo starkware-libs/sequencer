@@ -111,7 +111,7 @@ async fn bootstrap_e2e() {
     // TODO(Gilad): Consider adding txs here and in the commit blocks, might make the test harder to
     // understand though.
     let scraped_l1_handler_txs = vec![]; // No txs to scrape in this test.
-    l1_provider.initialize(scraped_l1_handler_txs).await.unwrap();
+    l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs).await.unwrap();
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
@@ -220,7 +220,7 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
 
     // Start the sync sequence, should busy-wait until the batcher height is sent.
     let scraped_l1_handler_txs = []; // No txs to scrape in this test.
-    l1_provider.initialize(scraped_l1_handler_txs.into()).await.unwrap();
+    l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs.into()).await.unwrap();
 
     // **Commit** a few blocks. The height starts from the provider's current height, since this
     // is a trivial catchup scenario (nothing to catch up).
@@ -301,7 +301,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     // Start the sync sequence, should busy-wait until the sync blocks are sent.
     let scraped_l1_handler_txs = []; // No txs to scrape in this test.
-    l1_provider.initialize(scraped_l1_handler_txs.into()).await.unwrap();
+    l1_provider.initialize(startup_height, scraped_l1_handler_txs.into()).await.unwrap();
 
     // **Commit** a few blocks. These should get backlogged since they are post-sync-height.
     // Sleeps are sprinkled in to give the async task time to get the batcher height and have a
@@ -372,7 +372,7 @@ async fn test_stuck_sync() {
     // Test.
 
     // Start sync.
-    l1_provider.initialize(Default::default()).await.unwrap();
+    l1_provider.initialize(STARTUP_HEIGHT, Default::default()).await.unwrap();
 
     for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
         receive_commit_block(&mut l1_provider, &[].into(), height_add(STARTUP_HEIGHT, i.into()));
@@ -399,10 +399,12 @@ async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayer
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference::default(),
     )
     .await
     .unwrap();
+
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(Default::default());
 
     // Test.
     assert_eq!(scraper.send_events_to_l1_provider().await, Err(L1ScraperError::NeedsRestart));
@@ -435,10 +437,12 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference::default(),
     )
     .await
     .unwrap();
+
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(Default::default());
 
     // Test.
     // Can send messages to the provider.
@@ -473,10 +477,12 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference::default(),
     )
     .await
     .unwrap();
+
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(Default::default());
 
     // Test.
     // can send messages to the provider.
@@ -506,6 +512,7 @@ async fn latest_block_number_goes_down() {
     // This should always be returned, even if we set the "response" to a lower block number.
     let expected_block_reference =
         L1BlockReference { number: L1_LATEST_BLOCK_NUMBER, hash: L1_BLOCK_HASH };
+    let initial_block_reference = L1BlockReference { number: 0, hash: L1_BLOCK_HASH };
 
     let latest_l1_block_response = Arc::new(Mutex::new(expected_block_reference));
     let latest_l1_block_response_clone = latest_l1_block_response.clone();
@@ -525,13 +532,15 @@ async fn latest_block_number_goes_down() {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
-        L1BlockReference { number: 0, hash: L1_BLOCK_HASH },
     )
     .await
     .unwrap();
 
+    // Skipping scraper run loop, instead must give it a start block.
+    scraper.scrape_from_this_l1_block = Some(initial_block_reference);
+
     // Test.
-    // can send messages to the provider.
+    // Can send messages to the provider.
     // This should also set the scraper's last_l1_block_processed to block number 10.
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 

@@ -307,6 +307,7 @@ fn commit_block_during_validation() {
 #[tokio::test]
 async fn commit_block_backlog() {
     // Setup.
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(8);
     let bootstrapper = make_bootstrapper!(
         backlog: [10 => [2], 11 => [4]],
         catch_up: 9
@@ -314,19 +315,17 @@ async fn commit_block_backlog() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper.clone())
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(4)])
-        .with_height(BlockNumber(8))
-        .with_state(ProviderState::Bootstrap)
         .build_into_l1_provider();
 
-    l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
+    l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
 
     // Test.
     // Commit height too low to affect backlog.
-    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(8));
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], STARTUP_HEIGHT);
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper.clone())
         .with_txs([l1_handler(2), l1_handler(4)])
-        .with_height(BlockNumber(9))
+        .with_height(STARTUP_HEIGHT.unchecked_next())
         .with_state(ProviderState::Bootstrap)
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
@@ -378,10 +377,9 @@ async fn bootstrap_commit_block_received_twice_no_error() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([l1_handler(1), l1_handler(2)])
-        .with_state(ProviderState::Bootstrap)
         .build_into_l1_provider();
 
-    l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
+    l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -399,10 +397,9 @@ async fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([l1_handler(1), l1_handler(2)])
-        .with_state(ProviderState::Bootstrap)
         .build_into_l1_provider();
 
-    l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
+    l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -423,7 +420,7 @@ async fn restart_service_if_initialized_in_steady_state() {
         L1ProviderContentBuilder::new().with_state(ProviderState::Pending).build_into_l1_provider();
 
     // Test.
-    l1_provider.initialize(vec![]).await.unwrap();
+    l1_provider.initialize(BlockNumber(0), vec![]).await.unwrap();
 }
 
 #[test]
@@ -1000,22 +997,27 @@ fn commit_block_historical_height_short_circuits_non_bootstrap() {
 #[tokio::test]
 async fn commit_block_historical_height_short_circuits_bootstrap() {
     // Setup.
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(5);
     let batcher_height_old = 4;
     let bootstrapper = make_bootstrapper!(
         backlog: [],
         catch_up: batcher_height_old
     );
-    let l1_provider_builder = L1ProviderContentBuilder::new()
-        .with_bootstrapper(bootstrapper)
-        .with_height(BlockNumber(5))
-        .with_txs([l1_handler(1)])
-        .with_state(ProviderState::Bootstrap);
+    let l1_provider_builder =
+        L1ProviderContentBuilder::new().with_bootstrapper(bootstrapper).with_txs([l1_handler(1)]);
     let l1_provider_builder_clone = l1_provider_builder.clone();
-    let expected_unchanged = l1_provider_builder.build();
+    let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
+    l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
 
-    // Test.
-    let mut l1_provider = l1_provider_builder_clone.build_into_l1_provider();
-    l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
+    let expected_unchanged = l1_provider_builder_clone
+        .with_height(STARTUP_HEIGHT)
+        .with_state(ProviderState::Bootstrap)
+        .build();
+
+    // Check that the content is the same as expected.
+    expected_unchanged.assert_eq(&l1_provider);
+
+    // Test. This commit_block should not change the provider's content.
     l1_provider
         .commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(batcher_height_old))
         .unwrap();

@@ -43,23 +43,34 @@ pub struct L1Provider {
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
     pub clock: Arc<dyn Clock>,
-    pub start_height: BlockNumber,
+    pub start_height: Option<BlockNumber>,
 }
 
 impl L1Provider {
     // Functions Called by the scraper.
 
     // Start the provider, get first-scrape events, start L2 sync.
-    pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+    pub async fn initialize(
+        &mut self,
+        historic_l2_height: BlockNumber,
+        events: Vec<Event>,
+    ) -> L1ProviderResult<()> {
         info!("Initializing l1 provider");
-        // TODO(guyn): a future PR will replace this check. It will also no longer trigger the
-        // start_l2_sync call.
-        if !self.state.is_bootstrapping() {
+        if !self.state.uninitialized() {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
             // restart from the infra, since this CAN happen if the scraper recovered from a crash.
             // Right now this is effectively a KILL message when called in steady state.
-            panic!("Called initialize while not in bootstrap state. Restart service.");
+            panic!("Called initialize while not in Uninitialized state. Restart service.");
         };
+
+        // The provider now goes into bootstrap state.
+        // TODO(guyn): in the future, this will happen when batcher calls the provider with a height
+        // bigger than the current height. This would happen either in Uninitialized or in other
+        // non-bootstrap states. That means we will move from Uninitialized to Pending (but
+        // on a height much lower than the batcher's).
+        self.start_height = Some(historic_l2_height);
+        self.current_height = historic_l2_height;
+        self.state = ProviderState::Bootstrap;
         self.bootstrapper.start_l2_sync(self.current_height).await;
         self.add_events(events)?;
 
@@ -419,7 +430,13 @@ impl L1Provider {
 
     /// Checks if the given height appears before the timeline of which the provider is aware of.
     fn is_historical_height(&self, height: BlockNumber) -> bool {
-        height < self.start_height
+        if let Some(start_height) = self.start_height {
+            height < start_height
+        } else {
+            //  If start_height is not set, the provider is not initialized yet, so there is no
+            // historical height.
+            false
+        }
     }
 
     // Functions used for debugging or testing.
@@ -503,13 +520,7 @@ impl L1ProviderBuilder {
                      See docstring."
                 );
             })
-            .or(self.startup_height)
-            // TODO(Gilad): remove expect message below once we support LogStateUpdate in Anvil.
-            .expect(
-            "Cannot get startup height. Most likely this is due to scraper being unable \
-                to contact baselayer. If using Anvil then set startup height manually via \
-                `provider_startup_height_override` in the config."
-            );
+            .or(self.startup_height);
 
         let catchup_height = self
             .config
@@ -534,18 +545,17 @@ impl L1ProviderBuilder {
             catchup_height,
         );
 
-        info!("Starting L1 provider at height: {l1_provider_startup_height}");
+        info!("Starting L1 provider at height: {:?}", l1_provider_startup_height);
         L1Provider {
             start_height: l1_provider_startup_height,
             bootstrapper,
-            current_height: l1_provider_startup_height,
+            current_height: l1_provider_startup_height.unwrap_or_default(),
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,
                 self.config.l1_handler_cancellation_timelock_seconds,
                 self.config.l1_handler_consumption_timelock_seconds,
             ),
-            // TODO(guyn): in a future PR, this will be replaced with ProviderState::Uninitialized.
-            state: ProviderState::Bootstrap,
+            state: ProviderState::Uninitialized,
             config: self.config,
             clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
