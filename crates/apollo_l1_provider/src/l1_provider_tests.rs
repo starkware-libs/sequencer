@@ -25,6 +25,7 @@ use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{
     l1_handler,
+    make_bootstrapper,
     ConsumedTransaction,
     FakeL1ProviderClient,
     L1ProviderContentBuilder,
@@ -62,26 +63,6 @@ fn setup_rejected_transactions() -> L1Provider {
     // Set the state to Validate for the validation tests.
     l1_provider.state = ProviderState::Validate;
     l1_provider
-}
-
-macro_rules! bootstrapper {
-    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
-        Bootstrapper {
-            commit_block_backlog: vec![
-                $(CommitBlockBacklog {
-                    height: BlockNumber($height),
-                    committed_txs: [$(tx_hash!($tx)),*].into()
-                }),*
-            ].into_iter().collect(),
-            catch_up_height: Arc::new(BlockNumber($catch).into()),
-            l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
-            batcher_client: Arc::new(MockBatcherClient::default()),
-            sync_client: Arc::new(MockStateSyncClient::default()),
-            sync_task_handle: SyncTaskHandle::default(),
-            n_sync_health_check_failures: Default::default(),
-            sync_retry_interval: Duration::from_millis(10)
-        }
-    }};
 }
 
 /// Use to easily construct l1 handler messages for tests that don't care about the timestamp.
@@ -326,14 +307,15 @@ fn commit_block_during_validation() {
 #[tokio::test]
 async fn commit_block_backlog() {
     // Setup.
-    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+    let initial_bootstrap_state = make_bootstrapper!(
         backlog: [10 => [2], 11 => [4]],
         catch_up: 9
-    ));
+    );
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_bootstrapper(initial_bootstrap_state.clone())
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(4)])
         .with_height(BlockNumber(8))
-        .with_state(initial_bootstrap_state.clone())
+        .with_state(ProviderState::Bootstrap)
         .build_into_l1_provider();
 
     l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
@@ -342,9 +324,10 @@ async fn commit_block_backlog() {
     // Commit height too low to affect backlog.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(8));
     let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_bootstrapper(initial_bootstrap_state.clone())
         .with_txs([l1_handler(2), l1_handler(4)])
         .with_height(BlockNumber(9))
-        .with_state(initial_bootstrap_state)
+        .with_state(ProviderState::Bootstrap)
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 
@@ -352,6 +335,7 @@ async fn commit_block_backlog() {
     commit_block_no_rejected(&mut l1_provider, &[], BlockNumber(9));
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_bootstrapper(initial_bootstrap_state)
         .with_txs([])
         .with_height(BlockNumber(12))
         .with_state(ProviderState::Pending)
@@ -387,13 +371,14 @@ fn commit_block_before_add_tx_stores_tx_in_committed() {
 #[tokio::test]
 async fn bootstrap_commit_block_received_twice_no_error() {
     // Setup.
-    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+    let initial_bootstrap_state = make_bootstrapper!(
         backlog: [],
         catch_up: 2
-    ));
+    );
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_bootstrapper(initial_bootstrap_state)
         .with_txs([l1_handler(1), l1_handler(2)])
-        .with_state(initial_bootstrap_state)
+        .with_state(ProviderState::Bootstrap)
         .build_into_l1_provider();
 
     l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
@@ -407,13 +392,14 @@ async fn bootstrap_commit_block_received_twice_no_error() {
 #[tokio::test]
 async fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
     // Setup.
-    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+    let initial_bootstrap_state = make_bootstrapper!(
         backlog: [],
         catch_up: 2
-    ));
+    );
     let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_bootstrapper(initial_bootstrap_state)
         .with_txs([l1_handler(1), l1_handler(2)])
-        .with_state(initial_bootstrap_state)
+        .with_state(ProviderState::Bootstrap)
         .build_into_l1_provider();
 
     l1_provider.initialize(vec![]).await.expect("l1 provider initialize failed");
@@ -1005,14 +991,15 @@ fn commit_block_historical_height_short_circuits_non_bootstrap() {
 async fn commit_block_historical_height_short_circuits_bootstrap() {
     // Setup.
     let batcher_height_old = 4;
-    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+    let initial_bootstrap_state = make_bootstrapper!(
         backlog: [],
         catch_up: batcher_height_old
-    ));
+    );
     let l1_provider_builder = L1ProviderContentBuilder::new()
+        .with_bootstrapper(initial_bootstrap_state)
         .with_height(BlockNumber(5))
         .with_txs([l1_handler(1)])
-        .with_state(initial_bootstrap_state);
+        .with_state(ProviderState::Bootstrap);
     let l1_provider_builder_clone = l1_provider_builder.clone();
     let expected_unchanged = l1_provider_builder.build();
 
