@@ -13,7 +13,11 @@ pub type DbHashMap = HashMap<DbKey, DbValue>;
 
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
-pub enum PatriciaStorageError {}
+pub enum PatriciaStorageError {
+    /// An error that occurred in the database library.
+    #[error(transparent)]
+    Mdbx(#[from] libmdbx::Error),
+}
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 

@@ -1,4 +1,5 @@
 use tracing::level_filters::LevelFilter;
+use tracing::Level;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, fmt, reload, Registry};
@@ -14,4 +15,19 @@ pub fn configure_tracing() -> Handle<LevelFilter, Registry> {
         .with_line_number(true);
     tracing_subscriber::registry().with(global_filter).with(layer).init();
     global_filter_handle
+}
+
+/// Change the given log handle to the given log level.
+pub fn modify_log_level(log_level: String, log_filter_handle: Handle<LevelFilter, Registry>) {
+    let level = match log_level.to_lowercase().as_str() {
+        "error" => Level::ERROR,
+        "warn" => Level::WARN,
+        "info" => Level::INFO,
+        "debug" => Level::DEBUG,
+        "trace" => Level::TRACE,
+        _ => Level::INFO,
+    };
+    log_filter_handle
+        .modify(|filter| *filter = level.into())
+        .expect("Failed to set the log level.");
 }

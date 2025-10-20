@@ -1,0 +1,36 @@
+use std::collections::HashMap;
+
+use rand::Rng;
+use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::state::StorageKey;
+
+use crate::block_committer::input::{StarknetStorageKey, StarknetStorageValue, StateDiff};
+use crate::block_committer::random_structs::RandomValue;
+
+#[cfg(test)]
+#[path = "state_diff_generator_test.rs"]
+pub mod state_diff_generator_test;
+
+pub const RANDOM_STATE_DIFF_CONTRACT_ADDRESS: u32 = 500_u32;
+pub(crate) const N_STORAGE_UPDATES: usize = 1000_usize;
+
+pub fn generate_random_state_diff<R: Rng>(rng: &mut R) -> StateDiff {
+    let mut storage_updates = HashMap::new();
+    let mut contract_updates = HashMap::with_capacity(N_STORAGE_UPDATES);
+    for _ in 0..N_STORAGE_UPDATES {
+        let storage_entry = generate_random_storage_entry(rng);
+        contract_updates.insert(storage_entry.0, storage_entry.1);
+    }
+
+    storage_updates
+        .insert(ContractAddress::from(RANDOM_STATE_DIFF_CONTRACT_ADDRESS), contract_updates);
+    StateDiff { storage_updates, ..Default::default() }
+}
+
+fn generate_random_storage_entry<R: Rng>(
+    rng: &mut R,
+) -> (StarknetStorageKey, StarknetStorageValue) {
+    let key = StarknetStorageKey(StorageKey(PatriciaKey::random(rng, None)));
+    let value = StarknetStorageValue::random(rng, None);
+    (key, value)
+}
