@@ -18,6 +18,7 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
+apollo_infra_utils.workspace = true
 # The 'test_programs' feature should be moved under `testing` feature, when it exists.
 apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 blake2s.workspace = true
@@ -38,14 +39,13 @@ serde_json.workspace = true
 serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_committer.workspace = true
+# The testing feature is needed for the python tests.
+starknet_committer = { workspace = true, features = ["testing"] }
 # The 'testing' feature of starknet_os should be moved under this crate's `testing` feature, when it
 # exists.
 starknet_os = { workspace = true, features = ["deserialize", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing-subscriber.workspace = true
@@ -59,4 +59,4 @@ path = "benches/main.rs"
 # Optional dependencies required for tests and the testing feature.
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
 [package.metadata.cargo-machete]
-ignored = ["hex", "strum_macros"]
+ignored = ["hex"]
