@@ -27,7 +27,7 @@ use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
@@ -239,7 +239,13 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
             );
             ADDED_TRANSACTIONS_SUCCESS.increment(1);
         }
-        Err(err) => increment_failure_metrics(err),
+        Err(err) => {
+            warn!(
+                error = %err,
+                "Failed to record transaction"
+            );
+            increment_failure_metrics(err);
+        }
     }
 }
 
