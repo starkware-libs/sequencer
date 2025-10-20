@@ -66,6 +66,8 @@ struct TestExpectations {
     expected_block_artifacts: BlockExecutionArtifacts,
     expected_txs_output: Vec<InternalConsensusTransaction>,
     expected_full_blocks_metric: u64,
+    expected_idle_execution_timeout_metric: u64,
+    deadline_secs: u64,
 }
 
 fn output_channel()
@@ -128,6 +130,8 @@ fn one_chunk_test_expectations() -> TestExpectations {
         expected_block_artifacts,
         expected_txs_output: input_txs,
         expected_full_blocks_metric: 0,
+        expected_idle_execution_timeout_metric: 0,
+        deadline_secs: BLOCK_GENERATION_DEADLINE_SECS,
     }
 }
 
@@ -260,6 +264,8 @@ fn two_chunks_test_expectations() -> TestExpectations {
         expected_block_artifacts,
         expected_txs_output: chain!(first_chunk.iter(), second_chunk.iter()).cloned().collect(),
         expected_full_blocks_metric: 0,
+        expected_idle_execution_timeout_metric: 0,
+        deadline_secs: BLOCK_GENERATION_DEADLINE_SECS,
     }
 }
 
@@ -279,6 +285,8 @@ fn empty_block_test_expectations() -> TestExpectations {
         expected_block_artifacts,
         expected_txs_output: vec![],
         expected_full_blocks_metric: 0,
+        expected_idle_execution_timeout_metric: 0,
+        deadline_secs: BLOCK_GENERATION_DEADLINE_SECS,
     }
 }
 
@@ -305,6 +313,8 @@ fn block_full_test_expectations(before_is_done: bool) -> TestExpectations {
         expected_block_artifacts,
         expected_txs_output: input_txs,
         expected_full_blocks_metric: 1,
+        expected_idle_execution_timeout_metric: 0,
+        deadline_secs: BLOCK_GENERATION_DEADLINE_SECS,
     }
 }
 
@@ -357,6 +367,8 @@ fn test_expectations_partial_transaction_execution() -> TestExpectations {
         expected_block_artifacts,
         expected_txs_output: input_txs,
         expected_full_blocks_metric: 0,
+        expected_idle_execution_timeout_metric: 0,
+        deadline_secs: BLOCK_GENERATION_DEADLINE_SECS,
     }
 }
 
@@ -429,6 +441,52 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         expected_block_artifacts,
         expected_txs_output: input_txs,
         expected_full_blocks_metric: 0,
+        expected_idle_execution_timeout_metric: 0,
+        deadline_secs: BLOCK_GENERATION_DEADLINE_SECS,
+    }
+}
+
+fn idle_execution_timeout_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..2);
+    let input_txs_clone = input_txs.clone();
+
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_successful_get_new_results(input_txs.len());
+    helper.expect_is_done(false);
+    // After the timeout check, no more results will be returned.
+    helper.mock_transaction_executor.expect_get_new_results().returning(Vec::new);
+    // Keep reporting not done so the timeout can trigger.
+    helper.mock_transaction_executor.expect_is_done().returning(|| false);
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut helper.mock_transaction_executor, input_txs.len());
+
+    // Mock provider that returns initial transactions, then empty chunks.
+    let mut mock_tx_provider = MockTransactionProvider::new();
+
+    // First call returns the initial transactions.
+    mock_tx_provider.expect_get_final_n_executed_txs().times(1).return_const(None);
+    mock_tx_provider
+        .expect_get_txs()
+        .times(1)
+        .with(eq(N_CONCURRENT_TXS))
+        .return_once(move |_n_txs| Ok(input_txs));
+
+    // Subsequent calls return empty (no new transactions).
+    mock_tx_provider.expect_get_final_n_executed_txs().return_const(None);
+    mock_tx_provider.expect_get_txs().with(eq(N_CONCURRENT_TXS)).returning(|_n_txs| Ok(vec![]));
+
+    TestExpectations {
+        mock_transaction_executor: helper.mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: input_txs_clone,
+        expected_full_blocks_metric: 0,
+        expected_idle_execution_timeout_metric: 1,
+        deadline_secs: 5,
     }
 }
 
@@ -591,6 +649,7 @@ async fn verify_build_block_output(
     result_block_artifacts: BlockExecutionArtifacts,
     mut output_stream_receiver: UnboundedReceiver<InternalConsensusTransaction>,
     expected_full_blocks_metric: u64,
+    expected_idle_execution_timeout_metric: u64,
     metrics: &str,
 ) {
     // Verify the transactions in the output channel.
@@ -605,6 +664,11 @@ async fn verify_build_block_output(
         metrics,
         expected_full_blocks_metric,
         &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::FullBlock.into())],
+    );
+    BLOCK_CLOSE_REASON.assert_eq::<u64>(
+        metrics,
+        expected_idle_execution_timeout_metric,
+        &[(LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason::IdleExecutionTimeout.into())],
     );
 }
 
@@ -645,6 +709,7 @@ async fn run_build_block(
 #[case::block_full_after_is_done(block_full_test_expectations(false))]
 #[case::deadline_reached_after_first_chunk(test_expectations_partial_transaction_execution())]
 #[case::transaction_failed(transaction_failed_test_expectations())]
+#[case::idle_execution_timeout(idle_execution_timeout_test_expectations())]
 #[tokio::test]
 async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -666,7 +731,7 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
         Some(output_tx_sender),
         false,
         abort_receiver,
-        BLOCK_GENERATION_DEADLINE_SECS,
+        test_expectations.deadline_secs,
     )
     .await
     .unwrap();
@@ -677,6 +742,7 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
         result_block_artifacts,
         output_tx_receiver,
         test_expectations.expected_full_blocks_metric,
+        test_expectations.expected_idle_execution_timeout_metric,
         &recorder.handle().render(),
     )
     .await;
