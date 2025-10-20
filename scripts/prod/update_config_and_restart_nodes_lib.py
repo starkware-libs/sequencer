@@ -37,7 +37,8 @@ def print_error(message: str) -> None:
 class ApolloArgsParserBuilder:
     """Builder class for creating argument parsers with required flags and custom arguments."""
 
-    def __init__(self, description: str, usage_example: str):
+    # TODO(guy.f): If we need to exclude more than just the restart flag, create a more generic mechanism.
+    def __init__(self, description: str, usage_example: str, include_restart_strategy: bool = True):
         """Initialize the builder with usage example for epilog.
 
         Args:
@@ -50,10 +51,14 @@ class ApolloArgsParserBuilder:
             epilog=usage_example,
         )
 
-        self._add_common_flags()
+        self._add_common_flags(include_restart_strategy)
 
-    def _add_common_flags(self):
-        """Add all common flags."""
+    def _add_common_flags(self, include_restart_strategy: bool):
+        """Add all common flags.
+
+        Args:
+            include_restart_strategy: Whether to include the restart strategy flag.
+        """
         namespace_group = self.parser.add_mutually_exclusive_group(required=True)
         namespace_group.add_argument(
             "-n",
@@ -93,14 +98,15 @@ class ApolloArgsParserBuilder:
             help="Space separated list of cluster names for kubectl contexts",
         )
 
-        self.add_argument(
-            "-t",
-            "--restart-strategy",
-            type=restart_strategy_converter,
-            choices=list(RestartStrategy),
-            default=RestartStrategy.ONE_BY_ONE,
-            help="Strategy for restarting nodes (default: One_By_One)",
-        )
+        if include_restart_strategy:
+            self.add_argument(
+                "-t",
+                "--restart-strategy",
+                type=restart_strategy_converter,
+                choices=list(RestartStrategy),
+                default=RestartStrategy.ONE_BY_ONE,
+                help="Strategy for restarting nodes (default: One_By_One)",
+            )
 
     def add_argument(self, *args, **kwargs):
         """Add a new argument to the parser.
@@ -571,13 +577,9 @@ def update_config_and_restart_nodes(
             restart_pod(
                 namespace_list[index], service, index, cluster_list[index] if cluster_list else None
             )
+            instructions = post_restart_instructions[index] if post_restart_instructions else None
+            print_colored(f"Restarted pod.\n{instructions if instructions else ''} ", Colors.YELLOW)
             if restart_strategy == RestartStrategy.ONE_BY_ONE:
-                instructions = (
-                    post_restart_instructions[index] if post_restart_instructions else None
-                )
-                print_colored(
-                    f"Restarted pod.\n{instructions if instructions else ''} ", Colors.YELLOW
-                )
                 # Don't ask in the case of the last job.
                 if index != len(configs) - 1 and not wait_until_y_or_n(
                     f"Do you want to restart the next pod?"
