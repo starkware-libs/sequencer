@@ -1522,6 +1522,7 @@ dependencies = [
  "serde",
  "serde_json",
  "socket2 0.5.10",
+ "strum 0.25.0",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
