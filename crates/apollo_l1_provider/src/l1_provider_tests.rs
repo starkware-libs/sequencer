@@ -1,3 +1,4 @@
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -210,7 +211,7 @@ fn process_events_committed_txs() {
 }
 
 #[test]
-fn pending_state_errors() {
+fn pending_state_panics() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_state(ProviderState::Pending)
@@ -218,14 +219,11 @@ fn pending_state_errors() {
         .build_into_l1_provider();
 
     // Test.
-    assert_matches!(
-        l1_provider.get_txs(1, BlockNumber(0)).unwrap_err(),
-        L1ProviderError::OutOfSessionGetTransactions
-    );
+    assert!(catch_unwind(AssertUnwindSafe(|| { l1_provider.get_txs(1, BlockNumber(0)) })).is_err());
 
-    assert_matches!(
-        l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap_err(),
-        L1ProviderError::OutOfSessionValidate
+    assert!(
+        catch_unwind(AssertUnwindSafe(|| { l1_provider.validate(tx_hash!(1), BlockNumber(0)) }))
+            .is_err()
     );
 }
 

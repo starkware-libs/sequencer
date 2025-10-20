@@ -385,6 +385,7 @@ pub async fn create_node_components(
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
 
+            debug!("L1 start block: {l1_start_block:?}");
             let monitored_base_layer =
                 MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client).await;
 

@@ -1,3 +1,4 @@
+use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
 use blockifier::metrics::{
     BLOCKIFIER_METRIC_RATE_DURATION,
     CALLS_RUNNING_NATIVE,
@@ -47,6 +48,14 @@ fn get_panel_native_execution_ratio() -> Panel {
     )
 }
 
+fn get_panel_transactions_per_block() -> Panel {
+    Panel::from_hist(
+        &NUM_TRANSACTION_IN_BLOCK,
+        "Transactions Per Block",
+        "The number of transactions per block",
+    )
+}
+
 pub(crate) fn get_blockifier_row() -> Row {
     Row::new(
         "Blockifier",
@@ -55,6 +64,7 @@ pub(crate) fn get_blockifier_row() -> Row {
             get_panel_blockifier_state_reader_native_class_returned_ratio(),
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
+            get_panel_transactions_per_block(),
         ],
     )
 }

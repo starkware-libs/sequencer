@@ -40,7 +40,7 @@ fn get_panel_state_sync_body_marker() -> Panel {
         PanelType::Stat,
     )
 }
-pub(crate) fn get_panel_state_sync_diff_from_central() -> Panel {
+fn get_panel_state_sync_diff_from_central() -> Panel {
     Panel::new(
         "Sync Diff From Central",
         "The number of blocks that were not fully synced yet",

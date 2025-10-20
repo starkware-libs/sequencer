@@ -10,6 +10,8 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
+    CONSENSUS_ROUND_ADVANCES,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_TYPE,
 };
@@ -41,7 +43,13 @@ use apollo_network::network_manager::metrics::{
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
+
+// The key events that are relevant to the consensus panel.
+const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
+    "\"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \
+     \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \
+     \"Broadcasting\"";
 
 fn get_panel_consensus_block_number() -> Panel {
     Panel::new(
@@ -50,8 +58,14 @@ fn get_panel_consensus_block_number() -> Panel {
         vec![CONSENSUS_BLOCK_NUMBER.get_name_with_filter().to_string()],
         PanelType::Stat,
     )
+    .with_log_query(
+        "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start \
+         validating proposal\"",
+    )
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
-fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
+
+pub(crate) fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
     Panel::new(
         "Consensus Height Diff From Sync",
         "The difference between the consensus height and the sync height",
@@ -70,8 +84,36 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
         vec![CONSENSUS_ROUND.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
-fn get_panel_consensus_block_time_avg() -> Panel {
+pub(crate) fn get_panel_consensus_round_advanced() -> Panel {
+    Panel::new(
+        "Consensus Round Advanced",
+        "The number of times the consensus round advanced (counter is increased whenever round > \
+         0) (10m window)",
+        vec![format!("increase({}[10m])", CONSENSUS_ROUND_ADVANCES.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
+}
+
+fn get_panel_consensus_round_above_zero() -> Panel {
+    Panel::new(
+        "Consensus Round Above Zero",
+        "Occurances where the consensus round was 1, relative to displayed range",
+        vec![format!(
+            "{m} - ({m} @ start())",
+            m = CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter().to_string()
+        )],
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
+}
+
+pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
         "Average Block Time",
         "Average block time (10m window)",
@@ -90,6 +132,8 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("DECISION_REACHED: Decision reached for round")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
@@ -101,6 +145,8 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Decision learned via sync protocol.")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
@@ -117,6 +163,8 @@ fn get_panel_consensus_proposals_validated() -> Panel {
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALIDATED.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
@@ -125,6 +173,8 @@ fn get_panel_consensus_proposals_invalid() -> Panel {
         vec![format!("increase({}[10m])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
@@ -138,6 +188,7 @@ fn get_panel_validate_proposal_failure() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as validator")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
@@ -167,6 +218,7 @@ fn get_panel_build_proposal_failure() -> Panel {
         PanelType::Stat,
     )
     .with_log_query("PROPOSAL_FAILED: Proposal failed as proposer")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
@@ -184,6 +236,8 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
         )],
         PanelType::TimeSeries,
     )
+    .with_log_query("Applying Timeout")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 fn get_panel_consensus_l2_gas_price() -> Panel {
     Panel::new(
@@ -263,21 +317,10 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
     .with_log_query("Blob for block number")
 }
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
         "Write Blob Latency",
         "The time it takes to write the blob to Cende",
-        // TODO(Dafna): add an helper function to generate a vector of histogram expressions, to be
-        // used everywhere
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
@@ -297,7 +340,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
     )
     .with_log_query(query_expression)
 }
-pub(crate) fn get_panel_cende_write_blob_failure() -> Panel {
+fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
         "The number of failed blob writes to Cende (10m window)",
@@ -318,6 +361,7 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
         vec![format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("write_pre_confirmed_block request succeeded.")
 }
 
 fn get_panel_consensus_network_events_by_type() -> Panel {
@@ -365,8 +409,10 @@ pub(crate) fn get_consensus_row() -> Row {
         vec![
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
-            get_panel_consensus_block_number_diff_from_sync(),
+            get_panel_consensus_round_advanced(),
             get_panel_consensus_block_time_avg(),
+            get_panel_consensus_round_above_zero(),
+            get_panel_consensus_block_number_diff_from_sync(),
             get_panel_consensus_decisions_reached_by_consensus(),
             get_panel_consensus_decisions_reached_by_sync(),
             get_panel_consensus_build_proposal_total(),

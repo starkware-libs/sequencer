@@ -70,6 +70,7 @@ use crate::alert_scenarios::tps::{
     get_mempool_add_tx_idle,
 };
 use crate::alert_scenarios::transaction_delays::{
+    get_high_empty_blocks_ratio_alert_vec,
     get_http_server_avg_add_tx_latency_alert_vec,
     get_http_server_p95_add_tx_latency_alert_vec,
     get_mempool_p2p_peer_down_vec,
@@ -94,6 +95,9 @@ use crate::alerts::{
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
+
+/// Alerts that depend on block time can use this value to define their rule.
+pub(crate) const BLOCK_TIME_SEC: f64 = 9.0;
 
 pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> String {
     format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{alert_env_filtering}.json")
@@ -560,6 +564,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_http_server_internal_error_ratio_vec());
     alerts.append(&mut get_gateway_low_successful_transaction_rate_vec());
     alerts.append(&mut get_http_server_p95_add_tx_latency_alert_vec());
+    alerts.append(&mut get_high_empty_blocks_ratio_alert_vec());
     alerts.append(&mut get_l1_gas_price_provider_insufficient_history_alert_vec());
     alerts.append(&mut get_l1_gas_price_scraper_success_count_alert_vec());
     alerts.append(&mut get_l1_message_scraper_no_successes_alert_vec());

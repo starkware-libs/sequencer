@@ -4,15 +4,15 @@ use apollo_gateway::metrics::{
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
-    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
     GATEWAY_VALIDATE_TX_LATENCY,
     LABEL_NAME_ADD_TX_FAILURE_REASON,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
@@ -55,43 +55,24 @@ fn get_panel_gateway_transactions_received_rate() -> Panel {
 }
 
 fn get_panel_gateway_add_tx_latency() -> Panel {
-    // TODO(Asmaa): refactor Panel::from_hist to accept custom name and description parameters.
-    Panel::new(
+    Panel::from_hist(
+        &GATEWAY_ADD_TX_LATENCY,
         "Add Tx Latency",
         "The time it takes the gateway to add a transaction to the mempool",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    GATEWAY_ADD_TX_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
 
 fn get_panel_gateway_validate_tx_latency() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &GATEWAY_VALIDATE_TX_LATENCY,
         "Validate Tx Latency",
         "The time it takes to validate a transaction",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
 
-fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
+pub(crate) fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     Panel::new(
         "Transactions Failed by Reason",
         "The number of transactions failed by reason (over the selected time range)",
@@ -104,7 +85,7 @@ fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
     )
 }
 
-pub(crate) fn get_panel_gateway_transactions_failure_rate() -> Panel {
+fn get_panel_gateway_transactions_failure_rate() -> Panel {
     Panel::new(
         "Transaction Failure Rate by Type",
         "The rate of failed transactions vs received transactions by type (over the selected time \
@@ -134,12 +115,21 @@ fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
     )
 }
 
-fn get_panel_gateway_validate_stateful_tx_storage_micros() -> Panel {
-    Panel::from_hist(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_MICROS, PanelType::TimeSeries)
+fn get_panel_gateway_validate_stateful_tx_storage_time() -> Panel {
+    Panel::from_hist(
+        &GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
+        "Gateway Validate Stateful Tx Storage Access Time",
+        "Total time spent in storage operations during stateful tx validation",
+    )
+    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
-    Panel::from_hist(&GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, PanelType::TimeSeries)
+    Panel::from_hist(
+        &GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
+        "Gateway Validate Stateful Tx Storage Operations",
+        "Total number of storage operations during stateful tx validation",
+    )
 }
 
 pub(crate) fn get_gateway_row() -> Row {
@@ -154,7 +144,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_transactions_failure_rate(),
             get_panel_gateway_add_tx_failure_by_reason(),
             get_panel_gateway_transactions_sent_to_mempool(),
-            get_panel_gateway_validate_stateful_tx_storage_micros(),
+            get_panel_gateway_validate_stateful_tx_storage_time(),
             get_panel_gateway_validate_stateful_tx_storage_operations(),
         ],
     )

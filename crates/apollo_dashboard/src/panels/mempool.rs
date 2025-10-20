@@ -12,7 +12,7 @@ use apollo_mempool::metrics::{
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
@@ -88,36 +88,18 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     )
 }
 fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
         "Transaction Time Spent in Mempool Until Batched",
         "The time a transaction spends in the mempool until it is batched (5m window)",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    TRANSACTION_TIME_SPENT_UNTIL_BATCHED.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
 fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
         "Transaction Time Spent in Mempool Until Committed",
         "The time a transaction spends in the mempool until it is committed (5m window)",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }

@@ -13,6 +13,7 @@ use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_TOTAL_BUSY_DURATION_MICROS, PanelType::TimeSeries)
+        .with_legends(vec!["{{pod}}"])
 }
 fn get_panel_tokio_min_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_MIN_BUSY_DURATION_MICROS, PanelType::TimeSeries)

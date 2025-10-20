@@ -72,6 +72,7 @@ use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterTrait,
 };
 use crate::test_utils::{
+    test_l1_handler_txs,
     test_txs,
     verify_indexed_execution_infos,
     FakeProposeBlockBuilder,
@@ -213,11 +214,12 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, output_content_sender, _, _, _| {
+        move |_, _, tx_provider, output_content_sender, _, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
                 build_block_result: Some(build_block_result),
+                tx_provider,
             };
             Ok((Box::new(block_builder), abort_signal_sender()))
         },
@@ -406,8 +408,20 @@ async fn no_active_height() {
 #[case::proposer(true)]
 #[case::validator(false)]
 #[tokio::test]
-async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
+async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
     let mut deps = MockDependencies::default();
+    if proposer {
+        mock_create_builder_for_propose_block(
+            &mut deps.block_builder_factory,
+            vec![],
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    } else {
+        mock_create_builder_for_validate_block(
+            &mut deps.block_builder_factory,
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
     deps.l1_provider_client.expect_start_block().returning(|_, _| {
         // The heights are not important for the test.
         let err = L1ProviderError::UnexpectedHeight {
@@ -420,15 +434,9 @@ async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
     assert_eq!(batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await, Ok(()));
 
     if proposer {
-        assert_eq!(
-            batcher.propose_block(propose_block_input(PROPOSAL_ID)).await,
-            Err(BatcherError::NotReady)
-        );
+        batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     } else {
-        assert_eq!(
-            batcher.validate_block(validate_block_input(PROPOSAL_ID)).await,
-            Err(BatcherError::NotReady)
-        );
+        batcher.validate_block(validate_block_input(PROPOSAL_ID)).await.unwrap();
     }
 }
 
@@ -677,6 +685,61 @@ async fn propose_block_full_flow() {
 
 #[rstest]
 #[tokio::test]
+async fn multiple_proposals_with_l1_every_n_proposals() {
+    const N_PROPOSALS: usize = 4;
+    const PROPOSALS_L1_MODULATOR: usize = 3;
+
+    // Send a regular tx and an l1 handler tx.
+    let mut expected_streamed_txs = test_txs(0..1);
+    expected_streamed_txs.extend(test_l1_handler_txs(1..2));
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    for _ in 0..N_PROPOSALS {
+        mock_create_builder_for_propose_block(
+            &mut block_builder_factory,
+            expected_streamed_txs.clone(),
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
+
+    let mut mock_dependencies = MockDependencies { block_builder_factory, ..Default::default() };
+    mock_dependencies.storage_writer.expect_revert_block().times(N_PROPOSALS).returning(|_| ());
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_start_block()
+        .times(N_PROPOSALS)
+        .returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    // Only propose L1 txs every PROPOSALS_L1_MODULATOR proposals.
+    batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
+
+    for i in 0..N_PROPOSALS {
+        batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+        batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+        let content = batcher
+            .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+            .await
+            .unwrap()
+            .content;
+        let txs = assert_matches!(content, GetProposalContent::Txs(txs) => txs);
+
+        if (i + 1) % PROPOSALS_L1_MODULATOR == 0 {
+            assert_eq!(txs, expected_streamed_txs);
+        } else {
+            assert_eq!(txs, test_txs(0..1));
+        }
+
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+        batcher
+            .revert_block(RevertBlockInput { height: INITIAL_HEIGHT.prev().unwrap() })
+            .await
+            .unwrap();
+    }
+}
+
+#[rstest]
+#[tokio::test]
 async fn get_height() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
@@ -808,15 +871,23 @@ async fn proposal_startup_failure_allows_new_proposals() {
         Ok(BlockExecutionArtifacts::create_for_testing()),
     );
     let mut l1_provider_client = MockL1ProviderClient::new();
-    let error = L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
-        expected_height: BlockNumber(1),
-        got: BlockNumber(0),
-    });
-    l1_provider_client.expect_start_block().once().return_once(|_, _| Err(error));
-    l1_provider_client.expect_start_block().once().return_once(|_, _| Ok(()));
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    let mut mempool_client = MockMempoolClient::new();
+    let expected_gas_price =
+        propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price.get();
+    let error = MempoolClientError::ClientError(ClientError::CommunicationFailure(
+        "Mempool not ready".to_string(),
+    ));
+    mempool_client
+        .expect_update_gas_price()
+        .with(eq(expected_gas_price))
+        .return_once(|_| Err(error));
+    mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).return_once(|_| Ok(()));
+    mempool_client.expect_commit_block().with(eq(CommitBlockArgs::default())).returning(|_| Ok(()));
     let mut batcher = create_batcher(MockDependencies {
         block_builder_factory,
         l1_provider_client,
+        mempool_client,
         ..Default::default()
     })
     .await;
@@ -826,7 +897,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
     batcher
         .propose_block(propose_block_input(ProposalId(0)))
         .await
-        .expect_err("Expected to fail because of the first L1ProviderClient error");
+        .expect_err("Expected to fail because of the first MempoolClient error");
 
     batcher.validate_block(validate_block_input(ProposalId(1))).await.expect("Expected to succeed");
     batcher
@@ -1152,7 +1223,7 @@ fn validate_batcher_config_failure() {
     })
 )]
 #[tokio::test]
-async fn decision_reached_return_error_when_l1_commit_block_fails(
+async fn decision_reached_return_success_when_l1_commit_block_fails(
     #[case] l1_error: L1ProviderClientError,
 ) {
     let mut mock_dependencies = MockDependencies::default();
@@ -1167,7 +1238,7 @@ async fn decision_reached_return_error_when_l1_commit_block_fails(
 
     mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
 
-    mock_dependencies.storage_writer.expect_revert_block().returning(|_| ());
+    mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
@@ -1176,5 +1247,5 @@ async fn decision_reached_return_error_when_l1_commit_block_fails(
     );
 
     let result = batcher_propose_and_commit_block(mock_dependencies).await;
-    assert!(result.is_err());
+    assert!(result.is_ok());
 }

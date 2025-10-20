@@ -1,3 +1,4 @@
+use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 
@@ -122,11 +123,65 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert_vec() -> Vec<Alert> {
     vec![
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
+            AlertSeverity::WorkingHours,
         ),
         get_http_server_p95_add_tx_latency_alert(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
+fn get_high_empty_blocks_ratio_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+    ratio: f64,
+    time_window_seconds: u64,
+) -> Alert {
+    // Our histogram buckets are static and the smallest bucket is 0.001.
+    let zero_bucket = format!(
+        "{}, le=\"0.001\"}}",
+        NUM_TRANSACTION_IN_BLOCK
+            .get_name_with_filter()
+            .strip_suffix("}")
+            .expect("Metric name with filter should end with }")
+    );
+    let total_count = NUM_TRANSACTION_IN_BLOCK.get_name_count_with_filter();
+
+    Alert::new(
+        "high_empty_blocks_ratio",
+        "High ratio of empty blocks",
+        AlertGroup::Batcher,
+        format!(
+            "sum(increase({zero_bucket}[{}s])) / clamp_min(sum(increase({total_count}[{}s])), 1)",
+            time_window_seconds, time_window_seconds
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: ratio,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        ObserverApplicability::NotApplicable,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_high_empty_blocks_ratio_alert_vec() -> Vec<Alert> {
+    vec![
+        get_high_empty_blocks_ratio_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+            0.3,
+            120,
+        ),
+        get_high_empty_blocks_ratio_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::Regular,
+            0.6,
+            300,
         ),
     ]
 }

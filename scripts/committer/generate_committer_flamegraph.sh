@@ -7,7 +7,10 @@ fi
 
 # Restore security level in perf_event_paranoid at the end.
 ORIGINAL_PARANOID=$(echo $(sysctl kernel.perf_event_paranoid) | grep -o '[0-9]$')
-trap 'sudo sysctl kernel.perf_event_paranoid=$ORIGINAL_PARANOID' EXIT SIGINT SIGTERM
+
+# Create temporary file for committer input
+TEMP_INPUT_FILE=$(mktemp)
+trap 'sudo sysctl kernel.perf_event_paranoid=$ORIGINAL_PARANOID; rm -f "$TEMP_INPUT_FILE"' EXIT SIGINT SIGTERM
 
 if ! command -v jq; then
     cargo install jq
@@ -24,4 +27,8 @@ BENCH_INPUT_FILES_PREFIX=$(cat ${ROOT_DIR}/crates/starknet_committer_and_os_cli/
 # Lower security level in perf_event_paranoid to 2 to allow cargo to use perf without running on root.
 sudo sysctl kernel.perf_event_paranoid=2
 
-gcloud storage cat gs://committer-testing-artifacts/${BENCH_INPUT_FILES_PREFIX}/committer_flow_inputs.json | jq -r .committer_input | CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p starknet_committer_and_os_cli -- commit
+# Download and extract committer input to temporary file
+gcloud storage cat gs://committer-testing-artifacts/${BENCH_INPUT_FILES_PREFIX}/committer_flow_inputs.json | jq -r .committer_input > "$TEMP_INPUT_FILE"
+
+# Run flamegraph with the temporary file as input
+CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph -p starknet_committer_and_os_cli -- committer commit --input-path "$TEMP_INPUT_FILE"

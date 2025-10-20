@@ -131,13 +131,17 @@ pub struct ContextConfig {
     pub l1_data_gas_price_multiplier_ppt: u128,
     /// This additional gas is added to the L1 gas price.
     pub l1_gas_tip_wei: u128,
-    /// If true, sets STRK gas price to its minimum price from the versioned constants.
-    pub constant_l2_gas_price: bool,
+    /// If given, will override the L2 gas price.
+    pub override_l2_gas_price: Option<u128>,
+    /// If given, will override the L1 gas price.
+    pub override_l1_gas_price: Option<u128>,
+    /// If given, will override the L1 data gas price.
+    pub override_l1_data_gas_price: Option<u128>,
 }
 
 impl SerializeConfig for ContextConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
@@ -226,14 +230,29 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "constant_l2_gas_price",
-                &self.constant_l2_gas_price,
-                "If true, sets STRK gas price to its minimum price from the versioned constants.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
-        config.extend(ser_optional_param(
+        dump.extend(ser_optional_param(
+            &self.override_l2_gas_price,
+            0,
+            "override_l2_gas_price",
+            "Replace the L2 gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_l1_gas_price,
+            0,
+            "override_l1_gas_price",
+            "Replace the L1 gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_l1_data_gas_price,
+            0,
+            "override_l1_data_gas_price",
+            "Replace the L1 data gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
             &self.validator_ids.as_ref().map(|accounts| {
                 accounts.iter().map(|addr| addr.0.to_string()).collect::<Vec<_>>().join(",")
             }),
@@ -242,7 +261,7 @@ impl SerializeConfig for ContextConfig {
             "Optional explicit set of validator IDs (comma separated).",
             ParamPrivacyInput::Public,
         ));
-        config
+        dump
     }
 }
 
@@ -264,7 +283,9 @@ impl Default for ContextConfig {
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
-            constant_l2_gas_price: false,
+            override_l2_gas_price: None,
+            override_l1_gas_price: None,
+            override_l1_data_gas_price: None,
         }
     }
 }

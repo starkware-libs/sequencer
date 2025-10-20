@@ -475,6 +475,11 @@ impl LabeledMetricHistogram {
         describe_histogram!(self.name, self.description);
     }
 
+    /// Returns the label name used by this labeled histogram.
+    pub fn get_label_name(&self) -> &'static str {
+        self.label_permutations[0][0].0
+    }
+
     pub fn record<T: IntoF64>(&self, value: T, labels: &[(&'static str, &'static str)]) {
         histogram!(self.name, labels).record(value.into_f64());
     }

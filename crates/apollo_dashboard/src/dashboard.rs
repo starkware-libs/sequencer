@@ -308,21 +308,55 @@ impl Panel {
         )
     }
 
-    pub(crate) fn from_hist(metric: &MetricHistogram, panel_type: PanelType) -> Self {
+    fn from_hist_helper(
+        metric_name_with_filter: impl AsRef<str>,
+        name: impl ToString,
+        description: impl ToString,
+        sum_by: impl AsRef<str>,
+    ) -> Self {
         Self::new(
-            metric.get_name(),
-            metric.get_description(),
+            name.to_string(),
+            description.to_string(),
             HISTOGRAM_QUANTILES
                 .iter()
                 .map(|q| {
                     format!(
-                        "histogram_quantile({q:.2}, sum by (le) \
+                        "histogram_quantile({q:.2}, sum by ({}) \
                          (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                        metric.get_name_with_filter(),
+                        sum_by.as_ref(),
+                        metric_name_with_filter.as_ref(),
                     )
                 })
                 .collect(),
-            panel_type,
+            PanelType::TimeSeries,
+        )
+    }
+
+    pub(crate) fn from_hist(
+        metric: &MetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+    ) -> Self {
+        Self::from_hist_helper(metric.get_name_with_filter(), name, description, "le")
+    }
+
+    pub(crate) fn from_labeled_hist(
+        metric: &LabeledMetricHistogram,
+        name: impl ToString,
+        description: impl ToString,
+    ) -> Self {
+        let group_label = metric.get_label_name();
+        Self::from_hist_helper(
+            metric.get_name_with_filter(),
+            name,
+            description,
+            format!("le, {}", group_label),
+        )
+        .with_legends(
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| format!("{:.2} {{{{{}}}}}", q, group_label))
+                .collect(),
         )
     }
 }
@@ -346,7 +380,11 @@ impl From<&LocalClientMetrics> for UnlabeledPanels {
 
 impl From<&RemoteClientMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteClientMetrics) -> Self {
-        Self(vec![Panel::from_hist(metrics.get_attempts_metric(), PanelType::TimeSeries)])
+        Self(vec![Panel::from_hist(
+            metrics.get_attempts_metric(),
+            metrics.get_attempts_metric().get_name(),
+            metrics.get_attempts_metric().get_description(),
+        )])
     }
 }
 

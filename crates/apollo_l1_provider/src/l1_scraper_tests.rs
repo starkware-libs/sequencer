@@ -584,7 +584,7 @@ async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayer
 #[fixture]
 fn dummy_base_layer() -> MockBaseLayerContract {
     let mut base_layer = MockBaseLayerContract::new();
-    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Some(Default::default())));
+    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Default::default()));
     base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
     base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
     base_layer
@@ -662,6 +662,60 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
         scraper.send_events_to_l1_provider().await,
         Err(L1ScraperError::L1ReorgDetected { .. })
     );
+}
+
+#[tokio::test]
+async fn latest_block_number_goes_down() {
+    // Setup.
+    const L1_LATEST_BLOCK_NUMBER: u64 = 10;
+    const L1_BLOCK_HASH: L1BlockHash = L1BlockHash([123; 32]);
+    const L1_BAD_LATEST_NUMBER: u64 = 5;
+
+    let mut l1_provider_client = MockL1ProviderClient::default();
+    l1_provider_client.expect_add_events().returning(|_| Ok(()));
+
+    let mut dummy_base_layer: MockBaseLayerContract = MockBaseLayerContract::new();
+
+    // This should always be returned, even if we set the "response" to a lower block number.
+    let expected_block_reference =
+        L1BlockReference { number: L1_LATEST_BLOCK_NUMBER, hash: L1_BLOCK_HASH };
+
+    let latest_l1_block_response = Arc::new(Mutex::new(expected_block_reference));
+    let latest_l1_block_response_clone = latest_l1_block_response.clone();
+    dummy_base_layer
+        .expect_latest_l1_block()
+        .times(2)
+        .returning(move |_| Ok(Some(*latest_l1_block_response_clone.lock().unwrap())));
+
+    dummy_base_layer.expect_events().times(1).returning(|_, _| Ok(vec![]));
+
+    dummy_base_layer
+        .expect_l1_block_at()
+        .returning(move |number| Ok(Some(L1BlockReference { number, hash: L1_BLOCK_HASH })));
+
+    let mut scraper = L1Scraper::new(
+        L1ScraperConfig::default(),
+        Arc::new(l1_provider_client),
+        dummy_base_layer,
+        event_identifiers_to_track(),
+        L1BlockReference { number: 0, hash: L1_BLOCK_HASH },
+    )
+    .await
+    .unwrap();
+
+    // Test.
+    // can send messages to the provider.
+    // This should also set the scraper's last_l1_block_processed to block number 10.
+    assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
+
+    // Simulate a base layer returning a lower block number.
+    latest_l1_block_response.lock().unwrap().number = L1_BAD_LATEST_NUMBER;
+
+    // Make sure we don't hit the reorg error in this scenario.
+    scraper.assert_no_l1_reorgs().await.unwrap();
+
+    // Should ignore and try again on the next interval, returning the same block reference.
+    assert_eq!(scraper.fetch_events().await, Ok((expected_block_reference, vec![])));
 }
 
 #[test]

@@ -274,6 +274,11 @@
     "pointer_target": "recorder_url",
     "privacy": "Private"
   },
+  "batcher_config.propose_l1_txs_every": {
+    "description": "Only propose L1 transactions every N proposals.",
+    "privacy": "Public",
+    "value": 1
+  },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -1579,11 +1584,6 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.context_config.constant_l2_gas_price": {
-    "description": "If true, sets STRK gas price to its minimum price from the versioned constants.",
-    "privacy": "Public",
-    "value": false
-  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
@@ -1623,6 +1623,36 @@
     "description": "The number of validators.",
     "privacy": "Public",
     "value": 1
+  },
+  "consensus_manager_config.context_config.override_l1_data_gas_price": {
+    "description": "Replace the L1 data gas price with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l1_data_gas_price.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.context_config.override_l1_gas_price": {
+    "description": "Replace the L1 gas price with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l1_gas_price.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.context_config.override_l2_gas_price": {
+    "description": "Replace the L2 gas price with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l2_gas_price.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "consensus_manager_config.context_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
@@ -1863,6 +1893,11 @@
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
     "value": 4089446
+  },
+  "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
+    "description": "Maximum allowed L2 gas amount for transactions.",
+    "privacy": "Public",
+    "value": 1100000000
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use apollo_infra::component_client::DEFAULT_RETRIES;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -37,6 +38,8 @@ pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
 const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
 const STATE_SYNC_STORAGE: usize = 500;
+
+pub const RETRIES_FOR_L1_SERVICES: usize = 2;
 
 // TODO(Tsabary): define consts and functions whenever relevant.
 
@@ -195,6 +198,21 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
                 ScalePolicy::AutoScaled
             }
+        }
+    }
+
+    fn get_retries(&self) -> usize {
+        match self {
+            Self::Batcher
+            | Self::ClassManager
+            | Self::ConsensusManager
+            | Self::HttpServer
+            | Self::Mempool
+            | Self::StateSync
+            | Self::SignatureManager
+            | Self::Gateway
+            | Self::SierraCompiler => DEFAULT_RETRIES,
+            Self::L1 => RETRIES_FOR_L1_SERVICES,
         }
     }
 
