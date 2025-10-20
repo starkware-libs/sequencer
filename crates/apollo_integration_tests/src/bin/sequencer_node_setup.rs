@@ -27,6 +27,7 @@ async fn main() {
     let test_manager = IntegrationTestManager::new(
         args.n_consolidated,
         args.n_distributed,
+        args.n_hybrid,
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
@@ -57,6 +58,9 @@ struct Args {
 
     #[arg(long)]
     n_distributed: usize,
+
+    #[arg(long)]
+    n_hybrid: usize,
 
     #[arg(long)]
     output_base_dir: String,

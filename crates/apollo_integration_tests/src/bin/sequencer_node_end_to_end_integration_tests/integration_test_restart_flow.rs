@@ -25,7 +25,9 @@ async fn main() {
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+    const N_DISTRIBUTED_SEQUENCERS: usize = 1;
+    /// The number of hybrid sequencers that participate in the test.
+    const N_HYBRID_SEQUENCERS: usize = 1;
     // The indices of the nodes that we will be shutting down.
     // The test restarts a hybrid node and shuts down a non-consolidated (hybrid/distributed) node.
     const RESTART_NODE: usize = N_CONSOLIDATED_SEQUENCERS;
@@ -35,6 +37,7 @@ async fn main() {
     let mut integration_test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
+        N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RestartFlowIntegrationTest,
     )

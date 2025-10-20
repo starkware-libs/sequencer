@@ -265,6 +265,7 @@ impl IntegrationTestManager {
     pub async fn new(
         num_of_consolidated_nodes: usize,
         num_of_distributed_nodes: usize,
+        num_of_hybrid_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
     ) -> Self {
@@ -274,6 +275,7 @@ impl IntegrationTestManager {
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
+            num_of_hybrid_nodes,
             custom_paths,
             test_unique_id,
         )
@@ -856,23 +858,23 @@ async fn get_sequencer_setup_configs(
     // TODO(Tsabary/Nadin): instead of number of nodes, this should be a vector of deployments.
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
+    num_of_hybrid_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
-    let mut node_component_configs =
-        Vec::with_capacity(num_of_consolidated_nodes + num_of_distributed_nodes);
+    let mut node_component_configs = Vec::with_capacity(
+        num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
+    );
     for _ in 0..num_of_consolidated_nodes {
         node_component_configs.push(create_consolidated_component_configs());
     }
-    // Testing the two various node configurations: distributed and hybrid.
-    // TODO(Tsabary): better handling of the number of each type.
-    for _ in 0..num_of_distributed_nodes / 2 {
+    for _ in 0..num_of_hybrid_nodes {
         node_component_configs
             .push(create_hybrid_component_configs(&mut available_ports_generator));
     }
-    for _ in num_of_distributed_nodes / 2..num_of_distributed_nodes {
+    for _ in 0..num_of_distributed_nodes {
         node_component_configs
             .push(create_distributed_component_configs(&mut available_ports_generator));
     }
