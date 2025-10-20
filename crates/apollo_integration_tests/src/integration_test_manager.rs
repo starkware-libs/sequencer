@@ -58,7 +58,6 @@ use crate::monitoring_utils::{
     await_n_txs_in_storage,
     await_sync_block,
     sequencer_n_txs_in_storage,
-    verify_n_txs_in_storage,
 };
 use crate::node_component_configs::{
     create_consolidated_component_configs,
@@ -587,9 +586,10 @@ impl IntegrationTestManager {
     }
 
     pub async fn await_n_txs_in_storage_on_all_running_nodes(&mut self, target_n_txs: usize) {
+        const MAX_ATTEMPTS: usize = 50;
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let storage_reader = running_node.node_setup.state_sync_storage_reader();
-            await_n_txs_in_storage(storage_reader, sequencer_idx, target_n_txs)
+            await_n_txs_in_storage(storage_reader, sequencer_idx, target_n_txs, MAX_ATTEMPTS)
         })
         .await;
     }
@@ -793,9 +793,17 @@ impl IntegrationTestManager {
         let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
         let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 
+        // TODO(noamsp): MAX_ATTEMPTS should be 1, as this is a verification and not an await.
+        // Figure out if we can remove/change it.
+        const MAX_ATTEMPTS: usize = 20;
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let storage_reader = running_node.node_setup.state_sync_storage_reader();
-            verify_n_txs_in_storage(storage_reader, sequencer_idx, expected_n_accepted_txs)
+            await_n_txs_in_storage(
+                storage_reader,
+                sequencer_idx,
+                expected_n_accepted_txs,
+                MAX_ATTEMPTS,
+            )
         })
         .await;
     }

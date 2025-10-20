@@ -56,10 +56,12 @@ impl SequencerSimulator {
     }
 
     pub async fn await_txs_accepted(&self, sequencer_idx: usize, target_n_batched_txs: usize) {
+        const MAX_ATTEMPTS: usize = 50;
         monitoring_utils::await_txs_accepted(
             &self.monitoring_client,
             sequencer_idx,
             target_n_batched_txs,
+            MAX_ATTEMPTS,
         )
         .await;
     }
@@ -76,10 +78,14 @@ impl SequencerSimulator {
             "Verifying that sequencer {} got {} batched txs.",
             sequencer_idx, expected_n_batched_txs
         );
-        monitoring_utils::verify_txs_accepted(
+        // TODO(noamsp): MAX_ATTEMPTS should be 1, as this is a verification and not an await.
+        // Figure out if we can remove/change it.
+        const MAX_ATTEMPTS: usize = 20;
+        monitoring_utils::await_txs_accepted(
             &self.monitoring_client,
             sequencer_idx,
             expected_n_batched_txs,
+            MAX_ATTEMPTS,
         )
         .await;
     }

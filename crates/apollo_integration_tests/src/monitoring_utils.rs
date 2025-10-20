@@ -143,32 +143,14 @@ pub async fn await_block(
     });
 }
 
-// TODO(noamsp): Delete this function and use await variant instead since both behaviours are the
-// same.
-pub async fn verify_txs_accepted(
-    monitoring_client: &MonitoringClient,
-    sequencer_idx: usize,
-    expected_n_accepted_txs: usize,
-) {
-    const INTERVAL_MS: u64 = 5_000;
-    const MAX_ATTEMPTS: usize = 20;
-
-    info!("Verifying that sequencer {sequencer_idx} accepted {expected_n_accepted_txs} txs.");
-    let condition = |num_accpted_tx: &usize| *num_accpted_tx >= expected_n_accepted_txs;
-
-    let n_accepted_txs_closure = || sequencer_num_accepted_txs(monitoring_client);
-
-    run_until(INTERVAL_MS, MAX_ATTEMPTS, n_accepted_txs_closure, condition, None).await;
-}
-
 // TODO(noamsp): rename from accepted to processed to better reflect the metric's name.
 pub async fn await_txs_accepted(
     monitoring_client: &MonitoringClient,
     sequencer_idx: usize,
     target_n_accepted_txs: usize,
+    max_attempts: usize,
 ) {
     const INTERVAL_MILLIS: u64 = 5000;
-    const MAX_ATTEMPTS: usize = 50;
     info!("Waiting until sequencer {sequencer_idx} accepts {target_n_accepted_txs} txs.");
 
     let condition =
@@ -185,7 +167,7 @@ pub async fn await_txs_accepted(
 
     run_until(
         INTERVAL_MILLIS,
-        MAX_ATTEMPTS,
+        max_attempts,
         get_current_n_accepted_txs_closure,
         condition,
         Some(logger),
@@ -210,31 +192,13 @@ pub async fn assert_no_reverted_txs(monitoring_client: &MonitoringClient, sequen
     assert_eq!(reverted, 0, "Sequencer {sequencer_idx} has {reverted} reverted transactions");
 }
 
-// TODO(noamsp): Delete this function and use await variant instead since both behaviours are the
-// same.
-pub async fn verify_n_txs_in_storage(
-    storage_reader: &StorageReader,
-    sequencer_idx: usize,
-    expected_n_txs: usize,
-) {
-    const INTERVAL_MS: u64 = 5_000;
-    const MAX_ATTEMPTS: usize = 20;
-
-    info!("Verifying that sequencer {sequencer_idx} has {expected_n_txs} txs in storage.");
-    let condition = |num_txs: &usize| *num_txs >= expected_n_txs;
-
-    let n_txs_closure = || sequencer_n_txs_in_storage(storage_reader);
-
-    run_until(INTERVAL_MS, MAX_ATTEMPTS, n_txs_closure, condition, None).await;
-}
-
 pub async fn await_n_txs_in_storage(
     storage_reader: &StorageReader,
     sequencer_idx: usize,
     target_n_txs: usize,
+    max_attempts: usize,
 ) {
     const INTERVAL_MILLIS: u64 = 5000;
-    const MAX_ATTEMPTS: usize = 50;
     info!("Waiting until sequencer's {sequencer_idx} storage has {target_n_txs} txs.");
 
     let condition = |&current_n_txs: &usize| current_n_txs >= target_n_txs;
@@ -248,7 +212,7 @@ pub async fn await_n_txs_in_storage(
         )),
     );
 
-    run_until(INTERVAL_MILLIS, MAX_ATTEMPTS, get_current_n_txs_closure, condition, Some(logger))
+    run_until(INTERVAL_MILLIS, max_attempts, get_current_n_txs_closure, condition, Some(logger))
         .await
         .unwrap_or_else(|| {
             panic!("Sequencer {sequencer_idx} did not have {target_n_txs} txs in storage.")
