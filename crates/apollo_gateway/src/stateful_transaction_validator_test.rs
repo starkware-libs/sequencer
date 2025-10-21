@@ -12,6 +12,7 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorError as BlockifierStatefulValidatorError,
 };
 use blockifier::context::ChainInfo;
+use blockifier::state::errors::StateError;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use blockifier::transaction::test_utils::calculate_class_info_for_testing;
@@ -48,6 +49,49 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactoryTrait,
     StatefulTransactionValidatorTrait,
 };
+
+#[tokio::test]
+async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator.expect_get_nonce().return_once(move |_| {
+        Err(BlockifierStatefulValidatorError::StateError(StateError::StateReadError(
+            "TestError".to_string(),
+        )))
+    });
+
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| {
+        // The mempool does not have any transactions from the sender.
+        Ok(false)
+    });
+    let mempool_client = Arc::new(mock_mempool_client);
+    let runtime = tokio::runtime::Handle::current();
+
+    let mut stateful_validator = StatefulTransactionValidator {
+        config: StatefulTransactionValidatorConfig::default(),
+        blockifier_stateful_tx_validator: mock_blockifier_validator,
+    };
+
+    let executable_tx = create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let result = tokio::task::spawn_blocking(move || {
+        stateful_validator.extract_state_nonce_and_run_validations(
+            &executable_tx,
+            mempool_client,
+            runtime,
+        )
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        result,
+        Err(StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode(
+                "StarknetErrorCode.InternalError".to_string()
+            ),
+            message: "Internal error".to_string(),
+        })
+    );
+}
 
 // TODO(Arni): consider testing declare and deploy account.
 #[rstest]

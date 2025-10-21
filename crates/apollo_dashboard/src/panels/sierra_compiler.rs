@@ -1,22 +1,13 @@
 use apollo_class_manager::metrics::{CLASS_SIZES, N_CLASSES};
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 fn get_panel_compilation_duration() -> Panel {
-    Panel::new(
+    Panel::from_hist(
+        &COMPILATION_DURATION,
         "Compile to Casm Compilation Duration",
         "Server-side compilation of Sierra to Casm duration",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le) (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    COMPILATION_DURATION.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
 }
@@ -33,20 +24,10 @@ fn get_panel_n_classes() -> Panel {
     )
 }
 fn get_panel_class_sizes() -> Panel {
-    Panel::new(
+    Panel::from_labeled_hist(
+        &CLASS_SIZES,
         "Class Sizes",
         "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
-        HISTOGRAM_QUANTILES
-            .iter()
-            .map(|q| {
-                format!(
-                    "histogram_quantile({q:.2}, sum by (le, class_object_type) \
-                     (rate({}[{HISTOGRAM_TIME_RANGE}])))",
-                    CLASS_SIZES.get_name_with_filter(),
-                )
-            })
-            .collect(),
-        PanelType::TimeSeries,
     )
     .with_unit(Unit::MB)
 }

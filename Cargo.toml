@@ -83,7 +83,6 @@ members = [
   "crates/apollo_task_executor",
   "crates/apollo_test_utils",
   "crates/apollo_time",
-  "crates/blake2s",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/blockifier_test_utils",
@@ -95,7 +94,9 @@ members = [
   "crates/papyrus_monitoring_gateway",
   "crates/papyrus_node",
   "crates/shared_execution_objects",
+  "crates/sizeof",
   "crates/sizeof/sizeof_internal",
+  "crates/sizeof/sizeof_macro",
   "crates/starknet_api",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
@@ -215,8 +216,15 @@ bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
 blake2 = "0.10.6"
+<<<<<<< HEAD
 blake2s = { path = "crates/blake2s", version = "0.0.0" }
 blockifier = { path = "crates/blockifier", version = "0.0.0" }
+||||||| fb2708ce3
+blake2s = { path = "crates/blake2s", version = "0.16.0-rc.0" }
+blockifier = { path = "crates/blockifier", version = "0.16.0-rc.0" }
+=======
+blockifier = { path = "crates/blockifier", version = "0.16.0-rc.0" }
+>>>>>>> origin/main-v0.14.1
 blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
 byteorder = "1.4.3"
@@ -340,13 +348,22 @@ sha2 = "0.10.8"
 sha3 = "0.10.8"
 shared_execution_objects.path = "crates/shared_execution_objects"
 simple_logger = "4.0.0"
-size-of = "0.1.5"
-sizeof_internal = { path = "crates/sizeof/sizeof_internal" }
+sizeof = { path = "crates/sizeof", version = "0.16.0-rc.0" }
+sizeof_internal = { path = "crates/sizeof/sizeof_internal", version = "0.16.0-rc.0" }
+sizeof_macro = { path = "crates/sizeof/sizeof_macro", version = "0.16.0-rc.0" }
 socket2 = "0.5.8"
 starknet-core = "0.16.0"
 starknet-crypto = "0.8.1"
+<<<<<<< HEAD
 starknet-types-core = "0.2.1"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
+||||||| fb2708ce3
+starknet-types-core = "0.2.1"
+starknet_api = { path = "crates/starknet_api", version = "0.16.0-rc.0" }
+=======
+starknet-types-core = "=0.2.3"
+starknet_api = { path = "crates/starknet_api", version = "0.16.0-rc.0" }
+>>>>>>> origin/main-v0.14.1
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_committer_cli.path = "crates/starknet_committer_cli"

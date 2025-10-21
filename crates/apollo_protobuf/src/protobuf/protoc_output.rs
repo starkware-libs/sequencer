@@ -368,7 +368,7 @@ pub struct Vote {
     pub round: u32,
     /// This is optional since a vote can be NIL.
     #[prost(message, optional, tag = "5")]
-    pub block_hash: ::core::option::Option<Hash>,
+    pub proposal_commitment: ::core::option::Option<Hash>,
     #[prost(message, optional, tag = "6")]
     pub voter: ::core::option::Option<Address>,
 }

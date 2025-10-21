@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::flow_test_setup::{
@@ -19,7 +20,7 @@ use apollo_integration_tests::utils::{
     CreateRpcTxsFn,
     TestTxHashesFn,
 };
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusRecorder};
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use pretty_assertions::assert_eq;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
@@ -38,8 +39,9 @@ pub async fn end_to_end_flow(
     configure_tracing().await;
 
     let mut tx_generator = create_flow_test_tx_generator();
-    let recorder = PrometheusBuilder::new().build_recorder();
-    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let global_recorder_handle = PrometheusBuilder::new()
+        .install_recorder()
+        .expect("Should be able to install global prometheus recorder");
 
     const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
@@ -106,7 +108,7 @@ pub async fn end_to_end_flow(
                      {current_batched_txs_count}"
                 );
 
-                current_batched_txs_count = get_total_batched_txs_count(&recorder);
+                current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
                 if current_batched_txs_count == total_expected_batched_txs_count {
                     break;
                 }
@@ -124,7 +126,8 @@ pub async fn end_to_end_flow(
         });
     }
 
-    assert_full_blocks_flow(&recorder, expecting_full_blocks);
+    assert_full_blocks_flow(&global_recorder_handle, expecting_full_blocks);
+    assert_no_reverted_transactions_flow(&global_recorder_handle);
 }
 
 pub struct TestScenario {
@@ -133,13 +136,13 @@ pub struct TestScenario {
     pub test_tx_hashes_fn: TestTxHashesFn,
 }
 
-fn get_total_batched_txs_count(recorder: &PrometheusRecorder) -> usize {
-    let metrics = recorder.handle().render();
+fn get_total_batched_txs_count(recorder_handle: &PrometheusHandle) -> usize {
+    let metrics = recorder_handle.render();
     apollo_batcher::metrics::BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics).unwrap()
 }
 
-fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks: bool) {
-    let metrics = recorder.handle().render();
+fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_blocks: bool) {
+    let metrics = recorder_handle.render();
     let full_blocks_metric = apollo_batcher::metrics::BLOCK_CLOSE_REASON
         .parse_numeric_metric::<u64>(
             &metrics,
@@ -154,6 +157,13 @@ fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks:
     } else {
         assert_eq!(full_blocks_metric, 0);
     }
+}
+
+fn assert_no_reverted_transactions_flow(recorder_handle: &PrometheusHandle) {
+    let metrics = recorder_handle.render();
+    let reverted_transactions_metric =
+        REVERTED_TRANSACTIONS.parse_numeric_metric::<u64>(&metrics).unwrap();
+    assert_eq!(reverted_transactions_metric, 0);
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {

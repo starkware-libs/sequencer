@@ -14,9 +14,11 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_signature_manager_types.workspace = true
 async-trait.workspace = true
-blake2s.workspace = true
+blake2.workspace = true
+digest.workspace = true
 starknet-core.workspace = true
 starknet-crypto.workspace = true
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 

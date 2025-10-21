@@ -13,7 +13,14 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceProviderError,
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote};
+use apollo_protobuf::consensus::{
+    ProposalCommitment,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
+};
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -23,7 +30,6 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
-    BlockHash,
     BlockNumber,
     GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
@@ -44,6 +50,7 @@ use crate::test_utils::{
     TIMEOUT,
     TX_BATCH,
 };
+use crate::utils::{apply_fee_transformations, make_gas_price_params};
 
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
@@ -83,7 +90,7 @@ async fn validate_proposal_success() {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -145,7 +152,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         .await
         .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
-        proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver =
@@ -154,7 +161,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     let init = ProposalInit { round: 1, ..Default::default() };
-    context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), init).await;
+    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), init).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(receiver.next().await.unwrap(), block_info);
@@ -185,7 +192,7 @@ async fn proposals_from_different_rounds() {
     let prop_part_executed_count =
         ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap());
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
-        proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
     });
 
     // The proposal from the past round is ignored.
@@ -255,7 +262,7 @@ async fn interrupt_active_proposal() {
         .unwrap();
     content_sender_1
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -304,7 +311,7 @@ async fn build_proposal() {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -405,7 +412,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     // Re-propose.
     context
         .repropose(
-            BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             ProposalInit { round: 1, ..Default::default() },
         )
         .await;
@@ -504,7 +511,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -513,7 +520,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
     // the proposal should be still be valid due to the clamping of limit prices.
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
-    assert_eq!(fin_receiver.await, Ok(BlockHash(STATE_DIFF_COMMITMENT.0.0)));
+    assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
 }
 
 #[tokio::test]
@@ -565,7 +572,10 @@ async fn decision_reached_sends_correct_values() {
         ..Default::default()
     };
 
-    context.decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![vote]).await.unwrap();
+    context
+        .decision_reached(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), vec![vote])
+        .await
+        .unwrap();
 
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
@@ -638,7 +648,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -726,22 +736,22 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    let block_hash = fin_receiver.await.unwrap().0;
-    assert_eq!(block_hash, STATE_DIFF_COMMITMENT.0.0);
+    let proposal_commitment = fin_receiver.await.unwrap();
+    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Decision reached
 
     context
         .decision_reached(
-            BlockHash(block_hash),
-            vec![Vote { block_hash: Some(BlockHash(block_hash)), ..Default::default() }],
+            proposal_commitment,
+            vec![Vote { proposal_commitment: Some(proposal_commitment), ..Default::default() }],
         )
         .await
         .unwrap();
@@ -779,21 +789,33 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         })
     );
     assert!(receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
+// L2 gas is a bit above the minimum gas price.
+const ODDLY_SPECIFIC_L2_GAS_PRICE: GasPrice = GasPrice(9999999999);
+const ODDLY_SPECIFIC_L1_GAS_PRICE: GasPrice = GasPrice(1234567890);
+const ODDLY_SPECIFIC_L1_DATA_GAS_PRICE: GasPrice = GasPrice(987654321);
+
 #[rstest]
-#[case::constant_l2_gas_price_true(true, GasAmount::default())]
-#[case::constant_l2_gas_price_false(false, VersionedConstants::latest_constants().max_block_size)]
+#[case::dont_override_prices(None, None, None)]
+#[case::override_l2_gas_price(Some(ODDLY_SPECIFIC_L2_GAS_PRICE.0), None, None)]
+#[case::override_l1_gas_price(None, Some(ODDLY_SPECIFIC_L1_GAS_PRICE.0), None)]
+#[case::override_l1_data_gas_price(None, None, Some(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE.0))]
+#[case::override_all_prices(Some(ODDLY_SPECIFIC_L2_GAS_PRICE.0), Some(ODDLY_SPECIFIC_L1_GAS_PRICE.0), Some(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE.0))]
 #[tokio::test]
-async fn constant_l2_gas_price_behavior(
-    #[case] constant_l2_gas_price: bool,
-    #[case] mock_l2_gas_used: GasAmount,
+async fn override_prices_behavior(
+    #[case] override_l2_gas_price: Option<u128>,
+    #[case] override_l1_gas_price: Option<u128>,
+    #[case] override_l1_data_gas_price: Option<u128>,
 ) {
+    // Use high gas usage to ensure the L2 gas price is high.
+    let mock_l2_gas_used = VersionedConstants::latest_constants().max_block_size;
+
     let (mut deps, _network) = create_test_and_network_deps();
 
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -801,7 +823,7 @@ async fn constant_l2_gas_price_behavior(
 
     // Setup dependencies and mocks.
     deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len());
-
+    deps.l1_gas_price_provider.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     deps.batcher.expect_decision_reached().times(1).return_once(move |_| {
         Ok(DecisionReachedResponse {
             state_diff: ThinStateDiff::default(),
@@ -813,30 +835,77 @@ async fn constant_l2_gas_price_behavior(
     deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
     deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
 
-    let context_config = ContextConfig { constant_l2_gas_price, ..Default::default() };
+    let context_config = ContextConfig {
+        override_l2_gas_price,
+        override_l1_gas_price,
+        override_l1_data_gas_price,
+        ..Default::default()
+    };
     let mut context = deps.build_context();
     context.config = context_config;
+
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price.0;
+    let gas_price_params = make_gas_price_params(&context.config);
+    let mut expected_l1_prices = PriceInfo {
+        base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+        blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+    };
+    apply_fee_transformations(&mut expected_l1_prices, &gas_price_params);
 
     // Run proposal and decision logic.
     let _fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
     context
-        .decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
+        .decision_reached(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
         .await
         .unwrap();
 
-    let min_gas_price = VersionedConstants::latest_constants().min_gas_price.0;
     let actual_l2_gas_price = context.l2_gas_price.0;
+    let actual_l1_gas_price = context.previous_block_info.clone().unwrap().l1_gas_price_wei.0;
+    let actual_l1_data_gas_price =
+        context.previous_block_info.clone().unwrap().l1_data_gas_price_wei.0;
 
-    if constant_l2_gas_price {
+    if let Some(override_l2_gas_price) = override_l2_gas_price {
+        // In this case the L2 gas price must match the given override.
         assert_eq!(
-            actual_l2_gas_price, min_gas_price,
-            "Expected L2 gas price to match constant min_gas_price"
+            actual_l2_gas_price, override_l2_gas_price,
+            "Expected L2 gas price ({actual_l2_gas_price}) to match override_l2_gas_price \
+             ({override_l2_gas_price})",
         );
     } else {
+        // In this case the regular L2 gas calculation takes place, and gives a higher price.
         assert!(
             actual_l2_gas_price > min_gas_price,
-            "Expected L2 gas price > min ({min_gas_price}) due to high usage (EIP-1559), but got \
-             {actual_l2_gas_price}"
+            "Expected L2 gas price ({actual_l2_gas_price}) > minimum l2 gas price \
+             ({min_gas_price}) due to high usage (EIP-1559)",
+        );
+    }
+
+    if let Some(override_l1_gas_price) = override_l1_gas_price {
+        assert_eq!(
+            actual_l1_gas_price, override_l1_gas_price,
+            "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price \
+             ({override_l1_gas_price})",
+        );
+    } else {
+        assert_eq!(
+            actual_l1_gas_price, expected_l1_prices.base_fee_per_gas.0,
+            "Expected L1 gas price ({actual_l1_gas_price}) to match input l1 gas price ({})",
+            expected_l1_prices.base_fee_per_gas.0
+        );
+    }
+
+    if let Some(override_l1_data_gas_price) = override_l1_data_gas_price {
+        assert_eq!(
+            actual_l1_data_gas_price, override_l1_data_gas_price,
+            "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
+             price ({override_l1_data_gas_price})",
+        );
+    } else {
+        assert_eq!(
+            actual_l1_data_gas_price, expected_l1_prices.blob_fee.0,
+            "Expected L1 data gas price ({actual_l1_data_gas_price}) to match input l1 data gas \
+             price ({})",
+            expected_l1_prices.blob_fee.0
         );
     }
 }

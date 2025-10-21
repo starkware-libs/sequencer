@@ -8,13 +8,35 @@ Unknown location (pc=0:125)
 1: Error in the called contract (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
 Error at pc=0:37:
 Cairo traceback (most recent call last):
+<<<<<<< HEAD
 Unknown location (pc=0:1410)
 Unknown location (pc=0:1337)
+||||||| fb2708ce3
+Unknown location (pc=0:1379)
+Unknown location (pc=0:1306)
+=======
+Unknown location (pc=0:1629)
+Unknown location (pc=0:1556)
+>>>>>>> origin/main-v0.14.1
 
 2: Error in the called contract (contract address: 0x0000000000000000000000000000000000000000000000000000000040070000, class hash: 0x0000000000000000000000000000000000000000000000000000000000070000, selector: 0x0062c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5):
+<<<<<<< HEAD
 Error at pc=0:1325:
+||||||| fb2708ce3
+Error at pc=0:1294:
+=======
+Error at pc=0:1544:
+>>>>>>> origin/main-v0.14.1
 Cairo traceback (most recent call last):
+<<<<<<< HEAD
 Unknown location (pc=0:1410)
 Unknown location (pc=0:1371)
+||||||| fb2708ce3
+Unknown location (pc=0:1379)
+Unknown location (pc=0:1340)
+=======
+Unknown location (pc=0:1629)
+Unknown location (pc=0:1590)
+>>>>>>> origin/main-v0.14.1
 
 Couldn't compute operand op0. Unknown value for memory cell 1:37

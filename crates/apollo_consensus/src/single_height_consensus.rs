@@ -12,7 +12,10 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
+const REBROADCAST_LOG_PERIOD_SECS: u64 = 10;
+
 use apollo_consensus_config::config::TimeoutsConfig;
+use apollo_infra_utils::trace_every_n_sec;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
@@ -251,7 +254,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                trace!("Rebroadcasting {last_vote:?}");
+                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
@@ -268,7 +271,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                trace!("Rebroadcasting {last_vote:?}");
+                trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
@@ -296,10 +299,10 @@ impl SingleHeightConsensus {
                 // this round. While this prevents spam attacks it also prevents re-receiving after
                 // a network issue.
                 let old = self.proposals.insert(round, proposal_id);
-                let old = old.unwrap_or_else(|| {
-                    panic!("Proposal entry should exist from init. round={round}")
-                });
-                assert!(old.is_none(), "Proposal already exists for this round={round}. {old:?}");
+                assert!(
+                    old.is_some_and(|p| p.is_none()),
+                    "Proposal entry for round {round} should exist and be empty: {old:?}"
+                );
                 let sm_events = self.state_machine.handle_event(
                     StateMachineEvent::Proposal(proposal_id, round, valid_round),
                     &leader_fn,
@@ -355,12 +358,14 @@ impl SingleHeightConsensus {
         }
 
         let (votes, sm_vote) = match vote.vote_type {
-            VoteType::Prevote => {
-                (&mut self.prevotes, StateMachineEvent::Prevote(vote.block_hash, vote.round))
-            }
-            VoteType::Precommit => {
-                (&mut self.precommits, StateMachineEvent::Precommit(vote.block_hash, vote.round))
-            }
+            VoteType::Prevote => (
+                &mut self.prevotes,
+                StateMachineEvent::Prevote(vote.proposal_commitment, vote.round),
+            ),
+            VoteType::Precommit => (
+                &mut self.precommits,
+                StateMachineEvent::Precommit(vote.proposal_commitment, vote.round),
+            ),
         };
 
         match votes.entry((vote.round, vote.voter)) {
@@ -369,7 +374,7 @@ impl SingleHeightConsensus {
             }
             Entry::Occupied(entry) => {
                 let old = entry.get();
-                if old.block_hash != vote.block_hash {
+                if old.proposal_commitment != vote.proposal_commitment {
                     warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
                     CONSENSUS_CONFLICTING_VOTES.increment(1);
                     return Ok(ShcReturn::Tasks(Vec::new()));
@@ -480,14 +485,15 @@ impl SingleHeightConsensus {
         };
         let proposal_id = proposal_id.expect("Reproposal must have a valid ID");
 
-        let id = self
-            .proposals
-            .get(&valid_round)
-            .unwrap_or_else(|| panic!("A proposal should exist for valid_round: {valid_round}"))
-            .unwrap_or_else(|| {
-                panic!("A valid proposal should exist for valid_round: {valid_round}")
-            });
-        assert_eq!(id, proposal_id, "reproposal should match the stored proposal");
+        // Make sure there is an existing proposal for the valid round and it matches the proposal
+        // ID.
+        let existing = self.proposals.get(&valid_round).and_then(|&inner| inner);
+        assert!(
+            existing.is_some_and(|id| id == proposal_id),
+            "A proposal with ID {proposal_id:?} should exist for valid_round: {valid_round}. \
+             Found: {existing:?}",
+        );
+
         let old = self.proposals.insert(round, Some(proposal_id));
         assert!(old.is_none(), "There should be no proposal for round {round}.");
         let init = ProposalInit {
@@ -497,7 +503,7 @@ impl SingleHeightConsensus {
             valid_round: Some(valid_round),
         };
         CONSENSUS_REPROPOSALS.increment(1);
-        context.repropose(id, init).await;
+        context.repropose(proposal_id, init).await;
     }
 
     async fn handle_state_machine_vote<ContextT: ConsensusContext>(
@@ -529,7 +535,7 @@ impl SingleHeightConsensus {
             vote_type,
             height: self.height.0,
             round,
-            block_hash: proposal_id,
+            proposal_commitment: proposal_id,
             voter: self.id,
         };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
@@ -577,7 +583,8 @@ impl SingleHeightConsensus {
             })?;
         if block != proposal_id {
             return Err(invalid_decision(format!(
-                "StateMachine block hash should match the stored block. Shc.block_id: {block}"
+                "StateMachine proposal commitment should match the stored block. Shc.block_id: \
+                 {block}"
             )));
         }
         let supporting_precommits: Vec<Vote> = self
@@ -585,7 +592,11 @@ impl SingleHeightConsensus {
             .iter()
             .filter_map(|v| {
                 let vote = self.precommits.get(&(round, *v))?;
-                if vote.block_hash == Some(proposal_id) { Some(vote.clone()) } else { None }
+                if vote.proposal_commitment == Some(proposal_id) {
+                    Some(vote.clone())
+                } else {
+                    None
+                }
             })
             .collect();
 

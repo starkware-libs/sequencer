@@ -42,6 +42,7 @@ fn get_panel_storage_height() -> Panel {
         vec![STORAGE_HEIGHT.get_name_with_filter().to_string()],
         PanelType::Stat,
     )
+    .with_log_query("Committing block at height")
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
@@ -77,6 +78,7 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
         vec![format!("rate({}[1m])", BATCHED_TRANSACTIONS.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+    .with_log_query("BATCHER_FIN_VALIDATOR")
 }
 
 fn get_panel_block_close_reasons() -> Panel {
@@ -88,7 +90,7 @@ fn get_panel_block_close_reasons() -> Panel {
             LABEL_NAME_BLOCK_CLOSE_REASON,
             BLOCK_CLOSE_REASON.get_name_with_filter()
         )],
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
     .with_log_query("\"Block builder deadline reached.\" OR \"Block is full.\"")
 }
@@ -109,6 +111,7 @@ fn get_panel_num_txs_in_proposal() -> Panel {
         vec![CONSENSUS_NUM_TXS_IN_PROPOSAL.get_name_with_filter().to_string()],
         PanelType::TimeSeries,
     )
+    .with_log_query("BATCHER_FIN_PROPOSER")
 }
 
 pub(crate) fn get_batcher_row() -> Row {

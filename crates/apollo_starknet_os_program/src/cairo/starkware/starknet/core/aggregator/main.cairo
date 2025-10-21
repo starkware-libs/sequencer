@@ -50,18 +50,15 @@ func main{
 
     // Guess the committee's public keys.
     local public_keys: felt*;
-    local n_keys: felt;
+    local n_public_keys: felt;
     %{
         public_keys = program_input["public_keys"] if program_input["public_keys"] is not None else []
-        if len(public_keys) == 0:
-            ids.public_keys = 0
-        else:
-            ids.public_keys = segments.gen_arg(public_keys)
-        ids.n_keys = len(public_keys)
+        ids.public_keys = segments.gen_arg(public_keys)
+        ids.n_public_keys = len(public_keys)
     %}
 
     check_public_keys{hash_ptr=pedersen_ptr}(
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
         starknet_os_config_hash=os_outputs[0].header.starknet_os_config_hash,
     );
@@ -87,7 +84,7 @@ func main{
         n_tasks=n_tasks,
         os_outputs=os_outputs,
         os_program_hash=os_program_hash,
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
 
@@ -107,7 +104,7 @@ func main{
     serialize_os_output(
         os_output=combined_output,
         replace_keys_with_aliases=FALSE,
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
 
@@ -128,7 +125,13 @@ func main{
 // (to match the bootloader output format).
 func output_blocks{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(n_tasks: felt, os_outputs: OsOutput*, os_program_hash: felt, n_keys: felt, public_keys: felt*) {
+}(
+    n_tasks: felt,
+    os_outputs: OsOutput*,
+    os_program_hash: felt,
+    n_public_keys: felt,
+    public_keys: felt*,
+) {
     if (n_tasks == 0) {
         return ();
     }
@@ -152,7 +155,7 @@ func output_blocks{
     serialize_os_output(
         os_output=&os_outputs[0],
         replace_keys_with_aliases=FALSE,
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
 
@@ -163,15 +166,17 @@ func output_blocks{
         n_tasks=n_tasks - 1,
         os_outputs=&os_outputs[1],
         os_program_hash=os_program_hash,
-        n_keys=n_keys,
+        n_public_keys=n_public_keys,
         public_keys=public_keys,
     );
 }
 
 func check_public_keys{hash_ptr: HashBuiltin*}(
-    n_keys: felt, public_keys: felt*, starknet_os_config_hash: felt
+    n_public_keys: felt, public_keys: felt*, starknet_os_config_hash: felt
 ) {
-    let (public_keys_hash) = get_public_keys_hash(n_keys=n_keys, public_keys=public_keys);
+    let (public_keys_hash) = get_public_keys_hash(
+        n_public_keys=n_public_keys, public_keys=public_keys
+    );
     tempvar chain_id = nondet %{ program_input["chain_id"] %};
     tempvar fee_token_address = nondet %{ program_input["fee_token_address"] %};
     tempvar guessed_starknet_os_config = new StarknetOsConfig(

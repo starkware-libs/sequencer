@@ -3,14 +3,16 @@ use std::fmt::Display;
 use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use prost::DecodeError;
 use rand::Rng;
-use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::hash::StarkHash;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
     ConsensusBlockInfo,
+    ProposalCommitment,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -26,7 +28,7 @@ auto_impl_get_test_instance! {
         pub vote_type: VoteType,
         pub height: u64,
         pub round: u32,
-        pub block_hash: Option<BlockHash>,
+        pub proposal_commitment: Option<ProposalCommitment>,
         pub voter: ContractAddress,
     }
     pub enum VoteType {
@@ -39,8 +41,9 @@ auto_impl_get_test_instance! {
         pub valid_round: Option<u32>,
         pub proposer: ContractAddress,
     }
+    pub struct ProposalCommitment(pub StarkHash);
     pub struct ProposalFin {
-        pub proposal_commitment: BlockHash,
+        pub proposal_commitment: ProposalCommitment,
     }
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,

@@ -7,10 +7,7 @@ use apollo_infra::metrics::{
 };
 use apollo_mempool_types::mempool_types::MEMPOOL_REQUEST_LABELS;
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
-use starknet_api::rpc_transaction::{
-    InternalRpcTransactionLabelValue,
-    InternalRpcTransactionWithoutTxHash,
-};
+use starknet_api::rpc_transaction::InternalRpcTransactionLabelValue;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
@@ -45,52 +42,12 @@ generate_permutation_labels! {
     (LABEL_NAME_DROP_REASON, DropReason),
 }
 
-enum TransactionStatus {
-    AddedToMempool,
-    Dropped,
-}
-
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum DropReason {
-    FailedAddTxChecks,
     Expired,
     Rejected,
     Evicted,
-}
-
-pub(crate) struct MempoolMetricHandle {
-    tx_type: InternalRpcTransactionLabelValue,
-    tx_status: TransactionStatus,
-}
-
-impl MempoolMetricHandle {
-    pub fn new(tx: &InternalRpcTransactionWithoutTxHash) -> Self {
-        let tx_type = InternalRpcTransactionLabelValue::from(tx);
-        Self { tx_type, tx_status: TransactionStatus::Dropped }
-    }
-
-    fn label(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(LABEL_NAME_TX_TYPE, self.tx_type.into())]
-    }
-
-    pub fn count_transaction_received(&self) {
-        MEMPOOL_TRANSACTIONS_RECEIVED.increment(1, &self.label());
-    }
-
-    pub fn transaction_inserted(&mut self) {
-        self.tx_status = TransactionStatus::AddedToMempool;
-    }
-}
-
-impl Drop for MempoolMetricHandle {
-    fn drop(&mut self) {
-        match self.tx_status {
-            TransactionStatus::Dropped => MEMPOOL_TRANSACTIONS_DROPPED
-                .increment(1, &[(LABEL_NAME_DROP_REASON, DropReason::FailedAddTxChecks.into())]),
-            TransactionStatus::AddedToMempool => {}
-        }
-    }
 }
 
 pub(crate) fn metric_count_expired_txs(n_txs: usize) {

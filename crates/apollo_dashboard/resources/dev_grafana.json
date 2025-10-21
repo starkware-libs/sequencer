@@ -3,23 +3,26 @@
     "Overview": {
       "panels": [
         {
+          "title": "Average Block Time",
+          "description": "Average block time (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
           "title": "Consensus Round",
           "description": "The round the node is currently working on",
           "type": "timeseries",
           "exprs": [
             "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
-        },
-        {
-          "title": "Write Blob Failure by Reason",
-          "description": "The number of failed blob writes to Cende (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "sum by (cende_write_failure_reason) (increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
-          ],
           "extra_params": {
-            "log_query": "\"CENDE_FAILURE\""
+            "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
           }
         },
         {
@@ -38,27 +41,27 @@
           "exprs": [
             "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BATCHER_FIN_VALIDATOR\""
+          }
         },
         {
-          "title": "Sync Diff From Central",
-          "description": "The number of blocks that were not fully synced yet",
+          "title": "Consensus Height Diff From Sync",
+          "description": "The difference between the consensus height and the sync height",
           "type": "timeseries",
           "exprs": [
-            "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
         },
         {
-          "title": "Transaction Failure Rate by Type",
-          "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
+          "title": "Transactions Failed by Reason",
+          "description": "The number of transactions failed by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])))"
+            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
+          "extra_params": {}
         }
       ],
       "collapsed": false
@@ -72,7 +75,10 @@
           "exprs": [
             "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start validating proposal\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "Consensus Round",
@@ -81,16 +87,22 @@
           "exprs": [
             "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
-          "title": "Consensus Height Diff From Sync",
-          "description": "The difference between the consensus height and the sync height",
+          "title": "Consensus Round Advanced",
+          "description": "The number of times the consensus round advanced (counter is increased whenever round > 0) (10m window)",
           "type": "timeseries",
           "exprs": [
-            "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "increase(consensus_round_advances{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "Average Block Time",
@@ -104,13 +116,37 @@
           }
         },
         {
+          "title": "Consensus Round Above Zero",
+          "description": "Occurances where the consensus round was 1, relative to displayed range",
+          "type": "timeseries",
+          "exprs": [
+            "consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"} @ start())"
+          ],
+          "extra_params": {
+            "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
+          "title": "Consensus Height Diff From Sync",
+          "description": "The difference between the consensus height and the sync height",
+          "type": "timeseries",
+          "exprs": [
+            "(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Decisions Reached By Consensus",
           "description": "The number of decisions reached by way of consensus (10m window)",
           "type": "timeseries",
           "exprs": [
             "increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"DECISION_REACHED: Decision reached for round\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "Decisions Reached By Sync",
@@ -119,7 +155,10 @@
           "exprs": [
             "increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Decision learned via sync protocol.\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "Proposal Build: Number of Proposals Started",
@@ -147,7 +186,8 @@
             "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {
-            "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\""
+            "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
           }
         },
         {
@@ -166,7 +206,10 @@
           "exprs": [
             "increase(consensus_proposals_validated{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Validated proposal.\" OR \"PROPOSAL_FAILED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "Proposal Validation: Number of Invalid Proposals",
@@ -175,7 +218,10 @@
           "exprs": [
             "increase(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Validated proposal.\" OR \"PROPOSAL_FAILED\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "Proposal Validation: Proposal Failure by Reason",
@@ -185,7 +231,8 @@
             "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {
-            "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\""
+            "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
           }
         },
         {
@@ -195,7 +242,10 @@
           "exprs": [
             "sum by (timeout_type) (increase(consensus_timeouts{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Applying Timeout\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
         },
         {
           "title": "L2 Gas Price (GFri)",
@@ -263,7 +313,9 @@
           "exprs": [
             "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"write_pre_confirmed_block request succeeded.\""
+          }
         }
       ],
       "collapsed": true
@@ -277,7 +329,9 @@
           "exprs": [
             "batcher_storage_height{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Committing block at height\""
+          }
         },
         {
           "title": "Batched Transactions Rate (TPS)",
@@ -286,7 +340,9 @@
           "exprs": [
             "rate(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BATCHER_FIN_VALIDATOR\""
+          }
         },
         {
           "title": "Proposal Build: Deferred TXs",
@@ -329,7 +385,7 @@
         {
           "title": "Block Close Reasons",
           "description": "Number of blocks closed by reason (10m window)",
-          "type": "timeseries",
+          "type": "stat",
           "exprs": [
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
           ],
@@ -353,7 +409,9 @@
           "exprs": [
             "consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BATCHER_FIN_PROPOSER\""
+          }
         }
       ],
       "collapsed": true
@@ -552,17 +610,19 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_validate_stateful_tx_storage_micros",
-          "description": "Total time spent in storage operations in micros during stateful tx validation",
+          "title": "Gateway Validate Stateful Tx Storage Access Time",
+          "description": "Total time spent in storage operations during stateful tx validation",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_micros_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_micros_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "s"
+          }
         },
         {
-          "title": "gateway_validate_stateful_tx_storage_operations",
+          "title": "Gateway Validate Stateful Tx Storage Operations",
           "description": "Total number of storage operations during stateful tx validation",
           "type": "timeseries",
           "exprs": [
@@ -864,6 +924,16 @@
           "extra_params": {
             "unit": "percentunit"
           }
+        },
+        {
+          "title": "Transactions Per Block",
+          "description": "The number of transactions per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
@@ -900,7 +970,11 @@
             "histogram_quantile(0.95, sum by (le, class_object_type) (rate(class_manager_class_sizes_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {
-            "unit": "decmbytes"
+            "unit": "decmbytes",
+            "legends": [
+              "0.50 {{class_object_type}}",
+              "0.95 {{class_object_type}}"
+            ]
           }
         }
       ],
@@ -1110,7 +1184,7 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
+          "title": "Mempool P2p Broadcasted Transaction Batch Size",
           "description": "The number of transactions in batches broadcast by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1149,7 +1223,11 @@
           "exprs": [
             "tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_min_busy_duration",

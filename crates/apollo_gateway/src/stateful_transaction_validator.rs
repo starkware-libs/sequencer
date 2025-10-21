@@ -127,7 +127,7 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
             self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
                 // TODO(noamsp): Fix this. Need to map the errors better.
                 StarknetError::internal_with_signature_logging(
-                    "Failed to get nonce for sender address {address}",
+                    format!("Failed to get nonce for sender address {address}"),
                     &executable_tx.signature(),
                     e,
                 )

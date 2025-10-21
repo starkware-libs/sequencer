@@ -11,6 +11,13 @@ use url::Url;
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
+<<<<<<< HEAD
+||||||| fb2708ce3
+    L1ToL2MessageArgs,
+=======
+    EthereumBaseLayerError,
+    L1ToL2MessageArgs,
+>>>>>>> origin/main-v0.14.1
     Starknet,
 };
 use crate::BaseLayerContract;
@@ -65,8 +72,13 @@ async fn latest_proved_block_ethereum() {
         (1000, None),
     ];
     for (scenario, expected) in scenarios {
-        let latest_block = contract.latest_proved_block(scenario).await.unwrap();
-        assert_eq!(latest_block, expected);
+        let latest_block = contract.latest_proved_block(scenario).await;
+        match latest_block {
+            Ok(latest_block) => assert_eq!(latest_block, expected),
+            Err(e) => {
+                assert_matches!(e, EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _))
+            }
+        }
     }
 }
 

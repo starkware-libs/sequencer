@@ -9,7 +9,6 @@ use apollo_signature_manager_types::{
     SignatureManagerResult,
 };
 use async_trait::async_trait;
-use blake2s::blake2s_to_felt;
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, PublicKey, RawSignature, SignatureConversionError};
@@ -17,6 +16,8 @@ use starknet_core::crypto::{ecdsa_sign, ecdsa_verify, EcdsaVerifyError};
 use starknet_core::types::Felt;
 use starknet_crypto::get_public_key;
 use thiserror::Error;
+
+use crate::blake_utils::blake2s_to_felt;
 
 #[cfg(test)]
 #[path = "signature_manager_test.rs"]

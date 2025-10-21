@@ -14,6 +14,10 @@ use url::Url;
 use crate::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
+#[cfg(test)]
+#[path = "monitored_base_layer_test.rs"]
+pub mod monitored_base_layer_test;
+
 pub type MonitoredEthereumBaseLayer = MonitoredBaseLayer<EthereumBaseLayerContract>;
 
 // Using interior mutability for modifiable fields in order to comply with the base layer's
@@ -48,13 +52,17 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
     /// of an external HTTP call.
     async fn ensure_operational(&self) -> Result<(), MonitoredBaseLayerError<B>> {
         let active_l1_endpoint = self.monitor.get_active_l1_endpoint().await;
+        let current_node_url;
+        {
+            current_node_url = self.current_node_url.read().await.clone();
+        } // Drop the read lock
         match active_l1_endpoint {
-            Ok(new_node_url) if new_node_url != *self.current_node_url.read().await => {
+            Ok(new_node_url) if new_node_url != current_node_url => {
                 info!(
                     "L1 endpoint {} is no longer operational, switching to new operational L1 \
                      endpoint: {}",
-                    self.current_node_url.read().await,
-                    &new_node_url
+                    to_safe_string(&current_node_url),
+                    to_safe_string(&new_node_url)
                 );
 
                 let mut base_layer = self.base_layer.lock().await;
@@ -103,10 +111,7 @@ impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLaye
             .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
     }
 
-    async fn latest_l1_block_number(
-        &self,
-        finality: u64,
-    ) -> Result<Option<L1BlockNumber>, Self::Error> {
+    async fn latest_l1_block_number(&self, finality: u64) -> Result<L1BlockNumber, Self::Error> {
         self.get()
             .await?
             .latest_l1_block_number(finality)
@@ -229,4 +234,11 @@ impl<B: BaseLayerContract + Send + Sync> std::fmt::Debug for MonitoredBaseLayerE
             MonitoredBaseLayerError::BaseLayerContractError(err) => write!(f, "{err:?}"),
         }
     }
+}
+
+// TODO(guyn): this is duplicated code from apollo_l1_endpoint_monitor/src/monitor.rs
+// TODO(guyn): when it is moved to apollo_infra_utils, we should import it instead.
+fn to_safe_string(url: &Url) -> String {
+    // We print only the hostnames to avoid leaking the API keys.
+    url.host().map_or_else(|| "no host in url!".to_string(), |host| host.to_string())
 }

@@ -19,12 +19,13 @@ mod test_utils;
 pub mod utils;
 
 use std::collections::{BTreeMap, HashSet};
-use std::str::FromStr;
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_comma_separated_str,
     deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
+    serialize_optional_comma_separated,
     serialize_optional_vec_u8,
 };
 use apollo_config::dumping::{
@@ -39,53 +40,11 @@ use discovery::DiscoveryConfig;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
 pub(crate) type Bytes = Vec<u8>;
-
-// TODO(AndrewL): Fix this
-/// This function considers `""` to be `None` and
-/// `"multiaddr1,multiaddr2"` to be `Some(vec![multiaddr1, multiaddr2])`.
-/// It was purposefully designed this way to be compatible with the old config where only one
-/// bootstrap peer was supported. Hence there is no way to express an empty vector in the config.
-fn deserialize_multi_addrs<'de, D>(de: D) -> Result<Option<Vec<Multiaddr>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw_str: String = Deserialize::deserialize(de).unwrap_or_default();
-    if raw_str.is_empty() {
-        return Ok(None);
-    }
-
-    let mut vector = Vec::new();
-    for i in raw_str.split(',').filter(|s| !s.is_empty()) {
-        let value = Multiaddr::from_str(i).map_err(|_| {
-            D::Error::custom(format!("Couldn't deserialize vector. Failed to parse value: {i}"))
-        })?;
-        vector.push(value);
-    }
-
-    if vector.is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(vector))
-}
-
-// TODO(Tsabary): move to the config converter module.
-pub fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
-    match multi_addrs {
-        None => "".to_owned(),
-        Some(multi_addrs) => multi_addrs
-            .iter()
-            .map(|multiaddr| multiaddr.to_string())
-            .collect::<Vec<String>>()
-            .join(","),
-    }
-}
 
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
@@ -95,7 +54,7 @@ pub struct NetworkConfig {
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
-    #[serde(deserialize_with = "deserialize_multi_addrs")]
+    #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
     #[validate(custom = "validate_vec_u256")]
@@ -153,11 +112,7 @@ impl SerializeConfig for NetworkConfig {
         // TODO(Tsabary): this is not the proper way to dump a config. Needs fixing, and
         // specifically, need to move the condition to be part of the serialization fn.
         config.extend(ser_optional_param(
-            &if self.bootstrap_peer_multiaddr.is_some(){
-                Some(serialize_multi_addrs(&self.bootstrap_peer_multiaddr))
-            } else {
-                None
-            },
+            &serialize_optional_comma_separated(&self.bootstrap_peer_multiaddr),
             String::from(""),
             "bootstrap_peer_multiaddr",
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",

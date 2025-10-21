@@ -1,5 +1,7 @@
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+
 use super::TestingTxArgs;
-use crate::contract_class::ClassInfo;
+use crate::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
@@ -214,4 +216,29 @@ impl TestingTxArgs for DeclareTxArgsWithContractClass {
     fn get_internal_tx(&self) -> InternalRpcTransaction {
         internal_rpc_declare_tx(self.args.clone())
     }
+
+    /// Returns the executable transaction for the declare transaction.
+    /// Note: the `class_info` is constructed using a default compiled contract class, so if the
+    /// test requires a specific contract class this function shouldn't be used.
+    fn get_executable_tx(&self) -> AccountTransaction {
+        executable_declare_tx(
+            self.args.clone(),
+            ClassInfo::new(&default_compiled_contract_class(), 100, 100, SierraVersion::LATEST)
+                .unwrap(),
+        )
+    }
+}
+
+pub fn default_compiled_contract_class() -> ContractClass {
+    let casm = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let sierra_version = SierraVersion::default();
+    ContractClass::V1((casm, sierra_version))
 }

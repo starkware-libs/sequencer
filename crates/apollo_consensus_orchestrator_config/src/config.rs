@@ -3,8 +3,10 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_comma_separated_str,
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
+    serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -93,6 +95,10 @@ pub struct ContextConfig {
     pub proposal_buffer_size: usize,
     /// The number of validators.
     pub num_validators: u64,
+    /// Optional explicit set of validator IDs (contract addresses) to use.
+    /// If provided, this overrides `num_validators`.
+    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
+    pub validator_ids: Option<Vec<ContractAddress>>,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
@@ -126,13 +132,17 @@ pub struct ContextConfig {
     pub l1_data_gas_price_multiplier_ppt: u128,
     /// This additional gas is added to the L1 gas price.
     pub l1_gas_tip_wei: u128,
-    /// If true, sets STRK gas price to its minimum price from the versioned constants.
-    pub constant_l2_gas_price: bool,
+    /// If given, will override the L2 gas price.
+    pub override_l2_gas_price: Option<u128>,
+    /// If given, will override the L1 gas price.
+    pub override_l1_gas_price: Option<u128>,
+    /// If given, will override the L1 data gas price.
+    pub override_l1_data_gas_price: Option<u128>,
 }
 
 impl SerializeConfig for ContextConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
@@ -221,13 +231,36 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "constant_l2_gas_price",
-                &self.constant_l2_gas_price,
-                "If true, sets STRK gas price to its minimum price from the versioned constants.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        ]);
+        dump.extend(ser_optional_param(
+            &self.override_l2_gas_price,
+            0,
+            "override_l2_gas_price",
+            "Replace the L2 gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_l1_gas_price,
+            0,
+            "override_l1_gas_price",
+            "Replace the L1 gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.override_l1_data_gas_price,
+            0,
+            "override_l1_data_gas_price",
+            "Replace the L1 data gas price with this value.",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &serialize_optional_comma_separated(&self.validator_ids),
+            "".to_string(),
+            "validator_ids",
+            "Optional explicit set of validator IDs (comma separated).",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 
@@ -236,6 +269,7 @@ impl Default for ContextConfig {
         Self {
             proposal_buffer_size: 100,
             num_validators: 1,
+            validator_ids: None,
             chain_id: ChainId::Mainnet,
             block_timestamp_window_seconds: 1,
             l1_da_mode: true,
@@ -248,7 +282,9 @@ impl Default for ContextConfig {
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
-            constant_l2_gas_price: false,
+            override_l2_gas_price: None,
+            override_l1_gas_price: None,
+            override_l1_data_gas_price: None,
         }
     }
 }

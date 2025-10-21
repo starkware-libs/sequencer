@@ -2,13 +2,58 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_seconds_to_duration;
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+/// Configuration for consensus containing both static and dynamic configs.
+#[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolConfig {
+    #[validate]
+    pub dynamic_config: MempoolDynamicConfig,
+    #[validate]
+    pub static_config: MempoolStaticConfig,
+}
+
+impl SerializeConfig for MempoolConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct MempoolDynamicConfig {
+    // Time-to-live for transactions in the mempool, in seconds.
+    // Transactions older than this value will be lazily removed.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub transaction_ttl: Duration,
+}
+
+impl Default for MempoolDynamicConfig {
+    fn default() -> Self {
+        Self {
+            transaction_ttl: Duration::from_secs(60), // 1 minute.
+        }
+    }
+}
+
+impl SerializeConfig for MempoolDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "transaction_ttl",
+            &self.transaction_ttl.as_secs(),
+            "Time-to-live for transactions in the mempool, in seconds.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct MempoolStaticConfig {
     pub enable_fee_escalation: bool,
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
@@ -17,10 +62,6 @@ pub struct MempoolConfig {
     // are inserted into the priority queue. If false, all transactions are inserted into the
     // priority queue.
     pub validate_resource_bounds: bool,
-    // Time-to-live for transactions in the mempool, in seconds.
-    // Transactions older than this value will be lazily removed.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub transaction_ttl: Duration,
     // Time to wait before allowing a Declare transaction to be returned in `get_txs`.
     // Declare transactions are delayed to allow other nodes sufficient time to compile them.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -31,13 +72,12 @@ pub struct MempoolConfig {
     pub capacity_in_bytes: u64,
 }
 
-impl Default for MempoolConfig {
+impl Default for MempoolStaticConfig {
     fn default() -> Self {
-        MempoolConfig {
+        Self {
             enable_fee_escalation: true,
             validate_resource_bounds: true,
             fee_escalation_percentage: 10,
-            transaction_ttl: Duration::from_secs(60), // 1 minute.
             declare_delay: Duration::from_secs(1),
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
@@ -45,7 +85,7 @@ impl Default for MempoolConfig {
     }
 }
 
-impl SerializeConfig for MempoolConfig {
+impl SerializeConfig for MempoolStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
@@ -66,12 +106,6 @@ impl SerializeConfig for MempoolConfig {
                 "fee_escalation_percentage",
                 &self.fee_escalation_percentage,
                 "Percentage increase for tip and max gas price to enable transaction replacement.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "transaction_ttl",
-                &self.transaction_ttl.as_secs(),
-                "Time-to-live for transactions in the mempool, in seconds.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

@@ -22,7 +22,7 @@ use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
-const DEFAULT_RETRIES: usize = 150;
+pub const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;

@@ -98,7 +98,8 @@ pub fn config_to_preset(config_map: &Value) -> Value {
     }
 }
 
-/// Keep "{prefix}.#is_none": true, remove all other "{prefix}.*" keys.
+/// Keep "{prefix}.#is_none": true, remove all other keys that begin with "{prefix}" (including
+/// the bare prefix).
 pub fn prune_by_is_none(mut v: Value) -> Value {
     let obj: &mut Map<String, Value> =
         v.as_object_mut().expect("prune_by_is_none: expected a JSON object");
@@ -110,16 +111,17 @@ pub fn prune_by_is_none(mut v: Value) -> Value {
     for (k, val) in obj.iter() {
         if let Some(prefix) = k.strip_suffix(&is_none_suffix) {
             if val.as_bool() == Some(true) {
-                unset_optional_param_paths.insert(format!("{prefix}{FIELD_SEPARATOR}"));
+                unset_optional_param_paths.insert(prefix.to_string());
             }
         }
     }
 
-    // Remove keys that begin with any such prefix, except the "#is_none" flag itself
+    // Remove keys that begin with any such prefix (including the bare prefix), except the
+    // "#is_none" flag itself
     obj.retain(|k, _| {
         if let Some(p) = unset_optional_param_paths.iter().find(|p| k.starts_with(&***p)) {
             // keep only the "{prefix}.#is_none" key
-            k == &format!("{p}{IS_NONE_MARK}")
+            k == &format!("{p}{FIELD_SEPARATOR}{IS_NONE_MARK}")
         } else {
             true
         }
@@ -150,6 +152,8 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
     }
 }
 
+// TODO(Nadin/Tsabary): `DeploymentBaseAppConfig` is only used in tests, and should be marked as
+// such.
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
@@ -200,6 +204,7 @@ impl DeploymentBaseAppConfig {
 
         // Extract only the required fields from the config map.
         let preset = config_to_preset(&config_as_map);
+        let preset = prune_by_is_none(preset);
         validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
         preset
     }
