@@ -262,6 +262,16 @@ impl TransactionExecutionInfo {
         }
         builtin_counters
     }
+
+    pub fn summarize_builtins_with_fee_transfer(&self) -> BuiltinCounterMap {
+        let mut builtin_counters = BuiltinCounterMap::new();
+        for call_info_iter in self.non_optional_call_infos() {
+            for call_info in call_info_iter.iter() {
+                add_maps(&mut builtin_counters, &call_info.builtin_counters);
+            }
+        }
+        builtin_counters
+    }
 }
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;

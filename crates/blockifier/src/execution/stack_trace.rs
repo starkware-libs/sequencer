@@ -415,6 +415,10 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             Some(selector),
             PreambleType::CallContract,
         ),
+        TransactionExecutionError::ExecutionRawFailed { error, .. } => {
+            // Delegate to the inner error to preserve detailed entrypoint/VM traces.
+            gen_tx_execution_error_trace(error)
+        }
         TransactionExecutionError::ValidateTransactionError {
             error,
             class_hash,

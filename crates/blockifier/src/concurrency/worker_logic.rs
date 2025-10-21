@@ -23,9 +23,11 @@ use crate::concurrency::versioned_state::{
 };
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
+use crate::execution::call_info::BuiltinCounterMap;
 use crate::metrics::{CALLS_RUNNING_NATIVE, TOTAL_CALLS};
 use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
+use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -41,6 +43,7 @@ pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
     pub state_diff: StateMaps,
     pub contract_classes: ContractClassMapping,
+    pub builtin_counters: BuiltinCounterMap,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
@@ -244,25 +247,35 @@ impl<S: StateReader> WorkerExecutor<S> {
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
-            Ok(_) => {
+            Ok(tx_info) => {
                 let tx_reads_writes = transactional_state.cache.take();
                 let state_diff = tx_reads_writes.to_state_diff().state_maps;
                 let contract_classes = transactional_state.class_hash_to_class.take();
                 tx_versioned_state.apply_writes(&state_diff, &contract_classes);
+                let builtin_counters = tx_info.summarize_builtins_with_fee_transfer();
                 ExecutionTaskOutput {
                     reads: tx_reads_writes.initial_reads,
                     state_diff,
                     contract_classes,
-                    result: execution_result,
+                    builtin_counters,
+                    result: Ok(tx_info),
                 }
             }
-            Err(_) => ExecutionTaskOutput {
-                reads: transactional_state.cache.take().initial_reads,
-                // Failed transaction - ignore the writes.
-                state_diff: StateMaps::default(),
-                contract_classes: HashMap::default(),
-                result: execution_result,
-            },
+            Err(err) => {
+                let builtin_counters = match &err {
+                    TransactionExecutionError::ExecutionRawFailed { builtin_counters, .. } => {
+                        builtin_counters.clone()
+                    }
+                    _ => panic!("Expected ExecutionRawFailed error, got {err:?}"),
+                };
+                ExecutionTaskOutput {
+                    reads: transactional_state.cache.take().initial_reads,
+                    state_diff: StateMaps::default(),
+                    contract_classes: HashMap::default(),
+                    builtin_counters,
+                    result: Err(err),
+                }
+            }
         };
         self.execution_outputs.insert(tx_index, execution_output_inner);
     }

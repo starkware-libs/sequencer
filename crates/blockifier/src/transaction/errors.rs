@@ -10,7 +10,7 @@ use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
 use crate::bouncer::BouncerWeights;
-use crate::execution::call_info::Retdata;
+use crate::execution::call_info::{BuiltinCounterMap, Retdata};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertSummary};
 use crate::fee::fee_checks::FeeCheckError;
@@ -110,6 +110,11 @@ pub enum TransactionExecutionError {
     TransactionPreValidationError(#[from] Box<TransactionPreValidationError>),
     #[error(transparent)]
     TryFromIntError(#[from] std::num::TryFromIntError),
+    #[error("{}", gen_tx_execution_error_trace(self))]
+    ExecutionRawFailed {
+        error: Box<TransactionExecutionError>,
+        builtin_counters: BuiltinCounterMap,
+    },
     #[error(
         "Transaction size exceeds the maximum block capacity. Max block capacity: {}, \
          transaction size: {}.", *max_capacity, *tx_size

@@ -22,6 +22,7 @@ use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
+use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     TransactionExecutionInfo,
     TransactionExecutionResult,
@@ -148,13 +149,23 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         // TODO(Yoni, 1/8/2024): consider caching these two.
         let tx_execution_summary = tx_execution_info.summarize(&block_context.versioned_constants);
         let tx_builtin_counters = tx_execution_info.summarize_builtins();
-        let mut tx_state_changes_keys = state.to_state_diff()?.state_maps.keys();
+        let state_diff_result = state.to_state_diff();
+        let mut tx_state_changes_keys = match state_diff_result {
+            Ok(diff) => diff.state_maps.keys(),
+            Err(e) => {
+                let builtin_counters = tx_execution_info.summarize_builtins_with_fee_transfer();
+                return Err(TransactionExecutionError::ExecutionRawFailed {
+                    error: Box::new(e.into()),
+                    builtin_counters,
+                });
+            }
+        };
         tx_state_changes_keys.update_sequencer_key_in_storage(
             &block_context.to_tx_context(self),
             &tx_execution_info,
             concurrency_mode,
         );
-        verify_tx_weights_within_max_capacity(
+        if let Err(e) = verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
             &tx_builtin_counters,
@@ -162,7 +173,13 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_state_changes_keys,
             &block_context.bouncer_config,
             &block_context.versioned_constants,
-        )?;
+        ) {
+            let builtin_counters = tx_execution_info.summarize_builtins_with_fee_transfer();
+            return Err(TransactionExecutionError::ExecutionRawFailed {
+                error: Box::new(e.into()),
+                builtin_counters,
+            });
+        }
 
         Ok(tx_execution_info)
     }
