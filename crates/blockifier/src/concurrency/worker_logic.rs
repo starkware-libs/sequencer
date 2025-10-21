@@ -42,6 +42,7 @@ pub struct ExecutionTaskOutput {
     pub state_diff: StateMaps,
     pub contract_classes: ContractClassMapping,
     pub run_time: Duration,
+    pub run_time: Duration,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
@@ -372,16 +373,16 @@ impl<S: StateReader> WorkerExecutor<S> {
                 tx.as_ref(),
             );
 
-            if tx_execution_info.is_reverted() {
-                log::debug!(
-                    "Transaction with tx_hash: {tx_hash} reverted. Execution time: {run_time}ms."
-                );
-            } else {
-                log::debug!(
-                    "Transaction with tx_hash: {tx_hash} successfully executed. Execution time: \
-                     {run_time}ms."
-                );
-            }
+            let (builtin_counters, steps) =
+                tx_execution_info.summarize_builtins_and_steps_including_fee_transfer();
+            let status =
+                if tx_execution_info.is_reverted() { "reverted" } else { "successfully executed" };
+
+            log::debug!(
+                "Transaction with tx_hash: {tx_hash} {status}. Execution time: {run_time}ms. \
+                 Builtin counters: {builtin_counters:?}, Steps: {steps}."
+            );
+
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
         } else {
