@@ -41,6 +41,7 @@ pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
     pub state_diff: StateMaps,
     pub contract_classes: ContractClassMapping,
+    pub execution_duration: Duration,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
@@ -239,8 +240,10 @@ impl<S: StateReader> WorkerExecutor<S> {
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let concurrency_mode = true;
         let tx = self.tx_at(tx_index);
+        let exec_start = Instant::now();
         let execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
+        let execution_duration = exec_start.elapsed();
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
@@ -253,6 +256,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                     reads: tx_reads_writes.initial_reads,
                     state_diff,
                     contract_classes,
+                    execution_duration,
                     result: execution_result,
                 }
             }
@@ -261,6 +265,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                 // Failed transaction - ignore the writes.
                 state_diff: StateMaps::default(),
                 contract_classes: HashMap::default(),
+                execution_duration,
                 result: execution_result,
             },
         };
@@ -366,6 +371,14 @@ impl<S: StateReader> WorkerExecutor<S> {
             );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
+        } else if let Err(err) = &execution_output.result {
+            let tx_hash = Transaction::tx_hash(tx.as_ref());
+            let execution_duration = execution_output.execution_duration;
+            let execution_duration_ms = execution_duration.as_millis();
+            log::debug!(
+                "Execution of the commited transaction has failed: {err}, tx_hash: {tx_hash}, \
+                 execution_duration: {execution_duration_ms}ms"
+            );
         }
 
         Ok(CommitResult::Success)
