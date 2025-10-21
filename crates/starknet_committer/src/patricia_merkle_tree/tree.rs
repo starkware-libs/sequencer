@@ -5,8 +5,11 @@ use starknet_patricia::generate_trie_config;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
-use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia::patricia_merkle_tree::types::{
+    NodeIndex,
+    SortedLeafIndices,
+    TrieCachedStorage,
+};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -45,7 +48,7 @@ impl OriginalSkeletonContractsTrieConfig {
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
 fn fetch_all_patricia_paths(
-    storage: &mut impl Storage,
+    storage: &mut impl TrieCachedStorage,
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -144,7 +147,7 @@ fn fetch_all_patricia_paths(
 /// and contracts storage tries for both the previous and new root hashes.
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 pub fn fetch_previous_and_new_patricia_paths(
-    storage: &mut impl Storage,
+    storage: &mut impl TrieCachedStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
     class_hashes: &[ClassHash],

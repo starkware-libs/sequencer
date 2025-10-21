@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::hash::CommitmentType;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
@@ -216,6 +217,7 @@ fn test_create_tree(
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        CommitmentType::Class, // Note: CommitmentType is arbitrary here.
     )
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton_nodes);

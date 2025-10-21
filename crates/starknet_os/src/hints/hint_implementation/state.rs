@@ -5,6 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
 };
 use starknet_api::core::ContractAddress;
+use starknet_api::hash::CommitmentType;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -14,19 +15,12 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::io::os_input::CommitmentInfo;
 
-#[derive(Copy, Clone)]
-pub(crate) enum CommitmentType {
-    Class,
-    State,
-    Contract(ContractAddress),
-}
-
-impl CommitmentType {
-    pub(crate) fn hash_builtin_struct(&self) -> CairoStruct {
-        match self {
-            Self::Class => CairoStruct::SpongeHashBuiltin,
-            Self::State | Self::Contract(_) => CairoStruct::HashBuiltin,
-        }
+pub(crate) fn commitment_type_to_hash_builtin_struct(
+    commitment_type: &CommitmentType,
+) -> CairoStruct {
+    match commitment_type {
+        CommitmentType::Class => CairoStruct::SpongeHashBuiltin,
+        CommitmentType::State | CommitmentType::Contract(_) => CairoStruct::HashBuiltin,
     }
 }
 

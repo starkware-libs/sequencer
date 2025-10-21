@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia::patricia_merkle_tree::types::{
+    NodeIndex,
+    SortedLeafIndices,
+    TrieCachedStorage,
+};
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -23,7 +26,7 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block<S: Storage>(
+pub async fn commit_block<S: TrieCachedStorage>(
     input: Input<ConfigImpl>,
     storage: &mut S,
     mut time_measurement: Option<&mut TimeMeasurement>,

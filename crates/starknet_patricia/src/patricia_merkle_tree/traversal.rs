@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
+use starknet_api::hash::CommitmentType;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
-use starknet_patricia_storage::storage_trait::{
-    create_db_key,
-    DbKey,
-    PatriciaStorageError,
-    Storage,
-};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, PatriciaStorageError};
 use thiserror::Error;
 
 use crate::hash::hash_trait::HashOutput;
@@ -20,7 +16,12 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 };
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::patricia_merkle_tree::types::{
+    NodeIndex,
+    SortedLeafIndices,
+    SubTreeHeight,
+    TrieCachedStorage,
+};
 
 #[cfg(test)]
 #[path = "traversal_test.rs"]
@@ -127,17 +128,20 @@ impl<'a> SubTree<'a> {
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
 pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[SubTree<'a>],
-    storage: &mut impl Storage,
+    storage: &mut impl TrieCachedStorage,
+    commitment_type: CommitmentType,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
     let mut subtrees_roots = vec![];
-    let db_keys: Vec<DbKey> = subtrees
-        .iter()
-        .map(|subtree| {
-            create_db_key(subtree.get_root_prefix::<L>().into(), &subtree.root_hash.0.to_bytes_be())
-        })
-        .collect();
-
-    let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>())?;
+    let mut db_keys: Vec<DbKey> = Vec::with_capacity(subtrees.len());
+    let mut indices: Vec<&NodeIndex> = Vec::with_capacity(subtrees.len());
+    for subtree in subtrees {
+        db_keys.push(create_db_key(
+            subtree.get_root_prefix::<L>().into(),
+            &subtree.root_hash.0.to_bytes_be(),
+        ));
+        indices.push(&subtree.root_index);
+    }
+    let db_vals = storage.mget_with_cache(&db_keys, commitment_type, &indices)?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
         subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
@@ -150,7 +154,7 @@ pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 pub fn fetch_patricia_paths<L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &mut impl TrieCachedStorage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -175,7 +179,7 @@ pub fn fetch_patricia_paths<L: Leaf>(
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 fn fetch_patricia_paths_inner<'a, L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &mut impl TrieCachedStorage,
     subtrees: Vec<SubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -184,7 +188,7 @@ fn fetch_patricia_paths_inner<'a, L: Leaf>(
         return Ok(());
     }
     let mut next_subtrees = Vec::new();
-    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
+    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage, CommitmentType::Class)?;
     for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
         // Always insert root.
         // No need to insert an unmodified node (which is not the root), because its parent is

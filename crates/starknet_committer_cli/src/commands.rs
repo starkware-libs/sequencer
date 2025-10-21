@@ -5,7 +5,7 @@ use starknet_committer::block_committer::input::{ConfigImpl, Input};
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia::patricia_merkle_tree::types::TrieCachedStorage;
 use tracing::info;
 
 pub type InputImpl = Input<ConfigImpl>;
@@ -13,7 +13,7 @@ pub type InputImpl = Input<ConfigImpl>;
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-pub async fn run_storage_benchmark<S: Storage>(
+pub async fn run_storage_benchmark<S: TrieCachedStorage>(
     seed: u64,
     n_iterations: usize,
     output_dir: &str,
@@ -48,7 +48,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage);
+        let n_new_facts = filled_forest.write_to_cached_storage(&mut storage);
         time_measurement.stop_measurement(None, Action::Write);
 
         time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);

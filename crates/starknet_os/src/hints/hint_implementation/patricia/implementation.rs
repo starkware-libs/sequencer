@@ -37,6 +37,7 @@ use crate::hints::hint_implementation::patricia::utils::{
     Path,
     UpdateTree,
 };
+use crate::hints::hint_implementation::state::commitment_type_to_hash_builtin_struct;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
@@ -217,7 +218,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
     insert_values_to_fields(
         current_hash_address,
-        hint_processor.commitment_type.hash_builtin_struct(),
+        commitment_type_to_hash_builtin_struct(&hint_processor.commitment_type),
         vm,
         nested_fields_and_values.as_slice(),
         hint_processor.program,
@@ -426,7 +427,7 @@ pub(crate) fn load_edge<S: StateReader>(
     let hash_ptr = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     insert_value_to_nested_field(
         hash_ptr,
-        hint_processor.commitment_type.hash_builtin_struct(),
+        commitment_type_to_hash_builtin_struct(&hint_processor.commitment_type),
         vm,
         &["result"],
         hint_processor.program,
@@ -462,7 +463,7 @@ pub(crate) fn load_bottom<S: StateReader>(
         [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
     insert_values_to_fields(
         hash_ptr_address,
-        hint_processor.commitment_type.hash_builtin_struct(),
+        commitment_type_to_hash_builtin_struct(&hint_processor.commitment_type),
         vm,
         nested_fields_and_values.as_slice(),
         hint_processor.program,

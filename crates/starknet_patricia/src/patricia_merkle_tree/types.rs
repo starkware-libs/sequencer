@@ -1,5 +1,19 @@
+use std::num::NonZeroUsize;
+
 use ethnum::U256;
+use lru::LruCache;
+use starknet_api::hash::CommitmentType;
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+};
 use starknet_types_core::felt::Felt;
+use tracing::info;
 
 use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
@@ -275,5 +289,106 @@ impl<'a> SortedLeafIndices<'a> {
             Err(pos) => pos,
             Ok(pos) => pos + 1,
         }
+    }
+}
+
+pub trait TrieCachedStorage: Storage {
+    fn mget_with_cache(
+        &mut self,
+        keys: &[DbKey],
+        _tree: CommitmentType,
+        _indices: &[&NodeIndex],
+    ) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        self.mget(&keys.iter().collect::<Vec<&DbKey>>())
+    }
+
+    fn mset_with_cache(
+        &mut self,
+        vals: Vec<(CommitmentType, NodeIndex, DbKey, DbValue)>,
+    ) -> PatriciaStorageResult<()> {
+        let keys_to_vals = vals
+            .into_iter()
+            .map(|(_commitment_type, _addr, key, value)| (key, value))
+            .collect::<DbHashMap>();
+        self.mset(keys_to_vals)
+    }
+}
+
+impl TrieCachedStorage for MapStorage {}
+impl TrieCachedStorage for MdbxStorage {}
+
+pub struct TrieCachedStorageImpl<S: Storage> {
+    storage: S,
+    cache: LruCache<(CommitmentType, NodeIndex), DbValue>,
+}
+
+impl<S: Storage> TrieCachedStorageImpl<S> {
+    pub fn new(storage: S, cache_capacity: NonZeroUsize) -> Self {
+        Self { storage, cache: LruCache::new(cache_capacity) }
+    }
+}
+
+impl<S: Storage> Storage for TrieCachedStorageImpl<S> {
+    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        self.storage.get(key)
+    }
+
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+        self.storage.set(key, value)
+    }
+
+    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        self.storage.mget(keys)
+    }
+
+    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+        self.storage.mset(key_to_value)
+    }
+
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        self.storage.delete(key)
+    }
+}
+
+impl<S: Storage> TrieCachedStorage for TrieCachedStorageImpl<S> {
+    fn mget_with_cache(
+        &mut self,
+        keys: &[DbKey],
+        tree: CommitmentType,
+        indices: &[&NodeIndex],
+    ) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        let mut result = Vec::with_capacity(keys.len());
+        let mut cache_hits = 0;
+        info!("Starting to read {} keys from storage.", keys.len());
+        for (key, index) in keys.iter().zip(indices) {
+            if let Some(cached_value) = self.cache.get(&(tree, **index)) {
+                result.push(Some(cached_value.clone()));
+                cache_hits += 1;
+            } else {
+                result.push(self.storage.get(key)?);
+            }
+        }
+        info!("Cache hits: {}/{}.", cache_hits, result.len());
+        Ok(result)
+    }
+
+    fn mset_with_cache(
+        &mut self,
+        vals: Vec<(CommitmentType, NodeIndex, DbKey, DbValue)>,
+    ) -> PatriciaStorageResult<()> {
+        let n_new_facts = vals.len();
+        let mut map = DbHashMap::with_capacity(n_new_facts);
+        info!("Writing {n_new_facts} new facts to cache.");
+        for (commitment_type, index, key, value) in vals.into_iter() {
+            map.insert(key, value.clone());
+            // Extend the cache.
+            self.cache.put((commitment_type, index), value);
+        }
+        info!("Finished writing {n_new_facts} new facts to cache.");
+
+        // Extend the storage.
+        self.mset(map)?;
+        info!("Finished writing {n_new_facts} new facts to storage.");
+        Ok(())
     }
 }

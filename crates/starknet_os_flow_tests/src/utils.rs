@@ -29,6 +29,7 @@ use starknet_api::core::{
 };
 use starknet_api::declare_tx_args;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
+use starknet_api::hash::CommitmentType;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
@@ -269,6 +270,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             commitments,
             previous_commitment.classes_trie_root_hash,
             sorted_class_leaf_indices,
+            CommitmentType::Class, // Note: The commitment type here is arbitrary.
         )
         .unwrap();
     let class_hash_to_compiled_class_hash = previous_class_leaves
@@ -296,6 +298,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
                 commitments,
                 address_to_previous_storage_root_hash[&address],
                 sorted_leaf_indices,
+                CommitmentType::Class, // Note: The commitment type here is arbitrary.
             )
             .unwrap();
         let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
@@ -384,6 +387,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
         commitments,
         previous_contract_trie_root,
         sorted_contract_leaf_indices,
+        CommitmentType::Class, // Note: The commitment type here is arbitrary.
     )
     .unwrap();
     let new_contract_states: HashMap<NodeIndex, ContractState> =
@@ -391,6 +395,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
             commitments,
             new_contract_trie_root,
             sorted_contract_leaf_indices,
+            CommitmentType::Class, // Note: The commitment type here is arbitrary.
         )
         .unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states

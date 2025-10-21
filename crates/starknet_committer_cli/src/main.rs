@@ -1,9 +1,11 @@
 use std::fs;
+use std::num::NonZeroUsize;
 use std::path::Path;
 
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
+use starknet_patricia::patricia_merkle_tree::types::TrieCachedStorageImpl;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use tracing::info;
@@ -106,13 +108,17 @@ pub async fn run_committer_cli(
                     let storage_path = storage_path
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
-                    let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
+                    let mdbx_storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
+                    let cached_storage = TrieCachedStorageImpl::new(
+                        mdbx_storage,
+                        NonZeroUsize::new(1 << 24).unwrap(),
+                    );
                     run_storage_benchmark(
                         seed,
                         n_iterations,
                         &output_dir,
                         Some(&checkpoint_dir),
-                        storage,
+                        cached_storage,
                         checkpoint_interval,
                     )
                     .await;
