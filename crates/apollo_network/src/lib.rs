@@ -19,10 +19,10 @@ mod test_utils;
 pub mod utils;
 
 use std::collections::{BTreeMap, HashSet};
-use std::str::FromStr;
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_comma_separated_str,
     deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
     serialize_optional_vec_u8,
@@ -39,41 +39,11 @@ use discovery::DiscoveryConfig;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
 pub(crate) type Bytes = Vec<u8>;
-
-// TODO(AndrewL): Fix this
-/// This function considers `""` to be `None` and
-/// `"multiaddr1,multiaddr2"` to be `Some(vec![multiaddr1, multiaddr2])`.
-/// It was purposefully designed this way to be compatible with the old config where only one
-/// bootstrap peer was supported. Hence there is no way to express an empty vector in the config.
-fn deserialize_multi_addrs<'de, D>(de: D) -> Result<Option<Vec<Multiaddr>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw_str: String = Deserialize::deserialize(de).unwrap_or_default();
-    if raw_str.is_empty() {
-        return Ok(None);
-    }
-
-    let mut vector = Vec::new();
-    for i in raw_str.split(',').filter(|s| !s.is_empty()) {
-        let value = Multiaddr::from_str(i).map_err(|_| {
-            D::Error::custom(format!("Couldn't deserialize vector. Failed to parse value: {i}"))
-        })?;
-        vector.push(value);
-    }
-
-    if vector.is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(vector))
-}
 
 // TODO(Tsabary): move to the config converter module.
 pub fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
@@ -95,7 +65,7 @@ pub struct NetworkConfig {
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
-    #[serde(deserialize_with = "deserialize_multi_addrs")]
+    #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
     #[validate(custom = "validate_vec_u256")]
