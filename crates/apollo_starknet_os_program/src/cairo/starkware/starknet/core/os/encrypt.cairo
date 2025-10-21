@@ -203,6 +203,14 @@ func encrypt_inner{range_check_ptr, output_pointer: felt*}(
     blake_with_opcode_for_single_16_length_word(
         data=blake_input, out=blake_segment, initial_state=initial_state
     );
+    // This line will result in c_i = blake(k,i) % PRIME + p_i.
+    // Meaning we are mapping the u256 to PRIME, as PRIME doesn't fit completely in u256
+    // there will be a slight section that has lower probability, but this is negligible for 2 reasons:
+    // 1. The difference is very small compared to the size of PRIME, as PRIME is close to a power of 2,
+    //    meaning the probability to fall in this section is very low.
+    // 2. The numbers of 'rows' in this transformation is relatively high so the difference
+    //    between the probabilities is relatively small.
+    // Note: if assumption 1 changes we will need to re-evaluate this.
     let hash = felt_from_le_u32s(u32s=blake_segment);
     let blake_segment = &blake_segment[8];
 

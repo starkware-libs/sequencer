@@ -78,8 +78,7 @@ func calc_blake_hash_single{range_check_ptr: felt}(item: felt) -> (hash: felt) {
     let (local encoded_data: felt*) = alloc();
     naive_encode_felt252_to_u32s(packed_value=item, unpacked_u32s=encoded_data);
     let (local blake_output: felt*) = alloc();
-    let encoded_data_length = 8;
-    blake_with_opcode(len=encoded_data_length, data=encoded_data, out=blake_output);
+    blake_with_opcode(len=8, data=encoded_data, out=blake_output);
     let hash = felt_from_le_u32s(u32s=blake_output);
     return (hash=hash);
 }
