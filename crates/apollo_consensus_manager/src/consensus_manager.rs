@@ -264,14 +264,7 @@ impl ConsensusManager {
         apollo_consensus::RunConsensusArguments {
             start_active_height: active_height,
             start_observe_height: observer_height,
-            validator_id: self.config.consensus_manager_config.dynamic_config.validator_id,
-            consensus_delay: self.config.consensus_manager_config.static_config.startup_delay,
-            timeouts: self.config.consensus_manager_config.static_config.timeouts.clone(),
-            sync_retry_interval: self
-                .config
-                .consensus_manager_config
-                .static_config
-                .sync_retry_interval,
+            consensus_config: self.config.consensus_manager_config.clone(),
             quorum_type,
         }
     }
