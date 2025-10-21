@@ -55,10 +55,6 @@ use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender}
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
-/// Minimum timeout for block building before finishing due to timeout without new transactions.
-// TODO(dan): Make this configurable and fix the corresponding test.
-pub const MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS: u64 = 2;
-
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
     #[error(transparent)]
@@ -184,6 +180,7 @@ pub struct BlockBuilder {
     /// Parameters to configure the block builder behavior.
     n_concurrent_txs: usize,
     tx_polling_interval_millis: u64,
+    proposer_idle_execution_timeout_millis: u64,
     execution_params: BlockBuilderExecutionParams,
 
     /// Timestamp when block building started.
@@ -204,6 +201,7 @@ impl BlockBuilder {
         transaction_converter: TransactionConverter,
         n_concurrent_txs: usize,
         tx_polling_interval_millis: u64,
+        proposer_idle_execution_timeout_millis: u64,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
         let executor = Arc::new(Mutex::new(executor));
@@ -220,6 +218,7 @@ impl BlockBuilder {
             execution_data: BlockTransactionExecutionData::default(),
             n_concurrent_txs,
             tx_polling_interval_millis,
+            proposer_idle_execution_timeout_millis,
             execution_params,
             block_building_start: tokio::time::Instant::now(),
         }
@@ -263,7 +262,7 @@ impl BlockBuilder {
                 info!(
                     "No transactions are being executed and {:?} passed since block building \
                      started (timeout is set to {:?}), finishing block building.",
-                    time_since_start, MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+                    time_since_start, self.proposer_idle_execution_timeout_millis,
                 );
                 // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
                 crate::metrics::BLOCK_CLOSE_REASON.increment(
@@ -560,7 +559,7 @@ impl BlockBuilder {
         };
         let now = tokio::time::Instant::now();
         let time_since_start = now.duration_since(self.block_building_start);
-        time_since_start.as_secs() >= MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+        time_since_start.as_millis() >= u128::from(self.proposer_idle_execution_timeout_millis)
     }
 
     async fn sleep(&mut self) {
@@ -788,6 +787,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             transaction_converter,
             self.block_builder_config.n_concurrent_txs,
             self.block_builder_config.tx_polling_interval_millis,
+            self.block_builder_config.proposer_idle_execution_timeout_millis,
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))

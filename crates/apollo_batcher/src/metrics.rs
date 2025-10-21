@@ -58,10 +58,8 @@ pub const LABEL_NAME_BLOCK_CLOSE_REASON: &str = "block_close_reason";
 pub enum BlockCloseReason {
     FullBlock,
     Deadline,
-    /// Block building finished because no new transactions are being executed and the minimal
-    /// timeout (
-    /// [`MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS`](crate::block_builder::MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS)
-    /// ) passed.
+    /// Block building finished because no new transactions are being executed and the configured
+    /// timeout passed.
     IdleExecutionTimeout,
 }
 

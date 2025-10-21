@@ -144,6 +144,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "batcher_config.block_builder_config.proposer_idle_execution_timeout_millis": {
+    "description": "Timeout in milliseconds for block building when no transactions are being executed. After this timeout, a proposer will finish building the current block.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "batcher_config.block_builder_config.tx_polling_interval_millis": {
     "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
     "privacy": "Public",

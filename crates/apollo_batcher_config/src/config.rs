@@ -18,6 +18,7 @@ pub struct BlockBuilderConfig {
     pub bouncer_config: BouncerConfig,
     pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
+    pub proposer_idle_execution_timeout_millis: u64,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
@@ -30,6 +31,7 @@ impl Default for BlockBuilderConfig {
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
+            proposer_idle_execution_timeout_millis: 2000,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -51,6 +53,13 @@ impl SerializeConfig for BlockBuilderConfig {
             &self.tx_polling_interval_millis,
             "Time to wait (in milliseconds) between transaction requests when the previous \
              request returned no transactions.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "proposer_idle_execution_timeout_millis",
+            &self.proposer_idle_execution_timeout_millis,
+            "Timeout in milliseconds for block building when no transactions are being executed. \
+             After this timeout, a proposer will finish building the current block.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut prepend_sub_config_name(
