@@ -321,9 +321,9 @@ impl<S: StateReader> WorkerExecutor<S> {
         let mut execution_output_refmut = self.lock_execution_output(tx_index);
         let execution_output = execution_output_refmut.value_mut();
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
+        let tx = self.tx_at(tx_index);
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
-            let tx = self.tx_at(tx_index);
             let tx_context = self.block_context.to_tx_context(tx.as_ref());
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
@@ -366,6 +366,11 @@ impl<S: StateReader> WorkerExecutor<S> {
             );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
+        } else if let Err(err) = &execution_output.result {
+            let tx_hash = Transaction::tx_hash(tx.as_ref());
+            log::debug!(
+                "Execution of the commited transaction has failed: {err}, tx_hash: {tx_hash}"
+            );
         }
 
         Ok(CommitResult::Success)
