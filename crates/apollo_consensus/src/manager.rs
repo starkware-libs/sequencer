@@ -12,7 +12,7 @@ mod manager_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use apollo_consensus_config::config::TimeoutsConfig;
+use apollo_consensus_config::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
@@ -41,18 +41,12 @@ use crate::votes_threshold::QuorumType;
 /// Arguments for running consensus.
 #[derive(Clone, Debug)]
 pub struct RunConsensusArguments {
+    /// Consensus configuration (dynamic + static parameters).
+    pub consensus_config: ConsensusConfig,
     /// The height at which the node may participate in consensus (if it is a validator).
     pub start_active_height: BlockNumber,
     /// The height at which the node begins to run consensus.
     pub start_observe_height: BlockNumber,
-    /// The ID of this node.
-    pub validator_id: ValidatorId,
-    /// Delay before starting consensus; allowing the network to connect to peers.
-    pub consensus_delay: Duration,
-    /// The timeouts for the consensus algorithm.
-    pub timeouts: TimeoutsConfig,
-    /// The interval to wait between sync retries.
-    pub sync_retry_interval: Duration,
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
 }
@@ -71,7 +65,11 @@ pub struct RunConsensusArguments {
 /// - `proposals_receiver`: The channel to receive proposals from the network. Proposals are
 ///   represented as streams (ProposalInit, Content.*, ProposalFin).
 // Always print the validator ID since some tests collate multiple consensus logs in a single file.
-#[instrument(skip_all, fields(validator_id=%run_consensus_args.validator_id), level = "error")]
+#[instrument(
+    skip_all,
+    fields(validator_id=%run_consensus_args.consensus_config.dynamic_config.validator_id),
+    level = "error"
+)]
 pub async fn run_consensus<ContextT>(
     run_consensus_args: RunConsensusArguments,
     mut context: ContextT,
@@ -84,17 +82,17 @@ where
     info!("Running consensus, args: {:?}", run_consensus_args.clone());
     register_metrics();
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
-    tokio::time::sleep(run_consensus_args.consensus_delay).await;
+    tokio::time::sleep(run_consensus_args.consensus_config.static_config.startup_delay).await;
 
     // Ensure the node begins observing consensus no later than it becomes active.
     assert!(run_consensus_args.start_observe_height <= run_consensus_args.start_active_height);
 
     let mut current_height = run_consensus_args.start_observe_height;
     let mut manager = MultiHeightManager::new(
-        run_consensus_args.validator_id,
-        run_consensus_args.sync_retry_interval,
+        run_consensus_args.consensus_config.dynamic_config.validator_id,
+        run_consensus_args.consensus_config.static_config.sync_retry_interval,
         run_consensus_args.quorum_type,
-        run_consensus_args.timeouts,
+        run_consensus_args.consensus_config.static_config.timeouts.clone(),
     );
     loop {
         let must_observer = current_height < run_consensus_args.start_active_height;
@@ -114,7 +112,7 @@ where
                 let round = decision.precommits[0].round;
                 let proposer = context.proposer(current_height, round);
 
-                if proposer == run_consensus_args.validator_id {
+                if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
                 }
                 info!(
