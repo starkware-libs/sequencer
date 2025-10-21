@@ -1,9 +1,5 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
-<<<<<<< HEAD
-||||||| fb2708ce3
-from starkware.cairo.common.cairo_blake2s.blake2s import BLAKE2S_FINALIZE_INSTRUCTION
-=======
 
 // Gets a felt that represent a 256-bit unsigned integer stored as an array of eight 32-bit unsigned integers
 // represented in little-endian notation. Return the felt representation of the integer modulo prime.
@@ -12,7 +8,6 @@ func felt_from_le_u32s(u32s: felt*) -> felt {
         u32s[3] * 2 ** 96 + u32s[2] * 2 ** 64 + u32s[1] * 2 ** 32 + u32s[0];
     return value;
 }
->>>>>>> origin/main-v0.14.1
 
 // Computes blake2s of `input` of size 16 felts, representing 32 bits each.
 // The initial state is the standard BLAKE2s IV XORed with the parameter block P[0] = 0x01010020.

@@ -32,13 +32,7 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
-<<<<<<< HEAD
-||||||| fb2708ce3
-alloy = { workspace = true, features = ["node-bindings"] }
-=======
-alloy = { workspace = true, features = ["node-bindings"] }
 apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
->>>>>>> origin/main-v0.14.1
 assert_matches.workspace = true
 ethers-core.workspace = true
 pretty_assertions.workspace = true

@@ -63,17 +63,6 @@ pub fn encrypt_symmetric_key(
 }
 
 #[allow(dead_code)]
-pub fn encrypt_state_diff(symmetric_key: Felt, state_diff: &[Felt]) -> Vec<Felt> {
-    // Encrypt the state_diff using the symmetric key.
-    let encrypted_state_diff = state_diff
-        .iter()
-        .enumerate()
-        .map(|(i, felt)| felt + calc_blake_hash(&[symmetric_key, Felt::from(i)]))
-        .collect();
-    encrypted_state_diff
-}
-
-#[allow(dead_code)]
 pub fn compute_starknet_public_keys(sn_private_keys: &[Felt]) -> Vec<Felt> {
     sn_private_keys
         .iter()
@@ -128,8 +117,6 @@ pub fn decrypt_state_diff(
     let symmetric_key = decrypt_symmetric_key(private_key, sn_public_key, encrypted_symmetric_key);
 
     // Decrypt the state diff using the symmetric key.
-<<<<<<< HEAD
-    // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
     decrypt_iter(encrypted_state_diff.iter().map(Felt::clone), symmetric_key).collect()
 }
 
@@ -169,24 +156,6 @@ pub fn maybe_decrypt_iter<'a, It: Iterator<Item = Felt> + 'a>(
     }
     // Return an iterator that yields decrypted data.
     Box::new(decrypt_iter(iter, decrypted_symmetric_key))
-||||||| fb2708ce3
-    // TODO(Avi, 10/09/2025): Use the naive felt encoding once avialable.
-    encrypted_state_diff
-        .iter()
-        .enumerate()
-        .map(|(i, encrypted_felt)| {
-            encrypted_felt - calc_blake_hash(&[symmetric_key, Felt::from(i)])
-        })
-        .collect()
-=======
-    encrypted_state_diff
-        .iter()
-        .enumerate()
-        .map(|(i, encrypted_felt)| {
-            encrypted_felt - calc_blake_hash(&[symmetric_key, Felt::from(i)])
-        })
-        .collect()
->>>>>>> origin/main-v0.14.1
 }
 
 /// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s

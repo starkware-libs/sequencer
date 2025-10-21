@@ -48,21 +48,6 @@ fn add_memory_segment_and_load_explicit_arg(
     (start, end)
 }
 
-fn generate_committee_private_keys_and_symmetric_key(
-    seed: u64,
-    num_keys: usize,
-) -> (Vec<Felt>, Felt) {
-    let mut rng = StdRng::seed_from_u64(seed);
-    let mut get_random_nonzero_felt =
-        || Felt::from(rng.gen_range(BigUint::new(vec![1])..Felt::prime()));
-
-    let private_keys = (0..num_keys).map(|_| get_random_nonzero_felt()).collect();
-
-    let symmetric_key = get_random_nonzero_felt();
-
-    (private_keys, symmetric_key)
-}
-
 /// Tests the state diff encryption functionality using the Cairo OS encrypt function.
 ///
 /// # Test Flow

@@ -260,15 +260,9 @@ impl ConsensusManager {
         } else {
             QuorumType::Byzantine
         };
-<<<<<<< HEAD
         // TODO(Asmaa): refactor to pass entire consensus_manager_config instead of extracting
         // each field, and handle non-config params.
-        let run_consensus_args = apollo_consensus::RunConsensusArguments {
-||||||| fb2708ce3
-        let run_consensus_args = apollo_consensus::RunConsensusArguments {
-=======
         apollo_consensus::RunConsensusArguments {
->>>>>>> origin/main-v0.14.1
             start_active_height: active_height,
             start_observe_height: observer_height,
             validator_id: self.config.consensus_manager_config.dynamic_config.validator_id,
@@ -280,53 +274,7 @@ impl ConsensusManager {
                 .static_config
                 .sync_retry_interval,
             quorum_type,
-<<<<<<< HEAD
             future_msg_limit: self.config.consensus_manager_config.static_config.future_msg_limit,
-        };
-        let consensus_fut = apollo_consensus::run_consensus(
-            run_consensus_args,
-            context,
-            votes_broadcast_channels.into(),
-            inbound_internal_receiver,
-        );
-
-        tokio::select! {
-            consensus_result = consensus_fut => {
-                match consensus_result {
-                    Ok(_) => panic!("Consensus task finished unexpectedly"),
-                    Err(e) => Err(e),
-                }
-            },
-            network_result = network_task => {
-                panic!("Consensus' network task finished unexpectedly: {network_result:?}");
-            }
-            stream_handler_result = stream_handler_task => {
-                panic!("Consensus' stream handler task finished unexpectedly: {stream_handler_result:?}");
-            }
-||||||| fb2708ce3
-        };
-        let consensus_fut = apollo_consensus::run_consensus(
-            run_consensus_args,
-            context,
-            votes_broadcast_channels.into(),
-            inbound_internal_receiver,
-        );
-
-        tokio::select! {
-            consensus_result = consensus_fut => {
-                match consensus_result {
-                    Ok(_) => panic!("Consensus task finished unexpectedly"),
-                    Err(e) => Err(e),
-                }
-            },
-            network_result = network_task => {
-                panic!("Consensus' network task finished unexpectedly: {network_result:?}");
-            }
-            stream_handler_result = stream_handler_task => {
-                panic!("Consensus' stream handler task finished unexpectedly: {stream_handler_result:?}");
-            }
-=======
->>>>>>> origin/main-v0.14.1
         }
     }
 

@@ -32,16 +32,8 @@ async fn custom_cairo1_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_cairo1_txs_scenario(),
-<<<<<<< HEAD
-        GasAmount(120000000),
-        true,
-||||||| fb2708ce3
-        GasAmount(110000000),
-        true,
-=======
         BouncerWeights::default().proving_gas,
         false,
->>>>>>> origin/main-v0.14.1
         false,
     )
     .await

@@ -3490,30 +3490,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-name = "blake2s"
-version = "0.0.0"
-dependencies = [
- "blake2",
- "digest 0.10.7",
- "rstest",
- "starknet-types-core",
-]
-
-[[package]]
-||||||| fb2708ce3
-name = "blake2s"
-version = "0.16.0-rc.0"
-dependencies = [
- "blake2",
- "digest 0.10.7",
- "rstest",
- "starknet-types-core",
-]
-
-[[package]]
-=======
->>>>>>> origin/main-v0.14.1
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12210,7 +12186,7 @@ dependencies = [
 
 [[package]]
 name = "sizeof"
-version = "0.16.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "size-of",
  "sizeof_internal",
@@ -12227,7 +12203,7 @@ dependencies = [
 
 [[package]]
 name = "sizeof_macro"
-version = "0.16.0-rc.0"
+version = "0.0.0"
 dependencies = [
  "proc-macro2",
  "quote",

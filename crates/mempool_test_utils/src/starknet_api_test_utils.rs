@@ -478,16 +478,7 @@ impl AccountTransactionGenerator {
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-<<<<<<< HEAD
-        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
-
-        starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
-||||||| fb2708ce3
-        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
-        starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
-=======
         starknet_api_executable_invoke_tx(self.build_invoke_tx_args().calldata(calldata))
->>>>>>> origin/main-v0.14.1
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.

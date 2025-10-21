@@ -10,6 +10,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::fields::Tip;
 
 use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 
@@ -80,7 +81,9 @@ fn generate_direct_test_contract_invoke_txs(
     .iter()
     .map(|(fn_name, fn_args)| {
         let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, fn_args);
-        account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata)
+        let args =
+            account_tx_generator.build_invoke_tx_args().tip(Tip(DEFAULT_TIP)).calldata(calldata);
+        account_tx_generator.generate_raw_invoke(args)
     })
     .collect()
 }
@@ -98,7 +101,6 @@ fn generate_nested_library_call_invoke_txs(
         .iter()
         .map(|(fn_name, fn_args)| {
             account_tx_generator.generate_library_call_invoke_tx(
-                DEFAULT_TIP,
                 &test_contract,
                 &test_contract,
                 fn_name,

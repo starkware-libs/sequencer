@@ -3,6 +3,7 @@ use alloy::primitives::B256;
 use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
@@ -11,13 +12,7 @@ use url::Url;
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
-<<<<<<< HEAD
-||||||| fb2708ce3
-    L1ToL2MessageArgs,
-=======
     EthereumBaseLayerError,
-    L1ToL2MessageArgs,
->>>>>>> origin/main-v0.14.1
     Starknet,
 };
 use crate::BaseLayerContract;

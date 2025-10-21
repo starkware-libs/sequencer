@@ -72,16 +72,10 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt, tim
 
 fn assert_decision(res: RunHeightRes, id: Felt, round: u32) {
     match res {
-<<<<<<< HEAD
         RunHeightRes::Decision(decision) => {
-            assert_eq!(decision.block, BlockHash(id));
+            assert_eq!(decision.block, ProposalCommitment(id));
             assert_eq!(decision.precommits[0].round, round);
         }
-||||||| fb2708ce3
-        RunHeightRes::Decision(decision) => assert_eq!(decision.block, BlockHash(id)),
-=======
-        RunHeightRes::Decision(decision) => assert_eq!(decision.block, ProposalCommitment(id)),
->>>>>>> origin/main-v0.14.1
         _ => panic!("Expected decision"),
     }
 }
@@ -398,7 +392,7 @@ async fn future_height_limit_caching_and_dropping() {
     let (height2_nil_vote_trigger, height2_nil_vote_wait) = oneshot::channel();
     context
         .expect_broadcast()
-        .withf(move |vote: &Vote| vote.height == 2 && vote.block_hash.is_none())
+        .withf(move |vote: &Vote| vote.height == 2 && vote.proposal_commitment.is_none())
         .times(1)
         .return_once(move |_| {
             height2_nil_vote_trigger.send(()).unwrap();

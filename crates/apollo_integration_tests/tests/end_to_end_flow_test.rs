@@ -8,14 +8,6 @@ use apollo_integration_tests::utils::{
 };
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-<<<<<<< HEAD
-use starknet_api::execution_resources::GasAmount;
-||||||| fb2708ce3
-use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
-use starknet_api::execution_resources::GasAmount;
-=======
-use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
->>>>>>> origin/main-v0.14.1
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 

@@ -4,13 +4,7 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-<<<<<<< HEAD
-use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
-||||||| fb2708ce3
-use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-=======
-use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_FIELD_ELEMENT};
->>>>>>> origin/main-v0.14.1
+use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
@@ -176,13 +170,10 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
 
     Ok([d0, d1, Felt::from(d2)])
 }
-<<<<<<< HEAD
 
 pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
     coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }
-||||||| fb2708ce3
-=======
 
 /// Structure to hold blob data, commitments, proofs, and versioned hashes.
 pub struct Blobs {
@@ -262,4 +253,3 @@ pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<Blobs, FftErr
 
     Ok(Blobs { blobs, commitments, proofs, versioned_hashes })
 }
->>>>>>> origin/main-v0.14.1
