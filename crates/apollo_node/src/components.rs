@@ -12,7 +12,7 @@ use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
+use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -329,6 +329,7 @@ pub async fn create_node_components(
 
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            // TODO(guyn): make base layer config a pointer, to be included in the scraper config.
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
             let l1_scraper_config =
@@ -337,12 +338,6 @@ pub async fn create_node_components(
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-            // TODO(guyn): figure out how to start in case we can't reach L1 to get the start block.
-            // TODO(guyn): maybe put the fetch_start_block logic inside the scraper loop?
-            let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
-                .await
-                .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
-            debug!("L1 start block: {l1_start_block:?}");
             let monitored_base_layer = MonitoredEthereumBaseLayer::new(
                 base_layer,
                 l1_endpoint_monitor_client,
@@ -354,7 +349,6 @@ pub async fn create_node_components(
                     l1_provider_client,
                     monitored_base_layer,
                     event_identifiers_to_track(),
-                    l1_start_block,
                 )
                 .await
                 .unwrap(),
@@ -424,7 +418,13 @@ pub async fn create_node_components(
                     "L1 provider's initialization requires the L1 scraper to be set up in order \
                      to align to its height",
                 );
-                let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
+                // TODO(guyn): in a subsequent PR, the provider startup logic will move into the
+                // provider code. Then we can also wait for the start block from the scraper.
+                let start_block = l1_scraper
+                    .fetch_start_block()
+                    .await
+                    .expect("Scraper should be able to fetch the start block");
+                let l1_scraper_start_l1_height = start_block.number;
                 let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
                 // Which L2 block is already proved at the L1 height the scraper was initialized on.
                 // It is safe to start syncing the provider from this height.
