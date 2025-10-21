@@ -55,10 +55,6 @@ use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender}
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
-/// Minimum timeout for block building before finishing due to timeout without new transactions.
-// TODO(dan): Make this configurable and fix the corresponding test.
-pub const MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS: u64 = 2;
-
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
     #[error(transparent)]
@@ -163,6 +159,7 @@ pub trait BlockBuilderTrait: Send {
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
     pub is_validator: bool,
+    pub proposer_idle_detection_delay_millis: std::time::Duration,
 }
 
 pub struct BlockBuilder {
@@ -263,7 +260,7 @@ impl BlockBuilder {
                 info!(
                     "No transactions are being executed and {:?} passed since block building \
                      started (timeout is set to {:?}), finishing block building.",
-                    time_since_start, MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+                    time_since_start, self.execution_params.proposer_idle_detection_delay_millis,
                 );
                 // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
                 crate::metrics::BLOCK_CLOSE_REASON.increment(
@@ -560,7 +557,7 @@ impl BlockBuilder {
         };
         let now = tokio::time::Instant::now();
         let time_since_start = now.duration_since(self.block_building_start);
-        time_since_start.as_secs() >= MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+        time_since_start >= self.execution_params.proposer_idle_detection_delay_millis
     }
 
     async fn sleep(&mut self) {

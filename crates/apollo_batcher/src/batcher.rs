@@ -279,6 +279,10 @@ impl Batcher {
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(propose_block_input.deadline)?,
                     is_validator: false,
+                    proposer_idle_detection_delay_millis: self
+                        .config
+                        .block_builder_config
+                        .proposer_idle_detection_delay_millis,
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
@@ -362,6 +366,10 @@ impl Batcher {
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(validate_block_input.deadline)?,
                     is_validator: true,
+                    proposer_idle_detection_delay_millis: self
+                        .config
+                        .block_builder_config
+                        .proposer_idle_detection_delay_millis,
                 },
                 Box::new(tx_provider),
                 None,
