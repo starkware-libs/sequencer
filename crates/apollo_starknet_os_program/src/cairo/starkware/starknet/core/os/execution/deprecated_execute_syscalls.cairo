@@ -9,6 +9,8 @@ from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.segments import relocate_segment
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import ExecutionInfo
+from starkware.cairo.common.math import assert_not_equal
+from starkware.starknet.core.os.constants import EXECUTE_ENTRY_POINT_SELECTOR
 from starkware.starknet.common.syscalls import (
     CALL_CONTRACT_SELECTOR,
     DELEGATE_CALL_SELECTOR,
@@ -150,6 +152,7 @@ func execute_contract_call_syscall{
     alloc_locals;
 
     let call_req = syscall_ptr.request;
+    assert_not_equal(call_req.selector, EXECUTE_ENTRY_POINT_SELECTOR);
 
     let (state_entry: StateEntry*) = dict_read{dict_ptr=contract_state_changes}(
         key=call_req.contract_address
