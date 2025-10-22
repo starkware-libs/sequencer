@@ -1,13 +1,13 @@
 import argparse
+import copy
 import json
 import os
 import time
+from urllib.parse import quote
 
-import copy
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
 from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
-from urllib.parse import quote
 
 
 def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:

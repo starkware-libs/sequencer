@@ -1,15 +1,15 @@
 import argparse
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
+from multiprocessing import Process, Queue
 from typing import List, Union
 
 import numbers
 import requests
-import socket
-from multiprocessing import Process, Queue
 
 
 def run(
