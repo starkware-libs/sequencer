@@ -203,9 +203,9 @@ impl NativeClassManager {
             TrySendError::Full((class_hash, _, _)) => {
                 log::debug!(
                     "Compilation request channel is full (size: {}). Compilation request for \
-                     class hash {} was not sent.",
+                     class hash {:#066x} was not sent.",
                     self.cairo_native_run_config.channel_size,
-                    class_hash
+                    class_hash.0
                 );
                 ContractClassManagerError::TrySendError(TrySendError::Full(class_hash))
             }
@@ -293,8 +293,8 @@ fn process_compilation_request(
     let compilation_result = compiler.compile(sierra_for_compilation);
     let duration = start.elapsed();
     log::debug!(
-        "Compiling to native contract with class hash: {}. Duration: {:.3} seconds",
-        class_hash,
+        "Compiling to native contract with class hash: {:#066x}. Duration: {:.3} seconds",
+        class_hash.0,
         duration.as_secs_f32()
     );
     match compilation_result {
@@ -312,10 +312,13 @@ fn process_compilation_request(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(casm)),
             );
-            log::debug!("Error compiling contract class: {err}");
+            log::debug!(
+                "Error compiling contract class with class hash: {:#066x}: {err}",
+                class_hash.0
+            );
             NATIVE_COMPILATION_ERROR.increment(1);
             if panic_on_compilation_failure {
-                panic!("Compilation failed");
+                panic!("Compilation of class hash: {:#066x} failed", class_hash.0);
             }
             Err(err)
         }

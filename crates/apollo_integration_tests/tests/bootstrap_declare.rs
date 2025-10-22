@@ -17,7 +17,8 @@ fn create_bootstrap_declare_scenario() -> Vec<TestScenario> {
 /// Bootstrap declare txs are unique: they are sent from a special address and do not increment its
 /// nonce. As a result, they are not removed from the mempool upon successful execution, and will
 /// only be removed after being rejected during a subsequent attempt.
-#[tokio::test]
+/// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn bootstrap_declare() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestBootstrapDeclare,

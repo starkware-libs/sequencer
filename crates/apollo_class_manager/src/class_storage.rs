@@ -14,7 +14,6 @@ use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter}
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
-use starknet_api::contract_class::ContractClass;
 use thiserror::Error;
 use tracing::instrument;
 
@@ -88,7 +87,11 @@ impl<S: ClassStorage> CachedClassStorage<S> {
     }
 }
 
-impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
+impl<S> ClassStorage for CachedClassStorage<S>
+where
+    S: ClassStorage,
+    CachedClassStorageError<S::Error>: From<S::Error>,
+{
     type Error = CachedClassStorageError<S::Error>;
 
     #[instrument(skip(self, class, executable_class), level = "debug", ret, err)]
@@ -149,20 +152,19 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_executable(class_id)? else {
-            return Ok(None);
-        };
-
-        // TODO(Elin): separate Cairo0<>1 getters to avoid deserializing here.
-        match ContractClass::try_from(class.clone()).unwrap() {
-            ContractClass::V0(_) => {
-                self.deprecated_classes.set(class_id, class.clone());
-            }
-            ContractClass::V1(_) => {
-                self.executable_classes.set(class_id, class.clone());
-            }
+        // If compiled_class_hash_v2 exists, it'll be Cairo 1.
+        if self.get_executable_class_hash_v2(class_id)?.is_some() {
+            let Some(class) = self.storage.get_executable(class_id)? else {
+                return Ok(None);
+            };
+            self.executable_classes.set(class_id, class.clone());
+            return Ok(Some(class));
         }
 
+        let Some(class) = self.storage.get_deprecated_class(class_id)? else {
+            return Ok(None);
+        };
+        self.deprecated_classes.set(class_id, class.clone());
         Ok(Some(class))
     }
 
@@ -308,9 +310,16 @@ pub enum FsClassStorageError {
     RawClass(#[from] RawClassError),
 }
 
+impl From<FsClassStorageError> for CachedClassStorageError<FsClassStorageError> {
+    fn from(e: FsClassStorageError) -> Self {
+        CachedClassStorageError::Storage(e)
+    }
+}
+
 impl FsClassStorage {
     pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
         let class_hash_storage = ClassHashStorage::new(config.class_hash_storage_config)?;
+        std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
 
@@ -362,6 +371,29 @@ impl FsClassStorage {
         concat_deprecated_executable_filename(&self.get_persistent_dir(class_id))
     }
 
+    fn create_tmp_dir(
+        &self,
+        class_id: ClassId,
+    ) -> FsClassStorageResult<(tempfile::TempDir, PathBuf)> {
+        // Compute the final persistent directory for this `class_id`
+        let persistent_dir = self.get_persistent_dir(class_id);
+        let parent_dir = persistent_dir
+            .parent()
+            .expect("Class persistent dir should have a parent")
+            .to_path_buf();
+        std::fs::create_dir_all(&parent_dir)?;
+        // Create a temporary directory under the parent of the final persistent directory to ensure
+        // `rename` will be atomic.
+        let tmp_root = tempfile::tempdir_in(&parent_dir)?;
+        // Get the leaf directory name of the final persistent directory.
+        let leaf = persistent_dir.file_name().expect("Class dir leaf should exist");
+        // Create the temporary directory under the temporary root.
+        let tmp_dir = tmp_root.path().join(leaf);
+        // Returning `TempDir` since without it the handle would drop immediately and the temp
+        // directory would be removed before writes/rename.
+        Ok((tmp_root, tmp_dir))
+    }
+
     fn mark_class_id_as_existent(
         &mut self,
         class_id: ClassId,
@@ -372,6 +404,7 @@ impl FsClassStorage {
             .set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
     }
 
+    #[allow(dead_code)]
     fn write_class(
         &self,
         class_id: ClassId,
@@ -385,6 +418,7 @@ impl FsClassStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn write_deprecated_class(
         &self,
         class_id: ClassId,
@@ -396,9 +430,6 @@ impl FsClassStorage {
         Ok(())
     }
 
-    // TODO(Elin): restore use of `write_[deprecated_]class_atomically`, but tmpdir
-    // should be located inside the PVC to prevent linking errors.
-    #[allow(dead_code)]
     fn write_class_atomically(
         &self,
         class_id: ClassId,
@@ -406,8 +437,7 @@ impl FsClassStorage {
         executable_class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write classes to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        let (_tmp_root, tmp_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_sierra_filename(&tmp_dir))?;
         executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
@@ -418,15 +448,13 @@ impl FsClassStorage {
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn write_deprecated_class_atomically(
         &self,
         class_id: ClassId,
         class: RawExecutableClass,
     ) -> FsClassStorageResult<()> {
         // Write class to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        let (_tmp_root, tmp_dir) = self.create_tmp_dir(class_id)?;
         class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
@@ -452,7 +480,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_class(class_id, class, executable_class)?;
+        self.write_class_atomically(class_id, class, executable_class)?;
         self.mark_class_id_as_existent(class_id, executable_class_hash)?;
 
         Ok(())
@@ -505,7 +533,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_deprecated_class(class_id, class)?;
+        self.write_deprecated_class_atomically(class_id, class)?;
 
         Ok(())
     }
@@ -546,10 +574,4 @@ fn concat_executable_filename(path: &Path) -> PathBuf {
 
 fn concat_deprecated_executable_filename(path: &Path) -> PathBuf {
     path.join("deprecated_casm")
-}
-
-// Creates a tmp directory and returns a owned representation of it.
-// As long as the returned directory object is lived, the directory is not deleted.
-pub(crate) fn create_tmp_dir() -> FsClassStorageResult<tempfile::TempDir> {
-    Ok(tempfile::tempdir()?)
 }

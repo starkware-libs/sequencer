@@ -3,6 +3,7 @@ use alloy::primitives::B256;
 use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
@@ -11,6 +12,7 @@ use url::Url;
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
+    EthereumBaseLayerError,
     Starknet,
 };
 use crate::BaseLayerContract;
@@ -65,8 +67,13 @@ async fn latest_proved_block_ethereum() {
         (1000, None),
     ];
     for (scenario, expected) in scenarios {
-        let latest_block = contract.latest_proved_block(scenario).await.unwrap();
-        assert_eq!(latest_block, expected);
+        let latest_block = contract.latest_proved_block(scenario).await;
+        match latest_block {
+            Ok(latest_block) => assert_eq!(latest_block, expected),
+            Err(e) => {
+                assert_matches!(e, EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _))
+            }
+        }
     }
 }
 

@@ -409,6 +409,76 @@
             "type": "function"
         },
         {
+            "inputs": [
+                {
+                    "name": "class_hash",
+                    "type": "felt"
+                },
+                {
+                    "name": "contract_address_salt",
+                    "type": "felt"
+                },
+                {
+                    "name": "deploy_from_zero",
+                    "type": "felt"
+                },
+                {
+                    "name": "constructor_calldata_len",
+                    "type": "felt"
+                },
+                {
+                    "name": "constructor_calldata",
+                    "type": "felt*"
+                },
+                {
+                    "name": "key",
+                    "type": "felt"
+                },
+                {
+                    "name": "value",
+                    "type": "felt"
+                }
+            ],
+            "name": "test_deploy_and_call",
+            "outputs": [
+                {
+                    "name": "contract_address",
+                    "type": "felt"
+                }
+            ],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "other_contract_address",
+                    "type": "felt"
+                },
+                {
+                    "name": "address",
+                    "type": "felt"
+                }
+            ],
+            "name": "test_call_storage_consistency",
+            "outputs": [],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "other_contract_address",
+                    "type": "felt"
+                },
+                {
+                    "name": "depth",
+                    "type": "felt"
+                }
+            ],
+            "name": "test_re_entrance",
+            "outputs": [],
+            "type": "function"
+        },
+        {
             "inputs": [],
             "name": "test_storage_var",
             "outputs": [],
@@ -701,6 +771,74 @@
         {
             "inputs": [
                 {
+                    "name": "address",
+                    "type": "felt"
+                },
+                {
+                    "name": "value",
+                    "type": "felt"
+                }
+            ],
+            "name": "set_value",
+            "outputs": [],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "address",
+                    "type": "felt"
+                }
+            ],
+            "name": "get_value",
+            "outputs": [
+                {
+                    "name": "res",
+                    "type": "felt"
+                }
+            ],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "value",
+                    "type": "felt"
+                }
+            ],
+            "name": "add_value",
+            "outputs": [],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "self_address",
+                    "type": "felt"
+                },
+                {
+                    "name": "value",
+                    "type": "felt"
+                }
+            ],
+            "name": "recursive_add_value",
+            "outputs": [],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "name": "address",
+                    "type": "felt"
+                }
+            ],
+            "name": "increase_value",
+            "outputs": [],
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
                     "name": "to_address",
                     "type": "felt"
                 }
@@ -740,171 +878,203 @@
     "entry_points_by_type": {
         "CONSTRUCTOR": [
             {
-                "offset": 510,
+                "offset": 597,
                 "selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
             }
         ],
         "EXTERNAL": [
             {
-                "offset": 1482,
+                "offset": 1732,
                 "selector": "0x1143aa89c8e3ebf8ed14df2a3606c1cd2dd513fac8040b0f8ab441f5c52fe4"
             },
             {
-                "offset": 1524,
+                "offset": 1774,
                 "selector": "0x600c98a299d72ef1e09a2e1503206fbc76081233172c65f7e2438ef0069d8d"
             },
             {
-                "offset": 1398,
+                "offset": 1648,
                 "selector": "0x62c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5"
             },
             {
-                "offset": 2038,
+                "offset": 2288,
                 "selector": "0x679c22735055a10db4f275395763a3752a1e3a3043c192299ab6b574fba8d6"
             },
             {
-                "offset": 1962,
+                "offset": 2212,
                 "selector": "0x7772be8b80a8a33dc6c1f9a6ab820c02e537c73e859de67f288c70f92571bb"
             },
             {
-                "offset": 656,
+                "offset": 1323,
+                "selector": "0x8692275a885fee8890c5eaa075cc627d4755e3a1c8a2f1d557f7f97743761a"
+            },
+            {
+                "offset": 2428,
+                "selector": "0x8a2a3272a92492ded6c04f7c85df9c53134cef398564465f12af3c9c986d41"
+            },
+            {
+                "offset": 743,
                 "selector": "0xad451bd0dba3d8d97104e1bfc474f88605ccc7acbe1c846839a120fdf30d95"
             },
             {
-                "offset": 1000,
+                "offset": 1087,
                 "selector": "0xb0ee07785692bd1fcda9089aadef94621bfa2ac0e849504ca54f05a3689f8e"
             },
             {
-                "offset": 1788,
+                "offset": 2038,
                 "selector": "0xd47144c49bce05b6de6bce9d5ff0cc8da9420f8945453e20ef779cbea13ad4"
             },
             {
-                "offset": 1141,
+                "offset": 1228,
                 "selector": "0xe7510edcf6e9f1b70f7bd1f488767b50f0363422f3c563160ab77adf62467b"
             },
             {
-                "offset": 547,
+                "offset": 634,
                 "selector": "0xe7def693d16806ca2a2f398d8de5951344663ba77f340ed7a958da731872fc"
             },
             {
-                "offset": 828,
+                "offset": 915,
                 "selector": "0x120c24672855cfe872cb35256ea85172417f2aada7a22c15908906dc5f3c69d"
             },
             {
-                "offset": 1755,
+                "offset": 2005,
                 "selector": "0x127a04cfe41aceb22fc022bce0c5c70f2d860a7c7c054681bd821cdc18e6dbc"
             },
             {
-                "offset": 2115,
+                "offset": 2535,
                 "selector": "0x12ead94ae9d3f9d2bdb6b847cf255f1f398193a1f88884a0ae8e18f24a037b6"
             },
             {
-                "offset": 681,
+                "offset": 768,
                 "selector": "0x137a07fa9c479e27114b8ae1fbf252f2065cf91a0d8615272e060a7ccf37309"
             },
             {
-                "offset": 2168,
+                "offset": 2588,
                 "selector": "0x14dae1999ae9ab799bc72def6dc6e90890cf8ac0d64525021b7e71d05cb13e8"
             },
             {
-                "offset": 1646,
+                "offset": 1896,
                 "selector": "0x167ac610845cc0ab1501b38169a7e50f1bf60602d3c2a961b30987454f97812"
             },
             {
-                "offset": 1177,
+                "offset": 1264,
                 "selector": "0x169f135eddda5ab51886052d777a57f2ea9c162d713691b5e04a6d4ed71d47f"
             },
             {
-                "offset": 2079,
+                "offset": 1388,
+                "selector": "0x19a35a6e95cb7a3318dbb244f20975a1cd8587cc6b5259f15f61d7beb7ee43b"
+            },
+            {
+                "offset": 2329,
                 "selector": "0x1ae1a515cf2d214b29bdf63a79ee2d490efd4dd1acc99d383a8e549c3cecb5d"
             },
             {
-                "offset": 1299,
+                "offset": 2470,
+                "selector": "0x1b1343fe0f4a16bed5e5133b5ca9f03ab15976bb2df2b6d263ac3170b8b6a13"
+            },
+            {
+                "offset": 1549,
                 "selector": "0x1b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d"
             },
             {
-                "offset": 785,
+                "offset": 872,
                 "selector": "0x1b47f727a0668d8593c5bb115d5b53a470f29833fd4d598e748f68e65f4f003"
             },
             {
-                "offset": 1725,
+                "offset": 1975,
                 "selector": "0x1de4779362d5ca708d55fe1d4d499501b7f692730d2e01656e9180708985e07"
             },
             {
-                "offset": 962,
+                "offset": 1440,
+                "selector": "0x218f305395474a84a39307fa5297be118fe17bf65e27ac5e2de6617baa44c64"
+            },
+            {
+                "offset": 2388,
+                "selector": "0x26813d396fdb198e9ead934e4f7a592a8b88a059e45ab0eb6ee53494e8d45b0"
+            },
+            {
+                "offset": 1049,
                 "selector": "0x27c3334165536f239cfd400ed956eabff55fc60de4fb56728b6a4f6b87db01c"
             },
             {
-                "offset": 1067,
+                "offset": 1154,
                 "selector": "0x298e03955860424b6a946506da72353a645f653dc1879f6b55fd756f3d20a59"
             },
             {
-                "offset": 1591,
+                "offset": 1841,
                 "selector": "0x309687d54611a7db521175c78ba48b082df1372350d2529981a8c0dd09a6529"
             },
             {
-                "offset": 1994,
+                "offset": 2244,
                 "selector": "0x30f842021fbf02caf80d09a113997c1e00a32870eee0c6136bed27acb348bea"
             },
             {
-                "offset": 1914,
+                "offset": 2164,
                 "selector": "0x317eb442b72a9fae758d4fb26830ed0d9f31c8e7da4dbff4e8c59ea6a158e7f"
             },
             {
-                "offset": 1431,
+                "offset": 1681,
                 "selector": "0x32564d7e0fe091d49b4c20f4632191e4ed6986bf993849879abfef9465def25"
             },
             {
-                "offset": 755,
+                "offset": 842,
                 "selector": "0x3307b3297ab2ab7a46a9b7d139a52dddf9c343e9a0a3ac69c5b4048d80e3aaf"
             },
             {
-                "offset": 1670,
+                "offset": 1920,
                 "selector": "0x33ce93a3eececa5c9fc70da05f4aff3b00e1820b79587924d514bc76788991a"
             },
             {
-                "offset": 850,
+                "offset": 2501,
+                "selector": "0x34c4c150632e67baf44fc50e9a685184d72a822510a26a66f72058b5e7b2892"
+            },
+            {
+                "offset": 937,
                 "selector": "0x3604cea1cdb094a73a31144f14a3e5861613c008e1e879939ebc4827d10cd50"
             },
             {
-                "offset": 1229,
+                "offset": 1479,
                 "selector": "0x36fa6de2810d05c3e1a0ebe23f60b9c2f4629bbead09e5a9704e1c5632630d5"
             },
             {
-                "offset": 1265,
+                "offset": 1515,
                 "selector": "0x38215592552d97419658d30db8f189b242ec2056641de3dff8a7217745ec205"
             },
             {
-                "offset": 530,
+                "offset": 617,
                 "selector": "0x382a967a31be13f23e23a5345f7a89b0362cc157d6fbe7564e6396a83cf4b4f"
             },
             {
-                "offset": 575,
+                "offset": 662,
                 "selector": "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701"
             },
             {
-                "offset": 923,
+                "offset": 1010,
                 "selector": "0x3a6a8bae4c51d5959683ae246347ffdd96aa5b2bfa68cc8c3a6a7c2ed0be331"
             },
             {
-                "offset": 717,
+                "offset": 804,
                 "selector": "0x3b097c62d3e4b85742aadd0dfb823f96134b886ec13bda57b68faf86f294d97"
             },
             {
-                "offset": 1117,
+                "offset": 1204,
                 "selector": "0x3bf01fb7497d041938cb7b2954d8c4590006d26b3acd0f5aec1af45dc4f94b2"
             },
             {
-                "offset": 1622,
+                "offset": 2355,
+                "selector": "0x3d7905601c217734671143d457f0db37f7f8883112abd34b92c4abfeafde0c3"
+            },
+            {
+                "offset": 1872,
                 "selector": "0x3dc5da2d6d1275aeed57f43461d31967b0fed58bfe739b4ffad4091e89c4b03"
             },
             {
-                "offset": 1457,
+                "offset": 1707,
                 "selector": "0x3eb640b15f75fcc06d43182cdb94ed38c8e71755d5fb57c16dd673b466db1d4"
             }
         ],
         "L1_HANDLER": [
             {
-                "offset": 628,
+                "offset": 715,
                 "selector": "0x217f044c1e5a6a595b43251dac7903d76ca187b95dd40991b767800f8aeb9c7"
             }
         ]
@@ -917,16 +1087,16 @@
                     "__main__",
                     "__main__.test_call_contract_fail_with_attr_error_msg"
                 ],
-                "end_pc": 1115,
+                "end_pc": 1202,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 90,
+                        "group": 95,
                         "offset": 0
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 1105,
+                "start_pc": 1192,
                 "value": "Be aware of failure ahead..."
             },
             {
@@ -935,16 +1105,16 @@
                     "__main__",
                     "__main__.fail"
                 ],
-                "end_pc": 1430,
+                "end_pc": 1680,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 112,
+                        "group": 130,
                         "offset": 0
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 1426,
+                "start_pc": 1676,
                 "value": "You shall not pass!"
             }
         ],
@@ -1116,6 +1286,11 @@
             "0x400380017ffc7ffd",
             "0x482680017ffc8000",
             "0x2",
+            "0x208b7fff7fff7ffe",
+            "0x20780017fff7ffd",
+            "0x4",
+            "0x400780017fff7ffd",
+            "0x1",
             "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
             "0x3ffffffffffffffffffffffffffffff",
@@ -1296,7 +1471,7 @@
             "0x40780017fff7fff",
             "0x2",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffec6",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffec1",
             "0x400780017fff8000",
             "0x0",
             "0x400780017fff8001",
@@ -1312,7 +1487,7 @@
             "0x1104800180018000",
             "0x2b",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeb6",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeb1",
             "0x40137ffd7fff8000",
             "0x480280017ffb8000",
             "0x40297ffd7fff8001",
@@ -1325,9 +1500,9 @@
             "0x480280007ffc8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe94",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe8f",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffea7",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffea2",
             "0x40137ffd7fff8000",
             "0x480280017ffc8000",
             "0x402580017fff8001",
@@ -1350,7 +1525,7 @@
             "0x480280007ffd8000",
             "0x480280017ffd8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe7b",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe76",
             "0x208b7fff7fff7ffe",
             "0x20780017fff7ffc",
             "0x5",
@@ -1419,16 +1594,98 @@
             "0x48127ffd7fff8000",
             "0x48127ffd7fff8000",
             "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe2b",
+            "0x40137fff7fff8000",
+            "0x4003800080007ffc",
+            "0x4003800180007ffd",
+            "0x4826800180008000",
+            "0x2",
+            "0x480a7ff97fff8000",
+            "0x480a7ffb7fff8000",
+            "0x480680017fff8000",
+            "0x3d7905601c217734671143d457f0db37f7f8883112abd34b92c4abfeafde0c3",
+            "0x4828800080007ffc",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe3c",
+            "0x48127ffd7fff8000",
+            "0x480a7ffa7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe17",
+            "0x40137fff7fff8000",
+            "0x4003800080007ffd",
+            "0x4826800180008000",
+            "0x1",
+            "0x480a7ffa7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480680017fff8000",
+            "0x26813d396fdb198e9ead934e4f7a592a8b88a059e45ab0eb6ee53494e8d45b0",
+            "0x4828800080007ffc",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe29",
+            "0x482480017fff8000",
+            "0x1",
+            "0x40307ffe7ffd7fff",
+            "0x48127ffc7fff8000",
+            "0x480a7ffb7fff8000",
+            "0x480080007ffc8000",
+            "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe00",
+            "0x40137fff7fff8000",
+            "0x4003800080007ffd",
+            "0x4826800180008000",
+            "0x1",
+            "0x480a7ffa7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480680017fff8000",
+            "0x8a2a3272a92492ded6c04f7c85df9c53134cef398564465f12af3c9c986d41",
+            "0x4828800080007ffc",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe12",
+            "0x48127ffd7fff8000",
+            "0x480a7ffb7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffded",
+            "0x40137fff7fff8000",
+            "0x4003800080007ffc",
+            "0x4003800180007ffd",
+            "0x4826800180008000",
+            "0x2",
+            "0x480a7ff97fff8000",
+            "0x480a7ffb7fff8000",
+            "0x480680017fff8000",
+            "0x1b1343fe0f4a16bed5e5133b5ca9f03ab15976bb2df2b6d263ac3170b8b6a13",
+            "0x4828800080007ffc",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdfe",
+            "0x48127ffd7fff8000",
+            "0x480a7ffa7fff8000",
+            "0x208b7fff7fff7ffe",
             "0x480a7ffb7fff8000",
             "0x480680017fff8000",
             "0x391a88f3badec8650b4d8356e18655269ee975e58e0060aa076396ce0b1dccb",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe31",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdda",
             "0x480a7ffc7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffed8",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe86",
             "0x48127fe17fff8000",
             "0x48127ffd7fff8000",
             "0x48127ffd7fff8000",
@@ -1441,7 +1698,7 @@
             "0x480a7ffa7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe96",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe3f",
             "0x48127ffe7fff8000",
             "0x48127ff57fff8000",
             "0x48127ff57fff8000",
@@ -1456,7 +1713,7 @@
             "0x48127ffe7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe8f",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe38",
             "0x48127ff67fff8000",
             "0x48127ff67fff8000",
             "0x208b7fff7fff7ffe",
@@ -1464,7 +1721,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe87",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe30",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x2",
@@ -1555,7 +1812,7 @@
             "0x480680017fff8000",
             "0x6",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdc4",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd6d",
             "0x482480017fff8000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffffe",
             "0x480a7ffd7fff8000",
@@ -1567,17 +1824,17 @@
             "0x3",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdd5",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd7e",
             "0x48127ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdff",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffda8",
             "0x48127ffe7fff8000",
             "0x208b7fff7fff7ffe",
             "0x480a7ffa7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe16",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdbf",
             "0x480680017fff8000",
             "0x1",
             "0x400680017fff7fff",
@@ -1659,10 +1916,10 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdc4",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd6d",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdb9",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd62",
             "0x208b7fff7fff7ffe",
             "0x40780017fff7fff",
             "0x1",
@@ -1700,11 +1957,11 @@
             "0x480680017fff8000",
             "0x7",
             "0x1104800180018000",
-            "0x54c",
+            "0x699",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd97",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd40",
             "0x482680017ffc8000",
             "0x800000000000011000000000000000000000000000000000000000000000000",
             "0x480a7ffd7fff8000",
@@ -1734,7 +1991,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd79",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd22",
             "0x480680017fff8000",
             "0x1",
             "0x400680017fff7fff",
@@ -1804,7 +2061,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffcdc",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc85",
             "0x208b7fff7fff7ffe",
             "0x480280027ffb8000",
             "0x480280027ffd8000",
@@ -1847,7 +2104,7 @@
             "0x482480017ffb8000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffca0",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc49",
             "0x482480017fff8000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffffc",
             "0x40137fff7fff8000",
@@ -1858,14 +2115,14 @@
             "0x5",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffca6",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc4f",
             "0x48127ffd7fff8000",
             "0x480a7ff97fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc9f",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc48",
             "0x48127ffd7fff8000",
             "0x480680017fff8000",
             "0x0",
@@ -1916,7 +2173,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc60",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc09",
             "0x208b7fff7fff7ffe",
             "0x480280027ffb8000",
             "0x480280027ffd8000",
@@ -1951,7 +2208,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc3d",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbe6",
             "0x48127ffd7fff8000",
             "0x480a7ff97fff8000",
             "0x480a7ffa7fff8000",
@@ -1994,7 +2251,7 @@
             "0x480a7ff87fff8000",
             "0x480a7ff97fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc12",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbbb",
             "0x40137ffe7fff8000",
             "0x48127ffd7fff8000",
             "0x480a7ffa7fff8000",
@@ -2002,23 +2259,23 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc0a",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbb3",
             "0x40137fff7fff8001",
             "0x40137ffe7fff8002",
             "0x40137ffd7fff8003",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbe7",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb90",
             "0x40137fff7fff8004",
             "0x480a80047fff8000",
             "0x48127ff07fff8000",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbea",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb93",
             "0x482a800080048000",
             "0x480a80017fff8000",
             "0x480a80027fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbe5",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb8e",
             "0x480a80037fff8000",
             "0x482a800280008000",
             "0x480a80047fff8000",
@@ -2062,7 +2319,7 @@
             "0x48127ff87fff8000",
             "0x208b7fff7fff7ffe",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbc9",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb72",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
@@ -2070,7 +2327,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbc6",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb6f",
             "0x48127ffd7fff8000",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
@@ -2095,7 +2352,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc29",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbd2",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -2122,7 +2379,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbb6",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb5f",
             "0x208b7fff7fff7ffe",
             "0x40780017fff7fff",
             "0x1",
@@ -2166,6 +2423,169 @@
             "0x48127ff97fff8000",
             "0x48127ff97fff8000",
             "0x208b7fff7fff7ffe",
+            "0x480a7ff57fff8000",
+            "0x480a7ff77fff8000",
+            "0x480a7ff87fff8000",
+            "0x480a7ffa7fff8000",
+            "0x480a7ffb7fff8000",
+            "0x480a7ff97fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffb2c",
+            "0x48127ffe7fff8000",
+            "0x480a7ff67fff8000",
+            "0x48127ffd7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffcb7",
+            "0x48127fe67fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x4003800080007ffc",
+            "0x4826800180008000",
+            "0x1",
+            "0x480a7ffd7fff8000",
+            "0x4828800080007ffe",
+            "0x480a80007fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480280027ffb8000",
+            "0x480280037ffd8000",
+            "0x400080007ffe7fff",
+            "0x482680017ffd8000",
+            "0x4",
+            "0x480280037ffd8000",
+            "0x48307fff7ffe8000",
+            "0x482480017fff8000",
+            "0x2",
+            "0x402a7ffd7ffc7fff",
+            "0x480280027ffb8000",
+            "0x480280007ffb8000",
+            "0x482480017ffe8000",
+            "0x1",
+            "0x480280007ffd8000",
+            "0x480280017ffd8000",
+            "0x480280027ffd8000",
+            "0x480280037ffd8000",
+            "0x482680017ffd8000",
+            "0x4",
+            "0x480080007ff68000",
+            "0x480080017ff58000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffd1",
+            "0x48127ffe7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffdf",
+            "0x48127ff57fff8000",
+            "0x480280017ffb8000",
+            "0x48127ffb7fff8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x48127ff97fff8000",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffa7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x480680017fff8000",
+            "0x7c7",
+            "0x1104800180018000",
+            "0x3db",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x480680017fff8000",
+            "0x7e5",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc7c",
+            "0x48127ffe7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x3e9",
+            "0x400680017fff7fff",
+            "0x7c7",
+            "0x48127ffe7fff8000",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc84",
+            "0x400680017fff7fff",
+            "0x7e5",
+            "0x48127ffd7fff8000",
+            "0x48127ffd7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x2",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280027ffb8000",
+            "0x480280007ffd8000",
+            "0x480280017ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffdc",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffd7fff8000",
+            "0x480280017ffb8000",
+            "0x48127ffc7fff8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffa7fff8000",
+            "0x480680017fff8000",
+            "0x5",
+            "0x480680017fff8000",
+            "0x64",
+            "0x1104800180018000",
+            "0x3a8",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc76",
+            "0x48127ffe7fff8000",
+            "0x480680017fff8000",
+            "0x5",
+            "0x1104800180018000",
+            "0x3b7",
+            "0x402680017ffd7fff",
+            "0x64",
+            "0x48127ffe7fff8000",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480680017fff8000",
+            "0x5",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc51",
+            "0x480680017fff8000",
+            "0x22b",
+            "0x40487ffd7fff7ffe",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x2",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280027ffb8000",
+            "0x480280007ffd8000",
+            "0x480280017ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffda",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffd7fff8000",
+            "0x480280017ffb8000",
+            "0x48127ffc7fff8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
@@ -2174,11 +2594,11 @@
             "0x480680017fff8000",
             "0x27",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd2b",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc88",
             "0x480680017fff8000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd19",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffc76",
             "0x400680017fff7fff",
             "0x27",
             "0x48127ffc7fff8000",
@@ -2210,7 +2630,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffccc",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffbd7",
             "0x208b7fff7fff7ffe",
             "0x40780017fff7fff",
             "0x1",
@@ -2294,7 +2714,7 @@
             "0x482680017ffd8000",
             "0x3",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffae6",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9ec",
             "0x48127ffd7fff8000",
             "0x480680017fff8000",
             "0x0",
@@ -2312,7 +2732,7 @@
             "0x482680017ffd8000",
             "0x3",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffae0",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9e6",
             "0x48127ffd7fff8000",
             "0x480680017fff8000",
             "0x0",
@@ -2466,7 +2886,7 @@
             "0x482680017ffd8000",
             "0x800000000000011000000000000000000000000000000000000000000000000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa35",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff93b",
             "0x482480017fff8000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffffe",
             "0x40137fff7fff8000",
@@ -2477,7 +2897,7 @@
             "0x3",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa2f",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff935",
             "0x48127ffd7fff8000",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
@@ -2506,15 +2926,15 @@
             "0x480a7ff97fff8000",
             "0x480a7ffa7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa75",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff97b",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa40",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff946",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480680017fff8000",
             "0x0",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa05",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff90b",
             "0x482480017fff8000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffffd",
             "0x40137fff7fff8000",
@@ -2526,7 +2946,7 @@
             "0x4",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9fe",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff904",
             "0x208b7fff7fff7ffe",
             "0x40780017fff7fff",
             "0x3",
@@ -2542,7 +2962,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9d9",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8df",
             "0x480a80017fff8000",
             "0x4829800080008002",
             "0x480a80007fff8000",
@@ -2574,7 +2994,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa0c",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff912",
             "0x400a7ffd7fff7fff",
             "0x48127ffe7fff8000",
             "0x208b7fff7fff7ffe",
@@ -2598,7 +3018,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffa02",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff908",
             "0x400a7ffd7fff7fff",
             "0x48127ffe7fff8000",
             "0x208b7fff7fff7ffe",
@@ -2622,7 +3042,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9d5",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8db",
             "0x400a7ffd7fff7fff",
             "0x48127ffe7fff8000",
             "0x208b7fff7fff7ffe",
@@ -2646,7 +3066,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ff67fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9fb",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff901",
             "0x480080007fff8000",
             "0x480080017ffe8000",
             "0x480080027ffd8000",
@@ -2668,17 +3088,17 @@
             "0x12c",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9d3",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8d9",
             "0x480680017fff8000",
             "0x137",
             "0x48127ff67fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9ce",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8d4",
             "0x480680017fff8000",
             "0x142",
             "0x48127ff17fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9c9",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8cf",
             "0x480a7ff77fff8000",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
@@ -2707,7 +3127,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff9be",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8c4",
             "0x400180007fff7ffd",
             "0x48127ffe7fff8000",
             "0x208b7fff7fff7ffe",
@@ -2735,13 +3155,13 @@
             "0x480680017fff8000",
             "0x0",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff990",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff896",
             "0x480680017fff8000",
             "0xf",
             "0x480680017fff8000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff98a",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff890",
             "0x480a7ffd7fff8000",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
@@ -2763,7 +3183,7 @@
             "0x40780017fff7fff",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8f3",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff7f9",
             "0x40137fff7fff8000",
             "0x4003800080007ffb",
             "0x4003800180007ffc",
@@ -2777,7 +3197,7 @@
             "0x4828800080007ffc",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff903",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff809",
             "0x48127ffd7fff8000",
             "0x480a7ff97fff8000",
             "0x208b7fff7fff7ffe",
@@ -2786,11 +3206,11 @@
             "0x2691cb735b18f3f656c3b82bd97a32b65d15019b64117513f8604d1e06fe58b",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8df",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff7e5",
             "0x480a7ffc7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff986",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff891",
             "0x48127fe17fff8000",
             "0x48127ffd7fff8000",
             "0x48127ffd7fff8000",
@@ -2803,12 +3223,12 @@
             "0x480a7ffa7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff944",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff84a",
             "0x48127ffe7fff8000",
             "0x482480017ff78000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff93f",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff845",
             "0x48127ffe7fff8000",
             "0x48127fee7fff8000",
             "0x48127fee7fff8000",
@@ -2824,12 +3244,12 @@
             "0x48127ffe7fff8000",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff937",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff83d",
             "0x482480017ff88000",
             "0x1",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff932",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff838",
             "0x48127ff07fff8000",
             "0x48127ff07fff8000",
             "0x208b7fff7fff7ffe",
@@ -2846,12 +3266,12 @@
             "0x48127ffe7fff8000",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff921",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff827",
             "0x482480017ff88000",
             "0x1",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff91c",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff822",
             "0x48127ff07fff8000",
             "0x48127ff07fff8000",
             "0x208b7fff7fff7ffe",
@@ -2902,12 +3322,12 @@
             "0x48127ffd7fff8000",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff93e",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff849",
             "0x48127ffe7fff8000",
             "0x48127ff77fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff939",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff844",
             "0x48127fed7fff8000",
             "0x48127fed7fff8000",
             "0x48127fed7fff8000",
@@ -2984,7 +3404,7 @@
             "0x480680017fff8000",
             "0x4b5810004d9272776dec83ecc20c19353453b956e594188890b48467cb53c19",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff93b",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff846",
             "0x480a7ffa7fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
@@ -3014,7 +3434,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff869",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff76f",
             "0x400680017fff7ffe",
             "0x2",
             "0x48127ffd7fff8000",
@@ -3055,6 +3475,176 @@
             "0x0",
             "0x48127ff97fff8000",
             "0x208b7fff7fff7ffe",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff752",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x2",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280007ffd8000",
+            "0x480280017ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff5",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffe7fff8000",
+            "0x480280017ffb8000",
+            "0x480280027ffb8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff732",
+            "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x4003800080007ffc",
+            "0x4826800180008000",
+            "0x1",
+            "0x480a7ffd7fff8000",
+            "0x4828800080007ffe",
+            "0x480a80007fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x1",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280007ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffee",
+            "0x480280027ffb8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff0",
+            "0x48127ff67fff8000",
+            "0x480280017ffb8000",
+            "0x48127ffb7fff8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x48127ff97fff8000",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffb7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff6e8",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff739",
+            "0x48127ffc7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x48127ffb7fff8000",
+            "0x48127ffa7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff8a3",
+            "0x480680017fff8000",
+            "0x22b",
+            "0x48127ffd7fff8000",
+            "0x480680017fff8000",
+            "0x5",
+            "0x48487ffd7ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffb6",
+            "0x480a7ffc7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x1",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280027ffb8000",
+            "0x480280007ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe5",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffd7fff8000",
+            "0x480280017ffb8000",
+            "0x48127ffc7fff8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x20780017fff7ffd",
+            "0x5",
+            "0x480a7ffa7fff8000",
+            "0x480a7ffb7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffa7fff8000",
+            "0x480680017fff8000",
+            "0x5",
+            "0x1104800180018000",
+            "0x23",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x482680017ffd8000",
+            "0x800000000000011000000000000000000000000000000000000000000000000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff875",
+            "0x48127ffe7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x35",
+            "0x480a7ffb7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x2",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280027ffb8000",
+            "0x480280007ffd8000",
+            "0x480280017ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe3",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffd7fff8000",
+            "0x480280017ffb8000",
+            "0x48127ffc7fff8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff6be",
+            "0x48127ffe7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x482480017ffd8000",
+            "0x1",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff6c0",
+            "0x208b7fff7fff7ffe",
+            "0x482680017ffd8000",
+            "0x1",
+            "0x402a7ffd7ffc7fff",
+            "0x480280007ffb8000",
+            "0x480280007ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff1",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffe7fff8000",
+            "0x480280017ffb8000",
+            "0x480280027ffb8000",
+            "0x480280037ffb8000",
+            "0x480280047ffb8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ff97fff8000",
+            "0x208b7fff7fff7ffe",
             "0x40780017fff7fff",
             "0x2",
             "0x400780017fff8000",
@@ -3062,14 +3652,14 @@
             "0x400780017fff8001",
             "0x22",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff7e0",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff63c",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x480680017fff8000",
             "0x2",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff909",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff76a",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -3101,7 +3691,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff82a",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffff686",
             "0x480a7ff77fff8000",
             "0x480a7ff87fff8000",
             "0x482680017ff98000",
@@ -3509,23 +4099,41 @@
                 {
                     "accessible_scopes": [
                         "starkware.cairo.common.math",
-                        "starkware.cairo.common.math.assert_250_bit"
+                        "starkware.cairo.common.math.assert_not_zero"
                     ],
-                    "code": "from starkware.cairo.common.math_utils import as_int\n\n# Correctness check.\nvalue = as_int(ids.value, PRIME) % PRIME\nassert value < ids.UPPER_BOUND, f'{value} is outside of the range [0, 2**250).'\n\n# Calculation for the assertion.\nids.high, ids.low = divmod(ids.value, ids.SHIFT)",
+                    "code": "from starkware.cairo.common.math_utils import assert_integer\nassert_integer(ids.value)\nassert ids.value % PRIME != 0, f'assert_not_zero failed: {ids.value} = 0.'",
                     "flow_tracking_data": {
                         "ap_tracking": {
                             "group": 20,
                             "offset": 0
                         },
                         "reference_ids": {
-                            "starkware.cairo.common.math.assert_250_bit.high": 19,
-                            "starkware.cairo.common.math.assert_250_bit.low": 18,
-                            "starkware.cairo.common.math.assert_250_bit.value": 17
+                            "starkware.cairo.common.math.assert_not_zero.value": 17
                         }
                     }
                 }
             ],
-            "176": [
+            "166": [
+                {
+                    "accessible_scopes": [
+                        "starkware.cairo.common.math",
+                        "starkware.cairo.common.math.assert_250_bit"
+                    ],
+                    "code": "from starkware.cairo.common.math_utils import as_int\n\n# Correctness check.\nvalue = as_int(ids.value, PRIME) % PRIME\nassert value < ids.UPPER_BOUND, f'{value} is outside of the range [0, 2**250).'\n\n# Calculation for the assertion.\nids.high, ids.low = divmod(ids.value, ids.SHIFT)",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 21,
+                            "offset": 0
+                        },
+                        "reference_ids": {
+                            "starkware.cairo.common.math.assert_250_bit.high": 20,
+                            "starkware.cairo.common.math.assert_250_bit.low": 19,
+                            "starkware.cairo.common.math.assert_250_bit.value": 18
+                        }
+                    }
+                }
+            ],
+            "181": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.storage",
@@ -3534,17 +4142,17 @@
                     "code": "# Verify the assumptions on the relationship between 2**250, ADDR_BOUND and PRIME.\nADDR_BOUND = ids.ADDR_BOUND % PRIME\nassert (2**250 < ADDR_BOUND <= 2**251) and (2 * 2**250 < PRIME) and (\n        ADDR_BOUND * 2 > PRIME), \\\n    'normalize_address() cannot be used with the current constants.'\nids.is_small = 1 if ids.addr < ADDR_BOUND else 0",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 21,
+                            "group": 22,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.storage.normalize_address.addr": 20,
-                            "starkware.starknet.common.storage.normalize_address.is_small": 21
+                            "starkware.starknet.common.storage.normalize_address.addr": 21,
+                            "starkware.starknet.common.storage.normalize_address.is_small": 22
                         }
                     }
                 }
             ],
-            "194": [
+            "199": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.storage",
@@ -3553,17 +4161,17 @@
                     "code": "ids.is_250 = 1 if ids.addr < 2**250 else 0",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 21,
+                            "group": 22,
                             "offset": 2
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.storage.normalize_address.addr": 20,
-                            "starkware.starknet.common.storage.normalize_address.is_250": 22
+                            "starkware.starknet.common.storage.normalize_address.addr": 21,
+                            "starkware.starknet.common.storage.normalize_address.is_250": 23
                         }
                     }
                 }
             ],
-            "301": [
+            "306": [
                 {
                     "accessible_scopes": [
                         "starkware.cairo.common.ec",
@@ -3572,19 +4180,19 @@
                     "code": "from starkware.crypto.signature.signature import ALPHA, BETA, FIELD_PRIME\nfrom starkware.python.math_utils import random_ec_point\nfrom starkware.python.utils import to_bytes\n\n# Define a seed for random_ec_point that's dependent on all the input, so that:\n#   (1) The added point s is deterministic.\n#   (2) It's hard to choose inputs for which the builtin will fail.\nseed = b\"\".join(map(to_bytes, [ids.p.x, ids.p.y, ids.m, ids.q.x, ids.q.y]))\nids.s.x, ids.s.y = random_ec_point(FIELD_PRIME, ALPHA, BETA, seed)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 27,
+                            "group": 28,
                             "offset": 2
                         },
                         "reference_ids": {
-                            "starkware.cairo.common.ec.ec_op.m": 24,
-                            "starkware.cairo.common.ec.ec_op.p": 23,
-                            "starkware.cairo.common.ec.ec_op.q": 25,
-                            "starkware.cairo.common.ec.ec_op.s": 26
+                            "starkware.cairo.common.ec.ec_op.m": 25,
+                            "starkware.cairo.common.ec.ec_op.p": 24,
+                            "starkware.cairo.common.ec.ec_op.q": 26,
+                            "starkware.cairo.common.ec.ec_op.s": 27
                         }
                     }
                 }
             ],
-            "334": [
+            "339": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.messages",
@@ -3593,16 +4201,16 @@
                     "code": "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 31,
+                            "group": 32,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.messages.send_message_to_l1.syscall_ptr": 27
+                            "starkware.starknet.common.messages.send_message_to_l1.syscall_ptr": 28
                         }
                     }
                 }
             ],
-            "518": [
+            "605": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3613,14 +4221,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 48,
+                            "group": 53,
                             "offset": 13
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "533": [
+            "620": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3631,14 +4239,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 50,
+                            "group": 55,
                             "offset": 2
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "553": [
+            "640": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3649,14 +4257,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 52,
+                            "group": 57,
                             "offset": 4
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "566": [
+            "653": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3667,14 +4275,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 54,
+                            "group": 59,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "637": [
+            "724": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3685,14 +4293,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 58,
+                            "group": 63,
                             "offset": 16
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "664": [
+            "751": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3703,14 +4311,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 60,
+                            "group": 65,
                             "offset": 8
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "677": [
+            "764": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3720,17 +4328,17 @@
                     "code": "from starkware.python.math_utils import isqrt\nvalue = ids.value % PRIME\nassert value < 2 ** 250, f\"value={value} is outside of the range [0, 2**250).\"\nassert 2 ** 250 < PRIME\nids.root = isqrt(value)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 61,
+                            "group": 66,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "__main__.sqrt.root": 29,
-                            "__main__.sqrt.value": 28
+                            "__main__.sqrt.root": 30,
+                            "__main__.sqrt.value": 29
                         }
                     }
                 }
             ],
-            "688": [
+            "775": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3741,14 +4349,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 62,
+                            "group": 67,
                             "offset": 7
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "708": [
+            "795": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3759,14 +4367,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 64,
+                            "group": 69,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "763": [
+            "850": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3777,14 +4385,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 70,
+                            "group": 75,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "793": [
+            "880": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3795,38 +4403,20 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 72,
+                            "group": 77,
                             "offset": 15
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "815": [
+            "902": [
                 {
                     "accessible_scopes": [
                         "__main__",
                         "__main__",
                         "__wrappers__",
                         "__wrappers__.test_long_retdata_encode_return"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 74,
-                            "offset": 0
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "914": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_nested_library_call_encode_return"
                     ],
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
@@ -3838,7 +4428,25 @@
                     }
                 }
             ],
-            "1019": [
+            "1001": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_nested_library_call_encode_return"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 84,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1106": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3849,14 +4457,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 84,
+                            "group": 89,
                             "offset": 28
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1125": [
+            "1212": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3867,44 +4475,8 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 91,
+                            "group": 96,
                             "offset": 23
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1148": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_replace_class"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 93,
-                            "offset": 11
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1168": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_deploy_encode_return"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 95,
-                            "offset": 0
                         },
                         "reference_ids": {}
                     }
@@ -3916,61 +4488,61 @@
                         "__main__",
                         "__main__",
                         "__wrappers__",
-                        "__wrappers__.test_storage_var"
+                        "__wrappers__.test_replace_class"
                     ],
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
                             "group": 98,
-                            "offset": 126
+                            "offset": 11
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1256": [
+            "1255": [
                 {
                     "accessible_scopes": [
                         "__main__",
                         "__main__",
                         "__wrappers__",
-                        "__wrappers__.test_contract_address_encode_return"
+                        "__wrappers__.test_deploy_encode_return"
                     ],
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 101,
+                            "group": 100,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1302": [
+            "1314": [
                 {
                     "accessible_scopes": [
                         "__main__",
                         "__main__",
                         "__wrappers__",
-                        "__wrappers__.foo"
+                        "__wrappers__.test_deploy_and_call_encode_return"
                     ],
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 105,
-                            "offset": 2
+                            "group": 103,
+                            "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1389": [
+            "1397": [
                 {
                     "accessible_scopes": [
                         "__main__",
                         "__main__",
                         "__wrappers__",
-                        "__wrappers__.invoke_call_chain_encode_return"
+                        "__wrappers__.test_call_storage_consistency"
                     ],
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
@@ -3982,7 +4554,97 @@
                     }
                 }
             ],
-            "1434": [
+            "1449": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_re_entrance"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 114,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1485": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_storage_var"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 116,
+                            "offset": 126
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1506": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_contract_address_encode_return"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 119,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1552": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.foo"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 123,
+                            "offset": 2
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1639": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.invoke_call_chain_encode_return"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 127,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1684": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -3993,14 +4655,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 113,
+                            "group": 131,
                             "offset": 3
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1463": [
+            "1713": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4011,116 +4673,8 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 117,
-                            "offset": 0
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1488": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.recurse"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 121,
-                            "offset": 0
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1533": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.recursive_syscall"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 124,
-                            "offset": 0
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1572": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_write_and_transfer_encode_return"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 126,
-                            "offset": 0
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1629": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_get_block_number"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 131,
-                            "offset": 12
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1653": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_get_block_timestamp"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
-                            "group": 133,
-                            "offset": 12
-                        },
-                        "reference_ids": {}
-                    }
-                }
-            ],
-            "1677": [
-                {
-                    "accessible_scopes": [
-                        "__main__",
-                        "__main__",
-                        "__wrappers__",
-                        "__wrappers__.test_get_sequencer_address"
-                    ],
-                    "code": "memory[ap] = segments.add()",
-                    "flow_tracking_data": {
-                        "ap_tracking": {
                             "group": 135,
-                            "offset": 12
+                            "offset": 0
                         },
                         "reference_ids": {}
                     }
@@ -4132,19 +4686,127 @@
                         "__main__",
                         "__main__",
                         "__wrappers__",
+                        "__wrappers__.recurse"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 139,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1783": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.recursive_syscall"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 142,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1822": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_write_and_transfer_encode_return"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 144,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1879": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_get_block_number"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 149,
+                            "offset": 12
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1903": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_get_block_timestamp"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 151,
+                            "offset": 12
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1927": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_get_sequencer_address"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 153,
+                            "offset": 12
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "1988": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
                         "__wrappers__.test_get_tx_info"
                     ],
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 137,
+                            "group": 155,
                             "offset": 45
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1762": [
+            "2012": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4155,14 +4817,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 139,
+                            "group": 157,
                             "offset": 12
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1793": [
+            "2043": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4173,14 +4835,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 141,
+                            "group": 159,
                             "offset": 18
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1925": [
+            "2175": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4191,14 +4853,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 149,
+                            "group": 167,
                             "offset": 145
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "1974": [
+            "2224": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4209,14 +4871,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 151,
+                            "group": 169,
                             "offset": 161
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "2005": [
+            "2255": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4227,14 +4889,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 153,
+                            "group": 171,
                             "offset": 35
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "2045": [
+            "2295": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4245,14 +4907,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 157,
+                            "group": 175,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "2088": [
+            "2338": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4263,14 +4925,104 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 159,
+                            "group": 177,
                             "offset": 153
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "2122": [
+            "2363": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.set_value"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 179,
+                            "offset": 13
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "2379": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.get_value_encode_return"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 181,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "2436": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.add_value"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 184,
+                            "offset": 53
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "2479": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.recursive_add_value"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 189,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "2508": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.increase_value"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 191,
+                            "offset": 19
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "2542": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4281,14 +5033,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 161,
+                            "group": 193,
                             "offset": 17
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "2197": [
+            "2617": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -4299,7 +5051,7 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 167,
+                            "group": 199,
                             "offset": 0
                         },
                         "reference_ids": {}
@@ -4388,7 +5140,7 @@
             },
             "__main__.MyContract.xor_counters": {
                 "decorators": [],
-                "pc": 1804,
+                "pc": 2054,
                 "type": "function"
             },
             "__main__.MyContract.xor_counters.Args": {
@@ -4433,6 +5185,10 @@
                 "type": "const",
                 "value": 116061167288211781254449158074459916871457383008289084697957612485591092000
             },
+            "__main__.TestContract": {
+                "destination": "starkware.starknet.core.test_contract.test_contract_interface.TestContract",
+                "type": "alias"
+            },
             "__main__.TxInfo": {
                 "destination": "starkware.starknet.common.syscalls.TxInfo",
                 "type": "alias"
@@ -4441,7 +5197,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2056,
+                "pc": 2306,
                 "type": "function"
             },
             "__main__.add_signature_to_counters.Args": {
@@ -4482,11 +5238,52 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.add_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2406,
+                "type": "function"
+            },
+            "__main__.add_value.Args": {
+                "full_name": "__main__.add_value.Args",
+                "members": {
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.add_value.ImplicitArgs": {
+                "full_name": "__main__.add_value.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.add_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.add_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.advance_counter": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1899,
+                "pc": 2149,
                 "type": "function"
             },
             "__main__.advance_counter.Args": {
@@ -4539,11 +5336,15 @@
                 "destination": "starkware.cairo.common.alloc.alloc",
                 "type": "alias"
             },
+            "__main__.assert_not_zero": {
+                "destination": "starkware.cairo.common.math.assert_not_zero",
+                "type": "alias"
+            },
             "__main__.bitwise_and": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 648,
+                "pc": 735,
                 "type": "function"
             },
             "__main__.bitwise_and.Args": {
@@ -4592,7 +5393,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 988,
+                "pc": 1075,
                 "type": "function"
             },
             "__main__.call_execute_directly.Args": {
@@ -4645,7 +5446,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1985,
+                "pc": 2235,
                 "type": "function"
             },
             "__main__.call_xor_counters.Args": {
@@ -4690,7 +5491,7 @@
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 504,
+                "pc": 591,
                 "type": "function"
             },
             "__main__.constructor.Args": {
@@ -4764,7 +5565,7 @@
             },
             "__main__.ec_point.addr": {
                 "decorators": [],
-                "pc": 1877,
+                "pc": 2127,
                 "type": "function"
             },
             "__main__.ec_point.addr.Args": {
@@ -4814,7 +5615,7 @@
             },
             "__main__.ec_point.write": {
                 "decorators": [],
-                "pc": 1882,
+                "pc": 2132,
                 "type": "function"
             },
             "__main__.ec_point.write.Args": {
@@ -4861,7 +5662,7 @@
             },
             "__main__.emit_event_recurse": {
                 "decorators": [],
-                "pc": 2133,
+                "pc": 2553,
                 "type": "function"
             },
             "__main__.emit_event_recurse.Args": {
@@ -4922,7 +5723,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1426,
+                "pc": 1676,
                 "type": "function"
             },
             "__main__.fail.Args": {
@@ -4949,7 +5750,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1298,
+                "pc": 1548,
                 "type": "function"
             },
             "__main__.foo.Args": {
@@ -5008,11 +5809,85 @@
                 "destination": "starkware.starknet.common.syscalls.get_tx_signature",
                 "type": "alias"
             },
+            "__main__.get_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2374,
+                "type": "function"
+            },
+            "__main__.get_value.Args": {
+                "full_name": "__main__.get_value.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.get_value.ImplicitArgs": {
+                "full_name": "__main__.get_value.ImplicitArgs",
+                "members": {
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.get_value.Return": {
+                "cairo_type": "(res: felt)",
+                "type": "type_definition"
+            },
+            "__main__.get_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__main__.increase_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2490,
+                "type": "function"
+            },
+            "__main__.increase_value.Args": {
+                "full_name": "__main__.increase_value.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.increase_value.ImplicitArgs": {
+                "full_name": "__main__.increase_value.ImplicitArgs",
+                "members": {
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.increase_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.increase_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.invoke_call_chain": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1313,
+                "pc": 1563,
                 "type": "function"
             },
             "__main__.invoke_call_chain.Args": {
@@ -5053,7 +5928,7 @@
                 "decorators": [
                     "l1_handler"
                 ],
-                "pc": 617,
+                "pc": 704,
                 "type": "function"
             },
             "__main__.l1_handler_set_value_and_revert.Args": {
@@ -5135,7 +6010,7 @@
             },
             "__main__.number_map.addr": {
                 "decorators": [],
-                "pc": 463,
+                "pc": 550,
                 "type": "function"
             },
             "__main__.number_map.addr.Args": {
@@ -5182,7 +6057,7 @@
             },
             "__main__.number_map.read": {
                 "decorators": [],
-                "pc": 477,
+                "pc": 564,
                 "type": "function"
             },
             "__main__.number_map.read.Args": {
@@ -5233,7 +6108,7 @@
             },
             "__main__.number_map.write": {
                 "decorators": [],
-                "pc": 491,
+                "pc": 578,
                 "type": "function"
             },
             "__main__.number_map.write.Args": {
@@ -5280,7 +6155,7 @@
             },
             "__main__.other_syscalls": {
                 "decorators": [],
-                "pc": 592,
+                "pc": 679,
                 "type": "function"
             },
             "__main__.other_syscalls.Args": {
@@ -5312,7 +6187,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1474,
+                "pc": 1724,
                 "type": "function"
             },
             "__main__.recurse.Args": {
@@ -5340,11 +6215,56 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.recursive_add_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2447,
+                "type": "function"
+            },
+            "__main__.recursive_add_value.Args": {
+                "full_name": "__main__.recursive_add_value.Args",
+                "members": {
+                    "self_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.recursive_add_value.ImplicitArgs": {
+                "full_name": "__main__.recursive_add_value.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.recursive_add_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.recursive_add_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.recursive_fail": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1445,
+                "pc": 1695,
                 "type": "function"
             },
             "__main__.recursive_fail.Args": {
@@ -5376,7 +6296,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1499,
+                "pc": 1749,
                 "type": "function"
             },
             "__main__.recursive_syscall.Args": {
@@ -5425,7 +6345,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 564,
+                "pc": 651,
                 "type": "function"
             },
             "__main__.return_result.Args": {
@@ -5457,7 +6377,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2099,
+                "pc": 2519,
                 "type": "function"
             },
             "__main__.send_message.Args": {
@@ -5494,11 +6414,52 @@
                 "destination": "starkware.starknet.common.messages.send_message_to_l1",
                 "type": "alias"
             },
+            "__main__.set_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2349,
+                "type": "function"
+            },
+            "__main__.set_value.Args": {
+                "full_name": "__main__.set_value.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.set_value.ImplicitArgs": {
+                "full_name": "__main__.set_value.ImplicitArgs",
+                "members": {
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.set_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.set_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.sqrt": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 675,
+                "pc": 762,
                 "type": "function"
             },
             "__main__.sqrt.Args": {
@@ -5537,10 +6498,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 61,
+                            "group": 66,
                             "offset": 1
                         },
-                        "pc": 677,
+                        "pc": 764,
                         "value": "[cast(fp, felt*)]"
                     }
                 ],
@@ -5552,10 +6513,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 61,
+                            "group": 66,
                             "offset": 0
                         },
-                        "pc": 675,
+                        "pc": 762,
                         "value": "[cast(fp + (-3), felt*)]"
                     }
                 ],
@@ -5574,7 +6535,7 @@
                     "external",
                     "raw_output"
                 ],
-                "pc": 954,
+                "pc": 1041,
                 "type": "function"
             },
             "__main__.test_call_contract.Args": {
@@ -5623,7 +6584,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1105,
+                "pc": 1192,
                 "type": "function"
             },
             "__main__.test_call_contract_fail_with_attr_error_msg.Args": {
@@ -5660,12 +6621,57 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.test_call_storage_consistency": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 1358,
+                "type": "function"
+            },
+            "__main__.test_call_storage_consistency.Args": {
+                "full_name": "__main__.test_call_storage_consistency.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "other_contract_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.test_call_storage_consistency.ImplicitArgs": {
+                "full_name": "__main__.test_call_storage_consistency.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.test_call_storage_consistency.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.test_call_storage_consistency.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.test_call_two_contracts": {
                 "decorators": [
                     "external",
                     "raw_output"
                 ],
-                "pc": 1030,
+                "pc": 1117,
                 "type": "function"
             },
             "__main__.test_call_two_contracts.Args": {
@@ -5730,7 +6736,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1246,
+                "pc": 1496,
                 "type": "function"
             },
             "__main__.test_contract_address.Args": {
@@ -5787,7 +6793,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1773,
+                "pc": 2023,
                 "type": "function"
             },
             "__main__.test_count_actual_storage_changes.Args": {
@@ -5827,7 +6833,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1159,
+                "pc": 1246,
                 "type": "function"
             },
             "__main__.test_deploy.Args": {
@@ -5876,11 +6882,76 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.test_deploy_and_call": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 1297,
+                "type": "function"
+            },
+            "__main__.test_deploy_and_call.Args": {
+                "full_name": "__main__.test_deploy_and_call.Args",
+                "members": {
+                    "class_hash": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "constructor_calldata": {
+                        "cairo_type": "felt*",
+                        "offset": 4
+                    },
+                    "constructor_calldata_len": {
+                        "cairo_type": "felt",
+                        "offset": 3
+                    },
+                    "contract_address_salt": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "deploy_from_zero": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                    "key": {
+                        "cairo_type": "felt",
+                        "offset": 5
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 6
+                    }
+                },
+                "size": 7,
+                "type": "struct"
+            },
+            "__main__.test_deploy_and_call.ImplicitArgs": {
+                "full_name": "__main__.test_deploy_and_call.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.test_deploy_and_call.Return": {
+                "cairo_type": "(contract_address: felt)",
+                "type": "type_definition"
+            },
+            "__main__.test_deploy_and_call.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.test_ec_op": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 2016,
+                "pc": 2266,
                 "type": "function"
             },
             "__main__.test_ec_op.Args": {
@@ -5924,7 +6995,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2157,
+                "pc": 2577,
                 "type": "function"
             },
             "__main__.test_emit_events.Args": {
@@ -5985,7 +7056,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1616,
+                "pc": 1866,
                 "type": "function"
             },
             "__main__.test_get_block_number.Args": {
@@ -6022,7 +7093,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1640,
+                "pc": 1890,
                 "type": "function"
             },
             "__main__.test_get_block_timestamp.Args": {
@@ -6059,7 +7130,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1664,
+                "pc": 1914,
                 "type": "function"
             },
             "__main__.test_get_sequencer_address.Args": {
@@ -6096,7 +7167,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1688,
+                "pc": 1938,
                 "type": "function"
             },
             "__main__.test_get_tx_info.Args": {
@@ -6158,7 +7229,7 @@
                     "external",
                     "raw_output"
                 ],
-                "pc": 842,
+                "pc": 929,
                 "type": "function"
             },
             "__main__.test_library_call.Args": {
@@ -6207,7 +7278,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 804,
+                "pc": 891,
                 "type": "function"
             },
             "__main__.test_long_retdata.Args": {
@@ -6234,7 +7305,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 876,
+                "pc": 963,
                 "type": "function"
             },
             "__main__.test_nested_library_call.Args": {
@@ -6283,11 +7354,56 @@
                 "type": "const",
                 "value": 1
             },
+            "__main__.test_re_entrance": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 1408,
+                "type": "function"
+            },
+            "__main__.test_re_entrance.Args": {
+                "full_name": "__main__.test_re_entrance.Args",
+                "members": {
+                    "depth": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "other_contract_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.test_re_entrance.ImplicitArgs": {
+                "full_name": "__main__.test_re_entrance.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.test_re_entrance.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.test_re_entrance.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__main__.test_replace_class": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1136,
+                "pc": 1223,
                 "type": "function"
             },
             "__main__.test_replace_class.Args": {
@@ -6324,7 +7440,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 699,
+                "pc": 786,
                 "type": "function"
             },
             "__main__.test_storage_read_write.Args": {
@@ -6365,7 +7481,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1210,
+                "pc": 1460,
                 "type": "function"
             },
             "__main__.test_storage_var.Args": {
@@ -6405,7 +7521,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1749,
+                "pc": 1999,
                 "type": "function"
             },
             "__main__.test_tx_version.Args": {
@@ -6442,7 +7558,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1544,
+                "pc": 1794,
                 "type": "function"
             },
             "__main__.test_write_and_transfer.Args": {
@@ -6520,7 +7636,7 @@
             },
             "__main__.two_counters.addr": {
                 "decorators": [],
-                "pc": 1825,
+                "pc": 2075,
                 "type": "function"
             },
             "__main__.two_counters.addr.Args": {
@@ -6567,7 +7683,7 @@
             },
             "__main__.two_counters.read": {
                 "decorators": [],
-                "pc": 1839,
+                "pc": 2089,
                 "type": "function"
             },
             "__main__.two_counters.read.Args": {
@@ -6618,7 +7734,7 @@
             },
             "__main__.two_counters.write": {
                 "decorators": [],
-                "pc": 1859,
+                "pc": 2109,
                 "type": "function"
             },
             "__main__.two_counters.write.Args": {
@@ -6667,7 +7783,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 544,
+                "pc": 631,
                 "type": "function"
             },
             "__main__.with_arg.Args": {
@@ -6699,7 +7815,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 529,
+                "pc": 616,
                 "type": "function"
             },
             "__main__.without_arg.Args": {
@@ -6726,7 +7842,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 736,
+                "pc": 823,
                 "type": "function"
             },
             "__main__.write_a_lot.Args": {
@@ -6767,7 +7883,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 774,
+                "pc": 861,
                 "type": "function"
             },
             "__main__.write_and_revert.Args": {
@@ -6808,7 +7924,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1936,
+                "pc": 2186,
                 "type": "function"
             },
             "__main__.xor_counters.Args": {
@@ -6857,7 +7973,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2079,
+                "pc": 2329,
                 "type": "function"
             },
             "__wrappers__.add_signature_to_counters.Args": {
@@ -6888,11 +8004,46 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.add_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2428,
+                "type": "function"
+            },
+            "__wrappers__.add_value.Args": {
+                "full_name": "__wrappers__.add_value.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.add_value.ImplicitArgs": {
+                "full_name": "__wrappers__.add_value.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.add_value.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.add_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.add_value.__wrapped_func": {
+                "destination": "__main__.add_value",
+                "type": "alias"
+            },
+            "__wrappers__.add_value_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.advance_counter": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1914,
+                "pc": 2164,
                 "type": "function"
             },
             "__wrappers__.advance_counter.Args": {
@@ -6927,7 +8078,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 656,
+                "pc": 743,
                 "type": "function"
             },
             "__wrappers__.bitwise_and.Args": {
@@ -6962,7 +8113,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1000,
+                "pc": 1087,
                 "type": "function"
             },
             "__wrappers__.call_execute_directly.Args": {
@@ -6997,7 +8148,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1994,
+                "pc": 2244,
                 "type": "function"
             },
             "__wrappers__.call_xor_counters.Args": {
@@ -7032,7 +8183,7 @@
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 510,
+                "pc": 597,
                 "type": "function"
             },
             "__wrappers__.constructor.Args": {
@@ -7067,7 +8218,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1431,
+                "pc": 1681,
                 "type": "function"
             },
             "__wrappers__.fail.Args": {
@@ -7102,7 +8253,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1299,
+                "pc": 1549,
                 "type": "function"
             },
             "__wrappers__.foo.Args": {
@@ -7133,11 +8284,115 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.get_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2388,
+                "type": "function"
+            },
+            "__wrappers__.get_value.Args": {
+                "full_name": "__wrappers__.get_value.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.get_value.ImplicitArgs": {
+                "full_name": "__wrappers__.get_value.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.get_value.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.get_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.get_value.__wrapped_func": {
+                "destination": "__main__.get_value",
+                "type": "alias"
+            },
+            "__wrappers__.get_value_encode_return": {
+                "decorators": [],
+                "pc": 2379,
+                "type": "function"
+            },
+            "__wrappers__.get_value_encode_return.Args": {
+                "full_name": "__wrappers__.get_value_encode_return.Args",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "ret_value": {
+                        "cairo_type": "(res: felt)",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__wrappers__.get_value_encode_return.ImplicitArgs": {
+                "full_name": "__wrappers__.get_value_encode_return.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.get_value_encode_return.Return": {
+                "cairo_type": "(range_check_ptr: felt, data_len: felt, data: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.get_value_encode_return.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 1
+            },
+            "__wrappers__.get_value_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
+            "__wrappers__.increase_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2501,
+                "type": "function"
+            },
+            "__wrappers__.increase_value.Args": {
+                "full_name": "__wrappers__.increase_value.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.increase_value.ImplicitArgs": {
+                "full_name": "__wrappers__.increase_value.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.increase_value.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.increase_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.increase_value.__wrapped_func": {
+                "destination": "__main__.increase_value",
+                "type": "alias"
+            },
+            "__wrappers__.increase_value_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.invoke_call_chain": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1398,
+                "pc": 1648,
                 "type": "function"
             },
             "__wrappers__.invoke_call_chain.Args": {
@@ -7166,7 +8421,7 @@
             },
             "__wrappers__.invoke_call_chain_encode_return": {
                 "decorators": [],
-                "pc": 1389,
+                "pc": 1639,
                 "type": "function"
             },
             "__wrappers__.invoke_call_chain_encode_return.Args": {
@@ -7206,7 +8461,7 @@
                 "decorators": [
                     "l1_handler"
                 ],
-                "pc": 628,
+                "pc": 715,
                 "type": "function"
             },
             "__wrappers__.l1_handler_set_value_and_revert.Args": {
@@ -7241,7 +8496,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1482,
+                "pc": 1732,
                 "type": "function"
             },
             "__wrappers__.recurse.Args": {
@@ -7272,11 +8527,46 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.recursive_add_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2470,
+                "type": "function"
+            },
+            "__wrappers__.recursive_add_value.Args": {
+                "full_name": "__wrappers__.recursive_add_value.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.recursive_add_value.ImplicitArgs": {
+                "full_name": "__wrappers__.recursive_add_value.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.recursive_add_value.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.recursive_add_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.recursive_add_value.__wrapped_func": {
+                "destination": "__main__.recursive_add_value",
+                "type": "alias"
+            },
+            "__wrappers__.recursive_add_value_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.recursive_fail": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1457,
+                "pc": 1707,
                 "type": "function"
             },
             "__wrappers__.recursive_fail.Args": {
@@ -7311,7 +8601,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1524,
+                "pc": 1774,
                 "type": "function"
             },
             "__wrappers__.recursive_syscall.Args": {
@@ -7346,7 +8636,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 575,
+                "pc": 662,
                 "type": "function"
             },
             "__wrappers__.return_result.Args": {
@@ -7375,7 +8665,7 @@
             },
             "__wrappers__.return_result_encode_return": {
                 "decorators": [],
-                "pc": 566,
+                "pc": 653,
                 "type": "function"
             },
             "__wrappers__.return_result_encode_return.Args": {
@@ -7415,7 +8705,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2115,
+                "pc": 2535,
                 "type": "function"
             },
             "__wrappers__.send_message.Args": {
@@ -7446,11 +8736,46 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.set_value": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 2355,
+                "type": "function"
+            },
+            "__wrappers__.set_value.Args": {
+                "full_name": "__wrappers__.set_value.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.set_value.ImplicitArgs": {
+                "full_name": "__wrappers__.set_value.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.set_value.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.set_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.set_value.__wrapped_func": {
+                "destination": "__main__.set_value",
+                "type": "alias"
+            },
+            "__wrappers__.set_value_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.sqrt": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 681,
+                "pc": 768,
                 "type": "function"
             },
             "__wrappers__.sqrt.Args": {
@@ -7486,7 +8811,7 @@
                     "external",
                     "raw_output"
                 ],
-                "pc": 962,
+                "pc": 1049,
                 "type": "function"
             },
             "__wrappers__.test_call_contract.Args": {
@@ -7521,7 +8846,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1117,
+                "pc": 1204,
                 "type": "function"
             },
             "__wrappers__.test_call_contract_fail_with_attr_error_msg.Args": {
@@ -7552,12 +8877,47 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.test_call_storage_consistency": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 1388,
+                "type": "function"
+            },
+            "__wrappers__.test_call_storage_consistency.Args": {
+                "full_name": "__wrappers__.test_call_storage_consistency.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_call_storage_consistency.ImplicitArgs": {
+                "full_name": "__wrappers__.test_call_storage_consistency.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_call_storage_consistency.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.test_call_storage_consistency.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.test_call_storage_consistency.__wrapped_func": {
+                "destination": "__main__.test_call_storage_consistency",
+                "type": "alias"
+            },
+            "__wrappers__.test_call_storage_consistency_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.test_call_two_contracts": {
                 "decorators": [
                     "external",
                     "raw_output"
                 ],
-                "pc": 1067,
+                "pc": 1154,
                 "type": "function"
             },
             "__wrappers__.test_call_two_contracts.Args": {
@@ -7592,7 +8952,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1265,
+                "pc": 1515,
                 "type": "function"
             },
             "__wrappers__.test_contract_address.Args": {
@@ -7621,7 +8981,7 @@
             },
             "__wrappers__.test_contract_address_encode_return": {
                 "decorators": [],
-                "pc": 1256,
+                "pc": 1506,
                 "type": "function"
             },
             "__wrappers__.test_contract_address_encode_return.Args": {
@@ -7661,7 +9021,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1788,
+                "pc": 2038,
                 "type": "function"
             },
             "__wrappers__.test_count_actual_storage_changes.Args": {
@@ -7696,7 +9056,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1177,
+                "pc": 1264,
                 "type": "function"
             },
             "__wrappers__.test_deploy.Args": {
@@ -7723,9 +9083,78 @@
                 "destination": "__main__.test_deploy",
                 "type": "alias"
             },
+            "__wrappers__.test_deploy_and_call": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 1323,
+                "type": "function"
+            },
+            "__wrappers__.test_deploy_and_call.Args": {
+                "full_name": "__wrappers__.test_deploy_and_call.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_deploy_and_call.ImplicitArgs": {
+                "full_name": "__wrappers__.test_deploy_and_call.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_deploy_and_call.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.test_deploy_and_call.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.test_deploy_and_call.__wrapped_func": {
+                "destination": "__main__.test_deploy_and_call",
+                "type": "alias"
+            },
+            "__wrappers__.test_deploy_and_call_encode_return": {
+                "decorators": [],
+                "pc": 1314,
+                "type": "function"
+            },
+            "__wrappers__.test_deploy_and_call_encode_return.Args": {
+                "full_name": "__wrappers__.test_deploy_and_call_encode_return.Args",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "ret_value": {
+                        "cairo_type": "(contract_address: felt)",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__wrappers__.test_deploy_and_call_encode_return.ImplicitArgs": {
+                "full_name": "__wrappers__.test_deploy_and_call_encode_return.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_deploy_and_call_encode_return.Return": {
+                "cairo_type": "(range_check_ptr: felt, data_len: felt, data: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.test_deploy_and_call_encode_return.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 1
+            },
+            "__wrappers__.test_deploy_and_call_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.test_deploy_encode_return": {
                 "decorators": [],
-                "pc": 1168,
+                "pc": 1255,
                 "type": "function"
             },
             "__wrappers__.test_deploy_encode_return.Args": {
@@ -7765,7 +9194,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2038,
+                "pc": 2288,
                 "type": "function"
             },
             "__wrappers__.test_ec_op.Args": {
@@ -7800,7 +9229,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 2168,
+                "pc": 2588,
                 "type": "function"
             },
             "__wrappers__.test_emit_events.Args": {
@@ -7835,7 +9264,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1622,
+                "pc": 1872,
                 "type": "function"
             },
             "__wrappers__.test_get_block_number.Args": {
@@ -7870,7 +9299,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1646,
+                "pc": 1896,
                 "type": "function"
             },
             "__wrappers__.test_get_block_timestamp.Args": {
@@ -7905,7 +9334,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1670,
+                "pc": 1920,
                 "type": "function"
             },
             "__wrappers__.test_get_sequencer_address.Args": {
@@ -7940,7 +9369,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1725,
+                "pc": 1975,
                 "type": "function"
             },
             "__wrappers__.test_get_tx_info.Args": {
@@ -7976,7 +9405,7 @@
                     "external",
                     "raw_output"
                 ],
-                "pc": 850,
+                "pc": 937,
                 "type": "function"
             },
             "__wrappers__.test_library_call.Args": {
@@ -8011,7 +9440,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 828,
+                "pc": 915,
                 "type": "function"
             },
             "__wrappers__.test_long_retdata.Args": {
@@ -8040,7 +9469,7 @@
             },
             "__wrappers__.test_long_retdata_encode_return": {
                 "decorators": [],
-                "pc": 815,
+                "pc": 902,
                 "type": "function"
             },
             "__wrappers__.test_long_retdata_encode_return.Args": {
@@ -8080,7 +9509,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 923,
+                "pc": 1010,
                 "type": "function"
             },
             "__wrappers__.test_nested_library_call.Args": {
@@ -8109,7 +9538,7 @@
             },
             "__wrappers__.test_nested_library_call_encode_return": {
                 "decorators": [],
-                "pc": 914,
+                "pc": 1001,
                 "type": "function"
             },
             "__wrappers__.test_nested_library_call_encode_return.Args": {
@@ -8145,11 +9574,46 @@
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
+            "__wrappers__.test_re_entrance": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 1440,
+                "type": "function"
+            },
+            "__wrappers__.test_re_entrance.Args": {
+                "full_name": "__wrappers__.test_re_entrance.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_re_entrance.ImplicitArgs": {
+                "full_name": "__wrappers__.test_re_entrance.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_re_entrance.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: felt, range_check_ptr: felt, bitwise_ptr: felt, ec_op_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.test_re_entrance.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.test_re_entrance.__wrapped_func": {
+                "destination": "__main__.test_re_entrance",
+                "type": "alias"
+            },
+            "__wrappers__.test_re_entrance_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__wrappers__.test_replace_class": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 1141,
+                "pc": 1228,
                 "type": "function"
             },
             "__wrappers__.test_replace_class.Args": {
@@ -8184,7 +9648,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 717,
+                "pc": 804,
                 "type": "function"
             },
             "__wrappers__.test_storage_read_write.Args": {
@@ -8213,7 +9677,7 @@
             },
             "__wrappers__.test_storage_read_write_encode_return": {
                 "decorators": [],
-                "pc": 708,
+                "pc": 795,
                 "type": "function"
             },
             "__wrappers__.test_storage_read_write_encode_return.Args": {
@@ -8253,7 +9717,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1229,
+                "pc": 1479,
                 "type": "function"
             },
             "__wrappers__.test_storage_var.Args": {
@@ -8288,7 +9752,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1755,
+                "pc": 2005,
                 "type": "function"
             },
             "__wrappers__.test_tx_version.Args": {
@@ -8323,7 +9787,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1591,
+                "pc": 1841,
                 "type": "function"
             },
             "__wrappers__.test_write_and_transfer.Args": {
@@ -8352,7 +9816,7 @@
             },
             "__wrappers__.test_write_and_transfer_encode_return": {
                 "decorators": [],
-                "pc": 1572,
+                "pc": 1822,
                 "type": "function"
             },
             "__wrappers__.test_write_and_transfer_encode_return.Args": {
@@ -8392,7 +9856,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 547,
+                "pc": 634,
                 "type": "function"
             },
             "__wrappers__.with_arg.Args": {
@@ -8427,7 +9891,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 530,
+                "pc": 617,
                 "type": "function"
             },
             "__wrappers__.without_arg.Args": {
@@ -8462,7 +9926,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 755,
+                "pc": 842,
                 "type": "function"
             },
             "__wrappers__.write_a_lot.Args": {
@@ -8497,7 +9961,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 785,
+                "pc": 872,
                 "type": "function"
             },
             "__wrappers__.write_and_revert.Args": {
@@ -8532,7 +9996,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 1962,
+                "pc": 2212,
                 "type": "function"
             },
             "__wrappers__.xor_counters.Args": {
@@ -8598,7 +10062,7 @@
             },
             "starkware.cairo.common.bitwise.bitwise_xor": {
                 "decorators": [],
-                "pc": 214,
+                "pc": 219,
                 "type": "function"
             },
             "starkware.cairo.common.bitwise.bitwise_xor.Args": {
@@ -8887,7 +10351,7 @@
             },
             "starkware.cairo.common.ec.assert_on_curve": {
                 "decorators": [],
-                "pc": 220,
+                "pc": 225,
                 "type": "function"
             },
             "starkware.cairo.common.ec.assert_on_curve.Args": {
@@ -8917,7 +10381,7 @@
             },
             "starkware.cairo.common.ec.ec_add": {
                 "decorators": [],
-                "pc": 256,
+                "pc": 261,
                 "type": "function"
             },
             "starkware.cairo.common.ec.ec_add.Args": {
@@ -8951,7 +10415,7 @@
             },
             "starkware.cairo.common.ec.ec_double": {
                 "decorators": [],
-                "pc": 233,
+                "pc": 238,
                 "type": "function"
             },
             "starkware.cairo.common.ec.ec_double.Args": {
@@ -8981,7 +10445,7 @@
             },
             "starkware.cairo.common.ec.ec_op": {
                 "decorators": [],
-                "pc": 293,
+                "pc": 298,
                 "type": "function"
             },
             "starkware.cairo.common.ec.ec_op.Args": {
@@ -9028,10 +10492,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 27,
+                            "group": 28,
                             "offset": 0
                         },
-                        "pc": 293,
+                        "pc": 298,
                         "value": "[cast(fp + (-5), felt*)]"
                     }
                 ],
@@ -9043,10 +10507,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 27,
+                            "group": 28,
                             "offset": 0
                         },
-                        "pc": 293,
+                        "pc": 298,
                         "value": "[cast(fp + (-7), starkware.cairo.common.ec_point.EcPoint*)]"
                     }
                 ],
@@ -9058,10 +10522,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 27,
+                            "group": 28,
                             "offset": 0
                         },
-                        "pc": 293,
+                        "pc": 298,
                         "value": "[cast(fp + (-4), starkware.cairo.common.ec_point.EcPoint*)]"
                     }
                 ],
@@ -9073,10 +10537,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 27,
+                            "group": 28,
                             "offset": 2
                         },
-                        "pc": 301,
+                        "pc": 306,
                         "value": "[cast(fp, starkware.cairo.common.ec_point.EcPoint*)]"
                     }
                 ],
@@ -9173,7 +10637,7 @@
             },
             "starkware.cairo.common.hash_state.hash_felts": {
                 "decorators": [],
-                "pc": 421,
+                "pc": 426,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_felts.Args": {
@@ -9212,7 +10676,7 @@
             },
             "starkware.cairo.common.hash_state.hash_felts_no_padding": {
                 "decorators": [],
-                "pc": 396,
+                "pc": 401,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_felts_no_padding.Args": {
@@ -9273,12 +10737,12 @@
                 "value": 1
             },
             "starkware.cairo.common.hash_state.hash_felts_no_padding.hash_loop": {
-                "pc": 409,
+                "pc": 414,
                 "type": "label"
             },
             "starkware.cairo.common.hash_state.hash_finalize": {
                 "decorators": [],
-                "pc": 390,
+                "pc": 395,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_finalize.Args": {
@@ -9313,7 +10777,7 @@
             },
             "starkware.cairo.common.hash_state.hash_init": {
                 "decorators": [],
-                "pc": 337,
+                "pc": 342,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_init.Args": {
@@ -9338,7 +10802,7 @@
             },
             "starkware.cairo.common.hash_state.hash_update": {
                 "decorators": [],
-                "pc": 347,
+                "pc": 352,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_update.Args": {
@@ -9381,7 +10845,7 @@
             },
             "starkware.cairo.common.hash_state.hash_update_single": {
                 "decorators": [],
-                "pc": 363,
+                "pc": 368,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_update_single.Args": {
@@ -9420,7 +10884,7 @@
             },
             "starkware.cairo.common.hash_state.hash_update_with_hashchain": {
                 "decorators": [],
-                "pc": 379,
+                "pc": 384,
                 "type": "function"
             },
             "starkware.cairo.common.hash_state.hash_update_with_hashchain.Args": {
@@ -9512,7 +10976,7 @@
                 "decorators": [
                     "known_ap_change"
                 ],
-                "pc": 161,
+                "pc": 166,
                 "type": "function"
             },
             "starkware.cairo.common.math.assert_250_bit.Args": {
@@ -9563,10 +11027,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 20,
+                            "group": 21,
                             "offset": 0
                         },
-                        "pc": 161,
+                        "pc": 166,
                         "value": "[cast([fp + (-4)] + 1, felt*)]"
                     }
                 ],
@@ -9578,10 +11042,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 20,
+                            "group": 21,
                             "offset": 0
                         },
-                        "pc": 161,
+                        "pc": 166,
                         "value": "[cast([fp + (-4)], felt*)]"
                     }
                 ],
@@ -9590,6 +11054,51 @@
             "starkware.cairo.common.math.assert_250_bit.value": {
                 "cairo_type": "felt",
                 "full_name": "starkware.cairo.common.math.assert_250_bit.value",
+                "references": [
+                    {
+                        "ap_tracking_data": {
+                            "group": 21,
+                            "offset": 0
+                        },
+                        "pc": 166,
+                        "value": "[cast(fp + (-3), felt*)]"
+                    }
+                ],
+                "type": "reference"
+            },
+            "starkware.cairo.common.math.assert_not_zero": {
+                "decorators": [],
+                "pc": 161,
+                "type": "function"
+            },
+            "starkware.cairo.common.math.assert_not_zero.Args": {
+                "full_name": "starkware.cairo.common.math.assert_not_zero.Args",
+                "members": {
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "starkware.cairo.common.math.assert_not_zero.ImplicitArgs": {
+                "full_name": "starkware.cairo.common.math.assert_not_zero.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "starkware.cairo.common.math.assert_not_zero.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.cairo.common.math.assert_not_zero.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "starkware.cairo.common.math.assert_not_zero.value": {
+                "cairo_type": "felt",
+                "full_name": "starkware.cairo.common.math.assert_not_zero.value",
                 "references": [
                     {
                         "ap_tracking_data": {
@@ -9778,7 +11287,7 @@
             },
             "starkware.starknet.common.messages.send_message_to_l1": {
                 "decorators": [],
-                "pc": 328,
+                "pc": 333,
                 "type": "function"
             },
             "starkware.starknet.common.messages.send_message_to_l1.Args": {
@@ -9825,18 +11334,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 31,
+                            "group": 32,
                             "offset": 0
                         },
-                        "pc": 328,
+                        "pc": 333,
                         "value": "[cast(fp + (-6), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 31,
+                            "group": 32,
                             "offset": 1
                         },
-                        "pc": 334,
+                        "pc": 339,
                         "value": "cast([fp + (-6)] + 4, felt*)"
                     }
                 ],
@@ -9858,7 +11367,7 @@
                 "decorators": [
                     "known_ap_change"
                 ],
-                "pc": 174,
+                "pc": 179,
                 "type": "function"
             },
             "starkware.starknet.common.storage.normalize_address.Args": {
@@ -9897,10 +11406,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 21,
+                            "group": 22,
                             "offset": 0
                         },
-                        "pc": 174,
+                        "pc": 179,
                         "value": "[cast(fp + (-3), felt*)]"
                     }
                 ],
@@ -9912,10 +11421,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 21,
+                            "group": 22,
                             "offset": 2
                         },
-                        "pc": 194,
+                        "pc": 199,
                         "value": "[cast(ap + (-1), felt*)]"
                     }
                 ],
@@ -9927,10 +11436,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 21,
+                            "group": 22,
                             "offset": 1
                         },
-                        "pc": 176,
+                        "pc": 181,
                         "value": "[cast(ap + (-1), felt*)]"
                     }
                 ],
@@ -11516,7 +13025,7 @@
             },
             "starkware.starknet.core.os.contract_address.contract_address.get_contract_address": {
                 "decorators": [],
-                "pc": 432,
+                "pc": 437,
                 "type": "function"
             },
             "starkware.starknet.core.os.contract_address.contract_address.get_contract_address.Args": {
@@ -11592,6 +13101,264 @@
             "starkware.starknet.core.os.contract_address.contract_address.normalize_address": {
                 "destination": "starkware.starknet.common.storage.normalize_address",
                 "type": "alias"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.StorageCell": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.StorageCell",
+                "members": {
+                    "key": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract": {
+                "type": "namespace"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.ADD_VALUE_SELECTOR": {
+                "type": "const",
+                "value": 244116128358498188146337218061232635775543270890529169229936851982759783745
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.Args": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.GET_VALUE_SELECTOR": {
+                "type": "const",
+                "value": 1088514629534027837943348492744869453336870381453867699032131389309368223152
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.ImplicitArgs": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.RECURSIVE_ADD_VALUE_SELECTOR": {
+                "type": "const",
+                "value": 765405392026302060765493145401186690085677257617346482214524097030498511379
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.SET_VALUE_SELECTOR": {
+                "type": "const",
+                "value": 1737806834891659957988373423388711239891733974125793472992920296585311412419
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.TEST_CALL_WITH_ARRAY_SELECTOR": {
+                "type": "const",
+                "value": 169158496051934688234187956926971713028507353560320644280269082964139402353
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.TEST_CALL_WITH_STRUCT_ARRAY_SELECTOR": {
+                "type": "const",
+                "value": 345741264534492478975071636885957757148415915498131661412571688179658800868
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value": {
+                "decorators": [],
+                "pc": 511,
+                "type": "function"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value.Args": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value.Args",
+                "members": {
+                    "contract_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value.ImplicitArgs": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.add_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 1
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.alloc": {
+                "destination": "starkware.cairo.common.alloc.alloc",
+                "type": "alias"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.call_contract": {
+                "destination": "starkware.starknet.common.syscalls.call_contract",
+                "type": "alias"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value": {
+                "decorators": [],
+                "pc": 488,
+                "type": "function"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value.Args": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "contract_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value.ImplicitArgs": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value.Return": {
+                "cairo_type": "(res: felt)",
+                "type": "type_definition"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.get_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 1
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.library_call": {
+                "destination": "starkware.starknet.common.syscalls.library_call",
+                "type": "alias"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value": {
+                "decorators": [],
+                "pc": 530,
+                "type": "function"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value.Args": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value.Args",
+                "members": {
+                    "contract_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "self_address": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value.ImplicitArgs": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.recursive_add_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 1
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value": {
+                "decorators": [],
+                "pc": 468,
+                "type": "function"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value.Args": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "contract_address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value.ImplicitArgs": {
+                "full_name": "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.core.test_contract.test_contract_interface.TestContract.set_value.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 1
             }
         },
         "main_scope": "__main__",
@@ -11744,98 +13511,106 @@
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 20,
+                        "group": 21,
                         "offset": 0
                     },
-                    "pc": 161,
+                    "pc": 166,
+                    "value": "[cast(fp + (-3), felt*)]"
+                },
+                {
+                    "ap_tracking_data": {
+                        "group": 21,
+                        "offset": 0
+                    },
+                    "pc": 166,
                     "value": "[cast([fp + (-4)], felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 20,
+                        "group": 21,
                         "offset": 0
                     },
-                    "pc": 161,
+                    "pc": 166,
                     "value": "[cast([fp + (-4)] + 1, felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 21,
+                        "group": 22,
                         "offset": 0
                     },
-                    "pc": 174,
+                    "pc": 179,
                     "value": "[cast(fp + (-3), felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 21,
+                        "group": 22,
                         "offset": 1
                     },
-                    "pc": 176,
+                    "pc": 181,
                     "value": "[cast(ap + (-1), felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 21,
+                        "group": 22,
                         "offset": 2
                     },
-                    "pc": 194,
+                    "pc": 199,
                     "value": "[cast(ap + (-1), felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 27,
+                        "group": 28,
                         "offset": 0
                     },
-                    "pc": 293,
+                    "pc": 298,
                     "value": "[cast(fp + (-7), starkware.cairo.common.ec_point.EcPoint*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 27,
+                        "group": 28,
                         "offset": 0
                     },
-                    "pc": 293,
+                    "pc": 298,
                     "value": "[cast(fp + (-5), felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 27,
+                        "group": 28,
                         "offset": 0
                     },
-                    "pc": 293,
+                    "pc": 298,
                     "value": "[cast(fp + (-4), starkware.cairo.common.ec_point.EcPoint*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 27,
+                        "group": 28,
                         "offset": 2
                     },
-                    "pc": 301,
+                    "pc": 306,
                     "value": "[cast(fp, starkware.cairo.common.ec_point.EcPoint*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 31,
+                        "group": 32,
                         "offset": 0
                     },
-                    "pc": 328,
+                    "pc": 333,
                     "value": "[cast(fp + (-6), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 61,
+                        "group": 66,
                         "offset": 0
                     },
-                    "pc": 675,
+                    "pc": 762,
                     "value": "[cast(fp + (-3), felt*)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 61,
+                        "group": 66,
                         "offset": 1
                     },
-                    "pc": 677,
+                    "pc": 764,
                     "value": "[cast(fp, felt*)]"
                 }
             ]

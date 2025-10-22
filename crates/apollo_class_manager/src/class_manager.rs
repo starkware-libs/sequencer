@@ -31,7 +31,11 @@ pub struct ClassManager<S: ClassStorage> {
     pub classes: CachedClassStorage<S>,
 }
 
-impl<S: ClassStorage> ClassManager<S> {
+impl<S> ClassManager<S>
+where
+    S: ClassStorage,
+    apollo_class_manager_types::CachedClassStorageError<S::Error>: From<S::Error>,
+{
     pub fn new(
         config: ClassManagerConfig,
         compiler: SharedSierraCompilerClient,
@@ -47,8 +51,7 @@ impl<S: ClassStorage> ClassManager<S> {
 
     #[instrument(skip(self, class), ret, err)]
     pub async fn add_class(&mut self, class: RawClass) -> ClassManagerResult<ClassHashes> {
-        // TODO(Elin): think how to not clone the class to deserialize.
-        let sierra_class = SierraContractClass::try_from(class.clone())?;
+        let sierra_class = SierraContractClass::try_from(&class)?;
         let class_hash = sierra_class.calculate_class_hash();
         if let Ok(Some(executable_class_hash_v2)) =
             self.classes.get_executable_class_hash_v2(class_hash)

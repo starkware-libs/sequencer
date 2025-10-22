@@ -129,9 +129,9 @@ jobs:
           gcloud storage cp -r gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
 
       # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
-      - run: bash ./crates/starknet_committer_and_os_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
+      - run: bash ./crates/starknet_committer_and_os_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt benchmark_comment_body.txt
 
-      - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
+      - run: echo BENCHES_RESULT=$(cat benchmark_comment_body.txt) >> $GITHUB_ENV
 
       # Comment with a link to the workflow (or update existing comment on rerun).
       - name: Find Comment
@@ -164,3 +164,11 @@ jobs:
           comment-id: ${{ steps.find-benchmark-comment.outputs.comment-id }}
           edit-mode: replace
           body: ${{ env.BENCHES_RESULT }}
+
+      # Fail the job if benchmarks exceeded the threshold (after posting the comment).
+      - name: Check benchmark results
+        run: |
+          if grep -q "CI WILL FAIL" benchmark_comment_body.txt; then
+            echo "Benchmarks exceeded the regression threshold. See the PR comment for details."
+            exit 1
+          fi

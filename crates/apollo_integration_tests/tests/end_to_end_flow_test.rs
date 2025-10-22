@@ -6,8 +6,8 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_1,
     UNDEPLOYED_ACCOUNT_ID,
 };
+use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 
@@ -15,12 +15,13 @@ use crate::common::{end_to_end_flow, test_single_tx, TestScenario};
 
 mod common;
 
-#[tokio::test]
+/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
+#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn test_end_to_end_flow() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTest,
         create_test_scenarios(),
-        GasAmount(100000000), // Enough gas to cover all transactions in one block.
+        BouncerWeights::default().proving_gas,
         false,
         false,
     )

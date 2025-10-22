@@ -31,7 +31,7 @@ use apollo_l1_gas_price_provider_config::config::{
 };
 use apollo_l1_provider_config::config::L1ProviderConfig;
 use apollo_l1_scraper_config::config::L1ScraperConfig;
-use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
@@ -147,7 +147,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "gateway_config.stateful_tx_validator_config.validate_resource_bounds",
                 "gateway_config.stateless_tx_validator_config.validate_resource_bounds",
-                "mempool_config.validate_resource_bounds",
+                "mempool_config.static_config.validate_resource_bounds",
             ]),
         ),
     ];
@@ -289,7 +289,25 @@ impl Default for SequencerNodeConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct NodeDynamicConfig {
     #[validate]
-    pub consensus_dynamic_config: ConsensusDynamicConfig,
+    pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
+    #[validate]
+    pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
+}
+
+impl From<&SequencerNodeConfig> for NodeDynamicConfig {
+    fn from(sequencer_node_config: &SequencerNodeConfig) -> Self {
+        // TODO(Nadin/Tsabary): consider creating a macro for this.
+        let consensus_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
+            |consensus_manager_config| {
+                consensus_manager_config.consensus_manager_config.dynamic_config.clone()
+            },
+        );
+        let mempool_dynamic_config = sequencer_node_config
+            .mempool_config
+            .as_ref()
+            .map(|mempool_config| mempool_config.dynamic_config.clone());
+        Self { consensus_dynamic_config, mempool_dynamic_config }
+    }
 }
 
 macro_rules! validate_component_config_is_set_iff_running_locally {

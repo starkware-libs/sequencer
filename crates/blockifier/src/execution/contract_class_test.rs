@@ -3,7 +3,6 @@ use std::iter::repeat_n;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blake2s::encode_felts_to_u32s;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
@@ -12,6 +11,7 @@ use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -147,8 +147,8 @@ fn test_create_bytecode_segment_felt_sizes(
 /// For both Felt and BigUintAsHex slices.
 fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_large: usize) {
     // Build inputs inline: values straddling the threshold.
-    let small_felt = FeltSizeCount::SMALL_THRESHOLD - 1_u64;
-    let large_felt = FeltSizeCount::SMALL_THRESHOLD;
+    let small_felt = Blake2Felt252::SMALL_THRESHOLD - 1_u64;
+    let large_felt = Blake2Felt252::SMALL_THRESHOLD;
 
     let items: Vec<Felt> =
         repeat_n(small_felt, expected_small).chain(repeat_n(large_felt, expected_large)).collect();
@@ -176,7 +176,7 @@ fn felt_size_count_from_slices(#[case] expected_small: usize, #[case] expected_l
 #[case::mixed_small_large(&[Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
 fn test_encoded_u32_len(#[case] test_data: &[Felt]) {
     let estimated_u32_len = FeltSizeCount::from(test_data).encoded_u32_len();
-    let actual_u32_len = encode_felts_to_u32s(test_data.to_vec()).len();
+    let actual_u32_len = Blake2Felt252::encode_felts_to_u32s(test_data).len();
 
     assert_eq!(actual_u32_len, estimated_u32_len);
 }

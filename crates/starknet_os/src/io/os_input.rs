@@ -151,6 +151,7 @@ pub struct OsHintsConfig {
     pub use_kzg_da: bool,
     pub chain_info: OsChainInfo,
     pub public_keys: Option<Vec<Felt>>,
+    pub rng_seed_salt: Option<Felt>,
 }
 
 impl OsHintsConfig {

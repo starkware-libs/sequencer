@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use blake2s::encode_felts_to_u32s;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
@@ -103,11 +103,11 @@ fn add_assign_estimated_resources_success(
 
 #[test]
 fn test_u32_constants() {
-    let small_felt = FeltSizeCount::SMALL_THRESHOLD - 1_u64;
-    let large_felt = FeltSizeCount::SMALL_THRESHOLD;
+    let small_felt = Blake2Felt252::SMALL_THRESHOLD - 1_u64;
+    let large_felt = Blake2Felt252::SMALL_THRESHOLD;
 
-    let small_u32s = encode_felts_to_u32s(vec![small_felt]);
-    let large_u32s = encode_felts_to_u32s(vec![large_felt]);
+    let small_u32s = Blake2Felt252::encode_felts_to_u32s(&[small_felt]);
+    let large_u32s = Blake2Felt252::encode_felts_to_u32s(&[large_felt]);
 
     // Blake estimation constants should match the actual encoding.
     assert_eq!(small_u32s.len(), CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT);

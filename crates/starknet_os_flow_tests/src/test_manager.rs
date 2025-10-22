@@ -89,6 +89,7 @@ pub(crate) struct TestParameters {
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
     pub(crate) private_keys: Option<Vec<Felt>>,
+    pub(crate) rng_seed_salt: Option<Felt>,
 }
 
 pub(crate) struct FlowTestTx {
@@ -639,6 +640,7 @@ impl<S: FlowTestState> TestManager<S> {
             full_output: test_params.full_output,
             public_keys,
             debug_mode: false,
+            rng_seed_salt: test_params.rng_seed_salt,
         };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;

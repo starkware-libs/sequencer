@@ -8,12 +8,12 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{Vote, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
@@ -64,7 +64,7 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt, tim
         .expect_validate_proposal()
         .returning(move |_, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(BlockHash(block_hash)).unwrap();
+            block_sender.send(ProposalCommitment(block_hash)).unwrap();
             block_receiver
         })
         .times(times);
@@ -73,7 +73,7 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt, tim
 fn assert_decision(res: RunHeightRes, id: Felt, round: u32) {
     match res {
         RunHeightRes::Decision(decision) => {
-            assert_eq!(decision.block, BlockHash(id));
+            assert_eq!(decision.block, ProposalCommitment(id));
             assert_eq!(decision.precommits[0].round, round);
         }
         _ => panic!("Expected decision"),
@@ -165,7 +165,7 @@ async fn run_consensus_sync() {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |block, votes| *block == BlockHash(Felt::TWO) && votes[0].height == 2)
+        .withf(move |block, votes| *block == ProposalCommitment(Felt::TWO) && votes[0].height == 2)
         .return_once(move |_, _| {
             decision_tx.send(()).unwrap();
             Ok(())
@@ -392,7 +392,7 @@ async fn future_height_limit_caching_and_dropping() {
     let (height2_nil_vote_trigger, height2_nil_vote_wait) = oneshot::channel();
     context
         .expect_broadcast()
-        .withf(move |vote: &Vote| vote.height == 2 && vote.block_hash.is_none())
+        .withf(move |vote: &Vote| vote.height == 2 && vote.proposal_commitment.is_none())
         .times(1)
         .return_once(move |_| {
             height2_nil_vote_trigger.send(()).unwrap();

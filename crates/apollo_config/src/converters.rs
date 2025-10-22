@@ -262,7 +262,7 @@ where
     T: FromStr,
     T::Err: std::fmt::Display,
 {
-    let raw: String = <String as serde::Deserialize>::deserialize(de)?;
+    let raw = String::deserialize(de)?;
 
     if raw.trim().is_empty() {
         return Ok(Vec::new());
@@ -271,4 +271,42 @@ where
     raw.split_whitespace()
         .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
+}
+
+/// Serializes an optional list into a comma-separated string.
+/// Returns `None` if the input is `None`.
+pub fn serialize_optional_comma_separated<T>(list: &Option<Vec<T>>) -> Option<String>
+where
+    T: ToString,
+{
+    match list {
+        None => None,
+        Some(list) => Some(list.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(",")),
+    }
+}
+
+/// Deserializes an optional comma-separated list of values implementing `FromStr` into
+/// `Option<Vec<T>>`. Returns `None` for empty or missing strings.
+pub fn deserialize_comma_separated_str<'de, D, T>(de: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    let raw = String::deserialize(de).unwrap_or_default();
+    if raw.trim().is_empty() {
+        return Ok(None);
+    }
+
+    let mut output: Vec<T> = Vec::new();
+    for part in raw.split(',').filter(|s| !s.is_empty()) {
+        let value = T::from_str(part)
+            .map_err(|e| D::Error::custom(format!("Invalid value '{part}': {e}")))?;
+        output.push(value);
+    }
+
+    if output.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(output))
 }

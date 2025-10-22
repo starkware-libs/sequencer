@@ -41,8 +41,7 @@ pub(crate) fn load_public_keys_into_memory(
     let public_keys: Vec<MaybeRelocatable> =
         public_keys.unwrap_or_default().into_iter().map(Into::into).collect();
 
-    let public_keys_segment =
-        if public_keys.is_empty() { MaybeRelocatable::from(0) } else { vm.gen_arg(&public_keys)? };
+    let public_keys_segment = vm.gen_arg(&public_keys)?;
 
     insert_value_from_var_name(
         Ids::PublicKeys.into(),
@@ -51,7 +50,13 @@ pub(crate) fn load_public_keys_into_memory(
         ids_data,
         ap_tracking,
     )?;
-    insert_value_from_var_name(Ids::NKeys.into(), public_keys.len(), vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::NPublicKeys.into(),
+        public_keys.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
@@ -191,9 +196,9 @@ pub(crate) fn calculate_keys_using_sha256_hash(
     // randomness source.
     let compressed_start =
         get_ptr_from_var_name(Ids::CompressedStart.into(), vm, ids_data, ap_tracking)?;
-    let compressed_dst =
-        get_ptr_from_var_name(Ids::CompressedDst.into(), vm, ids_data, ap_tracking)?;
-    let array_size = (compressed_dst - compressed_start)?;
+    let compressed_end =
+        get_ptr_from_var_name(Ids::CompressedEnd.into(), vm, ids_data, ap_tracking)?;
+    let array_size = (compressed_end - compressed_start)?;
     for i in 0..array_size {
         let felt = vm.get_integer((compressed_start + i)?)?;
         hasher.update(felt.to_bytes_be());

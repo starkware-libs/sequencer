@@ -18,6 +18,7 @@ use crate::metrics::{
     CONSENSUS_NEW_VALUE_LOCKS,
     CONSENSUS_ROUND,
     CONSENSUS_ROUND_ABOVE_ZERO,
+    CONSENSUS_ROUND_ADVANCES,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_TYPE,
 };
@@ -204,7 +205,7 @@ impl StateMachine {
                         return output_events;
                     }
                     StateMachineEvent::GetProposal(_, _) => {
-                        // LOC 18.
+                        // LOC 18 in the paper.
                         assert!(resultant_events.is_empty());
                         assert!(!self.is_observer);
                         output_events.push_back(e);
@@ -370,9 +371,12 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         CONSENSUS_ROUND.set(round);
-        // Count how many times consensus advanced above round 0.
-        if round == 1 {
-            CONSENSUS_ROUND_ABOVE_ZERO.increment(1);
+        if round > 0 {
+            CONSENSUS_ROUND_ADVANCES.increment(1);
+            // Count how many times consensus advanced above round 0.
+            if round == 1 {
+                CONSENSUS_ROUND_ABOVE_ZERO.increment(1);
+            }
         }
         if self.locked_value_round.is_some() {
             CONSENSUS_HELD_LOCKS.increment(1);

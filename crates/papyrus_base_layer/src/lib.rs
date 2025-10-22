@@ -66,10 +66,7 @@ pub trait BaseLayerContract {
         finality: u64,
     ) -> Result<Option<BlockHashAndNumber>, Self::Error>;
 
-    async fn latest_l1_block_number(
-        &self,
-        finality: u64,
-    ) -> Result<Option<L1BlockNumber>, Self::Error>;
+    async fn latest_l1_block_number(&self, finality: u64) -> Result<L1BlockNumber, Self::Error>;
 
     async fn latest_l1_block(&self, finality: u64)
     -> Result<Option<L1BlockReference>, Self::Error>;

@@ -19,7 +19,11 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
-use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{
+    executable_invoke_tx as starknet_api_executable_invoke_tx,
+    rpc_invoke_tx,
+    InvokeTxArgs,
+};
 use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
@@ -47,13 +51,16 @@ use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FIL
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000 * 200000; // Enough to declare the test class.
+// Enough to declare the test class, but under the OS's upper limit.
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 1_100_000_000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 #[allow(clippy::as_conversions)]
 pub const VALID_ACCOUNT_BALANCE: Fee =
     Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
+
+pub const TIP_FOR_TESTING: Tip = Tip(1);
 
 // Utils.
 
@@ -381,37 +388,27 @@ impl AccountTransactionGenerator {
         self.nonce_manager.borrow().get(self.sender_address()) != nonce!(0)
     }
 
-    fn build_invoke_tx_args(&mut self, tip: u64, calldata: Calldata) -> InvokeTxArgs {
+    pub fn build_invoke_tx_args(&mut self) -> InvokeTxArgs {
         assert!(
             self.is_deployed(),
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
-        let nonce = self.next_nonce();
-        let invoke_args = invoke_tx_args!(
-            nonce,
-            tip: Tip(tip),
-            sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
-            calldata,
-        );
-        invoke_args
-    }
-
-    pub fn generate_rpc_invoke_tx(&mut self, tip: u64, calldata: Calldata) -> RpcTransaction {
-        let invoke_args = self.build_invoke_tx_args(tip, calldata);
-        rpc_invoke_tx(invoke_args)
+        InvokeTxArgs::default()
+            .sender_address(self.sender_address())
+            .tip(TIP_FOR_TESTING)
+            .nonce(self.next_nonce())
+            .resource_bounds(test_valid_resource_bounds())
     }
 
     pub fn generate_trivial_rpc_invoke_tx(&mut self, tip: u64) -> RpcTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-        self.generate_rpc_invoke_tx(tip, calldata)
+        rpc_invoke_tx(self.build_invoke_tx_args().tip(Tip(tip)).calldata(calldata))
     }
 
     fn generate_nested_call_invoke_tx(
         &mut self,
-        tip: u64,
         outer_test_contract: &FeatureContract,
         inner_contract_pointer: &Felt,
         outer_fn_name: &str,
@@ -428,19 +425,17 @@ impl AccountTransactionGenerator {
             outer_fn_name,
             &inner_calldata.0,
         );
-        self.generate_rpc_invoke_tx(tip, calldata)
+        rpc_invoke_tx(self.build_invoke_tx_args().calldata(calldata))
     }
 
     pub fn generate_library_call_invoke_tx(
         &mut self,
-        tip: u64,
         outer_contract: &FeatureContract,
         inner_contract: &FeatureContract,
         fn_name: &str,
         fn_args: &[Felt],
     ) -> RpcTransaction {
         self.generate_nested_call_invoke_tx(
-            tip,
             outer_contract,
             &inner_contract.get_class_hash().0,
             "test_library_call",
@@ -451,14 +446,12 @@ impl AccountTransactionGenerator {
 
     pub fn generate_call_contract_invoke_tx(
         &mut self,
-        tip: u64,
         outer_contract: &FeatureContract,
         inner_contract: &ContractAddress,
         fn_name: &str,
         fn_args: &[Felt],
     ) -> RpcTransaction {
         self.generate_nested_call_invoke_tx(
-            tip,
             outer_contract,
             inner_contract.0.key(),
             "test_call_contract",
@@ -485,9 +478,7 @@ impl AccountTransactionGenerator {
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
-        let invoke_args = self.build_invoke_tx_args(Tip::default().0, calldata);
-
-        starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
+        starknet_api_executable_invoke_tx(self.build_invoke_tx_args().calldata(calldata))
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.

@@ -9,7 +9,12 @@ version.workspace = true
 workspace = true
 
 [features]
-testing = ["apollo_gateway_config/testing", "blockifier/testing", "blockifier_test_utils"]
+testing = [
+  "apollo_gateway_config/testing",
+  "apollo_mempool_types/testing",
+  "blockifier/testing",
+  "blockifier_test_utils",
+]
 
 [dependencies]
 apollo_class_manager_types.workspace = true

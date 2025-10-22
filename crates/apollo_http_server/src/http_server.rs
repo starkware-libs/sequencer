@@ -122,14 +122,21 @@ async fn add_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     debug!("ADD_TX_START: Http server received a new transaction.");
-    validate_supported_tx_version(&tx).inspect_err(|e| {
-        debug!("Error while validating transaction version: {}", e);
-        increment_failure_metrics(e);
-    })?;
-    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
-        debug!("Error while parsing transaction: {}", e);
-        check_supported_resource_bounds_and_increment_metrics(&tx);
-    })?;
+
+    let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
+        Ok(value) => value,
+        Err(e) => {
+            validate_supported_tx_version_str(&tx).inspect_err(|e| {
+                debug!("Error while validating transaction version: {}", e);
+                increment_failure_metrics(e);
+            })?;
+
+            debug!("Error while parsing transaction: {}", e);
+            check_supported_resource_bounds_and_increment_metrics(&tx);
+            return Err(e.into());
+        }
+    };
+
     let rpc_tx = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
@@ -137,24 +144,39 @@ async fn add_tx(
     add_tx_inner(app_state, headers, rpc_tx).await
 }
 
-fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
-    let tx_json_value: serde_json::Value = serde_json::from_str(tx)?;
-    let tx_version_json = tx_json_value
-        .get("version")
-        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
-    let tx_version = tx_version_json
-        .as_str()
-        .ok_or_else(|| serde_json::Error::custom("Version field is not valid"))?;
+#[allow(clippy::result_large_err)]
+fn validate_supported_tx_version_str(tx: &str) -> HttpServerResult<()> {
+    // 1. Remove all whitespace
+    let mut compact = String::with_capacity(tx.len());
+    compact.extend(tx.chars().filter(|c| !c.is_whitespace()));
+
+    // 2. Find version:" marker
+    let marker = "\"version\":\"";
+    let start =
+        compact.find(marker).ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    let rest = &compact[start + marker.len()..];
+
+    // 3. Find closing quote
+    let end = rest.find('"').ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    let tx_version_str = &rest[..end];
+
+    // 4. Parse version hex string
     let tx_version =
-        u64::from_be_bytes(bytes_from_hex_str::<8, true>(tx_version).map_err(|_| {
+        u64::from_be_bytes(bytes_from_hex_str::<8, true>(tx_version_str).map_err(|_| {
             serde_json::Error::custom(format!(
-                "Version field is not a valid hex string: {tx_version}"
+                "Version field is not a valid hex string: {tx_version_str}"
             ))
         })?);
-    if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
+
+    // 5. Handle version errors as before
+    handle_tx_version_error(&tx_version)
+}
+
+fn handle_tx_version_error(tx_version: &u64) -> HttpServerResult<()> {
+    if !SUPPORTED_TRANSACTION_VERSIONS.contains(tx_version) {
         ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
-        return Err(HttpServerError::GatewayClientError(Box::new(
-            GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
+        Err(HttpServerError::GatewayClientError(Box::new(GatewayClientError::GatewayError(
+            GatewayError::DeprecatedGatewayError {
                 source: StarknetError {
                     code: StarknetErrorCode::KnownErrorCode(
                         KnownStarknetErrorCode::InvalidTransactionVersion,
@@ -165,10 +187,11 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
                     ),
                 },
                 p2p_message_metadata: None,
-            }),
-        )));
+            },
+        ))))
+    } else {
+        Ok(())
     }
-    Ok(())
 }
 
 fn check_supported_resource_bounds_and_increment_metrics(tx: &str) {

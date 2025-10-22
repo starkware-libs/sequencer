@@ -179,4 +179,42 @@ impl TestingTxArgs for InvokeTxArgs {
     fn get_internal_tx(&self) -> InternalRpcTransaction {
         internal_invoke_tx(self.clone())
     }
+
+    fn get_executable_tx(&self) -> AccountTransaction {
+        executable_invoke_tx(self.clone())
+    }
+}
+
+// TODO(Itamar): Change this to use a macro and apply the same logic to DeclareTxArgs and
+// DeployAccountTxArgs.
+impl InvokeTxArgs {
+    pub fn signature(mut self, signature: TransactionSignature) -> Self {
+        self.signature = signature;
+        self
+    }
+
+    pub fn sender_address(mut self, sender_address: ContractAddress) -> Self {
+        self.sender_address = sender_address;
+        self
+    }
+
+    pub fn calldata(mut self, calldata: Calldata) -> Self {
+        self.calldata = calldata;
+        self
+    }
+
+    pub fn resource_bounds(mut self, resource_bounds: ValidResourceBounds) -> Self {
+        self.resource_bounds = resource_bounds;
+        self
+    }
+
+    pub fn tip(mut self, tip: Tip) -> Self {
+        self.tip = tip;
+        self
+    }
+
+    pub fn nonce(mut self, nonce: Nonce) -> Self {
+        self.nonce = nonce;
+        self
+    }
 }

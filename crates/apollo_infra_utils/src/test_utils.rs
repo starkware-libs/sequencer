@@ -8,7 +8,7 @@ use tracing::{info, instrument};
 
 const PORTS_PER_INSTANCE: u16 = 60;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 28;
-const MAX_NUMBER_OF_TESTS: u16 = 10;
+const MAX_NUMBER_OF_TESTS: u16 = 11;
 const BASE_PORT: u16 = 11000;
 
 // Ensure available ports don't exceed u16::MAX.
@@ -28,6 +28,7 @@ pub enum TestIdentifier {
     EndToEndFlowTestBootstrapDeclare,
     EndToEndFlowTestManyTxs,
     EndToEndFlowTestCustomSyscallInvokeTxs,
+    EndToEndFlowTestCustomCairo0Txs,
     InfraUnitTests,
     PositiveFlowIntegrationTest,
     RestartFlowIntegrationTest,

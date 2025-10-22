@@ -27,7 +27,7 @@
   "batcher_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
     "privacy": "Public",
-    "value": 5263
+    "value": 6320
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -52,7 +52,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
-    "value": 5500000000
+    "value": 6000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
@@ -67,7 +67,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
-    "value": 312
+    "value": 360
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
     "description": "Bitwise gas weight.",
@@ -77,17 +77,17 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
     "description": "Ecdsa gas weight.",
     "privacy": "Public",
-    "value": 1666666
+    "value": 2000000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecop": {
     "description": "Ec_op gas weight.",
     "privacy": "Public",
-    "value": 714875
+    "value": 857850
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.keccak": {
     "description": "Keccak gas weight.",
     "privacy": "Public",
-    "value": 510707
+    "value": 600000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
     "description": "Mul_mod gas weight.",
@@ -97,12 +97,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 4769
+    "value": 5722
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
     "privacy": "Public",
-    "value": 10000
+    "value": 11450
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
     "description": "Range_check gas weight.",
@@ -273,6 +273,11 @@
     "description": "The URL of the Pythonic cende_recorder",
     "pointer_target": "recorder_url",
     "privacy": "Private"
+  },
+  "batcher_config.propose_l1_txs_every": {
+    "description": "Only propose L1 transactions every N proposals.",
+    "privacy": "Public",
+    "value": 1
   },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -1459,10 +1464,15 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "config_manager_config._placeholder": {
-    "description": "Placeholder field - config cannot be empty for proper deserialization",
+  "config_manager_config.config_update_interval_secs": {
+    "description": "Update interval in seconds for config updates",
     "privacy": "Public",
-    "value": ""
+    "value": 60.0
+  },
+  "config_manager_config.enable_config_updates": {
+    "description": "Enables the resampling of the config every `config_update_interval_secs` seconds",
+    "privacy": "Public",
+    "value": false
   },
   "consensus_manager_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1574,11 +1584,6 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.context_config.constant_l2_gas_price": {
-    "description": "If true, sets STRK gas price to its minimum price from the versioned constants.",
-    "privacy": "Public",
-    "value": false
-  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
@@ -1619,6 +1624,36 @@
     "privacy": "Public",
     "value": 1
   },
+  "consensus_manager_config.context_config.override_l1_data_gas_price": {
+    "description": "Replace the L1 data gas price with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l1_data_gas_price.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.context_config.override_l1_gas_price": {
+    "description": "Replace the L1 gas price with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l1_gas_price.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.context_config.override_l2_gas_price": {
+    "description": "Replace the L2 gas price with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l2_gas_price.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "consensus_manager_config.context_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
@@ -1628,6 +1663,16 @@
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
+  },
+  "consensus_manager_config.context_config.validator_ids": {
+    "description": "Optional explicit set of validator IDs (comma separated).",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.context_config.validator_ids.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
@@ -1848,6 +1893,11 @@
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
     "value": 4089446
+  },
+  "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
+    "description": "Maximum allowed L2 gas amount for transactions.",
+    "privacy": "Public",
+    "value": 1100000000
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
@@ -2089,37 +2139,37 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "mempool_config.capacity_in_bytes": {
-    "description": "Maximum size of the mempool, in bytes.",
-    "privacy": "Public",
-    "value": 1073741824
-  },
-  "mempool_config.committed_nonce_retention_block_count": {
-    "description": "Number of latest committed blocks for which committed account nonces are retained.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "mempool_config.declare_delay": {
-    "description": "Time to wait before allowing a Declare transaction to be returned, in seconds.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "mempool_config.enable_fee_escalation": {
-    "description": "If true, transactions can be replaced with higher fee transactions.",
-    "privacy": "Public",
-    "value": true
-  },
-  "mempool_config.fee_escalation_percentage": {
-    "description": "Percentage increase for tip and max gas price to enable transaction replacement.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "mempool_config.transaction_ttl": {
+  "mempool_config.dynamic_config.transaction_ttl": {
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
   },
-  "mempool_config.validate_resource_bounds": {
+  "mempool_config.static_config.capacity_in_bytes": {
+    "description": "Maximum size of the mempool, in bytes.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
+  "mempool_config.static_config.committed_nonce_retention_block_count": {
+    "description": "Number of latest committed blocks for which committed account nonces are retained.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "mempool_config.static_config.declare_delay": {
+    "description": "Time to wait before allowing a Declare transaction to be returned, in seconds.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "mempool_config.static_config.enable_fee_escalation": {
+    "description": "If true, transactions can be replaced with higher fee transactions.",
+    "privacy": "Public",
+    "value": true
+  },
+  "mempool_config.static_config.fee_escalation_percentage": {
+    "description": "Percentage increase for tip and max gas price to enable transaction replacement.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "mempool_config.static_config.validate_resource_bounds": {
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
@@ -2283,6 +2333,11 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
+  },
+  "sierra_compiler_config.audited_libfuncs_only": {
+    "description": "If true, restrict to audited libfuncs. Otherwise allow all.",
+    "privacy": "Public",
+    "value": true
   },
   "sierra_compiler_config.max_bytecode_size": {
     "description": "Limitation of compiled CASM bytecode size (felts).",

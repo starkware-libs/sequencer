@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use lazy_static::lazy_static;
-use starknet_api::block::BlockHash;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -16,7 +15,7 @@ lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
 }
 
-const PROPOSAL_ID: Option<ProposalCommitment> = Some(BlockHash(Felt::ONE));
+const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ONE));
 const ROUND: Round = 0;
 
 struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {

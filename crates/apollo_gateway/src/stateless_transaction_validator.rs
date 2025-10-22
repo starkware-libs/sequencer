@@ -29,7 +29,7 @@ pub struct StatelessTransactionValidator {
 }
 
 impl StatelessTransactionValidator {
-    #[instrument(skip(self), level = Level::INFO, err)]
+    #[instrument(skip(self), level = Level::INFO)]
     pub fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
@@ -67,6 +67,13 @@ impl StatelessTransactionValidator {
             return Err(StatelessTransactionValidatorError::MaxGasPriceTooLow {
                 gas_price: resource_bounds.l2_gas.max_price_per_unit,
                 min_gas_price: self.config.min_gas_price,
+            });
+        }
+
+        if resource_bounds.l2_gas.max_amount.0 > self.config.max_l2_gas_amount {
+            return Err(StatelessTransactionValidatorError::MaxGasAmountTooHigh {
+                gas_amount: resource_bounds.l2_gas.max_amount,
+                max_gas_amount: self.config.max_l2_gas_amount,
             });
         }
 

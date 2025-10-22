@@ -1,4 +1,4 @@
-use apollo_batcher::metrics::STORAGE_HEIGHT;
+use apollo_batcher::metrics::{REVERTED_TRANSACTIONS, STORAGE_HEIGHT};
 use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -197,4 +197,10 @@ pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) ->
         .get_metric::<usize>(STATE_SYNC_PROCESSED_TRANSACTIONS.get_name())
         .await
         .unwrap()
+}
+
+pub async fn assert_no_reverted_txs(monitoring_client: &MonitoringClient, sequencer_idx: usize) {
+    let reverted =
+        monitoring_client.get_metric::<usize>(REVERTED_TRANSACTIONS.get_name()).await.unwrap();
+    assert_eq!(reverted, 0, "Sequencer {sequencer_idx} has {reverted} reverted transactions");
 }

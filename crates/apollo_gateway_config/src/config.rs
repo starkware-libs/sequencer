@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
+use apollo_config::converters::{
+    deserialize_comma_separated_str,
+    serialize_optional_comma_separated,
+};
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
@@ -10,7 +13,7 @@ use apollo_config::dumping::{
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_types_core::felt::Felt;
 use validator::Validate;
@@ -25,7 +28,7 @@ pub struct GatewayConfig {
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
-    #[serde(default, deserialize_with = "deserialize_optional_contract_addresses")]
+    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 }
 
@@ -47,9 +50,7 @@ impl SerializeConfig for GatewayConfig {
         ));
         dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
         dump.extend(ser_optional_param(
-            &self.authorized_declarer_accounts.as_ref().map(|accounts| {
-                accounts.iter().map(|addr| addr.0.to_string()).collect::<Vec<_>>().join(",")
-            }),
+            &serialize_optional_comma_separated(&self.authorized_declarer_accounts),
             "".to_string(),
             "authorized_declarer_accounts",
             "Authorized declarer accounts. If set, only these accounts can declare new contracts. \
@@ -69,47 +70,14 @@ impl GatewayConfig {
     }
 }
 
-fn deserialize_optional_contract_addresses<'de, D>(
-    de: D,
-) -> Result<Option<Vec<ContractAddress>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw: String = match Option::deserialize(de)? {
-        Some(addresses) => addresses,
-        None => return Ok(None),
-    };
-
-    if raw.is_empty() {
-        return Err(de::Error::custom(
-            "Empty string is not a valid input for contract addresses. The config field \
-             `gateway_config.authorized_declarer_accounts.#is_none` is false and should be true \
-             if you don't want to use this feature.",
-        ));
-    }
-
-    let mut result = Vec::new();
-    for addresses_str in raw.split(',') {
-        let felt = Felt::from_str(addresses_str).map_err(|err| {
-            de::Error::custom(format!("Failed to parse Felt from '{addresses_str}': {err}"))
-        })?;
-
-        let addr = ContractAddress::try_from(felt).map_err(|err| {
-            de::Error::custom(format!("Invalid contract address '{addresses_str}': {err}"))
-        })?;
-
-        result.push(addr);
-    }
-
-    Ok(Some(result))
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds: bool,
-    // TODO(AlonH): Remove this field and use the one from the versioned constants.
+    // TODO(AlonH): Remove the `min_gas_price` field from this struct and use the one from the
+    // versioned constants.
     pub min_gas_price: u128,
+    pub max_l2_gas_amount: u64,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
 
@@ -125,6 +93,7 @@ impl Default for StatelessTransactionValidatorConfig {
         StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
             min_gas_price: 3_000_000_000,
+            max_l2_gas_amount: 1_100_000_000,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
@@ -173,6 +142,12 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "min_gas_price",
                 &self.min_gas_price,
                 "Minimum gas price for transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l2_gas_amount",
+                &self.max_l2_gas_amount,
+                "Maximum allowed L2 gas amount for transactions.",
                 ParamPrivacyInput::Public,
             ),
         ]);

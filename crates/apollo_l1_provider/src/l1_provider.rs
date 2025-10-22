@@ -55,7 +55,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height)?;
+        self.check_height_with_error(height)?;
         info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
@@ -87,7 +87,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height)?;
+        self.check_height_with_error(height)?;
 
         match self.state {
             ProviderState::Propose => {
@@ -103,9 +103,13 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            ProviderState::Pending | ProviderState::Bootstrap(_) => {
-                Err(L1ProviderError::OutOfSessionGetTransactions)
+            ProviderState::Pending => {
+                panic!(
+                    "get_txs called while in pending state. Panicking in order to restart the \
+                     provider and bootstrap again."
+                );
             }
+            ProviderState::Bootstrap(_) => Err(L1ProviderError::OutOfSessionGetTransactions),
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
         }
     }
@@ -122,15 +126,19 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        self.validate_height(height)?;
+        self.check_height_with_error(height)?;
         match self.state {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending | ProviderState::Bootstrap(_) => {
-                Err(L1ProviderError::OutOfSessionValidate)
+            ProviderState::Pending => {
+                panic!(
+                    "validate called while in pending state. Panicking in order to restart the \
+                     provider and bootstrap again."
+                );
             }
+            ProviderState::Bootstrap(_) => Err(L1ProviderError::OutOfSessionValidate),
         }
     }
 
@@ -161,7 +169,10 @@ impl L1Provider {
             return self.bootstrap(committed_txs, height);
         }
 
-        self.validate_height(height)?;
+        // If not historical height and not bootstrapping, must go into bootstrap state upon getting
+        // wrong height.
+        // TODO(guyn): for now, we go into bootstrap using panic. We should improve this.
+        self.check_height_with_panic(height);
         self.apply_commit_block(committed_txs, rejected_txs);
 
         self.state = self.state.transition_to_pending();
@@ -249,7 +260,7 @@ impl L1Provider {
         })
     }
 
-    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+    fn check_height_with_error(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
         if height != self.current_height {
             return Err(L1ProviderError::UnexpectedHeight {
                 expected_height: self.current_height,
@@ -257,6 +268,21 @@ impl L1Provider {
             });
         }
         Ok(())
+    }
+
+    fn check_height_with_panic(&mut self, height: BlockNumber) {
+        if height > self.current_height {
+            // TODO(shahak): Add a way to move to bootstrap mode from any point and move to
+            // bootstrap here instead of panicking.
+            panic!(
+                "Batcher surpassed l1 provider. Panicking in order to restart the provider and \
+                 bootstrap again. l1 provider height: {}, batcher height: {}",
+                self.current_height, height
+            );
+        }
+        if height < self.current_height {
+            panic!("Unexpected height: expected >= {}, got {}", self.current_height, height);
+        }
     }
 
     fn apply_commit_block(

@@ -15,6 +15,7 @@ use reqwest::StatusCode;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{AllResourceBounds, TransactionSignature};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -77,6 +78,11 @@ pub enum StatelessTransactionValidatorError {
         "Max gas price is too low: {gas_price:?}, minimum required gas price: {min_gas_price:?}."
     )]
     MaxGasPriceTooLow { gas_price: GasPrice, min_gas_price: u128 },
+    #[error(
+        "Max gas amount is too high: {gas_amount:?}, maximum allowed gas amount: \
+         {max_gas_amount:?}."
+    )]
+    MaxGasAmountTooHigh { gas_amount: GasAmount, max_gas_amount: u64 },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -97,7 +103,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::SignatureTooLong { .. }
             | StatelessTransactionValidatorError::StarknetApiError(..)
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. }
-            | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. } => {
+            | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. }
+            | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -135,7 +142,6 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                     "StarknetErrorCode.ENTRY_POINTS_NOT_UNIQUELY_SORTED".to_string(),
                 )
             }
-
             StatelessTransactionValidatorError::InvalidDataAvailabilityMode { .. } =>
             // Error does not exist in deprecated GW.
             {
@@ -143,7 +149,6 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                     "StarknetErrorCode.INVALID_DATA_AVAILABILITY_MODE".to_string(),
                 )
             }
-
             StatelessTransactionValidatorError::InvalidSierraVersion(..) =>
             // Error does not exist in deprecated GW.
             {
@@ -151,12 +156,16 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                     "StarknetErrorCode.INVALID_SIERRA_VERSION".to_string(),
                 )
             }
+            StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.MAX_GAS_AMOUNT_TOO_HIGH".to_string(),
+                )
+            }
             StatelessTransactionValidatorError::NonEmptyField { .. } =>
             // Error does not exist in deprecated GW.
             {
                 StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.NON_EMPTY_FIELD".to_string())
             }
-
             StatelessTransactionValidatorError::SignatureTooLong { .. } => {
                 StarknetErrorCode::UnknownErrorCode(
                     "StarknetErrorCode.SIGNATURE_TOO_LONG".to_string(),
@@ -429,6 +438,12 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
         | StarknetApiError::ResourceHexToFeltConversion(..)
         | StarknetApiError::OutOfRange { .. } => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+            message: err.to_string(),
+        },
+        StarknetApiError::DeclareTransactionCasmHashMissMatch(err) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidCompiledClassHash,
+            ),
             message: err.to_string(),
         },
     }

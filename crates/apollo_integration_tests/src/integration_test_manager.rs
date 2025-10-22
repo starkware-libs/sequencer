@@ -47,6 +47,7 @@ use tracing::{info, instrument};
 use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
+    assert_no_reverted_txs,
     await_batcher_block,
     await_block,
     await_sync_block,
@@ -572,6 +573,7 @@ impl IntegrationTestManager {
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_block_on_all_running_nodes(wait_for_block).await;
         self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
+        self.assert_no_reverted_txs_on_all_running_nodes().await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -797,6 +799,14 @@ impl IntegrationTestManager {
             result.insert(*index, num_accepted);
         }
         result
+    }
+
+    pub async fn assert_no_reverted_txs_on_all_running_nodes(&self) {
+        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
+            let monitoring_client = running_node.node_setup.batcher_monitoring_client();
+            assert_no_reverted_txs(monitoring_client, sequencer_idx).await;
+        })
+        .await;
     }
 }
 

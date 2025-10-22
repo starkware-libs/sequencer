@@ -40,7 +40,7 @@ const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    || load_and_create_hybrid_deployments(POTC2_DEPLOYMENT_INPUTS_PATH),
+    || load_and_create_hybrid_deployments(POTC_MOCK_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(INTEGRATION_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(TESTNET_DEPLOYMENT_INPUTS_PATH),
@@ -54,8 +54,8 @@ pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
 const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
 
-const POTC2_DEPLOYMENT_INPUTS_PATH: &str =
-    "crates/apollo_deployments/resources/deployment_inputs/potc2_sepolia.json";
+const POTC_MOCK_DEPLOYMENT_INPUTS_PATH: &str =
+    "crates/apollo_deployments/resources/deployment_inputs/potc_mock.json";
 const MAINNET_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/mainnet.json";
 const INTEGRATION_DEPLOYMENT_INPUTS_PATH: &str =
@@ -87,6 +87,7 @@ pub struct DeploymentInputs {
     pub p2p_communication_type: P2PCommunicationType,
     pub deployment_environment: Environment,
     pub requires_k8s_service_config_params: bool,
+    pub audited_libfuncs_only: bool,
 }
 
 impl DeploymentInputs {
@@ -130,7 +131,7 @@ impl Display for Environment {
 #[derive(EnumString, Clone, Display, PartialEq, Debug, Serialize, Deserialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum CloudK8sEnvironment {
-    Potc2,
+    PotcMock,
     Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,
