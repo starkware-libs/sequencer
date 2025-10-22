@@ -4,10 +4,10 @@
       "panels": [
         {
           "title": "Average Block Time",
-          "description": "Average block time (10m window)",
+          "description": "Average block time (1m window)",
           "type": "timeseries",
           "exprs": [
-            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {
             "unit": "s"
@@ -106,10 +106,10 @@
         },
         {
           "title": "Average Block Time",
-          "description": "Average block time (10m window)",
+          "description": "Average block time (1m window)",
           "type": "timeseries",
           "exprs": [
-            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {
             "unit": "s"
