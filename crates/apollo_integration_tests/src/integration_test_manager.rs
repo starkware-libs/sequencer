@@ -11,6 +11,7 @@ use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_endpoint_monitor::monitor::MIN_EXPECTED_BLOCK_NUMBER;
 use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -324,7 +325,14 @@ impl IntegrationTestManager {
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
 
-        anvil_mine_blocks(base_layer_config.clone(), num_blocks_needed_on_l1, &base_layer_url)
+        assert!(
+            num_blocks_needed_on_l1 <= MIN_EXPECTED_BLOCK_NUMBER,
+            "num_blocks_needed_on_l1 ({}) exceeds MIN_EXPECTED_BLOCK_NUMBER ({})",
+            num_blocks_needed_on_l1,
+            MIN_EXPECTED_BLOCK_NUMBER
+        );
+
+        anvil_mine_blocks(base_layer_config.clone(), MIN_EXPECTED_BLOCK_NUMBER, &base_layer_url)
             .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
