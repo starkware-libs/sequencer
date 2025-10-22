@@ -313,6 +313,28 @@ impl BlockBuilder {
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
         );
+        // Sanity check to avoid panic and skip logging if numbers aren't aligned
+        if final_n_executed_txs_nonopt <= self.n_executed_txs
+            && self.n_executed_txs <= self.block_txs.len()
+        {
+            debug!(
+                "Finished building block as {}. Transaction hashes: included in block: {:?}, \
+                 proposer excluded but we executed: {:?}, not finished executing: {:?}",
+                if self.execution_params.is_validator { "validator" } else { "proposer" },
+                self.block_txs[0..final_n_executed_txs_nonopt]
+                    .iter()
+                    .map(|tx| tx.tx_hash())
+                    .collect::<Vec<_>>(),
+                self.block_txs[final_n_executed_txs_nonopt..self.n_executed_txs]
+                    .iter()
+                    .map(|tx| tx.tx_hash())
+                    .collect::<Vec<_>>(),
+                self.block_txs[self.n_executed_txs..]
+                    .iter()
+                    .map(|tx| tx.tx_hash())
+                    .collect::<Vec<_>>(),
+            );
+        }
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
