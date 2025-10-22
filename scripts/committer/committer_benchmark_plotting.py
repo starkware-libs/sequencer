@@ -1,9 +1,9 @@
 import argparse
+import csv
 import sys
 from pathlib import Path
 from typing import List
 
-import csv
 import plotly.graph_objects as go
 
 

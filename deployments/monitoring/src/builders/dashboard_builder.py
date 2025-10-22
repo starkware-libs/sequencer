@@ -1,13 +1,13 @@
 import argparse
+import copy
 import json
 import os
 import time
+from urllib.parse import quote
 
-import copy
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
 from common.helpers import EnvironmentName, env_to_gcp_project_name, get_logger
-from urllib.parse import quote
 
 MAX_ALLOWED_JSON_SIZE = 1024 * 1024  # 1MB
 
