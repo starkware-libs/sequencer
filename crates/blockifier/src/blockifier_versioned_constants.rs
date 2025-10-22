@@ -1392,7 +1392,7 @@ impl SerializeConfig for VersionedConstantsOverrides {
             ser_param(
                 "max_n_events",
                 &self.max_n_events,
-                "Maximum number of events that can be emitted from the transation.",
+                "Maximum number of events that can be emitted from the transaction.",
                 ParamPrivacyInput::Public,
             ),
         ])
