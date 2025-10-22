@@ -43,7 +43,11 @@ async fn prepare_inputs(bench: &BenchmarkConfig, input_dir: Option<&str>) {
     } else {
         gcs::download_inputs(bench.name, &benchmark_input_dir).await;
         if !benchmark_input_dir.exists() {
-            panic!("Failed to download inputs for {}: {}", bench.name, benchmark_input_dir.display());
+            panic!(
+                "Failed to download inputs for {}: {}",
+                bench.name,
+                benchmark_input_dir.display()
+            );
         }
     }
 }
@@ -115,4 +119,48 @@ pub async fn run_benchmarks(
     }
 
     println!("\n✓ All benchmarks completed! Results saved to: {}", output_dir);
+}
+
+/// Runs benchmarks and compares them against previous results, failing if regression exceeds limit.
+pub async fn run_and_compare_benchmarks(
+    benchmarks: &[&BenchmarkConfig],
+    input_dir: Option<&str>,
+    output_dir: &str,
+    regression_limit: f64,
+) {
+    // Run benchmarks first.
+    run_benchmarks(benchmarks, input_dir, output_dir).await;
+
+    // Collect all criterion benchmark names from configs.
+    let mut bench_names = Vec::new();
+    for bench in benchmarks {
+        bench_names.extend(bench.criterion_benchmark_names.unwrap_or(&[bench.name]));
+    }
+
+    println!("\n📊 Checking for performance regressions (limit: {}%):", regression_limit);
+    let regression_result = crate::comparison::check_regressions(&bench_names, regression_limit);
+
+    match regression_result {
+        Ok(_) => {
+            println!("\n✅ All benchmarks passed regression check!");
+        }
+        Err((error_msg, results)) => {
+            // Some benchmarks exceeded the limit - print detailed results.
+            println!("\nBenchmark Results:");
+            for result in results {
+                if result.exceeds_limit {
+                    println!(
+                        "  ❌ {}: {:+.2}% (EXCEEDS {:.1}% limit)",
+                        result.name, result.change_percentage, regression_limit
+                    );
+                } else {
+                    println!(
+                        "  ✓ {}: {:+.2}% (within {:.1}% limit)",
+                        result.name, result.change_percentage, regression_limit
+                    );
+                }
+            }
+            panic!("\n{}", error_msg);
+        }
+    }
 }
