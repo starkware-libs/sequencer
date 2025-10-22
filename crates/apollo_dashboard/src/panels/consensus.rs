@@ -116,8 +116,8 @@ fn get_panel_consensus_round_above_zero() -> Panel {
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
         "Average Block Time",
-        "Average block time (10m window)",
-        vec![format!("1 / rate({}[10m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter())],
+        "Average block time (1m window)",
+        vec![format!("1 / rate({}[1m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter())],
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
