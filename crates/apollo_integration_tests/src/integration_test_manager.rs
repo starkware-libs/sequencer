@@ -34,10 +34,9 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     StarknetL1Contract,
 };
 use papyrus_base_layer::test_utils::{
+    anvil_mine_blocks,
     ethereum_base_layer_config_for_anvil,
-    make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
-    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
@@ -320,21 +319,11 @@ impl IntegrationTestManager {
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
-            + l1_gas_price_scraper_config.finality)
-            .try_into()
-            .unwrap();
-        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
-        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+        let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
+            + l1_gas_price_scraper_config.finality;
 
-        make_block_history_on_anvil(
-            sender_address,
-            receiver_address,
-            base_layer_config.clone(),
-            &base_layer_url,
-            num_blocks_needed_on_l1,
-        )
-        .await;
+        anvil_mine_blocks(base_layer_config.clone(), num_blocks_needed_on_l1, &base_layer_url)
+            .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
