@@ -3,7 +3,7 @@ use std::process::Command;
 
 use alloy::network::TransactionBuilder;
 use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
-use alloy::primitives::U256;
+use alloy::primitives::{address as ethereum_address, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
 use colored::*;
@@ -38,7 +38,14 @@ pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d
 // Given an `AnvilInstance`, this address can be retrieved by calling `anvil.addresses()[0]`.
 pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
     StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
+/// One of the 10 pre-funded Anvil preloaded accounts. Retrieved by calling `anvil.addresses()[3]`.
+// TODO(Gilad): consider moving into anvil base layer.
+pub const ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS: EthereumContractAddress =
+    ethereum_address!("0x90F79bf6EB2c4f870365E785982E1f101E93b906");
+/// One of the 10 pre-funded Anvil preloaded accounts. Retrieved by calling `anvil.addresses()[4]`.
+// TODO(Gilad): consider moving into anvil base layer.
+pub const OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS: EthereumContractAddress =
+    ethereum_address!("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65");
 
 // ***
 // DEPRECATED: Use the anvil constructor, this constructor is deprecated as it uses ganache.
