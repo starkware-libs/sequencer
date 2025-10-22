@@ -2,18 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_integration_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use mockall::predicate::eq;
 use mockall::Sequence;
-use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_url,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
+use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::contract_address;
@@ -34,38 +30,42 @@ async fn scraper_end_to_end() {
     }
 
     // Setup.
-    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
-    let _anvil_server_guard = anvil_instance_from_url(&base_layer_url);
+    let base_layer = AnvilBaseLayer::new().await;
+    let contract = &base_layer.ethereum_base_layer.contract;
     let mut l1_provider_client = MockL1ProviderClient::default();
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config, base_layer_url);
-
-    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
-    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
     // Send messages from L1 to L2.
     let l2_contract_address = "0x12";
     let l2_entry_point = "0x34";
-    let message_to_l2_0 = base_layer.contract.sendMessageToL2(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![U256::from(1_u8), U256::from(2_u8)],
-    );
-    let message_to_l2_1 = base_layer.contract.sendMessageToL2(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![U256::from(3_u8), U256::from(4_u8)],
-    );
+    let fee = 1_u8;
+    let message_to_l2_0 = contract
+        .sendMessageToL2(
+            l2_contract_address.parse().unwrap(),
+            l2_entry_point.parse().unwrap(),
+            vec![U256::from(1_u8), U256::from(2_u8)],
+        )
+        .value(U256::from(fee));
+    let message_to_l2_1 = contract
+        .sendMessageToL2(
+            l2_contract_address.parse().unwrap(),
+            l2_entry_point.parse().unwrap(),
+            vec![U256::from(3_u8), U256::from(4_u8)],
+        )
+        .value(U256::from(fee));
     let nonce_of_message_to_l2_0 = U256::from(0_u8);
-    let request_cancel_message_0 = base_layer.contract.startL1ToL2MessageCancellation(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![U256::from(1_u8), U256::from(2_u8)],
-        nonce_of_message_to_l2_0,
-    );
+    let request_cancel_message_0 = contract
+        .startL1ToL2MessageCancellation(
+            l2_contract_address.parse().unwrap(),
+            l2_entry_point.parse().unwrap(),
+            vec![U256::from(1_u8), U256::from(2_u8)],
+            nonce_of_message_to_l2_0,
+        )
+        .from(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS.to_hex_string().parse().unwrap());
 
     // Send the transactions to Anvil, and record the timestamps of the blocks they are included in.
     let mut l1_handler_timestamps: Vec<BlockTimestamp> = Vec::with_capacity(2);
     for msg in &[message_to_l2_0, message_to_l2_1] {
+        msg.call().await.unwrap(); // Query for errors.
         let receipt = msg.send().await.unwrap().get_receipt().await.unwrap();
         l1_handler_timestamps.push(
             base_layer
@@ -77,6 +77,7 @@ async fn scraper_end_to_end() {
         );
     }
 
+    request_cancel_message_0.call().await.unwrap(); // Query for errors;
     let cancel_receipt =
         request_cancel_message_0.send().await.unwrap().get_receipt().await.unwrap();
     let cancel_timestamp = base_layer
@@ -103,7 +104,7 @@ async fn scraper_end_to_end() {
     let expected_executable_l1_handler_0 = ExecutableL1HandlerTransaction {
         tx_hash: tx_hash_first_tx,
         tx: expected_l1_handler_0,
-        paid_fee_on_l1: Fee(0),
+        paid_fee_on_l1: Fee(fee.into()),
     };
     let first_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: expected_executable_l1_handler_0.clone(),
@@ -157,7 +158,7 @@ async fn scraper_end_to_end() {
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client),
-        base_layer.clone(),
+        base_layer.ethereum_base_layer.clone(),
         event_identifiers_to_track(),
         l1_start_block,
     )
