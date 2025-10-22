@@ -108,7 +108,7 @@ pub fn run_benchmarks(benchmarks: &[&BenchmarkConfig], input_dir: Option<&str>, 
 }
 
 /// Runs benchmarks and compares them against previous results, failing if regression exceeds limit.
-pub async fn run_and_compare_benchmarks(
+pub fn run_and_compare_benchmarks(
     benchmarks: &[&BenchmarkConfig],
     input_dir: Option<&str>,
     output_dir: &str,
