@@ -1,0 +1,18 @@
+{
+  "base_layer_config.starknet_contract_address": "$$$_REPLACE_base_layer_config.starknet_contract_address$$$",
+  "chain_id": "$$$_REPLACE_chain_id$$$",
+  "consensus_manager_config.context_config.num_validators": "$$$_REPLACE_consensus_manager_config.context_config.num_validators$$$",
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "$$$_REPLACE_consensus_manager_config.network_config.bootstrap_peer_multiaddr$$$",
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": "$$$_REPLACE_consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none$$$",
+  "eth_fee_token_address": "$$$_REPLACE_eth_fee_token_address$$$",
+  "l1_provider_config.provider_startup_height_override": "$$$_REPLACE_l1_provider_config.provider_startup_height_override$$$",
+  "l1_provider_config.provider_startup_height_override.#is_none": "$$$_REPLACE_l1_provider_config.provider_startup_height_override.#is_none$$$",
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "$$$_REPLACE_mempool_p2p_config.network_config.bootstrap_peer_multiaddr$$$",
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": "$$$_REPLACE_mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none$$$",
+  "sierra_compiler_config.audited_libfuncs_only": "$$$_REPLACE_sierra_compiler_config.audited_libfuncs_only$$$",
+  "starknet_url": "$$$_REPLACE_starknet_url$$$",
+  "state_sync_config.central_sync_client_config.#is_none": "$$$_REPLACE_state_sync_config.central_sync_client_config.#is_none$$$",
+  "state_sync_config.network_config.#is_none": "$$$_REPLACE_state_sync_config.network_config.#is_none$$$",
+  "state_sync_config.p2p_sync_client_config.#is_none": "$$$_REPLACE_state_sync_config.p2p_sync_client_config.#is_none$$$",
+  "strk_fee_token_address": "$$$_REPLACE_strk_fee_token_address$$$"
+}
