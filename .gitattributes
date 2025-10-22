@@ -1,0 +1,4 @@
+# Diffs of compilation artifacts of test contracts do not require review.
+crates/blockifier_test_utils/resources/feature_contracts/cairo0/compiled/*.json -diff
+crates/blockifier_test_utils/resources/feature_contracts/cairo1/compiled/*.json -diff
+crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json -diff
