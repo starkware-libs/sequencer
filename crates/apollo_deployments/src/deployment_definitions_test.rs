@@ -51,7 +51,7 @@ fn load_and_process_service_config_files() {
     let temp_file = NamedTempFile::new().unwrap();
     let temp_file_path = temp_file.path().to_str().unwrap();
     let secrets_config_override = SecretsConfigOverride::default();
-    serialize_to_file(to_value(&secrets_config_override).unwrap(), temp_file_path);
+    serialize_to_file(&to_value(&secrets_config_override).unwrap(), temp_file_path);
 
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         for mut service_config_paths in deployment.get_all_services_config_paths().into_iter() {

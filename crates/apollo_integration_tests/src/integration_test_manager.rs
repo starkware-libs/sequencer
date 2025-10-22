@@ -186,7 +186,7 @@ impl NodeSetup {
             HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.as_ref().expect("Should have http server config").port,
             MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
-        serialize_to_file(json_data, path);
+        serialize_to_file(&json_data, path);
     }
 
     pub fn get_batcher_index(&self) -> usize {
