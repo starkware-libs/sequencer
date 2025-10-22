@@ -66,7 +66,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}
     steps:
-      # Checkout the base branch to get the old code.
+      # Checkout the base branch to benchmark the old code.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
@@ -88,87 +88,24 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Download the old benchmark inputs.
+      # Auth with GCS for bench_tools to download inputs.
       - id: auth
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: "google-github-actions/setup-gcloud@v2"
-      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
-      - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
 
-      # List the existing benchmarks.
-      - run: |
-          cargo bench -p starknet_committer_and_os_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+      # Benchmark the base branch code.
+      - run: cargo run -p bench_tools -- run --package starknet_committer_and_os_cli --out /tmp/base_results
 
-      # Benchmark the old code.
-      - run: cargo bench -p starknet_committer_and_os_cli
-
-      # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
-      - run: mv ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json_bu
-      - run: mv ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json_bu
-
-      # Checkout the new code.
+      # Checkout the current branch to benchmark the new code.
       - uses: actions/checkout@v4
         with:
           clean: false
-      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
 
-      # If the pip requirements on the old commit are different from the new commit, re-install them.
+      # Re-install pip requirements in case they changed between branches.
       - run: pip install -r scripts/requirements.txt
 
-      # Input files didn't change.
-      - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
-        run: |
-          mv ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json_bu ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json
-          mv ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json_bu ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json
-
-      # Input files did change, download new inputs.
-      - if: env.OLD_BENCH_INPUT_FILES_PREFIX != env.NEW_BENCH_INPUT_FILES_PREFIX
-        run: |
-          gcloud storage cp -r gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
-
-      # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
-      - run: bash ./crates/starknet_committer_and_os_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt benchmark_comment_body.txt
-
-      - run: echo BENCHES_RESULT=$(cat benchmark_comment_body.txt) >> $GITHUB_ENV
-
-      # Comment with a link to the workflow (or update existing comment on rerun).
-      - name: Find Comment
-        if: github.event_name == 'pull_request'
-        uses: starkware-libs/find-comment@v3
-        id: find-benchmark-comment
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: "github-actions[bot]"
-          body-includes: Benchmark movements
-
-      - name: Create comment
-        # If the PR number is found and the comment is not found, create a new comment.
-        if: github.event_name == 'pull_request'
-          && steps.find-benchmark-comment.outputs.comment-id == ''
-        uses: starkware-libs/create-or-update-comment@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ env.BENCHES_RESULT }}
-
-      - name: Update comment
-        # If the PR number is found and the comment exists, update it.
-        if: github.event_name == 'pull_request'
-          && steps.find-benchmark-comment.outputs.comment-id != ''
-        uses: starkware-libs/create-or-update-comment@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          comment-id: ${{ steps.find-benchmark-comment.outputs.comment-id }}
-          edit-mode: replace
-          body: ${{ env.BENCHES_RESULT }}
-
-      # Fail the job if benchmarks exceeded the threshold (after posting the comment).
-      - name: Check benchmark results
-        run: |
-          if grep -q "CI WILL FAIL" benchmark_comment_body.txt; then
-            echo "Benchmarks exceeded the regression threshold. See the PR comment for details."
-            exit 1
-          fi
+      # Benchmark the current branch and compare to the previous run.
+      # (downloads inputs from GCS, fails if regression > 8%).
+      - run: cargo run -p bench_tools -- run-and-compare --package starknet_committer_and_os_cli --out /tmp/new_results --regression-limit 8.0
