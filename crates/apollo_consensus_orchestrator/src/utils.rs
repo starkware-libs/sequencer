@@ -50,8 +50,9 @@ pub(crate) struct GasPriceParams {
     pub min_l1_data_gas_price_wei: GasPrice,
     pub l1_data_gas_price_multiplier: Ratio<u128>,
     pub l1_gas_tip_wei: GasPrice,
-    pub override_l1_gas_price: Option<GasPrice>,
-    pub override_l1_data_gas_price: Option<GasPrice>,
+    pub override_l1_gas_price_wei: Option<GasPrice>,
+    pub override_l1_data_gas_price_wei: Option<GasPrice>,
+    pub override_eth_to_fri_rate: Option<u128>,
 }
 
 impl From<StateSyncClientError> for BuildProposalError {
@@ -98,7 +99,10 @@ pub(crate) async fn get_oracle_rate_and_prices(
 
     if let (Ok(eth_to_strk_rate), Ok(mut price_info)) = (eth_to_strk_rate, price_info) {
         // Both L1 prices and rate are Ok, so we can use them.
-        info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
+        info!(
+            "raw eth_to_strk_rate (from oracle): {eth_to_strk_rate}, raw l1 gas price wei (from \
+             provider): {price_info:?}"
+        );
         apply_fee_transformations(&mut price_info, gas_price_params);
         return_values = (eth_to_strk_rate, price_info);
     } else {
@@ -132,13 +136,18 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
 
     // If there is an override to L1 gas price or data gas price, apply it here:
-    if let Some(override_value) = gas_price_params.override_l1_gas_price {
-        info!("Overriding L1 gas price to {override_value}");
+    if let Some(override_value) = gas_price_params.override_l1_gas_price_wei {
+        info!("Overriding L1 gas price to {override_value} wei");
         return_values.1.base_fee_per_gas = override_value;
     }
-    if let Some(override_value) = gas_price_params.override_l1_data_gas_price {
-        info!("Overriding L1 data gas price to {override_value}");
+    if let Some(override_value) = gas_price_params.override_l1_data_gas_price_wei {
+        info!("Overriding L1 data gas price to {override_value} wei");
         return_values.1.blob_fee = override_value;
+    }
+
+    if let Some(override_value) = gas_price_params.override_eth_to_fri_rate {
+        info!("Overriding conversion rate to {override_value}");
+        return_values.0 = override_value;
     }
 
     return_values
@@ -246,7 +255,8 @@ pub(crate) fn make_gas_price_params(config: &ContextConfig) -> GasPriceParams {
         max_l1_data_gas_price_wei: GasPrice(config.max_l1_data_gas_price_wei),
         l1_data_gas_price_multiplier: Ratio::new(config.l1_data_gas_price_multiplier_ppt, 1000),
         l1_gas_tip_wei: GasPrice(config.l1_gas_tip_wei),
-        override_l1_gas_price: config.override_l1_gas_price.map(GasPrice),
-        override_l1_data_gas_price: config.override_l1_data_gas_price.map(GasPrice),
+        override_l1_gas_price_wei: config.override_l1_gas_price_wei.map(GasPrice),
+        override_l1_data_gas_price_wei: config.override_l1_data_gas_price_wei.map(GasPrice),
+        override_eth_to_fri_rate: config.override_eth_to_fri_rate,
     }
 }
