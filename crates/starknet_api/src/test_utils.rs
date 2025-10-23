@@ -25,7 +25,7 @@ use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use crate::transaction::fields::Fee;
+use crate::transaction::fields::{AllResourceBounds, Fee, ResourceBounds};
 use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
@@ -216,5 +216,30 @@ impl ContractClass {
             entry_points_by_type: Default::default(),
         };
         ContractClass::V1((default_casm, SierraVersion::default()))
+    }
+}
+
+pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+// Enough to declare the test class, but under the OS's upper limit.
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 1_100_000_000;
+pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+
+pub fn resource_bounds_for_testing() -> AllResourceBounds {
+    AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L2_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
+        },
     }
 }

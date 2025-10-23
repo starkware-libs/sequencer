@@ -2,9 +2,7 @@ use rstest::rstest;
 use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 
-use crate::block::GasPrice;
 use crate::core::CompiledClassHash;
-use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
     DataAvailabilityMode,
     RpcDeployAccountTransaction,
@@ -15,30 +13,21 @@ use crate::state::SierraContractClass;
 use crate::test_utils::declare::{rpc_declare_tx, DeclareTxArgs};
 use crate::test_utils::deploy_account::{rpc_deploy_account_tx, DeployAccountTxArgs};
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use crate::test_utils::resource_bounds_for_testing;
 use crate::transaction::fields::{
     AccountDeploymentData,
-    AllResourceBounds,
     ContractAddressSalt,
     PaymasterData,
-    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 
-fn create_resource_bounds_for_testing() -> AllResourceBounds {
-    AllResourceBounds {
-        l1_gas: ResourceBounds { max_amount: GasAmount(100), max_price_per_unit: GasPrice(12) },
-        l2_gas: ResourceBounds { max_amount: GasAmount(58), max_price_per_unit: GasPrice(31) },
-        l1_data_gas: ResourceBounds { max_amount: GasAmount(66), max_price_per_unit: GasPrice(25) },
-    }
-}
-
 fn create_declare_tx() -> RpcTransaction {
     rpc_declare_tx(
         DeclareTxArgs {
-            resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+            resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_testing()),
             tip: Tip(1),
             signature: TransactionSignature(vec![felt!("0x1"), felt!("0x2")].into()),
             sender_address: contract_address!("0x3"),
@@ -56,7 +45,7 @@ fn create_declare_tx() -> RpcTransaction {
 
 fn create_deploy_account_tx() -> RpcTransaction {
     rpc_deploy_account_tx(DeployAccountTxArgs {
-        resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+        resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_testing()),
         contract_address_salt: ContractAddressSalt(felt!("0x1")),
         class_hash: class_hash!("0x2"),
         constructor_calldata: calldata![felt!("0x1")],
@@ -71,7 +60,7 @@ fn create_deploy_account_tx() -> RpcTransaction {
 
 fn create_invoke_tx() -> RpcTransaction {
     rpc_invoke_tx(InvokeTxArgs {
-        resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+        resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_testing()),
         calldata: calldata![felt!("0x1"), felt!("0x2")],
         sender_address: contract_address!("0x1"),
         nonce: nonce!(1),
