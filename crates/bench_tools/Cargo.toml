@@ -9,7 +9,9 @@ workspace = true
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
 criterion.workspace = true
+fs_extra.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils.workspace = true
