@@ -348,8 +348,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(ShcReturn::Tasks(tasks))
     }
 
-    // Handle a new proposal receiver from the network.
-    // shc - None if the height was just completed and we should drop the message.
+    /// Handle a new proposal receiver from the network.
+    /// shc - None if the height was just completed and we should drop the message.
     async fn handle_proposal(
         &mut self,
         context: &mut ContextT,
@@ -407,8 +407,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
     }
 
-    // Handle a single consensus message.
-    // shc - None if the height was just completed and we should drop the message.
+    /// Handle a single consensus message.
+    /// shc - None if the height was just completed and we should drop the message.
     async fn handle_vote(
         &mut self,
         context: &mut ContextT,

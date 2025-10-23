@@ -176,6 +176,7 @@ impl SingleHeightConsensus {
         &mut self,
         context: &mut ContextT,
     ) -> Result<ShcReturn, ConsensusError> {
+        // TODO: Check marker here and..?
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
@@ -247,6 +248,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                // TODO: Why are we rebroadcasting the prevote? What is the scenario here?
                 trace!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
@@ -264,6 +266,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                // TODO: Why are we rebroadcasting the precommit? What is the scenario here?
                 trace!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
