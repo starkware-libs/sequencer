@@ -15,6 +15,9 @@ pub mod l1_endpoint_monitor_tests;
 // a bug in infura where the connectivity was fine, but get_block_number() failed.
 pub const HEALTH_CHECK_RPC_METHOD: &str = "eth_blockNumber";
 
+/// The minimum expected L1 block number for a valid endpoint response.
+pub const MIN_EXPECTED_BLOCK_NUMBER: u64 = 1000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1EndpointMonitor {
     pub current_l1_endpoint_index: usize,
@@ -91,7 +94,7 @@ impl L1EndpointMonitor {
             Ok(Ok(block_number)) => {
                 // TODO(guyn): remove this once we understand where these low numbers are coming
                 // from.
-                if block_number < U64::from(1000) {
+                if block_number < U64::from(MIN_EXPECTED_BLOCK_NUMBER) {
                     warn!(
                         "L1 endpoint {l1_endpoint_url} is operational, but block number is too \
                          low: {block_number}"
