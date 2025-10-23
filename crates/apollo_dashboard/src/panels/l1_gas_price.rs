@@ -12,7 +12,7 @@ use apollo_l1_gas_price::metrics::{
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
     Panel::new(
@@ -21,6 +21,17 @@ fn get_panel_eth_to_strk_error_count() -> Panel {
         vec![format!("increase({}[10m])", ETH_TO_STRK_ERROR_COUNT.get_name_with_filter())],
         PanelType::TimeSeries,
     )
+}
+
+fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
+    Panel::new(
+        "Seconds since last successful ETH→STRK rate update",
+        "The number of seconds since the last successful ETH→STRK rate update (assuming there was \
+         an update in the last 12 hours)",
+        vec![get_time_since_last_increase_expr(&ETH_TO_STRK_SUCCESS_COUNT.get_name_with_filter())],
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_eth_to_strk_success_count() -> Panel {
@@ -97,6 +108,19 @@ fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
     )
 }
 
+fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Panel {
+    Panel::new(
+        "Seconds since last successful L1 gas price scrape",
+        "The number of seconds since the last successful scrape of the L1 gas price scraper \
+         (assuming there was a scrape in the last 12 hours)",
+        vec![get_time_since_last_increase_expr(
+            &L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter(),
+        )],
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
+}
+
 fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {
     Panel::new(
         "L1 Gas Price Scraper Latest Scraped Block",
@@ -128,6 +152,8 @@ pub(crate) fn get_l1_gas_price_row() -> Row {
     Row::new(
         "ETH→STRK Rate & L1 Gas Price",
         vec![
+            get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape(),
+            get_panel_eth_to_strk_seconds_since_last_successful_update(),
             get_panel_eth_to_strk_success_count(),
             get_panel_eth_to_strk_error_count(),
             get_panel_eth_to_strk_rate(),
