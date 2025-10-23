@@ -30,6 +30,22 @@ enum Commands {
         #[arg(long)]
         input_dir: Option<String>,
     },
+    /// Run benchmarks, compare to previous run, and fail if regression exceeds limit.
+    RunAndCompare {
+        /// Package name to run benchmarks for.
+        #[arg(short, long)]
+        package: String,
+        /// Output directory for results.
+        #[arg(short, long)]
+        out: String,
+        /// Optional: Local directory containing input files. If not provided, inputs will be
+        /// downloaded from GCS for benchmarks that require them.
+        #[arg(long)]
+        input_dir: Option<String>,
+        /// Maximum acceptable regression percentage (e.g., 5.0 for 5%).
+        #[arg(long)]
+        regression_limit: f64,
+    },
     /// List benchmarks for a package.
     List {
         /// Package name to list benchmarks for. If not provided, lists all benchmarks.
@@ -58,6 +74,21 @@ fn main() {
             }
 
             bench_tools::runner::run_benchmarks(&benchmarks, input_dir.as_deref(), &out);
+        }
+        Commands::RunAndCompare { package, out, input_dir, regression_limit } => {
+            let benchmarks = find_benchmarks_by_package(&package);
+
+            if benchmarks.is_empty() {
+                panic!("No benchmarks found for package: {}", package);
+            }
+
+            bench_tools::runner::run_and_compare_benchmarks(
+                &benchmarks,
+                input_dir.as_deref(),
+                &out,
+                regression_limit,
+            )
+            .await;
         }
         Commands::List { package } => match package {
             Some(package_name) => {
