@@ -327,6 +327,7 @@ impl<S: StateReader> WorkerExecutor<S> {
         let execution_output = execution_output_refmut.value_mut();
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
         let tx = self.tx_at(tx_index);
+        let tx_hash = Transaction::tx_hash(tx.as_ref());
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
             let tx_context = self.block_context.to_tx_context(tx.as_ref());
@@ -369,10 +370,17 @@ impl<S: StateReader> WorkerExecutor<S> {
                 &mut tx_versioned_state,
                 tx.as_ref(),
             );
+
+            log::debug!(
+                "Transaction with tx_hash: {tx_hash} was committed. Builtin counters: \
+                 {builtin_counters:?}, Steps: {steps}",
+                builtin_counters = tx_execution_info.summarize_builtins_with_fee_transfer(),
+                steps = tx_execution_info.summerize_steps(),
+            );
+
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
         } else {
-            let tx_hash = Transaction::tx_hash(tx.as_ref());
             log::debug!(
                 "Transaction with tx_hash: {tx_hash} was rejected. Execution time was {}ms.",
                 execution_output.run_time.as_millis()
