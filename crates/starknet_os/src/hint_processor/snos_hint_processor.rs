@@ -25,6 +25,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use rand::{Rng, SeedableRng};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass;
+use starknet_api::hash::CommitmentType;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 
@@ -44,7 +45,6 @@ use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hint_processor::test_hint::test_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::hints::vars::CairoStruct;
 use crate::io::os_input::{

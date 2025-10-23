@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_api::hash::CommitmentType;
 use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
@@ -15,7 +15,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeResult,
 };
 use crate::patricia_merkle_tree::traversal::{calculate_subtrees_roots, SubTree};
-use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, TrieCachedStorage};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
@@ -36,10 +36,11 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     fn fetch_nodes<L: Leaf>(
         &mut self,
         subtrees: Vec<SubTree<'a>>,
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
+        commitment_type: CommitmentType,
     ) -> OriginalSkeletonTreeResult<()> {
         if subtrees.is_empty() {
             return Ok(());
@@ -47,7 +48,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         let should_fetch_modified_leaves =
             config.compare_modified_leaves() || previous_leaves.is_some();
         let mut next_subtrees = Vec::new();
-        let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
+        let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage, commitment_type)?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
@@ -127,15 +128,23 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                 }
             }
         }
-        self.fetch_nodes::<L>(next_subtrees, storage, leaf_modifications, config, previous_leaves)
+        self.fetch_nodes::<L>(
+            next_subtrees,
+            storage,
+            leaf_modifications,
+            config,
+            previous_leaves,
+            commitment_type,
+        )
     }
 
     pub(crate) fn create_impl<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
+        commitment_type: CommitmentType,
     ) -> OriginalSkeletonTreeResult<Self> {
         if sorted_leaf_indices.is_empty() {
             return Ok(Self::create_unmodified(root_hash));
@@ -156,16 +165,18 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             leaf_modifications,
             config,
             None,
+            commitment_type,
         )?;
         Ok(skeleton_tree)
     }
 
     pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        commitment_type: CommitmentType,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         if sorted_leaf_indices.is_empty() {
             let unmodified = Self::create_unmodified(root_hash);
@@ -186,6 +197,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             leaf_modifications,
             config,
             Some(&mut leaves),
+            commitment_type,
         )?;
         Ok((skeleton_tree, leaves))
     }

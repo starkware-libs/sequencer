@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::hash::CommitmentType;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -272,6 +273,7 @@ async fn test_delete_leaf_from_empty_tree() {
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),
         &storage_modifications,
+        CommitmentType::Class, // Note: CommitmentType is arbitrary here.
     )
     .unwrap();
 

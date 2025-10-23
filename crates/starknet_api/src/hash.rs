@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use starknet_types_core::felt::Felt;
 
+use crate::core::ContractAddress;
+
 pub type StarkHash = Felt;
 
 #[derive(
@@ -60,4 +62,11 @@ macro_rules! felt {
     ($s:expr) => {
         <$crate::hash::FeltConverter as $crate::hash::TryIntoFelt<_>>::to_felt_unchecked($s)
     };
+}
+
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+pub enum CommitmentType {
+    Class,
+    State,
+    Contract(ContractAddress),
 }

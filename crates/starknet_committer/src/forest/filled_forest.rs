@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::hash::CommitmentType;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, TrieCachedStorage};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -48,6 +49,36 @@ impl FilledForest {
         let n_new_facts = new_db_objects.len();
         storage
             .mset(new_db_objects)
+            .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
+        n_new_facts
+    }
+
+    pub fn write_to_cached_storage(&self, storage: &mut impl TrieCachedStorage) -> usize {
+        let new_cached_db_objects: Vec<(CommitmentType, NodeIndex, DbKey, DbValue)> = self
+            .storage_tries
+            .iter()
+            .flat_map(|(address, tree)| {
+                tree.serialize_with_indices().into_iter().map(|((index, key), value)| {
+                    (CommitmentType::Contract(*address), index, key, value)
+                })
+            })
+            .chain(
+                self.contracts_trie
+                    .serialize_with_indices()
+                    .into_iter()
+                    .map(|((index, key), value)| (CommitmentType::State, index, key, value)),
+            )
+            .chain(
+                self.classes_trie
+                    .serialize_with_indices()
+                    .into_iter()
+                    .map(|((index, key), value)| (CommitmentType::Class, index, key, value)),
+            )
+            .collect();
+
+        let n_new_facts = new_cached_db_objects.len();
+        storage
+            .mset_with_cache(new_cached_db_objects)
             .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
         n_new_facts
     }

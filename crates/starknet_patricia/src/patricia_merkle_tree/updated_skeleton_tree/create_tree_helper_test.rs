@@ -495,6 +495,8 @@ fn test_update_node_in_nonempty_tree(
 #[case::non_empty_tree(HashOutput(Felt::from(77_u128)))]
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
+    use starknet_api::hash::CommitmentType;
+
     let empty_map = HashMap::new();
     let mut empty_storage = MapStorage::default();
     let config = OriginalSkeletonMockTrieConfig::new(false);
@@ -504,6 +506,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
         SortedLeafIndices::new(&mut []),
         &config,
         &empty_map,
+        CommitmentType::Class, // Note: CommitmentType is arbitrary here.
     )
     .unwrap();
     let updated =

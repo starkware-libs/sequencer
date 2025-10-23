@@ -4,6 +4,7 @@ use ethnum::U256;
 use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use serde_json::json;
+use starknet_api::hash::CommitmentType;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
@@ -64,6 +65,7 @@ where
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        CommitmentType::Class, // Note: CommitmentType is arbitrary here.
     )
     .expect("Failed to create the original skeleton tree");
 

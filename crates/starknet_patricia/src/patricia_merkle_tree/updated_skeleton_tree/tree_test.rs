@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use rstest::{fixture, rstest};
+use starknet_api::hash::CommitmentType;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -157,6 +158,7 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),
         &modifications,
+        CommitmentType::Class, // Note: CommitmentType is arbitrary here.
     )
     .unwrap();
 

@@ -1,14 +1,18 @@
 use std::collections::HashMap;
 
 use starknet_api::core::ContractAddress;
+use starknet_api::hash::CommitmentType;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTree,
     OriginalSkeletonTreeImpl,
 };
-use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia::patricia_merkle_tree::types::{
+    NodeIndex,
+    SortedLeafIndices,
+    TrieCachedStorage,
+};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -36,7 +40,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     pub(crate) fn create(
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
         storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -74,7 +78,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// Also returns the previous contracts state of the modified contracts.
     fn create_contracts_trie(
         contracts_trie_root_hash: HashOutput,
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
         Ok(OriginalSkeletonTreeImpl::create_and_get_previous_leaves(
@@ -83,13 +87,14 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_sorted_indices,
             &OriginalSkeletonContractsTrieConfig::new(),
             &HashMap::new(),
+            CommitmentType::State,
         )?)
     }
 
     fn create_storage_tries(
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         config: &impl Config,
         storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
@@ -110,6 +115,7 @@ impl<'a> OriginalSkeletonForest<'a> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
+                CommitmentType::Contract(*address),
             )?;
             storage_tries.insert(*address, original_skeleton);
         }
@@ -119,7 +125,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     fn create_classes_trie(
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
-        storage: &mut impl Storage,
+        storage: &mut impl TrieCachedStorage,
         config: &impl Config,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
@@ -131,6 +137,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
+            CommitmentType::Class,
         )?)
     }
 }

@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"StatefulSet","metadata":{"annotations":{},"creationTimestamp":"2025-09-28T11:13:37Z","generation":66,"name":"pd-ssd-test-new","namespace":"shay-test-storage","resourceVersion":"1761186230444063011","uid":"a8c7fc54-80cc-4112-a785-132f8edf9e5f"},"spec":{"persistentVolumeClaimRetentionPolicy":{"whenDeleted":"Retain","whenScaled":"Retain"},"podManagementPolicy":"OrderedReady","replicas":2,"revisionHistoryLimit":10,"selector":{"matchLabels":{"app":"test-app"}},"serviceName":"test-service","template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":"2025-10-19T18:00:49+03:00"},"creationTimestamp":null,"labels":{"app":"test-app"}},"spec":{"containers":[{"args":["1000000","--storage-path","/mnt/pd-ssd-new/cached-mdbx-nimrod-test-3/storage","--checkpoint-interval","1000","--output-dir","/mnt/pd-ssd-new/cached-mdbx-nimrod-test-3/output","--checkpoint-dir","/mnt/pd-ssd-new/cached-mdbx-nimrod-test-3/checkpoint","--log-level","info"],"image":"us.gcr.io/starkware-dev/committer_cli:committer_cli:cached-storage-with-logs-nimrod","imagePullPolicy":"Always","name":"testing-container","resources":{"limits":{"cpu":"80","memory":"16Gi"},"requests":{"cpu":"60","memory":"16Gi"}},"securityContext":{"runAsGroup":3000,"runAsUser":3000},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","volumeMounts":[{"mountPath":"/mnt/pd-ssd-new","name":"pd-ssd-new"}]}],"dnsPolicy":"ClusterFirst","initContainers":[{"command":["sh","-c","chown -R 3000:3000 /mnt/pd-ssd-new \u0026\u0026 chmod -R g+rwX /mnt/pd-ssd-new"],"image":"busybox:1.36","imagePullPolicy":"IfNotPresent","name":"volume-permissions","resources":{},"securityContext":{"runAsUser":0},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","volumeMounts":[{"mountPath":"/mnt/pd-ssd-new","name":"pd-ssd-new"}]}],"nodeSelector":{"role":"storage-1-test"},"restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{"fsGroup":3000,"fsGroupChangePolicy":"OnRootMismatch"},"terminationGracePeriodSeconds":30,"tolerations":[{"effect":"NoSchedule","key":"key","operator":"Equal","value":"storage-1-test"}]}},"updateStrategy":{"rollingUpdate":{"partition":1},"type":"RollingUpdate"},"volumeClaimTemplates":[{"apiVersion":"v1","kind":"PersistentVolumeClaim","metadata":{"creationTimestamp":null,"name":"pd-ssd-new"},"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"2Ti"}},"storageClassName":"storage-test-pd-ssd-new-provisioner","volumeMode":"Filesystem"},"status":{"phase":"Pending"}}]},"status":{"availableReplicas":2,"collisionCount":0,"currentReplicas":1,"currentRevision":"pd-ssd-test-new-6d58774548","observedGeneration":66,"readyReplicas":2,"replicas":2,"updateRevision":"pd-ssd-test-new-5cc9bdd559","updatedReplicas":1}}
+  creationTimestamp: "2025-09-28T11:13:37Z"
+  generation: 68
+  name: pd-ssd-test-new
+  namespace: shay-test-storage
+  resourceVersion: "1761206062010383011"
+  uid: a8c7fc54-80cc-4112-a785-132f8edf9e5f
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: test-app
+  serviceName: test-service
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2025-10-19T18:00:49+03:00"
+      creationTimestamp: null
+      labels:
+        app: test-app
+    spec:
+      containers:
+      - args:
+        - "1000000"
+        - --storage-path
+        - /mnt/pd-ssd-new/cached-mdbx-nimrod-3/storage
+        - --checkpoint-interval
+        - "1000"
+        - --output-dir
+        - /mnt/pd-ssd-new/cached-mdbx-nimrod-3/output
+        - --checkpoint-dir
+        - /mnt/pd-ssd-new/cached-mdbx-nimrod-3/checkpoint
+        - --log-level
+        - info
+        image: us.gcr.io/starkware-dev/committer_cli:cached-storage-with-logs-nimrod
+        imagePullPolicy: Always
+        name: testing-container
+        resources:
+          limits:
+            cpu: "80"
+            memory: 16Gi
+          requests:
+            cpu: "60"
+            memory: 16Gi
+        securityContext:
+          runAsGroup: 3000
+          runAsUser: 3000
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /mnt/pd-ssd-new
+          name: pd-ssd-new
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - sh
+        - -c
+        - chown -R 3000:3000 /mnt/pd-ssd-new && chmod -R g+rwX /mnt/pd-ssd-new
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        name: volume-permissions
+        resources: {}
+        securityContext:
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /mnt/pd-ssd-new
+          name: pd-ssd-new
+      nodeSelector:
+        role: storage-1-test
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 3000
+        fsGroupChangePolicy: OnRootMismatch
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: key
+        operator: Equal
+        value: storage-1-test
+  updateStrategy:
+    rollingUpdate:
+      partition: 2
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      creationTimestamp: null
+      name: pd-ssd-new
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Ti
+      storageClassName: storage-test-pd-ssd-new-provisioner
+      volumeMode: Filesystem
+    status:
+      phase: Pending
+status:
+  availableReplicas: 2
+  collisionCount: 0
+  currentReplicas: 1
+  currentRevision: pd-ssd-test-new-6d58774548
+  observedGeneration: 68
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: pd-ssd-test-new-68c5b69c6d
+  updatedReplicas: 1
