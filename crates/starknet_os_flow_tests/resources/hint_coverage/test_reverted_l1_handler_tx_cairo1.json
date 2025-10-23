@@ -1,0 +1,275 @@
+[
+  {
+    "StatelessHint": "GetBlockMapping"
+  },
+  {
+    "StatelessHint": "IsLeaf"
+  },
+  {
+    "StatelessHint": "AssignBytecodeSegments"
+  },
+  {
+    "StatelessHint": "AssertEndOfBytecodeSegments"
+  },
+  {
+    "StatelessHint": "DeleteMemoryData"
+  },
+  {
+    "StatelessHint": "IterCurrentSegmentInfo"
+  },
+  {
+    "StatelessHint": "SetApToSegmentHashBlake"
+  },
+  {
+    "StatelessHint": "EnterScopeWithAliases"
+  },
+  {
+    "StatelessHint": "ContractAddressLeMaxForCompression"
+  },
+  {
+    "StatelessHint": "ComputeCommitmentsOnFinalizedStateWithAliases"
+  },
+  {
+    "StatelessHint": "DictionaryFromBucket"
+  },
+  {
+    "StatelessHint": "GetPrevOffset"
+  },
+  {
+    "StatelessHint": "CompressionHint"
+  },
+  {
+    "StatelessHint": "SetDecompressedDst"
+  },
+  {
+    "StatelessHint": "SegmentsAddTemp"
+  },
+  {
+    "StatelessHint": "SegmentsAdd"
+  },
+  {
+    "StatelessHint": "LogRemainingTxs"
+  },
+  {
+    "StatelessHint": "FillHolesInRc96Segment"
+  },
+  {
+    "StatelessHint": "EnterSyscallScopes"
+  },
+  {
+    "StatelessHint": "EnterScopeNode"
+  },
+  {
+    "StatelessHint": "EnterScopeNextNodeBit0"
+  },
+  {
+    "StatelessHint": "EnterScopeNextNodeBit1"
+  },
+  {
+    "StatelessHint": "EnterScopeLeftChild"
+  },
+  {
+    "StatelessHint": "EnterScopeRightChild"
+  },
+  {
+    "StatelessHint": "EnterScopeDescendEdge"
+  },
+  {
+    "StatelessHint": "Log2Ceil"
+  },
+  {
+    "StatelessHint": "SetStateUpdatesStart"
+  },
+  {
+    "StatelessHint": "SetCompressedStart"
+  },
+  {
+    "StatelessHint": "SetNUpdatesSmall"
+  },
+  {
+    "StatelessHint": "SetSiblings"
+  },
+  {
+    "StatelessHint": "IsCaseRight"
+  },
+  {
+    "StatelessHint": "SetApToDescend"
+  },
+  {
+    "StatelessHint": "AssertCaseIsRight"
+  },
+  {
+    "StatelessHint": "WriteCaseNotLeftToAp"
+  },
+  {
+    "StatelessHint": "SplitDescend"
+  },
+  {
+    "StatelessHint": "DecodeNode"
+  },
+  {
+    "StatelessHint": "DecodeNode2"
+  },
+  {
+    "StatelessHint": "StarknetOsInput"
+  },
+  {
+    "StatelessHint": "LogRemainingBlocks"
+  },
+  {
+    "StatelessHint": "AllocateSegmentsForMessages"
+  },
+  {
+    "StatelessHint": "CheckPackedValuesEndAndSize"
+  },
+  {
+    "StatelessHint": "UnpackFeltsToU32s"
+  },
+  {
+    "CommonHint": "SetTreeStructure"
+  },
+  {
+    "CommonHint": "GuessContractAddrStoragePtr"
+  },
+  {
+    "CommonHint": "UpdateClassesPtr"
+  },
+  {
+    "CommonHint": "GuessClassesPtr"
+  },
+  {
+    "CommonHint": "UpdateContractAddrToStoragePtr"
+  },
+  {
+    "CommonHint": "SetStateUpdatePointersToNone"
+  },
+  {
+    "OsHint": "LoadClass"
+  },
+  {
+    "OsHint": "EnterScopeWithBytecodeSegmentStructure"
+  },
+  {
+    "OsHint": "BlockNumber"
+  },
+  {
+    "OsHint": "BlockTimestamp"
+  },
+  {
+    "OsHint": "ChainId"
+  },
+  {
+    "OsHint": "FeeTokenAddress"
+  },
+  {
+    "OsHint": "SequencerAddress"
+  },
+  {
+    "OsHint": "WriteUseKzgDaToMemory"
+  },
+  {
+    "OsHint": "ReadAliasCounter"
+  },
+  {
+    "OsHint": "UpdateAliasCounter"
+  },
+  {
+    "OsHint": "GuessAliasesContractStoragePtr"
+  },
+  {
+    "OsHint": "UpdateAliasesContractToStoragePtr"
+  },
+  {
+    "OsHint": "GuessStatePtr"
+  },
+  {
+    "OsHint": "UpdateStatePtr"
+  },
+  {
+    "OsHint": "LoadDeprecatedClassFacts"
+  },
+  {
+    "OsHint": "StartTx"
+  },
+  {
+    "OsHint": "OsInputTransactions"
+  },
+  {
+    "OsHint": "LoadNextTx"
+  },
+  {
+    "OsHint": "ExitTx"
+  },
+  {
+    "OsHint": "EndTx"
+  },
+  {
+    "OsHint": "IsReverted"
+  },
+  {
+    "OsHint": "WriteOldBlockToStorage"
+  },
+  {
+    "OsHint": "GetOldBlockNumberAndHash"
+  },
+  {
+    "OsHint": "GetBlocksNumber"
+  },
+  {
+    "OsHint": "GetNClassHashesToMigrate"
+  },
+  {
+    "OsHint": "WriteFullOutputToMemory"
+  },
+  {
+    "OsHint": "ConfigureKzgManager"
+  },
+  {
+    "OsHint": "SetApToPrevBlockHash"
+  },
+  {
+    "OsHint": "SetApToNewBlockHash"
+  },
+  {
+    "OsHint": "SetBit"
+  },
+  {
+    "OsHint": "PreparePreimageValidationNonDeterministicHashes"
+  },
+  {
+    "OsHint": "BuildDescentMap"
+  },
+  {
+    "OsHint": "SetPreimageForStateCommitments"
+  },
+  {
+    "OsHint": "SetPreimageForClassCommitments"
+  },
+  {
+    "OsHint": "SetPreimageForCurrentCommitmentInfo"
+  },
+  {
+    "OsHint": "LoadEdge"
+  },
+  {
+    "OsHint": "HeightIsZeroOrLenNodePreimageIsTwo"
+  },
+  {
+    "OsHint": "InitStateUpdatePointers"
+  },
+  {
+    "OsHint": "InitializeStateChanges"
+  },
+  {
+    "OsHint": "InitializeClassHashes"
+  },
+  {
+    "OsHint": "CreateBlockAdditionalHints"
+  },
+  {
+    "OsHint": "GetPublicKeys"
+  },
+  {
+    "HintExtension": "LoadClassesAndBuildBytecodeSegmentStructures"
+  }
+]
