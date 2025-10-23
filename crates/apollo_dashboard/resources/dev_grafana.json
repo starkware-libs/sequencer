@@ -934,6 +934,24 @@
             "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Average Sierra Gas Usage in Block",
+          "description": "The average sierra gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_sierra_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average Proving Gas Usage in Block",
+          "description": "The average proving gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true

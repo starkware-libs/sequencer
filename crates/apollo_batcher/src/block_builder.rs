@@ -330,6 +330,7 @@ impl BlockBuilder {
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
         } = block_summary;
+
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
