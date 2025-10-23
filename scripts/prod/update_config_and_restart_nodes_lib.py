@@ -4,13 +4,13 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
+import urllib.parse
+from difflib import unified_diff
 from enum import Enum
 from typing import Any, Optional
 
-import tempfile
-import urllib.parse
 import yaml
-from difflib import unified_diff
 
 
 class Colors(Enum):

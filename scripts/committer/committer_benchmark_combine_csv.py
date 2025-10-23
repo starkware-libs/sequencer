@@ -1,10 +1,9 @@
 import argparse
-import sys
-from pathlib import Path
-from typing import List, Optional
-
 import csv
 import glob
+import sys
+from pathlib import Path
+from typing import Optional
 
 
 def unify_csvs(

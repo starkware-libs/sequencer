@@ -3,12 +3,12 @@
 import argparse
 import json
 import sys
-from enum import Enum
-from typing import Optional
-
 import urllib.error
 import urllib.parse
 import urllib.request
+from enum import Enum
+from typing import Optional
+
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Service,
