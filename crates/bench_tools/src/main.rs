@@ -1,3 +1,4 @@
+use bench_tools::types::benchmark_config::{find_benchmarks_by_package, BENCHMARKS};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -18,14 +19,45 @@ enum Commands {
         #[arg(short, long)]
         out: String,
     },
+    /// List benchmarks for a package.
+    List {
+        /// Package name to list benchmarks for. If not provided, lists all benchmarks.
+        #[arg(short, long)]
+        package: Option<String>,
+    },
 }
 
 fn main() {
     let cli = Cli::parse();
-
     match cli.command {
         Commands::Run { package: _, out: _ } => {
             unimplemented!()
         }
+        Commands::List { package } => match package {
+            Some(package_name) => {
+                let benchmarks = find_benchmarks_by_package(&package_name);
+
+                if benchmarks.is_empty() {
+                    println!("No benchmarks found for package: {}", package_name);
+                    return;
+                }
+
+                println!("Available benchmarks for package '{}':", package_name);
+                for bench in &benchmarks {
+                    println!("  - {} (runs: {})", bench.name, bench.cmd_args.join(" "));
+                }
+            }
+            None => {
+                println!("All available benchmarks:");
+                for bench in BENCHMARKS {
+                    println!(
+                        "  - {} (package: {}, runs: {})",
+                        bench.name,
+                        bench.package,
+                        bench.cmd_args.join(" ")
+                    );
+                }
+            }
+        },
     }
 }
