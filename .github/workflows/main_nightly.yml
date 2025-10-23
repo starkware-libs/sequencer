@@ -77,7 +77,7 @@ jobs:
           cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
-          LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
