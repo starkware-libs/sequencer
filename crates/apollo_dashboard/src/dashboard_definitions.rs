@@ -51,6 +51,10 @@ fn get_overview_row() -> Row {
             get_panel_batched_transactions_rate(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_gateway_add_tx_failure_by_reason(),
+            // TODO(shahak): try to find a way to consice all 3 l1 panels to one panel
+            get_panel_l1_message_scraper_seconds_since_last_successful_scrape(),
+            get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape(),
+            get_panel_eth_to_strk_seconds_since_last_successful_update(),
         ],
     )
     .expand()
