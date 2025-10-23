@@ -16,7 +16,6 @@ use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use apollo_time::test_utils::FakeClock;
-use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
@@ -25,6 +24,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::internal_invoke_tx;
+use starknet_api::test_utils::valid_resource_bounds_for_testing;
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
@@ -628,7 +628,7 @@ fn add_tx_exceeds_capacity() {
             declare_add_tx_input(declare_tx_args!(
                 tx_hash: tx_hash!(i),
                 nonce: nonce!(i),
-                resource_bounds: test_valid_resource_bounds(),
+                resource_bounds: valid_resource_bounds_for_testing(),
             ))
         }))
         .collect::<Vec<_>>();
@@ -659,7 +659,7 @@ fn add_tx_exceeds_capacity() {
     let input_declare = declare_add_tx_input(declare_tx_args!(
         tx_hash: tx_hash!(10),
         nonce: nonce!(10),
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
     ));
     add_tx_expect_error(&mut mempool, &input_declare, MempoolError::MempoolFull);
 }
@@ -1214,10 +1214,10 @@ fn metrics_correctness() {
         add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0, tip: 100);
     let invoke_6 = add_tx_input!(tx_hash: 5, address: "0x4", tx_nonce: 0, account_nonce: 0, tip: 100, max_l2_gas_price: 99);
     let declare_1 = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x5"), tx_hash: tx_hash!(6)),
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x5"), tx_hash: tx_hash!(6)),
     );
     let declare_2 = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x6"), tx_hash: tx_hash!(7)),
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x6"), tx_hash: tx_hash!(7)),
     );
     let invoke_7 = add_tx_input!(tx_hash: 8, address: "0x7", tx_nonce: 1, account_nonce: 0);
     let invoke_8 = add_tx_input!(tx_hash: 9, address: "0x8", tx_nonce: 0, account_nonce: 0);
@@ -1345,13 +1345,13 @@ fn delay_declare_txs() {
         fake_clock.clone(),
     );
     let first_declare = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
     );
     add_tx(&mut mempool, &first_declare);
 
     fake_clock.advance(Duration::from_secs(1));
     let second_declare = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x1"), tx_hash: tx_hash!(1)),
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x1"), tx_hash: tx_hash!(1)),
     );
     add_tx(&mut mempool, &second_declare);
 
@@ -1396,7 +1396,7 @@ fn no_delay_declare_front_run() {
         fake_clock.clone(),
     );
     let declare = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
     );
     add_tx(&mut mempool, &declare);
     add_tx_expect_error(
