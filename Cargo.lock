@@ -12613,6 +12613,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "itertools 0.12.1",
  "rstest",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",
