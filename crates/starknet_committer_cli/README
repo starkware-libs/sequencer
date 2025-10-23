@@ -1,0 +1,52 @@
+# Starknet Committer CLI
+
+## Description
+
+A utility CLI to allow running a long term, persistent committer benchmark.
+
+## Usage
+
+### To use in a k8s env:
+
+run the following from within the repo root dir.
+1. Build the CLI in release mode.
+```
+cargo build -p starknet_committer_cli --release
+```
+2. Build the docker image.
+Note: disable the .dockerignore file if it contains the "target" dir in it.
+```
+docker build -t starknet-committer-cli -f src/bin/benchmark_run/Dockerfile .
+```
+3. Push the image to an image registry.
+(First time: `docker tag starknet-committer-cli <REGISTRY_PATH>:<TAG>`)
+```
+docker push <REGISTRY_PATH>:<TAG>
+```
+4. Pull the image to a pod by editing the image key under "spec/containers", or delete the pod if it 
+was already configured for the new image to be pulled.
+```
+kubectl edit statefulsets.apps <NAME>
+OR
+kubectl edit deployments.apps <NAME>
+``` 
+or
+```
+kubectl delete pod <POD>
+```
+
+### To review the benchmark data:
+
+1. Copy the created csv files from the pod to your local.
+```
+kubectl cp <POD_NAME>:<OUTPUT_CSV_DIR> <LOCAL_CSV_DIR>
+```
+2. Run the committer_benchmark_plotting script (check the different output options of the script).
+```
+python scripts/committer/committer_benchmark_plotting.py <LOCAL_CSV_DIR> -o <OUTPUT_CSV>
+```
+3. Plot a graph for the csv using the committer_benchmark_plotting script from a venv with the 
+Plotly package (see output options).
+```
+python scripts/committer/committer_benchmark_plotting.py <OUTPUT_CSV>
+```
