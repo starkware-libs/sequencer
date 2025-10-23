@@ -25,6 +25,8 @@ use crate::core::{
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::rpc_transaction::EntryPointByType;
+#[cfg(any(test, feature = "testing"))]
+use crate::test_utils::py_json_dumps;
 use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult};
 
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
@@ -311,7 +313,10 @@ impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for Sierra
                 .collect(),
             contract_class_version: cairo_lang_contract_class.contract_class_version,
             entry_points_by_type: cairo_lang_contract_class.entry_points_by_type.into(),
-            abi: cairo_lang_contract_class.abi.map(|abi| abi.json()).unwrap_or_default(),
+            abi: cairo_lang_contract_class
+                .abi
+                .map(|abi| py_json_dumps(&abi).expect("ABI is valid JSON"))
+                .unwrap_or_default(),
         }
     }
 }
