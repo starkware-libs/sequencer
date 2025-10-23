@@ -50,6 +50,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
         let n_new_facts = filled_forest.write_to_storage(&mut storage);
+        info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 
         time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);

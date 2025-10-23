@@ -88,7 +88,7 @@ impl TimeMeasurement {
             .expect("stop_measurement called before start_measurement")
             .elapsed();
         info!(
-            "Time elapsed for iteration {}: {} milliseconds",
+            "Time elapsed for {action:?} in iteration {}: {} milliseconds",
             self.n_results(),
             duration.as_millis()
         );

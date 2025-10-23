@@ -1,10 +1,11 @@
 use std::fs;
+use std::num::NonZeroUsize;
 use std::path::Path;
 
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -21,6 +22,7 @@ pub struct CommitterCliCommand {
 pub enum StorageType {
     MapStorage,
     Mdbx,
+    CachedMdbx,
 }
 
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
@@ -38,8 +40,11 @@ struct StorageArgs {
     n_diffs: usize,
     /// Storage impl to use. Note that MapStorage isn't persisted in the file system, so
     /// checkpointing is ignored.
-    #[clap(long, default_value = "mdbx")]
+    #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// If using cached storage, the size of the cache.
+    #[clap(long, default_value = "1000000")]
+    cache_size: usize,
     #[clap(long, default_value = "1000")]
     checkpoint_interval: usize,
     #[clap(long, default_value = "warn")]
@@ -79,6 +84,7 @@ pub async fn run_committer_cli(
             n_iterations,
             n_diffs,
             storage_type,
+            cache_size,
             checkpoint_interval,
             log_level,
             data_path,
@@ -112,6 +118,25 @@ pub async fn run_committer_cli(
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
+                    run_storage_benchmark(
+                        seed,
+                        n_iterations,
+                        n_diffs,
+                        &output_dir,
+                        Some(&checkpoint_dir),
+                        storage,
+                        checkpoint_interval,
+                    )
+                    .await;
+                }
+                StorageType::CachedMdbx => {
+                    let storage_path = storage_path
+                        .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
+                    fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
+                    let storage = CachedStorage::new(
+                        MdbxStorage::open(Path::new(&storage_path)).unwrap(),
+                        NonZeroUsize::new(cache_size).unwrap(),
+                    );
                     run_storage_benchmark(
                         seed,
                         n_iterations,
