@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_metrics.workspace = true
 apollo_storage.workspace = true
 futures.workspace = true
 serde.workspace = true
