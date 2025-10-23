@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
+use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -92,6 +93,8 @@ use crate::initial_state::{
     get_deploy_contract_tx_and_address_with_salt,
 };
 use crate::special_contracts::{
+    DATA_GAS_ACCOUNT_CONTRACT_CASM,
+    DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
     V1_BOUND_CAIRO0_CONTRACT,
     V1_BOUND_CAIRO1_CONTRACT_CASM,
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
@@ -2265,4 +2268,67 @@ async fn test_resources_type() {
     test_output.perform_default_validations();
     test_output.assert_storage_diff_eq(cairo_steps_contract_address, HashMap::default());
     test_output.assert_storage_diff_eq(sierra_gas_contract_address, expected_storage_updates);
+}
+
+/// Runs the OS test for data gas Cairo1 accounts.
+#[rstest]
+#[tokio::test]
+async fn test_data_gas_accounts() {
+    let test_contract_sierra = &DATA_GAS_ACCOUNT_CONTRACT_SIERRA;
+    let test_contract_casm = &DATA_GAS_ACCOUNT_CONTRACT_CASM;
+    let class_hash = test_contract_sierra.calculate_class_hash();
+    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
+    assert!(
+        VersionedConstants::latest_constants().os_constants.data_gas_accounts.contains(&class_hash)
+    );
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare the data gas account.
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let account_declare_tx = declare_tx(declare_args);
+    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
+        sierra_program_length: test_contract_sierra.sierra_program.len(),
+        abi_length: test_contract_sierra.abi.len(),
+        sierra_version,
+    };
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, test_contract_sierra);
+
+    // Deploy it (from funded account).
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let (deploy_tx, data_gas_account_address) = get_deploy_contract_tx_and_address_with_salt(
+        class_hash,
+        calldata![],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Create and run an invoke tx.
+    let invoke_args = invoke_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        calldata: create_calldata(data_gas_account_address, "test_resource_bounds", &[]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let tx = InvokeTransaction::create(invoke_tx(invoke_args), &CHAIN_ID_FOR_TESTS).unwrap();
+    assert_eq!(tx.version(), TransactionVersion::THREE);
+    assert_matches!(tx.resource_bounds(), ValidResourceBounds::AllResources(_));
+    test_manager.add_invoke_tx(tx, None);
+
+    // Run test.
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    test_output.perform_default_validations();
 }
