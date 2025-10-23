@@ -3,6 +3,7 @@ from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
+    EcOpBuiltin,
     HashBuiltin,
     KeccakBuiltin,
     ModBuiltin,
@@ -114,7 +115,7 @@ func execute_transactions{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -574,6 +575,8 @@ func execute_l1_handler_transaction{
         return ();
     }
 
+    // TODO(Yoni): currently, the contract state is not fetched for reverted L1 handlers.
+    //   Once block hash is supported, we should fetch the contract state for them as well.
     let (local tx_execution_context: ExecutionContext*) = get_invoke_tx_execution_context(
         block_context=block_context,
         entry_point_type=ENTRY_POINT_TYPE_L1_HANDLER,

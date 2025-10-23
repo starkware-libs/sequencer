@@ -823,6 +823,7 @@ func deploy_contract{
     );
 
     // Entries before this point belong to the caller.
+    // Note the caller is the deployer (not the caller of the deployer).
     assert [revert_log] = RevertLogEntry(
         selector=CHANGE_CONTRACT_ENTRY,
         value=constructor_execution_context.execution_info.caller_address,

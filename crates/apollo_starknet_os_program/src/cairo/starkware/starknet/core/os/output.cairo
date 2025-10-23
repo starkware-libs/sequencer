@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.segments import relocate_segment
@@ -22,6 +22,7 @@ from starkware.starknet.core.os.state.output import (
     serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
+from starkware.starknet.core.os.encrypt import encrypt, encrypt_state_diff
 
 // Represents the output of the OS.
 struct OsOutput {
@@ -76,9 +77,9 @@ struct OsCarriedOutputs {
     messages_to_l2: MessageToL2Header*,
 }
 
-func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*}(
-    os_output: OsOutput*, replace_keys_with_aliases: felt
-) {
+func serialize_os_output{
+    range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*
+}(os_output: OsOutput*, replace_keys_with_aliases: felt, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
 
     local use_kzg_da = os_output.header.use_kzg_da;
@@ -121,6 +122,8 @@ func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output
         state_updates_start=state_updates_start,
         state_updates_end=state_updates_ptr,
         compress_state_updates=compress_state_updates,
+        n_keys=n_public_keys,
+        public_keys=public_keys,
     );
 
     if (use_kzg_da != FALSE) {
@@ -229,8 +232,12 @@ func serialize_os_kzg_commitment_info{output_ptr: felt*}(
 }
 
 // Returns the final data-availability to output.
-func process_data_availability{range_check_ptr}(
-    state_updates_start: felt*, state_updates_end: felt*, compress_state_updates: felt
+func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
+    state_updates_start: felt*,
+    state_updates_end: felt*,
+    compress_state_updates: felt,
+    n_keys: felt,
+    public_keys: felt*,
 ) -> (da_start: felt*, da_end: felt*) {
     if (compress_state_updates == 0) {
         return (da_start=state_updates_start, da_end=state_updates_end);
@@ -238,10 +245,10 @@ func process_data_availability{range_check_ptr}(
 
     alloc_locals;
 
-    // Output a compression of the state updates.
+    // Compress the state updates.
     local compressed_start: felt*;
     %{
-        if use_kzg_da:
+        if use_kzg_da or ids.n_keys > 0:
             ids.compressed_start = segments.add()
         else:
             # Assign a temporary segment, to be relocated into the output segment.
@@ -251,7 +258,21 @@ func process_data_availability{range_check_ptr}(
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);
     }
-    return (da_start=compressed_start, da_end=compressed_dst);
+
+    if (n_keys == 0) {
+        // No public keys - skip the state updates encryption.
+        return (da_start=compressed_start, da_end=compressed_dst);
+    }
+
+    // Encrypt the compressed state updates.
+    let (encrypted_start, encrypted_end) = encrypt_state_diff(
+        compressed_start=compressed_start,
+        compressed_end=compressed_dst,
+        n_keys=n_keys,
+        public_keys=public_keys,
+    );
+
+    return (da_start=encrypted_start, da_end=encrypted_end);
 }
 
 func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: felt*) {
