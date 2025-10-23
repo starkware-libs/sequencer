@@ -33,6 +33,9 @@ struct StorageArgs {
     /// Number of iterations to run the benchmark.
     #[clap(default_value = "1000")]
     n_iterations: usize,
+    /// Number of storage updates per iteration.
+    #[clap(default_value = "1000")]
+    n_diffs: usize,
     /// Storage impl to use. Note that MapStorage isn't persisted in the file system, so
     /// checkpointing is ignored.
     #[clap(long, default_value = "mdbx")]
@@ -74,6 +77,7 @@ pub async fn run_committer_cli(
         Command::StorageBenchmark(StorageArgs {
             seed,
             n_iterations,
+            n_diffs,
             storage_type,
             checkpoint_interval,
             log_level,
@@ -95,6 +99,7 @@ pub async fn run_committer_cli(
                     run_storage_benchmark(
                         seed,
                         n_iterations,
+                        n_diffs,
                         &output_dir,
                         None,
                         storage,
@@ -110,6 +115,7 @@ pub async fn run_committer_cli(
                     run_storage_benchmark(
                         seed,
                         n_iterations,
+                        n_diffs,
                         &output_dir,
                         Some(&checkpoint_dir),
                         storage,

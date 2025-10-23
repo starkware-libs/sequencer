@@ -16,6 +16,7 @@ pub type InputImpl = Input<ConfigImpl>;
 pub async fn run_storage_benchmark<S: Storage>(
     seed: u64,
     n_iterations: usize,
+    n_storage_updates_per_iteration: usize,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
@@ -37,7 +38,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(i).unwrap());
         let input = InputImpl {
-            state_diff: generate_random_state_diff(&mut rng),
+            state_diff: generate_random_state_diff(&mut rng, n_storage_updates_per_iteration),
             contracts_trie_root_hash,
             classes_trie_root_hash,
             config: ConfigImpl::default(),

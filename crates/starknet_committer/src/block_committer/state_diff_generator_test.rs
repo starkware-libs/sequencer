@@ -8,9 +8,10 @@ use starknet_api::core::ContractAddress;
 use crate::block_committer::state_diff_generator::{
     generate_random_state_diff,
     generate_random_storage_entry,
-    N_STORAGE_UPDATES,
     RANDOM_STATE_DIFF_CONTRACT_ADDRESS,
 };
+
+const N_STORAGE_UPDATES: usize = 1000_usize;
 
 #[fixture]
 fn rng() -> SmallRng {
@@ -20,7 +21,7 @@ fn rng() -> SmallRng {
 
 #[rstest]
 fn generate_random_state_diff_test(mut rng: impl Rng) {
-    let state_diff = generate_random_state_diff(&mut rng);
+    let state_diff = generate_random_state_diff(&mut rng, N_STORAGE_UPDATES);
     let contract = state_diff
         .storage_updates
         .get(&ContractAddress::from(RANDOM_STATE_DIFF_CONTRACT_ADDRESS))

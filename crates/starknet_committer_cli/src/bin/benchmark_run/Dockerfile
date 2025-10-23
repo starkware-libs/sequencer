@@ -25,8 +25,10 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 # - use the provided storage directory and data directory (override for a persistent storage dir of
 #   a specific node)
 # - checkpoint every 1000 blocks.
+# - generate 4000 state diffs (new leaves) per block.
 CMD ["1000000", \
     "--storage-path", "/mnt/pd-ssd-new/storage", \
     "--data-path", "/mnt/pd-ssd-new/committer_storage_benchmark", \
     "--checkpoint-interval", "1000" \
+    "--n-diffs", "4000" \
     ]
