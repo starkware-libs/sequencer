@@ -77,6 +77,7 @@ impl L1Provider {
     }
 
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
+    /// Used to make new proposals. Must be in Propose state.
     #[instrument(skip(self), err)]
     pub fn get_txs(
         &mut self,
@@ -115,7 +116,8 @@ impl L1Provider {
     }
 
     /// Returns true if and only if the given transaction is both not included in an L2 block, and
-    /// unconsumed on L1.
+    /// unconsumed on L1. Validator should call validate on each tx during validation.
+    /// Must be in Validate state.
     #[instrument(skip(self), err)]
     pub fn validate(
         &mut self,
@@ -144,6 +146,8 @@ impl L1Provider {
 
     // TODO(Gilad): when deciding on consensus, if possible, have commit_block also tell the node if
     // it's about to [optimistically-]propose or validate the next block.
+    /// Upon successfully committing a block, commit all committed/rejected transactions, unstage
+    /// any remaining transactions, and put provider back in Pending state.
     #[instrument(skip(self), err)]
     pub fn commit_block(
         &mut self,
@@ -156,6 +160,9 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
+        // TODO(guyn): this message is misleading, it checks start_height, not current_height.
+        // TODO(guyn): maybe we should indeed ignore all blocks below current_height?
+        // See other todo in bootstrap().
         if self.is_historical_height(height) {
             debug!(
                 "Skipping commit block for historical height: {}, current height is higher: {}",
@@ -164,6 +171,8 @@ impl L1Provider {
             return Ok(());
         }
 
+        // Reroute this block to bootstrapper, either adding it to the backlog, or applying it and
+        // ending the bootstrap.
         if self.state.is_bootstrapping() {
             // Once bootstrap completes it will transition to Pending state by itself.
             return self.bootstrap(committed_txs, height);
@@ -179,12 +188,14 @@ impl L1Provider {
         Ok(())
     }
 
+    /// Accept events from the scraper.
     #[instrument(skip_all, err)]
     pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
         if self.state.uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
 
+        // TODO(guyn): can we remove this "every sec" since the polling interval is rather long?
         info_every_n_sec!(1, "Adding {} l1 events", events.len());
         trace!("Adding events: {events:?}");
 
@@ -285,6 +296,7 @@ impl L1Provider {
         }
     }
 
+    /// Commit the given transactions, and increment the current height.
     fn apply_commit_block(
         &mut self,
         consumed_txs: IndexSet<TransactionHash>,
@@ -298,7 +310,11 @@ impl L1Provider {
         self.current_height = self.current_height.unchecked_next();
     }
 
-    /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
+    /// Any commit_block call gets rerouted to this function when in bootstrap state.
+    /// - If block number is higher than current height, block is backlogged.
+    /// - If provider gets a block consistent with current_height, apply it and then the rest of the
+    ///   backlog, then transition to Pending state.
+    /// - Blocks lower than current height are checked for consistency with existing transactions.
     fn bootstrap(
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
@@ -313,6 +329,9 @@ impl L1Provider {
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
+                // TODO(guyn): check if this is reliable: old blocks can have txs that were
+                // committed then consumed and deleted. We should probably decide to always log and
+                // ignore old blocks or always return an error.
                 let diff_from_already_committed: Vec<_> = committed_txs
                     .iter()
                     .copied()
@@ -340,6 +359,7 @@ impl L1Provider {
                     })?
                 }
             }
+            // TODO(guyn): check what about rejected txs here and in the backlog?
             Equal => self.apply_commit_block(committed_txs, Default::default()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
@@ -382,8 +402,8 @@ impl L1Provider {
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
 
-            for commit_block in backlog {
-                self.apply_commit_block(commit_block.committed_txs, Default::default());
+            for committed_block in backlog {
+                self.apply_commit_block(committed_block.committed_txs, Default::default());
             }
 
             info!(
