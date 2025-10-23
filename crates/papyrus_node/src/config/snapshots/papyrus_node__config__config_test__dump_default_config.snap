@@ -245,38 +245,50 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "context.override_l1_data_gas_price": {
-    "description": "Replace the L1 data gas price with this value.",
+  "context.override_eth_to_fri_rate": {
+    "description": "Replace the Eth-to-Fri conversion rate with this value.",
     "value": {
       "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
-  "context.override_l1_data_gas_price.#is_none": {
+  "context.override_eth_to_fri_rate.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "context.override_l1_gas_price": {
-    "description": "Replace the L1 gas price with this value.",
+  "context.override_l1_data_gas_price_wei": {
+    "description": "Replace the L1 data gas price (wei) with this value.",
     "value": {
       "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
-  "context.override_l1_gas_price.#is_none": {
+  "context.override_l1_data_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "context.override_l2_gas_price": {
-    "description": "Replace the L2 gas price with this value.",
+  "context.override_l1_gas_price_wei": {
+    "description": "Replace the L1 gas price (wei) with this value.",
     "value": {
       "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
-  "context.override_l2_gas_price.#is_none": {
+  "context.override_l1_gas_price_wei.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "context.override_l2_gas_price_fri": {
+    "description": "Replace the L2 gas price (fri) with this value.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
+  "context.override_l2_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
