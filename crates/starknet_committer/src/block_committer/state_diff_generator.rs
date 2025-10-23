@@ -12,12 +12,11 @@ use crate::block_committer::random_structs::RandomValue;
 pub mod state_diff_generator_test;
 
 pub const RANDOM_STATE_DIFF_CONTRACT_ADDRESS: u32 = 500_u32;
-pub(crate) const N_STORAGE_UPDATES: usize = 1000_usize;
 
-pub fn generate_random_state_diff<R: Rng>(rng: &mut R) -> StateDiff {
+pub fn generate_random_state_diff<R: Rng>(rng: &mut R, n_storage_updates: usize) -> StateDiff {
     let mut storage_updates = HashMap::new();
-    let mut contract_updates = HashMap::with_capacity(N_STORAGE_UPDATES);
-    for _ in 0..N_STORAGE_UPDATES {
+    let mut contract_updates = HashMap::with_capacity(n_storage_updates);
+    for _ in 0..n_storage_updates {
         let storage_entry = generate_random_storage_entry(rng);
         contract_updates.insert(storage_entry.0, storage_entry.1);
     }
