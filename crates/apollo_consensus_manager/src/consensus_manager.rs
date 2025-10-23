@@ -34,7 +34,7 @@ use apollo_network::network_manager::{
     NetworkManager,
 };
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
-use apollo_reverts::revert_blocks_and_eternal_pending;
+use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
@@ -51,6 +51,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
     CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
@@ -294,11 +295,15 @@ impl ConsensusManager {
                 .expect("Failed to revert block at height {height} in the batcher");
         };
 
+        const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
+            name: "Batcher",
+            revert_metric: CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
+        };
         revert_blocks_and_eternal_pending(
             batcher_height_marker,
             revert_up_to_and_including,
             revert_blocks_fn,
-            "Batcher",
+            &BATCHER_REVERT_COMPONENT_DATA,
         )
         .await;
     }

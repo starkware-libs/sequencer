@@ -39,6 +39,8 @@ define_metrics!(
         MetricGauge { STATE_SYNC_HEADER_LATENCY_SEC, "apollo_state_sync_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time the state sync component stores the header" },
         MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component since its last restart", init = 0 },
         MetricCounter { STATE_SYNC_REVERTED_TRANSACTIONS, "apollo_state_sync_reverted_transactions", "The number of transactions reverted by the state sync component", init = 0 },
+
+        MetricGauge { STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING, "apollo_state_sync_reverted_up_to_and_including", "The block number up to which the state sync has reverted" },
     },
 );
 
@@ -55,6 +57,7 @@ pub async fn register_metrics(
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
     CENTRAL_SYNC_FORKS_FROM_FEEDER.register();
+    STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING.register();
     let txn = storage_reader.begin_ro_txn().unwrap();
     update_marker_metrics(&txn);
     if should_replay_processed_txs_metric {
