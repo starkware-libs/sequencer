@@ -59,7 +59,7 @@
           "description": "The number of transactions failed by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
+            "sum by (add_tx_failure_reason) (gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start())) > 0"
           ],
           "extra_params": {}
         }
@@ -180,10 +180,10 @@
         },
         {
           "title": "Proposal Build: Proposal Failure by Reason",
-          "description": "The number of build proposal failures (over the selected time range)",
+          "description": "The number of build proposal failures by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum by (build_proposal_failure_reason) (increase(consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
+            "sum by (build_proposal_failure_reason) (consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (consensus_build_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start())) > 0"
           ],
           "extra_params": {
             "log_query": "\"PROPOSAL_FAILED: Proposal failed as proposer\"",
@@ -228,7 +228,7 @@
           "description": "The number of validate proposal failures (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum by (validate_proposal_failure_reason) (increase(consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
+            "sum by (validate_proposal_failure_reason) (consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (consensus_validate_proposal_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start())) > 0"
           ],
           "extra_params": {
             "log_query": "\"PROPOSAL_FAILED: Proposal failed as validator\"",
@@ -563,7 +563,7 @@
           "description": "The number of transactions received by source (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) "
+            "sum by (source) (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start()))"
           ],
           "extra_params": {
             "log_query": "\"Processing tx\" AND \"is_p2p=\""
@@ -574,7 +574,7 @@
           "description": "The number of transactions received by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) "
+            "sum by (tx_type) (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start()))"
           ],
           "extra_params": {
             "log_query": "\"Processing tx\""
@@ -585,7 +585,7 @@
           "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])))"
+            "(sum by (tx_type) (gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start())) / sum by (tx_type) (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start())))"
           ],
           "extra_params": {
             "unit": "percentunit"
@@ -596,7 +596,7 @@
           "description": "The number of transactions failed by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
+            "sum by (add_tx_failure_reason) (gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start())) > 0"
           ],
           "extra_params": {}
         },
@@ -605,7 +605,7 @@
           "description": "The number of transactions sent to mempool by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
+            "sum by (tx_type) (gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start()))"
           ],
           "extra_params": {}
         },
@@ -661,7 +661,7 @@
           "description": "Number of transactions dropped from the mempool by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
+            "sum  by (drop_reason) (mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"} - (mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}@start()))"
           ],
           "extra_params": {}
         },

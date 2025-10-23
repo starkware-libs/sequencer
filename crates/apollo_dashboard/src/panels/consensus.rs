@@ -181,8 +181,9 @@ fn get_panel_validate_proposal_failure() -> Panel {
         "Proposal Validation: Proposal Failure by Reason",
         "The number of validate proposal failures (over the selected time range)",
         vec![format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+            "sum by ({}) ({} - ({}@start())) > 0",
             LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
+            CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter(),
             CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
         )],
         PanelType::Stat,
@@ -209,10 +210,11 @@ fn get_panel_consensus_build_proposal_failed() -> Panel {
 fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Build: Proposal Failure by Reason",
-        "The number of build proposal failures (over the selected time range)",
+        "The number of build proposal failures by reason (over the selected time range)",
         vec![format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+            "sum by ({}) ({} - ({}@start())) > 0",
             LABEL_BUILD_PROPOSAL_FAILURE_REASON,
+            CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter(),
             CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
         )],
         PanelType::Stat,
