@@ -1,4 +1,8 @@
-use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
+use apollo_batcher::metrics::{
+    NUM_TRANSACTION_IN_BLOCK,
+    PROVING_GAS_IN_LAST_BLOCK,
+    SIERRA_GAS_IN_LAST_BLOCK,
+};
 use blockifier::metrics::{
     BLOCKIFIER_METRIC_RATE_DURATION,
     CALLS_RUNNING_NATIVE,
@@ -10,6 +14,8 @@ use blockifier::metrics::{
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
+
+const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 
 // TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
 fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
@@ -56,6 +62,24 @@ fn get_panel_transactions_per_block() -> Panel {
     )
 }
 
+fn get_panel_sierra_gas_in_last_block() -> Panel {
+    Panel::new(
+        "Average Sierra Gas Usage in Block",
+        "The average sierra gas usage in block (10m window)",
+        vec![format!("avg_over_time({}[10m])/{}", SIERRA_GAS_IN_LAST_BLOCK.get_name_with_filter(), DENOMINATOR_DIVISOR_FOR_READABILITY)],
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_proving_gas_in_last_block() -> Panel {
+    Panel::new(
+        "Average Proving Gas Usage in Block",
+        "The average proving gas usage in block (10m window)",
+        vec![format!("avg_over_time({}[10m])/{}", PROVING_GAS_IN_LAST_BLOCK.get_name_with_filter(), DENOMINATOR_DIVISOR_FOR_READABILITY)],
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_blockifier_row() -> Row {
     Row::new(
         "Blockifier",
@@ -65,6 +89,8 @@ pub(crate) fn get_blockifier_row() -> Row {
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
             get_panel_transactions_per_block(),
+            get_panel_sierra_gas_in_last_block(),
+            get_panel_proving_gas_in_last_block(),
         ],
     )
 }

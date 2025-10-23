@@ -68,9 +68,11 @@ use crate::metrics::{
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
     NUM_TRANSACTION_IN_BLOCK,
+    PROVING_GAS_IN_LAST_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
+    SIERRA_GAS_IN_LAST_BLOCK,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -635,6 +637,9 @@ impl Batcher {
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         REVERTED_TRANSACTIONS.increment(n_reverted_count);
         NUM_TRANSACTION_IN_BLOCK.record_lossy(n_txs);
+        SIERRA_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.bouncer_weights.sierra_gas.0);
+        PROVING_GAS_IN_LAST_BLOCK
+            .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
 
         Ok(DecisionReachedResponse {
             state_diff,
