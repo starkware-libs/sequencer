@@ -44,6 +44,7 @@ use starknet_api::block::BlockNumber;
 use tracing::{info, info_span, Instrument};
 
 use crate::metrics::{
+    register_metrics,
     CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
@@ -327,6 +328,7 @@ pub fn create_consensus_manager(
 impl ComponentStarter for ConsensusManager {
     async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
+        register_metrics();
         self.run().await;
     }
 }
