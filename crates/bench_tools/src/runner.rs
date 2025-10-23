@@ -59,23 +59,24 @@ fn run_single_benchmark(bench: &BenchmarkConfig) {
 }
 
 /// Collects benchmark results from criterion output and saves them to the output directory.
-fn save_benchmark_results(_bench: &BenchmarkConfig, output_dir: &str) {
+fn save_benchmark_results(bench: &BenchmarkConfig, output_dir: &str) {
     let criterion_base = PathBuf::from("target/criterion");
-    let Ok(entries) = fs::read_dir(&criterion_base) else { return };
 
-    // Collect all estimates files.
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
+    // Get the list of criterion benchmark names to save.
+    // If None, use the benchmark config name.
+    let benchmark_names: Vec<&str> = match bench.criterion_benchmark_names {
+        Some(names) => names.to_vec(),
+        None => vec![bench.name],
+    };
 
-        // Save estimates file.
-        let estimates_path = path.join("new/estimates.json");
+    // Save results for each criterion benchmark name.
+    for bench_name in benchmark_names {
+        let bench_path = criterion_base.join(bench_name);
+        let estimates_path = bench_path.join("new/estimates.json");
+
         if let Ok(data) = fs::read_to_string(&estimates_path) {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&data) {
                 if let Ok(pretty) = serde_json::to_string_pretty(&json) {
-                    let bench_name = path.file_name().unwrap().to_string_lossy();
                     let dest =
                         PathBuf::from(output_dir).join(format!("{}_estimates.json", bench_name));
                     if fs::write(&dest, pretty).is_ok() {
