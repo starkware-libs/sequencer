@@ -210,3 +210,115 @@ lazy_static! {
             }
         });
 }
+
+#[test]
+fn measure_protobuf_encoding_size_for_5k_calldata() {
+    use std::sync::Arc;
+    use starknet_api::consensus_transaction::ConsensusTransaction;
+    use starknet_api::core::{ContractAddress, Nonce};
+    use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+    use starknet_api::transaction::fields::{AllResourceBounds, Calldata, ResourceBounds, Tip, TransactionSignature, AccountDeploymentData, PaymasterData};
+    use starknet_api::data_availability::DataAvailabilityMode;
+    use starknet_types_core::felt::Felt;
+    use prost::Message;
+    use crate::protobuf;
+
+    // Create calldata with 5000 elements
+    let calldata_size = 5000;
+    let calldata_vec: Vec<Felt> = (0..calldata_size).map(|i| Felt::from(i as u64)).collect();
+    let calldata = Calldata(Arc::new(calldata_vec));
+    
+    // Create resource bounds
+    let resource_bounds = AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(100000),
+            max_price_per_unit: GasPrice(1000000000), // 1 gwei
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(100000),
+            max_price_per_unit: GasPrice(1000000000),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(100000),
+            max_price_per_unit: GasPrice(1000000000),
+        },
+    };
+    
+    // Create an invoke transaction V3
+    let invoke_tx = RpcInvokeTransactionV3 {
+        resource_bounds,
+        tip: Tip(0),
+        calldata,
+        sender_address: ContractAddress::try_from(Felt::from(0x123456789abcdef_u64)).unwrap(),
+        nonce: Nonce(Felt::from(1_u64)),
+        signature: TransactionSignature(Arc::new(vec![Felt::from(0x1_u64), Felt::from(0x2_u64)])),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData(vec![]),
+        account_deployment_data: AccountDeploymentData(vec![]),
+    };
+    
+    // Convert to RPC transaction
+    let rpc_tx = RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx));
+    
+    // Convert to consensus transaction
+    let consensus_tx = ConsensusTransaction::RpcTransaction(rpc_tx);
+    
+    // Convert to protobuf
+    let protobuf_tx: protobuf::ConsensusTransaction = consensus_tx.into();
+    
+    // Encode to bytes
+    let encoded_bytes = protobuf_tx.encode_to_vec();
+    
+    println!("Invoke transaction with {} calldata elements:", calldata_size);
+    println!("Protobuf encoded size: {} bytes", encoded_bytes.len());
+    println!("Size in KB: {:.2} KB", encoded_bytes.len() as f64 / 1024.0);
+    
+    // Let's also break down the size by components
+    println!("\nBreakdown:");
+    
+    // Encode just the calldata part to see its contribution
+    let calldata_only = (0..calldata_size).map(|i| Felt::from(i as u64))
+        .map(|felt| protobuf::Felt252 { elements: felt.to_bytes_be().to_vec() })
+        .collect::<Vec<_>>();
+    
+    let mut calldata_size_estimate = 0;
+    for felt in &calldata_only {
+        calldata_size_estimate += felt.encoded_len();
+    }
+    
+    println!("Estimated calldata contribution: {} bytes ({:.1}%)", 
+             calldata_size_estimate, 
+             (calldata_size_estimate as f64 / encoded_bytes.len() as f64) * 100.0);
+    println!("Other transaction fields: {} bytes ({:.1}%)", 
+             encoded_bytes.len() - calldata_size_estimate,
+             ((encoded_bytes.len() - calldata_size_estimate) as f64 / encoded_bytes.len() as f64) * 100.0);
+    
+    // Calculate bytes per calldata element
+    println!("Average bytes per calldata element: {:.2}", calldata_size_estimate as f64 / calldata_size as f64);
+    
+    // Also test smaller sizes for comparison
+    for size in [100, 1000, 2000, 3000, 4000] {
+        let small_calldata = Calldata(Arc::new((0..size).map(|i| Felt::from(i as u64)).collect()));
+        let small_invoke_tx = RpcInvokeTransactionV3 {
+            resource_bounds: resource_bounds.clone(),
+            tip: Tip(0),
+            calldata: small_calldata,
+            sender_address: ContractAddress::try_from(Felt::from(0x123456789abcdef_u64)).unwrap(),
+            nonce: Nonce(Felt::from(1_u64)),
+            signature: TransactionSignature(Arc::new(vec![Felt::from(0x1_u64), Felt::from(0x2_u64)])),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData(vec![]),
+            account_deployment_data: AccountDeploymentData(vec![]),
+        };
+        
+        let small_rpc_tx = RpcTransaction::Invoke(RpcInvokeTransaction::V3(small_invoke_tx));
+        let small_consensus_tx = ConsensusTransaction::RpcTransaction(small_rpc_tx);
+        let small_protobuf_tx: protobuf::ConsensusTransaction = small_consensus_tx.into();
+        let small_encoded_bytes = small_protobuf_tx.encode_to_vec();
+        
+        println!("Size with {} calldata elements: {} bytes ({:.2} KB)", 
+                 size, small_encoded_bytes.len(), small_encoded_bytes.len() as f64 / 1024.0);
+    }
+}
