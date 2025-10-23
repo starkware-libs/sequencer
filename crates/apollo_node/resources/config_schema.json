@@ -1792,7 +1792,7 @@
   "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
-    "value": 1100000000
+    "value": 1200000000
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
