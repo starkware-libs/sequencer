@@ -30,7 +30,7 @@ use apollo_network::network_manager::metrics::{
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
-use apollo_reverts::revert_blocks_and_eternal_pending;
+use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
@@ -248,7 +248,7 @@ impl ConsensusManager {
             batcher_height_marker,
             revert_up_to_and_including,
             revert_blocks_fn,
-            "Batcher",
+            &RevertComponentData::BATCHER,
         )
         .await;
     }

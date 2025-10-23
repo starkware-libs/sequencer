@@ -19,7 +19,7 @@ use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClien
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
-use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
+use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_rpc::{run_server, RpcConfig};
 use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlock,
@@ -190,7 +190,7 @@ impl StateSyncRunner {
                         current_header_marker,
                         revert_up_to_and_including,
                         revert_block_fn,
-                        "State Sync",
+                        &RevertComponentData::STATE_SYNC,
                     )
                     .map(|_never| unreachable!("Never should never be constructed"))
                     .boxed(),

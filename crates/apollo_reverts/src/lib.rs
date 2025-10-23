@@ -1,8 +1,11 @@
+mod metrics;
+
 use std::collections::BTreeMap;
 use std::future::Future;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_metrics::metrics::MetricGauge;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
@@ -15,6 +18,11 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
 use validator::Validate;
+
+use crate::metrics::{
+    REVERTED_BATCHER_UP_TO_AND_INCLUDING,
+    REVERTED_STATE_SYNC_UP_TO_AND_INCLUDING,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RevertConfig {
@@ -54,11 +62,23 @@ impl SerializeConfig for RevertConfig {
     }
 }
 
+pub struct RevertComponentData {
+    name: &'static str,
+    revert_metric: MetricGauge,
+}
+
+impl RevertComponentData {
+    pub const BATCHER: Self =
+        Self { name: "Batcher", revert_metric: REVERTED_BATCHER_UP_TO_AND_INCLUDING };
+    pub const STATE_SYNC: Self =
+        Self { name: "State Sync", revert_metric: REVERTED_STATE_SYNC_UP_TO_AND_INCLUDING };
+}
+
 pub async fn revert_blocks_and_eternal_pending<Fut>(
     mut storage_height_marker: BlockNumber,
     revert_up_to_and_including: BlockNumber,
     mut revert_block_fn: impl FnMut(BlockNumber) -> Fut,
-    component_name: &str,
+    component: &RevertComponentData,
 ) -> Never
 where
     Fut: Future<Output = ()>,
@@ -66,6 +86,7 @@ where
     // If we revert all blocks up to height X (including), the new height marker will be X.
     let target_height_marker = revert_up_to_and_including;
 
+    let component_name = component.name;
     if storage_height_marker <= target_height_marker {
         info!(
             "{component_name}'s storage height marker {storage_height_marker} is not larger than \
@@ -84,6 +105,7 @@ where
         );
         info!("Reverting {component_name}'s storage to height marker {storage_height_marker}.");
         revert_block_fn(storage_height_marker).await;
+        component.revert_metric.set_lossy(storage_height_marker.0);
         info!(
             "Successfully reverted {component_name}'s storage to height marker \
              {storage_height_marker}."

@@ -2160,6 +2160,7 @@ name = "apollo_reverts"
 version = "0.16.0-rc.0"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "apollo_storage",
  "futures",
  "serde",
