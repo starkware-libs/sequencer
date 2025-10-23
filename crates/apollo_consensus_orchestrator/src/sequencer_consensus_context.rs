@@ -332,7 +332,11 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_timestamp_window_seconds: self.config.block_timestamp_window_seconds,
                     previous_block_info: self.previous_block_info.clone(),
                     l1_da_mode: self.l1_da_mode,
-                    l2_gas_price_fri: self.l2_gas_price,
+                    l2_gas_price_fri: self
+                        .config
+                        .override_l2_gas_price_fri
+                        .map(GasPrice)
+                        .unwrap_or(self.l2_gas_price),
                 };
                 self.validate_current_round_proposal(
                     block_info_validation,
