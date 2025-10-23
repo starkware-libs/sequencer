@@ -23,7 +23,7 @@ use starknet_api::test_utils::invoke::{
     InvokeTxArgs,
 };
 use starknet_api::test_utils::{
-    resource_bounds_for_testing,
+    valid_resource_bounds_for_testing,
     NonceManager,
     TEST_ERC20_CONTRACT_ADDRESS2,
     VALID_L2_GAS_MAX_AMOUNT,
@@ -59,10 +59,6 @@ pub const TIP_FOR_TESTING: Tip = Tip(1);
 
 // Utils.
 
-pub fn test_valid_resource_bounds() -> ValidResourceBounds {
-    ValidResourceBounds::AllResources(resource_bounds_for_testing())
-}
-
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
     let test_files_folder_path = resolve_project_relative_path(TEST_FILES_FOLDER).unwrap();
@@ -87,7 +83,7 @@ pub fn declare_tx() -> RpcTransaction {
         declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: account_address,
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             nonce,
             compiled_class_hash: compiled_class_hash
         ),
@@ -106,7 +102,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
 
     rpc_invoke_tx(invoke_tx_args!(
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
         nonce : nonce_manager.next(sender_address),
         sender_address,
         calldata,
@@ -134,7 +130,7 @@ pub fn generate_deploy_account_with_salt(
 ) -> RpcTransaction {
     let deploy_account_args = deploy_account_tx_args!(
         class_hash: account.get_class_hash(),
-        resource_bounds: test_valid_resource_bounds(),
+        resource_bounds: valid_resource_bounds_for_testing(),
         contract_address_salt
     );
 
@@ -382,7 +378,7 @@ impl AccountTransactionGenerator {
             .sender_address(self.sender_address())
             .tip(TIP_FOR_TESTING)
             .nonce(self.next_nonce())
-            .resource_bounds(test_valid_resource_bounds())
+            .resource_bounds(valid_resource_bounds_for_testing())
     }
 
     pub fn generate_trivial_rpc_invoke_tx(&mut self, tip: u64) -> RpcTransaction {
@@ -452,7 +448,7 @@ impl AccountTransactionGenerator {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
             sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             nonce,
             compiled_class_hash,
         );
@@ -494,7 +490,7 @@ impl AccountTransactionGenerator {
 
         let invoke_args = invoke_tx_args!(
             sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             nonce,
             calldata
         );
@@ -512,7 +508,7 @@ impl AccountTransactionGenerator {
         assert_eq!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
         let deploy_account_args = deploy_account_tx_args!(
             class_hash: self.account.class_hash(),
-            resource_bounds: test_valid_resource_bounds(),
+            resource_bounds: valid_resource_bounds_for_testing(),
             contract_address_salt: ContractAddressSalt(self.contract_address_salt.0)
         );
         rpc_deploy_account_tx(deploy_account_args)
