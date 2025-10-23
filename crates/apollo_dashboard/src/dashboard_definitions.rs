@@ -25,8 +25,15 @@ use crate::panels::http_server::{
     get_http_server_row,
     get_panel_http_server_transactions_received_rate,
 };
-use crate::panels::l1_gas_price::get_l1_gas_price_row;
-use crate::panels::l1_provider::get_l1_provider_row;
+use crate::panels::l1_gas_price::{
+    get_l1_gas_price_row,
+    get_panel_eth_to_strk_seconds_since_last_successful_update,
+    get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape,
+};
+use crate::panels::l1_provider::{
+    get_l1_provider_row,
+    get_panel_l1_message_scraper_seconds_since_last_successful_scrape,
+};
 use crate::panels::mempool::get_mempool_row;
 use crate::panels::mempool_p2p::get_mempool_p2p_row;
 use crate::panels::pod_metrics::get_pod_metrics_row;
@@ -52,6 +59,10 @@ fn get_overview_row() -> Row {
             get_panel_batched_transactions_rate(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_gateway_add_tx_failure_by_reason(),
+            // TODO(shahak): try to find a way to consice all 3 l1 panels to one panel
+            get_panel_l1_message_scraper_seconds_since_last_successful_scrape(),
+            get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape(),
+            get_panel_eth_to_strk_seconds_since_last_successful_update(),
         ],
     )
     .expand()
