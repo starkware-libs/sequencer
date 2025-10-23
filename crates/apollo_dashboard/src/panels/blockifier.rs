@@ -1,4 +1,8 @@
-use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
+use apollo_batcher::metrics::{
+    NUM_TRANSACTION_IN_BLOCK,
+    PROVING_GAS_IN_LAST_BLOCK,
+    SIERRA_GAS_IN_LAST_BLOCK,
+};
 use blockifier::metrics::{
     BLOCKIFIER_METRIC_RATE_DURATION,
     CALLS_RUNNING_NATIVE,
@@ -56,6 +60,14 @@ fn get_panel_transactions_per_block() -> Panel {
     )
 }
 
+fn get_panel_sierra_gas_in_last_block() -> Panel {
+    Panel::from_gauge(&SIERRA_GAS_IN_LAST_BLOCK, PanelType::TimeSeries)
+}
+
+fn get_panel_proving_gas_in_last_block() -> Panel {
+    Panel::from_gauge(&PROVING_GAS_IN_LAST_BLOCK, PanelType::TimeSeries)
+}
+
 pub(crate) fn get_blockifier_row() -> Row {
     Row::new(
         "Blockifier",
@@ -65,6 +77,8 @@ pub(crate) fn get_blockifier_row() -> Row {
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
             get_panel_transactions_per_block(),
+            get_panel_sierra_gas_in_last_block(),
+            get_panel_proving_gas_in_last_block(),
         ],
     )
 }

@@ -934,6 +934,24 @@
             "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "batcher_sierra_gas_in_last_block",
+          "description": "The sierra gas in the last block",
+          "type": "timeseries",
+          "exprs": [
+            "batcher_sierra_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "batcher_proving_gas_in_last_block",
+          "description": "The proving gas in the last block",
+          "type": "timeseries",
+          "exprs": [
+            "batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
