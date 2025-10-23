@@ -412,6 +412,33 @@
           "extra_params": {
             "log_query": "\"BATCHER_FIN_PROPOSER\""
           }
+        },
+        {
+          "title": "Average Sierra Gas Usage in Block",
+          "description": "The average sierra gas usage in block (10m window)",
+          "type": "stat",
+          "exprs": [
+            "avg_over_time(batcher_sierra_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average Proving Gas Usage in Block",
+          "description": "The average proving gas usage in block (10m window)",
+          "type": "stat",
+          "exprs": [
+            "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average Number of Transactions in Block",
+          "description": "The average number of transactions in block (10m window)",
+          "type": "stat",
+          "exprs": [
+            "avg_over_time(batcher_n_txs_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true

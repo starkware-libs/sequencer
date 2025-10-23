@@ -50,7 +50,13 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
-use crate::metrics::{PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS};
+use crate::metrics::{
+    N_TXS_IN_LAST_BLOCK,
+    PROPOSER_DEFERRED_TXS,
+    PROVING_GAS_IN_LAST_BLOCK,
+    SIERRA_GAS_IN_LAST_BLOCK,
+    VALIDATOR_WASTED_TXS,
+};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
@@ -218,6 +224,12 @@ impl BlockBuilder {
     }
 }
 
+fn set_last_block_weight_metrics(bouncer_weights: &BouncerWeights) {
+    SIERRA_GAS_IN_LAST_BLOCK.set_lossy(bouncer_weights.sierra_gas.0);
+    PROVING_GAS_IN_LAST_BLOCK.set_lossy(bouncer_weights.proving_gas.0);
+    N_TXS_IN_LAST_BLOCK.set_lossy(bouncer_weights.n_txs);
+}
+
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
@@ -330,6 +342,9 @@ impl BlockBuilder {
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
         } = block_summary;
+
+        set_last_block_weight_metrics(&bouncer_weights);
+
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
