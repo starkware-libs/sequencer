@@ -55,6 +55,10 @@ use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender}
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
+/// Minimum timeout for block building before finishing due to timeout without new transactions.
+// TODO(dan): Make this configurable and fix the corresponding test.
+pub const MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS: u64 = 2;
+
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
     #[error(transparent)]
@@ -181,6 +185,9 @@ pub struct BlockBuilder {
     n_concurrent_txs: usize,
     tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
+
+    /// Timestamp when block building started.
+    block_building_start: tokio::time::Instant,
 }
 
 impl BlockBuilder {
@@ -214,6 +221,7 @@ impl BlockBuilder {
             n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
+            block_building_start: tokio::time::Instant::now(),
         }
     }
 }
@@ -238,11 +246,31 @@ impl BlockBuilder {
                 if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
+                // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
                 crate::metrics::BLOCK_CLOSE_REASON.increment(
                     1,
                     &[(
                         crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
                         crate::metrics::BlockCloseReason::Deadline.into(),
+                    )],
+                );
+                break;
+            }
+
+            if self.should_finish_due_to_timeout_while_propose() {
+                let now = tokio::time::Instant::now();
+                let time_since_start = now.duration_since(self.block_building_start);
+                info!(
+                    "No transactions are being executed and {:?} passed since block building \
+                     started (timeout is set to {:?}), finishing block building.",
+                    time_since_start, MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+                );
+                // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
+                crate::metrics::BLOCK_CLOSE_REASON.increment(
+                    1,
+                    &[(
+                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                        crate::metrics::BlockCloseReason::IdleExecutionTimeout.into(),
                     )],
                 );
                 break;
@@ -267,6 +295,7 @@ impl BlockBuilder {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
+                // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
                 crate::metrics::BLOCK_CLOSE_REASON.increment(
                     1,
                     &[(
@@ -520,6 +549,18 @@ impl BlockBuilder {
                 );
             }
         }
+    }
+
+    fn should_finish_due_to_timeout_while_propose(&self) -> bool {
+        if self.execution_params.is_validator {
+            return false;
+        };
+        if self.n_txs_in_progress() > 0 {
+            return false;
+        };
+        let now = tokio::time::Instant::now();
+        let time_since_start = now.duration_since(self.block_building_start);
+        time_since_start.as_secs() >= MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
     }
 
     async fn sleep(&mut self) {
