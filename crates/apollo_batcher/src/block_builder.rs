@@ -1,6 +1,7 @@
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
@@ -159,7 +160,7 @@ pub trait BlockBuilderTrait: Send {
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
     pub is_validator: bool,
-    pub proposer_idle_detection_delay: std::time::Duration,
+    pub proposer_idle_detection_delay: Duration,
 }
 
 pub struct BlockBuilder {
