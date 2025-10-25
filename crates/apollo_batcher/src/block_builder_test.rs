@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
@@ -59,7 +60,7 @@ const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const N_CONCURRENT_TXS: usize = 3;
 const TX_POLLING_INTERVAL: u64 = 100;
-const DEFAULT_IDLE_TIMEOUT_MS: std::time::Duration = std::time::Duration::from_millis(2000);
+const DEFAULT_IDLE_TIMEOUT_MS: Duration = Duration::from_millis(2000);
 
 struct TestExpectations {
     mock_transaction_executor: MockTransactionExecutorTrait,
@@ -680,7 +681,7 @@ async fn run_build_block(
     is_validator: bool,
     abort_receiver: tokio::sync::oneshot::Receiver<()>,
     deadline_secs: u64,
-    idle_timeout_duration: std::time::Duration,
+    idle_timeout_duration: Duration,
 ) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(deadline_secs);
     let transaction_converter = TransactionConverter::new(
@@ -732,7 +733,7 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
     let idle_timeout_duration = if test_expectations.expected_idle_execution_timeout_metric > 0 {
-        std::time::Duration::from_millis(100)
+        Duration::from_millis(100)
     } else {
         DEFAULT_IDLE_TIMEOUT_MS
     };
