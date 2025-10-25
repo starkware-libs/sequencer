@@ -21,6 +21,7 @@ use starknet_api::block::{
     GasPrice,
     GasPricePerToken,
 };
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -294,12 +295,14 @@ impl TxsScenarioBuilder {
     }
 
     pub fn declare_class(mut self, sender_address: ContractAddress) -> TxsScenarioBuilder {
+        let casm = get_test_casm();
         let tx = ExecutableTransactionInput::DeclareV2(
             DeclareTransactionV2 {
                 max_fee: *MAX_FEE,
                 sender_address,
                 nonce: self.next_nonce(sender_address),
                 class_hash: self.next_class_hash(),
+                compiled_class_hash: casm.hash(&HashVersion::V2),
                 ..Default::default()
             },
             get_test_casm(),
