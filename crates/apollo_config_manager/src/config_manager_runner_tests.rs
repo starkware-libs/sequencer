@@ -10,6 +10,7 @@ use apollo_config_manager_types::communication::{
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{
+    NodeDynamicConfig,
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
@@ -98,9 +99,15 @@ async fn test_config_manager_runner_update_config_with_changed_values() {
     // Create a temporary config file and get the validator id value.
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
 
+    let node_dynamic_config = NodeDynamicConfig::default();
+
     // Create a config manager runner and update the config.
-    let config_manager_runner =
-        ConfigManagerRunner::new(config_manager_config, config_manager_client, cli_args);
+    let mut config_manager_runner = ConfigManagerRunner::new(
+        config_manager_config,
+        config_manager_client,
+        node_dynamic_config,
+        cli_args,
+    );
 
     // Helper function to convert a hex string to a u128.
     fn hex_to_u128(s: &str) -> u128 {

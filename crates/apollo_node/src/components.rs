@@ -125,39 +125,40 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let (config_manager, config_manager_runner) = match config
-        .components
-        .config_manager
-        .execution_mode
-    {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-            let config_manager_config =
-                config.config_manager_config.as_ref().expect("Config Manager config should be set");
-            let config_manger =
-                ConfigManager::new(config_manager_config.clone(), NodeDynamicConfig::from(config));
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
-            let config_manager_runner = ConfigManagerRunner::new(
-                config_manager_config.clone(),
-                config_manager_client,
-                cli_args,
-            );
-            (Some(config_manger), Some(config_manager_runner))
-        }
+    let (config_manager, config_manager_runner) =
+        match config.components.config_manager.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+                let node_dynamic_config = NodeDynamicConfig::from(config);
+                let config_manager_config = config
+                    .config_manager_config
+                    .as_ref()
+                    .expect("Config Manager config should be set");
+                let config_manger =
+                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
+                let config_manager_client = clients
+                    .get_config_manager_shared_client()
+                    .expect("Config Manager client should be available");
+                let config_manager_runner = ConfigManagerRunner::new(
+                    config_manager_config.clone(),
+                    config_manager_client,
+                    node_dynamic_config,
+                    cli_args,
+                );
+                (Some(config_manger), Some(config_manager_runner))
+            }
 
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
-        | ReactiveComponentExecutionMode::Remote => {
-            panic!(
-                "ConfigManager does not support remote mode - it's a local infrastructure \
-                 component"
-            );
-        }
-        ReactiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
-            (None, None)
-        }
-    };
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::Remote => {
+                panic!(
+                    "ConfigManager does not support remote mode - it's a local infrastructure \
+                     component"
+                );
+            }
+            ReactiveComponentExecutionMode::Disabled => {
+                // TODO(tsabary): assert config is not set.
+                (None, None)
+            }
+        };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
