@@ -2,9 +2,12 @@ use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
     LABEL_NAME_BLOCK_CLOSE_REASON,
+    N_TXS_IN_LAST_BLOCK,
     PROPOSER_DEFERRED_TXS,
+    PROVING_GAS_IN_LAST_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
+    SIERRA_GAS_IN_LAST_BLOCK,
     STORAGE_HEIGHT,
     VALIDATOR_WASTED_TXS,
 };
@@ -114,6 +117,32 @@ fn get_panel_num_txs_in_proposal() -> Panel {
     .with_log_query("BATCHER_FIN_PROPOSER")
 }
 
+fn get_panel_average_sierra_gas_in_block() -> Panel {
+    Panel::new(
+        "Average Sierra Gas Usage in Block",
+        "The average sierra gas usage in block (10m window)",
+        vec![format!("avg_over_time({}[10m]))", SIERRA_GAS_IN_LAST_BLOCK.get_name_with_filter())],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_average_proving_gas_in_block() -> Panel {
+    Panel::new(
+        "Average Proving Gas Usage in Block",
+        "The average proving gas usage in block (10m window)",
+        vec![format!("avg_over_time({}[10m]))", PROVING_GAS_IN_LAST_BLOCK.get_name_with_filter())],
+        PanelType::Stat,
+    )
+}
+
+fn get_panel_average_num_txs_in_block() -> Panel {
+    Panel::new(
+        "Average Number of Transactions in Block",
+        "The average number of transactions in block (10m window)",
+        vec![format!("avg_over_time({}[10m]))", N_TXS_IN_LAST_BLOCK.get_name_with_filter())],
+        PanelType::Stat,
+    )
+}
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -126,6 +155,9 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_block_close_reasons(),
             get_panel_num_batches_in_proposal(),
             get_panel_num_txs_in_proposal(),
+            get_panel_average_sierra_gas_in_block(),
+            get_panel_average_proving_gas_in_block(),
+            get_panel_average_num_txs_in_block(),
         ],
     )
 }

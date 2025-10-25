@@ -24,7 +24,6 @@ use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
-
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
 pub mod transaction_executor_test;
@@ -241,6 +240,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         block_context.block_info.block_number,
         bouncer.get_bouncer_weights()
     );
+
     let alias_contract_address = block_context
         .versioned_constants
         .os_constants
