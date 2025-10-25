@@ -3,13 +3,10 @@ name: Sequencer-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - main-v*.*.* # e.g. main-v0.14.0
-      - v*.*.*-integration # e.g. v0.14.0-integration
     tags:
       - "v*.*.*"
       - "APOLLO-*"
+  pull_request:
     paths:
       - ".github/workflows/sequencer_docker-publish.yml"
       - "crates/**"
@@ -59,15 +56,14 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/sequencer
           tags: |
+            # Tag-based releases
             type=raw,enable=${{ startsWith(github.ref, 'refs/tags/') && 'true' || 'false' }},value={{tag}}
             type=semver,pattern={{raw}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            # PR builds (for testing only, won't be pushed)
             type=ref,event=pr
-            # set `dev` tag for the default branch (`main`).
-            type=raw,value=dev,enable={{is_default_branch}}
-            # set `dev-{{branch}}-{{sha}}` additional tag for the default branch (`main`).
-            type=raw,value=dev-{{branch}}{{tag}}-{{sha}},enable={{is_default_branch}}
+            # Manual workflow dispatch
             type=raw,value={{branch}}{{tag}}-{{sha}},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       # Build and push Docker image with Buildx
