@@ -214,6 +214,9 @@ impl TransfersGenerator {
         &mut self,
         timeout: Option<Duration>,
     ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
+        // Reset nonce manager since we create a fresh state for each block.
+        self.nonce_manager = NonceManager::default();
+
         let mut txs: Vec<Transaction> = Vec::with_capacity(self.config.n_txs);
         for _ in 0..self.config.n_txs {
             let sender_address = self.account_addresses[self.sender_index];
