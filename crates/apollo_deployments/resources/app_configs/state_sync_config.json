@@ -13,7 +13,6 @@
   "state_sync_config.central_sync_client_config.sync_config.collect_pending_data": false,
   "state_sync_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": 3,
   "state_sync_config.central_sync_client_config.sync_config.state_updates_max_stream_size": 1000,
-  "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": false,
   "state_sync_config.central_sync_client_config.sync_config.verify_blocks": false,
   "state_sync_config.network_config.advertised_multiaddr": "",
   "state_sync_config.network_config.advertised_multiaddr.#is_none": true,
