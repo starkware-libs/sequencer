@@ -828,7 +828,7 @@
           "extra_params": {}
         },
         {
-          "title": "eth_to_strk_rate",
+          "title": "ETH→STRK rate",
           "description": "ETH→STRK rate (divided by DEFAULT_ETH_TO_FRI_RATE=1000000000000000000000)",
           "type": "timeseries",
           "exprs": [
@@ -1010,7 +1010,7 @@
         {
           "title": "Number of Connected Peers",
           "description": "The number of connected peers in Consensus P2P",
-          "type": "timeseries",
+          "type": "stat",
           "exprs": [
             "apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
@@ -1018,73 +1018,73 @@
         },
         {
           "title": "Consensus Votes Number of Sent Messages",
-          "description": "The increase in the number of vote messages sent by consensus p2p (10m window)",
-          "type": "timeseries",
+          "description": "The increase in the number of vote messages sent by consensus p2p (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
           ],
           "extra_params": {}
         },
         {
           "title": "Consensus Votes Number of Received Messages",
-          "description": "The increase in the number of vote messages received by consensus p2p (10m window)",
-          "type": "timeseries",
+          "description": "The increase in the number of vote messages received by consensus p2p (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "increase(apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "increase(apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
           ],
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_votes_num_dropped_messages",
-          "description": "The number of messages dropped by the consensus p2p component over the Votes topic",
-          "type": "timeseries",
+          "title": "Consensus Votes Dropped Messages By Reason",
+          "description": "The number of dropped consensus votes messages, by reason (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "sum by (drop_reason) (apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "sum by (drop_reason) (increase(apollo_consensus_votes_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
         },
         {
           "title": "Consensus Conflicting Votes",
-          "description": "The increase in the number of conflicting votes (12h window)",
-          "type": "timeseries",
+          "description": "The increase in the number of conflicting votes (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[12h])"
+            "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
           ],
           "extra_params": {}
         },
         {
           "title": "Consensus Proposals Number of Sent Messages",
-          "description": "The increase in the number of proposal messages sent by consensus p2p (10m window)",
-          "type": "timeseries",
+          "description": "The increase in the number of proposal messages sent by consensus p2p (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "increase(apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "increase(apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
           ],
           "extra_params": {}
         },
         {
           "title": "Consensus Proposals Number of Received Messages",
-          "description": "The increase in the number of proposal messages received by consensus p2p (10m window)",
-          "type": "timeseries",
+          "description": "The increase in the number of proposal messages received by consensus p2p (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "increase(apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+            "increase(apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])"
           ],
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_proposals_num_dropped_messages",
-          "description": "The number of messages dropped by the consensus p2p component over the Proposals topic",
-          "type": "timeseries",
+          "title": "Consensus Proposals Dropped Messages By Reason",
+          "description": "The number of dropped consensus proposals messages, by reason (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "sum by (drop_reason) (apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "sum by (drop_reason) (increase(apollo_consensus_proposals_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
         },
         {
-          "title": "apollo_consensus_network_events",
-          "description": "Network events counter by event type for consensus",
-          "type": "timeseries",
+          "title": "Consensus Network Events By Type",
+          "description": "Network events received by consensus p2p, by event type (over the selected time range)",
+          "type": "stat",
           "exprs": [
-            "sum by (event_type) (apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+            "sum by (event_type) (increase(apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
           ],
           "extra_params": {}
         }
