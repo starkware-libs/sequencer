@@ -14,6 +14,7 @@ use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
 use url::Url;
 
+pub mod anvil_base_layer;
 pub mod constants;
 pub mod ethereum_base_layer_contract;
 pub mod monitored_base_layer;
