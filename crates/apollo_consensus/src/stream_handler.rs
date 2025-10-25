@@ -143,7 +143,7 @@ where
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
     outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
-    // A map where the abovementioned Receivers are stored.
+    // A map where the above mentioned Receivers are stored.
     outbound_stream_receivers: StreamMap<StreamId, mpsc::Receiver<StreamContent>>,
     // A network sender that allows sending StreamMessages to peers.
     outbound_sender: OutboundSenderT,
@@ -198,6 +198,8 @@ where
     ///
     /// Expects to live forever, returning an Error if the client or network close their sender.
     pub async fn handle_next_msg(&mut self) -> Result<(), StreamHandlerError> {
+        // TODO(Dafna): Consider spawning a separate task for each of the three channels to ensure
+        // they don’t block one another.
         tokio::select!(
             // New outbound stream.
             outbound_stream = self.outbound_channel_receiver.next() => {
@@ -245,49 +247,51 @@ where
         }
     }
 
+    // Returns true if the message was successfully sent.
+    // If the message was not sent, it is either due to disconnected channel or full channel.
     fn inbound_send(
         &mut self,
         data: &mut StreamData<StreamContent, StreamId>,
         message: StreamMessage<StreamContent, StreamId>,
     ) -> bool {
-        // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
-            match sender.try_send(content) {
-                Ok(_) => {}
-                Err(e) => {
-                    if e.is_disconnected() {
-                        warn!(
-                            "Sender is disconnected, dropping the message. StreamId: {}, \
-                             MessageId: {}",
-                            message.stream_id, message.message_id
-                        );
-                        return true;
-                    } else if e.is_full() {
-                        // TODO(guyn): replace panic with buffering of the message.
-                        panic!(
-                            "Sender is full, dropping the message. StreamId: {}, MessageId: {}",
-                            message.stream_id, message.message_id
-                        );
-                    } else {
-                        // TODO(guyn): replace panic with more graceful error handling
-                        panic!("Unexpected error: {e:?}");
-                    }
-                }
-            };
+            if let Err(e) = sender.try_send(content) {
+                warn!(
+                    "Error sending inbound message: {e:?}; dropping the message. StreamId: {}, \
+                     MessageId: {}",
+                    message.stream_id, message.message_id
+                );
+                return false;
+            }
+
             // Send the receiver only once the first message has been sent.
             if message.message_id == 0 {
-                // TODO(guyn): consider the expect in both cases.
                 // If this is the first message, send the receiver to the application.
+                // Note: By this point, messages must be unique. Duplicate message IDs should
+                // have been discarded earlier.
                 let receiver = data.receiver.take().expect("Receiver should exist");
+
                 // Send the receiver to the application.
-                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
+                match self.inbound_channel_sender.try_send(receiver) {
+                    Ok(()) => {} // Successfully sent
+                    Err(e) if e.is_disconnected() => panic!("Receiver was unexpectedly dropped"),
+                    Err(e) => {
+                        // The channel is full
+                        warn!(
+                            "Failed to send receiver to application: {e:?}; dropping the message. \
+                             StreamId: {}, MessageId: {}",
+                            message.stream_id, message.message_id
+                        );
+                        return false;
+                    }
+                }
             }
             data.next_message_id += 1;
-            return false;
+            return true;
         }
-        // A Fin message is not sent. This is a no-op, can safely return true.
-        true
+        // A Fin message is not sent. This is a no-op, can safely return false.
+        false
     }
 
     // Send the message to the network.
@@ -300,7 +304,6 @@ where
             stream_id: stream_id.clone(),
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
-        // TODO(guyn): reconsider the "expect" here.
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
         self.outbound_stream_number.insert(
             stream_id.clone(),
@@ -414,13 +417,19 @@ where
         // This means we can just send the message without buffering it.
         match message_id.cmp(&data.next_message_id) {
             Ordering::Equal => {
-                let mut receiver_dropped = self.inbound_send(&mut data, message);
-                if !receiver_dropped {
-                    receiver_dropped = self.process_buffer(&mut data);
+                let mut message_sent = self.inbound_send(&mut data, message);
+                if message_sent {
+                    message_sent = self.process_buffer(&mut data);
                 }
 
-                if data.message_buffer.is_empty() && data.fin_message_id.is_some()
-                    || receiver_dropped
+                // We are done with this stream if:
+                // 1. All messages were sent successfully.
+                // 2. A send error occurred (receiver dropped or channel full).
+                //
+                // A full channel is currently treated as an error, as we expect
+                // capacity to always be sufficient.
+                // TODO(Dafna): Consider implementing buffering as a fallback for the 'full' case.
+                if data.message_buffer.is_empty() && data.fin_message_id.is_some() || !message_sent
                 {
                     data.sender.close_channel();
                     CONSENSUS_INBOUND_STREAM_FINISHED.increment(1);
@@ -469,14 +478,15 @@ where
     }
 
     // Tries to drain as many messages as possible from the buffer (in order),
-    // DOES NOT guarantee that the buffer will be empty after calling this function.
-    // Returns true if the receiver for this stream is dropped.
+    // Returns true if all attempted messages were sent successfully, and false otherwise.
+    // DOES NOT guarantee that the buffer will be empty after calling this function - only that the
+    // messages which were tried to send were handled successfully.
     fn process_buffer(&mut self, data: &mut StreamData<StreamContent, StreamId>) -> bool {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            if self.inbound_send(data, message) {
-                return true;
+            if !self.inbound_send(data, message) {
+                return false;
             }
         }
-        false
+        true
     }
 }
