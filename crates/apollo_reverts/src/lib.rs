@@ -7,6 +7,7 @@ use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
@@ -121,6 +122,8 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .try_revert_class_manager_marker(target_block_marker)
         .unwrap()
         .try_revert_base_layer_marker(target_block_marker)
+        .unwrap()
+        .revert_partial_block_hash_components(&target_block_marker)
         .unwrap()
         .commit()
         .unwrap();

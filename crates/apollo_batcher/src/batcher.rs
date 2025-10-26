@@ -33,6 +33,7 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -42,6 +43,7 @@ use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -1007,8 +1009,13 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
+        // TODO(Nimrod): Get the real partial block hash as input.
+        let dummy_partial_block_hash_components = PartialBlockHashComponents::default();
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        self.begin_rw_txn()?
+            .append_state_diff(height, state_diff)?
+            .set_partial_block_hash_components(&height, &dummy_partial_block_hash_components)?
+            .commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.
