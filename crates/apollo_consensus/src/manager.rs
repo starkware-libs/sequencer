@@ -11,7 +11,8 @@ mod manager_test;
 
 use std::collections::BTreeMap;
 
-use apollo_consensus_config::config::ConsensusConfig;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
@@ -38,9 +39,10 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 use crate::votes_threshold::QuorumType;
 
 /// Arguments for running consensus.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RunConsensusArguments {
-    /// Consensus configuration (dynamic + static parameters).
+    /// Consensus configuration (static + dynamic). Static fields are used directly; dynamic
+    /// fields are refreshed at height boundaries via `config_manager_client` when provided.
     pub consensus_config: ConsensusConfig,
     /// The height at which the node may participate in consensus (if it is a validator).
     pub start_active_height: BlockNumber,
@@ -48,6 +50,20 @@ pub struct RunConsensusArguments {
     pub start_observe_height: BlockNumber,
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
+    /// Optional client for fetching dynamic consensus config between heights.
+    pub config_manager_client: Option<SharedConfigManagerClient>,
+}
+
+impl std::fmt::Debug for RunConsensusArguments {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RunConsensusArguments")
+            .field("start_active_height", &self.start_active_height)
+            .field("start_observe_height", &self.start_observe_height)
+            .field("dynamic_config", &self.consensus_config.dynamic_config)
+            .field("static_config", &self.consensus_config.static_config)
+            .field("quorum_type", &self.quorum_type)
+            .finish()
+    }
 }
 
 /// Run consensus indefinitely.
@@ -92,6 +108,18 @@ where
         run_consensus_args.quorum_type,
     );
     loop {
+        if let Some(client) = &run_consensus_args.config_manager_client {
+            match client.get_consensus_dynamic_config().await {
+                Ok(dynamic_cfg) => {
+                    manager.set_dynamic_config(dynamic_cfg);
+                }
+                Err(e) => {
+                    error!(
+                        "get_consensus_dynamic_config failed: {e}. Using previous dynamic config.",
+                    );
+                }
+            }
+        }
         let must_observer = current_height < run_consensus_args.start_active_height;
         match manager
             .run_height(
@@ -160,6 +188,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
         }
+    }
+
+    /// Apply the full dynamic consensus configuration. Call only between heights.
+    pub(crate) fn set_dynamic_config(&mut self, cfg: ConsensusDynamicConfig) {
+        self.consensus_config.dynamic_config = cfg;
     }
 
     /// Run the consensus algorithm for a single height.
