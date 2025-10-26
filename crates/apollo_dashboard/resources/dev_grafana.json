@@ -1091,6 +1091,29 @@
       ],
       "collapsed": true
     },
+    "Reverts": {
+      "panels": [
+        {
+          "title": "apollo_consensus_reverted_batcher_up_to_and_including",
+          "description": "The block number up to which the batcher has reverted",
+          "type": "stat",
+          "exprs": [
+            "apollo_consensus_reverted_batcher_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_state_sync_reverted_up_to_and_including",
+          "description": "The block number up to which the state sync has reverted",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_reverted_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
     "StateSyncP2p": {
       "panels": [
         {
