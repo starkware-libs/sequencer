@@ -429,8 +429,8 @@ define_stateless_hint_enum!(
         r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
     ),
-    (GetBlockMapping, get_block_mapping, "GetBlockMapping"),
-    (IsLeaf, is_leaf, "IsLeaf"),
+    (GetBlockMapping, get_block_mapping),
+    (IsLeaf, is_leaf),
     // Builtin selection hints are non-whitelisted hints that are part of cairo common.
     (
         SelectedBuiltins,
@@ -450,16 +450,16 @@ define_stateless_hint_enum!(
       n_selected_builtins = n_selected_builtins - 1"##
         }
     ),
-    (PrepareStateEntryForRevert, prepare_state_entry_for_revert, "PrepareStateEntryForRevert"),
+    (PrepareStateEntryForRevert, prepare_state_entry_for_revert),
     (
         GenerateDummyOsOutputSegment,
         generate_dummy_os_output_segment,
         "memory[ap] = to_felt_or_relocatable(segments.gen_arg([[], 0]))"
     ),
-    (AssignBytecodeSegments, assign_bytecode_segments, "AssignBytecodeSegments"),
-    (AssertEndOfBytecodeSegments, assert_end_of_bytecode_segments, "AssertEndOfBytecodeSegments"),
-    (DeleteMemoryData, delete_memory_data, "DeleteMemoryData"),
-    (IterCurrentSegmentInfo, iter_current_segment_info, "IterCurrentSegmentInfo"),
+    (AssignBytecodeSegments, assign_bytecode_segments),
+    (AssertEndOfBytecodeSegments, assert_end_of_bytecode_segments),
+    (DeleteMemoryData, delete_memory_data),
+    (IterCurrentSegmentInfo, iter_current_segment_info),
     (
         SetApToSegmentHashPoseidon,
         set_ap_to_segment_hash::<Poseidon>,
@@ -473,13 +473,13 @@ define_stateless_hint_enum!(
         memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash_blake())"#
         }
     ),
-    (EnterScopeWithAliases, enter_scope_with_aliases, "EnterScopeWithAliases"),
+    (EnterScopeWithAliases, enter_scope_with_aliases),
     (
         KeyLtMinAliasAllocValue,
         key_lt_min_alias_alloc_value,
         "memory[ap] = to_felt_or_relocatable(ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC)"
     ),
-    (AssertKeyBigEnoughForAlias, assert_key_big_enough_for_alias, "AssertKeyBigEnoughForAlias"),
+    (AssertKeyBigEnoughForAlias, assert_key_big_enough_for_alias),
     (
         ContractAddressLeMaxForCompression,
         contract_address_le_max_for_compression,
@@ -488,12 +488,11 @@ define_stateless_hint_enum!(
     ),
     (
         ComputeCommitmentsOnFinalizedStateWithAliases,
-        compute_commitments_on_finalized_state_with_aliases,
-        "ComputeCommitmentsOnFinalizedStateWithAliases"
+        compute_commitments_on_finalized_state_with_aliases
     ),
-    (DictionaryFromBucket, dictionary_from_bucket, "DictionaryFromBucket"),
-    (GetPrevOffset, get_prev_offset, "GetPrevOffset"),
-    (CompressionHint, compression_hint, "CompressionHint"),
+    (DictionaryFromBucket, dictionary_from_bucket),
+    (GetPrevOffset, get_prev_offset),
+    (CompressionHint, compression_hint),
     (
         SetDecompressedDst,
         set_decompressed_dst,
@@ -512,8 +511,8 @@ define_stateless_hint_enum!(
         indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
         }
     ),
-    (LogRemainingTxs, log_remaining_txs, "LogRemainingTxs"),
-    (FillHolesInRc96Segment, fill_holes_in_rc96_segment, "FillHolesInRc96Segment"),
+    (LogRemainingTxs, log_remaining_txs),
+    (FillHolesInRc96Segment, fill_holes_in_rc96_segment),
     // Non-whitelisted hints that is part of cairo common.
     (
         Sha2Finalize,
@@ -536,17 +535,9 @@ output = sha2_compress_function(IV, w)
 padding = (message + IV + output) * number_of_missing_blocks
 segments.write_arg(ids.sha256_ptr_end, padding)"#}
     ),
-    (
-        EnterScopeDeprecatedSyscallHandler,
-        enter_scope_deprecated_syscall_handler,
-        "EnterScopeDeprecatedSyscallHandler"
-    ),
-    (EnterScopeSyscallHandler, enter_scope_syscall_handler, "EnterScopeSyscallHandler"),
-    (
-        GetContractAddressStateEntry,
-        get_contract_address_state_entry,
-        "GetContractAddressStateEntry"
-    ),
+    (EnterScopeDeprecatedSyscallHandler, enter_scope_deprecated_syscall_handler),
+    (EnterScopeSyscallHandler, enter_scope_syscall_handler),
+    (GetContractAddressStateEntry, get_contract_address_state_entry),
     (
         GetContractAddressStateEntryAndSetNewStateEntry,
         get_contract_address_state_entry,
