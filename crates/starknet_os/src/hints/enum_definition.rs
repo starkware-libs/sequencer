@@ -101,7 +101,6 @@ use crate::hints::hint_implementation::execution::implementation::{
     exit_tx,
     fetch_result,
     gen_signature_arg,
-    get_block_hash_contract_address_state_entry_and_set_new_state_entry,
     get_contract_address_state_entry,
     get_old_block_number_and_hash,
     initial_ge_required_gas,
@@ -425,23 +424,9 @@ define_stateless_hint_enum!(
         r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
     ),
-    (
-        GetBlockMapping,
-        get_block_mapping,
-        indoc! {r#"
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-        ids.BLOCK_HASH_CONTRACT_ADDRESS
-    ]"#}
-    ),
-    (
-        IsLeaf,
-        is_leaf,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash_objects import (
-        BytecodeLeaf,
-    )
-    ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
-    ),
+    (GetBlockMapping, get_block_mapping, "GetBlockMapping"),
+    (IsLeaf, is_leaf, "IsLeaf"),
+    // Builtin selection hints are non-whitelisted hints that are part of cairo common.
     (
         SelectedBuiltins,
         selected_builtins,
@@ -460,15 +445,7 @@ define_stateless_hint_enum!(
       n_selected_builtins = n_selected_builtins - 1"##
         }
     ),
-    (
-        PrepareStateEntryForRevert,
-        prepare_state_entry_for_revert,
-        indoc! {r#"# Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-
-        # Fetch the relevant storage.
-        storage = execution_helper.storage_by_address[ids.contract_address]"#}
-    ),
+    (PrepareStateEntryForRevert, prepare_state_entry_for_revert, "PrepareStateEntryForRevert"),
     (
         GenerateDummyOsOutputSegment,
         generate_dummy_os_output_segment,
@@ -659,15 +636,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     # Fetch a state_entry in this hint and validate it in the update at the end
     # of this function.
     ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
-    ),
-    (
-        GetBlockHashContractAddressStateEntryAndSetNewStateEntry,
-        get_block_hash_contract_address_state_entry_and_set_new_state_entry,
-        indoc! {r#"
-	# Fetch a state_entry in this hint. Validate it in the update that comes next.
-	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-	    ids.BLOCK_HASH_CONTRACT_ADDRESS]"#
         }
     ),
     (
