@@ -132,7 +132,7 @@ async fn validate_proposal_success() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 1;
     // Setup deps to validate the block.
-    proposal_args.deps.setup_deps_for_validate(BlockNumber(0), n_executed);
+    proposal_args.deps.setup_deps_for_validate(BlockNumber(0), n_executed, 1);
     // Send a valid block info.
     let block_info = block_info(BlockNumber(0));
     content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();

@@ -117,7 +117,7 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-alloy = "0.12"
+alloy = "1.0.38"
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_config.path = "crates/apollo_batcher_config"
@@ -222,7 +222,7 @@ blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.16.0-rc.1" }
 byteorder = "1.4.3"
 bytes = "1"
-c-kzg = "1.0.3"
+c-kzg = "2.1.5"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
 cairo-lang-casm = "2.12.3"

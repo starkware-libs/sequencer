@@ -36,7 +36,7 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
     // See alloy docs, functions as a queue of mocked responses, success or failure.
     let asserter = Asserter::new();
 
-    let provider = ProviderBuilder::new().on_mocked_client(asserter.clone()).root().clone();
+    let provider = ProviderBuilder::new().connect_mocked_client(asserter.clone()).root().clone();
     let contract = Starknet::new(Default::default(), provider);
     let base_layer = EthereumBaseLayerContract {
         contract,
