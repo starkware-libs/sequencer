@@ -319,18 +319,7 @@ func execute_blocks{
     }
     let final_carried_outputs = outputs;
 
-    %{
-        from starkware.starknet.definitions.constants import ALIAS_CONTRACT_ADDRESS
-
-        # This hint shouldn't be whitelisted.
-        vm_enter_scope(dict(
-            state_update_pointers=state_update_pointers,
-            aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
-            execution_helper=execution_helper,
-            __dict_manager=__dict_manager,
-            block_input=block_input,
-        ))
-    %}
+    %{ EnterScopeWithAliases %}
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
             contract_state_changes_start=contract_state_changes_start,
