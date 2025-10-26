@@ -437,50 +437,10 @@ define_stateless_hint_enum!(
         generate_dummy_os_output_segment,
         "memory[ap] = to_felt_or_relocatable(segments.gen_arg([[], 0]))"
     ),
-    (
-        AssignBytecodeSegments,
-        assign_bytecode_segments,
-        indoc! {r#"
-            bytecode_segments = iter(bytecode_segment_structure.segments)"#
-        }
-    ),
-    (
-        AssertEndOfBytecodeSegments,
-        assert_end_of_bytecode_segments,
-        indoc! {r#"
-            assert next(bytecode_segments, None) is None"#
-        }
-    ),
-    (
-        DeleteMemoryData,
-        delete_memory_data,
-        indoc! {r#"
-            # Sanity check.
-            assert not is_accessed(ids.data_ptr), "The segment is skipped but was accessed."
-            del memory.data[ids.data_ptr]"#
-        }
-    ),
-    (
-        IterCurrentSegmentInfo,
-        iter_current_segment_info,
-        indoc! {r#"
-    current_segment_info = next(bytecode_segments)
-
-    should_load = ids.full_contract or is_segment_used_callback(
-        ids.data_ptr, current_segment_info.segment_length
-    )
-    ids.load_segment = 1 if should_load else 0
-
-    is_leaf_and_loaded = should_load and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
-    ids.is_leaf_and_loaded = 1 if is_leaf_and_loaded else 0
-
-    ids.segment_length = current_segment_info.segment_length
-    vm_enter_scope(new_scope_locals={
-        "bytecode_segment_structure": current_segment_info.inner_structure,
-        "is_segment_used_callback": is_segment_used_callback
-    })"#
-        }
-    ),
+    (AssignBytecodeSegments, assign_bytecode_segments, "AssignBytecodeSegments"),
+    (AssertEndOfBytecodeSegments, assert_end_of_bytecode_segments, "AssertEndOfBytecodeSegments"),
+    (DeleteMemoryData, delete_memory_data, "DeleteMemoryData"),
+    (IterCurrentSegmentInfo, iter_current_segment_info, "IterCurrentSegmentInfo"),
     (
         SetApToSegmentHashPoseidon,
         set_ap_to_segment_hash::<Poseidon>,
@@ -494,20 +454,7 @@ define_stateless_hint_enum!(
         memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash_blake())"#
         }
     ),
-    (
-        EnterScopeWithAliases,
-        enter_scope_with_aliases,
-        indoc! {r#"from starkware.starknet.definitions.constants import ALIAS_CONTRACT_ADDRESS
-
-# This hint shouldn't be whitelisted.
-vm_enter_scope(dict(
-    state_update_pointers=state_update_pointers,
-    aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
-    execution_helper=execution_helper,
-    __dict_manager=__dict_manager,
-    block_input=block_input,
-))"#}
-    ),
+    (EnterScopeWithAliases, enter_scope_with_aliases, "EnterScopeWithAliases"),
     (
         KeyLtMinAliasAllocValue,
         key_lt_min_alias_alloc_value,
