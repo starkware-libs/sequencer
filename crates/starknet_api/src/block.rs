@@ -210,6 +210,7 @@ pub struct BlockHeader {
     pub receipt_commitment: Option<ReceiptCommitment>,
 }
 
+// TODO(Nimrod): Consider deleting this struct or move it to the CLI crate.
 /// The header of a [Block](`crate::block::Block`) without hashing.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct BlockHeaderWithoutHash {
