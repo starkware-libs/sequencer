@@ -1,11 +1,10 @@
 import argparse
 import json
 import os
+import socket
 import subprocess
 import time
 from enum import Enum
-
-import socket
 
 
 class NodeType(Enum):
