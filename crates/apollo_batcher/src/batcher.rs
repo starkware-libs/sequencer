@@ -577,12 +577,15 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        // TODO(Nimrod): Modify `SyncBlock` to include the partial block hash.
+        let partial_block_hash = PartialBlockHash::default();
         self.commit_proposal_and_block(
             height,
             state_diff,
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
+            &partial_block_hash,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -622,12 +625,15 @@ impl Batcher {
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
+        // TODO(Nimrod): Compute the partial block hash properly.
+        let partial_block_hash = PartialBlockHash::default();
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
+            &partial_block_hash,
         )
         .await?;
         let execution_infos = block_execution_artifacts.execution_data.execution_infos;
@@ -662,6 +668,7 @@ impl Batcher {
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
+        partial_block_hash: &PartialBlockHash,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -670,10 +677,12 @@ impl Batcher {
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
         // Commit the proposal to the storage.
-        self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
-            error!("Failed to commit proposal to storage: {}", err);
-            BatcherError::InternalError
-        })?;
+        self.storage_writer.commit_proposal(height, state_diff, partial_block_hash).map_err(
+            |err| {
+                error!("Failed to commit proposal to storage: {}", err);
+                BatcherError::InternalError
+            },
+        )?;
         info!("Successfully committed proposal for block {} to storage.", height);
 
         // Notify the L1 provider of the new block.
@@ -998,6 +1007,7 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
+        partial_block_hash: &PartialBlockHash,
     ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1008,13 +1018,12 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
+        partial_block_hash: &PartialBlockHash,
     ) -> apollo_storage::StorageResult<()> {
-        // TODO(Nimrod): Get the real partial block hash as input.
-        let dummy_partial_block_hash = PartialBlockHash::default();
         // TODO(AlonH): write casms.
         self.begin_rw_txn()?
             .append_state_diff(height, state_diff)?
-            .set_partial_block_hash(&height, &dummy_partial_block_hash)?
+            .set_partial_block_hash(&height, partial_block_hash)?
             .commit()
     }
 
