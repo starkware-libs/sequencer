@@ -116,6 +116,15 @@
           }
         },
         {
+          "title": "consensus_decisions_reached_as_proposer",
+          "description": "The total number of rounds with decision reached where this node is the proposer",
+          "type": "timeseries",
+          "exprs": [
+            "consensus_decisions_reached_as_proposer{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Consensus Round Above Zero",
           "description": "Occurances where the consensus round was 1, relative to displayed range",
           "type": "timeseries",
