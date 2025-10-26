@@ -100,12 +100,7 @@ func bytecode_hash_node{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 
     local is_leaf;
 
-    %{
-        from starkware.starknet.core.os.contract_class.compiled_class_hash_objects import (
-            BytecodeLeaf,
-        )
-        ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0
-    %}
+    %{ IsLeaf %}
 
     // Guess if the bytecode is a leaf or an internal node in the tree.
     if (is_leaf != FALSE) {
