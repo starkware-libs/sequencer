@@ -57,7 +57,7 @@ func maybe_allocate_alias_for_big_key{
 }(key: felt) {
     alloc_locals;
     // Sanity check.
-    %{ assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small." %}
+    %{ AssertKeyBigEnoughForAlias %}
 
     // Guess the existing alias for the key (0 is it was not assigned yet). The guess is verified
     // by the storage write below.
@@ -390,7 +390,7 @@ func get_alias{range_check_ptr}(aliases: Aliases, key: felt) -> felt {
 // Assumes the given key is at least MIN_VALUE_FOR_ALIAS_ALLOC.
 func get_alias_of_big_key{range_check_ptr}(aliases: Aliases, key: felt) -> felt {
     // Sanity check.
-    %{ assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small." %}
+    %{ AssertKeyBigEnoughForAlias %}
     static_assert DictAccess.key == 0;
     let (entry: DictAccess*) = find_element(
         array_ptr=aliases.ptr, elm_size=DictAccess.SIZE, n_elms=aliases.len, key=key
