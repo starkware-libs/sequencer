@@ -30,6 +30,7 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::block::BlockInfo;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
@@ -96,6 +97,7 @@ fn block_execution_artifacts(
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
         compiled_class_hashes_for_migration: vec![],
         final_n_executed_txs,
+        block_info: BlockInfo::create_for_testing(),
     }
 }
 
@@ -417,6 +419,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: expected_block_artifacts_copy
                 .compiled_class_hashes_for_migration,
+            block_info: expected_block_artifacts_copy.block_info,
         })
     });
 
@@ -466,6 +469,7 @@ fn set_close_block_expectations(
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: output_block_artifacts
                 .compiled_class_hashes_for_migration,
+            block_info: output_block_artifacts.block_info,
         })
     });
     output_block_artifacts_copy
@@ -967,6 +971,7 @@ async fn failed_l1_handler_transaction_consumed() {
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
             compiled_class_hashes_for_migration: vec![],
+            block_info: BlockInfo::create_for_testing(),
         })
     });
 
@@ -1026,6 +1031,7 @@ async fn partial_chunk_execution_proposer() {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: expected_block_artifacts
                 .compiled_class_hashes_for_migration,
+            block_info: expected_block_artifacts.block_info,
         })
     });
 
