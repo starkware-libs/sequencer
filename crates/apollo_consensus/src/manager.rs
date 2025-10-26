@@ -62,8 +62,8 @@ impl std::fmt::Debug for RunConsensusArguments {
             .field("start_observe_height", &self.start_observe_height)
             .field("validator_id", &self.consensus_config.dynamic_config.validator_id)
             .field("startup_delay", &self.consensus_config.static_config.startup_delay)
-            .field("timeouts", &self.consensus_config.static_config.timeouts)
-            .field("sync_retry_interval", &self.consensus_config.static_config.sync_retry_interval)
+            .field("timeouts", &self.consensus_config.dynamic_config.timeouts)
+            .field("sync_retry_interval", &self.consensus_config.dynamic_config.sync_retry_interval)
             .field("quorum_type", &self.quorum_type)
             .finish()
     }
@@ -108,9 +108,9 @@ where
     let mut current_height = run_consensus_args.start_observe_height;
     let mut manager = MultiHeightManager::new(
         run_consensus_args.consensus_config.dynamic_config.validator_id,
-        run_consensus_args.consensus_config.static_config.sync_retry_interval,
+        run_consensus_args.consensus_config.dynamic_config.sync_retry_interval,
         run_consensus_args.quorum_type,
-        run_consensus_args.consensus_config.static_config.timeouts.clone(),
+        run_consensus_args.consensus_config.dynamic_config.timeouts.clone(),
     );
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
@@ -201,6 +201,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Apply the full dynamic consensus configuration. Call only between heights.
     pub(crate) fn set_dynamic_config(&mut self, cfg: ConsensusDynamicConfig) {
         self.validator_id = cfg.validator_id;
+        self.sync_retry_interval = cfg.sync_retry_interval;
+        self.timeouts = cfg.timeouts;
     }
 
     /// Run the consensus algorithm for a single height.

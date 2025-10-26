@@ -188,13 +188,12 @@ async fn run_consensus_sync() {
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
-        ConsensusStaticConfig {
-            startup_delay: Duration::ZERO,
+        ConsensusDynamicConfig {
+            validator_id: *VALIDATOR_ID,
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
-            ..Default::default()
         },
+        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
     );
     let run_consensus_args = RunConsensusArguments {
         consensus_config,
@@ -395,22 +394,25 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights() {
         if n == 0 {
             Ok(apollo_consensus_config::config::ConsensusDynamicConfig {
                 validator_id: *VALIDATOR_ID,
+                timeouts: TIMEOUTS.clone(),
+                sync_retry_interval: SYNC_RETRY_INTERVAL,
             })
         } else {
             Ok(apollo_consensus_config::config::ConsensusDynamicConfig {
                 validator_id: *PROPOSER_ID,
+                timeouts: TIMEOUTS.clone(),
+                sync_retry_interval: SYNC_RETRY_INTERVAL,
             })
         }
     });
 
     let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
-        ConsensusStaticConfig {
-            startup_delay: Duration::ZERO,
+        ConsensusDynamicConfig {
+            validator_id: *VALIDATOR_ID,
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
-            ..Default::default()
         },
+        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
     );
     let run_consensus_args = RunConsensusArguments {
         start_active_height: BlockNumber(1),

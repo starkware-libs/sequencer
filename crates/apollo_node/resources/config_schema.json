@@ -1549,22 +1549,22 @@
     "privacy": "Public",
     "value": 5
   },
-  "consensus_manager_config.consensus_manager_config.static_config.sync_retry_interval": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.static_config.timeouts.precommit_timeout": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.static_config.timeouts.prevote_timeout": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.static_config.timeouts.proposal_timeout": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
