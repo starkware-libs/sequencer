@@ -474,11 +474,7 @@ define_stateless_hint_enum!(
         key_lt_min_alias_alloc_value,
         "memory[ap] = to_felt_or_relocatable(ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC)"
     ),
-    (
-        AssertKeyBigEnoughForAlias,
-        assert_key_big_enough_for_alias,
-        r#"assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small.""#
-    ),
+    (AssertKeyBigEnoughForAlias, assert_key_big_enough_for_alias, "AssertKeyBigEnoughForAlias"),
     (
         ContractAddressLeMaxForCompression,
         contract_address_le_max_for_compression,
@@ -488,29 +484,11 @@ define_stateless_hint_enum!(
     (
         ComputeCommitmentsOnFinalizedStateWithAliases,
         compute_commitments_on_finalized_state_with_aliases,
-        "commitment_info_by_address=execution_helper.compute_storage_commitments()"
+        "ComputeCommitmentsOnFinalizedStateWithAliases"
     ),
-    (
-        DictionaryFromBucket,
-        dictionary_from_bucket,
-        indoc! {
-            r#"initial_dict = {bucket_index: 0 for bucket_index in range(ids.TOTAL_N_BUCKETS)}"#
-        }
-    ),
-    (
-        GetPrevOffset,
-        get_prev_offset,
-        indoc! {r#"dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-            ids.prev_offset = dict_tracker.data[ids.bucket_index]"#
-        }
-    ),
-    (
-        CompressionHint,
-        compression_hint,
-        indoc! {r#"from starkware.starknet.core.os.data_availability.compression import compress
-    data = memory.get_range_as_ints(addr=ids.data_start, size=ids.data_end - ids.data_start)
-    segments.write_arg(ids.compressed_dst, compress(data))"#}
-    ),
+    (DictionaryFromBucket, dictionary_from_bucket, "DictionaryFromBucket"),
+    (GetPrevOffset, get_prev_offset, "GetPrevOffset"),
+    (CompressionHint, compression_hint, "CompressionHint"),
     (
         SetDecompressedDst,
         set_decompressed_dst,

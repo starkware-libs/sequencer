@@ -76,11 +76,7 @@ const BUCKET_15_N_ELMS_PER_FELT = 16;
 // Note: a malicious prover might use a non-optimal compression.
 func compress{range_check_ptr, compressed_dst: felt*}(data_start: felt*, data_end: felt*) {
     // Guess the compression.
-    %{
-        from starkware.starknet.core.os.data_availability.compression import compress
-        data = memory.get_range_as_ints(addr=ids.data_start, size=ids.data_end - ids.data_start)
-        segments.write_arg(ids.compressed_dst, compress(data))
-    %}
+    %{ CompressionHint %}
     // Verify the guess by decompressing it onto the original data array.
     let (decompressed_end) = decompress{compressed=compressed_dst}(decompressed_dst=data_start);
 
@@ -267,7 +263,7 @@ func reconstruct_data{range_check_ptr, data_dst: felt*}(
     local bucket6_offset = bucket5_offset + header.unique_value_bucket_lengths.n_15_bit_elms;
 
     // Create a dictionary from bucket index (0, 1, ..., 6) to the current offset in `all_values`.
-    %{ initial_dict = {bucket_index: 0 for bucket_index in range(ids.TOTAL_N_BUCKETS)} %}
+    %{ DictionaryFromBucket %}
     let (local dict_ptr_start) = dict_new();
     let dict_ptr = dict_ptr_start;
     with dict_ptr {
@@ -319,10 +315,7 @@ func reconstruct_data_inner{dict_ptr: DictAccess*, data_dst: felt*}(
     let bucket_index = bucket_index_per_elm[0];
     // Guess the offset to the all_values array - it is validated by the `dict_update` below.
     tempvar prev_offset;
-    %{
-        dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-        ids.prev_offset = dict_tracker.data[ids.bucket_index]
-    %}
+    %{ GetPrevOffset %}
 
     // Advance the bucket offset.
     dict_update(key=bucket_index, prev_value=prev_offset, new_value=prev_offset + 1);

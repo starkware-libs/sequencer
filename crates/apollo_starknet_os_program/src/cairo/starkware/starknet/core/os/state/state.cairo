@@ -60,7 +60,7 @@ func state_update{poseidon_ptr: PoseidonBuiltin*, hash_ptr: HashBuiltin*, range_
     );
 
     // State is finalized.
-    %{ commitment_info_by_address=execution_helper.compute_storage_commitments() %}
+    %{ ComputeCommitmentsOnFinalizedStateWithAliases %}
 
     // Compute the contract state commitment.
     let contract_state_tree_update_output = compute_contract_state_commitment(
