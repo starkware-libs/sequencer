@@ -6,6 +6,7 @@ use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::IndexMap;
+use starknet_api::block::BlockInfo;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
@@ -155,6 +156,7 @@ impl BlockExecutionArtifacts {
             casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
             compiled_class_hashes_for_migration: vec![],
             final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+            block_info: BlockInfo::create_for_testing(),
         }
     }
 }

@@ -5,7 +5,7 @@ use std::time::Instant;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
-use starknet_api::block::BlockHashAndNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::core::CompiledClassHash;
 use thiserror::Error;
 
@@ -61,6 +61,7 @@ pub struct BlockExecutionSummary {
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
     pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
+    pub block_info: BlockInfo,
 }
 
 /// A transaction executor, used for building a single block.
@@ -297,6 +298,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
         compiled_class_hashes_for_migration: class_hashes_to_migrate.into_values().collect(),
+        block_info: block_context.block_info.clone(),
     })
 }
 
