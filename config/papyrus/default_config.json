@@ -114,22 +114,22 @@
     "privacy": "Public",
     "value": 5
   },
-  "consensus.static_config.sync_retry_interval": {
+  "consensus.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus.static_config.timeouts.precommit_timeout": {
+  "consensus.dynamic_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus.static_config.timeouts.prevote_timeout": {
+  "consensus.dynamic_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus.static_config.timeouts.proposal_timeout": {
+  "consensus.dynamic_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
