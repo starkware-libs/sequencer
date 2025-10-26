@@ -238,9 +238,10 @@ impl Panel {
         self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
+    // TODO(Tsabary): consider deleting.
     // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
-    // TODO(alonl): remove the _ prefix once the function is used.
-    pub(crate) fn _from_request_type_labeled_hist(
+    #[allow(dead_code)]
+    pub(crate) fn from_request_type_labeled_hist(
         metric: &LabeledMetricHistogram,
         panel_type: PanelType,
         request_label: &str,
@@ -368,7 +369,7 @@ pub fn traffic_light_thresholds(yellow: f64, red: f64) -> Vec<(&'static str, Opt
 
 // There is no equivalent for LabeledPanels because they are less straightforward than
 // UnlabeledPanels and require an aggregation of metrics more often, for example the panels created
-// using `get_multi_metric_panel`.
+// using [`get_multi_metric_panel`].
 /// A struct that contains all unlabeled panels for a given metrics struct.
 struct UnlabeledPanels(Vec<Panel>);
 
@@ -428,7 +429,9 @@ impl From<&RemoteServerMetrics> for UnlabeledPanels {
     }
 }
 
-pub(crate) fn _create_request_type_labeled_hist_panels(
+// TODO(Tsabary): consider deleting.
+#[allow(dead_code)]
+pub(crate) fn create_request_type_labeled_hist_panels(
     metric: &LabeledMetricHistogram,
     panel_type: PanelType,
 ) -> Vec<Panel> {
@@ -436,14 +439,14 @@ pub(crate) fn _create_request_type_labeled_hist_panels(
         .get_flat_label_values()
         .into_iter()
         .map(|request_label| {
-            Panel::_from_request_type_labeled_hist(metric, panel_type, request_label)
+            Panel::from_request_type_labeled_hist(metric, panel_type, request_label)
         })
         .collect()
 }
 
 // For a given request label and vector of labeled histogram metrics, create a panel with multiple
 // expressions.
-pub(crate) fn get_multi_metric_panel(
+fn get_multi_metric_panel(
     panel_name: &str,
     panel_description: &str,
     request_label: &str,
@@ -520,7 +523,7 @@ impl Serialize for Row {
 }
 
 // This function assumes that all metrics share the same labels.
-fn get_request_type_labeled_panels(
+fn get_request_type_panels(
     labeled_metrics: &Vec<&LabeledMetricHistogram>,
     panel_class_name: &str,
 ) -> Vec<Panel> {
@@ -546,32 +549,32 @@ fn get_request_type_labeled_panels(
     panels
 }
 
-pub(crate) fn get_labeled_client_panels(
+fn get_infra_client_panels(
     local_client_metrics: &LocalClientMetrics,
     remote_client_metrics: &RemoteClientMetrics,
 ) -> Vec<Panel> {
     let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
         local_client_metrics.get_all_labeled_metrics();
     labeled_metrics.extend(remote_client_metrics.get_all_labeled_metrics());
-    get_request_type_labeled_panels(&labeled_metrics, "client")
+    get_request_type_panels(&labeled_metrics, "client")
 }
 
-pub(crate) fn get_labeled_server_panels(
+fn get_infra_server_panels(
     local_server_metrics: &LocalServerMetrics,
     remote_server_metrics: &RemoteServerMetrics,
 ) -> Vec<Panel> {
     let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
         local_server_metrics.get_all_labeled_metrics();
     labeled_metrics.extend(remote_server_metrics.get_all_labeled_metrics());
-    get_request_type_labeled_panels(&labeled_metrics, "server")
+    get_request_type_panels(&labeled_metrics, "server")
 }
 
 pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
-    let labeled_client_panels = get_labeled_client_panels(
+    let labeled_client_panels = get_infra_client_panels(
         metrics.get_local_client_metrics(),
         metrics.get_remote_client_metrics(),
     );
-    let labeled_server_panels = get_labeled_server_panels(
+    let labeled_server_panels = get_infra_server_panels(
         metrics.get_local_server_metrics(),
         metrics.get_remote_server_metrics(),
     );
