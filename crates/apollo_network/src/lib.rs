@@ -238,24 +238,100 @@ use validator::{Validate, ValidationError};
 pub(crate) type Bytes = Vec<u8>;
 
 // TODO(Shahak): add peer manager config to the network config
+/// Network configuration for the Apollo networking layer.
+///
+/// This struct contains all the configuration parameters needed to initialize and run
+/// the networking subsystem. It includes network-level settings, protocol configurations,
+/// and various timeout and buffer size parameters.
+///
+/// # Examples
+///
+/// ## Basic Configuration
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use apollo_network::NetworkConfig;
+/// use starknet_api::core::ChainId;
+///
+/// let config = NetworkConfig {
+///     port: 10000,
+///     chain_id: ChainId::Mainnet,
+///     session_timeout: Duration::from_secs(120),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// ## Configuration with Bootstrap Peers
+///
+/// ```rust
+/// use apollo_network::NetworkConfig;
+/// use libp2p::Multiaddr;
+/// use starknet_api::core::ChainId;
+///
+/// let bootstrap_peer = "/ip4/1.2.3.4/tcp/10000/p2p/\
+///                       12D3KooWQYHvEJzuBPEXdwMfVdPGXeEFSioa7YcXqWn5Ey6qM8q7"
+///     .parse()
+///     .unwrap();
+/// let config = NetworkConfig {
+///     port: 10000,
+///     chain_id: ChainId::Mainnet,
+///     bootstrap_peer_multiaddr: Some(vec![bootstrap_peer]),
+///     ..Default::default()
+/// };
+/// ```
+///
+/// # Validation
+///
+/// The configuration is automatically validated when deserialized or when
+/// `validate()` is called. Validation includes:
+/// - Ensuring bootstrap peer multiaddresses contain valid peer IDs
+/// - Checking that bootstrap peer IDs are unique
+/// - Validating the secret key format if provided
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 pub struct NetworkConfig {
+    /// TCP port for incoming connections. Default: 10000
     pub port: u16,
+
+    /// Maximum session duration before timeout. Applies to inbound and outbound SQMR sessions.
+    /// Default: 120 seconds
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub session_timeout: Duration,
+
+    /// Maximum idle time before closing a connection. Default: 120 seconds
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
+
+    /// Bootstrap peer multiaddresses for initial connectivity. Each must include a valid peer ID.
+    /// Format: `/ip4/1.2.3.4/tcp/10000/p2p/<peer-id>`. Default: None
     #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
+
+    /// Optional 32-byte Ed25519 private key for deterministic peer ID generation.
+    /// If None, a random key is generated on each startup. Default: None
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub secret_key: Option<Vec<u8>>,
+
+    /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
+    /// Default: None (automatic detection)
     pub advertised_multiaddr: Option<Multiaddr>,
+
+    /// Starknet chain ID. Ensures connections only to peers on the same network.
+    /// Default: ChainId::Mainnet
     pub chain_id: ChainId,
+
+    /// Configuration for peer discovery mechanisms (Kademlia DHT, heartbeat intervals, etc.)
     pub discovery_config: DiscoveryConfig,
+
+    /// Configuration for peer lifecycle and reputation management
     pub peer_manager_config: PeerManagerConfig,
+
+    /// Buffer size for broadcasted message metadata. Default: 100000
     pub broadcasted_message_metadata_buffer_size: usize,
+
+    /// Buffer size for reported peer IDs (peers flagged for malicious behavior). Default: 100000
     pub reported_peer_ids_buffer_size: usize,
 }
 
