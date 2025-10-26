@@ -36,10 +36,16 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_commitments,
+    PartialBlockHashComponents,
+    TransactionHashingData,
+};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce, SequencerContractAddress};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::TransactionSignature;
@@ -147,6 +153,44 @@ impl BlockExecutionArtifacts {
             state_diff_commitment: calculate_state_diff_hash(&self.thin_state_diff()),
         }
     }
+
+    // TODO(Nimrod): Consider caching this method.
+    /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
+    pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
+        let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(self.block_info.use_kzg_da);
+        let starknet_version = StarknetVersion::LATEST;
+        let transactions_data =
+            prepare_txs_hashing_data(&self.execution_data.execution_infos_and_signatures);
+        let header_commitments = calculate_block_commitments(
+            &transactions_data,
+            &self.thin_state_diff(),
+            l1_da_mode,
+            &starknet_version,
+        );
+        PartialBlockHashComponents {
+            header_commitments,
+            block_number: self.block_info.block_number,
+            l1_gas_price: self.block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: self.block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: self.block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(self.block_info.sequencer_address),
+            timestamp: self.block_info.block_timestamp,
+            starknet_version,
+        }
+    }
+}
+
+fn prepare_txs_hashing_data(
+    transactions: &IndexMap<TransactionHash, (TransactionExecutionInfo, TransactionSignature)>,
+) -> Vec<TransactionHashingData> {
+    transactions
+        .iter()
+        .map(|(hash, (info, signature))| TransactionHashingData {
+            transaction_hash: *hash,
+            transaction_output: info.output_for_hashing(),
+            transaction_signature: signature.clone(),
+        })
+        .collect()
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the

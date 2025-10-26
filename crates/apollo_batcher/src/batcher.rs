@@ -626,15 +626,15 @@ impl Batcher {
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
-        // TODO(Nimrod): Compute the partial block hash components properly.
-        let dummy_partial_block_hash_components = PartialBlockHashComponents::default();
+        let partial_block_hash_components =
+            block_execution_artifacts.partial_block_hash_components();
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
-            &dummy_partial_block_hash_components,
+            &partial_block_hash_components,
         )
         .await?;
         let execution_infos = block_execution_artifacts

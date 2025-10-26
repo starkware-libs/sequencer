@@ -1100,7 +1100,7 @@ async fn decision_reached() {
         .with(
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
-            eq(PartialBlockHashComponents::default()),
+            eq(expected_artifacts.partial_block_hash_components()),
         )
         .returning(|_, _, _| Ok(()));
 
