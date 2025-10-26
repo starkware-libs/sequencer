@@ -8,11 +8,13 @@ use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
 use super::state_diff_hash::calculate_state_diff_hash;
 use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
-use crate::block::{BlockHash, BlockHeaderWithoutHash, GasPricePerToken, StarknetVersion};
+use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
 use crate::core::{
     ascii_as_felt,
     EventCommitment,
+    GlobalRoot,
     ReceiptCommitment,
+    SequencerContractAddress,
     StateDiffCommitment,
     TransactionCommitment,
 };
@@ -108,23 +110,42 @@ pub struct BlockHeaderCommitments {
     pub concatenated_counts: Felt,
 }
 
+#[derive(Clone, Debug, Default)]
+/// All information required to calculate a block hash except for the state root and the parent
+/// block hash.
+pub struct PartialBlockHashComponents {
+    pub header_commitments: BlockHeaderCommitments,
+    pub block_number: BlockNumber,
+    pub l1_gas_price: GasPricePerToken,
+    pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
+    pub sequencer: SequencerContractAddress,
+    pub timestamp: BlockTimestamp,
+    pub starknet_version: StarknetVersion,
+}
+
+// TODO(Nimrod): Gather the input for this function into a single struct and rename `BlockHashInput`
+// => `PythonBlockHashInput`.
 /// Poseidon (
 ///     block_hash_constant, block_number, global_state_root, sequencer_address,
 ///     block_timestamp, concat_counts, state_diff_hash, transaction_commitment,
 ///     event_commitment, receipt_commitment, gas_prices, starknet_version, 0, parent_block_hash
 /// ).
 pub fn calculate_block_hash(
-    header: BlockHeaderWithoutHash,
-    block_commitments: BlockHeaderCommitments,
+    partial_block_hash_components: &PartialBlockHashComponents,
+    state_root: GlobalRoot,
+    parent_hash: BlockHash,
 ) -> StarknetApiResult<BlockHash> {
-    let block_hash_version: BlockHashVersion = header.starknet_version.try_into()?;
+    let block_hash_version: BlockHashVersion =
+        partial_block_hash_components.starknet_version.try_into()?;
+    let block_commitments = &partial_block_hash_components.header_commitments;
     Ok(BlockHash(
         HashChain::new()
             .chain(&block_hash_version.clone().into())
-            .chain(&header.block_number.0.into())
-            .chain(&header.state_root.0)
-            .chain(&header.sequencer.0)
-            .chain(&header.timestamp.0.into())
+            .chain(&partial_block_hash_components.block_number.0.into())
+            .chain(&state_root.0)
+            .chain(&partial_block_hash_components.sequencer.0)
+            .chain(&partial_block_hash_components.timestamp.0.into())
             .chain(&block_commitments.concatenated_counts)
             .chain(&block_commitments.state_diff_commitment.0.0)
             .chain(&block_commitments.transaction_commitment.0)
@@ -132,18 +153,19 @@ pub fn calculate_block_hash(
             .chain(&block_commitments.receipt_commitment.0)
             .chain_iter(
                 gas_prices_to_hash(
-                    &header.l1_gas_price,
-                    &header.l1_data_gas_price,
-                    &header.l2_gas_price,
+                    &partial_block_hash_components.l1_gas_price,
+                    &partial_block_hash_components.l1_data_gas_price,
+                    &partial_block_hash_components.l2_gas_price,
                     &block_hash_version,
                 )
                 .iter(),
             )
             .chain(
-                &ascii_as_felt(&header.starknet_version.to_string()).expect("Expect ASCII version"),
+                &ascii_as_felt(&partial_block_hash_components.starknet_version.to_string())
+                    .expect("Expect ASCII version"),
             )
             .chain(&Felt::ZERO)
-            .chain(&header.parent_hash.0)
+            .chain(&parent_hash.0)
             .get_poseidon_hash(),
     ))
 }
