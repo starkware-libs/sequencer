@@ -41,6 +41,7 @@ pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
     pub state_diff: StateMaps,
     pub contract_classes: ContractClassMapping,
+    pub run_time: Duration,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
@@ -239,8 +240,10 @@ impl<S: StateReader> WorkerExecutor<S> {
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let concurrency_mode = true;
         let tx = self.tx_at(tx_index);
+        let execution_start = Instant::now();
         let execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
+        let run_time = execution_start.elapsed();
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
@@ -253,6 +256,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                     reads: tx_reads_writes.initial_reads,
                     state_diff,
                     contract_classes,
+                    run_time,
                     result: execution_result,
                 }
             }
@@ -261,6 +265,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                 // Failed transaction - ignore the writes.
                 state_diff: StateMaps::default(),
                 contract_classes: HashMap::default(),
+                run_time,
                 result: execution_result,
             },
         };
@@ -321,9 +326,10 @@ impl<S: StateReader> WorkerExecutor<S> {
         let mut execution_output_refmut = self.lock_execution_output(tx_index);
         let execution_output = execution_output_refmut.value_mut();
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
+        let tx = self.tx_at(tx_index);
+        let execution_status: &str;
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
-            let tx = self.tx_at(tx_index);
             let tx_context = self.block_context.to_tx_context(tx.as_ref());
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
@@ -364,9 +370,21 @@ impl<S: StateReader> WorkerExecutor<S> {
                 &mut tx_versioned_state,
                 tx.as_ref(),
             );
+
+            execution_status =
+                if tx_execution_info.is_reverted() { "reverted" } else { "successfully executed" };
+
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
+        } else {
+            execution_status = "rejected";
         }
+
+        let tx_hash = Transaction::tx_hash(tx.as_ref());
+        let run_time = execution_output.run_time.as_millis();
+        log::debug!(
+            "Transaction with tx_hash: {tx_hash} {execution_status}. Execution time: {run_time}ms."
+        );
 
         Ok(CommitResult::Success)
     }
