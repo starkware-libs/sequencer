@@ -4,6 +4,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
     CONSENSUS_CONFLICTING_VOTES,
+    CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_PROPOSALS_INVALID,
@@ -432,6 +433,10 @@ fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
     )
 }
 
+fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
+    Panel::from_counter(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, PanelType::TimeSeries)
+}
+
 pub(crate) fn get_consensus_row() -> Row {
     Row::new(
         "Consensus",
@@ -440,6 +445,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_round(),
             get_panel_consensus_round_advanced(),
             get_panel_consensus_block_time_avg(),
+            get_panel_consensus_decisions_reached_as_proposer(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_consensus_decisions_reached_by_consensus(),
