@@ -4,5 +4,6 @@
     "main-v0.13.5": "main-v0.13.6",
     "main-v0.13.6": "main-v0.14.0",
     "main-v0.14.0": "main-v0.14.1",
-    "main-v0.14.1": "main"
+    "main-v0.14.1": "main-v0.14.1-committer",
+    "main-v0.14.1-committer": "main"
 }
