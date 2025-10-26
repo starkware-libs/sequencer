@@ -10,7 +10,12 @@ use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::{EventContent, L2ToL1Payload};
+use starknet_api::transaction::{
+    Event,
+    EventContent,
+    L2ToL1Payload,
+    MessageToL1 as StarknetAPIMessageToL1,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -335,6 +340,46 @@ impl CallInfo {
             acc += &inner_call.resources;
             acc
         })
+    }
+
+    pub fn get_sorted_events(&self) -> Vec<Event> {
+        let n_events = self.iter().map(|call_info| call_info.execution.events.len()).sum();
+        let mut events: Vec<Option<Event>> = vec![None; n_events];
+        for call_info in self.iter() {
+            for ordered_event in &call_info.execution.events {
+                events[ordered_event.order] = Some(Event {
+                    from_address: call_info.call.storage_address,
+                    content: ordered_event.event.clone(),
+                });
+            }
+        }
+        events
+            .into_iter()
+            .map(|event| event.expect("Unexpected holes in the event order."))
+            .collect()
+    }
+
+    pub fn get_sorted_l2_to_l1_messages(&self) -> Vec<StarknetAPIMessageToL1> {
+        let n_messages =
+            self.iter().map(|call_info| call_info.execution.l2_to_l1_messages.len()).sum();
+        let mut messages: Vec<Option<StarknetAPIMessageToL1>> = vec![None; n_messages];
+        for call_info in self.iter() {
+            for ordered_message in &call_info.execution.l2_to_l1_messages {
+                messages[ordered_message.order] = Some(StarknetAPIMessageToL1 {
+                    from_address: call_info.call.storage_address,
+                    to_address: ordered_message
+                        .message
+                        .to_address
+                        .try_into()
+                        .expect("Failed to convert L1Address to EthAddress"),
+                    payload: ordered_message.message.payload.clone(),
+                });
+            }
+        }
+        messages
+            .into_iter()
+            .map(|message| message.expect("Unexpected holes in the L2 to L1 message order."))
+            .collect()
     }
 }
 

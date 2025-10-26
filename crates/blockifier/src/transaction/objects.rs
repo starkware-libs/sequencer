@@ -1,6 +1,7 @@
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, FeeType};
+use starknet_api::block_hash::block_hash_calculator::TransactionOutputForHash;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
@@ -16,6 +17,8 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{
     signed_tx_version,
+    RevertedTransactionExecutionStatus,
+    TransactionExecutionStatus,
     TransactionHash,
     TransactionOptions,
     TransactionVersion,
@@ -262,7 +265,32 @@ impl TransactionExecutionInfo {
         }
         builtin_counters
     }
+
+    pub fn output_for_hashing(&self) -> TransactionOutputForHash {
+        let execution_status = match self.revert_error {
+            None => TransactionExecutionStatus::Succeeded,
+            Some(ref err) => {
+                TransactionExecutionStatus::Reverted(RevertedTransactionExecutionStatus {
+                    revert_reason: err.to_string(),
+                })
+            }
+        };
+        TransactionOutputForHash {
+            actual_fee: self.receipt.fee,
+            execution_status,
+            gas_consumed: self.receipt.gas,
+            events: self
+                .non_optional_call_infos()
+                .flat_map(|call_info| call_info.get_sorted_events())
+                .collect(),
+            messages_sent: self
+                .non_optional_call_infos()
+                .flat_map(|call_info| call_info.get_sorted_l2_to_l1_messages())
+                .collect(),
+        }
+    }
 }
+
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
     fn prover_builtins(&self) -> BuiltinCounterMap;

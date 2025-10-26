@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
+use crate::transaction::fields::TransactionSignature;
 use crate::transaction::TransactionHash;
 use crate::{executable_transaction, transaction};
 
@@ -21,6 +22,13 @@ impl InternalConsensusTransaction {
         match self {
             Self::RpcTransaction(tx) => tx.tx_hash,
             Self::L1Handler(tx) => tx.tx_hash,
+        }
+    }
+
+    pub fn signature(&self) -> TransactionSignature {
+        match self {
+            Self::RpcTransaction(tx) => tx.tx.signature(),
+            Self::L1Handler(_) => TransactionSignature(vec![].into()),
         }
     }
 }

@@ -119,6 +119,14 @@ impl InternalRpcTransactionWithoutTxHash {
         }
     }
 
+    pub fn signature(&self) -> TransactionSignature {
+        match self {
+            InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.signature.clone(),
+            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.tx.signature(),
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => tx.signature(),
+        }
+    }
+
     pub fn calculate_transaction_hash(
         &self,
         chain_id: &ChainId,
@@ -280,6 +288,12 @@ impl RpcDeployAccountTransaction {
             RpcDeployAccountTransaction::V3(_) => TransactionVersion::THREE,
         }
     }
+
+    fn signature(&self) -> TransactionSignature {
+        match self {
+            RpcDeployAccountTransaction::V3(tx) => tx.signature.clone(),
+        }
+    }
 }
 
 impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
@@ -333,6 +347,12 @@ impl RpcInvokeTransaction {
     pub fn version(&self) -> TransactionVersion {
         match self {
             RpcInvokeTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+
+    pub fn signature(&self) -> TransactionSignature {
+        match self {
+            RpcInvokeTransaction::V3(tx) => tx.signature.clone(),
         }
     }
 }

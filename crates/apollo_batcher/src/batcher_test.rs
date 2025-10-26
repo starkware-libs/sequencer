@@ -1175,7 +1175,7 @@ async fn test_execution_info_order_is_kept() {
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(block_builder_result.clone()),
+        Ok(block_builder_result),
     );
 
     let decision_reached_response =
