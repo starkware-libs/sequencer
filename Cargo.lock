@@ -1161,6 +1161,7 @@ dependencies = [
 name = "apollo_consensus"
 version = "0.16.0-rc.1"
 dependencies = [
+ "apollo_config_manager_types",
  "apollo_consensus_config",
  "apollo_infra_utils",
  "apollo_metrics",

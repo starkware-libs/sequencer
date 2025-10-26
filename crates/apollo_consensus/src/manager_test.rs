@@ -1,6 +1,9 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
@@ -203,6 +206,7 @@ async fn run_consensus_sync() {
         start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
         quorum_type: QuorumType::Byzantine,
+        config_manager_client: None,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -349,4 +353,95 @@ async fn timely_message_handling() {
     // the height and so consensus was not actually run, the inbound channels are cleared.
     proposal_receiver_sender.try_send(mpsc::channel(1).1).unwrap();
     assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
+}
+
+#[tokio::test]
+async fn run_consensus_dynamic_client_updates_validator_between_heights() {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    // Keep a handle to the vote sender so the paired receiver stays alive.
+    let _vote_sender = mock_network.broadcasted_messages_sender;
+    let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    // Context with expectations: H1 we are the validator, learn height via sync; at H2 we are the
+    // proposer.
+    let mut context = MockTestContext::new();
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_validators().returning(move |h: BlockNumber| {
+        if h == BlockNumber(1) { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] }
+    });
+    context.expect_proposer().returning(move |h: BlockNumber, _| {
+        if h == BlockNumber(1) { *VALIDATOR_ID } else { *PROPOSER_ID }
+    });
+    context.expect_try_sync().withf(move |h| *h == BlockNumber(1)).times(1).returning(|_| true);
+    context.expect_try_sync().returning(|_| false);
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // In this test, build_proposal should be called only when the dynamic config returns that we
+    // are the proposer, which happens at H2.
+    context
+        .expect_build_proposal()
+        .withf(move |init, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
+        .returning(move |_, _| {
+            let (sender, receiver) = oneshot::channel();
+            sender.send(ProposalCommitment(Felt::TWO)).unwrap();
+            receiver
+        })
+        .times(1);
+    // Expect a decision at height 2.
+    let (decision_tx, decision_rx) = oneshot::channel();
+    context
+        .expect_decision_reached()
+        .withf(move |_, votes| votes.first().map(|v| v.height) == Some(2))
+        .return_once(move |_, _| {
+            let _ = decision_tx.send(());
+            Ok(())
+        })
+        .times(1);
+
+    // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID
+    let mut mock_client = MockConfigManagerClient::new();
+    let call_count = Arc::new(AtomicUsize::new(0));
+    let call_count_clone = Arc::clone(&call_count);
+    mock_client.expect_get_consensus_dynamic_config().times(2).returning(move || {
+        let n = call_count_clone.fetch_add(1, Ordering::SeqCst);
+        if n == 0 {
+            Ok(apollo_consensus_config::config::ConsensusDynamicConfig {
+                validator_id: *VALIDATOR_ID,
+            })
+        } else {
+            Ok(apollo_consensus_config::config::ConsensusDynamicConfig {
+                validator_id: *PROPOSER_ID,
+            })
+        }
+    });
+
+    let consensus_config = ConsensusConfig::from_parts(
+        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+            ..Default::default()
+        },
+    );
+    let run_consensus_args = RunConsensusArguments {
+        start_active_height: BlockNumber(1),
+        start_observe_height: BlockNumber(1),
+        consensus_config,
+        quorum_type: QuorumType::Byzantine,
+        config_manager_client: Some(Arc::new(mock_client)),
+    };
+
+    // Spawn consensus and wait for a decision at height 2.
+    tokio::spawn(async move {
+        run_consensus(
+            run_consensus_args,
+            context,
+            subscriber_channels.into(),
+            proposal_receiver_receiver,
+        )
+        .await
+    });
+    decision_rx.await.unwrap();
 }
