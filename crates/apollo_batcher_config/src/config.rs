@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -21,7 +22,7 @@ pub struct BlockBuilderConfig {
     pub tx_polling_interval_millis: u64,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     // TODO(dan): add validation for this field. Probably should be bounded.
-    pub proposer_idle_detection_delay_millis: std::time::Duration,
+    pub proposer_idle_detection_delay_millis: Duration,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
@@ -34,7 +35,7 @@ impl Default for BlockBuilderConfig {
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
-            proposer_idle_detection_delay_millis: std::time::Duration::from_millis(2000),
+            proposer_idle_detection_delay_millis: Duration::from_millis(2000),
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
