@@ -18,11 +18,7 @@ use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidat
 use blockifier::transaction::test_utils::calculate_class_info_for_testing;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{
-    executable_invoke_tx as create_executable_invoke_tx,
-    VALID_L1_GAS_MAX_AMOUNT,
-    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-};
+use mempool_test_utils::starknet_api_test_utils::executable_invoke_tx as create_executable_invoke_tx;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -33,6 +29,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
+use starknet_api::test_utils::{VALID_L1_GAS_MAX_AMOUNT, VALID_L1_GAS_MAX_PRICE_PER_UNIT};
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Resource,

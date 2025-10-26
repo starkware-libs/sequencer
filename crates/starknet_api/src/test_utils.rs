@@ -135,6 +135,14 @@ macro_rules! compiled_class_hash {
     };
 }
 
+pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+// Enough to declare the test class, but under the OS's upper limit.
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 1_100_000_000;
+pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
+pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
+
 // V3 transactions:
 pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));

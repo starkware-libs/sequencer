@@ -24,7 +24,16 @@ use starknet_api::test_utils::invoke::{
     rpc_invoke_tx,
     InvokeTxArgs,
 };
-use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
+use starknet_api::test_utils::{
+    NonceManager,
+    TEST_ERC20_CONTRACT_ADDRESS2,
+    VALID_L1_DATA_GAS_MAX_AMOUNT,
+    VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT,
+    VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    VALID_L2_GAS_MAX_AMOUNT,
+    VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -49,13 +58,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
-pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
-pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
-// Enough to declare the test class, but under the OS's upper limit.
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 1_100_000_000;
-pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
-pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
-pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000000;
 #[allow(clippy::as_conversions)]
 pub const VALID_ACCOUNT_BALANCE: Fee =
     Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
