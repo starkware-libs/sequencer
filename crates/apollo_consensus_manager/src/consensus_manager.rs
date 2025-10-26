@@ -266,6 +266,7 @@ impl ConsensusManager {
             start_observe_height: observer_height,
             consensus_config: self.config.consensus_manager_config.clone(),
             quorum_type,
+            config_manager_client: Some(Arc::clone(&self.config_manager_client)),
         }
     }
 
