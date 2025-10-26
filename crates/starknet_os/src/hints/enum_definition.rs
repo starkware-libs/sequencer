@@ -507,22 +507,9 @@ define_stateless_hint_enum!(
         indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
         }
     ),
-    (
-        LogRemainingTxs,
-        log_remaining_txs,
-        indoc! {r#"print(f"execute_transactions_inner: {ids.n_txs} transactions remaining.")"#}
-    ),
-    (
-        FillHolesInRc96Segment,
-        fill_holes_in_rc96_segment,
-        indoc! {r#"
-rc96_ptr = ids.range_check96_ptr
-segment_size = rc96_ptr.offset
-base = rc96_ptr - segment_size
-
-for i in range(segment_size):
-    memory.setdefault(base + i, 0)"#}
-    ),
+    (LogRemainingTxs, log_remaining_txs, "LogRemainingTxs"),
+    (FillHolesInRc96Segment, fill_holes_in_rc96_segment, "FillHolesInRc96Segment"),
+    // Non-whitelisted hints that is part of cairo common.
     (
         Sha2Finalize,
         sha2_finalize,
@@ -547,21 +534,13 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         EnterScopeDeprecatedSyscallHandler,
         enter_scope_deprecated_syscall_handler,
-        "vm_enter_scope({'syscall_handler': deprecated_syscall_handler})"
+        "EnterScopeDeprecatedSyscallHandler"
     ),
-    (
-        EnterScopeSyscallHandler,
-        enter_scope_syscall_handler,
-        "vm_enter_scope({'syscall_handler': syscall_handler})"
-    ),
+    (EnterScopeSyscallHandler, enter_scope_syscall_handler, "EnterScopeSyscallHandler"),
     (
         GetContractAddressStateEntry,
         get_contract_address_state_entry,
-        indoc! {r#"
-    # Fetch a state_entry in this hint and validate it in the update at the end
-    # of this function.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
+        "GetContractAddressStateEntry"
     ),
     (
         GetContractAddressStateEntryAndSetNewStateEntry,

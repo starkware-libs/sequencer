@@ -330,11 +330,7 @@ func execute_replace_class{contract_state_changes: DictAccess*, revert_log: Reve
     let class_hash = syscall_ptr.class_hash;
 
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update at the end
-        # of this function.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     tempvar new_state_entry = new StateEntry(
         class_hash=class_hash, storage_ptr=state_entry.storage_ptr, nonce=state_entry.nonce
@@ -802,11 +798,7 @@ func deploy_contract{
     );
 
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update at the end
-        # of this function.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
     assert state_entry.class_hash = UNINITIALIZED_CLASS_HASH;
     assert state_entry.nonce = 0;
 
