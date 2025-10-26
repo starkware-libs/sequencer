@@ -110,7 +110,7 @@ pub struct BlockHeaderCommitments {
     pub concatenated_counts: Felt,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 /// All information required to calculate a block hash except for the state root and the parent
 /// block hash.
 pub struct PartialBlockHashComponents {
