@@ -1106,11 +1106,8 @@ func execute_get_block_hash{
 
     // Fetch the block hash contract state.
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint. Validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.BLOCK_HASH_CONTRACT_ADDRESS]
-    %}
+    // Fetch a state_entry in this hint. Validate it in the update that comes next.
+    %{ GetBlockMapping %}
 
     // Read from storage.
     tempvar block_hash = response.block_hash;

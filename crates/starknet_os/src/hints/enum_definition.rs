@@ -425,50 +425,13 @@ define_stateless_hint_enum!(
         r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
     ),
-    (
-        GetBlockMapping,
-        get_block_mapping,
-        indoc! {r#"
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-        ids.BLOCK_HASH_CONTRACT_ADDRESS
-    ]"#}
-    ),
-    (
-        IsLeaf,
-        is_leaf,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash_objects import (
-        BytecodeLeaf,
-    )
-    ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
-    ),
-    (
-        SelectedBuiltins,
-        selected_builtins,
-        "vm_enter_scope({'n_selected_builtins': ids.n_selected_builtins})"
-    ),
-    (
-        SelectBuiltin,
-        select_builtin,
-        indoc! {r##"
-    # A builtin should be selected iff its encoding appears in the selected encodings list
-    # and the list wasn't exhausted.
-    # Note that testing inclusion by a single comparison is possible since the lists are sorted.
-    ids.select_builtin = int(
-      n_selected_builtins > 0 and memory[ids.selected_encodings] == memory[ids.all_encodings])
-    if ids.select_builtin:
-      n_selected_builtins = n_selected_builtins - 1"##
-        }
-    ),
-    (
-        PrepareStateEntryForRevert,
-        prepare_state_entry_for_revert,
-        indoc! {r#"# Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-
-        # Fetch the relevant storage.
-        storage = execution_helper.storage_by_address[ids.contract_address]"#}
-    ),
+    (GetBlockMapping, get_block_mapping, "GetBlockMapping"),
+    (IsLeaf, is_leaf, "IsLeaf"),
+    // TODO(Dori): Unused hint? If so, remove.
+    (SelectedBuiltins, selected_builtins, "SelectedBuiltins"),
+    // TODO(Dori): Unused hint? If so, remove.
+    (SelectBuiltin, select_builtin, "SelectBuiltin"),
+    (PrepareStateEntryForRevert, prepare_state_entry_for_revert, "PrepareStateEntryForRevert"),
     (
         GenerateDummyOsOutputSegment,
         generate_dummy_os_output_segment,
