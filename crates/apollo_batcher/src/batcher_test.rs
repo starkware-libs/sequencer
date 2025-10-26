@@ -37,6 +37,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -925,8 +926,8 @@ async fn add_sync_block() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()))
-        .returning(|_, _| Ok(()));
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()), eq(PartialBlockHashComponents::default()))
+        .returning(|_, _, _| Ok(()));
 
     mock_dependencies
         .mempool_client
@@ -1093,8 +1094,12 @@ async fn decision_reached() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.thin_state_diff()))
-        .returning(|_, _| Ok(()));
+        .with(
+            eq(INITIAL_HEIGHT),
+            eq(expected_artifacts.thin_state_diff()),
+            eq(PartialBlockHashComponents::default()),
+        )
+        .returning(|_, _, _| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
@@ -1156,7 +1161,7 @@ async fn test_execution_info_order_is_kept() {
     mock_dependencies.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
     mock_dependencies.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing();
     // Check that the execution_infos were initiated properly for this test.
@@ -1236,7 +1241,7 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
         .times(1)
         .returning(move |_, _, _| Err(l1_error.clone()));
 
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
 
     mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
 
