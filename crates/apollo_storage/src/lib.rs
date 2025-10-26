@@ -77,6 +77,7 @@
 //! [`libmdbx`]: https://docs.rs/libmdbx/latest/libmdbx/
 
 pub mod base_layer;
+pub mod block_hash;
 pub mod body;
 pub mod class;
 pub mod class_hash;
@@ -130,6 +131,7 @@ use mmap_file::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
@@ -215,6 +217,7 @@ fn open_storage_internal(
         state_diffs: db_writer.create_simple_table("state_diffs")?,
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
+        partial_block_hashes: db_writer.create_simple_table("partial_block_hashes")?,
 
         // Version tables.
         starknet_version: db_writer.create_simple_table("starknet_version")?,
@@ -604,6 +607,7 @@ struct_field_names! {
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
+        partial_block_hashes: TableIdentifier<BlockNumber, NoVersionValueWrapper<PartialBlockHash>, SimpleTable>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
