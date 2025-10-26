@@ -28,6 +28,7 @@ use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_CACHED_VOTES,
+    CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
@@ -112,6 +113,10 @@ where
                 // precommits to print.
                 let round = decision.precommits[0].round;
                 let proposer = context.proposer(current_height, round);
+
+                if proposer == run_consensus_args.validator_id {
+                    CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
+                }
                 info!(
                     "DECISION_REACHED: Decision reached for round {} with proposer {}. {:?}",
                     round, proposer, decision
