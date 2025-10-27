@@ -153,15 +153,15 @@ impl NodeSetup {
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.batcher_index].monitoring_client
+        &self.get_batcher().monitoring_client
     }
 
     pub fn state_sync_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.state_sync_index].monitoring_client
+        &self.get_state_sync().monitoring_client
     }
 
     pub fn consensus_manager_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.consensus_manager_index].monitoring_client
+        &self.get_consensus_manager().monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -183,22 +183,26 @@ impl NodeSetup {
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.as_ref().expect("Should have http server config").port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
+            HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
+            MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
         serialize_to_file(json_data, path);
     }
 
-    pub fn get_batcher_index(&self) -> usize {
-        self.batcher_index
+    pub fn get_batcher(&self) -> &ExecutableSetup {
+        &self.executables[self.batcher_index]
     }
 
-    pub fn get_http_server_index(&self) -> usize {
-        self.http_server_index
+    pub fn get_http_server(&self) -> &ExecutableSetup {
+        &self.executables[self.http_server_index]
     }
 
-    pub fn get_state_sync_index(&self) -> usize {
-        self.state_sync_index
+    pub fn get_state_sync(&self) -> &ExecutableSetup {
+        &self.executables[self.state_sync_index]
+    }
+
+    pub fn get_consensus_manager(&self) -> &ExecutableSetup {
+        &self.executables[self.consensus_manager_index]
     }
 
     pub fn run(self) -> RunningNode {
@@ -444,7 +448,7 @@ impl IntegrationTestManager {
                     "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
                      executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_batcher_index(),
+                    running_node_setup.batcher_index,
                 )),
             );
 
@@ -456,7 +460,7 @@ impl IntegrationTestManager {
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
                      {} executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_state_sync_index(),
+                    running_node_setup.state_sync_index,
                 )),
             );
 
@@ -728,14 +732,12 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
-            let state_sync_index = node_setup.get_state_sync_index();
             await_block(
                 batcher_monitoring_client,
-                batcher_index,
+                node_setup.batcher_index,
                 state_sync_monitoring_client,
-                state_sync_index,
+                node_setup.state_sync_index,
                 expected_block_number,
                 sequencer_idx,
             )
@@ -761,7 +763,7 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
+            let batcher_index = node_setup.batcher_index;
             let expected_height = expected_block_number.unchecked_next();
 
             let logger = CustomLogger::new(
