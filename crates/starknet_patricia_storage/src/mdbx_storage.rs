@@ -1,5 +1,7 @@
 use std::path::Path;
 
+#[cfg(feature = "short_keys")]
+use blake3::Hasher as Blake3Hasher;
 use libmdbx::{
     Database as MdbxDb,
     DatabaseFlags,
@@ -18,6 +20,8 @@ pub struct MdbxStorage {
     db: MdbxDb<WriteMap>,
     commit_counter: usize,
     stats_interval: Option<usize>,
+    #[cfg(feature = "short_keys")]
+    key_length: usize,
 }
 
 // Size in bytes.
@@ -35,8 +39,17 @@ fn get_page_size(os_page_size: usize) -> PageSize {
     PageSize::Set(page_size)
 }
 
+#[cfg(feature = "short_keys")]
+fn get_short_key(key: &DbKey, key_length: usize) -> DbKey {
+    let mut hasher = Blake3Hasher::new();
+    hasher.update(&key.0);
+    let mut short_key = vec![0; key_length];
+    hasher.finalize_xof().fill(&mut short_key);
+    DbKey(short_key)
+}
+
 impl MdbxStorage {
-    pub fn open(path: &Path, stats_interval: Option<usize>) -> PatriciaStorageResult<Self> {
+    pub fn open(path: &Path, stats_interval: Option<usize>, _key_length: Option<usize>) -> PatriciaStorageResult<Self> {
         // TODO(tzahi): geometry and related definitions are taken from apollo_storage. Check if
         // there are better configurations for the committer and consider moving boh crates mdbx
         // code to a common location.
@@ -61,7 +74,18 @@ impl MdbxStorage {
         let txn = db.begin_rw_txn()?;
         txn.create_table(None, TableFlags::empty())?;
         txn.commit()?;
-        Ok(Self { db, commit_counter: 0, stats_interval })
+        #[cfg(feature = "short_keys")]
+        let storage = Self {
+            db,
+            commit_counter: 0,
+            stats_interval,
+            key_length: _key_length
+                .expect("key_length must be provided when short_keys feature is enabled"),
+        };
+        #[cfg(not(feature = "short_keys"))]
+        let storage = Self { db, commit_counter: 0, stats_interval };
+
+        Ok(storage)
     }
 
     fn print_stats(&self) {
@@ -99,12 +123,16 @@ impl Storage for MdbxStorage {
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
+        #[cfg(feature = "short_keys")]
+        let key = get_short_key(key, self.key_length);
         Ok(txn.get(&table, &key.0)?.map(DbValue))
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
+        #[cfg(feature = "short_keys")]
+        let key = get_short_key(&key, self.key_length);
         let prev_val = txn.get(&table, &key.0)?.map(DbValue);
         txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
         txn.commit()?;
@@ -117,6 +145,8 @@ impl Storage for MdbxStorage {
         let table = txn.open_table(None)?;
         let mut res = Vec::with_capacity(keys.len());
         for key in keys {
+            #[cfg(feature = "short_keys")]
+            let key = get_short_key(&key, self.key_length);
             res.push(txn.get(&table, &key.0)?.map(DbValue));
         }
         Ok(res)
@@ -126,6 +156,8 @@ impl Storage for MdbxStorage {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
         for (key, value) in key_to_value {
+            #[cfg(feature = "short_keys")]
+            let key = get_short_key(&key, self.key_length);
             txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
         }
         txn.commit()?;
@@ -136,6 +168,8 @@ impl Storage for MdbxStorage {
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
+        #[cfg(feature = "short_keys")]
+        let key = get_short_key(key, self.key_length);
         let prev_val = txn.get(&table, &key.0)?.map(DbValue);
         if prev_val.is_some() {
             txn.del(&table, &key.0, None)?;

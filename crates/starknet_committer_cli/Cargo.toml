@@ -9,6 +9,9 @@ description = "CLI for the committer storage benchmark."
 [lints]
 workspace = true
 
+[features]
+short_keys = ["starknet_patricia_storage/short_keys"]
+
 [dependencies]
 apollo_infra_utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }

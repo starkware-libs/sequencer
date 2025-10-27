@@ -70,6 +70,9 @@ struct StorageArgs {
     /// will have different checkpoints)
     #[clap(long, default_value = None)]
     checkpoint_dir: Option<String>,
+    /// The length of the keys in bytes to use for the Mdbx storage.
+    #[clap(long, default_value = "None")]
+    key_length: Option<usize>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -96,6 +99,7 @@ pub async fn run_committer_cli(
             storage_path,
             output_dir,
             checkpoint_dir,
+            key_length,
         }) => {
             modify_log_level(log_level, log_filter_handle);
             let output_dir = output_dir
@@ -123,7 +127,7 @@ pub async fn run_committer_cli(
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     let storage =
-                        MdbxStorage::open(Path::new(&storage_path), stats_interval).unwrap();
+                        MdbxStorage::open(Path::new(&storage_path), stats_interval, key_length).unwrap();
                     run_storage_benchmark(
                         seed,
                         n_iterations,
@@ -140,7 +144,7 @@ pub async fn run_committer_cli(
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     let storage = CachedStorage::new(
-                        MdbxStorage::open(Path::new(&storage_path), stats_interval).unwrap(),
+                        MdbxStorage::open(Path::new(&storage_path), stats_interval, key_length).unwrap(),
                         NonZeroUsize::new(cache_size).unwrap(),
                     );
                     run_storage_benchmark(
