@@ -4,8 +4,9 @@ import argparse
 import json
 import subprocess
 import sys
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import tempfile
 import urllib.error
@@ -209,6 +210,192 @@ def validate_arguments(args: argparse.Namespace) -> None:
         if args.start_index < 0:
             print_error("Error: start-index must be a non-negative integer.")
             sys.exit(1)
+
+
+class NamespaceAndInstructionArgs:
+    def __init__(
+        self,
+        namespace_list: list[str],
+        cluster_list: Optional[list[str]],
+        instruction_list: Optional[list[str]] = None,
+    ):
+        assert (
+            namespace_list is not None and len(namespace_list) > 0
+        ), "Namespace list cannot be None or empty."
+        self.namespace_list = namespace_list
+        assert cluster_list is None or len(cluster_list) == len(
+            namespace_list
+        ), "cluster_list must have the same length as namespace_list"
+        self.cluster_list = cluster_list
+        assert instruction_list is None or len(namespace_list) == len(
+            instruction_list
+        ), "instruction_list must have the same length as namespace_list"
+        self.instruction_list = instruction_list
+
+    def size(self) -> int:
+        return len(self.namespace_list)
+
+    def get_namespace(self, index: int) -> str:
+        return self.namespace_list[index]
+
+    def get_cluster(self, index: int) -> Optional[str]:
+        return self.cluster_list[index] if self.cluster_list is not None else None
+
+    def get_instruction(self, index: int) -> Optional[str]:
+        return self.instruction_list[index] if self.instruction_list is not None else None
+
+    @staticmethod
+    def get_namespace_list_from_args(
+        args: argparse.Namespace,
+    ) -> list[str]:
+        """Get a list of namespaces based on the arguments"""
+        if args.namespace_list:
+            return args.namespace_list
+
+        return [
+            f"{args.namespace_prefix}-{i}"
+            for i in range(args.start_index, args.start_index + args.num_nodes)
+        ]
+
+    @staticmethod
+    def get_context_list_from_args(
+        args: argparse.Namespace,
+    ) -> list[str]:
+        """Get a list of contexts based on the arguments"""
+        if args.cluster_list:
+            return args.cluster_list
+
+        if args.cluster_prefix is None:
+            return None
+
+        return [
+            f"{args.cluster_prefix}-{i}"
+            for i in range(args.start_index, args.start_index + args.num_nodes)
+        ]
+
+
+class ServiceRestarter(ABC):
+    """Abstract class for restarting service instances."""
+
+    def __init__(
+        self,
+        namespace_and_instruction_args: NamespaceAndInstructionArgs,
+        service: Service,
+    ):
+        self.namespace_and_instruction_args = namespace_and_instruction_args
+        self.service = service
+
+    @staticmethod
+    def _restart_pod(
+        namespace: str, service: Service, index: int, cluster: Optional[str] = None
+    ) -> None:
+        """Restart pod by deleting it"""
+        # Get the list of pods (one string per line).
+        kubectl_args = [
+            "get",
+            "pods",
+            "-o",
+            "name",
+        ]
+        kubectl_args.extend(get_namespace_args(namespace, cluster))
+        pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
+
+        # Filter the list of pods to only include the ones that match the service and extract the pod name.
+        pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
+
+        if not pods:
+            print_error(f"Could not find pods for service {service.pod_name}.")
+            sys.exit(1)
+
+        # Go over each pod and delete it.
+        for pod in pods:
+            kubectl_args = [
+                "delete",
+                "pod",
+                pod,
+            ]
+            kubectl_args.extend(get_namespace_args(namespace, cluster))
+
+            try:
+                run_kubectl_command(kubectl_args, capture_output=False)
+                print_colored(f"Restarted {pod} for node {index}")
+            except Exception as e:
+                print_error(f"Failed restarting {pod} for node {index}: {e}")
+                sys.exit(1)
+
+    @abstractmethod
+    def restart_service(self, instance_index: int) -> bool:
+        """Restart service for a specific instance. If returns False, the restart process should be aborted."""
+
+    # from_restart_strategy is a static method that returns the appropriate ServiceRestarter based on the restart strategy.
+    @staticmethod
+    def from_restart_strategy(
+        restart_strategy: RestartStrategy,
+        namespace_and_instruction_args: NamespaceAndInstructionArgs,
+        service: Service,
+    ) -> "ServiceRestarter":
+        if restart_strategy == RestartStrategy.ONE_BY_ONE:
+            check_between_restarts = lambda instance_index: (
+                True
+                if instance_index == namespace_and_instruction_args.size() - 1
+                else wait_until_y_or_n(f"Do you want to restart the next pod?")
+            )
+
+            return ChecksBetweenRestarts(
+                namespace_and_instruction_args,
+                service,
+                check_between_restarts,
+            )
+        elif restart_strategy == RestartStrategy.ALL_AT_ONCE:
+            return ChecksBetweenRestarts(
+                namespace_and_instruction_args,
+                service,
+                lambda instance_index: True,
+            )
+        elif restart_strategy == RestartStrategy.NO_RESTART:
+            assert (
+                namespace_and_instruction_args.get_instruction(0) is None
+            ), f"post_restart_instructions is not allowed with no_restart as the restart strategy"
+            return NoOpServiceRestarter(namespace_and_instruction_args, service)
+        else:
+            raise ValueError(f"Invalid restart strategy: {restart_strategy}")
+
+
+class ChecksBetweenRestarts(ServiceRestarter):
+    """Checks between restarts."""
+
+    def __init__(
+        self,
+        namespace_and_instruction_args: NamespaceAndInstructionArgs,
+        service: Service,
+        check_between_restarts: Callable[[int], bool],
+    ):
+        super().__init__(namespace_and_instruction_args, service)
+        self.check_between_restarts = check_between_restarts
+
+    def restart_service(self, instance_index: int) -> bool:
+        """Restart the instance one by one, running the use code in between each restart."""
+        self._restart_pod(
+            self.namespace_and_instruction_args.get_namespace(instance_index),
+            self.service,
+            instance_index,
+            self.namespace_and_instruction_args.get_cluster(instance_index),
+        )
+        instructions = self.namespace_and_instruction_args.get_instruction(instance_index)
+        print_colored(
+            f"Restarted pod {instance_index}.\n{instructions if instructions is not None else ''} ",
+            Colors.YELLOW,
+        )
+        return self.check_between_restarts(instance_index)
+
+
+class NoOpServiceRestarter(ServiceRestarter):
+    """No-op service restarter."""
+
+    def restart_service(self, instance_index: int) -> bool:
+        """No-op."""
+        print_colored("\nSkipping pod restart.")
+        return True
 
 
 def get_logs_explorer_url(
@@ -444,111 +631,11 @@ def apply_configmap(
             sys.exit(1)
 
 
-def restart_pod(
-    namespace: str, service: Service, index: int, cluster: Optional[str] = None
-) -> None:
-    """Restart pod by deleting it"""
-    # Get the list of pods (one string per line).
-    kubectl_args = [
-        "get",
-        "pods",
-        "-o",
-        "name",
-    ]
-    kubectl_args.extend(get_namespace_args(namespace, cluster))
-    pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
-
-    # Filter the list of pods to only include the ones that match the service and extract the pod name.
-    pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
-
-    if not pods:
-        print_error(f"Could not find pods for service {service.pod_name}.")
-        sys.exit(1)
-
-    # Go over each pod and delete it.
-    for pod in pods:
-        kubectl_args = [
-            "delete",
-            "pod",
-            pod,
-        ]
-        kubectl_args.extend(get_namespace_args(namespace, cluster))
-
-        try:
-            run_kubectl_command(kubectl_args, capture_output=False)
-            print_colored(f"Restarted {pod} for node {index}")
-        except Exception as e:
-            print_error(f"Failed restarting {pod} for node {index}: {e}")
-            sys.exit(1)
-
-
-class NamespaceAndInstructionArgs:
-    def __init__(
-        self,
-        namespace_list: list[str],
-        cluster_list: Optional[list[str]],
-        instruction_list: Optional[list[str]] = None,
-    ):
-        assert (
-            namespace_list is not None and len(namespace_list) > 0
-        ), "Namespace list cannot be None or empty."
-        self.namespace_list = namespace_list
-        assert cluster_list is None or len(cluster_list) == len(
-            namespace_list
-        ), "cluster_list must have the same length as namespace_list"
-        self.cluster_list = cluster_list
-        assert instruction_list is None or len(namespace_list) == len(
-            instruction_list
-        ), "instruction_list must have the same length as namespace_list"
-        self.instruction_list = instruction_list
-
-    def size(self) -> int:
-        return len(self.namespace_list)
-
-    def get_namespace(self, index: int) -> str:
-        return self.namespace_list[index]
-
-    def get_cluster(self, index: int) -> Optional[str]:
-        return self.cluster_list[index] if self.cluster_list is not None else None
-
-    def get_instruction(self, index: int) -> Optional[str]:
-        return self.instruction_list[index] if self.instruction_list is not None else None
-
-    @staticmethod
-    def get_namespace_list_from_args(
-        args: argparse.Namespace,
-    ) -> list[str]:
-        """Get a list of namespaces based on the arguments"""
-        if args.namespace_list:
-            return args.namespace_list
-
-        return [
-            f"{args.namespace_prefix}-{i}"
-            for i in range(args.start_index, args.start_index + args.num_nodes)
-        ]
-
-    @staticmethod
-    def get_context_list_from_args(
-        args: argparse.Namespace,
-    ) -> list[str]:
-        """Get a list of contexts based on the arguments"""
-        if args.cluster_list:
-            return args.cluster_list
-
-        if args.cluster_prefix is None:
-            return None
-
-        return [
-            f"{args.cluster_prefix}-{i}"
-            for i in range(args.start_index, args.start_index + args.num_nodes)
-        ]
-
-
 def update_config_and_restart_nodes(
     config_overrides: dict[str, Any],
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
-    restart_strategy: RestartStrategy,
+    restarter: ServiceRestarter,
 ) -> None:
     assert config_overrides is not None, "config_overrides must be provided"
     assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
@@ -604,28 +691,11 @@ def update_config_and_restart_nodes(
             namespace_and_instruction_args.get_cluster(index),
         )
 
-    if restart_strategy != RestartStrategy.NO_RESTART:
-        for index, config in enumerate(configs):
-            restart_pod(
-                namespace_and_instruction_args.get_namespace(index),
-                service,
-                index,
-                namespace_and_instruction_args.get_cluster(index),
-            )
-            instructions = namespace_and_instruction_args.get_instruction(index)
-            print_colored(
-                f"Restarted pod.\n{instructions if instructions is not None else ''} ",
-                Colors.YELLOW,
-            )
-            if restart_strategy == RestartStrategy.ONE_BY_ONE:
-                # Don't ask in the case of the last job.
-                if index != len(configs) - 1 and not wait_until_y_or_n(
-                    f"Do you want to restart the next pod?"
-                ):
-                    print_colored("\nAborting restart process.")
-                    return
-        print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
-    else:
-        print_colored("\nSkipping pod restart.")
+    for index, config in enumerate(configs):
+        if not restarter.restart_service(index):
+            print_colored("\nAborting restart process.")
+            sys.exit(1)
+
+    print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
 
     print("\nOperation completed successfully!")
