@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
 use std::future::pending;
 
+use apollo_config::presentation::get_config_presentation;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -7,6 +9,7 @@ use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
+use serde_json::Value;
 use tokio::time::{interval, Duration as TokioDuration};
 use tracing::{error, info};
 
@@ -74,7 +77,8 @@ impl ConfigManagerRunner {
             // No change, so no action is needed.
             Ok(node_dynamic_config)
         } else {
-            // TODO(Nadin/Tsabary): log the diff between the latest and the new node dynamic config.
+            // Log the diff between the latest and the new node dynamic config.
+            self.log_config_diff(&self.latest_node_dynamic_config, &node_dynamic_config);
             // Update the latest node dynamic config.
             self.latest_node_dynamic_config = node_dynamic_config.clone();
             match self
@@ -90,6 +94,26 @@ impl ConfigManagerRunner {
                     error!("Failed to update dynamic config: {:?}", e);
                     Err(format!("Failed to update dynamic config: {:?}", e).into())
                 }
+            }
+        }
+    }
+
+    fn log_config_diff(&self, old_config: &NodeDynamicConfig, new_config: &NodeDynamicConfig) {
+        let old_config = get_config_presentation(old_config, false).unwrap();
+        let new_config = get_config_presentation(new_config, false).unwrap();
+        let all_keys: BTreeSet<_> = old_config
+            .as_object()
+            .unwrap()
+            .keys()
+            .chain(new_config.as_object().unwrap().keys())
+            .collect();
+
+        for key in all_keys {
+            let old_value = old_config.as_object().unwrap().get(key).unwrap_or(&Value::Null);
+            let new_value = new_config.as_object().unwrap().get(key).unwrap_or(&Value::Null);
+
+            if old_value != new_value {
+                info!("ConfigManagerRunner: {key} changed from {old_value} to {new_value}");
             }
         }
     }
