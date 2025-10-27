@@ -3,15 +3,19 @@
 from abc import ABC, abstractmethod
 import argparse
 import json
+import signal
+import socket
 import subprocess
 import sys
 from enum import Enum
+from time import sleep
 from typing import Any, Callable, Optional
 
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+from prometheus_client.parser import text_string_to_metric_families
 import yaml
 from difflib import unified_diff
 
@@ -212,6 +216,135 @@ def validate_arguments(args: argparse.Namespace) -> None:
             sys.exit(1)
 
 
+class MetricConditionGater:
+    """Gates progress on a metric satisfying a condition."""
+
+    def __init__(
+        self,
+        metric_name: str,
+        namespace: str,
+        cluster: Optional[str],
+        pod: str,
+        metrics_port: int,
+        refresh_interval_seconds: int = 3,
+    ):
+        self.metric_name = metric_name
+        self.local_port = self._get_free_port()
+        self.namespace = namespace
+        self.cluster = cluster
+        self.pod = pod
+        self.metrics_port = metrics_port
+        self.refresh_interval_seconds = refresh_interval_seconds
+
+    @staticmethod
+    def _get_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", 0))
+            return s.getsockname()[1]
+
+    def _get_metrics(self) -> str:
+        while True:
+            try:
+                with urllib.request.urlopen(
+                    f"http://localhost:{self.local_port}/monitoring/metrics"
+                ) as response:
+                    if response.status == 200:
+                        return response.read().decode("utf-8")
+                    else:
+                        print_colored(
+                            f"Failed to get metrics from for pod {self.pod}: {response.status}"
+                        )
+            except urllib.error.URLError as e:
+                print_colored(f"Failed to get metrics from for pod {self.pod}: {e}")
+            print_colored(
+                f"Waiting {self.refresh_interval_seconds} seconds to retry getting metrics...",
+                Colors.YELLOW,
+            )
+            sleep(self.refresh_interval_seconds)
+
+    def _poll_until_condition_met(self, metric_value_condition: Callable[[Any], bool]):
+        """Poll metrics until the condition is met for the metric."""
+        while True:
+            metrics = self._get_metrics()
+            assert metrics is not None, f"Failed to get metrics from for pod {self.pod}"
+
+            metric_families = text_string_to_metric_families(metrics)
+            val = None
+            for metric_family in metric_families:
+                if metric_family.name == self.metric_name:
+                    if len(metric_family.samples) > 1:
+                        print_error(
+                            f"Multiple samples found for metric {self.metric_name}. Using the first one.",
+                        )
+                    val = metric_family.samples[0].value
+                    break
+
+            if val is None:
+                print_colored(
+                    f"Metric '{self.metric_name}' not found in pod {self.pod}. Assuming the node is not ready."
+                )
+            elif metric_value_condition(val):
+                print_colored(f"Metric {self.metric_name} condition met (value={val}).")
+                return
+            else:
+                print_colored(
+                    f"Metric {self.metric_name} condition not met (value={val}). Continuing to wait."
+                )
+
+            sleep(self.refresh_interval_seconds)
+
+    def gate(self, metric_value_condition: Callable[[Any], bool]):
+        """Wait until the nodes metrics satisfy the condition."""
+        # Start kubectl port forwarding to the node and keep it running in the background so we can access the metrics.
+        cmd = [
+            "kubectl",
+            "port-forward",
+            f"pod/{self.pod}",
+            f"{self.local_port}:{self.metrics_port}",
+        ]
+        cmd.extend(get_namespace_args(self.namespace, self.cluster))
+
+        pf_process = None
+
+        def _terminate_port_forward_process(pf_process: subprocess.Popen):
+            if pf_process and pf_process.poll() is None:
+                print_colored(f"Terminating kubectl port-forward process (PID: {pf_process.pid})")
+                pf_process.terminate()
+                try:
+                    pf_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    print_colored("Force killing kubectl port-forward process")
+                    pf_process.kill()
+                    pf_process.wait()
+
+        try:
+            pf_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("Waiting for forwarding to start")
+            # Give the forwarding time to start.
+            # TODO(guy.f): Consider poll until the forwarding is ready if we see any issues.
+            sleep(3)
+            assert (
+                pf_process.poll() is None
+            ), f"Port forwarding process exited with code {pf_process.returncode}"
+
+            print(
+                f"Forwarding started (from local port {self.local_port} to {self.pod}:{self.metrics_port})"
+            )
+
+            # Set up signal handler to ensure forwarding subprocess is terminated on interruption
+            def signal_handler(signum, frame):
+                _terminate_port_forward_process(pf_process)
+                sys.exit(0)
+
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
+
+            self._poll_until_condition_met(metric_value_condition)
+
+        finally:
+            _terminate_port_forward_process(pf_process)
+
+
 class NamespaceAndInstructionArgs:
     def __init__(
         self,
@@ -376,12 +509,12 @@ class ChecksBetweenRestarts(ServiceRestarter):
 
     def restart_service(self, instance_index: int) -> bool:
         """Restart the instance one by one, running the use code in between each restart."""
-        self._restart_pod(
-            self.namespace_and_instruction_args.get_namespace(instance_index),
-            self.service,
-            instance_index,
-            self.namespace_and_instruction_args.get_cluster(instance_index),
-        )
+        # self._restart_pod(
+        #     self.namespace_and_instruction_args.get_namespace(instance_index),
+        #     self.service,
+        #     instance_index,
+        #     self.namespace_and_instruction_args.get_cluster(instance_index),
+        # )
         instructions = self.namespace_and_instruction_args.get_instruction(instance_index)
         print_colored(
             f"Restarted pod {instance_index}.\n{instructions if instructions else ''} ",
