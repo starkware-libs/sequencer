@@ -173,7 +173,7 @@ pub trait SerializeConfig {
     ) -> Result<(), ConfigError> {
         let combined_map =
             combine_config_map_and_pointers(self.dump(), config_pointers, non_pointer_params)?;
-        serialize_to_file(combined_map, file_path);
+        serialize_to_file(&combined_map, file_path);
         Ok(())
     }
 }

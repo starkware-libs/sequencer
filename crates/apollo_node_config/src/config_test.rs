@@ -99,7 +99,7 @@ fn default_config_file_is_up_to_date() {
     .unwrap();
     serialize_to_file_test(&combined_map, CONFIG_SCHEMA_PATH, FIX_BINARY_NAME);
 
-    serialize_to_file_test(private_parameters(), CONFIG_SECRETS_SCHEMA_PATH, FIX_BINARY_NAME);
+    serialize_to_file_test(&private_parameters(), CONFIG_SECRETS_SCHEMA_PATH, FIX_BINARY_NAME);
 }
 
 #[test]

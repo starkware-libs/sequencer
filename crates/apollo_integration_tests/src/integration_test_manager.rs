@@ -186,7 +186,7 @@ impl NodeSetup {
             HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
             MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
-        serialize_to_file(json_data, path);
+        serialize_to_file(&json_data, path);
     }
 
     pub fn get_batcher(&self) -> &ExecutableSetup {

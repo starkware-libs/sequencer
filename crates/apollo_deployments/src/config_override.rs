@@ -46,12 +46,12 @@ impl ConfigOverride {
 
         if create {
             serialize_to_file(
-                to_value(&self.deployment_config_override).unwrap(),
+                &to_value(&self.deployment_config_override).unwrap(),
                 deployment_path.to_str().unwrap(),
             );
 
             serialize_to_file(
-                to_value(&self.instance_config_override).unwrap(),
+                &to_value(&self.instance_config_override).unwrap(),
                 instance_path.to_str().unwrap(),
             );
         }
@@ -96,13 +96,13 @@ impl ConfigOverride {
             self.config_files(deployment_config_override_dir, instance_name, false);
 
         serialize_to_file_test(
-            to_value(config_override_with_paths.deployment_config_override).unwrap(),
+            &to_value(config_override_with_paths.deployment_config_override).unwrap(),
             &config_override_with_paths.deployment_path,
             FIX_BINARY_NAME,
         );
 
         serialize_to_file_test(
-            to_value(config_override_with_paths.instance_config_override).unwrap(),
+            &to_value(config_override_with_paths.instance_config_override).unwrap(),
             &config_override_with_paths.instance_path,
             FIX_BINARY_NAME,
         );
