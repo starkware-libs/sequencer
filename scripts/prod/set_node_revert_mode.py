@@ -9,6 +9,7 @@ from update_config_and_restart_nodes_lib import (
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
+    ServiceRestarter,
     get_current_block_number,
     get_logs_explorer_url,
     print_colored,
@@ -51,16 +52,23 @@ def set_revert_mode(
         post_restart_instructions.append(
             f"Please check logs and verify that revert has completed (both in the batcher and for sync). Logs URL: {url}"
         )
+
     namespace_and_instruction_args = NamespaceAndInstructionArgs(
         namespace_list,
         context_list,
         post_restart_instructions,
     )
+    restarter = ServiceRestarter.from_restart_strategy(
+        restart_strategy,
+        namespace_and_instruction_args,
+        Service.Core,
+    )
+
     update_config_and_restart_nodes(
         config_overrides,
         namespace_and_instruction_args,
         Service.Core,
-        restart_strategy,
+        restarter,
     )
 
 

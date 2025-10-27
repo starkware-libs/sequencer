@@ -8,8 +8,10 @@ from typing import Any
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Colors,
+    RestartStrategy,
     NamespaceAndInstructionArgs,
     Service,
+    ServiceRestarter,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -69,7 +71,7 @@ def service_type_converter(service_name: str) -> Service:
     if service_name.startswith("Service."):
         service_name = service_name[8:]
 
-    service_name = service_name.lower()
+    # service_name = service_name.lower()
 
     try:
         return Service[service_name]
@@ -150,15 +152,20 @@ Examples:
         print_error("No config overrides provided")
         sys.exit(1)
 
-    update_config_and_restart_nodes(
-        config_overrides,
-        NamespaceAndInstructionArgs(
-            NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
-            NamespaceAndInstructionArgs.get_context_list_from_args(args),
-            None,
-        ),
-        args.service,
+    namespace_and_instruction_args = NamespaceAndInstructionArgs(
+        NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
+        NamespaceAndInstructionArgs.get_context_list_from_args(args),
+        None,
+    )
+
+    restarter = ServiceRestarter.from_restart_strategy(
         args.restart_strategy,
+        namespace_and_instruction_args,
+        args.service,
+    )
+
+    update_config_and_restart_nodes(
+        config_overrides, namespace_and_instruction_args, args.service, restarter
     )
 
 
