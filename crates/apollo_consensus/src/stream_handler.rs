@@ -254,45 +254,47 @@ where
         data: &mut StreamData<StreamContent, StreamId>,
         message: StreamMessage<StreamContent, StreamId>,
     ) -> bool {
+        let content = match message.message {
+            StreamMessageBody::Content(content) => content,
+            // A Fin message is not sent. This is a no-op, can safely return false.
+            StreamMessageBody::Fin => return false,
+        };
+
         let sender = &mut data.sender;
-        if let StreamMessageBody::Content(content) = message.message {
-            if let Err(e) = sender.try_send(content) {
-                warn!(
-                    "Error sending inbound message: {e:?}; dropping the message. StreamId: {}, \
-                     MessageId: {}",
-                    message.stream_id, message.message_id
-                );
-                return false;
-            }
+        if let Err(e) = sender.try_send(content) {
+            warn!(
+                "Error sending inbound message: {e:?}; dropping the message. StreamId: {}, \
+                 MessageId: {}",
+                message.stream_id, message.message_id
+            );
+            return false;
+        }
 
-            // Send the receiver only once the first message has been sent.
-            if message.message_id == 0 {
-                // If this is the first message, send the receiver to the application.
-                // Note: By this point, messages must be unique. Duplicate message IDs should
-                // have been discarded earlier.
-                let receiver = data.receiver.take().expect("Receiver should exist");
+        // Send the receiver only once the first message has been sent.
+        if message.message_id == 0 {
+            // If this is the first message, send the receiver to the application.
+            // Note: By this point, messages must be unique. Duplicate message IDs should
+            // have been discarded earlier.
+            let receiver = data.receiver.take().expect("Receiver should exist");
 
-                // Send the receiver to the application.
-                let send_result = self.inbound_channel_sender.try_send(receiver);
-                if let Err(e) = send_result {
-                    if e.is_disconnected() {
-                        panic!("Receiver was unexpectedly dropped");
-                    } else {
-                        // The channel is full.
-                        warn!(
-                            "Failed to send receiver to application: {e:?}; dropping the message. \
-                             StreamId: {}, MessageId: {}",
-                            message.stream_id, message.message_id
-                        );
-                        return false;
-                    }
+            // Send the receiver to the application.
+            let send_result = self.inbound_channel_sender.try_send(receiver);
+            if let Err(e) = send_result {
+                if e.is_disconnected() {
+                    panic!("Receiver was unexpectedly dropped");
+                } else {
+                    // The channel is full.
+                    warn!(
+                        "Failed to send receiver to application: {e:?}; dropping the message. \
+                         StreamId: {}, MessageId: {}",
+                        message.stream_id, message.message_id
+                    );
+                    return false;
                 }
             }
-            data.next_message_id += 1;
-            return true;
         }
-        // A Fin message is not sent. This is a no-op, can safely return false.
-        false
+        data.next_message_id += 1;
+        true
     }
 
     // Send the message to the network.
