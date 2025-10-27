@@ -13,12 +13,15 @@ use crate::dashboard::{Panel, PanelType, Row, Unit};
 // P2P panels
 
 fn get_panel_p2p_sync_num_connected_peers() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&P2P_SYNC_NUM_CONNECTED_PEERS, PanelType::Stat)
 }
 fn get_panel_p2p_sync_num_active_inbound_sessions() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS, PanelType::Stat)
 }
 fn get_panel_p2p_sync_num_active_outbound_sessions() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS, PanelType::Stat)
 }
 

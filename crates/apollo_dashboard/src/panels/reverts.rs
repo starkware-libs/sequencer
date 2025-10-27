@@ -4,10 +4,12 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING;
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_consensus_reverts() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING, PanelType::Stat)
 }
 
 fn get_panel_state_sync_reverts() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING, PanelType::Stat)
 }
 

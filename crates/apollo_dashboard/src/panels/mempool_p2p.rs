@@ -14,14 +14,17 @@ use apollo_network::network_manager::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
+    #[allow(deprecated)]
     Panel::from_counter(&MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_num_received_messages() -> Panel {
+    #[allow(deprecated)]
     Panel::from_counter(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
 }
 

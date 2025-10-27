@@ -291,6 +291,7 @@ impl Panel {
         Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
 
+    #[deprecated(note = "use `new` instead")]
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
@@ -300,6 +301,7 @@ impl Panel {
         )
     }
 
+    #[deprecated(note = "use `new` instead")]
     pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
@@ -391,8 +393,10 @@ impl From<&RemoteClientMetrics> for UnlabeledPanels {
 
 impl From<&LocalServerMetrics> for UnlabeledPanels {
     fn from(metrics: &LocalServerMetrics) -> Self {
+        #[allow(deprecated)]
         let received_msgs_panel =
             Panel::from_counter(metrics.get_received_metric(), PanelType::TimeSeries);
+        #[allow(deprecated)]
         let processed_msgs_panel =
             Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
         let queue_depth_panel = Panel::new(
@@ -411,12 +415,16 @@ impl From<&LocalServerMetrics> for UnlabeledPanels {
 
 impl From<&RemoteServerMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteServerMetrics) -> Self {
+        #[allow(deprecated)]
         let total_received_msgs_panel =
             Panel::from_counter(metrics.get_total_received_metric(), PanelType::TimeSeries);
+        #[allow(deprecated)]
         let valid_received_msgs_panel =
             Panel::from_counter(metrics.get_valid_received_metric(), PanelType::TimeSeries);
+        #[allow(deprecated)]
         let processed_msgs_panel =
             Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
+        #[allow(deprecated)]
         let number_of_connections_panel =
             Panel::from_gauge(metrics.get_number_of_connections_metric(), PanelType::TimeSeries);
 

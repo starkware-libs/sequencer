@@ -25,12 +25,15 @@ fn get_storage_commit_latency() -> Panel {
     .with_unit(Unit::Seconds)
 }
 fn get_sync_storage_open_read_transactions() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&SYNC_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
 fn get_batcher_storage_open_read_transactions() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&BATCHER_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
 fn get_class_manager_storage_open_read_transactions() -> Panel {
+    #[allow(deprecated)]
     Panel::from_gauge(&CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
 
