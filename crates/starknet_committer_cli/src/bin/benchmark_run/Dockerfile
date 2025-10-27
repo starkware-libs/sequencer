@@ -28,9 +28,10 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 # - log level is info.
 # - use the provided data, storage, output and checkpoint directories (override for a persistent storage dir of
 #   a specific node)
+# - use 16 bytes keys for the Mdbx storage.
 
 CMD ["--n-iterations", "1000000", \
-    "--n-diffs", "4000", \
+    "--n-diffs", "1000", \
     "--storage-type", "cached-mdbx", \
     "--cache-size", "1000000", \
     "--checkpoint-interval", "1000", \
@@ -38,5 +39,6 @@ CMD ["--n-iterations", "1000000", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \
-    "--checkpoint-dir", "/mnt/data/checkpoints" \
+    "--checkpoint-dir", "/mnt/data/checkpoints", \
+    "--key-length", "16" \
     ]

@@ -8,11 +8,13 @@ description = "Library for storage traits and serde for Patricia-Merkle tree com
 
 [features]
 testing = []
+short_keys = ["blake3"]
 
 [lints]
 workspace = true
 
 [dependencies]
+blake3= {workspace=true, optional=true}
 hex.workspace = true
 libmdbx.workspace = true
 lru.workspace = true
