@@ -424,13 +424,6 @@ fn handle_client_error<B: BaseLayerContract + Send + Sync>(
         L1ProviderClientError::L1ProviderError(L1ProviderError::Uninitialized) => {
             Err(L1ScraperError::NeedsRestart)
         }
-        L1ProviderClientError::L1ProviderError(L1ProviderError::UnsupportedL1Event(event)) => {
-            panic!(
-                "Scraper-->Provider consistency error: the event {event} is not supported by the \
-                 provider, but has been scraped and sent to it nonetheless. Check the list of \
-                 tracked events in the scraper and compare to the provider's."
-            )
-        }
         error => panic!("Unexpected error: {error}"),
     }
 }
