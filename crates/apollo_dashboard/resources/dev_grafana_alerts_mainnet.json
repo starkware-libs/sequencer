@@ -253,6 +253,34 @@
       "observer_applicable": "true"
     },
     {
+      "name": "consensus_round_above_zero",
+      "title": "Consensus round above zero",
+      "ruleGroup": "consensus",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p5",
+      "observer_applicable": "false"
+    },
+    {
       "name": "consensus_votes_num_sent_messages",
       "title": "Consensus votes num sent messages",
       "ruleGroup": "consensus",
@@ -979,34 +1007,6 @@
       "intervalSec": 30,
       "severity": "p2",
       "observer_applicable": "true"
-    },
-    {
-      "name": "consensus_round_above_zero",
-      "title": "Consensus round above zero",
-      "ruleGroup": "consensus",
-      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              0.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p4",
-      "observer_applicable": "false"
     },
     {
       "name": "consensus_round_above_zero_multiple_times",
