@@ -382,8 +382,12 @@ impl<S: StateReader> WorkerExecutor<S> {
 
         let tx_hash = Transaction::tx_hash(tx.as_ref());
         let run_time = execution_output.run_time.as_millis();
+        let n_reads = execution_output.reads.storage.len();
+        let n_writes = execution_output.state_diff.storage.len();
         log::debug!(
-            "Transaction with tx_hash: {tx_hash} {execution_status}. Execution time: {run_time}ms."
+            "Transaction with tx_hash: {tx_hash} {execution_status}. Execution time: \
+             {run_time}ms. Number of storage reads in the execution: {n_reads}, number of storage \
+             writes: {n_writes}."
         );
 
         Ok(CommitResult::Success)
