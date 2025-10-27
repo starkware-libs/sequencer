@@ -29,6 +29,7 @@ impl NodeExecutionId {
         self.executable_index
     }
 
+    // TODO(victork): remove path dependency on executable index
     pub fn build_path(&self, base: &Path) -> PathBuf {
         base.join(format!("node_{}", self.node_index))
             .join(format!("executable_{}", self.executable_index))
