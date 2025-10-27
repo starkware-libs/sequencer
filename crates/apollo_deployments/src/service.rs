@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Display;
 use std::iter::once;
 use std::net::{IpAddr, Ipv4Addr};
@@ -369,6 +369,18 @@ impl NodeType {
                 DistributedNodeServiceName::iter().map(NodeService::Distributed).collect()
             }
         }
+    }
+
+    pub fn get_services_of_components(
+        &self,
+        component_type: ComponentConfigInService,
+    ) -> HashSet<NodeService> {
+        self.all_service_names()
+            .into_iter()
+            .filter(|node_service| {
+                node_service.get_components_in_service().contains(&component_type)
+            })
+            .collect()
     }
 
     pub fn get_component_configs(

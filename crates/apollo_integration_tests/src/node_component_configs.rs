@@ -1,17 +1,14 @@
-use apollo_deployments::deployments::distributed::{
-    DistributedNodeServiceName,
-    DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
-};
-use apollo_deployments::deployments::hybrid::{
-    HybridNodeServiceName,
-    HYBRID_NODE_REQUIRED_PORTS_NUM,
-};
+use apollo_deployments::deployment_definitions::ComponentConfigInService;
+use apollo_deployments::deployments::distributed::DISTRIBUTED_NODE_REQUIRED_PORTS_NUM;
+use apollo_deployments::deployments::hybrid::HYBRID_NODE_REQUIRED_PORTS_NUM;
 use apollo_deployments::service::{NodeService, NodeType};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
 use apollo_node_config::component_config::{set_urls_to_localhost, ComponentConfig};
+use indexmap::IndexMap;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
+    // TODO(Tsabary): transition to using the map instead of a vector and indices.
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
@@ -22,15 +19,62 @@ pub struct NodeComponentConfigs {
 
 impl NodeComponentConfigs {
     fn new(
-        component_configs: Vec<ComponentConfig>,
-        batcher_index: usize,
-        http_server_index: usize,
-        state_sync_index: usize,
-        class_manager_index: usize,
-        consensus_manager_index: usize,
+        component_configs_map: IndexMap<NodeService, ComponentConfig>,
+        node_type: NodeType,
     ) -> Self {
+        let batcher_index = component_configs_map
+            .get_index_of::<NodeService>(
+                node_type
+                    .get_services_of_components(ComponentConfigInService::Batcher)
+                    .iter()
+                    .next()
+                    .as_ref()
+                    .unwrap(),
+            )
+            .unwrap();
+        let http_server_index = component_configs_map
+            .get_index_of::<NodeService>(
+                node_type
+                    .get_services_of_components(ComponentConfigInService::HttpServer)
+                    .iter()
+                    .next()
+                    .as_ref()
+                    .unwrap(),
+            )
+            .unwrap();
+        let state_sync_index = component_configs_map
+            .get_index_of::<NodeService>(
+                node_type
+                    .get_services_of_components(ComponentConfigInService::StateSync)
+                    .iter()
+                    .next()
+                    .as_ref()
+                    .unwrap(),
+            )
+            .unwrap();
+        let class_manager_index = component_configs_map
+            .get_index_of::<NodeService>(
+                node_type
+                    .get_services_of_components(ComponentConfigInService::ClassManager)
+                    .iter()
+                    .next()
+                    .as_ref()
+                    .unwrap(),
+            )
+            .unwrap();
+        let consensus_manager_index = component_configs_map
+            .get_index_of::<NodeService>(
+                node_type
+                    .get_services_of_components(ComponentConfigInService::Consensus)
+                    .iter()
+                    .next()
+                    .as_ref()
+                    .unwrap(),
+            )
+            .unwrap();
+
         Self {
-            component_configs,
+            component_configs: component_configs_map.into_values().collect(),
             batcher_index,
             http_server_index,
             state_sync_index,
@@ -80,12 +124,8 @@ impl IntoIterator for NodeComponentConfigs {
 pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
     // All components are in executable index 0.
     NodeComponentConfigs::new(
-        NodeType::Consolidated.get_component_configs(None).into_values().collect(),
-        0,
-        0,
-        0,
-        0,
-        0,
+        NodeType::Consolidated.get_component_configs(None),
+        NodeType::Consolidated,
     )
 }
 
@@ -97,32 +137,11 @@ pub fn create_distributed_component_configs(
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
     let ports = available_ports.get_next_ports(DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
-    let services_component_config = NodeType::Distributed.get_component_configs(Some(ports));
+    let mut services_component_config = NodeType::Distributed.get_component_configs(Some(ports));
 
-    let mut component_configs: Vec<ComponentConfig> =
-        services_component_config.values().cloned().collect();
-    set_urls_to_localhost(&mut component_configs);
+    set_urls_to_localhost(services_component_config.values_mut());
 
-    // TODO(Tsabary): transition to using the map instead of a vector and indices.
-
-    NodeComponentConfigs::new(
-        component_configs,
-        services_component_config
-            .get_index_of::<NodeService>(&DistributedNodeServiceName::Batcher.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&DistributedNodeServiceName::HttpServer.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&DistributedNodeServiceName::StateSync.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&DistributedNodeServiceName::ClassManager.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&DistributedNodeServiceName::ConsensusManager.into())
-            .unwrap(),
-    )
+    NodeComponentConfigs::new(services_component_config, NodeType::Distributed)
 }
 
 pub fn create_hybrid_component_configs(
@@ -133,30 +152,9 @@ pub fn create_hybrid_component_configs(
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
     let ports = available_ports.get_next_ports(HYBRID_NODE_REQUIRED_PORTS_NUM);
-    let services_component_config = NodeType::Hybrid.get_component_configs(Some(ports));
+    let mut services_component_config = NodeType::Hybrid.get_component_configs(Some(ports));
 
-    let mut component_configs: Vec<ComponentConfig> =
-        services_component_config.values().cloned().collect();
-    set_urls_to_localhost(&mut component_configs);
+    set_urls_to_localhost(services_component_config.values_mut());
 
-    // TODO(Tsabary): transition to using the map instead of a vector and indices.
-
-    NodeComponentConfigs::new(
-        component_configs,
-        services_component_config
-            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&HybridNodeServiceName::HttpServer.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
-            .unwrap(),
-        services_component_config
-            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
-            .unwrap(),
-    )
+    NodeComponentConfigs::new(services_component_config, NodeType::Hybrid)
 }
