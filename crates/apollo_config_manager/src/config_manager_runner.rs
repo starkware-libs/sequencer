@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::future::pending;
 
 use apollo_config_manager_config::config::ConfigManagerConfig;
@@ -7,6 +8,7 @@ use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
+use serde_json::Value;
 use tokio::time::{interval, Duration as TokioDuration};
 use tracing::{error, info};
 
@@ -74,7 +76,8 @@ impl ConfigManagerRunner {
             // No change, so no action is needed.
             Ok(node_dynamic_config)
         } else {
-            // TODO(Nadin/Tsabary): log the diff between the latest and the new node dynamic config.
+            // Log the diff between the latest and the new node dynamic config.
+            self.log_config_diff(&self.latest_node_dynamic_config, &node_dynamic_config);
             // Update the latest node dynamic config.
             self.latest_node_dynamic_config = node_dynamic_config.clone();
             match self
@@ -91,6 +94,44 @@ impl ConfigManagerRunner {
                     Err(format!("Failed to update dynamic config: {:?}", e).into())
                 }
             }
+        }
+    }
+
+    fn log_config_diff(&self, old_config: &NodeDynamicConfig, new_config: &NodeDynamicConfig) {
+        let old_config_json = serde_json::to_value(old_config).unwrap();
+        let new_config_json = serde_json::to_value(new_config).unwrap();
+        print_json_diff(&old_config_json, &new_config_json, "");
+    }
+}
+
+fn print_json_diff(old_val: &Value, new_val: &Value, path: &str) {
+    if old_val == new_val {
+        return;
+    }
+
+    match (old_val, new_val) {
+        (Value::Object(old_map), Value::Object(new_map)) => {
+            let keys: BTreeSet<_> = old_map.keys().chain(new_map.keys()).collect();
+            for k in keys {
+                let new_path = if path.is_empty() { k.clone() } else { format!("{path}.{k}") };
+                print_json_diff(
+                    old_map.get(k).unwrap_or(&Value::Null),
+                    new_map.get(k).unwrap_or(&Value::Null),
+                    &new_path,
+                );
+            }
+        }
+        (Value::Array(va), Value::Array(vb)) => {
+            let max = va.len().max(vb.len());
+            for i in 0..max {
+                let new_path = format!("{path}[{i}]");
+                let a_val = va.get(i).unwrap_or(&Value::Null);
+                let b_val = vb.get(i).unwrap_or(&Value::Null);
+                print_json_diff(a_val, b_val, &new_path);
+            }
+        }
+        _ => {
+            println!("{path} changed from {old_val} to {new_val}");
         }
     }
 }
