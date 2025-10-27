@@ -4,10 +4,11 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_FIELD_ELEMENT};
+use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, Bytes};
 use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 
@@ -45,12 +46,12 @@ pub enum FftError {
 }
 
 static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
-    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP)
+    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP, 0)
         .unwrap_or_else(|error| panic!("Failed to load trusted setup: {error}."))
 });
 
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
-    Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
+    Ok(KZG_SETTINGS.blob_to_kzg_commitment(blob)?)
 }
 
 fn pad_bytes(input_bytes: Vec<u8>, length: usize) -> Vec<u8> {
@@ -160,35 +161,16 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     Ok([d0, d1, Felt::from(d2)])
 }
 
-/// Structure to hold blob data, commitments, proofs, and versioned hashes.
-pub struct Blobs {
-    pub blobs: Vec<Vec<u8>>,
-    pub commitments: Vec<KzgCommitment>,
-    pub proofs: Vec<KzgProof>,
-    pub versioned_hashes: Vec<[u8; 32]>,
-}
-
-/// Serializable structure to hold blob data, commitments, proofs, and versioned hashes.
-/// All cryptographic objects are converted to byte arrays for easy serialization.
+/// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SerializableBlobs {
-    pub blobs: Vec<Vec<u8>>,
-    pub commitments: Vec<Vec<u8>>,      // 48 bytes each
-    pub proofs: Vec<Vec<u8>>,           // 48 bytes each
-    pub versioned_hashes: Vec<Vec<u8>>, // 32 bytes each
-}
-impl From<Blobs> for SerializableBlobs {
-    fn from(Blobs { blobs, commitments, proofs, versioned_hashes }: Blobs) -> Self {
-        Self {
-            blobs,
-            commitments: commitments
-                .into_iter()
-                .map(|commitment| commitment.to_bytes().as_ref().to_vec())
-                .collect(),
-            proofs: proofs.into_iter().map(|proof| proof.to_bytes().as_ref().to_vec()).collect(),
-            versioned_hashes: versioned_hashes.into_iter().map(|hash| hash.to_vec()).collect(),
-        }
-    }
+pub struct LegacyBlobArtifacts {
+    #[serde_as(as = "Vec<Bytes>")]
+    pub commitments: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub proofs: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub versioned_hashes: Vec<[u8; 32]>,
 }
 
 /// Computes a versioned hash from a KZG commitment.
@@ -207,12 +189,13 @@ fn kzg_to_versioned_hash(commitment: &KzgCommitment) -> [u8; 32] {
     hash.into()
 }
 
-/// Computes KZG commitments, proofs, and versioned hashes for a list of raw blobs.
+/// Computes KZG commitments, legacy proofs, and versioned hashes for a list of raw blobs.
 ///
 /// For each blob, computes the KZG commitment and the corresponding KZG proof that is used
-/// to verify the commitment. Returns the internal `Blobs` structure with native KZG types.
-pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<Blobs, FftError> {
-    let mut blobs = Vec::new();
+/// to verify the commitment. Returns `LegacyBlobArtifacts` structure.
+pub fn compute_legacy_blob_commitments(
+    raw_blobs: Vec<Vec<u8>>,
+) -> Result<LegacyBlobArtifacts, FftError> {
     let mut commitments = Vec::new();
     let mut proofs = Vec::new();
     let mut versioned_hashes = Vec::new();
@@ -225,16 +208,58 @@ pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<Blobs, FftErr
         let commitment = blob_to_kzg_commitment(&blob)?;
 
         // Compute KZG proof.
-        let proof = KzgProof::compute_blob_kzg_proof(&blob, &commitment.to_bytes(), &KZG_SETTINGS)?;
+        let proof = KZG_SETTINGS.compute_blob_kzg_proof(&blob, &commitment.to_bytes())?;
 
         // Compute versioned hash.
         let versioned_hash = kzg_to_versioned_hash(&commitment);
 
-        blobs.push(raw_blob.clone());
-        commitments.push(commitment);
-        proofs.push(proof);
+        commitments.push(*commitment);
+        proofs.push(*proof);
         versioned_hashes.push(versioned_hash);
     }
 
-    Ok(Blobs { blobs, commitments, proofs, versioned_hashes })
+    Ok(LegacyBlobArtifacts { commitments, proofs, versioned_hashes })
+}
+
+/// Structure to hold blob artifacts: commitments, cell proofs (CELLS_PER_EXT_BLOB per blob), and
+/// versioned hashes.
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BlobArtifacts {
+    #[serde_as(as = "Vec<Bytes>")]
+    pub commitments: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub cell_proofs: Vec<[u8; 48]>,
+    #[serde_as(as = "Vec<Bytes>")]
+    pub versioned_hashes: Vec<[u8; 32]>,
+}
+
+/// Computes KZG commitments, cell proofs, and versioned hashes for a list of raw blobs.
+///
+/// For each blob, computes the KZG commitment and the corresponding KZG cell proofs that is used
+/// to verify the commitment. Returns the internal `CellBlobs` structure with native KZG types.
+pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts, FftError> {
+    let mut commitments = Vec::new();
+    let mut cell_proofs = Vec::new();
+    let mut versioned_hashes = Vec::new();
+
+    for raw_blob in raw_blobs.iter() {
+        // Convert raw blob bytes to Blob.
+        let blob = Blob::from_bytes(raw_blob)?;
+
+        // Compute KZG commitment.
+        let commitment = blob_to_kzg_commitment(&blob)?;
+
+        // Compute KZG cell proofs.
+        let (_, blob_cell_proofs) = KZG_SETTINGS.compute_cells_and_kzg_proofs(&blob)?;
+
+        // Compute versioned hash.
+        let versioned_hash = kzg_to_versioned_hash(&commitment);
+
+        commitments.push(*commitment);
+        cell_proofs.extend(blob_cell_proofs.into_iter().map(|proof| *proof));
+        versioned_hashes.push(versioned_hash);
+    }
+
+    Ok(BlobArtifacts { commitments, cell_proofs, versioned_hashes })
 }

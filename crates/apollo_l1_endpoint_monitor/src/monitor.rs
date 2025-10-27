@@ -73,7 +73,7 @@ impl L1EndpointMonitor {
     // high-level readability (through a dedicated const) and to improve testability.
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
-        let l1_client = ProviderBuilder::new().on_http(l1_endpoint_url.clone());
+        let l1_client = ProviderBuilder::new().connect_http(l1_endpoint_url.clone());
         let l1_endpoint_url = to_safe_string(l1_endpoint_url);
 
         // Note: response type annotation is coupled with the rpc method used.

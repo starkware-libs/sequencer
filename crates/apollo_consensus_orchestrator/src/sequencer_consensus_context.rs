@@ -255,6 +255,11 @@ impl ConsensusContext for SequencerConsensusContext {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let gas_price_params = make_gas_price_params(&self.config);
+        let mut l2_gas_price = self.l2_gas_price;
+        if let Some(override_value) = self.config.override_l2_gas_price_fri {
+            info!("Overriding L2 gas price to {override_value} fri");
+            l2_gas_price = GasPrice(override_value);
+        }
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
@@ -265,7 +270,7 @@ impl ConsensusContext for SequencerConsensusContext {
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
             cende_write_success,
-            l2_gas_price: self.l2_gas_price,
+            l2_gas_price,
             builder_address: self.config.builder_address,
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
@@ -330,7 +335,11 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_timestamp_window_seconds: self.config.block_timestamp_window_seconds,
                     previous_block_info: self.previous_block_info.clone(),
                     l1_da_mode: self.l1_da_mode,
-                    l2_gas_price_fri: self.l2_gas_price,
+                    l2_gas_price_fri: self
+                        .config
+                        .override_l2_gas_price_fri
+                        .map(GasPrice)
+                        .unwrap_or(self.l2_gas_price),
                 };
                 self.validate_current_round_proposal(
                     block_info_validation,
@@ -462,8 +471,12 @@ impl ConsensusContext for SequencerConsensusContext {
             .collect();
 
         let gas_target = VersionedConstants::latest_constants().gas_target;
-        if let Some(override_value) = self.config.override_l2_gas_price {
-            info!("Overriding L2 gas price to {override_value}");
+        if let Some(override_value) = self.config.override_l2_gas_price_fri {
+            info!(
+                "L2 gas price ({}) is not updated, remains on override value of {override_value} \
+                 fri",
+                self.l2_gas_price.0
+            );
             self.l2_gas_price = GasPrice(override_value);
         } else {
             self.l2_gas_price =

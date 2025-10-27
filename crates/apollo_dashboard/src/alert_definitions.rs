@@ -35,8 +35,8 @@ use crate::alert_scenarios::block_production_delay::{
     get_cende_write_blob_failure_once_alert,
     get_consensus_block_number_progress_is_slow_vec,
     get_consensus_p2p_peer_down_vec,
+    get_consensus_round_above_zero,
     get_consensus_round_above_zero_multiple_times_vec,
-    get_consensus_round_above_zero_vec,
 };
 use crate::alert_scenarios::block_production_halt::{
     get_batched_transactions_stuck_vec,
@@ -526,6 +526,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_p2p_disconnections(),
+        get_consensus_round_above_zero(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
         get_gateway_add_tx_idle(),
@@ -554,7 +555,6 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_consensus_block_number_stuck_vec());
     alerts.append(&mut get_consensus_p2p_not_enough_peers_for_quorum_vec());
     alerts.append(&mut get_consensus_p2p_peer_down_vec());
-    alerts.append(&mut get_consensus_round_above_zero_vec());
     alerts.append(&mut get_consensus_round_above_zero_multiple_times_vec());
     alerts.append(&mut get_consensus_round_high_vec());
     alerts.append(&mut get_eth_to_strk_success_count_alert_vec());
