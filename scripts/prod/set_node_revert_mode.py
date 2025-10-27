@@ -6,12 +6,11 @@ from typing import Optional
 import urllib.parse
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
+    NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
-    get_context_list_from_args,
     get_current_block_number,
     get_logs_explorer_url,
-    get_namespace_list_from_args,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -46,20 +45,22 @@ def set_revert_mode(
     }
 
     post_restart_instructions = []
-    for namespace, context in zip(namespace_list, context_list):
+    for namespace, context in zip(namespace_list, context_list or [None] * len(namespace_list)):
         url = get_logs_explorer_url_for_revert(namespace, revert_up_to_block, project_name)
 
         post_restart_instructions.append(
             f"Please check logs and verify that revert has completed (both in the batcher and for sync). Logs URL: {url}"
         )
-
+    namespace_and_instruction_args = NamespaceAndInstructionArgs(
+        namespace_list,
+        context_list,
+        post_restart_instructions,
+    )
     update_config_and_restart_nodes(
         config_overrides,
-        namespace_list,
+        namespace_and_instruction_args,
         Service.Core,
-        context_list,
         restart_strategy,
-        post_restart_instructions,
     )
 
 
@@ -155,8 +156,8 @@ Examples:
             print_error("Error: --revert-up-to-block (-b) cannot be set when disabling revert.")
             sys.exit(1)
 
-    namespace_list = get_namespace_list_from_args(args)
-    context_list = get_context_list_from_args(args)
+    namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
+    context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
 
     should_disable_revert = not args.revert_only
     if should_revert:
