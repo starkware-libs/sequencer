@@ -211,35 +211,6 @@ def validate_arguments(args: argparse.Namespace) -> None:
             sys.exit(1)
 
 
-def get_namespace_list_from_args(
-    args: argparse.Namespace,
-) -> list[str]:
-    """Get a list of namespaces based on the arguments"""
-    if args.namespace_list:
-        return args.namespace_list
-
-    return [
-        f"{args.namespace_prefix}-{i}"
-        for i in range(args.start_index, args.start_index + args.num_nodes)
-    ]
-
-
-def get_context_list_from_args(
-    args: argparse.Namespace,
-) -> list[str]:
-    """Get a list of contexts based on the arguments"""
-    if args.cluster_list:
-        return args.cluster_list
-
-    if args.cluster_prefix is None:
-        return None
-
-    return [
-        f"{args.cluster_prefix}-{i}"
-        for i in range(args.start_index, args.start_index + args.num_nodes)
-    ]
-
-
 def get_logs_explorer_url(
     query: str,
     project_name: Optional[str] = None,
@@ -511,45 +482,106 @@ def restart_pod(
             sys.exit(1)
 
 
+class NamespaceAndInstructionArgs:
+    def __init__(
+        self,
+        namespace_list: list[str],
+        cluster_list: Optional[list[str]],
+        instruction_list: Optional[list[str]] = None,
+    ):
+        assert (
+            namespace_list is not None and len(namespace_list) > 0
+        ), "Namespace list cannot be None or empty."
+        self.namespace_list = namespace_list
+        assert cluster_list is None or len(cluster_list) == len(
+            namespace_list
+        ), "cluster_list must have the same length as namespace_list"
+        self.cluster_list = cluster_list
+        assert instruction_list is None or len(namespace_list) == len(
+            instruction_list
+        ), "instruction_list must have the same length as namespace_list"
+        self.instruction_list = instruction_list
+
+    def size(self) -> int:
+        return len(self.namespace_list)
+
+    def get_namespace(self, index: int) -> str:
+        return self.namespace_list[index]
+
+    def get_cluster(self, index: int) -> Optional[str]:
+        return self.cluster_list[index] if self.cluster_list else None
+
+    def get_instruction(self, index: int) -> Optional[str]:
+        return self.instruction_list[index] if self.instruction_list else None
+
+    @staticmethod
+    def get_namespace_list_from_args(
+        args: argparse.Namespace,
+    ) -> list[str]:
+        """Get a list of namespaces based on the arguments"""
+        if args.namespace_list:
+            return args.namespace_list
+
+        return [
+            f"{args.namespace_prefix}-{i}"
+            for i in range(args.start_index, args.start_index + args.num_nodes)
+        ]
+
+    @staticmethod
+    def get_context_list_from_args(
+        args: argparse.Namespace,
+    ) -> list[str]:
+        """Get a list of contexts based on the arguments"""
+        if args.cluster_list:
+            return args.cluster_list
+
+        if args.cluster_prefix is None:
+            return None
+
+        return [
+            f"{args.cluster_prefix}-{i}"
+            for i in range(args.start_index, args.start_index + args.num_nodes)
+        ]
+
+
 def update_config_and_restart_nodes(
     config_overrides: dict[str, Any],
-    namespace_list: list[str],
+    namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
-    cluster_list: Optional[list[str]],
     restart_strategy: RestartStrategy,
-    # TODO(guy.f): Add more abstraction to restart strategy so that the instructions are abstracted as part of it.
-    post_restart_instructions: Optional[list[str]] = None,
 ) -> None:
     assert config_overrides is not None, "config_overrides must be provided"
-    assert namespace_list is not None and len(namespace_list) > 0, "namespaces must be provided"
+    assert (
+        namespace_and_instruction_args.namespace_list is not None
+        and len(namespace_and_instruction_args.namespace_list) > 0
+    ), "namespaces must be provided"
 
-    if post_restart_instructions is not None:
-        assert len(post_restart_instructions) == len(
-            namespace_list
-        ), f"post_restart_instructions must have the same length as namespace_list. logs_explorer_urls: {len(post_restart_instructions)}, namespace_list: {len(namespace_list)}"
-
-    if not cluster_list:
+    if not namespace_and_instruction_args.cluster_list:
         print_colored(
             "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
             Colors.RED,
         )
-    else:
-        assert len(cluster_list) == len(
-            namespace_list
-        ), f"cluster_list must have the same number of values as namespace_list. cluster_list: {cluster_list}, namespace_list: {namespace_list}"
 
     # Store original and updated configs for all nodes
     configs = []
 
     # Process each node's configuration
-    for index, namespace in enumerate(namespace_list):
-        cluster = cluster_list[index] if cluster_list else None
+    for index in range(namespace_and_instruction_args.size()):
+        namespace = namespace_and_instruction_args.get_namespace(index)
+        cluster = namespace_and_instruction_args.get_cluster(index)
+
         print_colored(
             f"\nProcessing node for namespace {namespace} (cluster: {cluster if cluster else 'current cluster'})..."
         )
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = normalize_config(get_configmap(namespace, cluster, service))
+        original_config = normalize_config(
+            get_configmap(
+                namespace,
+                cluster,
+                service,
+            )
+        )
 
         # Update config
         updated_config = update_config_values(original_config, config_overrides)
@@ -568,19 +600,22 @@ def update_config_and_restart_nodes(
     print_colored("\nApplying configurations...")
     for index, config in enumerate(configs):
         print(f"Applying config {index}...")
-        apply_configmap(
-            config["updated"],
-            namespace_list[index],
-            index,
-            cluster_list[index] if cluster_list else None,
-        )
+        # apply_configmap(
+        #     config["updated"],
+        #     namespace_and_instruction_args.get_namespace(index),
+        #     index,
+        #     namespace_and_instruction_args.get_cluster(index),
+        # )
 
     if restart_strategy != RestartStrategy.NO_RESTART:
         for index, config in enumerate(configs):
-            restart_pod(
-                namespace_list[index], service, index, cluster_list[index] if cluster_list else None
-            )
-            instructions = post_restart_instructions[index] if post_restart_instructions else None
+            # restart_pod(
+            #     namespace_and_instruction_args.get_namespace(index),
+            #     service,
+            #     index,
+            #     namespace_and_instruction_args.get_cluster(index),
+            # )
+            instructions = namespace_and_instruction_args.get_instruction(index)
             print_colored(f"Restarted pod.\n{instructions if instructions else ''} ", Colors.YELLOW)
             if restart_strategy == RestartStrategy.ONE_BY_ONE:
                 # Don't ask in the case of the last job.

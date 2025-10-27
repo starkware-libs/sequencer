@@ -7,13 +7,12 @@ import urllib.parse
 import urllib.request
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
+    NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
     get_configmap,
-    get_context_list_from_args,
     get_current_block_number,
     get_logs_explorer_url,
-    get_namespace_list_from_args,
     parse_config_from_yaml,
     print_colored,
     update_config_and_restart_nodes,
@@ -107,12 +106,8 @@ Examples:
         "consensus_manager_config.immediate_active_height": next_block_number,
     }
 
-    namespace_list = get_namespace_list_from_args(args)
-    context_list = get_context_list_from_args(args)
-    if context_list is not None:
-        assert len(namespace_list) == len(
-            context_list
-        ), "namespace_list and context_list must have the same length"
+    namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
+    context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
 
     # Generate logs explorer URLs if needed
     post_restart_instructions = []
@@ -131,11 +126,13 @@ Examples:
 
     update_config_and_restart_nodes(
         config_overrides,
-        namespace_list,
+        NamespaceAndInstructionArgs(
+            namespace_list,
+            context_list,
+            post_restart_instructions,
+        ),
         Service.Core,
-        context_list,
         RestartStrategy.ALL_AT_ONCE,
-        post_restart_instructions,
     )
 
 
