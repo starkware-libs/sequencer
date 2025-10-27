@@ -24,6 +24,7 @@ use crate::deployment_definitions::{
     ComponentConfigInService,
     Environment,
     InfraServicePort,
+    NodeComponentType,
     ServicePort,
     CONFIG_BASE_DIR,
 };
@@ -371,6 +372,22 @@ impl NodeType {
         }
     }
 
+    pub fn get_service_of_component(
+        &self,
+        component_type: NodeComponentType,
+    ) -> Option<NodeService> {
+        match self {
+            // TODO(victork): avoid this code duplication.
+            Self::Consolidated => {
+                ConsolidatedNodeServiceName::get_service_of_component(component_type)
+            }
+            Self::Hybrid => HybridNodeServiceName::get_service_of_component(component_type),
+            Self::Distributed => {
+                DistributedNodeServiceName::get_service_of_component(component_type)
+            }
+        }
+    }
+
     pub fn get_component_configs(
         &self,
         ports: Option<Vec<u16>>,
@@ -414,6 +431,8 @@ impl NodeType {
 }
 
 pub(crate) trait GetComponentConfigs: ServiceNameInner {
+    fn get_service_of_component(component_type: NodeComponentType) -> Option<NodeService>;
+
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig>;

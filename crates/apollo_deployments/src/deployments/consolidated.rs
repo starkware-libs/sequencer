@@ -16,6 +16,7 @@ use crate::deployment_definitions::{
     ComponentConfigInService,
     Environment,
     InfraServicePort,
+    NodeComponentType,
     ServicePort,
 };
 use crate::k8s::{
@@ -47,6 +48,20 @@ impl From<ConsolidatedNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
+    fn get_service_of_component(component_type: NodeComponentType) -> Option<NodeService> {
+        match component_type {
+            NodeComponentType::Batcher
+            | NodeComponentType::ClassManager
+            | NodeComponentType::ConsensusManager
+            | NodeComponentType::StateSync
+            | NodeComponentType::HttpServer => {
+                Some(NodeService::Consolidated(ConsolidatedNodeServiceName::Node))
+            }
+
+            _ => None,
+        }
+    }
+
     fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(

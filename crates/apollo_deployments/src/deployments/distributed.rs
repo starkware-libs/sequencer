@@ -16,6 +16,7 @@ use crate::deployment_definitions::{
     ComponentConfigInService,
     Environment,
     InfraServicePort,
+    NodeComponentType,
     ServicePort,
 };
 use crate::k8s::{
@@ -66,6 +67,32 @@ impl From<DistributedNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
+    fn get_service_of_component(component_type: NodeComponentType) -> Option<NodeService> {
+        match component_type {
+            NodeComponentType::Batcher => {
+                Some(NodeService::Distributed(DistributedNodeServiceName::Batcher))
+            }
+
+            NodeComponentType::HttpServer => {
+                Some(NodeService::Distributed(DistributedNodeServiceName::HttpServer))
+            }
+
+            NodeComponentType::ClassManager => {
+                Some(NodeService::Distributed(DistributedNodeServiceName::ClassManager))
+            }
+
+            NodeComponentType::ConsensusManager => {
+                Some(NodeService::Distributed(DistributedNodeServiceName::ConsensusManager))
+            }
+
+            NodeComponentType::StateSync => {
+                Some(NodeService::Distributed(DistributedNodeServiceName::StateSync))
+            }
+
+            _ => None,
+        }
+    }
+
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {

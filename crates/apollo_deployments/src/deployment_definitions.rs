@@ -39,6 +39,26 @@ const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
+pub enum NodeComponentType {
+    Batcher,
+    ClassManager,
+    ConfigManager,
+    ConsensusManager,
+    Gateway,
+    HttpServer,
+    L1EndpointMonitor,
+    L1Provider,
+    L1GasPriceProvider,
+    L1Scraper,
+    L1GasPriceScraper,
+    Mempool,
+    MempoolP2P,
+    MonitoringEndpoint,
+    SierraCompiler,
+    SignatureManager,
+    StateSync,
+}
+
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     || load_and_create_hybrid_deployments(POTC_MOCK_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),

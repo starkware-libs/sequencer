@@ -30,6 +30,7 @@ use crate::deployment_definitions::{
     DeploymentInputs,
     Environment,
     InfraServicePort,
+    NodeComponentType,
     ServicePort,
     CONSENSUS_P2P_PORT,
     MEMPOOL_P2P_PORT,
@@ -77,6 +78,23 @@ impl From<HybridNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for HybridNodeServiceName {
+    fn get_service_of_component(component_type: NodeComponentType) -> Option<NodeService> {
+        match component_type {
+            NodeComponentType::Batcher
+            | NodeComponentType::ClassManager
+            | NodeComponentType::ConsensusManager
+            | NodeComponentType::StateSync => {
+                Some(NodeService::Hybrid(HybridNodeServiceName::Core))
+            }
+
+            NodeComponentType::HttpServer => {
+                Some(NodeService::Hybrid(HybridNodeServiceName::HttpServer))
+            }
+
+            _ => None,
+        }
+    }
+
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
 
