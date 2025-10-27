@@ -65,6 +65,7 @@ apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+cairo-lang-utils.workspace = true
 ethnum.workspace = true
 expect-test.workspace = true
 itertools.workspace = true

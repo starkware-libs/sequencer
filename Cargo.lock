@@ -12571,6 +12571,7 @@ dependencies = [
  "cairo-lang-casm",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
  "cairo-vm",
  "derive_more 0.99.20",
  "digest 0.10.7",
