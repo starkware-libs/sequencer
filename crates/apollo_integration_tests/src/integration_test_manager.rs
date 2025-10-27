@@ -215,6 +215,17 @@ impl NodeSetup {
     pub fn get_node_index(&self) -> Option<usize> {
         self.executables.first().map(|executable| executable.node_execution_id.get_node_index())
     }
+
+    pub fn get_l1_gas_price_scraper_config(&self) -> L1GasPriceScraperConfig {
+        for executable_setup in &self.executables {
+            if let Some(l1_gas_price_scraper_config) =
+                &executable_setup.get_config().l1_gas_price_scraper_config
+            {
+                return l1_gas_price_scraper_config.clone();
+            }
+        }
+        unreachable!("No executable with a set l1 gas price scraper config.")
+    }
 }
 
 pub struct RunningNode {
@@ -276,22 +287,8 @@ impl IntegrationTestManager {
         )
         .await;
 
-        // TODO(Tsabary): these should be functions of `NodeSetup`.
-        fn get_l1_gas_price_scraper_config(
-            sequencers_setup: &NodeSetup,
-        ) -> L1GasPriceScraperConfig {
-            for executable_setup in &sequencers_setup.executables {
-                if let Some(l1_gas_price_scraper_config) =
-                    &executable_setup.get_config().l1_gas_price_scraper_config
-                {
-                    return l1_gas_price_scraper_config.clone();
-                }
-            }
-            unreachable!("No executable with a set l1 gas price scraper config.")
-        }
-
         let l1_gas_price_scraper_config =
-            get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
+            sequencers_setup.first().unwrap().get_l1_gas_price_scraper_config();
 
         let anvil_base_layer = AnvilBaseLayer::new(Some(1)).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
