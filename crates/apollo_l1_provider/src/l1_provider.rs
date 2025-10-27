@@ -116,6 +116,13 @@ impl L1Provider {
                             );
                         });
                 }
+                Event::TransactionCanceled(event_data) => {
+                    // TODO(guyn): delete the transaction from the provider.
+                    info!(
+                        "Cancellation finalized with data: {event_data:?}. THIS DOES NOT DELETE \
+                         THE TRANSACTION FROM THE PROVIDER YET."
+                    );
+                }
                 Event::TransactionConsumed { tx_hash, timestamp: consumed_at } => {
                     if let Err(previously_consumed_at) =
                         self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
@@ -126,7 +133,6 @@ impl L1Provider {
                         );
                     }
                 }
-                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
         Ok(())
