@@ -2144,6 +2144,11 @@
     "privacy": "Public",
     "value": 30
   },
+  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": {
+    "description": "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero).",
+    "privacy": "Public",
+    "value": false
+  },
   "l1_scraper_config.startup_rewind_time_seconds": {
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
     "privacy": "Public",

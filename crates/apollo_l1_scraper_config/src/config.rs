@@ -18,6 +18,7 @@ pub struct L1ScraperConfig {
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval_seconds: Duration,
+    pub set_provider_historic_height_to_l2_genesis: bool,
 }
 
 impl Default for L1ScraperConfig {
@@ -27,6 +28,7 @@ impl Default for L1ScraperConfig {
             chain_id: ChainId::Mainnet,
             finality: 0,
             polling_interval_seconds: Duration::from_secs(30),
+            set_provider_historic_height_to_l2_genesis: false,
         }
     }
 }
@@ -56,6 +58,12 @@ impl SerializeConfig for L1ScraperConfig {
                 "chain_id",
                 &self.chain_id,
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "set_provider_historic_height_to_l2_genesis",
+                &self.set_provider_historic_height_to_l2_genesis,
+                "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero).",
                 ParamPrivacyInput::Public,
             ),
         ])
