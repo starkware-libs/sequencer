@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_server::{ComponentServerStarter, LocalServerConfig};
 use apollo_infra::metrics::{LocalClientMetrics, LocalServerMetrics};
 use apollo_mempool::communication::{create_mempool, LocalMempoolServer};
-use apollo_mempool::config::MempoolConfig;
+use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClient,
     MempoolP2pPropagatorClientResult,
@@ -135,7 +136,7 @@ impl TransactionGenerator {
 
     fn generate_invoke(&mut self, index: usize) -> AddTransactionArgs {
         let RpcTransaction::Invoke(invoke_tx) =
-            self.multi_tx_generator.account_with_id_mut(0).generate_invoke_with_tip(0)
+            self.multi_tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx(0)
         else {
             panic!("Expected RpcTransaction::Invoke")
         };
@@ -193,9 +194,20 @@ impl BenchTestSetup {
         // Create minimal overhead P2P client for benchmark
         let bench_p2p_client = Arc::new(BenchMempoolP2pPropagator);
 
+        // Create mock config manager client for benchmark
+        let mut mock_config_manager = MockConfigManagerClient::new();
+        let dynamic_config = self.config.mempool_config.dynamic_config.clone();
+        mock_config_manager
+            .expect_get_mempool_dynamic_config()
+            .returning(move || Ok(dynamic_config.clone()));
+        let mock_config_manager = Arc::new(mock_config_manager);
+
         // Create the mempool component
-        let mempool_component =
-            create_mempool(self.config.mempool_config.clone(), bench_p2p_client);
+        let mempool_component = create_mempool(
+            self.config.mempool_config.clone(),
+            bench_p2p_client,
+            mock_config_manager,
+        );
 
         // Use static metrics for benchmark
         let server_metrics = &BENCH_LOCAL_SERVER_METRICS;
