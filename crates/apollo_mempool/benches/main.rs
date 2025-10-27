@@ -10,7 +10,7 @@
 /// import the Mempool test utilities.
 mod utils;
 
-use apollo_mempool::config::MempoolConfig;
+use apollo_mempool_config::config::MempoolConfig;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use utils::{BenchTestSetup, BenchTestSetupConfig};
 
