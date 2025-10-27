@@ -8,9 +8,8 @@ from typing import Any
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Colors,
+    NamespaceAndInstructionArgs,
     Service,
-    get_context_list_from_args,
-    get_namespace_list_from_args,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -153,11 +152,13 @@ Examples:
 
     update_config_and_restart_nodes(
         config_overrides,
-        get_namespace_list_from_args(args),
+        NamespaceAndInstructionArgs(
+            NamespaceAndInstructionArgs.get_namespace_list_from_args(args),
+            NamespaceAndInstructionArgs.get_context_list_from_args(args),
+            None,
+        ),
         args.service,
-        get_context_list_from_args(args),
         args.restart_strategy,
-        None,
     )
 
 
