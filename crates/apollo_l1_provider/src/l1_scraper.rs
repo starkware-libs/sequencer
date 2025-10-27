@@ -121,6 +121,10 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         if start_block.number == 0 {
             return Ok(BlockNumber(0));
         }
+        if self.config.set_provider_historic_height_to_l2_genesis {
+            warn!("Setting provideer historic height to L2 genesis height");
+            return Ok(BlockNumber(0));
+        }
         let last_historic_l2_height = self
             .base_layer
             .get_proved_block_at(start_block.number)

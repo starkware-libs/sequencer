@@ -61,7 +61,11 @@ impl L1Provider {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
             // restart from the infra, since this CAN happen if the scraper recovered from a crash.
             // Right now this is effectively a KILL message when called in steady state.
-            panic!("Called initialize while not in Uninitialized state. Restart service.");
+            panic!(
+                "Called initialize while not in Uninitialized state. Restart service. Provider \
+                 state: {:?}",
+                self.state
+            );
         };
 
         // The provider now goes into bootstrap state.

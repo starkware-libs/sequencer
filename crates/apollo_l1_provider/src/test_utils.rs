@@ -102,8 +102,6 @@ impl From<L1ProviderContent> for L1Provider {
         L1Provider {
             config: content.config.unwrap_or_default(),
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
-            // Defaulting to Pending state, since a provider with a "default" Bootstrapper
-            // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Uninitialized),
             bootstrapper,
             current_height: content.current_height.unwrap_or_default(),
