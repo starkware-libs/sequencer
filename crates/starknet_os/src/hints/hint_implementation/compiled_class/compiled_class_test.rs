@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ark_ff::One;
 use blockifier::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -9,8 +10,13 @@ use blockifier::execution::contract_class::{EntryPointV1, EntryPointsByType, Nes
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -18,6 +24,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::{expect, Expect};
 use log::info;
+use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{
     HashVersion,
@@ -37,6 +44,7 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
     ValueArg,
 };
+use crate::test_utils::utils::DEFAULT_PRIME;
 use crate::vm_utils::LoadCairoObject;
 
 // V1 (Poseidon) HASH CONSTS
@@ -180,6 +188,42 @@ impl HashVersionTestSpec for HashVersion {
     }
 }
 
+fn get_dummy_compiled_class(contract_segmentation: bool) -> CasmContractClass {
+    CasmContractClass {
+        prime: DEFAULT_PRIME.clone().to_biguint().unwrap(),
+        compiler_version: "".into(),
+        bytecode: (1u8..=10).map(BigUintAsHex::from).collect(),
+        bytecode_segment_lengths: Some(if contract_segmentation {
+            NestedIntList::Node(vec![
+                NestedIntList::Leaf(3),
+                NestedIntList::Node(vec![
+                    NestedIntList::Leaf(1),
+                    NestedIntList::Leaf(1),
+                    NestedIntList::Node(vec![NestedIntList::Leaf(1)]),
+                ]),
+                NestedIntList::Leaf(4),
+            ])
+        } else {
+            NestedIntList::Leaf(10)
+        }),
+        entry_points_by_type: CasmContractEntryPoints {
+            external: vec![CasmContractEntryPoint {
+                selector: BigUint::one(),
+                offset: 1,
+                builtins: vec!["237".into()],
+            }],
+            constructor: vec![CasmContractEntryPoint {
+                selector: BigUint::from(5u8),
+                offset: 0,
+                builtins: vec![],
+            }],
+            l1_handler: vec![],
+        },
+        hints: vec![],
+        pythonic_hints: None,
+    }
+}
+
 /// Runs the compiled class hash entry point for the given contract class,
 /// with the specified load_full_contract flag and hash version.
 /// Returns the execution resources and the computed hash.
@@ -265,6 +309,30 @@ fn run_compiled_class_hash_entry_point(
     };
 
     (actual_execution_resources, hash_computed_by_cairo)
+}
+
+#[rstest]
+#[case::no_segmentation(
+    false,
+    "0xB268995DD0EE80DEBFB8718852750B5FD22082D0C729121C48A0487A4D2F64",
+    16
+)]
+#[case::segmentation(true, "0x5517AD8471C9AA4D1ADD31837240DEAD9DC6653854169E489A813DB4376BE9C", 28)]
+fn test_compiled_class_hash_basic(
+    #[case] segmentation: bool,
+    #[case] expected_hash: &str,
+    #[case] expected_n_poseidons: usize,
+) {
+    let (resources, compiled_class_hash) = run_compiled_class_hash_entry_point(
+        &get_dummy_compiled_class(segmentation),
+        false,
+        &HashVersion::V1,
+    );
+    assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(expected_hash));
+    assert_eq!(
+        *resources.builtin_instance_counter.get(&BuiltinName::poseidon).unwrap(),
+        expected_n_poseidons
+    );
 }
 
 #[rstest]
