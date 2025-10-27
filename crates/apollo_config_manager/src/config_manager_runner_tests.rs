@@ -7,6 +7,7 @@ use apollo_config_manager_types::communication::{
     MockConfigManagerClient,
     SharedConfigManagerClient,
 };
+use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{
@@ -18,6 +19,7 @@ use apollo_node_config::node_config::{
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
+use tracing_test::traced_test;
 
 use crate::config_manager_runner::ConfigManagerRunner;
 
@@ -143,4 +145,36 @@ async fn test_config_manager_runner_update_config_with_changed_values() {
         second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
+}
+
+#[traced_test]
+#[test]
+fn test_log_config_diff_detects_change() {
+    let old_dynamic_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(ConsensusDynamicConfig {
+            validator_id: ContractAddress::from(1u128),
+        }),
+        ..Default::default()
+    };
+
+    let new_dynamic_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(ConsensusDynamicConfig {
+            validator_id: ContractAddress::from(2u128),
+        }),
+        ..Default::default()
+    };
+
+    let mock_client = MockConfigManagerClient::new();
+    let runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(mock_client),
+        old_dynamic_config.clone(),
+        Vec::<String>::new(),
+    );
+
+    runner.log_config_diff(&old_dynamic_config, &new_dynamic_config);
+
+    assert!(logs_contain(
+        r#"consensus_dynamic_config changed from {"validator_id":"0x1"} to {"validator_id":"0x2"}"#
+    ));
 }
