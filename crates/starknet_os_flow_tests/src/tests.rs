@@ -1003,10 +1003,8 @@ async fn test_v1_bound_accounts_cairo1() {
 }
 
 #[rstest]
-#[case::use_kzg(true, 5)]
-#[case::not_use_kzg(false, 1)]
 #[tokio::test]
-async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi_block: usize) {
+async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
     let (mut test_manager, [main_contract_address]) =
@@ -1020,27 +1018,6 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     assert!(
         current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
         "Current block number must be greater than STORED_BLOCK_HASH_BUFFER for the test to work."
-    );
-
-    // Prepare expected storage updates.
-    let mut expected_messages_to_l1 = Vec::new();
-    let mut expected_storage_updates = HashMap::new();
-
-    // Call test_increment twice.
-    let n_calls: u8 = 2;
-    for _ in 0..n_calls {
-        let calldata = create_calldata(
-            main_contract_address,
-            "test_increment",
-            &[felt!(5u8), felt!(6u8), felt!(7u8)],
-        );
-        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    }
-    update_expected_storage(
-        &mut expected_storage_updates,
-        main_contract_address,
-        **get_storage_var_address("my_storage_var", &[]),
-        Felt::from(n_calls),
     );
 
     // Test get_execution_info; invoke a function that gets the expected execution info and compares
@@ -1149,7 +1126,80 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         None,
     );
 
+    // Run the test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            ..Default::default()
+        })
+        .await;
+
+    // Perform general validations and storage update validations.
+    test_output.perform_default_validations();
+
+    // Verify that the funded account, the new account and the sequencer all have changed balances.
+    test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
+    test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+
+    // Validate poseidon usage.
+    // TODO(Meshi): Add blake opcode validations.
+    let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
+    if use_kzg_da {
+        expect![[r#"
+            104
+        "#]]
+        .assert_debug_eq(&poseidons);
+    } else {
+        expect![[r#"
+            96
+        "#]]
+        .assert_debug_eq(&poseidons);
+    }
+}
+
+#[rstest]
+#[case::use_kzg(true, 5)]
+#[case::not_use_kzg(false, 1)]
+#[tokio::test]
+async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi_block: usize) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_class_hash = get_class_hash_of_feature_contract(test_contract);
+    let (mut test_manager, [main_contract_address, contract_address2]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+        ])
+        .await;
+    let current_block_number = test_manager.initial_state.next_block_number;
+
+    assert!(
+        current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
+        "Current block number must be greater than STORED_BLOCK_HASH_BUFFER for the test to work."
+    );
+
+    // Prepare expected storage updates.
+    let mut expected_messages_to_l1 = Vec::new();
+    let mut expected_storage_updates = HashMap::new();
+
+    // Call test_increment twice.
+    let n_calls: u8 = 2;
+    for _ in 0..n_calls {
+        let calldata = create_calldata(
+            main_contract_address,
+            "test_increment",
+            &[felt!(5u8), felt!(6u8), felt!(7u8)],
+        );
+        test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+    update_expected_storage(
+        &mut expected_storage_updates,
+        main_contract_address,
+        **get_storage_var_address("my_storage_var", &[]),
+        Felt::from(n_calls),
+    );
+
     // Test calling test_storage_read_write.
+    let test_call_contract_selector_name = "test_call_contract";
     let test_call_contract_key = Felt::from(1948);
     let test_call_contract_value = Felt::from(1967);
     let calldata = create_calldata(
@@ -1518,12 +1568,12 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            679
+            598
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            562
+            490
         "#]]
         .assert_debug_eq(&poseidons);
     }
