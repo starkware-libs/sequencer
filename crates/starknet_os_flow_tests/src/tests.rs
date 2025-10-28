@@ -1140,18 +1140,65 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     // Verify that the funded account, the new account and the sequencer all have changed balances.
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: bool) {
+    let (mut test_manager, []) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare the experimental contract.
+    // Test the bootstrap variant of the V3 transaction.
+    let experimental_contract = FeatureContract::Experimental;
+    let experimental_contract_sierra = experimental_contract.get_sierra();
+    let experimental_class_hash = experimental_contract_sierra.calculate_class_hash();
+    let experimental_compiled_class_hash =
+        experimental_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        signature: TransactionSignature::default(),
+        sender_address: DeclareTransaction::bootstrap_address(),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        nonce: Nonce(Felt::ZERO),
+        class_hash: experimental_class_hash,
+        compiled_class_hash: experimental_compiled_class_hash,
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(experimental_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
+
+    // Deploy it.
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let (deploy_tx, _experimental_contract_address) = get_deploy_contract_tx_and_address_with_salt(
+        experimental_class_hash,
+        Calldata::default(),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
 
     // Validate poseidon usage.
     // TODO(Meshi): Add blake opcode validations.
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            104
+            58
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            96
+            49
         "#]]
         .assert_debug_eq(&poseidons);
     }
@@ -1351,38 +1398,6 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         create_calldata(main_contract_address, "test_signature_verification_secp256r1", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
-    // Declare the experimental contract.
-    // Test the bootstrap variant of the V3 transaction.
-    let experimental_contract = FeatureContract::Experimental;
-    let experimental_contract_sierra = experimental_contract.get_sierra();
-    let experimental_class_hash = experimental_contract_sierra.calculate_class_hash();
-    let experimental_compiled_class_hash =
-        experimental_contract.get_compiled_class_hash(&HashVersion::V2);
-    let declare_tx_args = declare_tx_args! {
-        signature: TransactionSignature::default(),
-        sender_address: DeclareTransaction::bootstrap_address(),
-        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
-        nonce: Nonce(Felt::ZERO),
-        class_hash: experimental_class_hash,
-        compiled_class_hash: experimental_compiled_class_hash,
-    };
-    let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(experimental_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
-
-    // Deploy it.
-    let salt = ContractAddressSalt(Felt::ZERO);
-    let (deploy_tx, _experimental_contract_address) = get_deploy_contract_tx_and_address_with_salt(
-        experimental_class_hash,
-        Calldata::default(),
-        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        *NON_TRIVIAL_RESOURCE_BOUNDS,
-        salt,
-    );
-    test_manager.add_invoke_tx(deploy_tx, None);
-
     // Call test_sha256.
     let calldata = create_calldata(main_contract_address, "test_sha256", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
@@ -1565,19 +1580,4 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
     test_output.assert_account_balance_change(faulty_account_address);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
-
-    // Validate poseidon usage.
-    // TODO(Meshi): Add blake opcode validations.
-    let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
-    if use_kzg_da {
-        expect![[r#"
-            598
-        "#]]
-        .assert_debug_eq(&poseidons);
-    } else {
-        expect![[r#"
-            490
-        "#]]
-        .assert_debug_eq(&poseidons);
-    }
 }
