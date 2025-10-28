@@ -38,6 +38,7 @@ use crate::hints::vars::{CairoStruct, Const};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
+    Cairo0EntryPointRunnerResult,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
@@ -75,6 +76,9 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["42265"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
+
+const CLASS_HASH_WITH_SEGMENTATION: &str =
+    "0x5517AD8471C9AA4D1ADD31837240DEAD9DC6653854169E489A813DB4376BE9C";
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -242,7 +246,7 @@ fn run_compiled_class_hash_entry_point(
     load_full_contract: bool,
     accessed_segments_indicator: &AccessSegmentsIndicator,
     hash_version: &HashVersion,
-) -> (ExecutionResources, Felt) {
+) -> Cairo0EntryPointRunnerResult<(ExecutionResources, Felt)> {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -329,8 +333,7 @@ fn run_compiled_class_hash_entry_point(
         &program,
         &runner_config,
         &expected_return_values,
-    )
-    .unwrap();
+    )?;
 
     // Get the actual execution resources, and compare with expected values.
     let actual_execution_resources = runner.get_execution_resources().unwrap();
@@ -342,7 +345,7 @@ fn run_compiled_class_hash_entry_point(
         panic!("Expected a single felt return value");
     };
 
-    (actual_execution_resources, hash_computed_by_cairo)
+    Ok((actual_execution_resources, hash_computed_by_cairo))
 }
 
 #[rstest]
@@ -351,7 +354,7 @@ fn run_compiled_class_hash_entry_point(
     "0xB268995DD0EE80DEBFB8718852750B5FD22082D0C729121C48A0487A4D2F64",
     16
 )]
-#[case::segmentation(true, "0x5517AD8471C9AA4D1ADD31837240DEAD9DC6653854169E489A813DB4376BE9C", 28)]
+#[case::segmentation(true, CLASS_HASH_WITH_SEGMENTATION, 28)]
 fn test_compiled_class_hash_basic(
     #[case] segmentation: bool,
     #[case] expected_hash: &str,
@@ -365,12 +368,51 @@ fn test_compiled_class_hash_basic(
         load_full_contract,
         &accessed_segments_indicator,
         &HashVersion::V1,
-    );
+    )
+    .unwrap();
     assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(expected_hash));
     assert_eq!(
         *resources.builtin_instance_counter.get(&BuiltinName::poseidon).unwrap(),
         expected_n_poseidons
     );
+}
+
+#[rstest]
+#[case(vec![], Some(14), None)]
+#[case(vec![0], Some(16), None)]
+#[case(vec![0, 2, 3, 6, 9], Some(24), None)]
+#[case(vec![3], Some(19), None)]
+#[case(vec![6], Some(17), None)]
+#[case(vec![3, 5], Some(22), None)]
+#[case(vec![7], None, Some("PC 7 was visited, but the beginning of the segment (6) was not"))]
+#[case(vec![5], None, Some("PC 5 was visited, but the beginning of the segment (3) was not"))]
+fn test_compiled_class_hash_visited_pcs(
+    #[case] visited_pcs: Vec<usize>,
+    #[case] expected_n_poseidons: Option<usize>,
+    #[case] error_message: Option<&str>,
+) {
+    let segmentation = true;
+    let accessed_segments_indicator = AccessSegmentsIndicator::Specific(visited_pcs);
+    let load_full_contract = false;
+    match run_compiled_class_hash_entry_point(
+        &get_dummy_compiled_class(segmentation),
+        load_full_contract,
+        &accessed_segments_indicator,
+        &HashVersion::V1,
+    ) {
+        Ok((resources, compiled_class_hash)) => {
+            assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(CLASS_HASH_WITH_SEGMENTATION));
+            assert_eq!(
+                *resources.builtin_instance_counter.get(&BuiltinName::poseidon).unwrap(),
+                expected_n_poseidons.unwrap()
+            );
+        }
+        Err(error) => {
+            let expected_error_message = error_message
+                .unwrap_or_else(|| panic!("No error expected, but got error: {error:?}."));
+            assert!(error.to_string().contains(expected_error_message));
+        }
+    }
 }
 
 #[rstest]
@@ -393,7 +435,8 @@ fn test_compiled_class_hash(
         load_full_contract,
         &accessed_segments_indicator,
         &hash_version,
-    );
+    )
+    .unwrap();
 
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
@@ -497,7 +540,8 @@ fn compare_estimated_vs_actual_casm_hash_resources(
         load_full_contract,
         &accessed_segments_indicator,
         hash_version,
-    );
+    )
+    .unwrap();
 
     let bytecode_segments = NestedFeltCounts::new(
         &contract_class.get_bytecode_segment_lengths(),
