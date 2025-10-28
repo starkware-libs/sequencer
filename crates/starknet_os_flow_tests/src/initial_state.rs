@@ -37,6 +37,7 @@ use starknet_types_core::felt::Felt;
 use crate::state_trait::FlowTestState;
 use crate::test_manager::{
     block_context_for_flow_tests,
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS,
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
 };
@@ -302,8 +303,9 @@ pub(crate) fn get_deploy_contract_tx_and_address(
         ctor_calldata,
         nonce,
         resource_bounds,
-        // Default salt.
-        ContractAddressSalt(Felt::ONE),
+        // Use the nonce as the salt so it's easy to deploy the same contract (with the same
+        // constructor calldata) multiple times.
+        ContractAddressSalt(nonce.0),
     );
     (
         Transaction::new_for_sequencing(StarknetAPITransaction::Account(
@@ -368,10 +370,12 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
         10.into()                        // upgrade delay
     ];
-    get_deploy_contract_tx_and_address(
+    let (tx, address) = get_deploy_contract_tx_and_address(
         class_hash,
         constructor_calldata,
         nonce,
         ValidResourceBounds::create_for_testing_no_fee_enforcement(),
-    )
+    );
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_debug_eq(&**address);
+    (tx, address)
 }

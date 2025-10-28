@@ -14,12 +14,13 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
+use expect_test::{expect, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -57,7 +58,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
     create_default_initial_state_data,
-    get_deploy_fee_token_tx_and_address,
     get_initial_deploy_account_tx,
     InitialState,
     InitialStateData,
@@ -76,8 +76,20 @@ use crate::utils::{
 };
 
 /// The STRK fee token address that was deployed when initializing the default initial state.
-pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
-    LazyLock::new(|| get_deploy_fee_token_tx_and_address(Nonce::default()).1);
+/// The resulting address depends on the nonce of the deploying account - if extra init transactions
+/// are added to the initial state construction before the STRK fee token is deployed, the address
+/// must be updated.
+pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![[r#"
+        0x1a465ff487205d561821685efff4903cb07d69f014b1688a560f8c6380cd025
+    "#]];
+pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
+    ContractAddress(
+        PatriciaKey::try_from(Felt::from_hex_unchecked(
+            EXPECTED_STRK_FEE_TOKEN_ADDRESS.data.trim(),
+        ))
+        .unwrap(),
+    )
+});
 
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
