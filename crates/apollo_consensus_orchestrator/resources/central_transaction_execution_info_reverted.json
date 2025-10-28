@@ -153,6 +153,24 @@
         "builtin_counters": {
           "pedersen": 4,
           "range_check": 31
+        },
+        "syscalls_usage": {
+          "CallContract": {
+            "call_count": 7,
+            "linear_factor": 0
+          },
+          "StorageRead": {
+            "call_count": 4,
+            "linear_factor": 0
+          },
+          "StorageWrite": {
+            "call_count": 4,
+            "linear_factor": 0
+          },
+          "EmitEvent": {
+            "call_count": 2,
+            "linear_factor": 0
+          }
         }
       }
     ],
@@ -190,6 +208,24 @@
     "builtin_counters": {
       "pedersen": 4,
       "range_check": 31
+    },
+    "syscalls_usage": {
+      "CallContract": {
+        "call_count": 7,
+        "linear_factor": 0
+      },
+      "StorageRead": {
+        "call_count": 4,
+        "linear_factor": 0
+      },
+      "StorageWrite": {
+        "call_count": 4,
+        "linear_factor": 0
+      },
+      "EmitEvent": {
+        "call_count": 2,
+        "linear_factor": 0
+      }
     }
   },
   "revert_error": "Insufficient fee token balance. Fee: 1, balance: low/high 2/3.",
@@ -340,6 +376,24 @@
         "builtin_counters": {
           "pedersen": 4,
           "range_check": 31
+        },
+        "syscalls_usage": {
+          "CallContract": {
+            "call_count": 7,
+            "linear_factor": 0
+          },
+          "StorageRead": {
+            "call_count": 4,
+            "linear_factor": 0
+          },
+          "StorageWrite": {
+            "call_count": 4,
+            "linear_factor": 0
+          },
+          "EmitEvent": {
+            "call_count": 2,
+            "linear_factor": 0
+          }
         }
       }
     ],
@@ -377,6 +431,24 @@
     "builtin_counters": {
       "pedersen": 4,
       "range_check": 31
+    },
+    "syscalls_usage": {
+      "CallContract": {
+        "call_count": 7,
+        "linear_factor": 0
+      },
+      "StorageRead": {
+        "call_count": 4,
+        "linear_factor": 0
+      },
+      "StorageWrite": {
+        "call_count": 4,
+        "linear_factor": 0
+      },
+      "EmitEvent": {
+        "call_count": 2,
+        "linear_factor": 0
+      }
     }
   }
 }

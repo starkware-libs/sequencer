@@ -483,6 +483,7 @@ pub fn finalize_execution(
         resources: vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
         builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
+        syscalls_usage: syscall_handler_base.syscalls_usage,
     })
 }
 
