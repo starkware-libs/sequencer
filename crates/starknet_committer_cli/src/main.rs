@@ -9,6 +9,7 @@ use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::rocksdb_storage::RocksdbStorage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -25,6 +26,7 @@ pub enum StorageType {
     MapStorage,
     Mdbx,
     CachedMdbx,
+    Rocksdb,
 }
 
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
@@ -198,7 +200,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}"));
 
     let checkpoint_dir_arg = match storage_type {
-        StorageType::Mdbx | StorageType::CachedMdbx => Some(checkpoint_dir.as_str()),
+        StorageType::Mdbx | StorageType::CachedMdbx | StorageType::Rocksdb => Some(checkpoint_dir.as_str()),
         StorageType::MapStorage => None,
     };
 
@@ -256,7 +258,7 @@ pub async fn run_committer_cli(
                 .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
             match storage_type {
                 StorageType::MapStorage => (),
-                StorageType::Mdbx | StorageType::CachedMdbx => {
+                StorageType::Mdbx | StorageType::CachedMdbx | StorageType::Rocksdb => {
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.")
                 }
             };
@@ -278,6 +280,10 @@ pub async fn run_committer_cli(
                         MdbxStorage::open(Path::new(&storage_path)).unwrap(),
                         NonZeroUsize::new(*cache_size).unwrap(),
                     );
+                    run_storage_benchmark_wrapper(storage_args, storage).await;
+                }
+                StorageType::Rocksdb => {
+                    let storage = RocksdbStorage::open(Path::new(&storage_path)).unwrap();
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
             }
