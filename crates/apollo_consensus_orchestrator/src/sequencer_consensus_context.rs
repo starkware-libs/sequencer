@@ -50,7 +50,6 @@ use starknet_api::block::{
     BlockNumber,
     BlockTimestamp,
     GasPrice,
-    GasPricePerToken,
     WEI_PER_ETH,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -499,18 +498,9 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // The conversion should never fail, if we already managed to get a decision.
         let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
-        let l1_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
-        };
-        let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_data_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_data_gas_price.get(),
-        };
-        let l2_gas_price = GasPricePerToken {
-            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
-            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l2_gas_price.get(),
-        };
+        let l1_gas_price = cende_block_info.gas_prices.l1_gas_price_per_token();
+        let l1_data_gas_price = cende_block_info.gas_prices.l1_data_gas_price_per_token();
+        let l2_gas_price = cende_block_info.gas_prices.l2_gas_price_per_token();
         let sequencer = SequencerContractAddress(block_info.builder);
 
         let block_header_without_hash = BlockHeaderWithoutHash {
