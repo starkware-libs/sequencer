@@ -10,20 +10,13 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    EthAddress,
-    Nonce,
-};
+use starknet_api::core::{calculate_contract_address, ClassHash, EthAddress, Nonce};
 use starknet_api::executable_transaction::{
     DeclareTransaction,
     InvokeTransaction,
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
@@ -80,6 +73,7 @@ use crate::utils::{
     get_class_hash_of_feature_contract,
     get_class_info_of_cairo0_contract,
     get_class_info_of_feature_contract,
+    update_expected_storage,
 };
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
@@ -422,20 +416,7 @@ async fn test_os_logic(
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
     let n_expected_txs = 29;
-    let mut expected_storage_updates: HashMap<
-        ContractAddress,
-        HashMap<StarknetStorageKey, StarknetStorageValue>,
-    > = HashMap::new();
-    let mut update_expected_storage = |address: ContractAddress, key: Felt, value: Felt| {
-        let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
-        let value = StarknetStorageValue(value);
-        expected_storage_updates
-            .entry(address)
-            .and_modify(|map| {
-                map.insert(key, value);
-            })
-            .or_insert_with(|| HashMap::from([(key, value)]));
-    };
+    let mut expected_storage_updates = HashMap::new();
 
     // Declare a Cairo 0 test contract.
     let cairo0_test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -471,6 +452,7 @@ async fn test_os_logic(
         // Update expected storage diff, if the ctor calldata writes a nonzero value.
         if ctor_calldata[1] != 0 {
             update_expected_storage(
+                &mut expected_storage_updates,
                 address,
                 Felt::from(ctor_calldata[0]),
                 Felt::from(ctor_calldata[1]),
@@ -483,7 +465,7 @@ async fn test_os_logic(
     let (key, value) = (Felt::from(85), Felt::from(47));
     let calldata = create_calldata(contract_addresses[0], "test_storage_read_write", &[key, value]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    update_expected_storage(contract_addresses[0], key, value);
+    update_expected_storage(&mut expected_storage_updates, contract_addresses[0], key, value);
 
     // Call set_value(address=81, value=0) on the first contract.
     // Used to test redundant value update (0 -> 0) and make sure it is not written to on-chain
@@ -507,7 +489,12 @@ async fn test_os_logic(
 
     let calldata = create_calldata(contract_addresses[1], "read_write_read", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    update_expected_storage(contract_addresses[1], Felt::from(15), Felt::ONE);
+    update_expected_storage(
+        &mut expected_storage_updates,
+        contract_addresses[1],
+        Felt::from(15),
+        Felt::ONE,
+    );
 
     let calldata = create_calldata(contract_addresses[0], "test_builtins", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
@@ -624,6 +611,7 @@ async fn test_os_logic(
         create_calldata(delegate_proxy_address, "set_implementation_hash", &[test_class_hash.0]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
     update_expected_storage(
+        &mut expected_storage_updates,
         delegate_proxy_address,
         **get_storage_var_address("implementation_hash", &[]),
         test_class_hash.0,
@@ -643,7 +631,7 @@ async fn test_os_logic(
     let calldata =
         create_calldata(delegate_proxy_address, "test_storage_read_write", &[key, value]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    update_expected_storage(delegate_proxy_address, key, value);
+    update_expected_storage(&mut expected_storage_updates, delegate_proxy_address, key, value);
 
     // Call test_get_caller_address(expected_address=account_address) through the delegate proxy.
     let calldata = create_calldata(
@@ -692,6 +680,7 @@ async fn test_os_logic(
         selector: l1_handler_selector,
     };
     update_expected_storage(
+        &mut expected_storage_updates,
         delegate_proxy_address,
         **get_storage_var_address(
             "two_counters",
@@ -708,7 +697,12 @@ async fn test_os_logic(
         &[test_class_hash.0],
     );
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    update_expected_storage(contract_addresses[0], Felt::from(444), Felt::from(666));
+    update_expected_storage(
+        &mut expected_storage_updates,
+        contract_addresses[0],
+        Felt::from(444),
+        Felt::from(666),
+    );
 
     // Call add_signature_to_counters(index=2021).
     let index = Felt::from(2021);
@@ -717,11 +711,13 @@ async fn test_os_logic(
     test_manager
         .add_funded_account_invoke(invoke_tx_args! { calldata, signature: signature.clone() });
     update_expected_storage(
+        &mut expected_storage_updates,
         contract_addresses[0],
         **get_storage_var_address("two_counters", &[index]),
         signature.0[0],
     );
     update_expected_storage(
+        &mut expected_storage_updates,
         contract_addresses[0],
         **get_storage_var_address("two_counters", &[index]) + Felt::ONE,
         signature.0[1],
@@ -755,7 +751,7 @@ async fn test_os_logic(
         ],
     );
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    update_expected_storage(contract_addresses[1], key, value);
+    update_expected_storage(&mut expected_storage_updates, contract_addresses[1], key, value);
 
     // Use library_call_l1_handler to invoke test_contract2.test_l1_handler_storage_write with
     // from_address=85, address=666, value=999.
@@ -773,7 +769,7 @@ async fn test_os_logic(
         ],
     );
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
-    update_expected_storage(contract_addresses[1], key, value);
+    update_expected_storage(&mut expected_storage_updates, contract_addresses[1], key, value);
 
     // Replace the class of contract_addresses[0] to the class of test_contract2.
     let calldata = create_calldata(
