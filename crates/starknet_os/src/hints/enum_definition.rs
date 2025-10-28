@@ -43,7 +43,7 @@ use crate::hints::hint_implementation::builtins::{
     selected_builtins,
     update_builtin_ptrs,
 };
-use crate::hints::hint_implementation::cairo1_revert::{
+use crate::hints::hint_implementation::cairo1_revert::implementation::{
     generate_dummy_os_output_segment,
     prepare_state_entry_for_revert,
     read_storage_key_for_revert,
