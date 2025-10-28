@@ -42,6 +42,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
@@ -124,7 +125,7 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn tx_hashes(&self) -> HashSet<TransactionHash> {
-        HashSet::from_iter(self.execution_data.execution_infos.keys().copied())
+        HashSet::from_iter(self.execution_data.execution_infos_and_signatures.keys().copied())
     }
 
     pub fn thin_state_diff(&self) -> ThinStateDiff {
@@ -562,8 +563,11 @@ async fn collect_execution_results_and_stream_txs(
                         revert_error,
                     );
                 }
-                let (tx_index, duplicate_tx_hash) =
-                    execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
+                // TODO(Nimrod): Use the actual signature here.
+                let dummy_signature = TransactionSignature::default();
+                let (tx_index, duplicate_tx_hash) = execution_data
+                    .execution_infos_and_signatures
+                    .insert_full(tx_hash, (tx_execution_info, dummy_signature));
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
@@ -575,7 +579,7 @@ async fn collect_execution_results_and_stream_txs(
                         TransactionOffsetInBlock(tx_index),
                         // TODO(noamsp): Consider using tx_execution_info and moving the line that
                         // consumes it below this (if it doesn't change functionality).
-                        &execution_data.execution_infos[&tx_hash],
+                        &execution_data.execution_infos_and_signatures[&tx_hash].0,
                         optional_l1_handler_tx,
                     ));
 
@@ -738,7 +742,8 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct BlockTransactionExecutionData {
-    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+    pub execution_infos_and_signatures:
+        IndexMap<TransactionHash, (TransactionExecutionInfo, TransactionSignature)>,
     pub rejected_tx_hashes: IndexSet<TransactionHash>,
     pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 }
@@ -747,7 +752,7 @@ impl BlockTransactionExecutionData {
     /// Removes the last txs with the given hashes from the execution data.
     fn remove_last_txs(&mut self, tx_hashes: &[TransactionHash]) {
         for tx_hash in tx_hashes.iter().rev() {
-            remove_last_map(&mut self.execution_infos, tx_hash);
+            remove_last_map(&mut self.execution_infos_and_signatures, tx_hash);
             remove_last_set(&mut self.rejected_tx_hashes, tx_hash);
             remove_last_set(&mut self.consumed_l1_handler_tx_hashes, tx_hash);
         }
@@ -755,7 +760,7 @@ impl BlockTransactionExecutionData {
 
     fn l2_gas_used(&self) -> GasAmount {
         let mut res = GasAmount::ZERO;
-        for execution_info in self.execution_infos.values() {
+        for (execution_info, _signature) in self.execution_infos_and_signatures.values() {
             res =
                 res.checked_add(execution_info.receipt.gas.l2_gas).expect("Total L2 gas overflow.");
         }

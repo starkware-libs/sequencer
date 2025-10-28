@@ -301,10 +301,9 @@ fn verify_decision_reached_response(
     );
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
     assert_eq!(response.central_objects.bouncer_weights, expected_artifacts.bouncer_weights);
-    assert_eq!(
-        response.central_objects.execution_infos,
-        expected_artifacts.execution_data.execution_infos
-    );
+    assert!(response.central_objects.execution_infos.iter().all(|(hash, info)| {
+        &expected_artifacts.execution_data.execution_infos_and_signatures[hash].0 == info
+    }));
 }
 
 fn assert_proposal_metrics(
@@ -1119,7 +1118,7 @@ async fn decision_reached() {
     );
     assert_eq!(
         BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
-        Some(expected_artifacts.execution_data.execution_infos.len())
+        Some(expected_artifacts.execution_data.execution_infos_and_signatures.len())
     );
     assert_eq!(
         REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
@@ -1130,9 +1129,9 @@ async fn decision_reached() {
         Some(
             expected_artifacts
                 .execution_data
-                .execution_infos
+                .execution_infos_and_signatures
                 .values()
-                .filter(|info| info.revert_error.is_some())
+                .filter(|(info, _signature)| info.revert_error.is_some())
                 .count(),
         )
     );
@@ -1165,20 +1164,25 @@ async fn test_execution_info_order_is_kept() {
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing();
     // Check that the execution_infos were initiated properly for this test.
-    verify_indexed_execution_infos(&block_builder_result.execution_data.execution_infos);
+    let execution_infos = block_builder_result
+        .execution_data
+        .execution_infos_and_signatures
+        .iter()
+        .map(|(hash, (info, _signature))| (*hash, info.clone()))
+        .collect();
+    verify_indexed_execution_infos(&execution_infos);
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(block_builder_result.clone()),
+        Ok(block_builder_result),
     );
 
     let decision_reached_response =
         batcher_propose_and_commit_block(mock_dependencies).await.unwrap();
 
     // Verify that the execution_infos are in the same order as returned from the block_builder.
-    let expected_execution_infos = block_builder_result.execution_data.execution_infos;
-    assert_eq!(decision_reached_response.central_objects.execution_infos, expected_execution_infos);
+    assert_eq!(decision_reached_response.central_objects.execution_infos, execution_infos);
 }
 
 #[tokio::test]
