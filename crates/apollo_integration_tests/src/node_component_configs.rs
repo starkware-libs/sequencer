@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_deployments::deployments::distributed::DISTRIBUTED_NODE_REQUIRED_PORTS_NUM;
 use apollo_deployments::deployments::hybrid::HYBRID_NODE_REQUIRED_PORTS_NUM;
@@ -8,8 +10,8 @@ use indexmap::IndexMap;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
-    // TODO(Tsabary): transition to using the map instead of a vector and indices.
-    component_configs: Vec<ComponentConfig>,
+    // TODO(victork): remove indices.
+    component_configs: IndexMap<BTreeSet<ComponentConfigInService>, ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
@@ -59,7 +61,10 @@ impl NodeComponentConfigs {
             get_component_index(&component_configs, node_type, ComponentConfigInService::Consensus);
 
         Self {
-            component_configs: component_configs.into_values().collect(),
+            component_configs: component_configs
+                .into_iter()
+                .map(|(service, config)| (service.get_components_in_service(), config))
+                .collect(),
             batcher_index,
             http_server_index,
             state_sync_index,
@@ -98,11 +103,11 @@ impl NodeComponentConfigs {
 }
 
 impl IntoIterator for NodeComponentConfigs {
-    type Item = ComponentConfig;
+    type Item = (BTreeSet<ComponentConfigInService>, ComponentConfig);
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.component_configs.into_iter()
+        self.component_configs.into_iter().collect::<Vec<_>>().into_iter()
     }
 }
 
