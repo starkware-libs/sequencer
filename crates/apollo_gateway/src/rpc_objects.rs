@@ -96,7 +96,7 @@ impl TryInto<BlockInfo> for BlockHeader {
                 parse_gas_price(self.l2_gas_price.price_in_wei)?,
                 parse_gas_price(self.l2_gas_price.price_in_fri)?,
             ),
-            use_kzg_da: matches!(self.l1_da_mode, L1DataAvailabilityMode::Blob),
+            use_kzg_da: self.l1_da_mode.to_use_kzg_da(),
         })
     }
 }
