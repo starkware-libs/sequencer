@@ -106,6 +106,7 @@ class PodDisruptionBudget(StrictBaseModel):
 
 class PersistentVolume(StrictBaseModel):
     enabled: Optional[bool] = None
+    volumeMode: Optional[str] = None
     accessModes: List[str] = Field(default_factory=list)
     labels: StrDict = Field(default_factory=dict)
     annotations: StrDict = Field(default_factory=dict)
@@ -134,8 +135,23 @@ class HPA(StrictBaseModel):
     targetMemoryUtilizationPercentage: Optional[int] = None
 
 
+class HealthCheck(StrictBaseModel):
+    port: Optional[int] = None
+    requestPath: Optional[str] = None
+    checkIntervalSeconds: Optional[int] = None
+    timeoutSeconds: Optional[int] = None
+    healthyThreshold: Optional[int] = None
+    unhealthyThreshold: Optional[int] = None
+
+
 class BackendConfig(StrictBaseModel):
-    pass
+    enabled: Optional[bool] = None
+    customRequestHeaders: List[str] = Field(default_factory=list)
+    connectionDrainingTimeoutSeconds: Optional[int] = None
+    securityPolicy: Optional[str] = None
+    timeOutSeconds: Optional[int] = None
+    healthCheck: Optional[HealthCheck] = None
+
 
 class CommonConfig(StrictBaseModel):
     image: Image = Image(repository="ghcr.io/starkware-libs/sequencer", tag="dev")
@@ -176,7 +192,7 @@ class ServiceConfig(StrictBaseModel):
     livenessProbe: Optional[Probe] = None
     hpa: Optional[HPA] = None
     dnsPolicy: Optional[str] = None
-    backendConfig: Optional[AnyDict] = None
+    backendConfig: Optional[BackendConfig] = None
 
 
 class DeploymentConfig(StrictBaseModel):

@@ -1,13 +1,14 @@
 from constructs import Construct
 from imports import k8s
 from src.config import constants as const
+from src.config.schema import ServiceConfig
 
 
-class Volume(Construct):
-    def __init__(self, scope: Construct, id: str, service_topology, labels):
+class VolumeConstruct(Construct):
+    def __init__(self, scope: Construct, id: str, service_config: ServiceConfig, labels):
         super().__init__(scope, id)
 
-        self.service_topology = service_topology
+        self.service_config = service_config
         self.labels = labels
 
         self.pvc = self._get_persistent_volume_claim()
@@ -16,14 +17,14 @@ class Volume(Construct):
         return k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
-            metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.labels),
+            metadata=k8s.ObjectMeta(name=f"sequencer-{self.service_config.name}-data", labels=self.labels),
             spec=k8s.PersistentVolumeClaimSpec(
-                storage_class_name=const.PVC_STORAGE_CLASS_NAME,
-                access_modes=const.PVC_ACCESS_MODE,
-                volume_mode=const.PVC_VOLUME_MODE,
+                storage_class_name=self.service_config.persistentVolume.storageClass,
+                access_modes=self.service_config.persistentVolume.accessModes,
+                volume_mode=self.service_config.persistentVolume.volumeMode,
                 resources=k8s.ResourceRequirements(
                     requests={
-                        "storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")
+                        "storage": k8s.Quantity.from_string(f"{self.service_config.persistentVolume.size}")
                     }
                 ),
             ),

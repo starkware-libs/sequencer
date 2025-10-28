@@ -5,14 +5,14 @@ from typing import Optional
 from cdk8s import App, Chart, YamlOutputType
 from constructs import Construct
 
-from src.charts.grafana import GrafanaAlertRuleGroupApp, GrafanaDashboardApp
-from src.charts.service import ServiceApp
+from src.charts.grafana import GrafanaAlertRuleGroupConstruct, GrafanaDashboardConstruct
+from src.charts.node import NodeConstruct
 from src.config.merger import merge_configs
 from src.config.deployment import (
     GrafanaAlertRuleGroupConfig,
     GrafanaDashboardConfig,
 )
-from src.config.schema import DeploymentConfig as DeploymentSchema
+from src.config.schema import DeploymentConfig as DeploymentSchema, CommonConfig, ServiceConfig
 from .helpers import generate_random_hash, sanitize_name
 from .parser import argument_parser
 
@@ -24,18 +24,18 @@ class SequencerNode(Chart):
         name: str,
         namespace: str,
         monitoring: bool,
-        service_config,
-        common_config,
+        service_config: ServiceConfig,
+        common_config: CommonConfig,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
-        self.service = ServiceApp(
+
+        # Pass just the parts ServiceApp needs
+        self.service = NodeConstruct(
             self,
             name,
             namespace=namespace,
-            deployment_config={
-                "common": common_config,
-                "service": service_config,
-            },
+            common_config=common_config,
+            service_config=service_config,
             monitoring=monitoring,
         )
 
@@ -54,7 +54,7 @@ class SequencerMonitoring(Chart):
         self.hash = generate_random_hash(from_string=f"{cluster}-{namespace}")
 
         if grafana_dashboard:
-            self.dashboard = GrafanaDashboardApp(
+            self.dashboard = GrafanaDashboardConstruct(
                 self,
                 sanitize_name(f"dashboard-{self.hash}"),
                 cluster=cluster,
@@ -63,7 +63,7 @@ class SequencerMonitoring(Chart):
             )
 
         if grafana_alert_rule_group:
-            self.alert_rule_group = GrafanaAlertRuleGroupApp(
+            self.alert_rule_group = GrafanaAlertRuleGroupConstruct(
                 self,
                 sanitize_name(f"alert-rule-group-{self.hash}"),
                 cluster=cluster,
@@ -82,7 +82,7 @@ def main():
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 
     # --- Resolve base directory relative to main.py
-    base_dir = Path(__file__).resolve().parent
+    base_dir = Path(__file__).resolve().parents[1]
 
     # --- Layout (base) config paths
     layout_common_config = base_dir / "configs" / "layouts" / args.layout / "common.yaml"
@@ -130,8 +130,8 @@ def main():
             name=sanitize_name(f"sequencer-{service_cfg.name}"),
             namespace=namespace,
             monitoring=create_monitoring,
-            service_config=service_cfg,
             common_config=deployment_config.common,
+            service_config=service_cfg,
         )
 
     # --- Create Grafana Monitoring chart

@@ -19,7 +19,7 @@ from cdk8s import ApiObjectMetadata
 from src.config import constants as const
 
 
-class Secret(Construct):
+class SecretConstruct(Construct):
     def __init__(self, scope: Construct, id: str, service_topology, labels):
         super().__init__(scope, id)
 

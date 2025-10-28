@@ -14,7 +14,7 @@ from cdk8s import ApiObjectMetadata
 from src.config import constants as const
 
 
-class Ingress(Construct):
+class IngressConstruct(Construct):
     def __init__(
         self,
         scope: Construct,

@@ -21,7 +21,7 @@ from src.config.deployment import GrafanaAlertRuleGroupConfig, GrafanaDashboardC
 from src.helpers import sanitize_name, generate_random_hash
 
 
-class MonitoringApp(Construct):
+class MonitoringConstruct(Construct):
     def __init__(
         self,
         scope: Construct,
@@ -43,7 +43,7 @@ class MonitoringApp(Construct):
         )
 
 
-class GrafanaDashboardApp(MonitoringApp):
+class GrafanaDashboardConstruct(MonitoringConstruct):
     def __init__(
         self,
         scope: Construct,
@@ -75,7 +75,7 @@ class GrafanaDashboardApp(MonitoringApp):
         )
 
 
-class GrafanaAlertRuleGroupApp(MonitoringApp):
+class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
     def __init__(
         self,
         scope: Construct,

@@ -1,101 +1,107 @@
 import typing
-
 from constructs import Construct
 from imports import k8s
 from src.config import constants as const
 
 
-class Service(Construct):
-    def __init__(self, scope: Construct, id: str, service_topology, labels, node_config):
+class ServiceConstruct(Construct):
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        service_config,
+        labels: dict,
+        node_config: dict,
+    ):
         super().__init__(scope, id)
 
-        self.service_topology = service_topology
+        self.service_config = service_config
         self.labels = labels
         self.node_config = node_config
 
-        self.service = self._get_service()
+        self.service = self._create_service()
 
-    def _get_service(self) -> k8s.KubeService:
+    def _create_service(self) -> k8s.KubeService:
+        service_spec = self.service_config.service
         return k8s.KubeService(
             self,
             "service",
             metadata=k8s.ObjectMeta(
                 labels=self.labels,
-                annotations=self._get_service_annotations(),
+                annotations=self._get_service_annotations(service_spec),
             ),
             spec=k8s.ServiceSpec(
-                type=self._get_service_type(),
-                ports=self._get_service_ports(),
+                type=self._get_service_type(service_spec),
+                ports=self._get_service_ports(service_spec),
                 selector=self.labels,
+                cluster_ip=service_spec.clusterIP or None,
+                external_i_ps=service_spec.externalIPs or None,
+                load_balancer_ip=service_spec.loadBalancerIP or None,
+                load_balancer_source_ranges=service_spec.loadBalancerSourceRanges or None,
+                session_affinity=service_spec.sessionAffinity or "None",
             ),
         )
 
-    def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
-        return [
-            k8s.ServicePort(
-                name=attr[0],
-                port=self._get_config_attr(attr[1]),
-                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr[1])),
-            )
-            for attr in self._get_ports_subset_keys_from_config()
-        ]
+    def _get_service_annotations(self, service_spec) -> typing.Dict[str, str]:
+        """Merge custom annotations and GKE-specific internal/external hints."""
+        annotations = dict(service_spec.annotations or {})
+        svc_type = service_spec.type
 
-    def _get_service_annotations(self) -> typing.Dict[str, str]:
-        annotations = {}
-        if self.service_topology.k8s_service_config is None:
-            return annotations
-        if (
-            self.service_topology.k8s_service_config.get("internal") is True
-            and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
-        ):
+        # Example: automatically annotate internal load balancers for GKE
+        if svc_type == "LoadBalancer" and getattr(service_spec, "internal", False):
             annotations.update(
                 {
                     "cloud.google.com/load-balancer-type": "Internal",
                     "networking.gke.io/internal-load-balancer-allow-global-access": "true",
                 }
             )
-        if self.service_topology.k8s_service_config.get("external_dns_name"):
-            annotations.update(
-                {
-                    "external-dns.alpha.kubernetes.io/hostname": self.service_topology.k8s_service_config[
-                        "external_dns_name"
-                    ]
-                }
-            )
+
+        # Add external DNS hostname if defined
+        external_dns = getattr(service_spec, "external_dns_name", None)
+        if external_dns:
+            annotations["external-dns.alpha.kubernetes.io/hostname"] = external_dns
+
         return annotations
 
-    def _get_service_type(self) -> const.K8SServiceType:
-        if self.service_topology.k8s_service_config is None:
-            return const.K8SServiceType.CLUSTER_IP
-        svc_type = self.service_topology.k8s_service_config.get("type")
-        if svc_type == "LoadBalancer":
+    def _get_service_type(self, service_spec) -> const.K8SServiceType:
+        svc_type = (service_spec.type or "ClusterIP").capitalize()
+        if svc_type == "Loadbalancer":
             return const.K8SServiceType.LOAD_BALANCER
-        elif svc_type == "NodePort":
+        elif svc_type == "Nodeport":
             return const.K8SServiceType.NODE_PORT
-        elif svc_type == "ClusterIP":
+        elif svc_type == "Clusterip":
             return const.K8SServiceType.CLUSTER_IP
         else:
-            assert False, f"Unknown service type: {svc_type}"
+            raise ValueError(f"Unknown service type: {svc_type}")
 
-    def _get_config_attr(self, attr: str) -> str | int:
-        config_attr = self.node_config.get(attr)
-        assert config_attr is not None, f'Config attribute "{attr}" is missing.'
+    def _get_service_ports(self, service_spec) -> typing.List[k8s.ServicePort]:
+        """Convert Pydantic ports list into Kubernetes ServicePort objects with sane defaults."""
+        ports: list[k8s.ServicePort] = []
 
-        return config_attr
+        for p in service_spec.ports:
+            # Validate required "port"
+            if p.port is None:
+                raise ValueError(
+                    f"Service port entry is missing 'port' (service: {getattr(self.service_config, 'name', '<unknown>')})"
+                )
 
-    def _get_ports_subset_keys_from_config(self) -> typing.List[typing.Tuple[str, str]]:
-        ports = []
-        for k, v in self.node_config.items():
-            if k.endswith(".port") and v != 0:
-                if k.startswith("components."):
-                    port_name = k.split(".")[1].replace("_", "-")
-                elif "rpc_config" in k:
-                    port_name = "_".join(k.split(".")[:2]).replace("_", "-")
-                else:
-                    port_name = k.split(".")[0].replace("_", "-")
+            # Default targetPort to port if not provided
+            target = p.targetPort if getattr(p, "targetPort", None) is not None else p.port
+
+            # Build IntOrString for targetPort
+            if isinstance(target, (int, float)):
+                target_ios = k8s.IntOrString.from_number(int(target))
             else:
-                continue
+                # allow named port like "http" or "monitoring"
+                target_ios = k8s.IntOrString.from_string(str(target))
 
-            ports.append((port_name, k))
+            ports.append(
+                k8s.ServicePort(
+                    name=p.name,
+                    port=int(p.port),
+                    target_port=target_ios,
+                    protocol=(p.protocol or "TCP"),
+                )
+            )
 
         return ports
