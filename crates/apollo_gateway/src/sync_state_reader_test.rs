@@ -95,10 +95,7 @@ async fn test_get_block_info() {
                     l2_gas_price: NonzeroGasPrice::new_unchecked(l2_gas_price.price_in_fri),
                 },
             },
-            use_kzg_da: match l1_da_mode {
-                L1DataAvailabilityMode::Blob => true,
-                L1DataAvailabilityMode::Calldata => false,
-            },
+            use_kzg_da: l1_da_mode.to_use_kzg_da(),
         }
     );
 }

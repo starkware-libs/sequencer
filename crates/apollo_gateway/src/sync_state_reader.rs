@@ -21,7 +21,6 @@ use lazy_static::lazy_static;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -79,10 +78,7 @@ impl MempoolStateReader for SyncStateReader {
                     l2_gas_price: block_header.l2_gas_price.price_in_fri.try_into()?,
                 },
             },
-            use_kzg_da: match block_header.l1_da_mode {
-                L1DataAvailabilityMode::Blob => true,
-                L1DataAvailabilityMode::Calldata => false,
-            },
+            use_kzg_da: block_header.l1_da_mode.to_use_kzg_da(),
         };
 
         Ok(block_info)
