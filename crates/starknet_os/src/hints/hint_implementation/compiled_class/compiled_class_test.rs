@@ -35,7 +35,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
-use crate::hints::vars::Const;
+use crate::hints::vars::{CairoStruct, Const};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -45,7 +45,7 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 use crate::test_utils::utils::DEFAULT_PRIME;
-use crate::vm_utils::LoadCairoObject;
+use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoObject};
 
 // V1 (Poseidon) HASH CONSTS
 /// Expected Poseidon hash for the test contract.
@@ -230,6 +230,7 @@ fn get_dummy_compiled_class(contract_segmentation: bool) -> CasmContractClass {
 fn run_compiled_class_hash_entry_point(
     contract_class: &CasmContractClass,
     load_full_contract: bool,
+    mark_contract_segments_as_accessed: bool,
     hash_version: &HashVersion,
 ) -> (ExecutionResources, Felt) {
     // Set up the entry point runner configuration.
@@ -277,6 +278,27 @@ fn run_compiled_class_hash_entry_point(
     // Pass the contract class base address as the function's input parameter.
     let contract_class_base = runner.vm.add_memory_segment();
     contract_class.load_into(&mut runner.vm, &program, contract_class_base, &constants).unwrap();
+
+    // Mark the bytecode segment as accessed if requested.
+    if mark_contract_segments_as_accessed {
+        // Find the bytecode segment base address.
+        let bytecode_ptr_address = get_address_of_nested_fields_from_base_address(
+            contract_class_base,
+            CairoStruct::CompiledClass,
+            &runner.vm,
+            &["bytecode_ptr"],
+            &program,
+        )
+        .unwrap();
+        let bytecode_ptr = runner.vm.get_relocatable(bytecode_ptr_address).unwrap();
+        // Mark as accessed.
+        // We cannot use `mark_address_range_as_accessed` because this method cannot be called
+        // before the run is finished.
+        for i in 0..contract_class.bytecode.len() {
+            runner.vm.segments.memory.mark_as_accessed((bytecode_ptr + i).unwrap());
+        }
+    }
+
     let explicit_args = vec![
         // Compiled class
         EndpointArg::Value(ValueArg::Single(contract_class_base.into())),
@@ -323,11 +345,13 @@ fn test_compiled_class_hash_basic(
     #[case] expected_hash: &str,
     #[case] expected_n_poseidons: usize,
 ) {
+    let load_full_contract = false;
+    let mark_contract_segments_as_accessed = true;
+
     let (resources, compiled_class_hash) = run_compiled_class_hash_entry_point(
         &get_dummy_compiled_class(segmentation),
-        // TODO(Dori): Instead of setting load_full_contract to true, we should mark all segments
-        //   as accessed.
-        true,
+        load_full_contract,
+        mark_contract_segments_as_accessed,
         &HashVersion::V1,
     );
     assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(expected_hash));
@@ -340,6 +364,7 @@ fn test_compiled_class_hash_basic(
 #[rstest]
 fn test_compiled_class_hash(
     #[values(true, false)] load_full_contract: bool,
+    #[values(true, false)] mark_contract_segments_as_accessed: bool,
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
 ) {
     // Get the test contract class.
@@ -350,8 +375,12 @@ fn test_compiled_class_hash(
         _ => panic!("Expected ContractClass::V1"),
     };
     // Run the compiled class hash entry point.
-    let (actual_execution_resources, hash_computed_by_cairo) =
-        run_compiled_class_hash_entry_point(&contract_class, load_full_contract, &hash_version);
+    let (actual_execution_resources, hash_computed_by_cairo) = run_compiled_class_hash_entry_point(
+        &contract_class,
+        load_full_contract,
+        mark_contract_segments_as_accessed,
+        &hash_version,
+    );
 
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
@@ -366,17 +395,18 @@ fn test_compiled_class_hash(
     let actual_builtin_usage = actual_builtin_usage_parts.join(", ");
 
     // Select expected values based on whether we're loading full or partial contract.
-    let (expected_builtin_usage, expected_n_steps) = if load_full_contract {
-        (
-            hash_version.expected_builtin_usage_full_contract(),
-            hash_version.expected_n_steps_full_contract(),
-        )
-    } else {
-        (
-            hash_version.expected_builtin_usage_partial_contract(),
-            hash_version.expected_n_steps_partial_contract(),
-        )
-    };
+    let (expected_builtin_usage, expected_n_steps) =
+        if load_full_contract || mark_contract_segments_as_accessed {
+            (
+                hash_version.expected_builtin_usage_full_contract(),
+                hash_version.expected_n_steps_full_contract(),
+            )
+        } else {
+            (
+                hash_version.expected_builtin_usage_partial_contract(),
+                hash_version.expected_n_steps_partial_contract(),
+            )
+        };
 
     expected_builtin_usage.assert_eq(&actual_builtin_usage);
     expected_n_steps.assert_eq(&actual_execution_resources.n_steps.to_string());
@@ -446,8 +476,14 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     hash_version: &HashVersion,
 ) {
     // Run the compiled class hash entry point with full contract loading.
-    let (actual_execution_resources, _) =
-        run_compiled_class_hash_entry_point(&contract_class, true, hash_version);
+    let load_full_contract = true;
+    let mark_contract_segments_as_accessed = false;
+    let (actual_execution_resources, _) = run_compiled_class_hash_entry_point(
+        &contract_class,
+        load_full_contract,
+        mark_contract_segments_as_accessed,
+        hash_version,
+    );
 
     let bytecode_segments = NestedFeltCounts::new(
         &contract_class.get_bytecode_segment_lengths(),
