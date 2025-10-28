@@ -484,6 +484,7 @@ def restart_pod(
         "-o",
         "name",
     ]
+    kubectl_args.extend(get_namespace_args(namespace, cluster))
     pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
 
     # Filter the list of pods to only include the ones that match the service and extract the pod name.
