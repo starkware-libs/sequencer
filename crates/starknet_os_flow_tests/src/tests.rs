@@ -1158,6 +1158,66 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
 }
 
 #[rstest]
+#[tokio::test]
+async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: bool) {
+    let (mut test_manager, []) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare the experimental contract.
+    let experimental_contract = FeatureContract::Experimental;
+    let experimental_contract_sierra = experimental_contract.get_sierra();
+    let experimental_class_hash = experimental_contract_sierra.calculate_class_hash();
+    let experimental_compiled_class_hash =
+        experimental_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: experimental_class_hash,
+        compiled_class_hash: experimental_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(experimental_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
+
+    // Deploy it.
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let (deploy_tx, _experimental_contract_address) = get_deploy_contract_tx_and_address_with_salt(
+        experimental_class_hash,
+        Calldata::default(),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            ..Default::default()
+        })
+        .await;
+    test_output.perform_default_validations();
+
+    // Validate poseidon usage.
+    // TODO(Meshi): Add blake opcode validations.
+    let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
+    if use_kzg_da {
+        expect![[r#"
+            58
+        "#]]
+        .assert_debug_eq(&poseidons);
+    } else {
+        expect![[r#"
+            49
+        "#]]
+        .assert_debug_eq(&poseidons);
+    }
+}
+
+#[rstest]
 #[case::use_kzg(true, 5)]
 #[case::not_use_kzg(false, 1)]
 #[tokio::test]
@@ -1351,36 +1411,6 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         create_calldata(main_contract_address, "test_signature_verification_secp256r1", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
 
-    // Declare the experimental contract.
-    let experimental_contract = FeatureContract::Experimental;
-    let experimental_contract_sierra = experimental_contract.get_sierra();
-    let experimental_class_hash = experimental_contract_sierra.calculate_class_hash();
-    let experimental_compiled_class_hash =
-        experimental_contract.get_compiled_class_hash(&HashVersion::V2);
-    let declare_tx_args = declare_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        class_hash: experimental_class_hash,
-        compiled_class_hash: experimental_compiled_class_hash,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-    };
-    let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(experimental_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
-
-    // Deploy it.
-    let salt = ContractAddressSalt(Felt::ZERO);
-    let (deploy_tx, _experimental_contract_address) = get_deploy_contract_tx_and_address_with_salt(
-        experimental_class_hash,
-        Calldata::default(),
-        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        *NON_TRIVIAL_RESOURCE_BOUNDS,
-        salt,
-    );
-    test_manager.add_invoke_tx(deploy_tx, None);
-
     // Call test_sha256.
     let calldata = create_calldata(main_contract_address, "test_sha256", &[]);
     test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
@@ -1568,12 +1598,12 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            598
+            560
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            490
+            456
         "#]]
         .assert_debug_eq(&poseidons);
     }
