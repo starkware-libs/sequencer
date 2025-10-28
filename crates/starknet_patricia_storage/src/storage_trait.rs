@@ -17,6 +17,8 @@ pub enum PatriciaStorageError {
     /// An error that occurred in the database library.
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
+    #[error(transparent)]
+    Rocksdb(#[from] rust_rocksdb::Error),
 }
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
