@@ -11,6 +11,7 @@ use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator::{Validate, ValidationError};
+use apollo_config::secrets::Sensitive;
 
 /// Configuration for the block builder component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -111,15 +112,18 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 /// Configuration for the preconfirmed Cende client component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PreconfirmedCendeConfig {
-    pub recorder_url: Url,
+    pub recorder_url: Sensitive<Url>,
 }
+
+
 
 impl Default for PreconfirmedCendeConfig {
     fn default() -> Self {
         Self {
-            recorder_url: "https://recorder_url"
+            recorder_url: Sensitive::new(
+                "https://recorder_url"
                 .parse()
-                .expect("recorder_url must be a valid Recorder URL"),
+                .expect("recorder_url must be a valid Recorder URL")),
         }
     }
 }

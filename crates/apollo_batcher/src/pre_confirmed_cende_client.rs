@@ -7,6 +7,7 @@ use starknet_api::block::BlockNumber;
 use thiserror::Error;
 use tracing::{debug, error, trace, warn};
 use url::Url;
+use apollo_config::secrets::Sensitive;
 
 use crate::cende_client_types::CendePreconfirmedBlock;
 use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
@@ -41,7 +42,7 @@ pub trait PreconfirmedCendeClientTrait: Send + Sync {
 }
 
 pub struct PreconfirmedCendeClient {
-    write_pre_confirmed_block_url: Url,
+    write_pre_confirmed_block_url: Sensitive<Url>,
     client: Client,
 }
 
@@ -54,9 +55,9 @@ impl PreconfirmedCendeClient {
         let recorder_url = config.recorder_url;
 
         Self {
-            write_pre_confirmed_block_url: recorder_url
+            write_pre_confirmed_block_url: Sensitive::new(recorder_url.expose()
                 .join(RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH)
-                .expect("Failed to construct URL"),
+                .expect("Failed to construct URL")),
             client: Client::new(),
         }
     }
@@ -88,7 +89,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             .count();
 
         let request_builder =
-            self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
+            self.client.post(self.write_pre_confirmed_block_url.expose().clone()).json(&pre_confirmed_block);
 
         trace!(
             "Sending write_pre_confirmed_block request to Cende recorder. \

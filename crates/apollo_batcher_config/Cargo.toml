@@ -8,6 +8,7 @@ description = "Configuration for Apollo batcher"
 
 [dependencies]
 apollo_config.workspace = true
+apollo_infra_utils.workspace = true
 apollo_storage.workspace = true
 blockifier.workspace = true
 serde = { workspace = true, features = ["derive"] }

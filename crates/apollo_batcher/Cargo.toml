@@ -16,6 +16,7 @@ workspace = true
 apollo_batcher_config.workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
+apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_provider_types.workspace = true
@@ -42,6 +43,7 @@ tokio.workspace = true
 tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
 validator.workspace = true
+
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }

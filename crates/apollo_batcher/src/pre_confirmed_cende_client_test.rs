@@ -11,6 +11,7 @@ use starknet_api::block::{
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
+use apollo_config::secrets::Sensitive;
 
 use super::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
@@ -30,7 +31,7 @@ const TEST_GAS_PRICE: GasPrice = GasPrice(1);
 const TEST_SEQUENCER_ADDRESS: &str = "0x111";
 
 fn test_cende_client(server: &mut ServerGuard) -> PreconfirmedCendeClient {
-    let config = PreconfirmedCendeConfig { recorder_url: server.url().parse().unwrap() };
+    let config = PreconfirmedCendeConfig { recorder_url: Sensitive::new(server.url().parse().unwrap()) };
     PreconfirmedCendeClient::new(config)
 }
 
@@ -142,7 +143,7 @@ async fn test_write_pre_confirmed_block_server_error() {
 #[tokio::test]
 async fn test_write_pre_confirmed_block_network_error() {
     let config = PreconfirmedCendeConfig {
-        recorder_url: "http://invalid-url-that-should-not-exist.pmrewpohg".parse().unwrap(),
+        recorder_url: Sensitive::new("http://invalid-url-that-should-not-exist.pmrewpohg".parse().unwrap()),
     };
     let client = PreconfirmedCendeClient::new(config);
     let test_data = test_preconfirmed_block_data();
