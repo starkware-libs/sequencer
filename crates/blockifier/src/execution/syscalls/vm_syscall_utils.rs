@@ -48,7 +48,8 @@ pub type SyscallSelector = DeprecatedSyscallSelector;
 
 pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
 
-#[derive(Clone, Debug, Default, Serialize)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Default, Serialize, Eq, PartialEq)]
 pub struct SyscallUsage {
     pub call_count: usize,
     pub linear_factor: usize,

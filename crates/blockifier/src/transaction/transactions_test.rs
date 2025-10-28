@@ -111,7 +111,7 @@ use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
-use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsage};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{
@@ -434,6 +434,21 @@ fn expected_fee_transfer_call_info(
         CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
         CairoVersion::Cairo1(_) => ExecutionResources::default(),
     };
+    let syscalls_usage = match cairo_version {
+        CairoVersion::Cairo0 => HashMap::from([
+            (SyscallSelector::GetCallerAddress, SyscallUsage { call_count: 1, linear_factor: 0 }),
+            (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),
+            (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
+            (SyscallSelector::EmitEvent, SyscallUsage { call_count: 1, linear_factor: 0 }),
+        ]),
+        CairoVersion::Cairo1(_) => HashMap::from([
+            (SyscallSelector::GetExecutionInfo, SyscallUsage { call_count: 1, linear_factor: 0 }),
+            (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),
+            (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
+            (SyscallSelector::EmitEvent, SyscallUsage { call_count: 1, linear_factor: 0 }),
+        ]),
+    };
+
     Some(CallInfo {
         call: expected_fee_transfer_call,
         execution: CallExecution {
@@ -457,6 +472,7 @@ fn expected_fee_transfer_call_info(
         },
         tracked_resource: expected_tracked_resource,
         builtin_counters,
+        syscalls_usage,
         ..Default::default()
     })
 }
@@ -691,6 +707,16 @@ fn test_invoke_tx(
         CairoVersion::Cairo0 => HashMap::from([(BuiltinName::range_check, 19)]),
         CairoVersion::Cairo1(_) => HashMap::from([(BuiltinName::range_check, 27)]),
     };
+    let syscalls_usage = match account_cairo_version {
+        CairoVersion::Cairo0 => HashMap::from([(
+            SyscallSelector::CallContract,
+            SyscallUsage { call_count: 1, linear_factor: 0 },
+        )]),
+        CairoVersion::Cairo1(_) => HashMap::from([
+            (SyscallSelector::GetExecutionInfo, SyscallUsage { call_count: 1, linear_factor: 0 }),
+            (SyscallSelector::CallContract, SyscallUsage { call_count: 1, linear_factor: 0 }),
+        ]),
+    };
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
         execution: CallExecution {
@@ -703,6 +729,7 @@ fn test_invoke_tx(
         inner_calls: expected_inner_calls,
         tracked_resource,
         builtin_counters,
+        syscalls_usage,
         ..Default::default()
     });
 
@@ -2731,6 +2758,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         builtin_counters: HashMap::from([(BuiltinName::range_check, 6)]),
+        syscalls_usage: HashMap::from([(
+            SyscallSelector::StorageWrite,
+            SyscallUsage { call_count: 1, linear_factor: 0 },
+        )]),
         ..Default::default()
     };
 
