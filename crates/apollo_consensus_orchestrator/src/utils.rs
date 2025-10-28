@@ -24,7 +24,6 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
@@ -189,7 +188,7 @@ pub(crate) fn convert_to_sn_api_block_info(
                 l2_gas_price: l2_gas_price_wei,
             },
         },
-        use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
+        use_kzg_da: block_info.l1_da_mode.is_use_kzg_da(),
     })
 }
 
