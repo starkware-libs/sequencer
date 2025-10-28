@@ -620,9 +620,9 @@ impl Batcher {
         let n_reverted_count = u64::try_from(
             block_execution_artifacts
                 .execution_data
-                .execution_infos
+                .execution_infos_and_signatures
                 .values()
-                .filter(|info| info.revert_error.is_some())
+                .filter(|(info, _)| info.revert_error.is_some())
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
@@ -637,7 +637,12 @@ impl Batcher {
             &dummy_partial_block_hash_components,
         )
         .await?;
-        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
+        let execution_infos = block_execution_artifacts
+            .execution_data
+            .execution_infos_and_signatures
+            .into_iter()
+            .map(|(tx_hash, (info, _))| (tx_hash, info))
+            .collect();
 
         LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
@@ -928,16 +933,18 @@ fn log_txs_execution_result(
         let mut log_msg = format!(
             "Finished generating proposal {} with {} transactions",
             proposal_id,
-            block_artifacts.execution_data.execution_infos.len(),
+            block_artifacts.execution_data.execution_infos_and_signatures.len(),
         );
-        block_artifacts.execution_data.execution_infos.iter().for_each(|(tx_hash, info)| {
-            log_msg.push_str(&format!(", {tx_hash}:"));
-            if info.revert_error.is_some() {
-                log_msg.push_str(" Reverted");
-            } else {
-                log_msg.push_str(" Successful");
-            }
-        });
+        block_artifacts.execution_data.execution_infos_and_signatures.iter().for_each(
+            |(tx_hash, info)| {
+                log_msg.push_str(&format!(", {tx_hash}:"));
+                if info.0.revert_error.is_some() {
+                    log_msg.push_str(" Reverted");
+                } else {
+                    log_msg.push_str(" Successful");
+                }
+            },
+        );
         block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
             log_msg.push_str(&format!(", {tx_hash}: Rejected"));
         });
