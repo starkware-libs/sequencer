@@ -1342,7 +1342,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
 #[case::use_kzg(true, 5)]
 #[case::not_use_kzg(false, 1)]
 #[tokio::test]
-async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi_block: usize) {
+async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi_block: usize) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
     let (mut test_manager, [main_contract_address, contract_address2]) =
