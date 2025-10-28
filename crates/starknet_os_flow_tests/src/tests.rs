@@ -1218,6 +1218,155 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
 }
 
 #[rstest]
+#[tokio::test]
+async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
+    let (mut test_manager, []) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+    let current_block_number = test_manager.initial_state.next_block_number;
+
+    assert!(
+        current_block_number.0 > STORED_BLOCK_HASH_BUFFER,
+        "Current block number must be greater than STORED_BLOCK_HASH_BUFFER for the test to work."
+    );
+
+    let mut expected_messages_to_l1 = Vec::new();
+
+    // Declare a Cairo 1.0 account contract.
+    // TODO(Noa): Replace the main account of the test with this Cairo 1 account.
+    let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let faulty_account_sierra = faulty_account.get_sierra();
+    let faulty_account_class_hash = faulty_account_sierra.calculate_class_hash();
+    let faulty_account_compiled_class_hash =
+        faulty_account.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: faulty_account_class_hash,
+        compiled_class_hash: faulty_account_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(faulty_account);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &faulty_account_sierra);
+
+    // Deploy it.
+    let salt = ContractAddressSalt(Felt::ZERO);
+    let validate_constructor = Felt::ZERO; // false.
+    let ctor_calldata = calldata![validate_constructor];
+    let (deploy_tx, _) = get_deploy_contract_tx_and_address_with_salt(
+        faulty_account_class_hash,
+        ctor_calldata.clone(),
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        salt,
+    );
+    test_manager.add_invoke_tx(deploy_tx, None);
+
+    // Prepare deploying an instance of the account by precomputing the address and funding it.
+    let valid = Felt::ZERO;
+    let salt = ContractAddressSalt(Felt::from(1993));
+    let faulty_account_address = calculate_contract_address(
+        salt,
+        faulty_account_class_hash,
+        &ctor_calldata,
+        ContractAddress::default(),
+    )
+    .unwrap();
+    // Fund the address.
+    test_manager.add_fund_address_tx_with_default_amount(faulty_account_address);
+
+    // Create a DeployAccount transaction.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash: faulty_account_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: salt,
+        signature: TransactionSignature(Arc::new(vec![valid])),
+        constructor_calldata: ctor_calldata,
+    };
+    let deploy_account_tx =
+        deploy_account_tx(deploy_tx_args, test_manager.next_nonce(faulty_account_address));
+    test_manager.add_deploy_account_tx(
+        DeployAccountTransaction::create(deploy_account_tx, &CHAIN_ID_FOR_TESTS).unwrap(),
+    );
+
+    // Declare a contract using the newly deployed account.
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let empty_contract_sierra = empty_contract.get_sierra();
+    let empty_contract_class_hash = empty_contract_sierra.calculate_class_hash();
+    let empty_contract_compiled_class_hash =
+        empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args = declare_tx_args! {
+        sender_address: faulty_account_address,
+        class_hash: empty_contract_class_hash,
+        compiled_class_hash: empty_contract_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(faulty_account_address),
+        signature: TransactionSignature(Arc::new(vec![valid])),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx, &empty_contract_sierra);
+    // The faulty account's __execute__ sends a message to L1.
+    expected_messages_to_l1.push(MessageToL1 {
+        from_address: faulty_account_address,
+        to_address: EthAddress::default(),
+        payload: L2ToL1Payload::default(),
+    });
+
+    // Invoke a function on the new account.
+    let invoke_tx_args = invoke_tx_args! {
+        sender_address: faulty_account_address,
+        nonce: test_manager.next_nonce(faulty_account_address),
+        calldata: create_calldata(faulty_account_address, "foo", &[]),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        signature: TransactionSignature(Arc::new(vec![valid])),
+    };
+    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
+    // The faulty account's __execute__ sends a message to L1.
+    expected_messages_to_l1.push(MessageToL1 {
+        from_address: faulty_account_address,
+        to_address: EthAddress::default(),
+        payload: L2ToL1Payload::default(),
+    });
+
+    // Run the test.
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            use_kzg_da,
+            messages_to_l1: expected_messages_to_l1,
+            ..Default::default()
+        })
+        .await;
+
+    // Perform general validations and storage update validations.
+    test_output.perform_default_validations();
+
+    // Verify that the funded account, the new account and the sequencer all have changed balances.
+    test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
+    test_output.assert_account_balance_change(faulty_account_address);
+    test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
+
+    // Validate poseidon usage.
+    // TODO(Meshi): Add blake opcode validations.
+    let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
+    if use_kzg_da {
+        expect![[r#"
+            117
+        "#]]
+        .assert_debug_eq(&poseidons);
+    } else {
+        expect![[r#"
+            106
+        "#]]
+        .assert_debug_eq(&poseidons);
+    }
+}
+
+#[rstest]
 #[case::use_kzg(true, 5)]
 #[case::not_use_kzg(false, 1)]
 #[tokio::test]
@@ -1464,108 +1613,6 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
     }
 
-    // Declare a Cairo 1.0 account contract.
-    // TODO(Noa): Replace the main account of the test with this Cairo 1 account.
-    let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let faulty_account_sierra = faulty_account.get_sierra();
-    let faulty_account_class_hash = faulty_account_sierra.calculate_class_hash();
-    let faulty_account_compiled_class_hash =
-        faulty_account.get_compiled_class_hash(&HashVersion::V2);
-    let declare_tx_args = declare_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        class_hash: faulty_account_class_hash,
-        compiled_class_hash: faulty_account_compiled_class_hash,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-    };
-    let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(faulty_account);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_cairo1_declare_tx(tx, &faulty_account_sierra);
-
-    // Deploy it.
-    let salt = ContractAddressSalt(Felt::ZERO);
-    let validate_constructor = Felt::ZERO; // false.
-    let ctor_calldata = calldata![validate_constructor];
-    let (deploy_tx, _) = get_deploy_contract_tx_and_address_with_salt(
-        faulty_account_class_hash,
-        ctor_calldata.clone(),
-        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        *NON_TRIVIAL_RESOURCE_BOUNDS,
-        salt,
-    );
-    test_manager.add_invoke_tx(deploy_tx, None);
-
-    // Prepare deploying an instance of the account by precomputing the address and funding it.
-    let valid = Felt::ZERO;
-    let salt = ContractAddressSalt(Felt::from(1993));
-    let faulty_account_address = calculate_contract_address(
-        salt,
-        faulty_account_class_hash,
-        &ctor_calldata,
-        ContractAddress::default(),
-    )
-    .unwrap();
-    // Fund the address.
-    test_manager.add_fund_address_tx_with_default_amount(faulty_account_address);
-
-    // Create a DeployAccount transaction.
-    let deploy_tx_args = deploy_account_tx_args! {
-        class_hash: faulty_account_class_hash,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        contract_address_salt: salt,
-        signature: TransactionSignature(Arc::new(vec![valid])),
-        constructor_calldata: ctor_calldata,
-    };
-    let deploy_account_tx =
-        deploy_account_tx(deploy_tx_args, test_manager.next_nonce(faulty_account_address));
-    test_manager.add_deploy_account_tx(
-        DeployAccountTransaction::create(deploy_account_tx, &CHAIN_ID_FOR_TESTS).unwrap(),
-    );
-
-    // Declare a contract using the newly deployed account.
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let empty_contract_sierra = empty_contract.get_sierra();
-    let empty_contract_class_hash = empty_contract_sierra.calculate_class_hash();
-    let empty_contract_compiled_class_hash =
-        empty_contract.get_compiled_class_hash(&HashVersion::V2);
-    let declare_tx_args = declare_tx_args! {
-        sender_address: faulty_account_address,
-        class_hash: empty_contract_class_hash,
-        compiled_class_hash: empty_contract_compiled_class_hash,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        nonce: test_manager.next_nonce(faulty_account_address),
-        signature: TransactionSignature(Arc::new(vec![valid])),
-    };
-    let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(empty_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
-    test_manager.add_cairo1_declare_tx(tx, &empty_contract_sierra);
-    // The faulty account's __execute__ sends a message to L1.
-    expected_messages_to_l1.push(MessageToL1 {
-        from_address: faulty_account_address,
-        to_address: EthAddress::default(),
-        payload: L2ToL1Payload::default(),
-    });
-
-    // Invoke a function on the new account.
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: faulty_account_address,
-        nonce: test_manager.next_nonce(faulty_account_address),
-        calldata: create_calldata(faulty_account_address, "foo", &[]),
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-        signature: TransactionSignature(Arc::new(vec![valid])),
-    };
-    test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
-    // The faulty account's __execute__ sends a message to L1.
-    expected_messages_to_l1.push(MessageToL1 {
-        from_address: faulty_account_address,
-        to_address: EthAddress::default(),
-        payload: L2ToL1Payload::default(),
-    });
-
     // Run the test.
     update_expected_storage_updates_for_block_hash_contract(
         &mut expected_storage_updates,
@@ -1590,7 +1637,6 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
 
     // Verify that the funded account, the new account and the sequencer all have changed balances.
     test_output.assert_account_balance_change(*FUNDED_ACCOUNT_ADDRESS);
-    test_output.assert_account_balance_change(faulty_account_address);
     test_output.assert_account_balance_change(contract_address!(TEST_SEQUENCER_ADDRESS));
 
     // Validate poseidon usage.
@@ -1598,12 +1644,12 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            560
+            471
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            456
+            367
         "#]]
         .assert_debug_eq(&poseidons);
     }
