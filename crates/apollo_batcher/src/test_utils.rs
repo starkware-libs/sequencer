@@ -11,7 +11,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use tokio::sync::mpsc::UnboundedSender;
@@ -103,20 +103,24 @@ pub fn test_l1_handler_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensus
 }
 
 // Create `execution_infos` with an indexed field to enable verification of the order.
-fn indexed_execution_infos() -> IndexMap<TransactionHash, TransactionExecutionInfo> {
+fn indexed_execution_infos_and_signatures()
+-> IndexMap<TransactionHash, (TransactionExecutionInfo, Option<TransactionSignature>)> {
     test_txs(0..EXECUTION_INFO_LEN)
         .iter()
         .enumerate()
         .map(|(i, tx)| {
             (
                 tx.tx_hash(),
-                TransactionExecutionInfo {
-                    receipt: TransactionReceipt {
-                        fee: Fee(i.try_into().unwrap()),
+                (
+                    TransactionExecutionInfo {
+                        receipt: TransactionReceipt {
+                            fee: Fee(i.try_into().unwrap()),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
-                    ..Default::default()
-                },
+                    None,
+                ),
             )
         })
         .collect()
@@ -136,7 +140,7 @@ impl BlockExecutionArtifacts {
         // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
         Self {
             execution_data: BlockTransactionExecutionData {
-                execution_infos: indexed_execution_infos(),
+                execution_infos_and_signatures: indexed_execution_infos_and_signatures(),
                 rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
                 consumed_l1_handler_tx_hashes: Default::default(),
             },
