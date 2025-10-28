@@ -253,7 +253,7 @@ impl NodeService {
             .to_string()
     }
 
-    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+    pub fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         self.as_inner().get_components_in_service()
     }
 
