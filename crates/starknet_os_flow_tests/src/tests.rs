@@ -21,7 +21,6 @@ use starknet_api::core::{
     ContractAddress,
     EthAddress,
     Nonce,
-    PatriciaKey,
 };
 use starknet_api::executable_transaction::{
     DeclareTransaction,
@@ -76,7 +75,6 @@ use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
-use starknet_os::hints::vars::Const;
 use starknet_os::io::os_output::MessageToL2;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -98,6 +96,7 @@ use crate::utils::{
     get_class_info_of_feature_contract,
     maybe_dummy_block_hash_and_number,
     update_expected_storage,
+    update_expected_storage_updates_for_block_hash_contract,
 };
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
@@ -1487,33 +1486,12 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
         payload: L2ToL1Payload::default(),
     });
 
-    // The OS is expected to write the (number -> hash) mapping of this block. Make sure the current
-    // block number is greater than STORED_BLOCK_HASH_BUFFER.
-    let old_block_number = current_block_number.0 - STORED_BLOCK_HASH_BUFFER;
-    assert!(
-        old_block_number > 0,
-        "Block number must be big enough to test a non-trivial block hash mapping update."
-    );
-
-    // Add old block hashes to expected storage updates.
-    let block_hash_contract_address = ContractAddress(
-        PatriciaKey::try_from(Const::BlockHashContractAddress.fetch_from_os_program().unwrap())
-            .unwrap(),
-    );
-    for block_number in current_block_number.0
-        ..(current_block_number.0 + u64::try_from(n_blocks_in_multi_block).unwrap())
-    {
-        let (old_block_number, old_block_hash) =
-            maybe_dummy_block_hash_and_number(BlockNumber(block_number)).unwrap();
-        update_expected_storage(
-            &mut expected_storage_updates,
-            block_hash_contract_address,
-            Felt::from(old_block_number.0),
-            old_block_hash.0,
-        );
-    }
-
     // Run the test.
+    update_expected_storage_updates_for_block_hash_contract(
+        &mut expected_storage_updates,
+        current_block_number,
+        n_blocks_in_multi_block,
+    );
     test_manager.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
     let test_output = test_manager
         .execute_test_with_default_block_contexts(&TestParameters {
