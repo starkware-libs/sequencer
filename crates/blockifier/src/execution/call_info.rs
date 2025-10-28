@@ -10,7 +10,7 @@ use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::{EventContent, L2ToL1Payload};
+use starknet_api::transaction::{Event, EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -335,6 +335,25 @@ impl CallInfo {
             acc += &inner_call.resources;
             acc
         })
+    }
+
+    /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
+    /// order in which they were emitted.
+    pub fn get_sorted_events(&self) -> Vec<Event> {
+        let n_events = self.iter().map(|call_info| call_info.execution.events.len()).sum();
+        let mut events: Vec<Option<Event>> = vec![None; n_events];
+        for call_info in self.iter() {
+            for OrderedEvent { order, event } in &call_info.execution.events {
+                events[*order] = Some(Event {
+                    from_address: call_info.call.storage_address,
+                    content: event.clone(),
+                });
+            }
+        }
+        events
+            .into_iter()
+            .map(|event| event.expect("Unexpected holes in the event order."))
+            .collect()
     }
 }
 
