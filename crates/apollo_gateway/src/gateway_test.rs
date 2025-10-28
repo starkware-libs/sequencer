@@ -42,11 +42,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use clap::Command;
-use mempool_test_utils::starknet_api_test_utils::{
-    contract_class,
-    declare_tx,
-    VALID_ACCOUNT_BALANCE,
-};
+use mempool_test_utils::starknet_api_test_utils::{contract_class, declare_tx};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
@@ -68,6 +64,7 @@ use starknet_api::test_utils::{
     valid_resource_bounds_for_testing,
     TestingTxArgs,
     CHAIN_ID_FOR_TESTS,
+    VALID_ACCOUNT_BALANCE,
 };
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;

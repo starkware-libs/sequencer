@@ -17,11 +17,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use mempool_test_utils::starknet_api_test_utils::{
-    AccountTransactionGenerator,
-    Contract,
-    VALID_ACCOUNT_BALANCE,
-};
+use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, Contract};
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
@@ -42,6 +38,7 @@ use starknet_api::test_utils::{
     DEFAULT_ETH_L1_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
+    VALID_ACCOUNT_BALANCE,
 };
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
