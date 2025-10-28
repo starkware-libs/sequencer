@@ -223,13 +223,24 @@ fn get_dummy_compiled_class(contract_segmentation: bool) -> CasmContractClass {
     }
 }
 
+enum AccessSegmentsIndicator {
+    All,
+    Specific(Vec<usize>),
+}
+
+impl AccessSegmentsIndicator {
+    fn none() -> Self {
+        Self::Specific(vec![])
+    }
+}
+
 /// Runs the compiled class hash entry point for the given contract class,
 /// with the specified load_full_contract flag and hash version.
 /// Returns the execution resources and the computed hash.
 fn run_compiled_class_hash_entry_point(
     contract_class: &CasmContractClass,
     load_full_contract: bool,
-    mark_contract_segments_as_accessed: bool,
+    accessed_segments_indicator: &AccessSegmentsIndicator,
     hash_version: &HashVersion,
 ) -> (ExecutionResources, Felt) {
     // Set up the entry point runner configuration.
@@ -279,23 +290,25 @@ fn run_compiled_class_hash_entry_point(
     contract_class.load_into(&mut runner.vm, &program, contract_class_base, &constants).unwrap();
 
     // Mark the bytecode segment as accessed if requested.
-    if mark_contract_segments_as_accessed {
-        // Find the bytecode segment base address.
-        let bytecode_ptr_address = get_address_of_nested_fields_from_base_address(
-            contract_class_base,
-            CairoStruct::CompiledClass,
-            &runner.vm,
-            &["bytecode_ptr"],
-            &program,
-        )
-        .unwrap();
-        let bytecode_ptr = runner.vm.get_relocatable(bytecode_ptr_address).unwrap();
-        // Mark as accessed.
-        // We cannot use `mark_address_range_as_accessed` because this method cannot be called
-        // before the run is finished.
-        for i in 0..contract_class.bytecode.len() {
-            runner.vm.segments.memory.mark_as_accessed((bytecode_ptr + i).unwrap());
-        }
+    let accessed_offsets_iter: Vec<usize> = match accessed_segments_indicator {
+        AccessSegmentsIndicator::All => (0..contract_class.bytecode.len()).collect(),
+        AccessSegmentsIndicator::Specific(offsets) => offsets.clone(),
+    };
+    // Find the bytecode segment base address.
+    let bytecode_ptr_address = get_address_of_nested_fields_from_base_address(
+        contract_class_base,
+        CairoStruct::CompiledClass,
+        &runner.vm,
+        &["bytecode_ptr"],
+        &program,
+    )
+    .unwrap();
+    let bytecode_ptr = runner.vm.get_relocatable(bytecode_ptr_address).unwrap();
+    // Mark as accessed.
+    // We cannot use `mark_address_range_as_accessed` because this method cannot be called
+    // before the run is finished.
+    for i in accessed_offsets_iter {
+        runner.vm.segments.memory.mark_as_accessed((bytecode_ptr + i).unwrap());
     }
 
     let explicit_args = vec![
@@ -345,12 +358,12 @@ fn test_compiled_class_hash_basic(
     #[case] expected_n_poseidons: usize,
 ) {
     let load_full_contract = false;
-    let mark_contract_segments_as_accessed = true;
+    let accessed_segments_indicator = AccessSegmentsIndicator::All;
 
     let (resources, compiled_class_hash) = run_compiled_class_hash_entry_point(
         &get_dummy_compiled_class(segmentation),
         load_full_contract,
-        mark_contract_segments_as_accessed,
+        &accessed_segments_indicator,
         &HashVersion::V1,
     );
     assert_eq!(compiled_class_hash, Felt::from_hex_unchecked(expected_hash));
@@ -363,7 +376,8 @@ fn test_compiled_class_hash_basic(
 #[rstest]
 fn test_compiled_class_hash(
     #[values(true, false)] load_full_contract: bool,
-    #[values(true, false)] mark_contract_segments_as_accessed: bool,
+    #[values(AccessSegmentsIndicator::All, AccessSegmentsIndicator::none())]
+    accessed_segments_indicator: AccessSegmentsIndicator,
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
 ) {
     // Get the test contract class.
@@ -377,7 +391,7 @@ fn test_compiled_class_hash(
     let (actual_execution_resources, hash_computed_by_cairo) = run_compiled_class_hash_entry_point(
         &contract_class,
         load_full_contract,
-        mark_contract_segments_as_accessed,
+        &accessed_segments_indicator,
         &hash_version,
     );
 
@@ -394,18 +408,19 @@ fn test_compiled_class_hash(
     let actual_builtin_usage = actual_builtin_usage_parts.join(", ");
 
     // Select expected values based on whether we're loading full or partial contract.
-    let (expected_builtin_usage, expected_n_steps) =
-        if load_full_contract || mark_contract_segments_as_accessed {
-            (
-                hash_version.expected_builtin_usage_full_contract(),
-                hash_version.expected_n_steps_full_contract(),
-            )
-        } else {
-            (
-                hash_version.expected_builtin_usage_partial_contract(),
-                hash_version.expected_n_steps_partial_contract(),
-            )
-        };
+    let (expected_builtin_usage, expected_n_steps) = if load_full_contract
+        || matches!(accessed_segments_indicator, AccessSegmentsIndicator::All)
+    {
+        (
+            hash_version.expected_builtin_usage_full_contract(),
+            hash_version.expected_n_steps_full_contract(),
+        )
+    } else {
+        (
+            hash_version.expected_builtin_usage_partial_contract(),
+            hash_version.expected_n_steps_partial_contract(),
+        )
+    };
 
     expected_builtin_usage.assert_eq(&actual_builtin_usage);
     expected_n_steps.assert_eq(&actual_execution_resources.n_steps.to_string());
@@ -476,11 +491,11 @@ fn compare_estimated_vs_actual_casm_hash_resources(
 ) {
     // Run the compiled class hash entry point with full contract loading.
     let load_full_contract = true;
-    let mark_contract_segments_as_accessed = false;
+    let accessed_segments_indicator = AccessSegmentsIndicator::none();
     let (actual_execution_resources, _) = run_compiled_class_hash_entry_point(
         &contract_class,
         load_full_contract,
-        mark_contract_segments_as_accessed,
+        &accessed_segments_indicator,
         hash_version,
     );
 
