@@ -1,17 +1,20 @@
+import os
+from pathlib import Path
 from typing import Optional
 
 from cdk8s import App, Chart, YamlOutputType
 from constructs import Construct
+
 from src.charts.grafana import GrafanaAlertRuleGroupApp, GrafanaDashboardApp
 from src.charts.service import ServiceApp
+from src.config.merger import merge_configs
 from src.config.deployment import (
-    DeploymentConfig,
     GrafanaAlertRuleGroupConfig,
     GrafanaDashboardConfig,
-    SequencerConfig,
 )
-from src.config.helpers import argument_parser, generate_random_hash, sanitize_name
-from src.config.topology import ServiceTopology
+from src.config.schema import DeploymentConfig as DeploymentSchema
+from .helpers import generate_random_hash, sanitize_name
+from .parser import argument_parser
 
 
 class SequencerNode(Chart):
@@ -21,14 +24,18 @@ class SequencerNode(Chart):
         name: str,
         namespace: str,
         monitoring: bool,
-        service_topology: ServiceTopology,
+        service_config,
+        common_config,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.service = ServiceApp(
             self,
             name,
             namespace=namespace,
-            service_topology=service_topology,
+            deployment_config={
+                "common": common_config,
+                "service": service_config,
+            },
             monitoring=monitoring,
         )
 
@@ -44,100 +51,99 @@ class SequencerMonitoring(Chart):
         grafana_alert_rule_group: Optional[GrafanaAlertRuleGroupConfig],
     ):
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
-
         self.hash = generate_random_hash(from_string=f"{cluster}-{namespace}")
 
-        self.dashboard = (
-            GrafanaDashboardApp(
+        if grafana_dashboard:
+            self.dashboard = GrafanaDashboardApp(
                 self,
                 sanitize_name(f"dashboard-{self.hash}"),
                 cluster=cluster,
                 namespace=namespace,
                 grafana_dashboard=grafana_dashboard,
             )
-            if grafana_dashboard
-            else None
-        )
 
-        self.alert_rule_group = (
-            GrafanaAlertRuleGroupApp(
+        if grafana_alert_rule_group:
+            self.alert_rule_group = GrafanaAlertRuleGroupApp(
                 self,
                 sanitize_name(f"alert-rule-group-{self.hash}"),
                 cluster=cluster,
                 namespace=namespace,
                 grafana_alert_rule_group=grafana_alert_rule_group,
             )
-            if grafana_alert_rule_group
-            else None
-        )
 
 
 def main():
     args = argument_parser()
 
-    assert not (
-        args.monitoring_dashboard_file and not args.cluster
-    ), "Error: --cluster is required when --monitoring-dashboard-file is provided."
+    # Validate monitoring arguments
+    if args.monitoring_dashboard_file and not args.cluster:
+        raise ValueError("--cluster is required when --monitoring-dashboard-file is provided.")
 
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
-    preset = DeploymentConfig(args.deployment_config_file)
-    services = preset.get_services()
 
-    if args.deployment_image:
-        image = args.deployment_image
-    else:
-        # Set default tag if not provided
-        if not args.deployment_image_tag:
-            args.deployment_image_tag = "dev"
-        image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
-    application_config_subdir = preset.get_application_config_subdir()
-    create_monitoring = True if args.monitoring_dashboard_file else False
+    # --- Resolve base directory relative to main.py
+    base_dir = Path(__file__).resolve().parent
 
-    for svc in services:
-        SequencerNode(
-            scope=app,
-            name=sanitize_name(f'sequencer-{svc["name"]}'),
-            namespace=sanitize_name(args.namespace),
-            monitoring=create_monitoring,
-            service_topology=ServiceTopology(
-                config=SequencerConfig(
-                    config_subdir=application_config_subdir,
-                    config_paths=svc["config_paths"],
-                ),
-                image=image,
-                k8s_service_config=svc["k8s_service_config"],
-                controller=svc["controller"].lower(),
-                update_strategy_type=svc["update_strategy_type"],
-                replicas=svc["replicas"],
-                autoscale=svc["autoscale"],
-                ingress=svc["ingress"],
-                storage=svc["storage"],
-                toleration=svc["toleration"],
-                anti_affinity=svc["anti_affinity"],
-                resources=svc["resources"],
-                external_secret=svc["external_secret"],
-            ),
+    # --- Layout (base) config paths
+    layout_common_config = base_dir / "configs" / "layouts" / args.layout / "common.yaml"
+    layout_services_config_dir = base_dir / "configs" / "layouts" / args.layout / "services"
+
+    # --- Overlay config paths (optional)
+    overlay_common_config = None
+    overlay_services_config_dir = None
+    if args.overlay:
+        overlay_common_config = (
+            base_dir / "configs" / "overlays" / args.layout / args.overlay / "common.yaml"
+        )
+        overlay_services_config_dir = (
+            base_dir / "configs" / "overlays" / args.layout / args.overlay / "services"
         )
 
+    # --- Merge layout + overlay configs (validated Pydantic model)
+    deployment_config: DeploymentSchema = merge_configs(
+        layout_common_config_path=str(layout_common_config),
+        layout_services_config_dir_path=str(layout_services_config_dir),
+        overlay_common_config_path=str(overlay_common_config) if overlay_common_config else None,
+        overlay_services_config_dir_path=str(overlay_services_config_dir) if overlay_services_config_dir else None,
+    )
+
+    # --- Prepare monitoring configs
     grafana_dashboard_config = (
-        GrafanaDashboardConfig(dashboard_file_path=args.monitoring_dashboard_file)
+        GrafanaDashboardConfig(args.monitoring_dashboard_file)
         if args.monitoring_dashboard_file
         else None
     )
 
     grafana_alert_rule_group_config = (
-        GrafanaAlertRuleGroupConfig(alerts_folder_path=args.monitoring_alerts_folder)
+        GrafanaAlertRuleGroupConfig(args.monitoring_alerts_folder)
         if args.monitoring_alerts_folder
         else None
     )
 
-    SequencerMonitoring(
-        scope=app,
-        id="sequencer-monitoring",
-        cluster=args.cluster,
-        namespace=sanitize_name(args.namespace),
-        grafana_dashboard=grafana_dashboard_config,
-        grafana_alert_rule_group=grafana_alert_rule_group_config,
-    )
+    create_monitoring = bool(grafana_dashboard_config or grafana_alert_rule_group_config)
 
+    # --- Create SequencerNode charts (one per service)
+    namespace = sanitize_name(args.namespace)
+    for service_cfg in deployment_config.services:
+        SequencerNode(
+            scope=app,
+            name=sanitize_name(f"sequencer-{service_cfg.name}"),
+            namespace=namespace,
+            monitoring=create_monitoring,
+            service_config=service_cfg,
+            common_config=deployment_config.common,
+        )
+
+    # --- Create Grafana Monitoring chart
+    if create_monitoring:
+        SequencerMonitoring(
+            scope=app,
+            id="sequencer-monitoring",
+            cluster=args.cluster,
+            namespace=namespace,
+            grafana_dashboard=grafana_dashboard_config,
+            grafana_alert_rule_group=grafana_alert_rule_group_config,
+        )
+
+    # --- Synthesize manifests
     app.synth()

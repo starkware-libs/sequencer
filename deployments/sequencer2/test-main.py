@@ -2,7 +2,7 @@ import os
 import yaml
 
 from src.config.merger import merge_configs
-from src.config.helpers import argument_parser
+from src.helpers import argument_parser
 
 def main() -> None:
     args = argument_parser()
