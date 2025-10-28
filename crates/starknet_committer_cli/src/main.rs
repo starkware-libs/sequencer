@@ -7,6 +7,7 @@ use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::rocksdb_storage::RocksdbStorage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -23,6 +24,7 @@ pub enum StorageType {
     MapStorage,
     Mdbx,
     CachedMdbx,
+    Rocksdb,
 }
 
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
@@ -147,6 +149,21 @@ pub async fn run_committer_cli(
                         checkpoint_interval,
                     )
                     .await;
+                }
+                StorageType::Rocksdb => {
+                    let storage_path = storage_path
+                        .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
+                    fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
+                    let storage = RocksdbStorage::open(Path::new(&storage_path)).unwrap();
+                    run_storage_benchmark(
+                        seed,
+                        n_iterations,
+                        n_diffs,
+                        &output_dir,
+                        Some(&checkpoint_dir),
+                        storage,
+                        checkpoint_interval,
+                    ).await;
                 }
             }
         }

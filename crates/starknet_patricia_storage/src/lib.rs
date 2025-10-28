@@ -4,4 +4,5 @@ pub mod map_storage;
 #[cfg(test)]
 pub mod map_storage_test;
 pub mod mdbx_storage;
+pub mod rocksdb_storage;
 pub mod storage_trait;
