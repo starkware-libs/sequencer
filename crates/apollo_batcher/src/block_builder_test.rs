@@ -401,8 +401,10 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     }
     helper.deadline_expectations();
 
-    let execution_infos_mapping =
-        expected_txs_output.iter().map(|tx| (tx.tx_hash(), (execution_info(), None))).collect();
+    let execution_infos_mapping = expected_txs_output
+        .iter()
+        .map(|tx| (tx.tx_hash(), (execution_info(), tx.tx_signature_for_commitment())))
+        .collect();
 
     let expected_block_artifacts = block_execution_artifacts(
         execution_infos_mapping,
@@ -445,8 +447,9 @@ fn block_builder_expected_output(
     final_n_executed_txs: usize,
 ) -> BlockExecutionArtifacts {
     let execution_info_len_u8 = u8::try_from(execution_info_len).unwrap();
-    let execution_infos_mapping =
-        (0..execution_info_len_u8).map(|i| (tx_hash!(i), (execution_info(), None))).collect();
+    let execution_infos_mapping = (0..execution_info_len_u8)
+        .map(|i| (tx_hash!(i), (execution_info(), Some(TransactionSignature::default()))))
+        .collect();
     block_execution_artifacts(
         execution_infos_mapping,
         Default::default(),
@@ -1005,8 +1008,10 @@ async fn partial_chunk_execution_proposer() {
     let input_txs = test_txs(0..3); // Assume 3 TXs were sent.
     let executed_txs = input_txs[..2].to_vec(); // Only 2 should be processed. Simulating a partial chunk execution.
 
-    let expected_execution_infos_and_signatures: IndexMap<_, _> =
-        executed_txs.iter().map(|tx| (tx.tx_hash(), (execution_info(), None))).collect();
+    let expected_execution_infos_and_signatures: IndexMap<_, _> = executed_txs
+        .iter()
+        .map(|tx| (tx.tx_hash(), (execution_info(), tx.tx_signature_for_commitment())))
+        .collect();
 
     let mut helper = ExpectationHelper::new();
 
