@@ -37,9 +37,9 @@ pub const BENCHMARKS: &[BenchmarkConfig] = &[
     BenchmarkConfig {
         name: "single_tree_flow",
         package: "starknet_committer_and_os_cli",
-        cmd_args: &["bench", "-p", "starknet_committer_and_os_cli", "single_tree_flow"],
+        cmd_args: &["bench", "-p", "starknet_committer_and_os_cli", "tree_computation_flow"],
         input_dir: Some("crates/starknet_committer_and_os_cli/test_inputs"),
-        criterion_benchmark_names: None, // Single benchmark with same name.
+        criterion_benchmark_names: Some(&["tree_computation_flow"]),
     },
     BenchmarkConfig {
         name: "gateway_apply_block",
