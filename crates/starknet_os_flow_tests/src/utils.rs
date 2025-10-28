@@ -499,3 +499,23 @@ fn fetch_storage_proofs_from_state_maps(
     )
     .unwrap()
 }
+
+/// Utility method to update a map of expected storage updates.
+pub(crate) fn update_expected_storage(
+    expected_storage_updates: &mut HashMap<
+        ContractAddress,
+        HashMap<StarknetStorageKey, StarknetStorageValue>,
+    >,
+    address: ContractAddress,
+    key: Felt,
+    value: Felt,
+) {
+    let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
+    let value = StarknetStorageValue(value);
+    expected_storage_updates
+        .entry(address)
+        .and_modify(|map| {
+            map.insert(key, value);
+        })
+        .or_insert_with(|| HashMap::from([(key, value)]));
+}
