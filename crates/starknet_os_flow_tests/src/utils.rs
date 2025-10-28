@@ -24,6 +24,7 @@ use starknet_api::core::{
     CompiledClassHash as StarknetAPICompiledClassHash,
     ContractAddress,
     Nonce,
+    PatriciaKey,
 };
 use starknet_api::declare_tx_args;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -52,6 +53,7 @@ use starknet_committer::patricia_merkle_tree::types::{
     StarknetForestProofs,
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
+use starknet_os::hints::vars::Const;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -496,4 +498,41 @@ pub(crate) fn update_expected_storage(
             map.insert(key, value);
         })
         .or_insert_with(|| HashMap::from([(key, value)]));
+}
+
+/// Given the first block number in the multiblock and the number of blocks in the multiblock,
+/// update the expected storage updates for the block hash contract.
+pub(crate) fn update_expected_storage_updates_for_block_hash_contract(
+    expected_storage_updates: &mut HashMap<
+        ContractAddress,
+        HashMap<StarknetStorageKey, StarknetStorageValue>,
+    >,
+    first_block_number: BlockNumber,
+    n_blocks_in_multi_block: usize,
+) {
+    // The OS is expected to write the (number -> hash) mapping of this block. Make sure the current
+    // block number is greater than STORED_BLOCK_HASH_BUFFER.
+    let old_block_number = first_block_number.0 - STORED_BLOCK_HASH_BUFFER;
+    assert!(
+        old_block_number > 0,
+        "Block number must be big enough to test a non-trivial block hash mapping update."
+    );
+
+    // Add old block hashes to expected storage updates.
+    let block_hash_contract_address = ContractAddress(
+        PatriciaKey::try_from(Const::BlockHashContractAddress.fetch_from_os_program().unwrap())
+            .unwrap(),
+    );
+    for block_number in first_block_number.0
+        ..(first_block_number.0 + u64::try_from(n_blocks_in_multi_block).unwrap())
+    {
+        let (old_block_number, old_block_hash) =
+            maybe_dummy_block_hash_and_number(BlockNumber(block_number)).unwrap();
+        update_expected_storage(
+            expected_storage_updates,
+            block_hash_contract_address,
+            Felt::from(old_block_number.0),
+            old_block_hash.0,
+        );
+    }
 }
