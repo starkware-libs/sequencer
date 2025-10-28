@@ -563,11 +563,11 @@ async fn collect_execution_results_and_stream_txs(
                         revert_error,
                     );
                 }
-                // TODO(Nimrod): Use the actual signature here.
-                let dummy_signature = TransactionSignature::default();
-                let (tx_index, duplicate_tx_hash) = execution_data
-                    .execution_infos_and_signatures
-                    .insert_full(tx_hash, (tx_execution_info, dummy_signature));
+                let (tx_index, duplicate_tx_hash) =
+                    execution_data.execution_infos_and_signatures.insert_full(
+                        tx_hash,
+                        (tx_execution_info, input_tx.tx_signature_for_block_hash()),
+                    );
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
