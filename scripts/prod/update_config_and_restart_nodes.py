@@ -70,8 +70,6 @@ def service_type_converter(service_name: str) -> Service:
     if service_name.startswith("Service."):
         service_name = service_name[8:]
 
-    service_name = service_name.lower()
-
     try:
         return Service[service_name]
     except KeyError:
