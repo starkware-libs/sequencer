@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 hex.workspace = true
+rust-rocksdb.workspace = true
 libmdbx.workspace = true
 lru.workspace = true
 page_size.workspace = true

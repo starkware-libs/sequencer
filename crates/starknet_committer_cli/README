@@ -43,7 +43,7 @@ kubectl cp <POD_NAME>:<OUTPUT_CSV_DIR> <LOCAL_CSV_DIR>
 ```
 2. Run the committer_benchmark_plotting script (check the different output options of the script).
 ```
-python scripts/committer/committer_benchmark_plotting.py <LOCAL_CSV_DIR> -o <OUTPUT_CSV>
+python scripts/committer/committer_benchmark_combine_csv.py <LOCAL_CSV_DIR> -o <OUTPUT_CSV>
 ```
 3. Plot a graph for the csv using the committer_benchmark_plotting script from a venv with the 
 Plotly package (see output options).
