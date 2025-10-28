@@ -10,7 +10,12 @@ use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::{Event, EventContent, L2ToL1Payload};
+use starknet_api::transaction::{
+    Event,
+    EventContent,
+    L2ToL1Payload,
+    MessageToL1 as StarknetAPIMessageToL1,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -353,6 +358,31 @@ impl CallInfo {
         events
             .into_iter()
             .map(|event| event.expect("Unexpected holes in the event order."))
+            .collect()
+    }
+
+    ///  Returns a vector of StarkNet MessageToL1 objects collected during the execution,
+    /// sorted  by the order in which they were sent.
+    pub fn get_sorted_l2_to_l1_messages(&self) -> Vec<StarknetAPIMessageToL1> {
+        let n_messages =
+            self.iter().map(|call_info| call_info.execution.l2_to_l1_messages.len()).sum();
+        let mut messages: Vec<Option<StarknetAPIMessageToL1>> = vec![None; n_messages];
+        for call_info in self.iter() {
+            for OrderedL2ToL1Message { order, message: MessageToL1 { to_address, payload } } in
+                &call_info.execution.l2_to_l1_messages
+            {
+                messages[*order] = Some(StarknetAPIMessageToL1 {
+                    from_address: call_info.call.storage_address,
+                    to_address: (*to_address)
+                        .try_into()
+                        .expect("Failed to convert L1Address to EthAddress"),
+                    payload: payload.clone(),
+                });
+            }
+        }
+        messages
+            .into_iter()
+            .map(|message| message.expect("Unexpected holes in the L2 to L1 message order."))
             .collect()
     }
 }
