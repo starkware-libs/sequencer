@@ -13,6 +13,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
@@ -129,6 +130,16 @@ pub(crate) struct OsTestOutput<S: FlowTestState> {
 }
 
 impl<S: FlowTestState> OsTestOutput<S> {
+    pub(crate) fn get_builtin_usage(&self, builtin_name: &BuiltinName) -> usize {
+        *self
+            .runner_output
+            .metrics
+            .execution_resources
+            .builtin_instance_counter
+            .get(builtin_name)
+            .unwrap()
+    }
+
     pub(crate) fn perform_default_validations(&self) {
         self.perform_validations(true, None);
     }
