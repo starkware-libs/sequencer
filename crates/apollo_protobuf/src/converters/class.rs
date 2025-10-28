@@ -129,7 +129,8 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
             );
         }
         let abi = serde_json::from_str(&value.abi)?;
-        let program = decode_and_decompress(&value.program)?;
+        // TODO(AlonH): Choose a reasonable limit.
+        let program = decode_and_decompress(&value.program, 10 * 1024 * 1024 * 1024)?;
 
         Ok(Self { program, entry_points_by_type, abi })
     }

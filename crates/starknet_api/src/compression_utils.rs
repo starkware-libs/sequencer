@@ -14,6 +14,8 @@ pub enum CompressionError {
     Serde(#[from] serde_json::Error),
     #[error(transparent)]
     Decode(#[from] base64::DecodeError),
+    #[error("Decompression limit exceeded")]
+    DecompressionLimitExceeded,
 }
 
 /// Compress the value using gzip with the default compression level and encode it in base64.
@@ -28,10 +30,17 @@ where
 }
 
 /// Decompress the value from base64 and gzip.
-pub fn decode_and_decompress<T: DeserializeOwned>(value: &str) -> Result<T, CompressionError> {
+pub fn decode_and_decompress<T: DeserializeOwned>(
+    value: &str,
+    limit: u64,
+) -> Result<T, CompressionError> {
     let decoded_data = base64::decode(value)?;
-    let mut decompressor = flate2::read::GzDecoder::new(&decoded_data[..]);
+    let mut decompressor = flate2::read::GzDecoder::new(&decoded_data[..]).take(limit);
     let mut decompressed_data = String::new();
-    decompressor.read_to_string(&mut decompressed_data)?;
+    let bytes_read = decompressor.read_to_string(&mut decompressed_data)?;
+    if bytes_read == limit as usize {
+        return Err(CompressionError::DecompressionLimitExceeded);
+    }
+
     Ok(serde_json::from_str(&decompressed_data)?)
 }

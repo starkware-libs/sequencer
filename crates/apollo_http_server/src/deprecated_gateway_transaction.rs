@@ -282,7 +282,10 @@ impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
     fn try_from(
         rest_sierra_contract_class: DeprecatedGatewaySierraContractClass,
     ) -> Result<Self, Self::Error> {
-        let sierra_program = decode_and_decompress(&rest_sierra_contract_class.sierra_program)?;
+        // Decompress and decode the sierra program. Limit the decompressed size to 81920 Felts.
+        // TODO(AlonH): make the limit configurable.
+        let sierra_program =
+            decode_and_decompress(&rest_sierra_contract_class.sierra_program, 32 * 81920)?;
         Ok(SierraContractClass {
             sierra_program,
             contract_class_version: rest_sierra_contract_class.contract_class_version,
