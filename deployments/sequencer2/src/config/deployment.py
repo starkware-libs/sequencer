@@ -1,13 +1,15 @@
 import json
+import yaml
 import os
 from abc import ABC, abstractmethod
+from typing import Optional, Any, Dict, List
 from pathlib import Path
-from typing import Any, Dict, List
 
-import jsonschema
-
+from .schema import ServiceConfig, CommonConfig
 
 class Config(ABC):
+    """Base configuration class with validation and safe load utilities."""
+
     @abstractmethod
     def load(self) -> dict:
         pass
@@ -16,76 +18,94 @@ class Config(ABC):
     def _validate(self):
         pass
 
-    def _validate_file(
-        self, file_path: str, must_be_json: bool = True, must_be_readable: bool = True
-    ) -> None:
-        """Validate that a file path exists, is a file, and optionally is a JSON file and readable."""
+    def _validate_file(self, file_path: str) -> None:
+        """Ensure file exists, is readable, and is a real file."""
         path = Path(file_path)
         if not path.exists():
             raise ValueError(f"File path {file_path} does not exist")
         if not path.is_file():
             raise ValueError(f"File path {file_path} is not a file")
-        if must_be_json and not file_path.endswith(".json"):
-            raise ValueError(f"File path {file_path} is not a JSON file")
-        if must_be_readable and not os.access(file_path, os.R_OK):
+        if not os.access(path, os.R_OK):
             raise ValueError(f"File path {file_path} is not readable")
 
     def _validate_directory(self, dir_path: str) -> None:
+        """Ensure directory exists and is readable."""
         path = Path(dir_path)
-        if not path.is_dir():
-            raise ValueError(f"Directory path {dir_path} is not a directory")
         if not path.exists():
             raise ValueError(f"Directory path {dir_path} does not exist")
+        if not path.is_dir():
+            raise ValueError(f"Directory path {dir_path} is not a directory")
         if not os.access(dir_path, os.R_OK):
             raise ValueError(f"Directory path {dir_path} is not readable")
 
-    def _try_load(self, file_path: str, file_description: str) -> dict:
+    def _try_load_yaml(self, file_path: str) -> dict:
+        """Validate and load YAML safely."""
+        self._validate_file(file_path)
+        if not file_path.endswith((".yaml", ".yml")):
+            raise ValueError(f"File path {file_path} is not a YAML file")
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML in {file_path}: {e}")
+
+    def _try_load_json(self, file_path: str) -> dict:
+        """Validate and load JSON safely."""
+        self._validate_file(file_path)
+        if not file_path.endswith(".json"):
+            raise ValueError(f"File path {file_path} is not a JSON file")
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
-            raise ValueError(f"{file_description} file {file_path} is not valid JSON: {str(e)}")
-        except FileNotFoundError as e:
-            raise ValueError(f"{file_description} file {file_path} not found: {str(e)}")
-        except PermissionError as e:
-            raise ValueError(f"{file_description} file {file_path} is not readable: {str(e)}")
+            raise ValueError(f"Invalid JSON in {file_path}: {e}")
 
 
 class DeploymentConfig(Config):
-    SCHEMA_FILE = "./schemas/deployment_config_schema.json"
+    """Loads and validates service and common YAML configs."""
 
-    def __init__(self, deployment_config_file: str):
-        self.deployment_config_file_path = deployment_config_file
+    def __init__(self, configs_dir_path: str, common_config_path: Optional[str] = None):
+        self.configs_dir_path = Path(configs_dir_path)
+        self.common_config_path = Path(common_config_path) if common_config_path else None
         self._validate()
-        self._deployment_config_data = self.load()
-        self._schema = self._load_schema()
-        self._validate_schema()
 
-    def _validate(self) -> None:
-        self._validate_file(self.deployment_config_file_path)
-        self._validate_file(self.SCHEMA_FILE)
+    def _validate(self):
+        """Validate directory existence and file readability."""
+        self._validate_directory(self.configs_dir_path)
+        if self.common_config_path and not self.common_config_path.exists():
+            raise ValueError(f"Common config path {self.common_config_path} does not exist")
 
-    def _validate_schema(self) -> None:
-        try:
-            jsonschema.validate(instance=self._deployment_config_data, schema=self._schema)
-        except jsonschema.ValidationError as e:
-            raise ValueError(f"Invalid deployment config file: {e.message}")
-        except jsonschema.SchemaError as e:
-            raise ValueError(f"Invalid schema file: {e.message}")
+    def _load_service_configs_from_dir(self) -> List[ServiceConfig]:
+        """Load and validate each service YAML file in the directory."""
+        validated_configs = []
+        for fname in os.listdir(self.configs_dir_path):
+            if not fname.endswith((".yaml", ".yml")):
+                continue
+            file_path = self.configs_dir_path / fname
+            raw_config = self._try_load_yaml(str(file_path))
+            validated_config = ServiceConfig.model_validate(raw_config)
+            validated_config._source = str(file_path)
+            validated_configs.append(validated_config)
+        return validated_configs
 
-    def _load_schema(self) -> dict:
-        return self._try_load(file_path=self.SCHEMA_FILE, file_description="Schema")
+    def _wrap_services(self, services: list) -> dict:
+        """Wrap the list of services in a 'services' key."""
+        return {"services": services}
+
+    def _load_common_config(self) -> Optional[dict]:
+        """Optionally load and validate a common config file."""
+        if not self.common_config_path:
+            return None
+        raw = self._try_load_yaml(str(self.common_config_path))
+        validated = CommonConfig.model_validate(raw).model_dump(exclude_none=True)
+        return validated
 
     def load(self) -> dict:
-        return self._try_load(
-            file_path=self.deployment_config_file_path, file_description="Deployment config"
-        )
-
-    def get_application_config_subdir(self) -> str | None:
-        return self._deployment_config_data.get("application_config_subdir")
-
-    def get_services(self) -> List[dict]:
-        return self._deployment_config_data.get("services", [])
+        """Load all service configs and optionally merge with common config."""
+        services = self._load_service_configs_from_dir()
+        wrapped = self._wrap_services(services)
+        common = self._load_common_config()
+        return {**common, **wrapped} if common else wrapped
 
 
 class SequencerConfig(Config):
@@ -94,20 +114,21 @@ class SequencerConfig(Config):
     def __init__(self, config_subdir: str, config_paths: List[str]):
         self.config_subdir = os.path.join(self.ROOT_DIR, config_subdir)
         self.config_paths = config_paths
+        self._validate()
 
     def _validate(self):
         self._validate_directory(self.config_subdir)
         for config_path in self.config_paths:
-            self._validate_file(os.path.join(self.config_subdir, config_path))
+            full_path = os.path.join(self.config_subdir, config_path)
+            self._validate_file(full_path)
 
     def load(self) -> dict:
+        """Merge multiple JSON configs from a subdir."""
         result = {}
         for config_path in self.config_paths:
             path = os.path.join(self.config_subdir, config_path)
-            data = self._try_load(file_path=path, file_description="Config")
-            result.update(data)  # later values overwrite previous
-
-        # Return a lexicographically sorted dict to ensure consistent ordering and simpler CM diffs.
+            data = self._try_load_json(path)
+            result.update(data)
         return dict(sorted(result.items()))
 
 
@@ -120,7 +141,7 @@ class GrafanaDashboardConfig(Config):
         self._validate_file(self.dashboard_file_path)
 
     def load(self) -> dict:
-        return self._try_load(file_path=self.dashboard_file_path, file_description="Dashboard")
+        return self._try_load_json(self.dashboard_file_path)
 
 
 class GrafanaAlertRuleGroupConfig(Config):
@@ -130,11 +151,11 @@ class GrafanaAlertRuleGroupConfig(Config):
 
     def _validate(self):
         self._validate_directory(str(self.alerts_folder_path))
-        for file in self.get_alert_files():
-            self._validate_file(str(file))
 
     def get_alert_files(self) -> List[Path]:
+        """List all alert rule JSON files."""
         return list(self.alerts_folder_path.glob("*.json"))
 
     def load(self, alert_file_path: str) -> Dict[str, Any]:
-        return self._try_load(file_path=alert_file_path, file_description="Alert")
+        """Load a single alert rule JSON file."""
+        return self._try_load_json(alert_file_path)
