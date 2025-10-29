@@ -6,7 +6,7 @@ use apollo_batcher_types::batcher_types::GetHeightResponse;
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_l1_provider_types::errors::L1ProviderError;
-use apollo_l1_provider_types::{L1ProviderClient, MockL1ProviderClient};
+use apollo_l1_provider_types::{L1ProviderClient, MockL1ProviderClient, ProviderState};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::errors::StateSyncError;
@@ -84,10 +84,7 @@ async fn bootstrap_e2e() {
             .ok_or(StateSyncError::BlockNotFound(input).into())
     });
 
-    let mut batcher_client = MockBatcherClient::default();
-    batcher_client
-        .expect_get_height()
-        .returning(move || Ok(GetHeightResponse { height: CATCH_UP_HEIGHT.unchecked_next() }));
+    let batcher_client = MockBatcherClient::default();
 
     let config = L1ProviderConfig {
         startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
@@ -111,6 +108,10 @@ async fn bootstrap_e2e() {
     // understand though.
     let scraped_l1_handler_txs = vec![]; // No txs to scrape in this test.
     l1_provider.initialize(STARTUP_HEIGHT, scraped_l1_handler_txs).await.unwrap();
+    // TODO(guyn): this test assumes we start in bootstrapping state. The test should be updated to
+    // include the part where the batcher's first commit_block command is what determines the
+    // catchup height and causes the bootstrapping to begin.
+    l1_provider.start_bootstrapping(CATCH_UP_HEIGHT);
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
@@ -234,10 +235,11 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     // Commit blocks should have been applied.
     let start_height_plus_2 = height_add(STARTUP_HEIGHT, 2);
     assert_eq!(l1_provider.current_height, start_height_plus_2);
+    // TODO(guyn): it is possible that the rest of this test is trivial.
     // Should still be bootstrapping, since catchup height isn't determined yet.
     // Technically we could end bootstrapping at this point, but its simpler to let it
     // terminate gracefully once the batcher and sync are ready.
-    assert!(l1_provider.state.is_bootstrapping());
+    assert_eq!(l1_provider.state, ProviderState::Pending);
 
     *batcher_response_height.lock().unwrap() = STARTUP_HEIGHT;
     // Let the sync task continue, it should short circuit.
@@ -263,7 +265,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     let startup_height = BlockNumber(1);
-    let batcher_height = BlockNumber(4);
+    let batcher_height = BlockNumber(3);
 
     let mut sync_client = MockStateSyncClient::default();
     // Mock sync response for an arbitrary number of calls to get block.
@@ -343,16 +345,18 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     assert!(!l1_provider.state.is_bootstrapping());
 }
 
+// TODO(guyn): move this test to l1_provider_tests.rs
 #[tokio::test]
 #[should_panic = "Sync task is stuck"]
 async fn test_stuck_sync() {
     configure_tracing().await;
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(1);
+    const TARGET_HEIGHT: BlockNumber = BlockNumber(10);
 
-    let mut batcher_client = MockBatcherClient::default();
-    batcher_client.expect_get_height().once().returning(|| panic!("CRASH the sync task"));
+    let batcher_client = MockBatcherClient::default();
 
-    let sync_client = MockStateSyncClient::default();
+    let mut sync_client = MockStateSyncClient::default();
+    sync_client.expect_get_block().returning(move |_| panic!("CRASH the sync task"));
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     let config = L1ProviderConfig {
         // Override the default retry interval which is way too long for a test.
@@ -372,6 +376,7 @@ async fn test_stuck_sync() {
 
     // Start sync.
     l1_provider.initialize(STARTUP_HEIGHT, Default::default()).await.unwrap();
+    l1_provider.start_bootstrapping(TARGET_HEIGHT);
 
     for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
         receive_commit_block(&mut l1_provider, &[].into(), height_add(STARTUP_HEIGHT, i.into()));

@@ -3,7 +3,6 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_l1_provider_types::{
     Event,
     L1ProviderClient,
@@ -36,7 +35,7 @@ use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::L1ProviderConfig;
 
 macro_rules! make_bootstrapper {
-    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
+    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {{
         Bootstrapper {
             commit_block_backlog: vec![
                 $(CommitBlockBacklog {
@@ -44,9 +43,8 @@ macro_rules! make_bootstrapper {
                     committed_txs: [$(tx_hash!($tx)),*].into()
                 }),*
             ].into_iter().collect(),
-            catch_up_height: Arc::new(BlockNumber($catch).into()),
+            catch_up_height: BlockNumber(0),
             l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
-            batcher_client: Arc::new(MockBatcherClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
             n_sync_health_check_failures: Default::default(),
@@ -97,7 +95,7 @@ impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
         let bootstrapper = match content.bootstrapper {
             Some(bootstrapper) => bootstrapper,
-            None => make_bootstrapper!(backlog: [], catch_up: 0),
+            None => make_bootstrapper!(backlog: []),
         };
         L1Provider {
             config: content.config.unwrap_or_default(),
@@ -561,7 +559,7 @@ impl FakeL1ProviderClient {
     pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
         let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
         for CommitBlockBacklog { height, committed_txs } in commit_blocks {
-            l1_provider.commit_block(committed_txs, [].into(), height).unwrap();
+            l1_provider.commit_block(committed_txs, [].into(), height).unwrap_or_default();
         }
 
         // TODO(gilad): flush other buffers if necessary.

@@ -2,30 +2,28 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_types::batcher_types::GetHeightResponse;
-use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_l1_provider_types::SharedL1ProviderClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
-use tokio::sync::OnceCell;
-use tracing::{debug, error, info};
+use tracing::debug;
 
-pub type LazyCatchUpHeight = Arc<OnceCell<BlockNumber>>;
+// When the Provider gets a commit_block that is too high, it starts bootstrapping.
+// The commit is rejected by the provider, so it must use sync to catch up to the height of the
+// commit, including that height. The sync task continues until reaching the target height,
+// inclusive, and only after the commit_block (from sync) causes the Provider's current height to be
+// one above the target height, is the backlog applied. Once done with the sync+backlog, the current
+// height should be one above the last commit in the backlog, which makes it ready for the next
+// commit_block from the batcher.
 
 /// Caches commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
 pub struct Bootstrapper {
-    /// The catch-up height for the bootstrapper is the batcher height (unless overridden
-    /// explicitly). This value, due to infra constraints as of now, is only fetchable _after_
-    /// the provider is running, and not during its initialization, hence we are forced to
-    /// lazily fetch it at runtime.
-    pub catch_up_height: LazyCatchUpHeight,
+    pub catch_up_height: BlockNumber,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_provider_client: SharedL1ProviderClient,
-    pub batcher_client: SharedBatcherClient,
     pub sync_client: SharedStateSyncClient,
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
@@ -39,16 +37,14 @@ impl Bootstrapper {
 
     pub fn new(
         l1_provider_client: SharedL1ProviderClient,
-        batcher_client: SharedBatcherClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
-        catch_up_height: LazyCatchUpHeight,
+        catch_up_height: BlockNumber,
     ) -> Self {
         Self {
             sync_retry_interval,
             commit_block_backlog: Default::default(),
             l1_provider_client,
-            batcher_client,
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
@@ -57,12 +53,8 @@ impl Bootstrapper {
     }
 
     /// Check if the caller has caught up with the bootstrapper.
-    /// If catch_up_height is unset, the batcher isn't even ready yet.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        let is_caught_up = match self.catch_up_height() {
-            Some(catch_up_height) => current_provider_height > catch_up_height,
-            None => current_provider_height == BlockNumber(0),
-        };
+        let is_caught_up = current_provider_height > self.catch_up_height;
 
         self.sync_task_health_check(is_caught_up);
 
@@ -88,25 +80,29 @@ impl Bootstrapper {
 
     /// Spawns async task that produces and sends commit block messages to the provider, according
     /// to information from the batcher and sync clients, until the provider is caught up.
-    pub async fn start_l2_sync(&mut self, current_provider_height: BlockNumber) {
+    pub fn start_l2_sync(
+        &mut self,
+        current_provider_height: BlockNumber,
+        catch_up_height: BlockNumber,
+    ) {
+        self.catch_up_height = catch_up_height;
         // FIXME: spawning a task like this is evil.
         // However, we aren't using the task executor, so no choice :(
         // Once we start using a centralized threadpool, spawn through it instead of the
         // tokio runtime.
         let sync_task_handle = tokio::spawn(l2_sync_task(
             self.l1_provider_client.clone(),
-            self.batcher_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
-            self.catch_up_height.clone(),
+            catch_up_height,
             self.sync_retry_interval,
         ));
 
         self.sync_task_handle = SyncTaskHandle::Started(sync_task_handle.into());
     }
 
-    pub fn catch_up_height(&self) -> Option<BlockNumber> {
-        self.catch_up_height.get().copied()
+    pub fn catch_up_height(&self) -> BlockNumber {
+        self.catch_up_height
     }
 
     pub fn sync_started(&self) -> bool {
@@ -155,36 +151,17 @@ impl std::fmt::Debug for Bootstrapper {
 
 async fn l2_sync_task(
     l1_provider_client: SharedL1ProviderClient,
-    batcher_client: SharedBatcherClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
-    catch_up_height: LazyCatchUpHeight,
+    catch_up_height: BlockNumber,
     retry_interval: Duration,
 ) {
-    info!("Try fetching batcher height to initialize catch up point");
-    while !catch_up_height.initialized() {
-        let Ok(GetHeightResponse { height: batcher_height }) = batcher_client.get_height().await
-        else {
-            error!("Batcher height request failed. Retrying...");
-            tokio::time::sleep(retry_interval).await;
-            continue;
-        };
-
-        let Some(batcher_latest_block_number) = batcher_height.prev() else {
-            info!("Batcher height is 0, no need to catch up. exiting...");
-            return;
-        };
-
-        info!("Catch up height set: {batcher_latest_block_number}");
-        catch_up_height
-            .set(batcher_latest_block_number)
-            .expect("This is the only write-point, cannot fail")
-    }
-    let catch_up_height = *catch_up_height.get().expect("Initialized above");
-
     while current_height <= catch_up_height {
         // TODO(Gilad): add tracing instrument.
-        debug!("Try syncing L1Provider with L2 height: {}", current_height);
+        debug!(
+            "Try syncing L1Provider with L2 height: {} to target height: {}",
+            current_height, catch_up_height
+        );
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
 
         match block {
