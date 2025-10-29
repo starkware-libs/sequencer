@@ -108,4 +108,21 @@ impl Storage for MdbxStorage {
         }
         Ok(prev_val)
     }
+
+    fn print_stats(&self) -> String {
+        match self.db.stat() {
+            Ok(stat) => {
+                format!(
+                    "MDBX Database Statistics: Page size: {} bytes, Tree depth: {}, Branch pages: \
+                     {}, Leaf pages: {}, Overflow pages: {}",
+                    stat.page_size(),
+                    stat.depth(),
+                    stat.branch_pages(),
+                    stat.leaf_pages(),
+                    stat.overflow_pages(),
+                )
+            }
+            Err(e) => format!("Failed to retrieve MDBX statistics: {}", e),
+        }
+    }
 }
