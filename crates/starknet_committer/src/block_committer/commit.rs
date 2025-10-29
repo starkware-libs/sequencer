@@ -23,7 +23,7 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block<S: Storage>(
+pub async fn commit_block<S: Storage + ?Sized>(
     input: Input<ConfigImpl>,
     storage: &mut S,
     mut time_measurement: Option<&mut TimeMeasurement>,

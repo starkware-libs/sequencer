@@ -210,7 +210,7 @@ fn test_create_tree(
     let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
+    let skeleton_tree = OriginalSkeletonTreeImpl::create::<MapStorage, MockLeaf>(
         &mut storage,
         root_hash,
         sorted_leaf_indices,

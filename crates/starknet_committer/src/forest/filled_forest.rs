@@ -34,7 +34,7 @@ pub struct FilledForest {
 impl FilledForest {
     /// Writes the node serialization of the filled trees to storage. Returns the number of new
     /// objects written to storage.
-    pub fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
+    pub fn write_to_storage<S: Storage + ?Sized>(&self, storage: &mut S) -> usize {
         // Serialize all trees to one hash map.
         let new_db_objects: DbHashMap = self
             .storage_tries
