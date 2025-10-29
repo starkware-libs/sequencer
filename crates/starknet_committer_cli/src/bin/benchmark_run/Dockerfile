@@ -30,7 +30,7 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 #   a specific node)
 
 CMD ["--n-iterations", "1000000", \
-    "--n-diffs", "4000", \
+    "--n-diffs", "1000", \
     "--storage-type", "rocksdb", \
     "--cache-size", "1000000", \
     "--checkpoint-interval", "1000", \
