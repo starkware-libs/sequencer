@@ -1,0 +1,7 @@
+{
+  "consensus_manager_config.network_config.advertised_multiaddr": "$$$_REPLACE_consensus_manager_config.network_config.advertised_multiaddr$$$",
+  "consensus_manager_config.network_config.advertised_multiaddr.#is_none": "$$$_REPLACE_consensus_manager_config.network_config.advertised_multiaddr.#is_none$$$",
+  "mempool_p2p_config.network_config.advertised_multiaddr": "$$$_REPLACE_mempool_p2p_config.network_config.advertised_multiaddr$$$",
+  "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": "$$$_REPLACE_mempool_p2p_config.network_config.advertised_multiaddr.#is_none$$$",
+  "validator_id": "$$$_REPLACE_validator_id$$$"
+}
