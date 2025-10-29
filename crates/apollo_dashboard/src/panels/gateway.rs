@@ -11,6 +11,7 @@ use apollo_gateway::metrics::{
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 

@@ -1,5 +1,6 @@
 use apollo_class_manager::metrics::{CLASS_SIZES, N_CLASSES};
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 

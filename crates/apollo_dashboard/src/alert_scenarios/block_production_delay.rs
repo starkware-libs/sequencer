@@ -1,6 +1,7 @@
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
+use apollo_metrics::MetricCommon;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
 use crate::alerts::{
