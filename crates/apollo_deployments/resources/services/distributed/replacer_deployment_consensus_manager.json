@@ -1,0 +1,11 @@
+[
+  "crates/apollo_deployments/resources/app_configs/config_manager_config.json",
+  "crates/apollo_deployments/resources/app_configs/consensus_manager_config.json",
+  "crates/apollo_deployments/resources/app_configs/revert_config.json",
+  "crates/apollo_deployments/resources/app_configs/versioned_constants_overrides_config.json",
+  "crates/apollo_deployments/resources/app_configs/validate_resource_bounds_config.json",
+  "crates/apollo_deployments/resources/app_configs/monitoring_endpoint_config.json",
+  "crates/apollo_deployments/resources/deployments/replacer_deployment.json",
+  "crates/apollo_deployments/resources/deployments/replacer_instance.json",
+  "crates/apollo_deployments/resources/services/distributed/replacer_consensus_manager.json"
+]

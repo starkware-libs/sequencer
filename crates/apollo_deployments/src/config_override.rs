@@ -31,6 +31,14 @@ pub struct ConfigOverride {
     instance_config_override: InstanceConfigOverride,
 }
 
+pub(crate) fn deployment_replacer_file_path() -> String {
+    PathBuf::from(REPLACER_DIR).join(REPLACER_DEPLOYMENT_FILE_NAME).to_string_lossy().to_string()
+}
+
+pub(crate) fn instance_replacer_file_path() -> String {
+    PathBuf::from(REPLACER_DIR).join(REPLACER_INSTANCE_FILE_NAME).to_string_lossy().to_string()
+}
+
 impl ConfigOverride {
     pub const fn new(
         deployment_config_override: DeploymentConfigOverride,
@@ -53,14 +61,14 @@ impl ConfigOverride {
             serialize_to_file(&deployment_data, deployment_path.to_str().unwrap());
             serialize_to_file(
                 &insert_replacer_annotations(deployment_data, |_, _| true),
-                PathBuf::from(REPLACER_DIR).join(REPLACER_DEPLOYMENT_FILE_NAME).to_str().unwrap(),
+                &deployment_replacer_file_path(),
             );
 
             let instance_data = to_value(&self.instance_config_override).unwrap();
             serialize_to_file(&instance_data, instance_path.to_str().unwrap());
             serialize_to_file(
                 &insert_replacer_annotations(instance_data, |_, _| true),
-                PathBuf::from(REPLACER_DIR).join(REPLACER_INSTANCE_FILE_NAME).to_str().unwrap(),
+                &instance_replacer_file_path(),
             );
         }
 
