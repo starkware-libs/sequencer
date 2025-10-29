@@ -13,13 +13,13 @@ pub type InputImpl = Input<ConfigImpl>;
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-pub async fn run_storage_benchmark<S: Storage>(
+pub async fn run_storage_benchmark<S: Storage + ?Sized>(
     seed: u64,
     n_iterations: usize,
     n_storage_updates_per_iteration: usize,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
-    mut storage: S,
+    storage: &mut S,
     checkpoint_interval: usize,
 ) {
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval);
@@ -45,11 +45,11 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest = commit_block(input, &mut storage, Some(&mut time_measurement))
+        let filled_forest = commit_block(input, storage, Some(&mut time_measurement))
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage);
+        let n_new_facts = filled_forest.write_to_storage(storage);
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 
