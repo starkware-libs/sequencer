@@ -52,14 +52,14 @@ impl ConfigOverride {
             let deployment_data = to_value(&self.deployment_config_override).unwrap();
             serialize_to_file(&deployment_data, deployment_path.to_str().unwrap());
             serialize_to_file(
-                &insert_replacer_annotations(deployment_data),
+                &insert_replacer_annotations(deployment_data, |_, _| true),
                 PathBuf::from(REPLACER_DIR).join(REPLACER_DEPLOYMENT_FILE_NAME).to_str().unwrap(),
             );
 
             let instance_data = to_value(&self.instance_config_override).unwrap();
             serialize_to_file(&instance_data, instance_path.to_str().unwrap());
             serialize_to_file(
-                &insert_replacer_annotations(instance_data),
+                &insert_replacer_annotations(instance_data, |_, _| true),
                 PathBuf::from(REPLACER_DIR).join(REPLACER_INSTANCE_FILE_NAME).to_str().unwrap(),
             );
         }
