@@ -2,6 +2,7 @@ use std::num::NonZeroUsize;
 
 use lru::LruCache;
 use serde::Serialize;
+use tracing::info;
 
 use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
 
@@ -41,11 +42,22 @@ impl Storage for MapStorage {
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub is_cache_full: bool,
 }
 
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, cache_capacity: NonZeroUsize) -> Self {
-        Self { storage, cache: LruCache::new(cache_capacity) }
+        Self { storage, cache: LruCache::new(cache_capacity), is_cache_full: false }
+    }
+
+    fn check_and_log_cache_fullness(&mut self) {
+        let current_size = self.cache.len();
+        let capacity = self.cache.cap().get();
+
+        if current_size == capacity {
+            info!("LRU cache is full: {}/{} entries.", current_size, capacity);
+            self.is_cache_full = true;
+        }
     }
 
     fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
@@ -62,6 +74,9 @@ impl<S: Storage> Storage for CachedStorage<S> {
         }
 
         let storage_value = self.storage.get(key)?;
+        if !self.cache.contains(key) && !self.is_cache_full {
+            self.check_and_log_cache_fullness();
+        }
         self.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
@@ -86,6 +101,9 @@ impl<S: Storage> Storage for CachedStorage<S> {
         }
 
         let fetched_values = self.storage.mget(keys_to_fetch.as_slice())?;
+        if !keys_to_fetch.is_empty() && !self.is_cache_full {
+            self.check_and_log_cache_fullness();
+        }
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
                 self.cache.put((*key).clone(), value.clone());
