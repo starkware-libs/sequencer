@@ -322,7 +322,7 @@ impl CasmHashComputationData {
 /// Tracks which classes need migration from V1 to V2 compiled hashes and
 /// accumulates the estimated execution resources required to perform the migration.
 struct CasmHashMigrationData {
-    class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    pub(crate) class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
     resources: EstimatedExecutionResources,
 }
 
@@ -859,6 +859,13 @@ pub fn get_tx_weights<S: StateReader>(
         executed_class_hashes,
         versioned_constants,
     )?;
+    // Total state changes keys are the sum of marginal state changes keys and the
+    // migration state changes.
+    let mut total_state_changes_keys = StateChangesKeys {
+        compiled_class_hash_keys: migration_data.class_hashes_to_migrate.keys().cloned().collect(),
+        ..Default::default()
+    };
+    total_state_changes_keys.extend(state_changes_keys);
 
     let blake_opcode_gas = bouncer_config.blake_weight;
 
@@ -903,7 +910,7 @@ pub fn get_tx_weights<S: StateReader>(
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
-        state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
+        state_diff_size: get_onchain_data_segment_length(&total_state_changes_keys.count()),
         sierra_gas: total_sierra_gas,
         n_txs: 1,
         proving_gas: total_proving_gas,
