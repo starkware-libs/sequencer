@@ -38,6 +38,7 @@ use apollo_consensus_orchestrator::metrics::{
     LABEL_CENDE_FAILURE_REASON,
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
 };
+use apollo_metrics::MetricCommon;
 use apollo_network::network_manager::metrics::{
     LABEL_NAME_BROADCAST_DROP_REASON,
     LABEL_NAME_EVENT_TYPE,

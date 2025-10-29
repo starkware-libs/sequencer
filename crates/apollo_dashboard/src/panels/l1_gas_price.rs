@@ -11,6 +11,7 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
 
