@@ -8,17 +8,10 @@ use starknet_api::core::EntryPointSelector;
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
 
-pub fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 // Ensure that the base layer instance filters out events from other deployments of the core
 // contract.
 #[tokio::test]
 async fn events_from_other_contract() {
-    if !in_ci() {
-        return;
-    }
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
     let anvil_base_layer = AnvilBaseLayer::new().await;
