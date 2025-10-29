@@ -35,6 +35,7 @@ CMD ["--n-iterations", "1000000", \
     "--cache-size", "1000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
+    "--stats-interval", "1000", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \

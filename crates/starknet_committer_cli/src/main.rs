@@ -49,6 +49,10 @@ struct StorageArgs {
     checkpoint_interval: usize,
     #[clap(long, default_value = "warn")]
     log_level: String,
+    /// The number of commits after which to print the statistics.
+    /// Right now, only Mdbx storage supports this option.
+    #[clap(long, default_value = "1000")]
+    stats_interval: Option<usize>,
     /// A path to a directory to store the DB, output and checkpoints unless they are
     /// explicitly provided. Defaults to "/tmp/committer_storage_benchmark/".
     #[clap(short = 'd', long, default_value = DEFAULT_DATA_PATH)]
@@ -87,6 +91,7 @@ pub async fn run_committer_cli(
             cache_size,
             checkpoint_interval,
             log_level,
+            stats_interval,
             data_path,
             storage_path,
             output_dir,
@@ -117,7 +122,8 @@ pub async fn run_committer_cli(
                     let storage_path = storage_path
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
-                    let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
+                    let storage =
+                        MdbxStorage::open(Path::new(&storage_path), stats_interval).unwrap();
                     run_storage_benchmark(
                         seed,
                         n_iterations,
@@ -134,7 +140,7 @@ pub async fn run_committer_cli(
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     let storage = CachedStorage::new(
-                        MdbxStorage::open(Path::new(&storage_path)).unwrap(),
+                        MdbxStorage::open(Path::new(&storage_path), stats_interval).unwrap(),
                         NonZeroUsize::new(cache_size).unwrap(),
                     );
                     run_storage_benchmark(

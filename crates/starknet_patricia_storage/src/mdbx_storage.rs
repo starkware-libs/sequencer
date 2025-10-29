@@ -10,11 +10,14 @@ use libmdbx::{
     WriteMap,
 };
 use page_size;
+use tracing::info;
 
 use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
 
 pub struct MdbxStorage {
     db: MdbxDb<WriteMap>,
+    commit_counter: usize,
+    stats_interval: Option<usize>,
 }
 
 // Size in bytes.
@@ -33,7 +36,7 @@ fn get_page_size(os_page_size: usize) -> PageSize {
 }
 
 impl MdbxStorage {
-    pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
+    pub fn open(path: &Path, stats_interval: Option<usize>) -> PatriciaStorageResult<Self> {
         // TODO(tzahi): geometry and related definitions are taken from apollo_storage. Check if
         // there are better configurations for the committer and consider moving boh crates mdbx
         // code to a common location.
@@ -58,7 +61,37 @@ impl MdbxStorage {
         let txn = db.begin_rw_txn()?;
         txn.create_table(None, TableFlags::empty())?;
         txn.commit()?;
-        Ok(Self { db })
+        Ok(Self { db, commit_counter: 0, stats_interval })
+    }
+
+    fn print_stats(&self) {
+        match self.db.stat() {
+            Ok(stat) => {
+                info!(
+                    "MDBX Database Statistics (after {} commits):\nPage size: {} bytes\nTree \
+                     depth: {}\nBranch pages: {}\nLeaf pages: {}\nOverflow pages: {}\nEntries: {}",
+                    self.commit_counter,
+                    stat.page_size(),
+                    stat.depth(),
+                    stat.branch_pages(),
+                    stat.leaf_pages(),
+                    stat.overflow_pages(),
+                    stat.entries()
+                );
+            }
+            Err(e) => {
+                info!("Failed to retrieve MDBX statistics: {}", e);
+            }
+        }
+    }
+
+    fn increment_and_check_stats(&mut self) {
+        if let Some(interval) = self.stats_interval {
+            self.commit_counter += 1;
+            if self.commit_counter % interval == 0 {
+                self.print_stats();
+            }
+        }
     }
 }
 
@@ -75,6 +108,7 @@ impl Storage for MdbxStorage {
         let prev_val = txn.get(&table, &key.0)?.map(DbValue);
         txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
         txn.commit()?;
+        self.increment_and_check_stats();
         Ok(prev_val)
     }
 
@@ -95,6 +129,7 @@ impl Storage for MdbxStorage {
             txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
         }
         txn.commit()?;
+        self.increment_and_check_stats();
         Ok(())
     }
 
@@ -105,6 +140,7 @@ impl Storage for MdbxStorage {
         if prev_val.is_some() {
             txn.del(&table, &key.0, None)?;
             txn.commit()?;
+            self.increment_and_check_stats();
         }
         Ok(prev_val)
     }
