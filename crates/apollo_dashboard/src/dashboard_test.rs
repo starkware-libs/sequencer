@@ -91,7 +91,7 @@ fn test_ratio_time_series() {
 
 #[test]
 fn test_extra_params() {
-    let panel_with_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat)
+    let panel_with_extra_params = Panel::new("x", "x", "y".to_string(), PanelType::Stat)
         .with_unit(Unit::Bytes)
         .show_percent_change()
         .with_log_query("Query")
@@ -118,7 +118,7 @@ fn test_extra_params() {
     );
     assert_eq!(panel_with_extra_params.extra.legends, Some(vec!["a".to_string()]));
 
-    let panel_without_extra_params = Panel::new("x", "x", vec!["y".to_string()], PanelType::Stat);
+    let panel_without_extra_params = Panel::new("x", "x", "y".to_string(), PanelType::Stat);
     assert!(panel_without_extra_params.extra.unit.is_none());
     assert!(panel_without_extra_params.extra.show_percent_change.is_none());
     assert!(panel_without_extra_params.extra.log_query.is_none());
@@ -129,7 +129,7 @@ fn test_extra_params() {
 #[test]
 #[should_panic]
 fn thresholds_first_step_must_be_none() {
-    let _ = Panel::new("x", "x", vec!["y".into()], PanelType::Stat).with_absolute_thresholds(vec![
+    let _ = Panel::new("x", "x", "y", PanelType::Stat).with_absolute_thresholds(vec![
         ("green", Some(0.0)), // illegal: first step must be None
         ("red", Some(80.0)),
     ]);
@@ -138,7 +138,7 @@ fn thresholds_first_step_must_be_none() {
 #[test]
 #[should_panic]
 fn thresholds_must_be_strictly_increasing() {
-    let _ = Panel::new("x", "x", vec!["y".into()], PanelType::Stat).with_absolute_thresholds(vec![
+    let _ = Panel::new("x", "x", "y", PanelType::Stat).with_absolute_thresholds(vec![
         ("green", None),
         ("red", Some(90.0)),
         ("yellow", Some(80.0)), // illegal: not increasing
@@ -148,5 +148,5 @@ fn thresholds_must_be_strictly_increasing() {
 #[test]
 #[should_panic]
 fn amount_of_legends_must_match_amount_of_exprs() {
-    let _ = Panel::new("x", "x", vec!["y".into()], PanelType::Stat).with_legends(vec!["a", "b"]);
+    let _ = Panel::new("x", "x", "y", PanelType::Stat).with_legends(vec!["a", "b"]);
 }
