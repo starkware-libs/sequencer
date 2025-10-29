@@ -55,12 +55,13 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);
 
-        // Export to csv in the checkpoint interval.
+        // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (i + 1) % checkpoint_interval == 0 {
             time_measurement.to_csv(&format!("{}.csv", i + 1), output_dir);
             if let Some(checkpoint_dir) = checkpoint_dir {
                 time_measurement.save_checkpoint(checkpoint_dir, i + 1, &contracts_trie_root_hash)
             }
+            info!("{}", storage.print_stats());
         }
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
