@@ -251,7 +251,6 @@ impl TransfersGenerator {
     ) -> ApiExecutableTransaction {
         let nonce = self.nonce_manager.next(sender_address);
 
-        let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
         let contract_address = *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key();
 
         let execute_calldata = calldata![
