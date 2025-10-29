@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use rust_rocksdb::{WriteBatch, WriteOptions, DB};
+use rust_rocksdb::{BlockBasedIndexType, BlockBasedOptions, Cache, WriteBatch, WriteOptions, DB};
 
 use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
 
@@ -11,7 +11,31 @@ pub struct RocksdbStorage {
 
 impl RocksdbStorage {
     pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
-        let db = DB::open_default(path).unwrap();
+        use rust_rocksdb::Options;
+        let mut opts = Options::default();
+        opts.set_bytes_per_sync(1024 * 1024);
+        opts.set_write_buffer_size(128 * 1024 * 1024);
+        opts.increase_parallelism(8);
+        opts.set_max_background_jobs(8);
+        opts.set_max_write_buffer_number(4);
+
+        let mut block = BlockBasedOptions::default();
+        let cache = Cache::new_lru_cache(2 * 1024 * 1024 * 1024); // 2 GiB
+        block.set_block_cache(&cache);
+
+        block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
+
+
+        block.set_block_size(16 * 1024);
+        block.set_partition_filters(true);
+        block.set_cache_index_and_filter_blocks(true);
+        block.set_pin_l0_filter_and_index_blocks_in_cache(true);
+        
+        block.set_bloom_filter(10.0, false);
+
+        opts.set_block_based_table_factory(&block);
+
+        let db = DB::open(&opts, path).unwrap();
         Ok(Self { db })
     }
 }
