@@ -22,6 +22,7 @@ use serde_json::{json, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::config_override::{deployment_replacer_file_path, instance_replacer_file_path};
 use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::{
     ComponentConfigInService,
@@ -88,8 +89,6 @@ impl Service {
 
         // TODO(Tsabary): reduce visibility of relevant functions and consts.
 
-        let service_file_path = node_service.get_service_file_path();
-
         let components_in_service = node_service
             .get_components_in_service()
             .into_iter()
@@ -97,9 +96,26 @@ impl Service {
             .collect::<Vec<_>>();
         let config_paths = components_in_service
             .into_iter()
-            .chain(config_filenames)
-            .chain(once(service_file_path))
+            .chain(config_filenames.clone())
+            .chain(once(node_service.get_service_file_path()))
             .collect();
+
+        // TODO(Tsabary): currently using the creation of the non-replacer service struct to DUMP
+        // the list of files of the replacer format. This should be triggered by a new flow.
+        let replacer_components_in_service = node_service
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_component_config_file_paths())
+            .collect::<Vec<_>>();
+        let replacer_config_filenames: Vec<String> =
+            vec![deployment_replacer_file_path(), instance_replacer_file_path()];
+        let replacer_config_paths: Vec<String> = replacer_components_in_service
+            .into_iter()
+            .chain(replacer_config_filenames)
+            .chain(once(node_service.get_replacer_service_file_path()))
+            .collect();
+        let replacer_deployment_file_path = node_service.replacer_deployment_file_path();
+        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
 
         let controller = node_service.get_controller();
         let scale_policy = node_service.get_scale_policy();
@@ -166,17 +182,24 @@ pub enum NodeService {
     Distributed(DistributedNodeServiceName),
 }
 
+// TODO(Tsabary): move p2p ports from the application configs to the replacer format.
+
 impl NodeService {
+    pub fn replacer_deployment_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(NodeType::from(self).get_folder_name())
+            .join(format!("replacer_deployment_{}.json", self.as_inner()))
+            .to_string_lossy()
+            .to_string()
+    }
+
     fn get_config_file_path(&self) -> String {
-        let mut name = self.as_inner().to_string();
-        name.push_str(".json");
-        name
+        format!("{}.json", self.as_inner())
     }
 
     fn get_replacer_config_file_path(&self) -> String {
-        let mut name = self.as_inner().to_string();
-        name.push_str("_replacer.json");
-        name
+        format!("replacer_{}.json", self.as_inner())
     }
 
     pub fn create_service(
