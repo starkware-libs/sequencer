@@ -2,7 +2,6 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::SessionState::{
     self,
@@ -38,6 +37,13 @@ fn commit_block_no_rejected(
     block_number: BlockNumber,
 ) {
     l1_provider.commit_block(txs.iter().copied().collect(), [].into(), block_number).unwrap();
+}
+
+fn commit_block_expect_error_just_to_start_bootstrapping(
+    l1_provider: &mut L1Provider,
+    block_number: BlockNumber,
+) {
+    assert!(l1_provider.commit_block([].into(), [].into(), block_number).is_err());
 }
 
 fn setup_rejected_transactions() -> L1Provider {
@@ -308,19 +314,19 @@ fn commit_block_during_validation() {
 async fn commit_block_backlog() {
     // Setup.
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(8);
-    let bootstrapper = make_bootstrapper!(
-        backlog: [10 => [2], 11 => [4]],
-        catch_up: 9
-    );
+    const TARGET_HEIGHT: BlockNumber = BlockNumber(9);
+    const BACKLOG_HEIGHT: BlockNumber = BlockNumber(11);
+    let bootstrapper = make_bootstrapper!(backlog: [10 => [2], 11 => [4]]);
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper.clone())
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(4)])
         .build_into_l1_provider();
 
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
+    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, TARGET_HEIGHT);
 
     // Test.
-    // Commit height too low to affect backlog.
+    // Commit height is below target height. Doesn't trigger backlog.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], STARTUP_HEIGHT);
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper.clone())
@@ -330,13 +336,13 @@ async fn commit_block_backlog() {
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 
-    // Backlog is consumed, bootstrapping complete.
-    commit_block_no_rejected(&mut l1_provider, &[], BlockNumber(9));
+    // This height triggers finishing the bootstrapping and applying the backlog.
+    commit_block_no_rejected(&mut l1_provider, &[], TARGET_HEIGHT);
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([])
-        .with_height(BlockNumber(12))
+        .with_height(BACKLOG_HEIGHT.unchecked_next())
         .with_state(ProviderState::Pending)
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
@@ -370,16 +376,17 @@ fn commit_block_before_add_tx_stores_tx_in_committed() {
 #[tokio::test]
 async fn bootstrap_commit_block_received_twice_no_error() {
     // Setup.
-    let bootstrapper = make_bootstrapper!(
-        backlog: [],
-        catch_up: 2
-    );
+    let bootstrapper = make_bootstrapper!(backlog: []);
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([l1_handler(1), l1_handler(2)])
         .build_into_l1_provider();
 
     l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
+    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, BlockNumber(2));
+
+    commit_block_no_rejected(&mut l1_provider, &[], BlockNumber(2));
+    // l1_provider.start_bootstrapping(BlockNumber(2));
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -390,16 +397,14 @@ async fn bootstrap_commit_block_received_twice_no_error() {
 #[tokio::test]
 async fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
     // Setup.
-    let bootstrapper = make_bootstrapper!(
-        backlog: [],
-        catch_up: 2
-    );
+    let bootstrapper = make_bootstrapper!(backlog: []);
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_bootstrapper(bootstrapper)
         .with_txs([l1_handler(1), l1_handler(2)])
         .build_into_l1_provider();
 
     l1_provider.initialize(BlockNumber(0), vec![]).await.expect("l1 provider initialize failed");
+    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, BlockNumber(2));
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -998,16 +1003,16 @@ fn commit_block_historical_height_short_circuits_non_bootstrap() {
 async fn commit_block_historical_height_short_circuits_bootstrap() {
     // Setup.
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(5);
+    const TARGET_HEIGHT: BlockNumber = BlockNumber(6);
+
     let batcher_height_old = 4;
-    let bootstrapper = make_bootstrapper!(
-        backlog: [],
-        catch_up: batcher_height_old
-    );
+    let bootstrapper = make_bootstrapper!(backlog: []);
     let l1_provider_builder =
         L1ProviderContentBuilder::new().with_bootstrapper(bootstrapper).with_txs([l1_handler(1)]);
     let l1_provider_builder_clone = l1_provider_builder.clone();
     let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
     l1_provider.initialize(STARTUP_HEIGHT, vec![]).await.expect("l1 provider initialize failed");
+    commit_block_expect_error_just_to_start_bootstrapping(&mut l1_provider, TARGET_HEIGHT);
 
     let expected_unchanged = l1_provider_builder_clone
         .with_height(STARTUP_HEIGHT)
@@ -1339,4 +1344,15 @@ fn consuming_multiple_txs_selective_deletion_after_timelock() {
         .unwrap();
 
     expected_with_tx1_deleted.assert_eq(&l1_provider);
+}
+
+#[test]
+fn bootstrap_commit_block_received_while_uninitialized() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new().build_into_l1_provider();
+
+    // Test.
+    let result = l1_provider.commit_block([].into(), [].into(), BlockNumber(1));
+    assert!(result.is_err());
+    assert_eq!(l1_provider.state, ProviderState::Uninitialized);
 }

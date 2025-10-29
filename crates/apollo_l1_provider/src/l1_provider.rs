@@ -68,15 +68,13 @@ impl L1Provider {
             );
         };
 
-        // The provider now goes into bootstrap state.
-        // TODO(guyn): in the future, this will happen when batcher calls the provider with a height
-        // bigger than the current height. This would happen either in Uninitialized or in other
-        // non-bootstrap states. That means we will move from Uninitialized to Pending (but
-        // on a height much lower than the batcher's).
+        // The provider now goes into Pending state.
+        // The current_height is set to a very old height, that doesn't include any of the events
+        // sent now, or to be scraped in the future. The provider will begin bootstrapping when the
+        // batcher calls commit_block with a height above the current height.
         self.start_height = Some(historic_l2_height);
         self.current_height = historic_l2_height;
-        self.state = ProviderState::Bootstrap;
-        self.bootstrapper.start_l2_sync(self.current_height).await;
+        self.state = ProviderState::Pending;
         self.add_events(events)?;
 
         Ok(())
@@ -284,15 +282,42 @@ impl L1Provider {
 
         // If not historical height and not bootstrapping, must go into bootstrap state upon getting
         // wrong height.
-        // TODO(guyn): for now, we go into bootstrap using panic. We should improve this.
-        self.check_height_with_panic(height);
-        self.apply_commit_block(committed_txs, rejected_txs);
-
-        self.state = self.state.transition_to_pending();
-        Ok(())
+        match self.check_height_with_error(height) {
+            Ok(_) => {
+                self.apply_commit_block(committed_txs, rejected_txs);
+                self.state = self.state.transition_to_pending();
+                Ok(())
+            }
+            Err(err) => {
+                // We are returning an error -> not accepting the block with this height. In order
+                // to to be able to serve future requests, we must catch up to it, and finish
+                // catching up when the provider has synced this height.
+                if self.state.is_uninitialized() {
+                    warn!(
+                        "Provider received a block height ({height}) while it is uninitialized. \
+                         Cannot start bootstrapping until getting the historic_height from the \
+                         scraper during the initialize call."
+                    );
+                } else {
+                    info!(
+                        "Provider received a block_height ({height}) that is higher than the \
+                         current height ({}), starting bootstrapping.",
+                        self.current_height
+                    );
+                    self.start_bootstrapping(height);
+                }
+                Err(err)
+            }
+        }
     }
 
     // Functions called internally.
+
+    /// Go from current state to Bootstrap state and start the L2 sync.
+    pub fn start_bootstrapping(&mut self, target_height: BlockNumber) {
+        self.state = ProviderState::Bootstrap;
+        self.bootstrapper.start_l2_sync(self.current_height, target_height);
+    }
 
     /// Commit the given transactions, and increment the current height.
     fn apply_commit_block(
@@ -323,7 +348,6 @@ impl L1Provider {
             "Bootstrapper processing commit-block at height: {new_height}, current height is \
              {current_height}"
         );
-
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
@@ -369,6 +393,8 @@ impl L1Provider {
         };
 
         // If caught up, apply the backlog and transition to Pending.
+        // Note that at this point self.current_height is already incremented to the next height, it
+        // is one more than the latest block that was committed.
         if self.bootstrapper.is_caught_up(self.current_height) {
             info!(
                 "Bootstrapper sync completed, provider height is now {}, processing backlog...",
@@ -406,21 +432,6 @@ impl L1Provider {
         }
 
         Ok(())
-    }
-
-    fn check_height_with_panic(&mut self, height: BlockNumber) {
-        if height > self.current_height {
-            // TODO(shahak): Add a way to move to bootstrap mode from any point and move to
-            // bootstrap here instead of panicking.
-            panic!(
-                "Batcher surpassed l1 provider. Panicking in order to restart the provider and \
-                 bootstrap again. l1 provider height: {}, batcher height: {}",
-                self.current_height, height
-            );
-        }
-        if height < self.current_height {
-            panic!("Unexpected height: expected >= {}, got {}", self.current_height, height);
-        }
     }
 
     fn check_height_with_error(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
@@ -535,6 +546,8 @@ impl L1ProviderBuilder {
             })
             .or(self.startup_height);
 
+        // TODO(guyn): try to remove the input catchup_height entirely (check if it is needed for
+        // tests/Anvil).
         let catchup_height = self
             .config
             .bootstrap_catch_up_height_override
@@ -546,13 +559,10 @@ impl L1ProviderBuilder {
                 );
             })
             .or(self.catchup_height)
-            .map(|catchup_height| Arc::new(catchup_height.into()))
-            // When kept None, this value is fetched from the batcher by the bootstrapper at runtime.
-            .unwrap_or_default();
+            .unwrap_or_default(); // If bootstrapper is not running, the catchup height can be arbitrarily low. 
 
         let bootstrapper = Bootstrapper::new(
             self.l1_provider_client,
-            self.batcher_client,
             self.state_sync_client,
             self.config.startup_sync_sleep_retry_interval_seconds,
             catchup_height,
