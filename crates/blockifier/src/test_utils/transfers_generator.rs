@@ -258,11 +258,13 @@ impl TransfersGenerator {
         
         executable_invoke_tx(invoke_tx_args! {
             sender_address,
-            calldata: execute_calldata,
-            version: TransactionVersion::THREE,
+            recipient_address,
             nonce,
-            resource_bounds: self.resource_bounds,
-        })
+            self.resource_bounds,
+            self.config.cairo_version,
+        );
+        let tx = AccountTransaction::new_for_sequencing(tx);
+        tx
     }
 }
 
