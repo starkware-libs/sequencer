@@ -6,6 +6,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
+use apollo_metrics::MetricCommon;
 use apollo_network::network_manager::metrics::{
     LABEL_NAME_BROADCAST_DROP_REASON,
     LABEL_NAME_EVENT_TYPE,

@@ -3,6 +3,7 @@ use apollo_batcher::metrics::{
     PROVING_GAS_IN_LAST_BLOCK,
     SIERRA_GAS_IN_LAST_BLOCK,
 };
+use apollo_metrics::MetricCommon;
 use blockifier::metrics::{
     BLOCKIFIER_METRIC_RATE_DURATION,
     CALLS_RUNNING_NATIVE,
