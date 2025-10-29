@@ -13,6 +13,8 @@ impl RocksdbStorage {
     pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
         use rust_rocksdb::Options;
         let mut opts = Options::default();
+        opts.create_if_missing(true);
+
         opts.set_bytes_per_sync(1024 * 1024);
         opts.set_write_buffer_size(128 * 1024 * 1024);
         opts.increase_parallelism(8);
