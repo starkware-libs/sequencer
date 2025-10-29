@@ -1,12 +1,13 @@
+from cdk8s import ApiObjectMetadata
 from imports.com.google.cloud import (
     BackendConfig,
     BackendConfigSpec,
     BackendConfigSpecConnectionDraining,
+    BackendConfigSpecCustomRequestHeaders,
     BackendConfigSpecHealthCheck,
     BackendConfigSpecSecurityPolicy,
-    BackendConfigSpecCustomRequestHeaders,
 )
-from cdk8s import ApiObjectMetadata
+
 from src.constructs.base import BaseConstruct
 
 
@@ -21,7 +22,7 @@ class BackendConfigConstruct(BaseConstruct):
         monitoring_endpoint_port,
     ):
         super().__init__(scope, id, common_config, service_config, labels, monitoring_endpoint_port)
-        
+
         self.backend_config = self._get_backend_config()
 
     def _get_backend_config(self) -> BackendConfig:
@@ -39,7 +40,9 @@ class BackendConfigConstruct(BaseConstruct):
                     draining_timeout_sec=self.service_config.backendConfig.connectionDrainingTimeoutSeconds,
                 ),
                 security_policy=(
-                    BackendConfigSpecSecurityPolicy(name=self.service_config.backendConfig.securityPolicy)
+                    BackendConfigSpecSecurityPolicy(
+                        name=self.service_config.backendConfig.securityPolicy
+                    )
                 ),
                 timeout_sec=self.service_config.backendConfig.timeOutSeconds,
                 health_check=BackendConfigSpecHealthCheck(

@@ -1,7 +1,10 @@
 import json
-from cdk8s import Names
+
+from cdk8s import Chart, Names
 from constructs import Construct
 
+from src.config.schema import CommonConfig, ServiceConfig
+from src.constructs.backendconfig import BackendConfigConstruct
 from src.constructs.configmap import ConfigMapConstruct
 from src.constructs.deployment import DeploymentConstruct
 from src.constructs.hpa import HpaConstruct
@@ -11,62 +14,61 @@ from src.constructs.secret import SecretConstruct
 from src.constructs.service import ServiceConstruct
 from src.constructs.statefulset import StatefulSetConstruct
 from src.constructs.volume import VolumeConstruct
-from src.constructs.backendconfig import BackendConfigConstruct
-from src.config.schema import ServiceConfig, CommonConfig
 
 
-class NodeConstruct(Construct):
+class SequencerNodeChart(Chart):
     def __init__(
         self,
         scope: Construct,
-        id: str,
-        *,
+        name: str,
         namespace: str,
+        monitoring: bool,
         service_config: ServiceConfig,
         common_config: CommonConfig,
-        monitoring: bool,
     ):
-        super().__init__(scope, id)
+        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
 
-        self.namespace = namespace
         self.monitoring = monitoring
         self.service_config = service_config
         self.common_config = common_config
 
-        self.labels = {
+        # Create labels dictionary (avoid conflict with Chart.labels property)
+        labels = {
             "app": "sequencer",
             "service": Names.to_label_value(self, include_hash=False),
         }
 
-        # The service config can directly expose a dict for configmaps or paths
-        # Example: node_config could be JSON/YAML loaded by DeploymentConfig
-        self.node_config = self._load_service_config_paths()
-        self.monitoring_endpoint_port = self._get_monitoring_endpoint_port()
+        # Load config paths and determine monitoring port
+        node_config = self._load_service_config_paths(service_config)
+        monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config)
 
-        self.config_map = ConfigMapConstruct(self, "configmap", self.node_config)
+        # Create ConfigMap
+        self.config_map = ConfigMapConstruct(self, "configmap", node_config)
 
+        # Create Service
         self.service = ServiceConstruct(
             self,
             "service",
             self.service_config,
-            self.labels,
-            self.node_config,
+            labels,
+            node_config,
         )
 
+        # Create Controller (Deployment or StatefulSet)
         controller_type = (
             "statefulset"
             if getattr(self.service_config.statefulSet, "enabled", False)
             else "deployment"
         )
 
-        if self.service_config.statefulSet.enabled:
+        if self.service_config.statefulSet and self.service_config.statefulSet.enabled:
             self.controller = StatefulSetConstruct(
                 self,
                 "statefulset",
                 common_config=self.common_config,
                 service_config=self.service_config,
-                labels=self.labels,
-                monitoring_endpoint_port=self.monitoring_endpoint_port,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
             )
         else:
             self.controller = DeploymentConstruct(
@@ -74,20 +76,22 @@ class NodeConstruct(Construct):
                 "deployment",
                 common_config=self.common_config,
                 service_config=self.service_config,
-                labels=self.labels,
-                monitoring_endpoint_port=self.monitoring_endpoint_port,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
             )
-        
-        if self.service_config.backendConfig.enabled:
+
+        # Create BackendConfig if enabled
+        if self.service_config.backendConfig and self.service_config.backendConfig.enabled:
             self.backend_config = BackendConfigConstruct(
                 self,
                 "backend-config",
                 common_config=self.common_config,
                 service_config=self.service_config,
-                labels=self.labels,
-                monitoring_endpoint_port=self.monitoring_endpoint_port,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
             )
 
+        # Create Ingress if enabled
         if getattr(self.service_config, "ingress", None) and self.service_config.ingress.enabled:
             self.service.service.metadata.add_annotation(
                 key="cloud.google.com/neg", value='{"ingress": true}'
@@ -96,50 +100,56 @@ class NodeConstruct(Construct):
                 self,
                 "ingress",
                 self.service_config,
-                self.labels,
-                self.namespace,
-                self.monitoring_endpoint_port,
+                labels,
+                namespace,
+                monitoring_endpoint_port,
             )
             self.service.service.metadata.add_annotation(
                 key="cloud.google.com/backend-config",
                 value=json.dumps({"default": f"{Names.to_label_value(self)}-backend-config"}),
             )
 
-        if getattr(self.service_config, "persistentVolume", None) and self.service_config.persistentVolume.enabled:
-            self.pvc = VolumeConstruct(self, "pvc", self.service_config, self.labels)
+        # Create PersistentVolumeClaim if enabled
+        if (
+            getattr(self.service_config, "persistentVolume", None)
+            and self.service_config.persistentVolume.enabled
+        ):
+            self.pvc = VolumeConstruct(self, "pvc", self.service_config, labels)
 
+        # Create HPA if enabled
         if getattr(self.service_config, "hpa", None) and self.service_config.hpa.enabled:
             k8s_controller = (
                 self.controller.deployment
                 if controller_type == "deployment"
                 else self.controller.statefulset
             )
-            self.hpa = HpaConstruct(
-                self, "hpa", self.labels, self.service_config, k8s_controller
-            )
+            self.hpa = HpaConstruct(self, "hpa", labels, self.service_config, k8s_controller)
 
+        # Create ExternalSecret if configured
         if getattr(self.service_config, "external_secret", None):
             self.external_secret = SecretConstruct(
-                self, "external-secret", self.service_config, self.labels
+                self, "external-secret", self.service_config, labels
             )
 
+        # Create PodMonitoring if enabled
         if self.monitoring:
             self.podmonitoring = PodMonitoringConstruct(
-                self, "pod-monitoring", self.labels, self.monitoring_endpoint_port
+                self, "pod-monitoring", labels, monitoring_endpoint_port
             )
 
-    def _get_monitoring_endpoint_port(self) -> int:
+    @staticmethod
+    def _get_monitoring_endpoint_port(service_config: ServiceConfig) -> int:
         """Find the 'monitoring' port from the service config."""
-        ports = getattr(self.service_config.service, "ports", [])
+        ports = getattr(service_config.service, "ports", [])
         for port in ports:
             if port.name == "monitoring":
                 return port.port
-        raise ValueError(f"No 'monitoring' port defined for service {self.service_config.name}")
+        raise ValueError(f"No 'monitoring' port defined for service {service_config.name}")
 
-    
-    def _load_service_config_paths(self) -> dict:
+    @staticmethod
+    def _load_service_config_paths(service_config: ServiceConfig) -> dict:
         """Load or construct config values from the ServiceConfig."""
-        config_paths = getattr(self.service_config, "configPaths", [])
+        config_paths = getattr(service_config, "configPaths", [])
         result = {}
         for path in config_paths:
             # Example: load JSON or YAML config files if needed

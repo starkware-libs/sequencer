@@ -1,4 +1,5 @@
 from imports import k8s
+
 from src.constructs.base import BaseConstruct
 
 
@@ -28,7 +29,9 @@ class StatefulSetConstruct(BaseConstruct):
         return k8s.KubeStatefulSet(
             self,
             "statefulset",
-            metadata=k8s.ObjectMeta(labels=self.labels, annotations=self.service_config.statefulSet.annotations),
+            metadata=k8s.ObjectMeta(
+                labels=self.labels, annotations=self.service_config.statefulSet.annotations
+            ),
             spec=k8s.StatefulSetSpec(
                 service_name=self.service_config.name,
                 replicas=self.service_config.replicas,
@@ -36,9 +39,15 @@ class StatefulSetConstruct(BaseConstruct):
                 update_strategy=self._get_statefulset_update_strategy(),
                 pod_management_policy=self.service_config.statefulSet.podManagementPolicy,
                 template=k8s.PodTemplateSpec(
-                    metadata=k8s.ObjectMeta(labels=self.labels, annotations=self.service_config.podAnnotations),
+                    metadata=k8s.ObjectMeta(
+                        labels=self.labels, annotations=self.service_config.podAnnotations
+                    ),
                     spec=k8s.PodSpec(
-                        service_account_name=self.service_config.serviceAccount.name if self.service_config.serviceAccount else None,
+                        service_account_name=(
+                            self.service_config.serviceAccount.name
+                            if self.service_config.serviceAccount
+                            else None
+                        ),
                         termination_grace_period_seconds=self.service_config.terminationGracePeriodSeconds,
                         priority_class_name=self.service_config.priorityClassName,
                         security_context=k8s.PodSecurityContext(
@@ -47,7 +56,9 @@ class StatefulSetConstruct(BaseConstruct):
                             run_as_user=self.service_config.securityContext.runAsUser,
                             run_as_non_root=self.service_config.securityContext.runAsNonRoot,
                         ),
-                        image_pull_secrets=[{"name": s} for s in self.common_config.imagePullSecrets],
+                        image_pull_secrets=[
+                            {"name": s} for s in self.common_config.imagePullSecrets
+                        ],
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
@@ -60,9 +71,15 @@ class StatefulSetConstruct(BaseConstruct):
                                 command=self.service_config.command,
                                 env=self._get_container_env(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(self.service_config.startupProbe),
-                                readiness_probe=self._get_http_probe(self.service_config.readinessProbe),
-                                liveness_probe=self._get_http_probe(self.service_config.livenessProbe),
+                                startup_probe=self._get_http_probe(
+                                    self.service_config.startupProbe
+                                ),
+                                readiness_probe=self._get_http_probe(
+                                    self.service_config.readinessProbe
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    self.service_config.livenessProbe
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -73,6 +90,9 @@ class StatefulSetConstruct(BaseConstruct):
         )
 
     def _get_statefulset_update_strategy(self) -> k8s.StatefulSetUpdateStrategy:
-        strategy_type = self.service_config.updateStrategy.type if self.service_config.updateStrategy else "RollingUpdate"
+        strategy_type = (
+            self.service_config.updateStrategy.type
+            if self.service_config.updateStrategy
+            else "RollingUpdate"
+        )
         return k8s.StatefulSetUpdateStrategy(type=strategy_type)
-

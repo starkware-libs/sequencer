@@ -1,4 +1,3 @@
-
 from cdk8s import ApiObjectMetadata
 from constructs import Construct
 from imports.com.googleapis.monitoring import (
@@ -8,6 +7,7 @@ from imports.com.googleapis.monitoring import (
     PodMonitoringSpecEndpointsPort,
     PodMonitoringSpecSelector,
 )
+
 from src.config import constants as const
 
 
@@ -25,9 +25,7 @@ class PodMonitoringConstruct(Construct):
                 selector=PodMonitoringSpecSelector(match_labels=labels),
                 endpoints=[
                     PodMonitoringSpecEndpoints(
-                        port=PodMonitoringSpecEndpointsPort.from_number(
-                            monitoring_endpoint_port
-                        ),
+                        port=PodMonitoringSpecEndpointsPort.from_number(monitoring_endpoint_port),
                         interval="10s",
                         path=const.MONITORING_METRICS_ENDPOINT,
                     )

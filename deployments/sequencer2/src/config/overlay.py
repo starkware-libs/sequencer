@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from .schema import ServiceConfig
+from src.config.schema import ServiceConfig
 
 
 def validate_key_exists(layout: dict, key: str, current_path: str, source: str):
@@ -33,9 +33,7 @@ def merge_services_layout_with_overlay_strict(
     return layout_copy
 
 
-def apply_services_overlay_strict(
-    layout_services: list, overlay_services: list
-) -> list:
+def apply_services_overlay_strict(layout_services: list, overlay_services: list) -> list:
     merged_services = []
     layout_map = {svc.name: svc for svc in layout_services}
     overlay_map = {svc.name: svc for svc in overlay_services}

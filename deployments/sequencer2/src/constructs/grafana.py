@@ -17,11 +17,14 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboard,
     SharedGrafanaDashboardSpec,
 )
-from src.config.deployment import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
-from src.helpers import sanitize_name, generate_random_hash
+
+from src.config.loaders import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
+from src.utils import generate_random_hash, sanitize_name
 
 
-class MonitoringConstruct(Construct):
+class GrafanaBaseConstruct(Construct):
+    """Base construct for Grafana resources with shared functionality."""
+
     def __init__(
         self,
         scope: Construct,
@@ -30,11 +33,11 @@ class MonitoringConstruct(Construct):
         namespace: str,
     ) -> None:
         super().__init__(scope, id)
-
-        self.namespace = namespace
         self.cluster = cluster
+        self.namespace = namespace
 
     def _get_api_object_metadata(self):
+        """Common metadata for Grafana resources."""
         return ApiObjectMetadata(
             labels={
                 "app": "sequencer-node",
@@ -43,7 +46,9 @@ class MonitoringConstruct(Construct):
         )
 
 
-class GrafanaDashboardConstruct(MonitoringConstruct):
+class GrafanaDashboardConstruct(GrafanaBaseConstruct):
+    """Construct for creating Grafana Dashboard resources."""
+
     def __init__(
         self,
         scope: Construct,
@@ -56,7 +61,7 @@ class GrafanaDashboardConstruct(MonitoringConstruct):
 
         self.grafana_dashboard = grafana_dashboard.load()["dashboard"]
         self.grafana_dashboard["title"] = f"sequencer-{self.namespace}-dashboard"
-        grafana_dashboard = self._get_shared_grafana_dashboard()
+        self._get_shared_grafana_dashboard()
 
     def _get_shared_grafana_dashboard_spec(self):
         return SharedGrafanaDashboardSpec(
@@ -75,7 +80,9 @@ class GrafanaDashboardConstruct(MonitoringConstruct):
         )
 
 
-class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
+class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
+    """Construct for creating Grafana Alert Rule Group resources."""
+
     def __init__(
         self,
         scope: Construct,
@@ -88,9 +95,10 @@ class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
 
         self.grafana_alert_group = grafana_alert_rule_group
         self.grafana_alert_files = self.grafana_alert_group.get_alert_files()
-        grafana_alert_rule_group = self._get_shared_grafana_alert_rule_group()
+        self._get_shared_grafana_alert_rule_group()
 
     def _exec_err_state_enum_selector(self, exec_err_state: str) -> Optional[str]:
+        """Convert string to ExecErrState enum."""
         if exec_err_state.upper() == "OK":
             return SharedGrafanaAlertRuleGroupSpecRulesExecErrState.OK
         elif exec_err_state.upper() == "ERROR":
@@ -103,6 +111,7 @@ class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
             return None
 
     def _exec_no_data_state_enum_selector(self, no_data_state: str) -> Optional[str]:
+        """Convert string to NoDataState enum."""
         if no_data_state.upper() == "OK":
             return SharedGrafanaAlertRuleGroupSpecRulesNoDataState.OK
         elif no_data_state.upper() == "NODATA":
@@ -115,6 +124,7 @@ class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
             return None
 
     def _get_shared_grafana_alert_rule_group_rules(self, rule: Dict[str, Any]):
+        """Convert alert rule dict to SharedGrafanaAlertRuleGroupSpecRules."""
         title = f'{self.namespace}-{rule["title"].replace(" ", "_").lower()}'
         uid = generate_random_hash(length=30, from_string=title)
 
@@ -145,6 +155,7 @@ class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
         )
 
     def _get_shared_grafana_alert_rule_group_spec(self):
+        """Build the spec for the alert rule group."""
         rules = []
         for alert_file in self.grafana_alert_files:
             alert_rule = self.grafana_alert_group.load(alert_file)
@@ -160,6 +171,7 @@ class GrafanaAlertRuleGroupConstruct(MonitoringConstruct):
         )
 
     def _get_shared_grafana_alert_rule_group(self):
+        """Create the SharedGrafanaAlertRuleGroup resource."""
         return SharedGrafanaAlertRuleGroup(
             self,
             self.node.id,

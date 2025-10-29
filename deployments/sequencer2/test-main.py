@@ -2,7 +2,8 @@ import os
 import yaml
 
 from src.config.merger import merge_configs
-from src.helpers import argument_parser
+from src.cli import argument_parser
+
 
 def main() -> None:
     args = argument_parser()
@@ -33,11 +34,12 @@ def main() -> None:
     )
 
     print("✅ Final config:")
-    print(yaml.safe_dump(
-        deployment_config.model_dump(exclude_none=True),  # <- convert to dict
-        sort_keys=False
-      )
+    print(
+        yaml.safe_dump(
+            deployment_config.model_dump(exclude_none=True), sort_keys=False  # <- convert to dict
+        )
     )
+
 
 if __name__ == "__main__":
     main()

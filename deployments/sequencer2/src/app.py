@@ -1,75 +1,18 @@
 import os
 from pathlib import Path
-from typing import Optional
 
-from cdk8s import App, Chart, YamlOutputType
-from constructs import Construct
+from cdk8s import App, YamlOutputType
 
-from src.charts.grafana import GrafanaAlertRuleGroupConstruct, GrafanaDashboardConstruct
-from src.charts.node import NodeConstruct
-from src.config.merger import merge_configs
-from src.config.deployment import (
+from src.charts.monitoring import MonitoringChart
+from src.charts.node import SequencerNodeChart
+from src.cli import argument_parser
+from src.config.loaders import (
     GrafanaAlertRuleGroupConfig,
     GrafanaDashboardConfig,
 )
-from src.config.schema import DeploymentConfig as DeploymentSchema, CommonConfig, ServiceConfig
-from .helpers import generate_random_hash, sanitize_name
-from .parser import argument_parser
-
-
-class SequencerNode(Chart):
-    def __init__(
-        self,
-        scope: Construct,
-        name: str,
-        namespace: str,
-        monitoring: bool,
-        service_config: ServiceConfig,
-        common_config: CommonConfig,
-    ):
-        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
-
-        # Pass just the parts ServiceApp needs
-        self.service = NodeConstruct(
-            self,
-            name,
-            namespace=namespace,
-            common_config=common_config,
-            service_config=service_config,
-            monitoring=monitoring,
-        )
-
-
-class SequencerMonitoring(Chart):
-    def __init__(
-        self,
-        scope: Construct,
-        id: str,
-        cluster: str,
-        namespace: str,
-        grafana_dashboard: Optional[GrafanaDashboardConfig],
-        grafana_alert_rule_group: Optional[GrafanaAlertRuleGroupConfig],
-    ):
-        super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
-        self.hash = generate_random_hash(from_string=f"{cluster}-{namespace}")
-
-        if grafana_dashboard:
-            self.dashboard = GrafanaDashboardConstruct(
-                self,
-                sanitize_name(f"dashboard-{self.hash}"),
-                cluster=cluster,
-                namespace=namespace,
-                grafana_dashboard=grafana_dashboard,
-            )
-
-        if grafana_alert_rule_group:
-            self.alert_rule_group = GrafanaAlertRuleGroupConstruct(
-                self,
-                sanitize_name(f"alert-rule-group-{self.hash}"),
-                cluster=cluster,
-                namespace=namespace,
-                grafana_alert_rule_group=grafana_alert_rule_group,
-            )
+from src.config.merger import merge_configs
+from src.config.schema import DeploymentConfig as DeploymentSchema
+from src.utils import sanitize_name
 
 
 def main():
@@ -104,7 +47,9 @@ def main():
         layout_common_config_path=str(layout_common_config),
         layout_services_config_dir_path=str(layout_services_config_dir),
         overlay_common_config_path=str(overlay_common_config) if overlay_common_config else None,
-        overlay_services_config_dir_path=str(overlay_services_config_dir) if overlay_services_config_dir else None,
+        overlay_services_config_dir_path=(
+            str(overlay_services_config_dir) if overlay_services_config_dir else None
+        ),
     )
 
     # --- Prepare monitoring configs
@@ -122,10 +67,10 @@ def main():
 
     create_monitoring = bool(grafana_dashboard_config or grafana_alert_rule_group_config)
 
-    # --- Create SequencerNode charts (one per service)
+    # --- Create SequencerNodeChart charts (one per service)
     namespace = sanitize_name(args.namespace)
     for service_cfg in deployment_config.services:
-        SequencerNode(
+        SequencerNodeChart(
             scope=app,
             name=sanitize_name(f"sequencer-{service_cfg.name}"),
             namespace=namespace,
@@ -134,9 +79,9 @@ def main():
             service_config=service_cfg,
         )
 
-    # --- Create Grafana Monitoring chart
+    # --- Create Monitoring chart
     if create_monitoring:
-        SequencerMonitoring(
+        MonitoringChart(
             scope=app,
             id="sequencer-monitoring",
             cluster=args.cluster,

@@ -1,7 +1,7 @@
 from constructs import Construct
 from imports import k8s
 
-from src.config.schema import CommonConfig, ServiceConfig, Probe as ProbeConfig
+from src.config.schema import CommonConfig, Probe as ProbeConfig, ServiceConfig
 
 
 class BaseConstruct(Construct):
@@ -24,7 +24,9 @@ class BaseConstruct(Construct):
         ports = []
         if self.service_config.service and self.service_config.service.ports:
             for p in self.service_config.service.ports:
-                ports.append(k8s.ContainerPort(container_port=p.port, name=p.name, protocol=p.protocol))
+                ports.append(
+                    k8s.ContainerPort(container_port=p.port, name=p.name, protocol=p.protocol)
+                )
         return ports
 
     def _get_http_probe(self, probe_config: ProbeConfig) -> k8s.Probe:
@@ -86,14 +88,22 @@ class BaseConstruct(Construct):
         requests = self.service_config.resources.requests
         limits = self.service_config.resources.limits
         return k8s.ResourceRequirements(
-            requests={
-                "cpu": k8s.Quantity.from_string(str(requests.cpu)),
-                "memory": k8s.Quantity.from_string(requests.memory),
-            } if requests else None,
-            limits={
-                "cpu": k8s.Quantity.from_string(str(limits.cpu)),
-                "memory": k8s.Quantity.from_string(limits.memory),
-            } if limits else None,
+            requests=(
+                {
+                    "cpu": k8s.Quantity.from_string(str(requests.cpu)),
+                    "memory": k8s.Quantity.from_string(requests.memory),
+                }
+                if requests
+                else None
+            ),
+            limits=(
+                {
+                    "cpu": k8s.Quantity.from_string(str(limits.cpu)),
+                    "memory": k8s.Quantity.from_string(limits.memory),
+                }
+                if limits
+                else None
+            ),
         )
 
     def _get_container_env(self) -> list[k8s.EnvVar]:
@@ -121,4 +131,8 @@ class BaseConstruct(Construct):
         return tolerations
 
     def _get_affinity(self) -> k8s.Affinity:
-        return k8s.Affinity.from_json(self.service_config.affinity) if self.service_config.affinity else None
+        return (
+            k8s.Affinity.from_json(self.service_config.affinity)
+            if self.service_config.affinity
+            else None
+        )

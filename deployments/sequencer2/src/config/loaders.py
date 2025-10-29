@@ -1,11 +1,12 @@
 import json
-import yaml
 import os
+import yaml
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from .schema import ServiceConfig, CommonConfig
+from src.config.schema import CommonConfig, ServiceConfig
+
 
 class Config(ABC):
     """Base configuration class with validation and safe load utilities."""
@@ -61,7 +62,7 @@ class Config(ABC):
             raise ValueError(f"Invalid JSON in {file_path}: {e}")
 
 
-class DeploymentConfig(Config):
+class DeploymentConfigLoader(Config):
     """Loads and validates service and common YAML configs."""
 
     def __init__(self, configs_dir_path: str, common_config_path: Optional[str] = None):
@@ -106,30 +107,6 @@ class DeploymentConfig(Config):
         wrapped = self._wrap_services(services)
         common = self._load_common_config()
         return {**common, **wrapped} if common else wrapped
-
-
-class SequencerConfig(Config):
-    ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../../")
-
-    def __init__(self, config_subdir: str, config_paths: List[str]):
-        self.config_subdir = os.path.join(self.ROOT_DIR, config_subdir)
-        self.config_paths = config_paths
-        self._validate()
-
-    def _validate(self):
-        self._validate_directory(self.config_subdir)
-        for config_path in self.config_paths:
-            full_path = os.path.join(self.config_subdir, config_path)
-            self._validate_file(full_path)
-
-    def load(self) -> dict:
-        """Merge multiple JSON configs from a subdir."""
-        result = {}
-        for config_path in self.config_paths:
-            path = os.path.join(self.config_subdir, config_path)
-            data = self._try_load_json(path)
-            result.update(data)
-        return dict(sorted(result.items()))
 
 
 class GrafanaDashboardConfig(Config):

@@ -1,6 +1,6 @@
-
 from constructs import Construct
 from imports import k8s
+
 from src.config import constants as const
 
 
@@ -25,9 +25,7 @@ class HpaConstruct(Construct):
                         type="Resource",
                         resource=k8s.ResourceMetricSourceV2(
                             name="cpu",
-                            target=k8s.MetricTargetV2(
-                                type="Utilization", average_utilization=50
-                            ),
+                            target=k8s.MetricTargetV2(type="Utilization", average_utilization=50),
                         ),
                     )
                 ],

@@ -1,16 +1,17 @@
 import typing
 
+from cdk8s import ApiObjectMetadata
 from constructs import Construct
 from imports import k8s
 from imports.com.google.cloud import (
     BackendConfig,
     BackendConfigSpec,
     BackendConfigSpecConnectionDraining,
+    BackendConfigSpecCustomRequestHeaders,
     BackendConfigSpecHealthCheck,
     BackendConfigSpecSecurityPolicy,
-    BackendConfigSpecCustomRequestHeaders,
 )
-from cdk8s import ApiObjectMetadata
+
 from src.config import constants as const
 
 

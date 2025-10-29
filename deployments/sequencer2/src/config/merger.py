@@ -1,9 +1,9 @@
-from .schema import DeploymentConfig as DeploymentSchema
-from .deployment import DeploymentConfig
-from .overlay import (
+from src.config.loaders import DeploymentConfigLoader
+from src.config.overlay import (
     apply_services_overlay_strict,
     merge_common_with_overlay_strict,
 )
+from src.config.schema import DeploymentConfig as DeploymentSchema
 
 
 def merge_configs(
@@ -15,12 +15,12 @@ def merge_configs(
     """
     Merge base (layout) configs with optional overlay configs.
 
-    Uses DeploymentConfigs internal YAML loading and validation logic.
+    Uses DeploymentConfigLoader's internal YAML loading and validation logic.
     Returns a validated DeploymentConfig schema object.
     """
 
-    # --- Load layout configs using DeploymentConfig ---
-    layout_loader = DeploymentConfig(
+    # --- Load layout configs using DeploymentConfigLoader ---
+    layout_loader = DeploymentConfigLoader(
         configs_dir_path=layout_services_config_dir_path,
         common_config_path=layout_common_config_path,
     )
@@ -33,7 +33,7 @@ def merge_configs(
 
     # --- Load overlay configs (if provided) ---
     if overlay_services_config_dir_path:
-        overlay_loader = DeploymentConfig(
+        overlay_loader = DeploymentConfigLoader(
             configs_dir_path=overlay_services_config_dir_path,
             common_config_path=overlay_common_config_path,
         )
