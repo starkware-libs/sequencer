@@ -252,16 +252,10 @@ impl TransfersGenerator {
         let nonce = self.nonce_manager.next(sender_address);
 
         let contract_address = *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key();
-
-        let execute_calldata = calldata![
-            contract_address,           // Contract address.
-            entry_point_selector.0,     // EP selector.
-            felt!(3_u8),                // Calldata length.
-            *recipient_address.0.key(), // Calldata: recipient.
-            felt!(1_u8),                // Calldata: lsb amount.
-            felt!(0_u8)                 // Calldata: msb amount.
-        ];
-
+        mmmdsadasdadadada
+        asdasdasdad
+        adadadad
+        
         executable_invoke_tx(invoke_tx_args! {
             sender_address,
             calldata: execute_calldata,
