@@ -50,10 +50,22 @@ pub enum MetricScope {
     Tokio,
 }
 
-pub struct MetricCounter {
+#[derive(Clone, Debug)]
+struct Metric {
     scope: MetricScope,
     name: &'static str,
     description: &'static str,
+}
+
+pub trait MetricCommon {
+    fn get_name(&self) -> &'static str;
+    fn get_name_with_filter(&self) -> String;
+    fn get_scope(&self) -> MetricScope;
+    fn get_description(&self) -> &'static str;
+}
+
+pub struct MetricCounter {
+    metric: Metric,
     initial_value: u64,
 }
 
@@ -64,32 +76,16 @@ impl MetricCounter {
         description: &'static str,
         initial_value: u64,
     ) -> Self {
-        Self { scope, name, description, initial_value }
-    }
-
-    pub const fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.name, metric_label_filter!())
-    }
-
-    pub const fn get_scope(&self) -> MetricScope {
-        self.scope
-    }
-
-    pub const fn get_description(&self) -> &'static str {
-        self.description
+        Self { metric: Metric { scope, name, description }, initial_value }
     }
 
     pub fn register(&self) {
-        counter!(self.name).absolute(self.initial_value);
-        describe_counter!(self.name, self.description);
+        counter!(self.get_name()).absolute(self.initial_value);
+        describe_counter!(self.get_name(), self.get_description());
     }
 
     pub fn increment(&self, value: u64) {
-        counter!(self.name).increment(value);
+        counter!(self.get_name()).increment(value);
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -110,10 +106,26 @@ impl MetricCounter {
     }
 }
 
+impl MetricCommon for MetricCounter {
+    fn get_name(&self) -> &'static str {
+        self.metric.name
+    }
+
+    fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.metric.name, metric_label_filter!())
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.metric.scope
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.metric.description
+    }
+}
+
 pub struct LabeledMetricCounter {
-    scope: MetricScope,
-    name: &'static str,
-    description: &'static str,
+    metric: Metric,
     initial_value: u64,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
@@ -126,34 +138,18 @@ impl LabeledMetricCounter {
         initial_value: u64,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, initial_value, label_permutations }
-    }
-
-    pub const fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.name, metric_label_filter!())
-    }
-
-    pub const fn get_scope(&self) -> MetricScope {
-        self.scope
-    }
-
-    pub const fn get_description(&self) -> &'static str {
-        self.description
+        Self { metric: Metric { scope, name, description }, initial_value, label_permutations }
     }
 
     pub fn register(&self) {
         self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|labels| {
-            counter!(self.name, &labels).absolute(self.initial_value);
+            counter!(self.get_name(), &labels).absolute(self.initial_value);
         });
-        describe_counter!(self.name, self.description);
+        describe_counter!(self.get_name(), self.get_description());
     }
 
     pub fn increment(&self, value: u64, labels: &[(&'static str, &'static str)]) {
-        counter!(self.name, labels).increment(value);
+        counter!(self.get_name(), labels).increment(value);
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -178,44 +174,44 @@ impl LabeledMetricCounter {
     }
 }
 
+impl MetricCommon for LabeledMetricCounter {
+    fn get_name(&self) -> &'static str {
+        self.metric.name
+    }
+
+    fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.metric.name, metric_label_filter!())
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.metric.scope
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.metric.description
+    }
+}
+
 pub struct MetricGauge {
-    scope: MetricScope,
-    name: &'static str,
-    description: &'static str,
+    metric: Metric,
 }
 
 impl MetricGauge {
     pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
-        Self { scope, name, description }
-    }
-
-    pub const fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.name, metric_label_filter!())
-    }
-
-    pub const fn get_scope(&self) -> MetricScope {
-        self.scope
-    }
-
-    pub const fn get_description(&self) -> &'static str {
-        self.description
+        Self { metric: Metric { scope, name, description } }
     }
 
     pub fn register(&self) {
-        let _ = gauge!(self.name);
-        describe_gauge!(self.name, self.description);
+        let _ = gauge!(self.get_name());
+        describe_gauge!(self.get_name(), self.get_description());
     }
 
     pub fn increment<T: IntoF64>(&self, value: T) {
-        gauge!(self.name).increment(value.into_f64());
+        gauge!(self.get_name()).increment(value.into_f64());
     }
 
     pub fn decrement<T: IntoF64>(&self, value: T) {
-        gauge!(self.name).decrement(value.into_f64());
+        gauge!(self.get_name()).decrement(value.into_f64());
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -224,11 +220,11 @@ impl MetricGauge {
     }
 
     pub fn set<T: IntoF64>(&self, value: T) {
-        gauge!(self.name).set(value.into_f64());
+        gauge!(self.get_name()).set(value.into_f64());
     }
 
     pub fn set_lossy<T: LossyIntoF64>(&self, value: T) {
-        gauge!(self.name).set(value.into_f64());
+        gauge!(self.get_name()).set(value.into_f64());
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -244,6 +240,23 @@ impl MetricGauge {
     }
 }
 
+impl MetricCommon for MetricGauge {
+    fn get_name(&self) -> &'static str {
+        self.metric.name
+    }
+
+    fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.metric.name, metric_label_filter!())
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.metric.scope
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.metric.description
+    }
+}
 /// An object which can be lossy converted into a `f64` representation.
 pub trait LossyIntoF64 {
     fn into_f64(self) -> f64;
@@ -270,9 +283,7 @@ macro_rules! into_f64 {
 into_f64!(u64, usize, i64, u128);
 
 pub struct LabeledMetricGauge {
-    scope: MetricScope,
-    name: &'static str,
-    description: &'static str,
+    metric: Metric,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
 
@@ -283,38 +294,22 @@ impl LabeledMetricGauge {
         description: &'static str,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, label_permutations }
-    }
-
-    pub const fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.name, metric_label_filter!())
-    }
-
-    pub const fn get_scope(&self) -> MetricScope {
-        self.scope
-    }
-
-    pub const fn get_description(&self) -> &'static str {
-        self.description
+        Self { metric: Metric { scope, name, description }, label_permutations }
     }
 
     pub fn register(&self) {
         self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|label| {
-            let _ = gauge!(self.name, &label);
+            let _ = gauge!(self.get_name(), &label);
         });
-        describe_gauge!(self.name, self.description);
+        describe_gauge!(self.get_name(), self.get_description());
     }
 
     pub fn increment<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
-        gauge!(self.name, label).increment(value);
+        gauge!(self.get_name(), label).increment(value);
     }
 
     pub fn decrement<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
-        gauge!(self.name, label).decrement(value.into_f64());
+        gauge!(self.get_name(), label).decrement(value.into_f64());
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -327,7 +322,7 @@ impl LabeledMetricGauge {
     }
 
     pub fn set<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
-        gauge!(self.name, label).set(value.into_f64());
+        gauge!(self.get_name(), label).set(value.into_f64());
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -343,11 +338,27 @@ impl LabeledMetricGauge {
     }
 }
 
+impl MetricCommon for LabeledMetricGauge {
+    fn get_name(&self) -> &'static str {
+        self.metric.name
+    }
+
+    fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.metric.name, metric_label_filter!())
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.metric.scope
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.metric.description
+    }
+}
+
 #[derive(Clone)]
 pub struct MetricHistogram {
-    scope: MetricScope,
-    name: &'static str,
-    description: &'static str,
+    metric: Metric,
 }
 
 #[derive(Default, Debug)]
@@ -365,48 +376,32 @@ impl PartialEq for HistogramValue {
 
 impl MetricHistogram {
     pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
-        Self { scope, name, description }
-    }
-
-    pub const fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn get_name_with_filter(&self) -> String {
-        format!("{}_bucket{}", self.name, metric_label_filter!())
+        Self { metric: Metric { scope, name, description } }
     }
 
     pub fn get_name_sum_with_filter(&self) -> String {
-        format!("{}_sum{}", self.name, metric_label_filter!())
+        format!("{}_sum{}", self.get_name(), metric_label_filter!())
     }
 
     pub fn get_name_count_with_filter(&self) -> String {
-        format!("{}_count{}", self.name, metric_label_filter!())
-    }
-
-    pub const fn get_scope(&self) -> MetricScope {
-        self.scope
-    }
-
-    pub const fn get_description(&self) -> &'static str {
-        self.description
+        format!("{}_count{}", self.get_name(), metric_label_filter!())
     }
 
     pub fn register(&self) {
-        let _ = histogram!(self.name);
-        describe_histogram!(self.name, self.description);
+        let _ = histogram!(self.get_name());
+        describe_histogram!(self.get_name(), self.get_description());
     }
 
     pub fn record<T: IntoF64>(&self, value: T) {
-        histogram!(self.name).record(value.into_f64());
+        histogram!(self.get_name()).record(value.into_f64());
     }
 
     pub fn record_lossy<T: LossyIntoF64>(&self, value: T) {
-        histogram!(self.name).record(value.into_f64());
+        histogram!(self.get_name()).record(value.into_f64());
     }
 
     pub fn record_many<T: IntoF64>(&self, value: T, count: usize) {
-        histogram!(self.name).record_many(value.into_f64(), count);
+        histogram!(self.get_name()).record_many(value.into_f64(), count);
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -422,10 +417,26 @@ impl MetricHistogram {
     }
 }
 
+impl MetricCommon for MetricHistogram {
+    fn get_name(&self) -> &'static str {
+        self.metric.name
+    }
+
+    fn get_name_with_filter(&self) -> String {
+        format!("{}_bucket{}", self.metric.name, metric_label_filter!())
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.metric.scope
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.metric.description
+    }
+}
+
 pub struct LabeledMetricHistogram {
-    scope: MetricScope,
-    name: &'static str,
-    description: &'static str,
+    metric: Metric,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
 
@@ -436,23 +447,7 @@ impl LabeledMetricHistogram {
         description: &'static str,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, label_permutations }
-    }
-
-    pub const fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    pub fn get_name_with_filter(&self) -> String {
-        format!("{}_bucket{}", self.name, metric_label_filter!())
-    }
-
-    pub const fn get_scope(&self) -> MetricScope {
-        self.scope
-    }
-
-    pub const fn get_description(&self) -> &'static str {
-        self.description
+        Self { metric: Metric { scope, name, description }, label_permutations }
     }
 
     // Returns a flattened and sorted list of the unique label values across all label permutations.
@@ -470,9 +465,9 @@ impl LabeledMetricHistogram {
 
     pub fn register(&self) {
         self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|labels| {
-            let _ = histogram!(self.name, &labels);
+            let _ = histogram!(self.get_name(), &labels);
         });
-        describe_histogram!(self.name, self.description);
+        describe_histogram!(self.get_name(), self.get_description());
     }
 
     /// Returns the label name used by this labeled histogram.
@@ -481,7 +476,7 @@ impl LabeledMetricHistogram {
     }
 
     pub fn record<T: IntoF64>(&self, value: T, labels: &[(&'static str, &'static str)]) {
-        histogram!(self.name, labels).record(value.into_f64());
+        histogram!(self.get_name(), labels).record(value.into_f64());
     }
 
     pub fn record_many<T: IntoF64>(
@@ -490,7 +485,7 @@ impl LabeledMetricHistogram {
         count: usize,
         labels: &[(&'static str, &'static str)],
     ) {
-        histogram!(self.name, labels).record_many(value.into_f64(), count);
+        histogram!(self.get_name(), labels).record_many(value.into_f64(), count);
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -512,6 +507,24 @@ impl LabeledMetricHistogram {
     ) {
         let metric_value = self.parse_histogram_metric(metrics_as_string, label).unwrap();
         assert_equality(&metric_value, expected_value, self.get_name(), Some(label));
+    }
+}
+
+impl MetricCommon for LabeledMetricHistogram {
+    fn get_name(&self) -> &'static str {
+        self.metric.name
+    }
+
+    fn get_name_with_filter(&self) -> String {
+        format!("{}_bucket{}", self.metric.name, metric_label_filter!())
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.metric.scope
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.metric.description
     }
 }
 
