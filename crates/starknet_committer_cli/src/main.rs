@@ -7,6 +7,7 @@ use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::storage_trait::Storage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -99,56 +100,42 @@ pub async fn run_committer_cli(
                 format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}")
             });
 
-            match storage_type {
-                StorageType::MapStorage => {
-                    let storage = MapStorage::default();
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
-                        None,
-                        storage,
-                        checkpoint_interval,
-                    )
-                    .await;
-                }
+            let (mut storage, checkpoint_dir): (Box<dyn Storage>, Option<&str>) = match storage_type
+            {
+                StorageType::MapStorage => (Box::new(MapStorage::default()), None),
                 StorageType::Mdbx => {
                     let storage_path = storage_path
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
-                    let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
+                    (
+                        Box::new(MdbxStorage::open(Path::new(&storage_path)).unwrap()),
                         Some(&checkpoint_dir),
-                        storage,
-                        checkpoint_interval,
                     )
-                    .await;
                 }
                 StorageType::CachedMdbx => {
                     let storage_path = storage_path
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
-                    let storage = CachedStorage::new(
-                        MdbxStorage::open(Path::new(&storage_path)).unwrap(),
-                        NonZeroUsize::new(cache_size).unwrap(),
-                    );
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
+                    (
+                        Box::new(CachedStorage::new(
+                            MdbxStorage::open(Path::new(&storage_path)).unwrap(),
+                            NonZeroUsize::new(cache_size).unwrap(),
+                        )),
                         Some(&checkpoint_dir),
-                        storage,
-                        checkpoint_interval,
                     )
-                    .await;
                 }
-            }
+            };
+
+            run_storage_benchmark(
+                seed,
+                n_iterations,
+                n_diffs,
+                &output_dir,
+                checkpoint_dir,
+                &mut *storage,
+                checkpoint_interval,
+            )
+            .await;
         }
     }
 }
