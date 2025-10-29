@@ -13,6 +13,8 @@ testing = []
 workspace = true
 
 [dependencies]
+blake2.workspace = true
+digest.workspace = true
 hex.workspace = true
 libmdbx.workspace = true
 lru.workspace = true

@@ -1,0 +1,106 @@
+use std::marker::PhantomData;
+
+use blake2::digest::consts::{
+    U16,
+    U17,
+    U18,
+    U19,
+    U20,
+    U21,
+    U22,
+    U23,
+    U24,
+    U25,
+    U26,
+    U27,
+    U28,
+    U29,
+    U30,
+    U31,
+    U32,
+};
+use blake2::Blake2s;
+use digest::Digest;
+
+use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+
+#[macro_export]
+macro_rules! define_short_key_storage {
+    ($( ( $sizes:ty, $names:ident ) ),+ $(,)?) => {
+        $(
+            $crate::define_short_key_storage!($sizes, $names);
+        )+
+    };
+
+    ($size:ty, $name:ident) => {
+        /// A storage that hashes each key to a $size - byte key.
+        pub struct $name<S: Storage> {
+            storage: S,
+            _bytes: PhantomData<$size>,
+        }
+
+        impl<S: Storage> $name<S> {
+            pub fn new(storage: S) -> Self {
+                Self { storage, _bytes: PhantomData }
+            }
+
+            pub fn small_key(key: &DbKey) -> DbKey {
+                let mut hasher = Blake2s::<$size>::new();
+                hasher.update(key.0.as_slice());
+                let result = hasher.finalize();
+                DbKey(result.as_slice().to_vec())
+            }
+        }
+
+        impl<S: Storage> Storage for $name<S> {
+            fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+                self.storage.get(&Self::small_key(key))
+            }
+
+            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+                self.storage.set(Self::small_key(&key), value)
+            }
+
+            fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+                let small_keys = keys
+                    .iter()
+                    .map(|key| Self::small_key(key))
+                    .collect::<Vec<_>>();
+                self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice())
+            }
+
+            fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+                self.storage.mset(
+                    key_to_value
+                        .into_iter()
+                        .map(|(key, value)| (Self::small_key(&key), value))
+                        .collect()
+                )
+            }
+
+            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+                self.storage.delete(&Self::small_key(key))
+            }
+        }
+    };
+}
+
+define_short_key_storage!(
+    (U16, ShortKeyStorage16),
+    (U17, ShortKeyStorage17),
+    (U18, ShortKeyStorage18),
+    (U19, ShortKeyStorage19),
+    (U20, ShortKeyStorage20),
+    (U21, ShortKeyStorage21),
+    (U22, ShortKeyStorage22),
+    (U23, ShortKeyStorage23),
+    (U24, ShortKeyStorage24),
+    (U25, ShortKeyStorage25),
+    (U26, ShortKeyStorage26),
+    (U27, ShortKeyStorage27),
+    (U28, ShortKeyStorage28),
+    (U29, ShortKeyStorage29),
+    (U30, ShortKeyStorage30),
+    (U31, ShortKeyStorage31),
+    (U32, ShortKeyStorage32)
+);
