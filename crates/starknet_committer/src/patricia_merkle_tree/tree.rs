@@ -44,8 +44,8 @@ impl OriginalSkeletonContractsTrieConfig {
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
-fn fetch_all_patricia_paths(
-    storage: &mut impl Storage,
+fn fetch_all_patricia_paths<S: Storage + ?Sized>(
+    storage: &mut S,
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -70,7 +70,7 @@ fn fetch_all_patricia_paths(
 
     // Classes trie - no need to fetch the leaves.
     let leaves = None;
-    let classes_trie_proof = fetch_patricia_paths::<CompiledClassHash>(
+    let classes_trie_proof = fetch_patricia_paths::<S, CompiledClassHash>(
         storage,
         classes_trie_root_hash,
         class_sorted_leaf_indices,
@@ -79,7 +79,7 @@ fn fetch_all_patricia_paths(
 
     // Contracts trie - the leaves are required.
     let mut leaves = HashMap::new();
-    let contracts_proof_nodes = fetch_patricia_paths::<ContractState>(
+    let contracts_proof_nodes = fetch_patricia_paths::<S, ContractState>(
         storage,
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
@@ -97,7 +97,7 @@ fn fetch_all_patricia_paths(
             .storage_root_hash;
         // No need to fetch the leaves.
         let leaves = None;
-        let proof = fetch_patricia_paths::<StarknetStorageValue>(
+        let proof = fetch_patricia_paths::<S, StarknetStorageValue>(
             storage,
             storage_root_hash,
             *sorted_leaf_indices,

@@ -498,7 +498,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let empty_map = HashMap::new();
     let mut empty_storage = MapStorage::default();
     let config = OriginalSkeletonMockTrieConfig::new(false);
-    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<MockLeaf>(
+    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<MapStorage, MockLeaf>(
         &mut empty_storage,
         root_hash,
         SortedLeafIndices::new(&mut []),

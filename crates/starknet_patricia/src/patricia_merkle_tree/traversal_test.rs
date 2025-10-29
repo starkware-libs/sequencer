@@ -648,7 +648,7 @@ fn test_fetch_patricia_paths_inner(
     let mut nodes = HashMap::new();
     let mut fetched_leaves = HashMap::new();
 
-    fetch_patricia_paths_inner::<MockLeaf>(
+    fetch_patricia_paths_inner::<MapStorage, MockLeaf>(
         &mut storage,
         vec![main_subtree],
         &mut nodes,
