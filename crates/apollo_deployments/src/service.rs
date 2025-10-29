@@ -10,12 +10,15 @@ use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node_config::component_config::ComponentConfig;
-use apollo_node_config::component_execution_config::ReactiveComponentExecutionConfig;
+use apollo_node_config::component_execution_config::{
+    ReactiveComponentExecutionConfig,
+    DEFAULT_URL,
+};
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
-use serde_json::json;
+use serde_json::{json, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -40,6 +43,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::replacers::insert_replacer_annotations;
 use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
@@ -169,6 +173,12 @@ impl NodeService {
         name
     }
 
+    fn get_replacer_config_file_path(&self) -> String {
+        let mut name = self.as_inner().to_string();
+        name.push_str("_replacer.json");
+        name
+    }
+
     pub fn create_service(
         &self,
         environment: &Environment,
@@ -244,11 +254,22 @@ impl NodeService {
         self.as_inner().k8s_service_name()
     }
 
+    // TODO(Tsabary): deprecate this function after we complete the transition to the replacer
+    // format.
     fn get_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
             .join(NodeType::from(self).get_folder_name())
             .join(self.get_config_file_path())
+            .to_string_lossy()
+            .to_string()
+    }
+
+    fn get_replacer_service_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(NodeType::from(self).get_folder_name())
+            .join(self.get_replacer_config_file_path())
             .to_string_lossy()
             .to_string()
     }
@@ -394,8 +415,29 @@ impl NodeType {
                 ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
             let flattened = config_to_preset(&json!(wrapper.dump()));
             let pruned = prune_by_is_none(flattened);
+            // TODO(Tsabary): deprecate this section after we complete the transition to the
+            // replacer format. Dumping in the original format.
             let file_path = node_service.get_service_file_path();
             writer(&pruned, &file_path);
+
+            // Dumping in the replacer format.
+
+            let replace_pred = |key: &str, value: &Value| {
+                // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
+                let port_cond =
+                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false);
+
+                // Condition 2: service urls: ".url" suffix and a non-localhost string value
+                let url_cond = key.ends_with(".url")
+                    && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
+
+                port_cond || url_cond
+            };
+
+            let pruned_with_replacer_annotations =
+                insert_replacer_annotations(pruned, replace_pred);
+            let file_path = node_service.get_replacer_service_file_path();
+            writer(&pruned_with_replacer_annotations, &file_path);
         }
     }
 
