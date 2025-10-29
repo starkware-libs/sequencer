@@ -322,7 +322,7 @@ impl CasmHashComputationData {
 /// Tracks which classes need migration from V1 to V2 compiled hashes and
 /// accumulates the estimated execution resources required to perform the migration.
 struct CasmHashMigrationData {
-    class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    pub(crate) class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
     resources: EstimatedExecutionResources,
 }
 
@@ -573,7 +573,7 @@ impl Bouncer {
     ) -> TransactionExecutorResult<()> {
         // The countings here should be linear in the transactional state changes and execution info
         // rather than the cumulative state attributes.
-        let marginal_state_changes_keys =
+        let mut marginal_state_changes_keys =
             tx_state_changes_keys.difference(&self.state_changes_keys);
         let marginal_executed_class_hashes = tx_execution_summary
             .executed_class_hashes
@@ -589,7 +589,7 @@ impl Bouncer {
             &marginal_executed_class_hashes,
             n_marginal_visited_storage_entries,
             tx_resources,
-            &marginal_state_changes_keys,
+            &mut marginal_state_changes_keys,
             versioned_constants,
             tx_builtin_counters,
             &self.bouncer_config,
@@ -832,7 +832,7 @@ pub fn get_tx_weights<S: StateReader>(
     executed_class_hashes: &HashSet<ClassHash>,
     n_visited_storage_entries: usize,
     tx_resources: &TransactionResources,
-    state_changes_keys: &StateChangesKeys,
+    state_changes_keys: &mut StateChangesKeys,
     versioned_constants: &VersionedConstants,
     tx_builtin_counters: &BuiltinCounterMap,
     bouncer_config: &BouncerConfig,
@@ -859,6 +859,10 @@ pub fn get_tx_weights<S: StateReader>(
         executed_class_hashes,
         versioned_constants,
     )?;
+    // Add the migration state changes to the state changes keys.
+    state_changes_keys.extend_compiled_class_hash_keys(
+        &migration_data.class_hashes_to_migrate.keys().cloned().collect(),
+    );
 
     let blake_opcode_gas = bouncer_config.blake_weight;
 
@@ -955,7 +959,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     tx_execution_summary: &ExecutionSummary,
     tx_builtin_counters: &BuiltinCounterMap,
     tx_resources: &TransactionResources,
-    tx_state_changes_keys: &StateChangesKeys,
+    tx_state_changes_keys: &mut StateChangesKeys,
     bouncer_config: &BouncerConfig,
     versioned_constants: &VersionedConstants,
 ) -> TransactionExecutionResult<()> {

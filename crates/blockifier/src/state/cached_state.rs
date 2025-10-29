@@ -680,6 +680,14 @@ impl StateChangesKeys {
         self.modified_contracts.extend(&other.modified_contracts);
     }
 
+    pub fn extend_compiled_class_hash_keys(
+        &mut self,
+        compiled_class_hash_keys: &HashSet<ClassHash>,
+    ) -> &Self {
+        self.compiled_class_hash_keys.extend(compiled_class_hash_keys);
+        self
+    }
+
     pub fn update_sequencer_key_in_storage(
         &mut self,
         tx_context: &TransactionContext,

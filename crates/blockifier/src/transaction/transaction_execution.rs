@@ -159,7 +159,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_execution_summary,
             &tx_builtin_counters,
             &tx_execution_info.receipt.resources,
-            &tx_state_changes_keys,
+            &mut tx_state_changes_keys,
             &block_context.bouncer_config,
             &block_context.versioned_constants,
         )?;

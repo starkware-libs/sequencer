@@ -364,14 +364,14 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
         computation: ComputationResources { sierra_gas: exceeding_gas, ..Default::default() },
         ..Default::default()
     };
-    let tx_state_changes_keys = transactional_state.to_state_diff().unwrap().state_maps.keys();
+    let mut tx_state_changes_keys = transactional_state.to_state_diff().unwrap().state_maps.keys();
 
     let result = verify_tx_weights_within_max_capacity(
         &transactional_state,
         &execution_summary,
         &builtin_counters,
         &tx_resources,
-        &tx_state_changes_keys,
+        &mut tx_state_changes_keys,
         &bouncer_config,
         &block_context.versioned_constants,
     )
@@ -467,7 +467,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         &executed_class_hashes,
         10, // n_visited_storage_entries
         &TransactionResources::default(),
-        &StateMaps::default().keys(),
+        &mut StateMaps::default().keys(),
         &block_context.versioned_constants,
         &BuiltinCounterMap::default(),
         &BouncerConfig::default(),
@@ -627,7 +627,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &executed_class_hashes,
         n_visited_storage_entries,
         &tx_resources,
-        &StateMaps::default().keys(), // state changes keys
+        &mut StateMaps::default().keys(), // state changes keys
         &block_context.versioned_constants,
         &tx_builtin_counters,
         &block_context.bouncer_config,
@@ -818,7 +818,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &executed,
         0,
         &TransactionResources::default(),
-        &StateMaps::default().keys(),
+        &mut StateMaps::default().keys(),
         &vc_migration_disabled,
         &BuiltinCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
@@ -834,7 +834,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &executed,
         0,
         &TransactionResources::default(),
-        &StateMaps::default().keys(),
+        &mut StateMaps::default().keys(),
         &bc_migration_enabled.versioned_constants,
         &BuiltinCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
