@@ -66,11 +66,11 @@ fn get_panel_sierra_gas_in_last_block() -> Panel {
     Panel::new(
         "Average Sierra Gas Usage in Block",
         "The average sierra gas usage in block (10m window)",
-        vec![format!(
+        format!(
             "avg_over_time({}[10m])/{}",
             SIERRA_GAS_IN_LAST_BLOCK.get_name_with_filter(),
             DENOMINATOR_DIVISOR_FOR_READABILITY
-        )],
+        ),
         PanelType::TimeSeries,
     )
 }
@@ -79,11 +79,11 @@ fn get_panel_proving_gas_in_last_block() -> Panel {
     Panel::new(
         "Average Proving Gas Usage in Block",
         "The average proving gas usage in block (10m window)",
-        vec![format!(
+        format!(
             "avg_over_time({}[10m])/{}",
             PROVING_GAS_IN_LAST_BLOCK.get_name_with_filter(),
             DENOMINATOR_DIVISOR_FOR_READABILITY
-        )],
+        ),
         PanelType::TimeSeries,
     )
 }

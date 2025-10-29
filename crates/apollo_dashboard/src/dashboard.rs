@@ -137,11 +137,40 @@ pub(crate) struct Panel {
     extra: ExtraParams,
 }
 
+// helper: unify "String" and "Vec<String>"
+pub(crate) trait IntoExprs {
+    fn into_exprs(self) -> Vec<String>;
+}
+
+impl IntoExprs for String {
+    fn into_exprs(self) -> Vec<String> {
+        vec![self]
+    }
+}
+
+impl IntoExprs for &str {
+    fn into_exprs(self) -> Vec<String> {
+        vec![self.to_string()]
+    }
+}
+
+impl IntoExprs for Vec<String> {
+    fn into_exprs(self) -> Vec<String> {
+        self
+    }
+}
+
+impl<'a> IntoExprs for Vec<&'a str> {
+    fn into_exprs(self) -> Vec<String> {
+        self.into_iter().map(|s| s.to_string()).collect::<Vec<_>>()
+    }
+}
+
 impl Panel {
     pub(crate) fn new(
         name: impl ToString,
         description: impl ToString,
-        exprs: Vec<String>,
+        exprs: impl IntoExprs,
         panel_type: PanelType,
     ) -> Self {
         // A panel assigns a unique id to each of its expressions. Conventionally, we use letters
@@ -149,6 +178,9 @@ impl Panel {
         const NUM_LETTERS: u8 = b'Z' - b'A' + 1;
         let name = name.to_string();
         let description = description.to_string();
+
+        let exprs = exprs.into_exprs();
+
         assert!(
             exprs.len() <= NUM_LETTERS.into(),
             "Too many expressions ({} > {NUM_LETTERS}) in panel '{name}'.",
@@ -156,6 +188,7 @@ impl Panel {
         );
         Self { name, description, exprs, panel_type, extra: ExtraParams::default() }
     }
+
     pub fn with_unit(mut self, unit: Unit) -> Self {
         self.extra.unit = Some(unit);
         self
@@ -265,7 +298,7 @@ impl Panel {
                          (rate({metric_name_with_filter_and_reason}[{HISTOGRAM_TIME_RANGE}])))",
                     )
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
             panel_type,
         )
     }
@@ -288,14 +321,14 @@ impl Panel {
 
         let expr = format!("({numerator_expr} / ({denominator_expr}))");
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
+        Self::new(name, description, expr, PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
 
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            metric.get_name_with_filter().to_string(),
             panel_type,
         )
     }
@@ -304,7 +337,7 @@ impl Panel {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            metric.get_name_with_filter().to_string(),
             panel_type,
         )
     }
@@ -328,7 +361,7 @@ impl Panel {
                         metric_name_with_filter.as_ref(),
                     )
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
             PanelType::TimeSeries,
         )
     }
