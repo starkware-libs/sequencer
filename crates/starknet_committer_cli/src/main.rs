@@ -43,6 +43,10 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// If not none, wraps the storage in a key-shrinking storage.
+    /// See `short_key_storage.rs` for more details and allowed values.
+    #[clap(long, default_value = None)]
+    key_size: Option<u8>,
     /// If using cached storage, the size of the cache.
     #[clap(long, default_value = "1000000")]
     cache_size: usize,
@@ -74,6 +78,54 @@ enum Command {
     StorageBenchmark(StorageArgs),
 }
 
+/// Multiplexer to avoid dynamic dispatch.
+/// If the key_size is not None, wraps the storage in a key-shrinking storage before running the
+/// benchmark.
+macro_rules! generate_short_key_benchmark {
+    (
+        $key_size:expr,
+        $seed:expr,
+        $n_iterations:expr,
+        $n_diffs:expr,
+        $output_dir:expr,
+        $checkpoint_dir_arg:expr,
+        $storage:expr,
+        $checkpoint_interval:expr,
+        $( ($size:expr, $name:ident) ),+ $(,)?
+    ) => {
+        match $key_size {
+            None => {
+                run_storage_benchmark(
+                    $seed,
+                    $n_iterations,
+                    $n_diffs,
+                    &$output_dir,
+                    $checkpoint_dir_arg,
+                    $storage,
+                    $checkpoint_interval,
+                )
+                .await
+            }
+            $(
+                Some(size) if size == $size => {
+                    let storage = starknet_patricia_storage::short_key_storage::$name::new($storage);
+                    run_storage_benchmark(
+                        $seed,
+                        $n_iterations,
+                        $n_diffs,
+                        &$output_dir,
+                        $checkpoint_dir_arg,
+                        storage,
+                        $checkpoint_interval,
+                    )
+                    .await
+                }
+            )+
+            Some(other_size) => panic!("Invalid key size: {other_size}"),
+        }
+    }
+}
+
 /// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
 /// Different invocations of this function are used with different concrete storage types.
 async fn run_storage_benchmark_wrapper<S: Storage>(
@@ -86,6 +138,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         data_path,
         output_dir,
         checkpoint_dir,
+        key_size,
         ..
     }: StorageArgs,
     storage: S,
@@ -102,16 +155,33 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         StorageType::MapStorage => None,
     };
 
-    run_storage_benchmark(
+    generate_short_key_benchmark!(
+        key_size,
         seed,
         n_iterations,
         n_diffs,
-        &output_dir,
+        output_dir,
         checkpoint_dir_arg,
         storage,
         checkpoint_interval,
-    )
-    .await;
+        (16, ShortKeyStorage16),
+        (17, ShortKeyStorage17),
+        (18, ShortKeyStorage18),
+        (19, ShortKeyStorage19),
+        (20, ShortKeyStorage20),
+        (21, ShortKeyStorage21),
+        (22, ShortKeyStorage22),
+        (23, ShortKeyStorage23),
+        (24, ShortKeyStorage24),
+        (25, ShortKeyStorage25),
+        (26, ShortKeyStorage26),
+        (27, ShortKeyStorage27),
+        (28, ShortKeyStorage28),
+        (29, ShortKeyStorage29),
+        (30, ShortKeyStorage30),
+        (31, ShortKeyStorage31),
+        (32, ShortKeyStorage32)
+    );
 }
 
 pub async fn run_committer_cli(
