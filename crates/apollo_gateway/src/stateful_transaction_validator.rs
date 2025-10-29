@@ -186,19 +186,19 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
     ) -> StatefulTransactionValidatorResult<()> {
-        if !self.is_valid_nonce(executable_tx, account_nonce) {
+        let (valid, max_allowed_nonce_gap) = self.is_valid_nonce(executable_tx, account_nonce);
+        if !valid {
             let tx_nonce = executable_tx.nonce();
-            debug!(
-                "Transaction nonce is invalid. Transaction nonce: {tx_nonce}, account_nonce: \
-                 {account_nonce}",
+            let message = format!(
+                "Invalid transaction nonce. Expected: {account_nonce}, got: {tx_nonce}, max \
+                 allowed nonce gap: {max_allowed_nonce_gap}."
             );
+            debug!("{message}");
             return Err(StarknetError {
                 code: StarknetErrorCode::KnownErrorCode(
                     KnownStarknetErrorCode::InvalidTransactionNonce,
                 ),
-                message: format!(
-                    "Invalid transaction nonce. Expected: {account_nonce}, got: {tx_nonce}."
-                ),
+                message,
             });
         }
         Ok(())
@@ -228,19 +228,26 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         Ok(())
     }
 
-    fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
+    fn is_valid_nonce(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
+    ) -> (bool, u32) {
         let incoming_tx_nonce = executable_tx.nonce();
 
         // Declare transactions must have the same nonce as the account nonce.
         if self.config.reject_future_declare_txs
             && matches!(executable_tx, ExecutableTransaction::Declare(_))
         {
-            return incoming_tx_nonce == account_nonce;
+            return (incoming_tx_nonce == account_nonce, 0);
         }
 
         let max_allowed_nonce =
             Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
-        account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce
+        (
+            account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce,
+            self.config.max_allowed_nonce_gap,
+        )
     }
 
     // TODO(Arni): Consider running this validation for all gas prices.
