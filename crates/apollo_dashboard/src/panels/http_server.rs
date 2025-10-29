@@ -13,7 +13,7 @@ fn get_panel_total_transactions_received() -> Panel {
     Panel::new(
         "Transactions Received",
         "Number of transactions received (10m window)",
-        vec![format!("increase({}[10m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter())],
+        format!("increase({}[10m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
         PanelType::TimeSeries,
     )
     .with_log_query("\"ADD_TX_START\"")
@@ -22,12 +22,12 @@ fn get_panel_transaction_success_rate() -> Panel {
     Panel::new(
         "Transaction Success Rate",
         "The ratio of transactions successfully added to the gateway (10m window)",
-        vec![format!(
+        format!(
             "increase({}[10m]) / (increase({}[10m]) + increase({}[10m]))",
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
             ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
-        )],
+        ),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::PercentUnit)
@@ -37,7 +37,7 @@ pub(crate) fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
         "HTTP Server Transactions Received Rate (TPS)",
         "The rate of transactions received by the HTTP Server (1m window)",
-        vec![format!("rate({}[1m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter())],
+        format!("rate({}[1m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
@@ -51,7 +51,7 @@ fn get_panel_http_add_tx_latency() -> Panel {
 }
 
 fn get_panel_transactions_failed_by_reason() -> Panel {
-    Panel::new(
+    Panel::new_multi_expr(
         "Transactions Failed to Be Added (By Reason)",
         "Number of transactions that failed to be added by reason (10m window)",
         vec![

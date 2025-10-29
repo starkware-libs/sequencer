@@ -138,7 +138,7 @@ pub(crate) struct Panel {
 }
 
 impl Panel {
-    pub(crate) fn new(
+    pub(crate) fn new_multi_expr(
         name: impl ToString,
         description: impl ToString,
         exprs: Vec<String>,
@@ -156,6 +156,16 @@ impl Panel {
         );
         Self { name, description, exprs, panel_type, extra: ExtraParams::default() }
     }
+
+    pub(crate) fn new(
+        name: impl ToString,
+        description: impl ToString,
+        expr: String,
+        panel_type: PanelType,
+    ) -> Self {
+        Self::new_multi_expr(name, description, vec![expr], panel_type)
+    }
+
     pub fn with_unit(mut self, unit: Unit) -> Self {
         self.extra.unit = Some(unit);
         self
@@ -288,14 +298,14 @@ impl Panel {
 
         let expr = format!("({numerator_expr} / ({denominator_expr}))");
 
-        Self::new(name, description, vec![expr], PanelType::TimeSeries).with_unit(Unit::PercentUnit)
+        Self::new(name, description, expr, PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
 
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            metric.get_name_with_filter().to_string(),
             panel_type,
         )
     }
@@ -304,7 +314,7 @@ impl Panel {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            metric.get_name_with_filter().to_string(),
             panel_type,
         )
     }
@@ -315,7 +325,7 @@ impl Panel {
         description: impl ToString,
         sum_by: impl AsRef<str>,
     ) -> Self {
-        Self::new(
+        Self::new_multi_expr(
             name.to_string(),
             description.to_string(),
             HISTOGRAM_QUANTILES
@@ -395,7 +405,7 @@ impl From<&LocalServerMetrics> for UnlabeledPanels {
             Panel::from_counter(metrics.get_received_metric(), PanelType::TimeSeries);
         let processed_msgs_panel =
             Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
-        let queue_depth_panel = Panel::new(
+        let queue_depth_panel = Panel::new_multi_expr(
             "local_queue_depth",
             "The depth of the local priority queues",
             vec![
@@ -472,7 +482,7 @@ fn get_multi_metric_panel(
             )
         }))
     }
-    Panel::new(panel_name, panel_description, exprs, panel_type)
+    Panel::new_multi_expr(panel_name, panel_description, exprs, panel_type)
 }
 
 // Custom Serialize implementation for Panel.
