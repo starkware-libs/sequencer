@@ -3,14 +3,24 @@ use serde_json::Value;
 
 const REPLACER_FORMAT: &str = "$$$_{}_$$$";
 
-/// Given a flattened JSON object, overwrite each `key`'s value with `format_key(key)`.
-pub(crate) fn insert_replacer_annotations(mut json: Value) -> Value {
+pub(crate) fn insert_replacer_annotations<F>(mut json: Value, pred: F) -> Value
+where
+    F: Fn(&str, &Value) -> bool,
+{
     let map = json.as_object_mut().expect("Should be a JSON object");
 
     // Collect keys to avoid mutable borrow issues while iterating.
     let keys: Vec<String> = map.keys().cloned().collect();
     for key in keys {
-        map.insert(key.clone(), Value::String(format_key(key)));
+        let should_replace = {
+            // Evaluate predicate on current value
+            let value = map.get(&key).expect("Key must exist");
+            pred(&key, value)
+        };
+
+        if should_replace {
+            map.insert(key.clone(), Value::String(format_key(key.clone())));
+        }
     }
 
     json
