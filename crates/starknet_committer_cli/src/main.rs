@@ -7,6 +7,7 @@ use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::short_key_storage::wrap_storage_or_panic;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -43,6 +44,10 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// If not none, wraps the storage in a key-shrinking storage.
+    /// See `short_key_storage.rs` for more details and allowed values.
+    #[clap(long, default_value = None)]
+    key_size: Option<u8>,
     /// If using cached storage, the size of the cache.
     #[clap(long, default_value = "1000000")]
     cache_size: usize,
@@ -85,6 +90,7 @@ pub async fn run_committer_cli(
             n_iterations,
             n_diffs,
             storage_type,
+            key_size,
             cache_size,
             checkpoint_interval,
             log_level,
@@ -102,13 +108,18 @@ pub async fn run_committer_cli(
 
             let (mut storage, checkpoint_dir): (Box<dyn Storage>, Option<&str>) = match storage_type
             {
-                StorageType::MapStorage => (Box::new(MapStorage::default()), None),
+                StorageType::MapStorage => {
+                    (wrap_storage_or_panic(key_size, MapStorage::default()), None)
+                }
                 StorageType::Mdbx => {
                     let storage_path = storage_path
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     (
-                        Box::new(MdbxStorage::open(Path::new(&storage_path)).unwrap()),
+                        wrap_storage_or_panic(
+                            key_size,
+                            MdbxStorage::open(Path::new(&storage_path)).unwrap(),
+                        ),
                         Some(&checkpoint_dir),
                     )
                 }
@@ -117,10 +128,13 @@ pub async fn run_committer_cli(
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     (
-                        Box::new(CachedStorage::new(
-                            MdbxStorage::open(Path::new(&storage_path)).unwrap(),
-                            NonZeroUsize::new(cache_size).unwrap(),
-                        )),
+                        wrap_storage_or_panic(
+                            key_size,
+                            CachedStorage::new(
+                                MdbxStorage::open(Path::new(&storage_path)).unwrap(),
+                                NonZeroUsize::new(cache_size).unwrap(),
+                            ),
+                        ),
                         Some(&checkpoint_dir),
                     )
                 }
