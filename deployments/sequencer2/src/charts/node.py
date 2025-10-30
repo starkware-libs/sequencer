@@ -43,7 +43,9 @@ class SequencerNodeChart(Chart):
         monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config)
 
         # Create ConfigMap
-        self.config_map = ConfigMapConstruct(self, "configmap", node_config)
+        self.config_map = ConfigMapConstruct(
+            self, "configmap", common_config, service_config, labels, monitoring_endpoint_port
+        )
 
         # Create Service
         self.service = ServiceConstruct(

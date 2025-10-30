@@ -4,8 +4,8 @@ from cdk8s import Chart
 from constructs import Construct
 
 from src.config.loaders import (
-    GrafanaAlertRuleGroupConfig,
-    GrafanaDashboardConfig,
+    GrafanaAlertRuleGroupConfigLoader,
+    GrafanaDashboardConfigLoader,
 )
 from src.constructs.grafana import (
     GrafanaAlertRuleGroupConstruct,
@@ -21,8 +21,8 @@ class MonitoringChart(Chart):
         id: str,
         cluster: str,
         namespace: str,
-        grafana_dashboard: Optional[GrafanaDashboardConfig],
-        grafana_alert_rule_group: Optional[GrafanaAlertRuleGroupConfig],
+        grafana_dashboard: Optional[GrafanaDashboardConfigLoader],
+        grafana_alert_rule_group: Optional[GrafanaAlertRuleGroupConfigLoader],
     ):
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
         self.hash = generate_random_hash(from_string=f"{cluster}-{namespace}")

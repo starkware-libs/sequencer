@@ -7,8 +7,8 @@ from src.charts.monitoring import MonitoringChart
 from src.charts.node import SequencerNodeChart
 from src.cli import argument_parser
 from src.config.loaders import (
-    GrafanaAlertRuleGroupConfig,
-    GrafanaDashboardConfig,
+    GrafanaAlertRuleGroupConfigLoader,
+    GrafanaDashboardConfigLoader,
 )
 from src.config.merger import merge_configs
 from src.config.schema import DeploymentConfig as DeploymentSchema
@@ -54,13 +54,13 @@ def main():
 
     # --- Prepare monitoring configs
     grafana_dashboard_config = (
-        GrafanaDashboardConfig(args.monitoring_dashboard_file)
+        GrafanaDashboardConfigLoader(args.monitoring_dashboard_file)
         if args.monitoring_dashboard_file
         else None
     )
 
     grafana_alert_rule_group_config = (
-        GrafanaAlertRuleGroupConfig(args.monitoring_alerts_folder)
+        GrafanaAlertRuleGroupConfigLoader(args.monitoring_alerts_folder)
         if args.monitoring_alerts_folder
         else None
     )

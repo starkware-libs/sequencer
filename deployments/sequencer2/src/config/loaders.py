@@ -109,7 +109,37 @@ class DeploymentConfigLoader(Config):
         return {**common, **wrapped} if common else wrapped
 
 
-class GrafanaDashboardConfig(Config):
+class NodeConfigLoader(Config):
+    ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../../")
+
+    def __init__(self, config_paths: List[str]):
+        self.config_paths = config_paths
+        self._validate()
+
+    def _validate(self):
+        # Note: We don't validate individual files here since they might not exist yet
+        pass
+
+    def load(self) -> dict:
+        result = {}
+        for config_path in self.config_paths:
+            # Use the full path as provided in config_paths
+            full_path = os.path.join(self.ROOT_DIR, config_path)
+            try:
+                data = self._try_load_json(file_path=full_path)
+                result.update(data)  # later values overwrite previous
+            except FileNotFoundError:
+                # Fail fast if a specified config file doesn't exist
+                raise FileNotFoundError(f"Config file not found: {full_path}")
+            except ValueError as e:
+                # Fail fast if a config file has invalid JSON
+                raise ValueError(f"Invalid JSON in config file {full_path}: {e}")
+
+        # Return a lexicographically sorted dict to ensure consistent ordering and simpler CM diffs.
+        return dict[Any, Any](sorted(result.items()))
+
+
+class GrafanaDashboardConfigLoader(Config):
     def __init__(self, dashboard_file_path: str):
         self.dashboard_file_path = os.path.abspath(dashboard_file_path)
         self._validate()
@@ -121,7 +151,7 @@ class GrafanaDashboardConfig(Config):
         return self._try_load_json(self.dashboard_file_path)
 
 
-class GrafanaAlertRuleGroupConfig(Config):
+class GrafanaAlertRuleGroupConfigLoader(Config):
     def __init__(self, alerts_folder_path: str):
         self.alerts_folder_path = Path(alerts_folder_path)
         self._validate()

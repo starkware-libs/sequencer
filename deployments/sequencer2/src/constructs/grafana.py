@@ -18,7 +18,7 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboardSpec,
 )
 
-from src.config.loaders import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
+from src.config.loaders import GrafanaAlertRuleGroupConfigLoader, GrafanaDashboardConfigLoader
 from src.utils import generate_random_hash, sanitize_name
 
 
@@ -55,7 +55,7 @@ class GrafanaDashboardConstruct(GrafanaBaseConstruct):
         id: str,
         cluster: str,
         namespace: str,
-        grafana_dashboard: GrafanaDashboardConfig,
+        grafana_dashboard: GrafanaDashboardConfigLoader,
     ) -> None:
         super().__init__(scope, id, cluster, namespace)
 
@@ -89,7 +89,7 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
         id: str,
         cluster: str,
         namespace: str,
-        grafana_alert_rule_group: GrafanaAlertRuleGroupConfig,
+        grafana_alert_rule_group: GrafanaAlertRuleGroupConfigLoader,
     ) -> None:
         super().__init__(scope, id, cluster, namespace)
 
