@@ -22,9 +22,9 @@ class DeploymentConstruct(BaseConstruct):
             monitoring_endpoint_port,
         )
 
-        self.deployment = self._get_deployment()
+        self.deployment = self._create_deployment()
 
-    def _get_deployment(self) -> k8s.KubeDeployment:
+    def _create_deployment(self) -> k8s.KubeDeployment:
         image = f"{self.common_config.image.repository}:{self.common_config.image.tag}"
         return k8s.KubeDeployment(
             self,

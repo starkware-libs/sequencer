@@ -101,6 +101,7 @@ class SequencerNodeChart(Chart):
             self.ingress = IngressConstruct(
                 self,
                 "ingress",
+                common_config,
                 self.service_config,
                 labels,
                 namespace,

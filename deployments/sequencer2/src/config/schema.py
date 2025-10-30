@@ -91,6 +91,11 @@ class Ingress(StrictBaseModel):
     pathType: Optional[str] = None
     extraPaths: List[AnyDict] = Field(default_factory=list)
     tls: List[AnyDict] = Field(default_factory=list)
+    # Additional fields for more complex ingress configurations
+    internal: Optional[bool] = None
+    alternative_names: List[str] = Field(default_factory=list)
+    rules: List[AnyDict] = Field(default_factory=list)
+    cloud_armor_policy_name: Optional[str] = None
 
 
 class UpdateStrategy(StrictBaseModel):
