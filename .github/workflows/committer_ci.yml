@@ -110,5 +110,7 @@ jobs:
       - run: pip install -r scripts/requirements.txt
 
       # Benchmark the current branch and compare to the previous run.
-      # Use the saved inputs.
-      - run: cargo run -p bench_tools -- run-and-compare --package starknet_committer_and_os_cli --out /tmp/new_results --regression-limit 8.0 --input-dir /tmp/test_inputs
+      # Use the saved inputs and enforce absolute time limits (full_committer_flow: 25ms, tree_computation_flow: 20ms).
+      - run: >
+          cargo run -p bench_tools -- run-and-compare --package starknet_committer_and_os_cli --out /tmp/new_results --regression-limit 8.0 --input-dir /tmp/test_inputs
+          --set-absolute-time-ns-limit full_committer_flow 25000000 --set-absolute-time-ns-limit tree_computation_flow 20000000
