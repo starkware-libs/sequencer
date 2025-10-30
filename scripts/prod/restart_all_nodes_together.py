@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
+    ConstConfigValuesUpdater,
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
@@ -137,7 +138,7 @@ Examples:
     )
 
     update_config_and_restart_nodes(
-        config_overrides,
+        ConstConfigValuesUpdater(config_overrides),
         namespace_and_instruction_args,
         Service.Core,
         restarter,
