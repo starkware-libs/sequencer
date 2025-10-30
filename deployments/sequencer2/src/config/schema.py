@@ -197,6 +197,17 @@ class BackendConfig(StrictBaseModel):
     healthCheck: Optional[HealthCheck] = None
 
 
+class Secret(StrictBaseModel):
+    enabled: bool = False
+    name: Optional[str] = None
+    type: str = "Opaque"
+    data: StrDict = Field(default_factory=dict)
+    stringData: StrDict = Field(default_factory=dict)
+    annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    immutable: Optional[bool] = None
+
+
 class CommonConfig(StrictBaseModel):
     image: Image = Image(repository="ghcr.io/starkware-libs/sequencer", tag="dev")
     imagePullSecrets: List[str] = Field(default_factory=list)
@@ -238,6 +249,7 @@ class ServiceConfig(StrictBaseModel):
     dnsPolicy: Optional[str] = None
     backendConfig: Optional[BackendConfig] = None
     externalSecret: Optional[ExternalSecret] = None
+    secret: Optional[Secret] = None
 
 
 class DeploymentConfig(StrictBaseModel):

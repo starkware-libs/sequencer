@@ -12,6 +12,7 @@ from src.constructs.ingress import IngressConstruct
 from src.constructs.monitoring import PodMonitoringConstruct
 from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
+from src.constructs.secret import SecretConstruct
 from src.constructs.serviceaccount import ServiceAccountConstruct
 from src.constructs.statefulset import StatefulSetConstruct
 from src.constructs.volume import VolumeConstruct
@@ -58,8 +59,6 @@ class SequencerNodeChart(Chart):
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
             )
-        else:
-            self.service_account = None
 
         # Create Service
         self.service = ServiceConstruct(
@@ -148,6 +147,17 @@ class SequencerNodeChart(Chart):
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
                 controller=k8s_controller,
+            )
+
+        # Create Secret if enabled
+        if self.service_config.secret and self.service_config.secret.enabled:
+            self.secret = SecretConstruct(
+                self,
+                "secret",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
             )
 
         # Create ExternalSecret if configured
