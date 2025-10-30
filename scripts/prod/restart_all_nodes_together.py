@@ -48,6 +48,20 @@ def get_validator_id(namespace: str, context: Optional[str]) -> str:
     return config_data["validator_id"]
 
 
+class NodeValidatorIdCompositeUpdater(ConstConfigValuesUpdater):
+    def __init__(self, config_overrides: dict[str, any], validator_id_start_from: int):
+        super().__init__(config_overrides)
+        self.validator_id_start_from = validator_id_start_from
+
+    def get_updated_config_for_instance(
+        self, config_data: dict[str, any], instance_index: int
+    ) -> dict[str, any]:
+        updated_config = super().get_updated_config_for_instance(config_data, instance_index)
+        validator_id_as_hex = f"0x{(self.validator_id_start_from + instance_index):x}"
+        updated_config["validator_id"] = validator_id_as_hex
+        return updated_config
+
+
 def main():
     usage_example = """
 Examples:
@@ -94,6 +108,12 @@ Examples:
         help="The name of the project to get logs from.",
     )
 
+    args_builder.add_argument(
+        "--validator-id-start-from",
+        type=int,
+        help="If set, also update the validator ID config to this value + index of the instance being restarted. Value is in decimal format.",
+    )
+
     args = args_builder.build()
 
     # Get current block number from feeder URL
@@ -137,8 +157,14 @@ Examples:
         Service.Core,
     )
 
+    updater = (
+        NodeValidatorIdCompositeUpdater(config_overrides, args.validator_id_start_from)
+        if args.validator_id_start_from
+        else ConstConfigValuesUpdater(config_overrides)
+    )
+
     update_config_and_restart_nodes(
-        ConstConfigValuesUpdater(config_overrides),
+        updater,
         namespace_and_instruction_args,
         Service.Core,
         restarter,
