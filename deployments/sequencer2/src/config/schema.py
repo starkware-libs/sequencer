@@ -21,11 +21,16 @@ class Image(StrictBaseModel):
     imagePullPolicy: Optional[str] = None
 
 
+class UpdateStrategy(StrictBaseModel):
+    type: str = "RollingUpdate"
+
+
 class StatefulSet(StrictBaseModel):
     enabled: Optional[bool] = None
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
     podManagementPolicy: Optional[str] = None
+    updateStrategy: Optional[UpdateStrategy] = None
 
 
 class Rbac(StrictBaseModel):
@@ -96,10 +101,6 @@ class Ingress(StrictBaseModel):
     alternative_names: List[str] = Field(default_factory=list)
     rules: List[AnyDict] = Field(default_factory=list)
     cloud_armor_policy_name: Optional[str] = None
-
-
-class UpdateStrategy(StrictBaseModel):
-    type: Optional[str] = None
 
 
 class PodDisruptionBudget(StrictBaseModel):
@@ -180,7 +181,7 @@ class ServiceConfig(StrictBaseModel):
     resources: Optional[Resources] = None
     service: Optional[Service] = None
     ingress: Optional[Ingress] = None
-    updateStrategy: Optional[UpdateStrategy] = None
+    updateStrategy: UpdateStrategy = Field(default_factory=UpdateStrategy)
     tolerations: List[AnyDict] = Field(default_factory=list)
     nodeSelector: StrDict = Field(default_factory=dict)
     affinity: AnyDict = Field(default_factory=dict)
