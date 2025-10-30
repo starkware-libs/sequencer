@@ -11,6 +11,7 @@
 //! `cargo bench --bench blockifier --features "cairo_native"`.
 
 use apollo_infra_utils::set_global_allocator;
+use blockifier::blockifier::config::ConcurrencyConfig;
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType,
     TransfersGenerator,
@@ -34,6 +35,7 @@ pub fn transfers_benchmark(c: &mut Criterion) {
         recipient_generator_type: RecipientGeneratorType::Random,
         #[cfg(feature = "cairo_native")]
         cairo_version: CairoVersion::Cairo1(RunnableCairo1::Native),
+        concurrency_config: ConcurrencyConfig::create_for_testing(false),
         ..Default::default()
     };
     let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
