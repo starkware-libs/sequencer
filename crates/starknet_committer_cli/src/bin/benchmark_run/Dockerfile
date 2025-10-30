@@ -1,8 +1,22 @@
+# ---- Stage 1: Builder (has cargo/rustc)
+FROM rust:1.89 as builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    cmake \
+    clang lld \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+RUN cargo build --release -p starknet_committer_cli --bin starknet_committer_cli
+
 FROM ubuntu:24.04
 
 # Install required runtime dependencies
 RUN apt-get update \ 
-    && apt-get install -y ca-certificates \
+    && apt-get install -y ca-certificates heaptrack \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r committer_benchmark && useradd -m -r -g committer_benchmark committer_benchmark
@@ -11,7 +25,9 @@ RUN groupadd -r committer_benchmark && useradd -m -r -g committer_benchmark comm
 # flag.
 # Note: need to disable the .dockerignore file during the image build process if it has the "target"
 # directory in it.
-COPY target/release/starknet_committer_cli /usr/local/bin/starknet_committer_cli
+COPY --from=builder /app/target/release/starknet_committer_cli /usr/local/bin/
+
+# COPY target/release/starknet_committer_cli /usr/local/bin/starknet_committer_cli
 
 RUN chmod +x /usr/local/bin/starknet_committer_cli
 RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_committer_cli
@@ -19,7 +35,7 @@ RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_com
 USER committer_benchmark
 
 # Run the storage benchmark command.
-ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
+ENTRYPOINT ["heaptrack", "--output", "/mnt/data/heaptrack.out", "starknet_committer_cli", "storage-benchmark" ]
 # Default parameters for the storage benchmark: 
 # - run with 1000000 block iterations
 # - generate 4000 state diffs (new leaves) per block.
@@ -30,8 +46,8 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 #   a specific node)
 
 CMD ["--n-iterations", "1000000", \
-    "--n-diffs", "4000", \
-    "--storage-type", "cached-mdbx", \
+    "--n-diffs", "1000", \
+    "--storage-type", "rocksdb", \
     "--cache-size", "1000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \

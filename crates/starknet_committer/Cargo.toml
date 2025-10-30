@@ -39,3 +39,7 @@ workspace = true
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
 [package.metadata.cargo-machete]
 ignored = ["hex", "strum_macros"]
+
+[profile.release]
+debug = true
+strip = false
