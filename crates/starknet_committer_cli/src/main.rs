@@ -1,6 +1,7 @@
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use std::time::Duration;
 
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
@@ -149,6 +150,10 @@ pub async fn run_committer_cli(
                     .await;
                 }
             }
+            info!("Storage benchmark completed successfully");
+            let duration = Duration::from_secs(600);
+            tokio::time::sleep(duration).await;
+            info!("Completed {duration:?} seconds, exiting...");
         }
     }
 }

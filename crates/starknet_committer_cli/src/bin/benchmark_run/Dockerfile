@@ -1,8 +1,8 @@
 FROM ubuntu:24.04
 
-# Install required runtime dependencies
-RUN apt-get update \ 
-    && apt-get install -y ca-certificates \
+# Install required runtime dependencies + heaptrack
+RUN apt-get update \
+    && apt-get install -y ca-certificates heaptrack \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r committer_benchmark && useradd -m -r -g committer_benchmark committer_benchmark
@@ -19,7 +19,7 @@ RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_com
 USER committer_benchmark
 
 # Run the storage benchmark command.
-ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
+ENTRYPOINT ["heaptrack", "--output", "/mnt/data/heaptrack.out", "/usr/local/bin/starknet_committer_cli", "storage-benchmark"]
 # Default parameters for the storage benchmark: 
 # - run with 1000000 block iterations
 # - generate 4000 state diffs (new leaves) per block.
@@ -29,11 +29,11 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 # - use the provided data, storage, output and checkpoint directories (override for a persistent storage dir of
 #   a specific node)
 
-CMD ["--n-iterations", "1000000", \
-    "--n-diffs", "4000", \
+CMD ["--n-iterations", "1000", \
+    "--n-diffs", "1000", \
     "--storage-type", "cached-mdbx", \
     "--cache-size", "1000000", \
-    "--checkpoint-interval", "1000", \
+    "--checkpoint-interval", "50", \
     "--log-level", "info", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
