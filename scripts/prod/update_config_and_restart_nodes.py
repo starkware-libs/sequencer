@@ -8,6 +8,7 @@ from typing import Any
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Colors,
+    ConstConfigValuesUpdater,
     NamespaceAndInstructionArgs,
     Service,
     ServiceRestarter,
@@ -162,7 +163,10 @@ Examples:
     )
 
     update_config_and_restart_nodes(
-        config_overrides, namespace_and_instruction_args, args.service, restarter
+        ConstConfigValuesUpdater(config_overrides),
+        namespace_and_instruction_args,
+        args.service,
+        restarter,
     )
 
 
