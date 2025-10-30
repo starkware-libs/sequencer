@@ -8,6 +8,6 @@ pub mod runner;
 #[cfg(test)]
 pub mod test_utils;
 pub mod types;
-pub(crate) mod utils;
+pub mod utils;
 #[cfg(test)]
 mod utils_test;

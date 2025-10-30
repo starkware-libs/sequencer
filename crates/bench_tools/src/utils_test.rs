@@ -1,10 +1,11 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
 use rstest::rstest;
 use tempfile::TempDir;
 
-use crate::utils::copy_dir_contents;
+use crate::utils::{copy_dir_contents, parse_absolute_time_limits};
 
 /// Helper function to create a test directory structure in a temporary directory.
 /// Returns the TempDir to keep it alive for the duration of the test.
@@ -102,4 +103,41 @@ fn test_copy_same_path() {
 fn test_copy_nonexistent_source_panics() {
     let temp_dst = TempDir::new().unwrap();
     copy_dir_contents(Path::new("/nonexistent"), temp_dst.path());
+}
+
+#[rstest]
+#[case::basic(
+    vec!["bench1".to_string(), "1.5".to_string()],
+    HashMap::from([("bench1".to_string(), 1.5)])
+)]
+#[case::empty(vec![], HashMap::new())]
+#[case::multiple_pairs(
+    vec![
+        "bench1".to_string(),
+        "1.5".to_string(),
+        "bench2".to_string(),
+        "2.7".to_string(),
+        "bench3".to_string(),
+        "3.0".to_string(),
+    ],
+    HashMap::from([
+        ("bench1".to_string(), 1.5),
+        ("bench2".to_string(), 2.7),
+        ("bench3".to_string(), 3.0),
+    ])
+)]
+fn test_parse_absolute_time_limits(
+    #[case] args: Vec<String>,
+    #[case] expected: HashMap<String, f64>,
+) {
+    let limits = parse_absolute_time_limits(args);
+    assert_eq!(limits, expected);
+}
+
+#[rstest]
+#[case::invalid_limit(vec!["bench1".to_string(), "not_a_number".to_string()])]
+#[case::odd_number(vec!["bench1".to_string(), "1.5".to_string(), "bench2".to_string()])]
+#[should_panic]
+fn test_parse_absolute_time_limits_panics(#[case] args: Vec<String>) {
+    parse_absolute_time_limits(args);
 }
