@@ -148,6 +148,32 @@ class HPA(StrictBaseModel):
     scaleDownPolicies: List[AnyDict] = Field(default_factory=list)
 
 
+class ExternalSecretData(StrictBaseModel):
+    secretKey: str
+    remoteKey: str
+    property: Optional[str] = None  # For JSON property extraction
+
+
+class ExternalSecretStore(StrictBaseModel):
+    name: str
+    kind: str = "ClusterSecretStore"  # ClusterSecretStore or SecretStore
+    provider: str = "gcp"  # gcp, aws, azure, vault, etc.
+
+
+class ExternalSecret(StrictBaseModel):
+    enabled: bool = False
+    secretStore: ExternalSecretStore = Field(
+        default_factory=lambda: ExternalSecretStore(name="external-secrets-project")
+    )
+    refreshInterval: str = "1m"
+    targetName: Optional[str] = None  # Custom target secret name
+    data: List[ExternalSecretData] = Field(default_factory=list)
+    # Advanced options
+    template: Optional[AnyDict] = None  # Custom template for secret generation
+    metadata: Optional[AnyDict] = None  # Custom metadata for the secret
+    deletionPolicy: str = "Retain"  # Retain, Delete, Merge
+
+
 class HealthCheck(StrictBaseModel):
     port: Optional[int] = None
     requestPath: Optional[str] = None
@@ -206,6 +232,7 @@ class ServiceConfig(StrictBaseModel):
     hpa: Optional[HPA] = None
     dnsPolicy: Optional[str] = None
     backendConfig: Optional[BackendConfig] = None
+    externalSecret: Optional[ExternalSecret] = None
 
 
 class DeploymentConfig(StrictBaseModel):

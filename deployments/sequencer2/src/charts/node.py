@@ -10,7 +10,7 @@ from src.constructs.deployment import DeploymentConstruct
 from src.constructs.hpa import HpaConstruct
 from src.constructs.ingress import IngressConstruct
 from src.constructs.monitoring import PodMonitoringConstruct
-from src.constructs.secret import SecretConstruct
+from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
 from src.constructs.statefulset import StatefulSetConstruct
 from src.constructs.volume import VolumeConstruct
@@ -137,9 +137,14 @@ class SequencerNodeChart(Chart):
             )
 
         # Create ExternalSecret if configured
-        if getattr(self.service_config, "external_secret", None):
-            self.external_secret = SecretConstruct(
-                self, "external-secret", self.service_config, labels
+        if self.service_config.externalSecret and self.service_config.externalSecret.enabled:
+            self.external_secret = ExternalSecretConstruct(
+                self,
+                "external-secret",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
             )
 
         # Create PodMonitoring if enabled
