@@ -11,7 +11,9 @@ use apollo_l1_provider::L1ProviderConfig;
 use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract};
+use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
+use papyrus_base_layer::test_utils::anvil_mine_blocks;
+use papyrus_base_layer::{BaseLayerContract, L1BlockReference};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use tokio::sync::mpsc::channel;
 
@@ -22,21 +24,16 @@ async fn flow_tests() {
     let historical_block = BlockHashAndNumber::default();
 
     // Setup the base layer.
-    let mut base_layer = MockBaseLayerContract::default(); // TODO(guyn): replace this with Anvil.
-    base_layer.expect_latest_l1_block().returning(move |_| Ok(Some(start_block)));
-    base_layer.expect_latest_proved_block().returning(move |_| Ok(Some(historical_block)));
-
-    // L1 provider setup.
-    let mut l1_provider = L1ProviderBuilder::new(
-        L1ProviderConfig::default(),
-        Arc::new(MockL1ProviderClient::default()), // This isn't right
-        Arc::new(MockBatcherClient::default()),    // Consider saving a copy of this to interact
-        Arc::new(MockStateSyncClient::default()),  /* We'll need a copy of this if we do
-                                                    * bootstrapping */
+    // let mut base_layer = MockBaseLayerContract::default(); // TODO(guyn): replace this with
+    // Anvil. base_layer.expect_latest_l1_block().returning(move |_| Ok(Some(start_block)));
+    // base_layer.expect_latest_proved_block().returning(move |_| Ok(Some(historical_block)));
+    let base_layer = AnvilBaseLayer::new().await;
+    anvil_mine_blocks(
+        base_layer.ethereum_base_layer.config.clone(),
+        100,
+        &base_layer.get_url().await.expect("Failed to get anvil url."),
     )
-    .startup_height(BlockNumber(start_block.number))
-    .catchup_height(historical_block.number)
-    .build();
+    .await;
 
     // This channel connects the L1Provider client to the server.
     let (tx, rx) = channel::<RequestWrapper<L1ProviderRequest, L1ProviderResponse>>(32);
@@ -44,6 +41,18 @@ async fn flow_tests() {
     // Create the client.
     let l1_provider_client =
         LocalComponentClient::new(tx, L1_PROVIDER_INFRA_METRICS.get_local_client_metrics());
+
+    // L1 provider setup.
+    let mut l1_provider = L1ProviderBuilder::new(
+        L1ProviderConfig::default(),
+        Arc::new(l1_provider_client.clone()),
+        Arc::new(MockBatcherClient::default()), // Consider saving a copy of this to interact
+        Arc::new(MockStateSyncClient::default()), /* We'll need a copy of this if we do
+                                                 * bootstrapping */
+    )
+    .startup_height(BlockNumber(start_block.number))
+    .catchup_height(historical_block.number)
+    .build();
 
     // Create the server.
     l1_provider.initialize(vec![]).await.unwrap();
