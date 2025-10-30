@@ -38,9 +38,14 @@ class Rbac(StrictBaseModel):
 
 
 class ServiceAccount(StrictBaseModel):
-    create: Optional[bool] = None
+    enabled: bool = True
     name: Optional[str] = None
     annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    # Advanced options
+    automountServiceAccountToken: Optional[bool] = None
+    imagePullSecrets: List[str] = Field(default_factory=list)
+    secrets: List[AnyDict] = Field(default_factory=list)
 
 
 class SecurityContext(StrictBaseModel):

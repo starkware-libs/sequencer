@@ -12,6 +12,7 @@ from src.constructs.ingress import IngressConstruct
 from src.constructs.monitoring import PodMonitoringConstruct
 from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
+from src.constructs.serviceaccount import ServiceAccountConstruct
 from src.constructs.statefulset import StatefulSetConstruct
 from src.constructs.volume import VolumeConstruct
 
@@ -46,6 +47,19 @@ class SequencerNodeChart(Chart):
         self.config_map = ConfigMapConstruct(
             self, "configmap", common_config, service_config, labels, monitoring_endpoint_port
         )
+
+        # Create ServiceAccount if enabled
+        if self.service_config.serviceAccount and self.service_config.serviceAccount.enabled:
+            self.service_account = ServiceAccountConstruct(
+                self,
+                "service-account",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
+            )
+        else:
+            self.service_account = None
 
         # Create Service
         self.service = ServiceConstruct(
