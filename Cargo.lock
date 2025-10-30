@@ -12590,6 +12590,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+ "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",

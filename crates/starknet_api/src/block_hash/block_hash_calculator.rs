@@ -84,7 +84,7 @@ impl From<BlockHashVersion> for BlockHashConstant {
 }
 
 /// The common fields of transaction output types.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct TransactionOutputForHash {
     pub actual_fee: Fee,
     pub events: Vec<Event>,
@@ -93,7 +93,7 @@ pub struct TransactionOutputForHash {
     pub messages_sent: Vec<MessageToL1>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct TransactionHashingData {
     pub transaction_signature: TransactionSignature,
     pub transaction_output: TransactionOutputForHash,
