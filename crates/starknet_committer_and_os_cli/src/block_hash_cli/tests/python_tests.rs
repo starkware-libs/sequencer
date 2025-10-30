@@ -1,3 +1,5 @@
+use serde::Serialize;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block_hash::block_hash_calculator::{
     TransactionHashingData,
     TransactionOutputForHash,
@@ -9,6 +11,7 @@ use crate::block_hash_cli::tests::objects::{
     get_thin_state_diff,
     get_transaction_output_for_hash,
     get_tx_data,
+    get_tx_execution_infos,
 };
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 
@@ -20,6 +23,13 @@ pub enum BlockHashPythonTestRunner {
     ParseTxOutput,
     ParseStateDiff,
     ParseTxData,
+    CompareTxsOutputForHash,
+}
+
+#[derive(Serialize)]
+pub struct CompareTxsOutputForHashOutput {
+    pub execution_infos: Vec<CentralTransactionExecutionInfo>,
+    pub processed: Vec<TransactionOutputForHash>,
 }
 
 /// Implements conversion from a string to the test runner.
@@ -31,6 +41,7 @@ impl TryFrom<String> for BlockHashPythonTestRunner {
             "parse_tx_output_test" => Ok(Self::ParseTxOutput),
             "parse_state_diff_test" => Ok(Self::ParseStateDiff),
             "parse_tx_data_test" => Ok(Self::ParseTxData),
+            "compare_txs_output_for_hash" => Ok(Self::CompareTxsOutputForHash),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -55,6 +66,19 @@ impl PythonTestRunner for BlockHashPythonTestRunner {
                 let tx_data: TransactionHashingData =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 Ok(parse_tx_data_test(tx_data))
+            }
+            Self::CompareTxsOutputForHash => {
+                let execution_infos = get_tx_execution_infos();
+                let processed = execution_infos
+                    .iter()
+                    .map(|execution_info| execution_info.output_for_hashing())
+                    .collect();
+                let execution_infos = execution_infos
+                    .into_iter()
+                    .map(CentralTransactionExecutionInfo::from)
+                    .collect();
+                let output = CompareTxsOutputForHashOutput { execution_infos, processed };
+                Ok(serde_json::to_string(&output)?)
             }
         }
     }
