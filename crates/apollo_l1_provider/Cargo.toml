@@ -37,6 +37,7 @@ tracing.workspace = true
 [dev-dependencies]
 alloy.workspace = true
 apollo_batcher_types = { workspace = true, features = ["testing"] }
+apollo_integration_tests.workspace = true
 apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
