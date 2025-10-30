@@ -1,7 +1,12 @@
 use std::time::Duration;
 use std::vec;
 
-use apollo_consensus_config::config::TimeoutsConfig;
+use apollo_consensus_config::config::{
+    ConsensusConfig,
+    ConsensusDynamicConfig,
+    ConsensusStaticConfig,
+    TimeoutsConfig,
+};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
@@ -107,12 +112,17 @@ async fn manager_multiple_heights_unordered() {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
+    // TODO(Asmaa): Extract to a #[fixture]
+    let consensus_config = ConsensusConfig::from_parts(
+        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+            ..Default::default()
+        },
     );
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -179,13 +189,19 @@ async fn run_consensus_sync() {
     let mut network_sender = mock_network.broadcasted_messages_sender;
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+    let consensus_config = ConsensusConfig::from_parts(
+        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+            ..Default::default()
+        },
+    );
     let run_consensus_args = RunConsensusArguments {
+        consensus_config,
         start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
-        validator_id: *VALIDATOR_ID,
-        consensus_delay: Duration::ZERO,
-        timeouts: TIMEOUTS.clone(),
-        sync_retry_interval: SYNC_RETRY_INTERVAL,
         quorum_type: QuorumType::Byzantine,
     };
     // Start at height 1.
@@ -243,12 +259,16 @@ async fn test_timeouts() {
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
+    let consensus_config = ConsensusConfig::from_parts(
+        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+            ..Default::default()
+        },
     );
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -304,12 +324,16 @@ async fn timely_message_handling() {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
+    let consensus_config = ConsensusConfig::from_parts(
+        ConsensusDynamicConfig { validator_id: *VALIDATOR_ID },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+            ..Default::default()
+        },
     );
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let res = manager
         .run_height(
             &mut context,
