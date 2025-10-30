@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -60,4 +61,27 @@ pub(crate) fn copy_dir_contents(src: &Path, dst: &Path) {
             });
         }
     }
+}
+
+/// Parses a flat `Vec<String>` of benchmark names and limits into a HashMap.
+/// The input vector should contain pairs: [bench_name1, limit1, bench_name2, limit2, ...].
+///
+/// # Panics
+/// Panics if any limit value cannot be parsed as f64.
+/// Panics if the input vector has an odd number of elements.
+pub fn parse_absolute_time_limits(args: Vec<String>) -> HashMap<String, f64> {
+    assert!(
+        args.len() % 2 == 0,
+        "Invalid number of absolute time limits arguments: expected even number, got {}",
+        args.len()
+    );
+    let mut limits = HashMap::new();
+    for chunk in args.chunks(2) {
+        let bench_name = chunk[0].clone();
+        let limit = chunk[1].parse::<f64>().unwrap_or_else(|_| {
+            panic!("Invalid limit value for benchmark '{}': '{}'", bench_name, chunk[1])
+        });
+        limits.insert(bench_name, limit);
+    }
+    limits
 }
