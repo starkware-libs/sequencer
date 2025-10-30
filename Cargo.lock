@@ -1742,6 +1742,7 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_integration_tests",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_provider_config",
  "apollo_l1_provider_types",
