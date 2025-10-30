@@ -6,6 +6,7 @@ use bench_tools::types::benchmark_config::{
     find_benchmarks_by_package,
     BENCHMARKS,
 };
+use bench_tools::utils::parse_absolute_time_limits;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -45,6 +46,10 @@ enum Commands {
         /// Maximum acceptable regression percentage (e.g., 5.0 for 5%).
         #[arg(long)]
         regression_limit: f64,
+        /// Set absolute time limit for a specific benchmark (can be used multiple times).
+        /// Format: --set-absolute-time-ns-limit <bench_name> <limit_ns>
+        #[arg(long, value_names = ["BENCH_NAME", "LIMIT_NS"], num_args = 2, action = clap::ArgAction::Append)]
+        set_absolute_time_ns_limit: Vec<String>,
     },
     /// List benchmarks for a package.
     List {
@@ -75,18 +80,27 @@ fn main() {
 
             bench_tools::runner::run_benchmarks(&benchmarks, input_dir.as_deref(), &out);
         }
-        Commands::RunAndCompare { package, out, input_dir, regression_limit } => {
+        Commands::RunAndCompare {
+            package,
+            out,
+            input_dir,
+            regression_limit,
+            set_absolute_time_ns_limit,
+        } => {
             let benchmarks = find_benchmarks_by_package(&package);
 
             if benchmarks.is_empty() {
                 panic!("No benchmarks found for package: {}", package);
             }
 
+            let absolute_time_ns_limits = parse_absolute_time_limits(set_absolute_time_ns_limit);
+
             bench_tools::runner::run_and_compare_benchmarks(
                 &benchmarks,
                 input_dir.as_deref(),
                 &out,
                 regression_limit,
+                absolute_time_ns_limits,
             );
         }
         Commands::List { package } => match package {
