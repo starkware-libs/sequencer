@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "testing", test))]
 use starknet_api::compression_utils::compress_and_encode;
-use starknet_api::compression_utils::{decode_and_decompress, CompressionError};
+use starknet_api::compression_utils::{decode_and_decompress_with_size_limit, CompressionError};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
@@ -282,7 +282,12 @@ impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
     fn try_from(
         rest_sierra_contract_class: DeprecatedGatewaySierraContractClass,
     ) -> Result<Self, Self::Error> {
-        let sierra_program = decode_and_decompress(&rest_sierra_contract_class.sierra_program)?;
+        // TODO(dan): use config for this.
+        const MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
+        let sierra_program = decode_and_decompress_with_size_limit(
+            &rest_sierra_contract_class.sierra_program,
+            MAX_SIERRA_PROGRAM_SIZE,
+        )?;
         Ok(SierraContractClass {
             sierra_program,
             contract_class_version: rest_sierra_contract_class.contract_class_version,
