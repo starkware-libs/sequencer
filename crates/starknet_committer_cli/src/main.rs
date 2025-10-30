@@ -7,6 +7,7 @@ use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::storage_trait::Storage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -73,80 +74,94 @@ enum Command {
     StorageBenchmark(StorageArgs),
 }
 
+/// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
+/// Different invocations of this function are used with different concrete storage types.
+async fn run_storage_benchmark_wrapper<S: Storage>(
+    StorageArgs {
+        seed,
+        n_iterations,
+        n_diffs,
+        storage_type,
+        checkpoint_interval,
+        data_path,
+        output_dir,
+        checkpoint_dir,
+        ..
+    }: StorageArgs,
+    storage: S,
+) {
+    let output_dir = output_dir
+        .clone()
+        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
+    let checkpoint_dir = checkpoint_dir
+        .clone()
+        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}"));
+
+    let checkpoint_dir_arg = match storage_type {
+        StorageType::Mdbx | StorageType::CachedMdbx => Some(checkpoint_dir.as_str()),
+        StorageType::MapStorage => None,
+    };
+
+    run_storage_benchmark(
+        seed,
+        n_iterations,
+        n_diffs,
+        &output_dir,
+        checkpoint_dir_arg,
+        storage,
+        checkpoint_interval,
+    )
+    .await;
+}
+
 pub async fn run_committer_cli(
     committer_command: CommitterCliCommand,
     log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
     info!("Starting committer-cli with command: \n{:?}", committer_command);
     match committer_command.command {
-        Command::StorageBenchmark(StorageArgs {
-            seed,
-            n_iterations,
-            n_diffs,
-            storage_type,
-            cache_size,
-            checkpoint_interval,
-            log_level,
-            data_path,
-            storage_path,
-            output_dir,
-            checkpoint_dir,
-        }) => {
-            modify_log_level(log_level, log_filter_handle);
-            let output_dir = output_dir
-                .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
-            let checkpoint_dir = checkpoint_dir.unwrap_or_else(|| {
-                format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}")
-            });
+        Command::StorageBenchmark(storage_args) => {
+            let StorageArgs {
+                ref log_level,
+                ref storage_path,
+                ref data_path,
+                ref storage_type,
+                ref cache_size,
+                ..
+            } = storage_args;
 
+            modify_log_level(log_level.clone(), log_filter_handle);
+
+            // Construct the storage path.
+            // Create the path on filesystem only if we are using filesystem-based storage.
+            let storage_path = storage_path
+                .clone()
+                .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
+            match storage_type {
+                StorageType::MapStorage => (),
+                StorageType::Mdbx | StorageType::CachedMdbx => {
+                    fs::create_dir_all(&storage_path).expect("Failed to create storage directory.")
+                }
+            };
+
+            // Run the storage benchmark.
+            // Explicitly create a different concrete storage type in each match arm to avoid
+            // dynamic dispatch.
             match storage_type {
                 StorageType::MapStorage => {
                     let storage = MapStorage::default();
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
-                        None,
-                        storage,
-                        checkpoint_interval,
-                    )
-                    .await;
+                    run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
                 StorageType::Mdbx => {
-                    let storage_path = storage_path
-                        .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
-                    fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
-                        Some(&checkpoint_dir),
-                        storage,
-                        checkpoint_interval,
-                    )
-                    .await;
+                    run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
                 StorageType::CachedMdbx => {
-                    let storage_path = storage_path
-                        .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
-                    fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
                     let storage = CachedStorage::new(
                         MdbxStorage::open(Path::new(&storage_path)).unwrap(),
-                        NonZeroUsize::new(cache_size).unwrap(),
+                        NonZeroUsize::new(*cache_size).unwrap(),
                     );
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
-                        Some(&checkpoint_dir),
-                        storage,
-                        checkpoint_interval,
-                    )
-                    .await;
+                    run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
             }
         }
