@@ -274,6 +274,62 @@ class NamespaceAndInstructionArgs:
         ]
 
 
+class ConfigValuesUpdater(ABC):
+    """Abstract class for updating configuration values for different service instances."""
+
+    def get_updated_config(self, orig_config_yaml: str, instance_index: int) -> str:
+        """Get updated configuration YAML for a specific instance.
+
+        Args:
+            orig_config_yaml: Original configuration as YAML string
+            instance_index: Index of the instance to update configuration for
+
+        Returns:
+            Updated configuration as YAML string
+        """
+        config, config_data = parse_config_from_yaml(orig_config_yaml)
+        updated_config_data = self.get_updated_config_for_instance(config_data, instance_index)
+        return serialize_config_to_yaml(config, updated_config_data)
+
+    @abstractmethod
+    def get_updated_config_for_instance(
+        self, config_data: dict[str, Any], instance_index: int
+    ) -> dict[str, Any]:
+        """Get updated configuration data for a specific instance.
+
+        Args:
+            config_data: Current configuration data dictionary
+            instance_index: Index of the instance to update configuration for
+
+        Returns:
+            Updated configuration data dictionary
+        """
+
+
+class ConstConfigValuesUpdater(ConfigValuesUpdater):
+    """Concrete implementation that applies constant configuration overrides."""
+
+    def __init__(self, config_overrides: dict[str, Any]):
+        """Initialize with configuration overrides.
+
+        Args:
+            config_overrides: Dictionary of configuration keys and values to override
+        """
+        self.config_overrides = config_overrides
+
+    def get_updated_config_for_instance(
+        self, config_data: dict[str, Any], instance_index: int
+    ) -> dict[str, Any]:
+        """Apply the same configuration overrides to the config data for each instance."""
+        updated_config = config_data.copy()
+
+        for key, value in self.config_overrides.items():
+            print_colored(f"  Overriding config: {key} = {value}")
+            updated_config[key] = value
+
+        return updated_config
+
+
 class ServiceRestarter(ABC):
     """Abstract class for restarting service instances."""
 
@@ -326,7 +382,6 @@ class ServiceRestarter(ABC):
     @abstractmethod
     def restart_service(self, instance_index: int) -> bool:
         """Restart service for a specific instance. If returns False, the restart process should be aborted."""
-        pass
 
     # from_restart_strategy is a static method that returns the appropriate ServiceRestarter based on the restart strategy.
     @staticmethod
@@ -541,22 +596,6 @@ def serialize_config_to_yaml(full_config: dict, config_data: dict) -> str:
     return result
 
 
-def update_config_values(
-    config_content: str,
-    config_overrides: dict[str, Any] = None,
-) -> str:
-    """Update configuration values in the YAML content and return the updated YAML"""
-    # Parse the configuration
-    config, config_data = parse_config_from_yaml(config_content)
-
-    for key, value in config_overrides.items():
-        print_colored(f"  Overriding config: {key} = {value}")
-        config_data[key] = value
-
-    # Serialize back to YAML
-    return serialize_config_to_yaml(config, config_data)
-
-
 def normalize_config(config_content: str) -> str:
     """Normalize configuration by parsing and re-serializing without changes.
 
@@ -633,12 +672,12 @@ def apply_configmap(
 
 
 def update_config_and_restart_nodes(
-    config_overrides: dict[str, Any],
+    config_values_updater: ConfigValuesUpdater,
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
     restarter: ServiceRestarter,
 ) -> None:
-    assert config_overrides is not None, "config_overrides must be provided"
+    assert config_values_updater is not None, "config_values_updater must be provided"
     assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
 
     if not namespace_and_instruction_args.cluster_list:
@@ -669,7 +708,7 @@ def update_config_and_restart_nodes(
         )
 
         # Update config
-        updated_config = update_config_values(original_config, config_overrides)
+        updated_config = config_values_updater.get_updated_config(original_config, index)
 
         # Store configs
         configs.append({"original": original_config, "updated": updated_config})
