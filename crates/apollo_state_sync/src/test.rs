@@ -72,8 +72,12 @@ async fn test_get_block() {
 async fn test_get_block_hash() {
     let (mut state_sync, mut storage_writer) = setup();
 
-    let Block { header: expected_header, body: expected_body } =
+    let Block { header: mut expected_header, body: expected_body } =
         get_test_block(1, None, None, None);
+
+    // get_test_block returns a block with parent_hash == block_hash. Need to change that to make
+    // sure we don't return the parent hash
+    expected_header.block_hash.0 += Felt::from(1);
 
     storage_writer
         .begin_rw_txn()
