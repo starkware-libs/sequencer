@@ -14,6 +14,8 @@ pub enum CompressionError {
     Serde(#[from] serde_json::Error),
     #[error(transparent)]
     Decode(#[from] base64::DecodeError),
+    #[error("Decompressed data exceeds maximum size limit of {limit} bytes")]
+    SizeLimitExceeded { limit: usize },
 }
 
 /// Compress the value using gzip with the default compression level and encode it in base64.
@@ -27,11 +29,38 @@ where
     Ok(base64::encode(compressed_data))
 }
 
-/// Decompress the value from base64 and gzip.
-pub fn decode_and_decompress<T: DeserializeOwned>(value: &str) -> Result<T, CompressionError> {
-    let decoded_data = base64::decode(value)?;
+/// Decompresses the provided data with size limits.
+fn decompress_with_size_limit(
+    decoded_data: Vec<u8>,
+    max_size: usize,
+) -> Result<Vec<u8>, CompressionError> {
     let mut decompressor = flate2::read::GzDecoder::new(&decoded_data[..]);
-    let mut decompressed_data = String::new();
-    decompressor.read_to_string(&mut decompressed_data)?;
-    Ok(serde_json::from_str(&decompressed_data)?)
+    let mut decompressed_data = Vec::new();
+
+    let mut buffer = [0u8; 8192];
+    let mut total_size = 0;
+    loop {
+        let bytes_read = decompressor.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        total_size += bytes_read;
+        if total_size > max_size {
+            return Err(CompressionError::SizeLimitExceeded { limit: max_size });
+        }
+        decompressed_data.extend_from_slice(&buffer[..bytes_read]);
+    }
+
+    Ok(decompressed_data)
+}
+
+/// Decodes the provided data with size limits.
+// TODO(dan): consider limiting the time it takes to decompress.
+pub fn decode_and_decompress_with_size_limit<T: DeserializeOwned>(
+    value: &str,
+    max_size: usize,
+) -> Result<T, CompressionError> {
+    let decoded_data = base64::decode(value)?;
+    let decompressed_data = decompress_with_size_limit(decoded_data, max_size)?;
+    Ok(serde_json::from_reader(decompressed_data.as_slice())?)
 }
