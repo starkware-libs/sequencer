@@ -1,5 +1,6 @@
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
+use serde::Serialize;
 use starknet_types_core::felt::Felt;
 
 fn instruction_to_u128(felt: &Felt) -> Result<u128, &'static str> {
@@ -18,6 +19,7 @@ enum OpcodeExt {
     Unknown,
 }
 
+#[derive(Debug, Serialize)]
 pub struct OpcodeInstanceCounts {
     pub blake_opcode_count: usize,
 }
