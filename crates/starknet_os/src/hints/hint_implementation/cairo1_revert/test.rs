@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
+use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_manager::DictManager;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use cairo_vm::types::layout_name::LayoutName;
@@ -148,7 +149,7 @@ fn test_revert(#[case] test_vector: Vec<Operation>) {
     )))];
     let state_reader = None;
     let expected_explicit_return_values = vec![];
-    let (implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
+    let (implicit_return_values, _explicit_return_values, hint_processor) = run_cairo_0_entrypoint(
         entrypoint,
         &explicit_args,
         &implicit_args,
@@ -180,6 +181,11 @@ fn test_revert(#[case] test_vector: Vec<Operation>) {
         HashSet::from_iter(actual_contract_changes.keys().map(|address| ***address)),
         contract_addresses
     );
+    let final_hint_processor_state = &hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()
+        .unwrap()
+        .cached_state;
     for (contract_address, contract_change) in actual_contract_changes.iter() {
         // Iterate over all storage changes for the contract address and verify that each change is
         // as expected.
@@ -190,9 +196,12 @@ fn test_revert(#[case] test_vector: Vec<Operation>) {
             let expected_value = expected_contract_storage.get(&full_contract_change.key).unwrap();
             assert_eq!(full_contract_change.prev_value, Felt::ZERO);
             assert_eq!(full_contract_change.new_value, *expected_value);
-            // TODO(Dori): If and when we get access to the final state of the hint processor,
-            //   verify that the current state in the execution helper for this contract address
-            //   and storage key is as expected.
+            assert_eq!(
+                final_hint_processor_state
+                    .get_storage_at(*contract_address, full_contract_change.key)
+                    .unwrap(),
+                *expected_value
+            );
         }
 
         // Verify class hashes.
