@@ -134,11 +134,18 @@ class Probe(StrictBaseModel):
 
 
 class HPA(StrictBaseModel):
-    enabled: Optional[bool] = None
-    minReplicas: Optional[int] = None
-    maxReplicas: Optional[int] = None
+    enabled: bool = False
+    minReplicas: int = 1
+    maxReplicas: int = 100
     targetCPUUtilizationPercentage: Optional[int] = None
     targetMemoryUtilizationPercentage: Optional[int] = None
+    # Additional flexible options
+    behavior: Optional[AnyDict] = None  # Custom scaling behavior
+    metrics: List[AnyDict] = Field(default_factory=list)  # Custom metrics
+    scaleUpStabilizationWindowSeconds: Optional[int] = None
+    scaleDownStabilizationWindowSeconds: Optional[int] = None
+    scaleUpPolicies: List[AnyDict] = Field(default_factory=list)
+    scaleDownPolicies: List[AnyDict] = Field(default_factory=list)
 
 
 class HealthCheck(StrictBaseModel):

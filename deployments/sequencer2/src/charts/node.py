@@ -126,7 +126,15 @@ class SequencerNodeChart(Chart):
                 if controller_type == "deployment"
                 else self.controller.statefulset
             )
-            self.hpa = HpaConstruct(self, "hpa", labels, self.service_config, k8s_controller)
+            self.hpa = HpaConstruct(
+                self,
+                "hpa",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
+                controller=k8s_controller,
+            )
 
         # Create ExternalSecret if configured
         if getattr(self.service_config, "external_secret", None):
