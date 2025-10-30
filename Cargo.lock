@@ -1751,6 +1751,7 @@ name = "apollo_l1_provider"
 version = "0.16.0-rc.1"
 dependencies = [
  "alloy",
+ "apollo_base_layer_tests",
  "apollo_batcher_types",
  "apollo_infra",
  "apollo_infra_utils",
