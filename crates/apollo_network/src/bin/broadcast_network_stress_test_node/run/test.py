@@ -20,11 +20,13 @@ Usage:
     python3 test.py --protocol gossipsub
     python3 test.py --protocol sqmr
     python3 test.py --protocol reversed-sqmr
+    python3 test.py --protocol propeller
 
-The test supports three protocols:
+The test supports four protocols:
 - Gossipsub: Traditional pub/sub broadcasting
 - SQMR: Query/response protocol where broadcaster sends queries
 - ReveresedSqmr: Query/response protocol where receivers send queries
+- Propeller: Leader-based erasure-coded broadcasting
 """
 
 import subprocess
@@ -225,6 +227,8 @@ def run_protocol_test(protocol_name):
         "2",
         "--network-protocol",
         protocol_name,
+        "--message-size-bytes",
+        "1024",  # 1024 bytes (multiple of 64, compatible with Propeller)
     ]
 
     print(f"Running command: {' '.join(cmd)}")
@@ -338,7 +342,7 @@ def run_protocol_test(protocol_name):
 
 def run_all_tests():
     """Run tests for all network protocols."""
-    protocols = ["gossipsub", "sqmr", "reversed-sqmr"]
+    protocols = ["gossipsub", "sqmr", "reversed-sqmr", "propeller"]
     results = {}
 
     for protocol in protocols:
@@ -370,7 +374,7 @@ def main():
     parser = argparse.ArgumentParser(description="Network Protocol Test Suite")
     parser.add_argument(
         "--protocol",
-        choices=["gossipsub", "sqmr", "reversed-sqmr", "all"],
+        choices=["gossipsub", "sqmr", "reversed-sqmr", "propeller", "all"],
         default="all",
         help="Protocol to test (default: all)",
     )
@@ -379,7 +383,7 @@ def main():
     if args.protocol == "all":
         print("=" * 80)
         print("Network Protocol Comparison Test")
-        print("Testing: Gossipsub, SQMR, and ReveresedSqmr")
+        print("Testing: Gossipsub, SQMR, ReveresedSqmr, and Propeller")
         print("=" * 80)
         print()
 
