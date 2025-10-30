@@ -39,7 +39,6 @@ def set_revert_mode(
     project_name: str,
     should_revert: bool,
     revert_up_to_block: int,
-    restart_strategy: RestartStrategy,
 ):
     config_overrides = {
         "revert_config.should_revert": should_revert,
@@ -60,7 +59,7 @@ def set_revert_mode(
         post_restart_instructions,
     )
     restarter = ServiceRestarter.from_restart_strategy(
-        restart_strategy,
+        RestartStrategy.ALL_AT_ONCE,
         namespace_and_instruction_args,
         Service.Core,
     )
@@ -77,41 +76,34 @@ def main():
     usage_example = """
 Examples:
   # Set revert mode up to a specific block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --revert-only --revert_up_to_block 12345
-  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -b 12345
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --revert_up_to_block 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -b 12345
   
   # Set revert mode using feeder URL to get current block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --revert-only --feeder-url feeder.integration-sepolia.starknet.io   
-  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --feeder-url feeder.integration-sepolia.starknet.io   
+  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Disable revert mode
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 -t all_at_once --disable-revert-only
-  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --disable-revert-only
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --disable-revert-only
+  %(prog)s -n apollo-sepolia-integration -N 3 --disable-revert-only
   
   # Set revert mode with cluster prefix
-  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster -t all_at_once --revert-only -b 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --revert-only -b 12345
   
   # Set revert mode with feeder URL and cluster prefix
-  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
-  
-  # Disable revert mode without restarting nodes
-  %(prog)s -n apollo-sepolia-integration -N 3 -t no_restart --disable-revert-only
-  
-  # Set revert mode with explicit restart
-  %(prog)s -n apollo-sepolia-integration -N 3 -t all_at_once --revert-only -b 12345
-  
-  # Set revert mode with feeder URL and explicit restart
-  %(prog)s -n apollo-sepolia-integration -N 3 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Set revert mode starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 -t all_at_once --revert-only -b 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --revert-only -b 12345
   
   # Set revert mode with feeder URL starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 -t one_by_one --revert-only -f feeder.integration-sepolia.starknet.io
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --revert-only -f feeder.integration-sepolia.starknet.io
         """
 
     args_builder = ApolloArgsParserBuilder(
-        "Sets or unsets the revert mode for the sequencer nodes", usage_example
+        "Sets or unsets the revert mode for the sequencer nodes",
+        usage_example,
+        include_restart_strategy=False,
     )
 
     revert_group = args_builder.parser.add_mutually_exclusive_group()
@@ -137,14 +129,11 @@ Examples:
     # TODO(guy.f): Remove this when we rely on metrics for restarting.
     args_builder.add_argument(
         "--project-name",
+        required=True,
         help="The name of the project to get logs from. If One_By_One strategy is used, this is required.",
     )
 
     args = args_builder.build()
-
-    if args.restart_strategy == RestartStrategy.ONE_BY_ONE and args.project_name is None:
-        print_error("Error: --project-name is required when using One_By_One strategy")
-        sys.exit(1)
 
     should_revert = not args.disable_revert_only
     if should_revert:
@@ -182,7 +171,6 @@ Examples:
             args.project_name,
             True,
             revert_up_to_block,
-            args.restart_strategy,
         )
     if should_disable_revert:
         print_colored(f"\nDisabling revert mode")
@@ -193,7 +181,6 @@ Examples:
             args.project_name,
             False,
             18446744073709551615,
-            args.restart_strategy,
         )
 
 
