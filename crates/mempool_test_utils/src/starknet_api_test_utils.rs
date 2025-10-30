@@ -170,16 +170,9 @@ pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
+#[derive(Debug, Default)]
 struct L1HandlerTransactionGenerator {
-    // The L1 nonce for the next created L1 handler transaction.
-    l1_tx_nonce: u64,
-}
-
-impl Default for L1HandlerTransactionGenerator {
-    /// The Anvil instance is spawned with a nonce of 1 for the account [Self::L1_ACCOUNT_ADDRESS].
-    fn default() -> Self {
-        Self { l1_tx_nonce: 1 }
-    }
+    n_generated_txs: usize,
 }
 
 impl L1HandlerTransactionGenerator {
@@ -188,7 +181,8 @@ impl L1HandlerTransactionGenerator {
     /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
     /// [TestContract](FeatureContract::TestContract).
     fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
-        self.l1_tx_nonce += 1;
+        self.n_generated_txs += 1;
+
         // TODO(Arni): Get test contract from test setup.
         let test_contract =
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -205,10 +199,6 @@ impl L1HandlerTransactionGenerator {
             ],
             ..Default::default()
         }
-    }
-
-    fn n_generated_txs(&self) -> u64 {
-        self.l1_tx_nonce - 1
     }
 }
 
@@ -286,8 +276,9 @@ impl MultiAccountTransactionGenerator {
                 contract_address_salt: tx_gen.contract_address_salt,
             })
             .collect();
-        let l1_handler_tx_generator =
-            L1HandlerTransactionGenerator { l1_tx_nonce: self.l1_handler_tx_generator.l1_tx_nonce };
+        let l1_handler_tx_generator = L1HandlerTransactionGenerator {
+            n_generated_txs: self.l1_handler_tx_generator.n_generated_txs,
+        };
 
         Self { account_tx_generators, nonce_manager, l1_handler_tx_generator }
     }
@@ -374,10 +365,7 @@ impl MultiAccountTransactionGenerator {
     }
 
     pub fn n_l1_txs(&self) -> usize {
-        self.l1_handler_tx_generator
-            .n_generated_txs()
-            .try_into()
-            .expect("Failed to convert nonce to usize")
+        self.l1_handler_tx_generator.n_generated_txs
     }
 }
 
