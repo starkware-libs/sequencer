@@ -48,13 +48,13 @@ fn prepare_inputs(bench: &BenchmarkConfig, input_dir: Option<&str>) {
 fn run_single_benchmark(bench: &BenchmarkConfig) {
     println!("Running: {}", bench.name);
 
-    let output = std::process::Command::new("cargo")
+    let status = std::process::Command::new("cargo")
         .args(bench.cmd_args)
-        .output()
+        .status()
         .unwrap_or_else(|e| panic!("Failed to execute {}: {}", bench.name, e));
 
-    if !output.status.success() {
-        panic!("\nBenchmark {} failed:\n{}", bench.name, String::from_utf8_lossy(&output.stderr));
+    if !status.success() {
+        panic!("\nBenchmark {} failed with exit code: {:?}", bench.name, status.code());
     }
 }
 
