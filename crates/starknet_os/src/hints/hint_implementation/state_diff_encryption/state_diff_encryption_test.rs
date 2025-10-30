@@ -153,17 +153,18 @@ fn test_state_diff_encryption_function(
     ];
     let state_reader = None;
     let expected_explicit_return_values: Vec<EndpointArg> = vec![];
-    let (implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
-        entrypoint,
-        &explicit_args,
-        &implicit_args,
-        state_reader,
-        &mut runner,
-        &program,
-        &runner_config,
-        &expected_explicit_return_values,
-    )
-    .unwrap();
+    let (implicit_return_values, _explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            &mut runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
     // [range_check_ptr, encrypted_dst_end]
     assert_eq!(implicit_return_values.len(), 2);
     let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::RelocatableValue(encrypted_dst_end))) =
@@ -257,17 +258,18 @@ fn test_compute_public_keys_function(#[case] seed: u64, #[case] num_committee_me
     ];
     let state_reader = None;
     let expected_explicit_return_values: Vec<EndpointArg> = vec![];
-    let (implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
-        entrypoint,
-        &explicit_args,
-        &implicit_args,
-        state_reader,
-        &mut runner,
-        &program,
-        &runner_config,
-        &expected_explicit_return_values,
-    )
-    .unwrap();
+    let (implicit_return_values, _explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            &mut runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
 
     // [range_check_ptr, ec_op_ptr, encrypted_dst_end]
     assert_eq!(implicit_return_values.len(), 3);
@@ -357,17 +359,18 @@ fn test_symmetric_key_encryption_function(#[case] seed: u64, #[case] num_committ
 
     let state_reader = None;
     let expected_explicit_return_values: Vec<EndpointArg> = vec![];
-    let (implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
-        entrypoint,
-        &explicit_args,
-        &implicit_args,
-        state_reader,
-        &mut runner,
-        &program,
-        &runner_config,
-        &expected_explicit_return_values,
-    )
-    .unwrap();
+    let (implicit_return_values, _explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            &mut runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
 
     // [range_check_ptr, ec_op_ptr, encrypted_dst_end]
     assert_eq!(implicit_return_values.len(), 3);
