@@ -47,6 +47,6 @@ class ConfigMapConstruct(BaseConstruct):
         return k8s.KubeConfigMap(
             self,
             "configmap",
-            metadata=k8s.ObjectMeta(name=f"{self.service_config.name}-config"),
+            metadata=k8s.ObjectMeta(name=f"sequencer-{self.service_config.name}-config"),
             data=dict(config=config_data),
         )

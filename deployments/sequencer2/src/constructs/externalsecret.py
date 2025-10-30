@@ -64,7 +64,10 @@ class ExternalSecretConstruct(BaseConstruct):
         return ExternalSecret(
             self,
             "external-secret",
-            metadata=ApiObjectMetadata(labels=self.labels),
+            metadata=ApiObjectMetadata(
+                name=f"sequencer-{self.service_config.name}-externalsecret",
+                labels=self.labels,
+            ),
             spec=spec,
         )
 

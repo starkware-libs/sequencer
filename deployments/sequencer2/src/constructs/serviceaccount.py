@@ -54,7 +54,8 @@ class ServiceAccountConstruct(BaseConstruct):
             self,
             "service-account",
             metadata=k8s.ObjectMeta(
-                name=self.service_config.serviceAccount.name or f"{self.service_config.name}-sa",
+                name=self.service_config.serviceAccount.name
+                or f"sequencer-{self.service_config.name}-sa",
                 labels=sa_labels,
                 annotations=self.service_config.serviceAccount.annotations,
             ),

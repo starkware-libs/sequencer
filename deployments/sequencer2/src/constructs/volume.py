@@ -11,14 +11,18 @@ class VolumeConstruct(Construct):
         self.service_config = service_config
         self.labels = labels
 
-        self.pvc = self._get_persistent_volume_claim()
+        pv = getattr(self.service_config, "persistentVolume", None)
+        if pv and getattr(pv, "enabled", False) and not getattr(pv, "existingClaim", None):
+            self.pvc = self._create_persistent_volume_claim()
+        else:
+            self.pvc = None
 
-    def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
+    def _create_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
         return k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
             metadata=k8s.ObjectMeta(
-                name=f"sequencer-{self.service_config.name}-data", labels=self.labels
+                name=f"sequencer-{self.service_config.name}-pvc", labels=self.labels
             ),
             spec=k8s.PersistentVolumeClaimSpec(
                 storage_class_name=self.service_config.persistentVolume.storageClass,
