@@ -18,6 +18,8 @@ use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 use serde_with::skip_serializing_none;
 
+use crate::queries_builder::queries as QB;
+
 #[cfg(test)]
 #[path = "dashboard_test.rs"]
 mod dashboard_test;
@@ -288,12 +290,11 @@ impl Panel {
         denominator_parts: &[&MetricCounter],
         duration: &str,
     ) -> Self {
-        let numerator_expr =
-            format!("increase({}[{}])", numerator.get_name_with_filter(), duration);
+        let numerator_expr = QB::increase(numerator, duration);
 
         let denominator_expr = denominator_parts
             .iter()
-            .map(|m| format!("increase({}[{}])", m.get_name_with_filter(), duration))
+            .map(|m| QB::increase(*m, duration))
             .collect::<Vec<_>>()
             .join(" + ");
 

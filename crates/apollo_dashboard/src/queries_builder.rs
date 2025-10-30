@@ -1,8 +1,6 @@
 pub(crate) mod queries {
-    #[cfg(test)]
     use apollo_metrics::metrics::MetricCommon;
 
-    #[cfg(test)]
     pub(crate) fn increase(metric: &dyn MetricCommon, duration: &str) -> String {
         format!("increase({}[{}])", metric.get_name_with_filter(), duration)
     }

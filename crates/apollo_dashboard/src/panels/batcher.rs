@@ -15,12 +15,13 @@ use apollo_consensus_orchestrator::metrics::{
 use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::queries_builder::queries as QB;
 
 fn get_panel_validator_wasted_txs() -> Panel {
     Panel::new(
         "Proposal Validation: Wasted TXs",
         "Number of txs executed by the validator but excluded from the block (10m window)",
-        format!("increase({}[10m])", VALIDATOR_WASTED_TXS.get_name_with_filter()),
+        QB::increase(&VALIDATOR_WASTED_TXS, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("Finished building block as validator. Started executing")
@@ -30,7 +31,7 @@ fn get_panel_proposer_deferred_txs() -> Panel {
     Panel::new(
         "Proposal Build: Deferred TXs",
         "Number of txs started execution by the proposer but excluded from the block (10m window)",
-        format!("increase({}[10m])", PROPOSER_DEFERRED_TXS.get_name_with_filter()),
+        QB::increase(&PROPOSER_DEFERRED_TXS, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("Finished building block as proposer. Started executing")
@@ -47,24 +48,21 @@ fn get_panel_storage_height() -> Panel {
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
+    let rejected_txs_expr = QB::increase(&REJECTED_TRANSACTIONS, "10m");
+    let reverted_txs_expr = QB::increase(&REVERTED_TRANSACTIONS, "10m");
+
     let denominator_expr = format!(
-        "(increase({}[10m]) + increase({}[10m]) + increase({}[10m]))",
-        REJECTED_TRANSACTIONS.get_name_with_filter(),
-        REVERTED_TRANSACTIONS.get_name_with_filter(),
-        BATCHED_TRANSACTIONS.get_name_with_filter(),
+        "({} + {} + {})",
+        rejected_txs_expr,
+        reverted_txs_expr,
+        QB::increase(&BATCHED_TRANSACTIONS, "10m"),
     );
     Panel::new_multi_expr(
         "Rejected / Reverted TXs Ratio",
         "Ratio of rejected / reverted transactions out of all processed txs (10m window)",
         vec![
-            format!(
-                "increase({}[10m]) / {denominator_expr}",
-                REJECTED_TRANSACTIONS.get_name_with_filter(),
-            ),
-            format!(
-                "increase({}[10m]) / {denominator_expr}",
-                REVERTED_TRANSACTIONS.get_name_with_filter(),
-            ),
+            format!("{rejected_txs_expr} / {denominator_expr}"),
+            format!("{reverted_txs_expr} / {denominator_expr}"),
         ],
         PanelType::TimeSeries,
     )

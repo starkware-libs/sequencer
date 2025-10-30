@@ -46,6 +46,7 @@ use apollo_network::network_manager::metrics::{
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::queries_builder::queries as QB;
 
 // The key events that are relevant to the consensus panel.
 const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
@@ -96,7 +97,7 @@ pub(crate) fn get_panel_consensus_round_advanced() -> Panel {
         "Consensus Round Advanced",
         "The number of times the consensus round advanced (counter is increased whenever round > \
          0) (10m window)",
-        format!("increase({}[10m])", CONSENSUS_ROUND_ADVANCES.get_name_with_filter()),
+        QB::increase(&CONSENSUS_ROUND_ADVANCES, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
@@ -131,10 +132,7 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
         "Decisions Reached By Consensus",
         "The number of decisions reached by way of consensus (10m window)",
-        format!(
-            "increase({}[10m])",
-            CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
-        ),
+        QB::increase(&CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("DECISION_REACHED: Decision reached for round")
@@ -145,7 +143,7 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
         "Decisions Reached By Sync",
         "The number of decisions reached by way of sync (10m window)",
-        format!("increase({}[10m])", CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()),
+        QB::increase(&CONSENSUS_DECISIONS_REACHED_BY_SYNC, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("Decision learned via sync protocol.")
@@ -156,7 +154,7 @@ fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Received Proposals",
         "The number of proposals received from the network (10m window)",
-        format!("increase({}[10m])", CONSENSUS_PROPOSALS_RECEIVED.get_name_with_filter()),
+        QB::increase(&CONSENSUS_PROPOSALS_RECEIVED, "10m"),
         PanelType::TimeSeries,
     )
 }
@@ -165,7 +163,7 @@ fn get_panel_consensus_proposals_validated() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Validated Proposals",
         "The number of proposals received and validated successfully (10m window)",
-        format!("increase({}[10m])", CONSENSUS_PROPOSALS_VALIDATED.get_name_with_filter()),
+        QB::increase(&CONSENSUS_PROPOSALS_VALIDATED, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
@@ -176,7 +174,7 @@ fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Invalid Proposals",
         "The number of proposals received and failed validation (10m window)",
-        format!("increase({}[10m])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
+        QB::increase(&CONSENSUS_PROPOSALS_INVALID, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
@@ -202,7 +200,7 @@ fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
         "Proposal Build: Number of Proposals Started",
         "The number of proposals that started building (10m window)",
-        format!("increase({}[10m])", CONSENSUS_BUILD_PROPOSAL_TOTAL.get_name_with_filter()),
+        QB::increase(&CONSENSUS_BUILD_PROPOSAL_TOTAL, "10m"),
         PanelType::TimeSeries,
     )
 }
@@ -211,7 +209,7 @@ fn get_panel_consensus_build_proposal_failed() -> Panel {
     Panel::new(
         "Proposal Build: Number of Proposals Failed",
         "The number of proposals that failed to be built (10m window)",
-        format!("increase({}[10m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+        QB::increase(&CONSENSUS_BUILD_PROPOSAL_FAILED, "10m"),
         PanelType::TimeSeries,
     )
 }
@@ -290,7 +288,7 @@ fn get_panel_cende_write_blob_success() -> Panel {
     Panel::new(
         "Write Blob Success",
         "The number of successful blob writes to Cende (10m window)",
-        format!("increase({}[10m])", CENDE_WRITE_BLOB_SUCCESS.get_name_with_filter()),
+        QB::increase(&CENDE_WRITE_BLOB_SUCCESS, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query(query_expression)
@@ -315,7 +313,7 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
         "Write Preconfirmed Block Success",
         "The number of successful writes to Cende for preconfirmed blocks (10m window). Each \
          preconfirmed block may involve multiple writes.",
-        format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
+        QB::increase(&PRECONFIRMED_BLOCK_WRITTEN, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("write_pre_confirmed_block request succeeded.")
@@ -335,7 +333,7 @@ fn get_panel_consensus_votes_num_sent_messages() -> Panel {
         "Consensus Votes Number of Sent Messages",
         "The increase in the number of vote messages sent by consensus p2p (over the selected \
          time range)",
-        format!("increase({}[$__range])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+        QB::increase(&CONSENSUS_VOTES_NUM_SENT_MESSAGES, "$__range"),
         PanelType::Stat,
     )
 }
@@ -345,10 +343,7 @@ fn get_panel_consensus_votes_num_received_messages() -> Panel {
         "Consensus Votes Number of Received Messages",
         "The increase in the number of vote messages received by consensus p2p (over the selected \
          time range)",
-        format!(
-            "increase({}[$__range])",
-            CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES.get_name_with_filter()
-        ),
+        QB::increase(&CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, "$__range"),
         PanelType::Stat,
     )
 }
@@ -358,10 +353,7 @@ fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
         "Consensus Proposals Number of Sent Messages",
         "The increase in the number of proposal messages sent by consensus p2p (over the selected \
          time range)",
-        format!(
-            "increase({}[$__range])",
-            CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.get_name_with_filter()
-        ),
+        QB::increase(&CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, "$__range"),
         PanelType::Stat,
     )
 }
@@ -371,10 +363,7 @@ fn get_panel_consensus_proposals_num_received_messages() -> Panel {
         "Consensus Proposals Number of Received Messages",
         "The increase in the number of proposal messages received by consensus p2p (over the \
          selected time range)",
-        format!(
-            "increase({}[$__range])",
-            CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES.get_name_with_filter()
-        ),
+        QB::increase(&CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, "$__range"),
         PanelType::Stat,
     )
 }
@@ -383,7 +372,7 @@ fn get_panel_consensus_conflicting_votes() -> Panel {
     Panel::new(
         "Consensus Conflicting Votes",
         "The increase in the number of conflicting votes (over the selected time range)",
-        format!("increase({}[$__range])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
+        QB::increase(&CONSENSUS_CONFLICTING_VOTES, "$__range"),
         PanelType::Stat,
     )
 }
@@ -432,10 +421,7 @@ fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
     Panel::new(
         "Consensus Decisions Reached As Proposer",
         "The number of rounds with decision reached where this node is the proposer (10m window)",
-        format!(
-            "increase({}[10m])",
-            CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.get_name_with_filter()
-        ),
+        QB::increase(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, "10m"),
         PanelType::TimeSeries,
     )
     .with_log_query("\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"")
