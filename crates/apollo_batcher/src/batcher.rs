@@ -22,9 +22,9 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
@@ -45,7 +45,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{Instrument, debug, error, info, instrument, trace};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -59,17 +59,17 @@ use crate::block_builder::{
 use crate::cende_client_types::CendeBlockMetadata;
 use crate::config::BatcherConfig;
 use crate::metrics::{
-    register_metrics,
-    ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     LAST_BATCHED_BLOCK,
     LAST_PROPOSED_BLOCK,
     LAST_SYNCED_BLOCK,
+    ProposalMetricsHandle,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
+    register_metrics,
 };
 use crate::pre_confirmed_block_writer::{
     PreconfirmedBlockWriterFactory,
@@ -79,11 +79,11 @@ use crate::pre_confirmed_block_writer::{
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
+    ProposalResult,
+    ProposalTask,
     deadline_as_instant,
     proposal_status_from,
     verify_block_input,
-    ProposalResult,
-    ProposalTask,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
@@ -527,6 +527,7 @@ impl Batcher {
 
     #[instrument(skip(self, sync_block), err)]
     pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+        let batcher_start = std::time::Instant::now();
         trace!("Received sync block: {:?}", sync_block);
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
@@ -536,7 +537,16 @@ impl Batcher {
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
         } = sync_block;
 
+        debug!("BATCHER_TIMING_START: Processing sync block for height {}", block_number);
+
+        let height_check_start = std::time::Instant::now();
         let height = self.get_height_from_storage()?;
+        info!(
+            "BATCHER_TIMING: Block {} - Height check took {:?}",
+            block_number,
+            height_check_start.elapsed()
+        );
+
         if height != block_number {
             return Err(BatcherError::StorageHeightMarkerMismatch {
                 marker_height: height,
@@ -546,10 +556,19 @@ impl Batcher {
 
         if let Some(height) = self.active_height {
             info!("Aborting all work on height {} due to state sync.", height);
+            let abort_start = std::time::Instant::now();
             self.abort_active_height().await;
+            info!(
+                "BATCHER_TIMING: Block {} - Abort active height took {:?}",
+                block_number,
+                abort_start.elapsed()
+            );
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+
+        info!("BATCHER_TIMING: Block {} - Starting commit_proposal_and_block", block_number);
+        let commit_start = std::time::Instant::now();
         self.commit_proposal_and_block(
             height,
             state_diff,
@@ -558,9 +577,21 @@ impl Batcher {
             Default::default(),
         )
         .await?;
+        let commit_time = commit_start.elapsed();
+        info!(
+            "BATCHER_TIMING: Block {} - commit_proposal_and_block took {:?}",
+            block_number, commit_time
+        );
+
         LAST_SYNCED_BLOCK.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
             (account_transaction_hashes.len() + l1_transaction_hashes.len()).try_into().unwrap(),
+        );
+
+        let total_time = batcher_start.elapsed();
+        info!(
+            "BATCHER_TIMING_END: Block {} - Total batcher processing took {:?}",
+            block_number, total_time
         );
         Ok(())
     }
@@ -633,19 +664,30 @@ impl Batcher {
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
     ) -> BatcherResult<()> {
+        let commit_block_start = std::time::Instant::now();
         info!(
-            "Committing block at height {} and notifying mempool & L1 event provider of the block.",
+            "BATCHER_STORAGE_TIMING_START: Committing block at height {} and notifying mempool & \
+             L1 event provider of the block.",
             height
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
         // Commit the proposal to the storage.
+        info!("BATCHER_STORAGE_TIMING: Block {} - Starting storage commit_proposal", height);
+        let storage_commit_start = std::time::Instant::now();
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
+        let storage_commit_time = storage_commit_start.elapsed();
+        info!(
+            "BATCHER_STORAGE_TIMING: Block {} - Storage commit_proposal took {:?}",
+            height, storage_commit_time
+        );
 
         // Notify the L1 provider of the new block.
+        info!("BATCHER_STORAGE_TIMING: Block {} - Starting L1 provider notification", height);
+        let l1_notify_start = std::time::Instant::now();
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
             .iter()
             .copied()
@@ -656,6 +698,11 @@ impl Batcher {
             .l1_provider_client
             .commit_block(consumed_l1_handler_tx_hashes, rejected_l1_handler_tx_hashes, height)
             .await;
+        let l1_notify_time = l1_notify_start.elapsed();
+        info!(
+            "BATCHER_STORAGE_TIMING: Block {} - L1 provider notification took {:?}",
+            height, l1_notify_time
+        );
 
         // Return error if the commit to the L1 provider failed.
         if let Err(err) = l1_provider_result {
@@ -677,16 +724,20 @@ impl Batcher {
                     );
                 }
             }
-            // Rollback the state diff in the storage.
-            self.storage_writer.revert_block(height);
-            return Err(BatcherError::InternalError);
         }
 
         // Notify the mempool of the new block.
+        info!("BATCHER_STORAGE_TIMING: Block {} - Starting mempool notification", height);
+        let mempool_notify_start = std::time::Instant::now();
         let mempool_result = self
             .mempool_client
             .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
             .await;
+        let mempool_notify_time = mempool_notify_start.elapsed();
+        info!(
+            "BATCHER_STORAGE_TIMING: Block {} - Mempool notification took {:?}",
+            height, mempool_notify_time
+        );
 
         if let Err(mempool_err) = mempool_result {
             // Recoverable error, mempool won't be updated with the new block.
@@ -694,6 +745,11 @@ impl Batcher {
         };
 
         STORAGE_HEIGHT.increment(1);
+        let total_commit_time = commit_block_start.elapsed();
+        info!(
+            "BATCHER_STORAGE_TIMING_END: Block {} - Total commit_proposal_and_block took {:?}",
+            height, total_commit_time
+        );
         Ok(())
     }
 
@@ -948,7 +1004,31 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        let storage_writer_start = std::time::Instant::now();
+        info!("STORAGE_WRITER_TIMING: Block {} - Starting begin_rw_txn", height);
+
+        let txn_start = std::time::Instant::now();
+        let txn = self.begin_rw_txn()?;
+        let txn_time = txn_start.elapsed();
+        info!("STORAGE_WRITER_TIMING: Block {} - begin_rw_txn took {:?}", height, txn_time);
+
+        let append_start = std::time::Instant::now();
+        let txn = txn.append_state_diff(height, state_diff)?;
+        let append_time = append_start.elapsed();
+        info!("STORAGE_WRITER_TIMING: Block {} - append_state_diff took {:?}", height, append_time);
+
+        let commit_start = std::time::Instant::now();
+        let result = txn.commit();
+        let commit_time = commit_start.elapsed();
+        info!("STORAGE_WRITER_TIMING: Block {} - commit took {:?}", height, commit_time);
+
+        let total_time = storage_writer_start.elapsed();
+        info!(
+            "STORAGE_WRITER_TIMING: Block {} - Total storage writer time {:?}",
+            height, total_time
+        );
+
+        result
     }
 
     // This function will panic if there is a storage failure to revert the block.

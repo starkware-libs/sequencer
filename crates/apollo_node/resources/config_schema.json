@@ -2297,7 +2297,17 @@
   "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
     "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
     "privacy": "Public",
+    "value": true
+  },
+  "state_sync_config.central_sync_client_config.sync_config.enable_block_batching": {
+    "description": "Whether to enable batching of block writes for better performance.",
+    "privacy": "Public",
     "value": false
+  },
+  "state_sync_config.central_sync_client_config.sync_config.block_batch_size": {
+    "description": "Number of blocks to batch together in a single database transaction.",
+    "privacy": "Public",
+    "value": 1000
   },
   "state_sync_config.central_sync_client_config.sync_config.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
