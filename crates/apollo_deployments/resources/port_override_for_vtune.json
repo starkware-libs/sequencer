@@ -1,0 +1,5 @@
+{
+    "state_sync_config.rpc_config.port": 8091,
+    "state_sync_config.network_config.port": 53141,
+    "http_server_config.port": 8081
+}
