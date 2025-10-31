@@ -114,81 +114,135 @@ class PodBuilder:
         )
 
     def _build_volume_mounts(self) -> list[k8s.VolumeMount]:
-        """Build volume mounts for the container.
-
-        Priority: schema-driven volumes; keep legacy persistentVolume for backward-compat.
-        """
+        """Build volume mounts for the container."""
         volume_mounts: list[k8s.VolumeMount] = []
 
-        # New flexible volumes (support alias additionalVolumes)
-        combined_volumes = (getattr(self.service_config, "volumes", []) or []) + (
-            getattr(self.service_config, "additionalVolumes", []) or []
-        )
-
-        for vol in combined_volumes:
+        # Always mount ConfigMap if configPaths exist
+        if self.service_config.configPaths:
             volume_mounts.append(
                 k8s.VolumeMount(
-                    name=vol.name,
-                    mount_path=vol.mountPath,
-                    read_only=vol.readOnly,
-                    sub_path=vol.subPath,
+                    name=f"sequencer-{self.service_config.name}-config",
+                    mount_path="/app/config",
+                    read_only=True,
                 )
             )
 
-        # Backward-compat: persistentVolume
-        if self.service_config.persistentVolume and self.service_config.persistentVolume.enabled:
-            if self.service_config.persistentVolume.mountPath:
-                volume_mounts.append(
-                    k8s.VolumeMount(
-                        name=f"{self.service_config.name}-data",
-                        mount_path=self.service_config.persistentVolume.mountPath,
-                    )
+        # Mount Secret if enabled
+        if (
+            self.service_config.secret
+            and self.service_config.secret.enabled
+            and (self.service_config.secret.data or self.service_config.secret.stringData)
+        ):
+            secret_name = (
+                self.service_config.secret.name or f"sequencer-{self.service_config.name}-secret"
+            )
+            secret_volume_name = f"{secret_name}-volume"
+            mount_path = (
+                self.service_config.secret.mountPath
+                if self.service_config.secret.mountPath
+                else "/app/secrets"
+            )
+            volume_mounts.append(
+                k8s.VolumeMount(
+                    name=secret_volume_name,
+                    mount_path=mount_path,
+                    read_only=True,
                 )
+            )
+
+        # Mount ExternalSecret if enabled
+        if (
+            self.service_config.externalSecret
+            and self.service_config.externalSecret.enabled
+            and self.service_config.externalSecret.data
+        ):
+            external_secret_target_name = (
+                self.service_config.externalSecret.targetName
+                if self.service_config.externalSecret.targetName
+                else f"sequencer-{self.service_config.name}-secret"
+            )
+            external_secret_volume_name = f"{external_secret_target_name}-secrets-volume"
+            mount_path = (
+                self.service_config.externalSecret.mountPath
+                if self.service_config.externalSecret.mountPath
+                else "/app/secrets"
+            )
+            volume_mounts.append(
+                k8s.VolumeMount(
+                    name=external_secret_volume_name,
+                    mount_path=mount_path,
+                    read_only=True,
+                )
+            )
+
+        # Mount persistentVolume if enabled
+        if (
+            self.service_config.persistentVolume
+            and self.service_config.persistentVolume.enabled
+            and self.service_config.persistentVolume.mountPath
+        ):
+            volume_mounts.append(
+                k8s.VolumeMount(
+                    name=f"sequencer-{self.service_config.name}-pvc",
+                    mount_path=self.service_config.persistentVolume.mountPath,
+                )
+            )
 
         return volume_mounts
 
     def _build_volumes(self) -> list[k8s.Volume]:
-        """Build volumes for the pod.
-
-        Builds from schema-driven volumes; also supports legacy persistentVolume.
-        """
+        """Build volumes for the pod."""
         volumes: list[k8s.Volume] = []
 
-        # New flexible volumes (support alias additionalVolumes)
-        combined_volumes = (getattr(self.service_config, "volumes", []) or []) + (
-            getattr(self.service_config, "additionalVolumes", []) or []
-        )
-
-        for vol in combined_volumes:
-            kwargs: dict = {"name": vol.name}
-            t = (vol.type or "").lower()
-            if t == "configmap" and vol.configMap is not None:
-                kwargs["config_map"] = k8s.ConfigMapVolumeSource.from_json(vol.configMap)
-            elif t == "secret" and vol.secret is not None:
-                s = dict(vol.secret)
-                if "name" in s and "secretName" not in s:
-                    s["secretName"] = s.pop("name")
-                kwargs["secret"] = k8s.SecretVolumeSource.from_json(s)
-            elif t == "pvc" and vol.pvc is not None:
-                pvc = dict(vol.pvc)
-                if "name" in pvc and "claimName" not in pvc:
-                    pvc["claimName"] = pvc.pop("name")
-                kwargs["persistent_volume_claim"] = k8s.PersistentVolumeClaimVolumeSource(
-                    claim_name=pvc.get("claimName"),
-                    read_only=vol.readOnly,
+        # Always create ConfigMap volume if configPaths exist
+        if self.service_config.configPaths:
+            volumes.append(
+                k8s.Volume(
+                    name=f"sequencer-{self.service_config.name}-config",
+                    config_map=k8s.ConfigMapVolumeSource(
+                        name=f"sequencer-{self.service_config.name}-config"
+                    ),
                 )
-            elif t == "emptydir":
-                kwargs["empty_dir"] = k8s.EmptyDirVolumeSource.from_json(vol.emptyDir or {})
-            elif t == "hostpath" and vol.hostPath is not None:
-                kwargs["host_path"] = k8s.HostPathVolumeSource.from_json(vol.hostPath)
-            elif t == "projected" and vol.projected is not None:
-                kwargs["projected"] = k8s.ProjectedVolumeSource.from_json(vol.projected)
-            else:
-                continue
+            )
 
-            volumes.append(k8s.Volume(**kwargs))
+        # Create Secret volume if enabled
+        if (
+            self.service_config.secret
+            and self.service_config.secret.enabled
+            and (self.service_config.secret.data or self.service_config.secret.stringData)
+        ):
+            secret_name = (
+                self.service_config.secret.name or f"sequencer-{self.service_config.name}-secret"
+            )
+            secret_volume_name = f"{secret_name}-volume"
+            volumes.append(
+                k8s.Volume(
+                    name=secret_volume_name,
+                    secret=k8s.SecretVolumeSource(secret_name=secret_name),
+                )
+            )
 
-        # Backward-compat: persistentVolume
+        # Create ExternalSecret volume if enabled
+        # ExternalSecret creates a target Secret that we mount
+        if (
+            self.service_config.externalSecret
+            and self.service_config.externalSecret.enabled
+            and self.service_config.externalSecret.data
+        ):
+            external_secret_target_name = (
+                self.service_config.externalSecret.targetName
+                if self.service_config.externalSecret.targetName
+                else f"sequencer-{self.service_config.name}-secret"
+            )
+            external_secret_volume_name = f"{external_secret_target_name}-secrets-volume"
+            volumes.append(
+                k8s.Volume(
+                    name=external_secret_volume_name,
+                    secret=k8s.SecretVolumeSource(secret_name=external_secret_target_name),
+                )
+            )
+
+        # Create persistentVolume volume if enabled
         if self.service_config.persistentVolume and self.service_config.persistentVolume.enabled:
             pvc_name = (
                 self.service_config.persistentVolume.existingClaim
@@ -197,7 +251,7 @@ class PodBuilder:
             )
             volumes.append(
                 k8s.Volume(
-                    name=f"{self.service_config.name}-data",
+                    name=f"sequencer-{self.service_config.name}-pvc",
                     persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
                         claim_name=pvc_name
                     ),

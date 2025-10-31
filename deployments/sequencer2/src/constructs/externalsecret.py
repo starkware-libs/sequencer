@@ -38,7 +38,7 @@ class ExternalSecretConstruct(BaseConstruct):
         target_name = (
             self.service_config.externalSecret.targetName
             if self.service_config.externalSecret.targetName
-            else f"{self.service_config.name}-secret"
+            else f"sequencer-{self.service_config.name}-secret"
         )
 
         spec = ExternalSecretSpec(

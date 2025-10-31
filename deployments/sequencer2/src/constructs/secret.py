@@ -42,7 +42,8 @@ class SecretConstruct(BaseConstruct):
             self,
             "secret",
             metadata=k8s.ObjectMeta(
-                name=self.service_config.secret.name or f"{self.service_config.name}-secret",
+                name=self.service_config.secret.name
+                or f"sequencer-{self.service_config.name}-secret",
                 labels=secret_labels,
                 annotations=self.service_config.secret.annotations,
             ),

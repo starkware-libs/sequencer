@@ -173,6 +173,7 @@ class ExternalSecret(StrictBaseModel):
     refreshInterval: str = "1m"
     targetName: Optional[str] = None  # Custom target secret name
     data: List[ExternalSecretData] = Field(default_factory=list)
+    mountPath: Optional[str] = None  # Where to mount the external secret (default: /app/secrets)
     # Advanced options
     template: Optional[AnyDict] = None  # Custom template for secret generation
     metadata: Optional[AnyDict] = None  # Custom metadata for the secret
@@ -206,6 +207,7 @@ class Secret(StrictBaseModel):
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
     immutable: Optional[bool] = None
+    mountPath: Optional[str] = None  # Where to mount the secret (default: /app/secrets)
 
 
 class CommonConfig(StrictBaseModel):
