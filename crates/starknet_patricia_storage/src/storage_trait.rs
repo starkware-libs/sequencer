@@ -40,6 +40,11 @@ pub trait Storage {
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
+
+    /// If implemented, returns the statistics of the storage.
+    fn get_stats(&self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Debug)]
