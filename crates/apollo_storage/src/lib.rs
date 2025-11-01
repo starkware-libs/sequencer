@@ -109,7 +109,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
@@ -118,13 +118,13 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
-    open_file,
     FileHandler,
     LocationInFile,
     MMapFileError,
     MmapFileConfig,
     Reader,
     Writer,
+    open_file,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
@@ -140,20 +140,20 @@ use version::{StorageVersionError, Version};
 use crate::body::TransactionIndex;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
-    open_env,
     DbConfig,
     DbError,
     DbReader,
     DbTransaction,
     DbWriter,
+    RO,
+    RW,
     TableHandle,
     TableIdentifier,
     TransactionKind,
-    RO,
-    RW,
+    open_env,
 };
 use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
+use crate::metrics::{STORAGE_COMMIT_LATENCY, register_metrics};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
@@ -496,8 +496,22 @@ impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
+        let start = std::time::Instant::now();
+        debug!("Starting storage transaction commit - triggering flush");
         self.file_handlers.flush();
-        Ok(self.txn.commit()?)
+        let flush_time = start.elapsed();
+
+        let db_start = std::time::Instant::now();
+        let result = self.txn.commit()?;
+        let db_time = db_start.elapsed();
+
+        debug!(
+            "Storage commit completed - flush: {:?}, db_commit: {:?}, total: {:?}",
+            flush_time,
+            db_time,
+            start.elapsed()
+        );
+        Ok(result)
     }
 }
 
@@ -739,13 +753,59 @@ impl FileHandlers<RW> {
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
-        debug!("Flushing the mmap files.");
+        let start = std::time::Instant::now();
+        debug!("Starting sequential flush of all file handlers");
+
+        let flush_start = std::time::Instant::now();
         self.thin_state_diff.flush();
+        debug!("Flushed thin_state_diff in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.contract_class.flush();
+        debug!("Flushed contract_class in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.casm.flush();
+        debug!("Flushed casm in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.deprecated_contract_class.flush();
+        debug!("Flushed deprecated_contract_class in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.transaction_output.flush();
+        debug!("Flushed transaction_output in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.transaction.flush();
+        debug!("Flushed transaction in {:?}", flush_start.elapsed());
+
+        debug!("Sequential flush completed in total time: {:?}", start.elapsed());
+    }
+
+    #[allow(dead_code)]
+    fn flush_concurrent(&self) {
+        debug!("Flushing the mmap files concurrently using threads.");
+        let thin_state_diff = self.thin_state_diff.clone();
+        let contract_class = self.contract_class.clone();
+        let casm = self.casm.clone();
+        let deprecated_contract_class = self.deprecated_contract_class.clone();
+        let transaction_output = self.transaction_output.clone();
+        let transaction = self.transaction.clone();
+        let handles = vec![
+            std::thread::spawn(move || thin_state_diff.flush()),
+            std::thread::spawn(move || contract_class.flush()),
+            std::thread::spawn(move || casm.flush()),
+            std::thread::spawn(move || deprecated_contract_class.flush()),
+            std::thread::spawn(move || transaction_output.flush()),
+            std::thread::spawn(move || transaction.flush()),
+        ];
+        for (i, handle) in handles.into_iter().enumerate() {
+            if let Err(_) = handle.join() {
+                warn!("Flush thread {} panicked during concurrent flush", i);
+            }
+        }
+        debug!("All concurrent flush operations completed.");
     }
 }
 
@@ -869,7 +929,7 @@ fn open_storage_files(
         table.get(&db_transaction, &OffsetKind::Transaction)?.unwrap_or_default();
     let (transaction_writer, transaction_reader) =
         open_file(mmap_file_config, db_config.path().join("transaction.dat"), transaction_offset)?;
-
+    // the files
     Ok((
         FileHandlers {
             thin_state_diff: thin_state_diff_writer,

@@ -25,25 +25,25 @@ use apollo_consensus::types::{
     Round,
     ValidatorId,
 };
-use apollo_l1_gas_price_types::{L1GasPriceProviderClient, DEFAULT_ETH_TO_FRI_RATE};
+use apollo_l1_gas_price_types::{DEFAULT_ETH_TO_FRI_RATE, L1GasPriceProviderClient};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
+    DEFAULT_VALIDATOR_ID,
     HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
     TransactionBatch,
     Vote,
-    DEFAULT_VALIDATOR_ID,
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
-use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
+use futures::channel::{mpsc, oneshot};
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHeaderWithoutHash,
@@ -60,20 +60,20 @@ use starknet_api::transaction::TransactionHash;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{Instrument, error, error_span, info, instrument, trace, warn};
 
-use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
+use crate::build_proposal::{BuildProposalError, ProposalBuildArguments, build_proposal};
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
-use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
-use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
+use crate::fee_market::{FeeMarketInfo, calculate_next_base_gas_price};
+use crate::metrics::{CONSENSUS_L2_GAS_PRICE, register_metrics};
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
+use crate::utils::{GasPriceParams, StreamSender, convert_to_sn_api_block_info};
 use crate::validate_proposal::{
-    validate_proposal,
     BlockInfoValidation,
     ProposalValidateArguments,
     ValidateProposalError,
+    validate_proposal,
 };
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
@@ -615,7 +615,16 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_fri_rate,
         });
         self.interrupt_active_proposal().await;
+
+        info!("SYNC_FLOW_TIMING: Block {} - Starting batcher_add_sync_block", height);
+        let sync_to_batcher_start = std::time::Instant::now();
         self.batcher_add_sync_block(sync_block).await;
+        let sync_to_batcher_time = sync_to_batcher_start.elapsed();
+        info!(
+            "SYNC_FLOW_TIMING: Block {} - Completed batcher_add_sync_block in {:?}",
+            height, sync_to_batcher_time
+        );
+
         true
     }
 
@@ -759,13 +768,27 @@ impl SequencerConsensusContext {
     }
 
     async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
+        let block_number = sync_block.block_header_without_hash.block_number;
+        let orchestrator_start = std::time::Instant::now();
+        // this is the relevant part!!!
         info!(
-            "Adding sync block to Batcher for height {}",
-            sync_block.block_header_without_hash.block_number,
+            "ORCHESTRATOR_TIMING_START: Adding sync block to Batcher for height {}",
+            block_number,
         );
+
         loop {
+            let batcher_call_start = std::time::Instant::now();
             match self.deps.batcher.add_sync_block(sync_block.clone()).await {
-                Ok(_) => break,
+                Ok(_) => {
+                    let total_time = orchestrator_start.elapsed();
+                    let batcher_time = batcher_call_start.elapsed();
+                    info!(
+                        "ORCHESTRATOR_TIMING_END: Block {} - Batcher add_sync_block completed in \
+                         {:?}, total orchestrator time {:?}",
+                        block_number, batcher_time, total_time
+                    );
+                    break;
+                }
                 Err(BatcherClientError::BatcherError(e)) => {
                     panic!("Failed to add sync block due to batcher error: {e:?}");
                 }
