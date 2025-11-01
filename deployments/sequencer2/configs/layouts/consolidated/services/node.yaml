@@ -139,6 +139,18 @@ networkPolicy:
   ingress: []
   egress: []
 
+# PriorityClass Configuration
+# See docs/PRIORITY_CLASS_CONFIGURATION.md for all available options
+priorityClass:
+  enabled: false
+  name: ""
+  annotations: {}
+  labels: {}
+  value: 1000
+  globalDefault: false
+  description: ""
+  preemptionPolicy: ""
+
 # GCP PodMonitoring Configuration
 # See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
 gcpPodMonitoring:

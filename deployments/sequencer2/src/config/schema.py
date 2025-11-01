@@ -282,6 +282,17 @@ class NetworkPolicy(StrictBaseModel):
     egress: List[AnyDict] = Field(default_factory=list)  # NetworkPolicyEgressRule
 
 
+class PriorityClass(StrictBaseModel):
+    enabled: bool = False
+    name: Optional[str] = None
+    annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    value: int  # Required: priority value (higher = more important)
+    globalDefault: bool = False  # Whether this is the default PriorityClass
+    description: Optional[str] = None  # Description of the PriorityClass
+    preemptionPolicy: Optional[str] = None  # "Never" or "PreemptLowerPriority"
+
+
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
     name: str
@@ -325,6 +336,7 @@ class ServiceConfig(StrictBaseModel):
         default=None, alias="gcpPodMonitoring"
     )  # Accepts both podMonitoring and gcpPodMonitoring in YAML
     networkPolicy: Optional[NetworkPolicy] = None
+    priorityClass: Optional[PriorityClass] = None
 
 
 class DeploymentConfig(StrictBaseModel):

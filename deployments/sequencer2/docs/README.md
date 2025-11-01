@@ -17,6 +17,7 @@ This directory contains comprehensive documentation for all Kubernetes manifest 
 - **[VOLUME_CONFIGURATION.md](VOLUME_CONFIGURATION.md)** - PersistentVolume configuration for various storage classes
 - **[POD_DISRUPTION_BUDGET_CONFIGURATION.md](POD_DISRUPTION_BUDGET_CONFIGURATION.md)** - PodDisruptionBudget configuration for pod availability during disruptions
 - **[NETWORK_POLICY_CONFIGURATION.md](NETWORK_POLICY_CONFIGURATION.md)** - NetworkPolicy configuration for pod-to-pod network traffic control
+- **[PRIORITY_CLASS_CONFIGURATION.md](PRIORITY_CLASS_CONFIGURATION.md)** - PriorityClass configuration for pod scheduling priority and preemption
 
 ### GCP-Specific Resources
 
@@ -135,6 +136,16 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 443
+```
+
+### PriorityClass
+```yaml
+priorityClass:
+  enabled: true
+  name: "sequencer-high-priority"
+  value: 2000
+  description: "High priority for production workloads"
+  preemptionPolicy: "PreemptLowerPriority"
 ```
 
 ### GCP PodMonitoring

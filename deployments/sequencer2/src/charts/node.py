@@ -12,6 +12,7 @@ from src.constructs.ingress import IngressConstruct
 from src.constructs.podmonitoring import PodMonitoringConstruct
 from src.constructs.poddisruptionbudget import PodDisruptionBudgetConstruct
 from src.constructs.networkpolicy import NetworkPolicyConstruct
+from src.constructs.priorityclass import PriorityClassConstruct
 from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
 from src.constructs.secret import SecretConstruct
@@ -203,6 +204,17 @@ class SequencerNodeChart(Chart):
             self.network_policy = NetworkPolicyConstruct(
                 self,
                 "network-policy",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
+            )
+
+        # Create PriorityClass if enabled
+        if self.service_config.priorityClass and self.service_config.priorityClass.enabled:
+            self.priority_class = PriorityClassConstruct(
+                self,
+                "priority-class",
                 common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
