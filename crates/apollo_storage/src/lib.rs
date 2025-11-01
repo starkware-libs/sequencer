@@ -104,12 +104,12 @@ mod test_instances;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::fmt::Debug;
 use std::fs;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
@@ -118,13 +118,13 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
-    open_file,
     FileHandler,
     LocationInFile,
     MMapFileError,
     MmapFileConfig,
     Reader,
     Writer,
+    open_file,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
@@ -140,20 +140,20 @@ use version::{StorageVersionError, Version};
 use crate::body::TransactionIndex;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
-    open_env,
     DbConfig,
     DbError,
     DbReader,
     DbTransaction,
     DbWriter,
+    RO,
+    RW,
     TableHandle,
     TableIdentifier,
     TransactionKind,
-    RO,
-    RW,
+    open_env,
 };
 use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
+use crate::metrics::{STORAGE_COMMIT_LATENCY, register_metrics};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
@@ -220,7 +220,23 @@ pub fn open_storage(
         scope: storage_config.scope,
         file_readers,
     };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    let batched_file_handlers = if storage_config.batch_config.enabled {
+        Some(Arc::new(BatchedFileHandlers::new(
+            file_writers.clone(),
+            storage_config.batch_config.clone(),
+        )))
+    } else {
+        None
+    };
+
+    let writer = StorageWriter {
+        db_writer,
+        tables,
+        scope: storage_config.scope,
+        file_writers,
+        batch_config: storage_config.batch_config.clone(),
+        batched_file_handlers,
+    };
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -435,6 +451,7 @@ impl StorageReader {
         Ok(StorageTxn {
             txn: self.db_reader.begin_ro_txn()?,
             file_handlers: self.file_readers.clone(),
+            batched_file_handlers: None, // Read-only doesn't need batching
             tables: self.tables.clone(),
             scope: self.scope,
         })
@@ -468,6 +485,9 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    batch_config: BatchConfig,
+    /// Shared batched file handlers that persist across transactions
+    batched_file_handlers: Option<Arc<BatchedFileHandlers<RW>>>,
 }
 
 impl StorageWriter {
@@ -477,6 +497,7 @@ impl StorageWriter {
         Ok(StorageTxn {
             txn: self.db_writer.begin_rw_txn()?,
             file_handlers: self.file_writers.clone(),
+            batched_file_handlers: self.batched_file_handlers.clone(),
             tables: self.tables.clone(),
             scope: self.scope,
         })
@@ -488,6 +509,7 @@ impl StorageWriter {
 pub struct StorageTxn<'env, Mode: TransactionKind> {
     txn: DbTransaction<'env, Mode>,
     file_handlers: FileHandlers<Mode>,
+    batched_file_handlers: Option<Arc<BatchedFileHandlers<Mode>>>,
     tables: Arc<Tables>,
     scope: StorageScope,
 }
@@ -496,8 +518,62 @@ impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
+        let start = std::time::Instant::now();
+
+        // If batching is enabled, only flush when we've accumulated enough blocks
+        let should_commit_db = if let Some(ref batched_handlers) = self.batched_file_handlers {
+            if batched_handlers.should_flush() {
+                let (count, first_block) = batched_handlers.get_batch_info();
+                info!(
+                    "Batch size reached ({} blocks starting from {:?}), triggering flush",
+                    count, first_block
+                );
+                let batch_flush_start = std::time::Instant::now();
+                batched_handlers.flush_all_batches(&self.txn, &self.tables)?;
+                info!("Batch flush completed in: {:?}", batch_flush_start.elapsed());
+                true // We flushed to MDBX, so commit the transaction
+            } else {
+                let (count, first_block) = batched_handlers.get_batch_info();
+                debug!(
+                    "Batching enabled: {} blocks queued (starting from {:?}), not flushing yet \
+                     (batch_size: {})",
+                    count, first_block, batched_handlers.config.batch_size
+                );
+                false // Don't commit DB transaction, data is only in memory queues
+            }
+        } else {
+            true // No batching, always commit
+        };
+
         self.file_handlers.flush();
-        Ok(self.txn.commit()?)
+        let flush_time = start.elapsed();
+
+        let db_start = std::time::Instant::now();
+        if should_commit_db {
+            self.txn.commit()?;
+        }
+        // If should_commit_db is false, we don't commit the transaction
+        // The transaction will be automatically dropped/aborted, which is fine
+        // because the data is still in memory queues waiting for the next flush
+        let db_time = db_start.elapsed();
+
+        debug!(
+            "Storage commit completed - flush: {:?}, db_commit: {:?}, total: {:?}",
+            flush_time,
+            db_time,
+            start.elapsed()
+        );
+        Ok(())
+    }
+
+    /// Helper to determine if batching is enabled
+    pub(crate) fn is_batching_enabled(&self) -> bool {
+        self.batched_file_handlers.is_some()
+    }
+
+    /// Helper to get batched file handlers (for internal use)
+    pub(crate) fn batched_handlers(&self) -> Option<&BatchedFileHandlers<RW>> {
+        self.batched_file_handlers.as_ref().map(|arc| arc.as_ref())
     }
 }
 
@@ -641,6 +717,9 @@ pub struct StorageConfig {
     #[validate]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    /// Configuration for batching writes to improve performance
+    #[serde(default)]
+    pub batch_config: BatchConfig,
 }
 
 impl SerializeConfig for StorageConfig {
@@ -654,6 +733,7 @@ impl SerializeConfig for StorageConfig {
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
+        dumped_config.extend(prepend_sub_config_name(self.batch_config.dump(), "batch_config"));
         dumped_config
     }
 }
@@ -701,6 +781,471 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
 }
 
+/// Configuration for batching writes to improve performance
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
+pub struct BatchConfig {
+    /// Number of blocks to batch before writing to files
+    pub batch_size: usize,
+    /// Whether batching is enabled
+    pub enabled: bool,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self { batch_size: 100, enabled: true }
+    }
+}
+
+impl SerializeConfig for BatchConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "batch_size",
+                &self.batch_size,
+                "Number of blocks to batch before writing to files.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "enabled",
+                &self.enabled,
+                "Whether batching is enabled for file writes.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// A single item in the batch queue
+#[derive(Debug, Clone)]
+struct BatchItem<T> {
+    block_number: BlockNumber,
+    data: T,
+}
+
+/// Pending MDBX write with metadata needed to execute it after flush
+#[derive(Debug, Clone)]
+struct PendingStateDiffWrite {
+    block_number: BlockNumber,
+    thin_state_diff: ThinStateDiff,
+}
+
+#[derive(Debug, Clone)]
+struct PendingTransactionWrite {
+    block_number: BlockNumber,
+    index: usize,
+    tx_hash: TransactionHash,
+    transaction: Transaction,
+    is_last: bool,
+}
+
+#[derive(Debug, Clone)]
+struct PendingTransactionOutputWrite {
+    block_number: BlockNumber,
+    index: usize,
+    transaction_output: TransactionOutput,
+    is_last: bool,
+}
+
+#[derive(Debug, Clone)]
+struct PendingContractClassWrite {
+    class_hash: ClassHash,
+    contract_class: SierraContractClass,
+}
+
+#[derive(Debug, Clone)]
+struct PendingDeprecatedClassWrite {
+    class_hash: ClassHash,
+    block_number: BlockNumber,
+    deprecated_class: DeprecatedContractClass,
+}
+
+#[derive(Debug, Clone)]
+struct PendingCasmWrite {
+    class_hash: ClassHash,
+    casm: CasmContractClass,
+}
+
+/// Batched file handlers that accumulate writes before flushing to disk
+#[derive(Debug)]
+struct BatchedFileHandlers<Mode: TransactionKind> {
+    /// The underlying file handlers
+    file_handlers: FileHandlers<Mode>,
+    /// Batch configuration
+    config: BatchConfig,
+    /// Counter for blocks queued since last flush
+    blocks_queued: Arc<Mutex<usize>>,
+    /// The first block number in the current batch (for logging)
+    first_block_in_batch: Arc<Mutex<Option<BlockNumber>>>,
+    /// Batched state diffs waiting to be written
+    state_diff_batch: Arc<Mutex<VecDeque<BatchItem<ThinStateDiff>>>>,
+    /// Batched transactions waiting to be written  
+    transaction_batch: Arc<Mutex<VecDeque<BatchItem<Transaction>>>>,
+    /// Batched transaction outputs waiting to be written
+    transaction_output_batch: Arc<Mutex<VecDeque<BatchItem<TransactionOutput>>>>,
+    /// Batched contract classes waiting to be written
+    contract_class_batch: Arc<Mutex<VecDeque<BatchItem<SierraContractClass>>>>,
+    /// Batched CASMs waiting to be written
+    casm_batch: Arc<Mutex<VecDeque<BatchItem<CasmContractClass>>>>,
+    /// Batched deprecated contract classes waiting to be written
+    deprecated_class_batch: Arc<Mutex<VecDeque<BatchItem<DeprecatedContractClass>>>>,
+    /// Pending state diff MDBX writes
+    pending_state_diff_writes: Arc<Mutex<Vec<PendingStateDiffWrite>>>,
+    /// Pending transaction MDBX writes
+    pending_transaction_writes: Arc<Mutex<Vec<PendingTransactionWrite>>>,
+    /// Pending transaction output MDBX writes
+    pending_transaction_output_writes: Arc<Mutex<Vec<PendingTransactionOutputWrite>>>,
+    /// Pending contract class MDBX writes
+    pending_contract_class_writes: Arc<Mutex<Vec<PendingContractClassWrite>>>,
+    /// Pending deprecated class MDBX writes
+    pending_deprecated_class_writes: Arc<Mutex<Vec<PendingDeprecatedClassWrite>>>,
+    /// Pending CASM MDBX writes
+    pending_casm_writes: Arc<Mutex<Vec<PendingCasmWrite>>>,
+}
+
+impl<Mode: TransactionKind> BatchedFileHandlers<Mode> {
+    /// Create a new batched file handler
+    fn new(file_handlers: FileHandlers<Mode>, config: BatchConfig) -> Self {
+        Self {
+            file_handlers,
+            config,
+            blocks_queued: Arc::new(Mutex::new(0)),
+            first_block_in_batch: Arc::new(Mutex::new(None)),
+            state_diff_batch: Arc::new(Mutex::new(VecDeque::new())),
+            transaction_batch: Arc::new(Mutex::new(VecDeque::new())),
+            transaction_output_batch: Arc::new(Mutex::new(VecDeque::new())),
+            contract_class_batch: Arc::new(Mutex::new(VecDeque::new())),
+            casm_batch: Arc::new(Mutex::new(VecDeque::new())),
+            deprecated_class_batch: Arc::new(Mutex::new(VecDeque::new())),
+            pending_state_diff_writes: Arc::new(Mutex::new(Vec::new())),
+            pending_transaction_writes: Arc::new(Mutex::new(Vec::new())),
+            pending_transaction_output_writes: Arc::new(Mutex::new(Vec::new())),
+            pending_contract_class_writes: Arc::new(Mutex::new(Vec::new())),
+            pending_deprecated_class_writes: Arc::new(Mutex::new(Vec::new())),
+            pending_casm_writes: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+impl BatchedFileHandlers<RW> {
+    /// Queue a state diff for batched write (both file and MDBX)
+    fn queue_state_diff(&self, block_number: BlockNumber, thin_state_diff: ThinStateDiff) {
+        // Track this as a new block being queued
+        {
+            let mut first_block =
+                self.first_block_in_batch.lock().expect("Lock should not be poisoned");
+            if first_block.is_none() {
+                *first_block = Some(block_number);
+            }
+        }
+        {
+            let mut counter = self.blocks_queued.lock().expect("Lock should not be poisoned");
+            *counter += 1;
+        }
+
+        let mut batch = self.state_diff_batch.lock().expect("Lock should not be poisoned");
+        batch.push_back(BatchItem { block_number, data: thin_state_diff.clone() });
+        drop(batch);
+
+        let mut pending =
+            self.pending_state_diff_writes.lock().expect("Lock should not be poisoned");
+        pending.push(PendingStateDiffWrite { block_number, thin_state_diff });
+    }
+
+    /// Queue a transaction for batched write (both file and MDBX)
+    fn queue_transaction(
+        &self,
+        block_number: BlockNumber,
+        index: usize,
+        tx_hash: TransactionHash,
+        transaction: Transaction,
+        is_last: bool,
+    ) {
+        let mut batch = self.transaction_batch.lock().expect("Lock should not be poisoned");
+        batch.push_back(BatchItem { block_number, data: transaction.clone() });
+        drop(batch);
+
+        let mut pending =
+            self.pending_transaction_writes.lock().expect("Lock should not be poisoned");
+        pending.push(PendingTransactionWrite {
+            block_number,
+            index,
+            tx_hash,
+            transaction,
+            is_last,
+        });
+    }
+
+    /// Queue a transaction output for batched write (both file and MDBX)
+    fn queue_transaction_output(
+        &self,
+        block_number: BlockNumber,
+        index: usize,
+        transaction_output: TransactionOutput,
+        is_last: bool,
+    ) {
+        let mut batch = self.transaction_output_batch.lock().expect("Lock should not be poisoned");
+        batch.push_back(BatchItem { block_number, data: transaction_output.clone() });
+        drop(batch);
+
+        let mut pending =
+            self.pending_transaction_output_writes.lock().expect("Lock should not be poisoned");
+        pending.push(PendingTransactionOutputWrite {
+            block_number,
+            index,
+            transaction_output,
+            is_last,
+        });
+    }
+
+    /// Queue a contract class for batched write (both file and MDBX)
+    fn queue_contract_class(&self, class_hash: ClassHash, contract_class: SierraContractClass) {
+        let mut batch = self.contract_class_batch.lock().expect("Lock should not be poisoned");
+        batch.push_back(BatchItem {
+            block_number: BlockNumber::default(),
+            data: contract_class.clone(),
+        });
+        drop(batch);
+
+        let mut pending =
+            self.pending_contract_class_writes.lock().expect("Lock should not be poisoned");
+        pending.push(PendingContractClassWrite { class_hash, contract_class });
+    }
+
+    /// Queue a deprecated contract class for batched write (both file and MDBX)
+    fn queue_deprecated_contract_class(
+        &self,
+        class_hash: ClassHash,
+        block_number: BlockNumber,
+        deprecated_class: DeprecatedContractClass,
+    ) {
+        let mut batch = self.deprecated_class_batch.lock().expect("Lock should not be poisoned");
+        batch.push_back(BatchItem { block_number, data: deprecated_class.clone() });
+        drop(batch);
+
+        let mut pending =
+            self.pending_deprecated_class_writes.lock().expect("Lock should not be poisoned");
+        pending.push(PendingDeprecatedClassWrite { class_hash, block_number, deprecated_class });
+    }
+
+    /// Queue a CASM for batched write (both file and MDBX)
+    fn queue_casm(&self, class_hash: ClassHash, casm: CasmContractClass) {
+        let mut batch = self.casm_batch.lock().expect("Lock should not be poisoned");
+        batch.push_back(BatchItem { block_number: BlockNumber::default(), data: casm.clone() });
+        drop(batch);
+
+        let mut pending = self.pending_casm_writes.lock().expect("Lock should not be poisoned");
+        pending.push(PendingCasmWrite { class_hash, casm });
+    }
+
+    /// Force flush all batches (used during shutdown or manual flush)
+    fn flush_all_batches<'env>(
+        &self,
+        txn: &DbTransaction<'env, RW>,
+        tables: &'env Tables,
+    ) -> StorageResult<()> {
+        info!("Starting batch flush with MDBX writes");
+
+        // 1. Flush state diffs
+        let mut state_diff_pending =
+            self.pending_state_diff_writes.lock().expect("Lock should not be poisoned");
+        if !state_diff_pending.is_empty() {
+            let state_diffs_table = txn.open_table(&tables.state_diffs)?;
+            let file_offset_table = txn.open_table(&tables.file_offsets)?;
+
+            for pending in state_diff_pending.drain(..) {
+                let location = self.file_handlers.append_state_diff(&pending.thin_state_diff);
+                state_diffs_table.append(txn, &pending.block_number, &location)?;
+                file_offset_table.upsert(
+                    txn,
+                    &OffsetKind::ThinStateDiff,
+                    &location.next_offset(),
+                )?;
+            }
+            info!("Flushed {} state diffs to files and MDBX", state_diff_pending.len());
+        }
+        drop(state_diff_pending);
+
+        // 2. Flush transactions and transaction outputs together
+        let mut tx_pending =
+            self.pending_transaction_writes.lock().expect("Lock should not be poisoned");
+        let mut tx_output_pending =
+            self.pending_transaction_output_writes.lock().expect("Lock should not be poisoned");
+
+        if !tx_pending.is_empty() || !tx_output_pending.is_empty() {
+            let transaction_metadata_table = txn.open_table(&tables.transaction_metadata)?;
+            let file_offset_table = txn.open_table(&tables.file_offsets)?;
+
+            // Group by block_number and index, then write together
+            for pending_tx in tx_pending.drain(..) {
+                let tx_location = self.file_handlers.append_transaction(&pending_tx.transaction);
+                let tx_offset_in_block =
+                    starknet_api::transaction::TransactionOffsetInBlock(pending_tx.index);
+                let transaction_index =
+                    body::TransactionIndex(pending_tx.block_number, tx_offset_in_block);
+
+                // Find corresponding output
+                if let Some(pos) = tx_output_pending.iter().position(|out| {
+                    out.block_number == pending_tx.block_number && out.index == pending_tx.index
+                }) {
+                    let pending_output = tx_output_pending.remove(pos);
+                    let tx_output_location = self
+                        .file_handlers
+                        .append_transaction_output(&pending_output.transaction_output);
+
+                    // Write metadata to MDBX
+                    transaction_metadata_table.append(
+                        txn,
+                        &transaction_index,
+                        &TransactionMetadata {
+                            tx_location,
+                            tx_output_location,
+                            tx_hash: pending_tx.tx_hash,
+                        },
+                    )?;
+
+                    // Update file offset table for last transaction
+                    if pending_tx.is_last {
+                        file_offset_table.upsert(
+                            txn,
+                            &OffsetKind::Transaction,
+                            &tx_location.next_offset(),
+                        )?;
+                    }
+                    if pending_output.is_last {
+                        file_offset_table.upsert(
+                            txn,
+                            &OffsetKind::TransactionOutput,
+                            &tx_output_location.next_offset(),
+                        )?;
+                    }
+                }
+            }
+
+            info!("Flushed {} transactions and outputs to files and MDBX", tx_pending.len());
+        }
+        drop(tx_pending);
+        drop(tx_output_pending);
+
+        // 3. Flush contract classes
+        let mut class_pending =
+            self.pending_contract_class_writes.lock().expect("Lock should not be poisoned");
+        if !class_pending.is_empty() {
+            let declared_classes_table = txn.open_table(&tables.declared_classes)?;
+            let file_offset_table = txn.open_table(&tables.file_offsets)?;
+
+            for pending in class_pending.drain(..) {
+                let location = self.file_handlers.append_contract_class(&pending.contract_class);
+                declared_classes_table.insert(txn, &pending.class_hash, &location)?;
+                file_offset_table.upsert(
+                    txn,
+                    &OffsetKind::ContractClass,
+                    &location.next_offset(),
+                )?;
+            }
+            info!("Flushed {} contract classes to files and MDBX", class_pending.len());
+        }
+        drop(class_pending);
+
+        // 4. Flush deprecated contract classes
+        let mut deprecated_pending =
+            self.pending_deprecated_class_writes.lock().expect("Lock should not be poisoned");
+        if !deprecated_pending.is_empty() {
+            let deprecated_declared_classes_table =
+                txn.open_table(&tables.deprecated_declared_classes)?;
+            let file_offset_table = txn.open_table(&tables.file_offsets)?;
+
+            for pending in deprecated_pending.drain(..) {
+                let location =
+                    self.file_handlers.append_deprecated_contract_class(&pending.deprecated_class);
+                let value = state::data::IndexedDeprecatedContractClass {
+                    block_number: pending.block_number,
+                    location_in_file: location,
+                };
+                deprecated_declared_classes_table.insert(txn, &pending.class_hash, &value)?;
+                file_offset_table.upsert(
+                    txn,
+                    &OffsetKind::DeprecatedContractClass,
+                    &location.next_offset(),
+                )?;
+            }
+            info!("Flushed {} deprecated classes to files and MDBX", deprecated_pending.len());
+        }
+        drop(deprecated_pending);
+
+        // 5. Flush CASMs
+        let mut casm_pending =
+            self.pending_casm_writes.lock().expect("Lock should not be poisoned");
+        if !casm_pending.is_empty() {
+            let casm_table = txn.open_table(&tables.casms)?;
+            let file_offset_table = txn.open_table(&tables.file_offsets)?;
+
+            for pending in casm_pending.drain(..) {
+                let location = self.file_handlers.append_casm(&pending.casm);
+                casm_table.insert(txn, &pending.class_hash, &location)?;
+                file_offset_table.upsert(txn, &OffsetKind::Casm, &location.next_offset())?;
+            }
+            info!("Flushed {} CASMs to files and MDBX", casm_pending.len());
+        }
+        drop(casm_pending);
+
+        // After flushing all state diffs to MDBX, advance the compiled class marker
+        // This was skipped during batched writes because the data wasn't in MDBX yet
+        let state_diffs_table = txn.open_table(&tables.state_diffs)?;
+        let markers_table = txn.open_table(&tables.markers)?;
+
+        // Call the marker advancement function from state module
+        // We need to make it accessible or recreate the logic here
+        let state_marker = markers_table.get(txn, &MarkerKind::State)?.unwrap_or_default();
+        let mut compiled_class_marker =
+            markers_table.get(txn, &MarkerKind::CompiledClass)?.unwrap_or_default();
+
+        while compiled_class_marker < state_marker {
+            if let Some(state_diff_location) = state_diffs_table.get(txn, &compiled_class_marker)? {
+                if let Ok(thin_state_diff) =
+                    self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
+                {
+                    if !thin_state_diff.declared_classes.is_empty() {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+            compiled_class_marker = compiled_class_marker.unchecked_next();
+            markers_table.upsert(txn, &MarkerKind::CompiledClass, &compiled_class_marker)?;
+        }
+
+        // Reset the counter and first block after successful flush
+        {
+            let mut counter = self.blocks_queued.lock().expect("Lock should not be poisoned");
+            *counter = 0;
+        }
+        {
+            let mut first_block =
+                self.first_block_in_batch.lock().expect("Lock should not be poisoned");
+            *first_block = None;
+        }
+
+        info!("Batch flush with MDBX writes completed successfully");
+        Ok(())
+    }
+
+    /// Check if we should flush based on the number of blocks queued
+    fn should_flush(&self) -> bool {
+        let counter = self.blocks_queued.lock().expect("Lock should not be poisoned");
+        *counter >= self.config.batch_size
+    }
+
+    /// Get the current batch info for logging
+    fn get_batch_info(&self) -> (usize, Option<BlockNumber>) {
+        let counter = self.blocks_queued.lock().expect("Lock should not be poisoned");
+        let first_block = self.first_block_in_batch.lock().expect("Lock should not be poisoned");
+        (*counter, *first_block)
+    }
+}
+
 impl FileHandlers<RW> {
     // Appends a thin state diff to the corresponding file and returns its location.
     #[latency_histogram("storage_file_handler_append_state_diff_latency_seconds", true)]
@@ -739,13 +1284,59 @@ impl FileHandlers<RW> {
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
-        debug!("Flushing the mmap files.");
+        let start = std::time::Instant::now();
+        debug!("Starting sequential flush of all file handlers");
+
+        let flush_start = std::time::Instant::now();
         self.thin_state_diff.flush();
+        debug!("Flushed thin_state_diff in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.contract_class.flush();
+        debug!("Flushed contract_class in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.casm.flush();
+        debug!("Flushed casm in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.deprecated_contract_class.flush();
+        debug!("Flushed deprecated_contract_class in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.transaction_output.flush();
+        debug!("Flushed transaction_output in {:?}", flush_start.elapsed());
+
+        let flush_start = std::time::Instant::now();
         self.transaction.flush();
+        debug!("Flushed transaction in {:?}", flush_start.elapsed());
+
+        debug!("Sequential flush completed in total time: {:?}", start.elapsed());
+    }
+
+    #[allow(dead_code)]
+    fn flush_concurrent(&self) {
+        debug!("Flushing the mmap files concurrently using threads.");
+        let thin_state_diff = self.thin_state_diff.clone();
+        let contract_class = self.contract_class.clone();
+        let casm = self.casm.clone();
+        let deprecated_contract_class = self.deprecated_contract_class.clone();
+        let transaction_output = self.transaction_output.clone();
+        let transaction = self.transaction.clone();
+        let handles = vec![
+            std::thread::spawn(move || thin_state_diff.flush()),
+            std::thread::spawn(move || contract_class.flush()),
+            std::thread::spawn(move || casm.flush()),
+            std::thread::spawn(move || deprecated_contract_class.flush()),
+            std::thread::spawn(move || transaction_output.flush()),
+            std::thread::spawn(move || transaction.flush()),
+        ];
+        for (i, handle) in handles.into_iter().enumerate() {
+            if let Err(_) = handle.join() {
+                warn!("Flush thread {} panicked during concurrent flush", i);
+            }
+        }
+        debug!("All concurrent flush operations completed.");
     }
 }
 
@@ -869,7 +1460,7 @@ fn open_storage_files(
         table.get(&db_transaction, &OffsetKind::Transaction)?.unwrap_or_default();
     let (transaction_writer, transaction_reader) =
         open_file(mmap_file_config, db_config.path().join("transaction.dat"), transaction_offset)?;
-
+    // the files
     Ok((
         FileHandlers {
             thin_state_diff: thin_state_diff_writer,
