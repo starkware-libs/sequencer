@@ -74,12 +74,6 @@ class SequencerNodeChart(Chart):
         )
 
         # Create Controller (Deployment or StatefulSet)
-        controller_type = (
-            "statefulset"
-            if self.service_config.statefulSet and self.service_config.statefulSet.enabled
-            else "deployment"
-        )
-
         if self.service_config.statefulSet and self.service_config.statefulSet.enabled:
             self.controller = StatefulSetConstruct(
                 self,
@@ -144,7 +138,7 @@ class SequencerNodeChart(Chart):
         if self.service_config.hpa and self.service_config.hpa.enabled:
             k8s_controller = (
                 self.controller.deployment
-                if controller_type == "deployment"
+                if hasattr(self.controller, "deployment")
                 else self.controller.statefulset
             )
             self.hpa = HpaConstruct(
