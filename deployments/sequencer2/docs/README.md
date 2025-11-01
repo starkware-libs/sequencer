@@ -16,6 +16,7 @@ This directory contains comprehensive documentation for all Kubernetes manifest 
 - **[SERVICE_CONFIGURATION.md](SERVICE_CONFIGURATION.md)** - Service configuration for different types and cloud load balancers
 - **[VOLUME_CONFIGURATION.md](VOLUME_CONFIGURATION.md)** - PersistentVolume configuration for various storage classes
 - **[POD_DISRUPTION_BUDGET_CONFIGURATION.md](POD_DISRUPTION_BUDGET_CONFIGURATION.md)** - PodDisruptionBudget configuration for pod availability during disruptions
+- **[NETWORK_POLICY_CONFIGURATION.md](NETWORK_POLICY_CONFIGURATION.md)** - NetworkPolicy configuration for pod-to-pod network traffic control
 
 ### GCP-Specific Resources
 
@@ -110,6 +111,30 @@ podDisruptionBudget:
   enabled: true
   maxUnavailable: "25%"
   unhealthyPodEvictionPolicy: "IfHealthyBudget"
+```
+
+### NetworkPolicy
+```yaml
+networkPolicy:
+  enabled: true
+  podSelector:
+    matchLabels:
+      app: sequencer
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
 ```
 
 ### GCP PodMonitoring

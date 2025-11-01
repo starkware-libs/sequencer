@@ -270,6 +270,18 @@ class PodMonitoring(StrictBaseModel):
     spec: PodMonitoringSpec
 
 
+class NetworkPolicy(StrictBaseModel):
+    enabled: bool = False
+    name: Optional[str] = None
+    annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    # podSelector: LabelSelector - uses matchLabels and/or matchExpressions
+    podSelector: AnyDict = Field(default_factory=dict)  # matchLabels and/or matchExpressions
+    policyTypes: List[str] = Field(default_factory=list)  # ["Ingress", "Egress"]
+    ingress: List[AnyDict] = Field(default_factory=list)  # NetworkPolicyIngressRule
+    egress: List[AnyDict] = Field(default_factory=list)  # NetworkPolicyEgressRule
+
+
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
     name: str
@@ -312,6 +324,7 @@ class ServiceConfig(StrictBaseModel):
     podMonitoring: Optional[PodMonitoring] = Field(
         default=None, alias="gcpPodMonitoring"
     )  # Accepts both podMonitoring and gcpPodMonitoring in YAML
+    networkPolicy: Optional[NetworkPolicy] = None
 
 
 class DeploymentConfig(StrictBaseModel):

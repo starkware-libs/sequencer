@@ -11,6 +11,7 @@ from src.constructs.hpa import HpaConstruct
 from src.constructs.ingress import IngressConstruct
 from src.constructs.podmonitoring import PodMonitoringConstruct
 from src.constructs.poddisruptionbudget import PodDisruptionBudgetConstruct
+from src.constructs.networkpolicy import NetworkPolicyConstruct
 from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
 from src.constructs.secret import SecretConstruct
@@ -191,6 +192,17 @@ class SequencerNodeChart(Chart):
             self.pod_disruption_budget = PodDisruptionBudgetConstruct(
                 self,
                 "pod-disruption-budget",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
+            )
+
+        # Create NetworkPolicy if enabled
+        if self.service_config.networkPolicy and self.service_config.networkPolicy.enabled:
+            self.network_policy = NetworkPolicyConstruct(
+                self,
+                "network-policy",
                 common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,

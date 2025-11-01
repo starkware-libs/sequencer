@@ -125,6 +125,20 @@ podDisruptionBudget:
   maxUnavailable: "50%" # Use maxUnavailable OR minAvailable (not both)
   unhealthyPodEvictionPolicy: "IfHealthyBudget" # IfHealthyBudget, AlwaysAllow
 
+# NetworkPolicy Configuration
+# See docs/NETWORK_POLICY_CONFIGURATION.md for all available options
+networkPolicy:
+  enabled: false
+  name: ""
+  annotations: {}
+  labels: {}
+  podSelector:
+    matchLabels: {}
+    matchExpressions: []
+  policyTypes: []
+  ingress: []
+  egress: []
+
 # GCP PodMonitoring Configuration
 # See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
 gcpPodMonitoring:
