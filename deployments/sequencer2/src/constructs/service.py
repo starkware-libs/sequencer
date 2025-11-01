@@ -3,8 +3,6 @@ import typing
 from constructs import Construct
 from imports import k8s
 
-from src.config import constants as const
-
 
 class ServiceConstruct(Construct):
     def __init__(
@@ -65,16 +63,24 @@ class ServiceConstruct(Construct):
 
         return annotations
 
-    def _get_service_type(self, service_spec) -> const.K8SServiceType:
-        svc_type = (service_spec.type or "ClusterIP").capitalize()
-        if svc_type == "Loadbalancer":
-            return const.K8SServiceType.LOAD_BALANCER
-        elif svc_type == "Nodeport":
-            return const.K8SServiceType.NODE_PORT
-        elif svc_type == "Clusterip":
-            return const.K8SServiceType.CLUSTER_IP
+    def _get_service_type(self, service_spec) -> str:
+        """Get Kubernetes service type, normalized to standard values."""
+        svc_type = service_spec.type or "ClusterIP"
+        # Normalize to Kubernetes standard service types
+        svc_type_lower = svc_type.lower()
+        if svc_type_lower in ["loadbalancer", "lb"]:
+            return "LoadBalancer"
+        elif svc_type_lower in ["nodeport", "np"]:
+            return "NodePort"
+        elif svc_type_lower in ["clusterip", "cluster", ""]:
+            return "ClusterIP"
         else:
-            raise ValueError(f"Unknown service type: {svc_type}")
+            # If already correctly formatted, return as-is
+            if svc_type in ["LoadBalancer", "NodePort", "ClusterIP"]:
+                return svc_type
+            raise ValueError(
+                f"Unknown service type: {svc_type}. Valid types: LoadBalancer, NodePort, ClusterIP"
+            )
 
     def _get_service_ports(self, service_spec) -> typing.List[k8s.ServicePort]:
         """Convert Pydantic ports list into Kubernetes ServicePort objects with sane defaults."""

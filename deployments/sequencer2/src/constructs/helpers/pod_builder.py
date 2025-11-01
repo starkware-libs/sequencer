@@ -45,6 +45,7 @@ class PodBuilder:
             image=image,
             image_pull_policy=self.common_config.image.imagePullPolicy,
             command=self.service_config.command,
+            args=self.service_config.args,
             env=self._build_container_env(),
             ports=self._build_container_ports(),
             startup_probe=self._build_http_probe(self.service_config.startupProbe),

@@ -11,6 +11,7 @@ class StrictBaseModel(BaseModel):
         extra="forbid",
         validate_assignment=True,  # re-validate on attribute updates
         arbitrary_types_allowed=False,
+        populate_by_name=True,  # Allow both field name and alias
     )
 
 
@@ -216,6 +217,55 @@ class CommonConfig(StrictBaseModel):
     commonMetaLabels: StrDict = Field(default_factory=dict)
 
 
+class PodMonitoringEndpoint(StrictBaseModel):
+    port: int | str  # Port name or number (required)
+    path: Optional[str] = "/metrics"  # HTTP path to scrape (default: /metrics)
+    interval: Optional[str] = "10s"  # Scrape interval (Prometheus duration format)
+    timeout: Optional[str] = None  # Scrape timeout (must be < interval)
+    scheme: Optional[str] = None  # Protocol scheme (http/https)
+    params: Optional[AnyDict] = None  # HTTP GET params
+    proxyUrl: Optional[str] = None  # HTTP proxy URL
+    # Advanced options
+    metricRelabeling: List[AnyDict] = Field(default_factory=list)  # Metric relabeling rules
+    authorization: Optional[AnyDict] = None  # HTTP authorization credentials
+    basicAuth: Optional[AnyDict] = None  # HTTP basic auth
+    oauth2: Optional[AnyDict] = None  # OAuth2 credentials
+    tls: Optional[AnyDict] = None  # TLS configuration
+
+
+class PodMonitoringSelector(StrictBaseModel):
+    matchLabels: StrDict = Field(default_factory=dict)
+    matchExpressions: List[AnyDict] = Field(default_factory=list)
+
+
+class PodMonitoringLimits(StrictBaseModel):
+    samples: Optional[int] = None  # Max samples per scrape
+    labels: Optional[int] = None  # Max labels per sample
+    labelNameLength: Optional[int] = None  # Max label name length
+    labelValueLength: Optional[int] = None  # Max label value length
+
+
+class PodMonitoringTargetLabels(StrictBaseModel):
+    metadata: List[str] = Field(default_factory=list)  # pod, container, node, namespace
+    fromPod: List[AnyDict] = Field(default_factory=list)  # Label mappings from pod labels
+
+
+class PodMonitoringSpec(StrictBaseModel):
+    endpoints: List[PodMonitoringEndpoint]  # Required: list of endpoints to scrape
+    selector: PodMonitoringSelector  # Required: pod selector
+    filterRunning: Optional[bool] = None  # Filter out Failed/Succeeded pods
+    limits: Optional[PodMonitoringLimits] = None  # Scrape limits
+    targetLabels: Optional[PodMonitoringTargetLabels] = None  # Labels to add to targets
+
+
+class PodMonitoring(StrictBaseModel):
+    enabled: bool = False
+    name: Optional[str] = None
+    annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    spec: PodMonitoringSpec
+
+
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
     name: str
@@ -226,6 +276,7 @@ class ServiceConfig(StrictBaseModel):
     serviceAccount: Optional[ServiceAccount] = None
     terminationGracePeriodSeconds: Optional[int] = None
     command: List[str] = Field(default_factory=list)
+    args: List[str] = Field(default_factory=list)
     priorityClassName: Optional[str] = None
     env: List[AnyDict] = Field(default_factory=list)
     securityContext: Optional[SecurityContext] = None
@@ -249,9 +300,14 @@ class ServiceConfig(StrictBaseModel):
     livenessProbe: Optional[Probe] = None
     hpa: Optional[HPA] = None
     dnsPolicy: Optional[str] = None
-    backendConfig: Optional[BackendConfig] = None
+    backendConfig: Optional[BackendConfig] = Field(
+        default=None, alias="gcpBackendConfig"
+    )  # Accepts both backendConfig and gcpBackendConfig in YAML
     externalSecret: Optional[ExternalSecret] = None
     secret: Optional[Secret] = None
+    podMonitoring: Optional[PodMonitoring] = Field(
+        default=None, alias="gcpPodMonitoring"
+    )  # Accepts both podMonitoring and gcpPodMonitoring in YAML
 
 
 class DeploymentConfig(StrictBaseModel):

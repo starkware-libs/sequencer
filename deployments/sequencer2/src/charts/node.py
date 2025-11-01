@@ -9,7 +9,7 @@ from src.constructs.configmap import ConfigMapConstruct
 from src.constructs.deployment import DeploymentConstruct
 from src.constructs.hpa import HpaConstruct
 from src.constructs.ingress import IngressConstruct
-from src.constructs.monitoring import PodMonitoringConstruct
+from src.constructs.podmonitoring import PodMonitoringConstruct
 from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
 from src.constructs.secret import SecretConstruct
@@ -172,9 +172,14 @@ class SequencerNodeChart(Chart):
             )
 
         # Create PodMonitoring if enabled
-        if self.monitoring:
-            self.podmonitoring = PodMonitoringConstruct(
-                self, "pod-monitoring", labels, monitoring_endpoint_port
+        if self.service_config.podMonitoring and self.service_config.podMonitoring.enabled:
+            self.pod_monitoring = PodMonitoringConstruct(
+                self,
+                "pod-monitoring",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
             )
 
     @staticmethod
