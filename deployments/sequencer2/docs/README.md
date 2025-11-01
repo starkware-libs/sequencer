@@ -16,6 +16,11 @@ This directory contains comprehensive documentation for all Kubernetes manifest 
 - **[SERVICE_CONFIGURATION.md](SERVICE_CONFIGURATION.md)** - Service configuration for different types and cloud load balancers
 - **[VOLUME_CONFIGURATION.md](VOLUME_CONFIGURATION.md)** - PersistentVolume configuration for various storage classes
 
+### GCP-Specific Resources
+
+- **[GCP_POD_MONITORING_CONFIGURATION.md](GCP_POD_MONITORING_CONFIGURATION.md)** - GCP PodMonitoring configuration for Managed Prometheus on GKE
+- **[GCP_BACKEND_CONFIG_CONFIGURATION.md](GCP_BACKEND_CONFIG_CONFIGURATION.md)** - GCP BackendConfig configuration for Google Cloud Load Balancer
+
 ### Specialized Features
 
 - **[HPA_FLEXIBILITY_GUIDE.md](HPA_FLEXIBILITY_GUIDE.md)** - HorizontalPodAutoscaler configuration with advanced scaling behaviors
@@ -96,6 +101,35 @@ hpa:
   minReplicas: 3
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
+```
+
+### GCP PodMonitoring
+```yaml
+gcpPodMonitoring:
+  enabled: true
+  spec:
+    selector:
+      matchLabels:
+        app: sequencer
+    endpoints:
+      - port: 9090
+        path: "/monitoring/metrics"
+        interval: "10s"
+```
+
+### GCP BackendConfig
+```yaml
+gcpBackendConfig:
+  enabled: true
+  connectionDrainingTimeoutSeconds: 60
+  timeOutSeconds: 30
+  healthCheck:
+    checkIntervalSeconds: 10
+    timeoutSeconds: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    requestPath: "/health"
+    port: 80
 ```
 
 ## Contributing
