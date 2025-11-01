@@ -1,18 +1,29 @@
-from constructs import Construct
 from imports import k8s
 
-from src.config.schema import ServiceConfig
+from src.constructs.base import BaseConstruct
 
 
-class VolumeConstruct(Construct):
-    def __init__(self, scope: Construct, id: str, service_config: ServiceConfig, labels):
-        super().__init__(scope, id)
+class VolumeConstruct(BaseConstruct):
+    def __init__(
+        self,
+        scope,
+        id: str,
+        common_config,
+        service_config,
+        labels,
+        monitoring_endpoint_port,
+    ):
+        super().__init__(
+            scope,
+            id,
+            common_config,
+            service_config,
+            labels,
+            monitoring_endpoint_port,
+        )
 
-        self.service_config = service_config
-        self.labels = labels
-
-        pv = getattr(self.service_config, "persistentVolume", None)
-        if pv and getattr(pv, "enabled", False) and not getattr(pv, "existingClaim", None):
+        pv = self.service_config.persistentVolume
+        if pv and pv.enabled and not pv.existingClaim:
             self.pvc = self._create_persistent_volume_claim()
         else:
             self.pvc = None

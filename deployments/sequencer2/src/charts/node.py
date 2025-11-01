@@ -43,8 +43,7 @@ class SequencerNodeChart(Chart):
             "service": Names.to_label_value(self, include_hash=False),
         }
 
-        # Load config paths and determine monitoring port
-        node_config = self._load_service_config_paths(service_config)
+        # Determine monitoring port
         monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config)
 
         # Create ConfigMap
@@ -67,15 +66,16 @@ class SequencerNodeChart(Chart):
         self.service = ServiceConstruct(
             self,
             "service",
-            self.service_config,
-            labels,
-            node_config,
+            common_config=self.common_config,
+            service_config=self.service_config,
+            labels=labels,
+            monitoring_endpoint_port=monitoring_endpoint_port,
         )
 
         # Create Controller (Deployment or StatefulSet)
         controller_type = (
             "statefulset"
-            if getattr(self.service_config.statefulSet, "enabled", False)
+            if self.service_config.statefulSet and self.service_config.statefulSet.enabled
             else "deployment"
         )
 
@@ -110,7 +110,7 @@ class SequencerNodeChart(Chart):
             )
 
         # Create Ingress if enabled
-        if getattr(self.service_config, "ingress", None) and self.service_config.ingress.enabled:
+        if self.service_config.ingress and self.service_config.ingress.enabled:
             self.service.service.metadata.add_annotation(
                 key="cloud.google.com/neg", value='{"ingress": true}'
             )
@@ -129,14 +129,18 @@ class SequencerNodeChart(Chart):
             )
 
         # Create PersistentVolumeClaim if enabled
-        if (
-            getattr(self.service_config, "persistentVolume", None)
-            and self.service_config.persistentVolume.enabled
-        ):
-            self.pvc = VolumeConstruct(self, "pvc", self.service_config, labels)
+        if self.service_config.persistentVolume and self.service_config.persistentVolume.enabled:
+            self.pvc = VolumeConstruct(
+                self,
+                "pvc",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
+            )
 
         # Create HPA if enabled
-        if getattr(self.service_config, "hpa", None) and self.service_config.hpa.enabled:
+        if self.service_config.hpa and self.service_config.hpa.enabled:
             k8s_controller = (
                 self.controller.deployment
                 if controller_type == "deployment"
@@ -224,7 +228,9 @@ class SequencerNodeChart(Chart):
     @staticmethod
     def _get_monitoring_endpoint_port(service_config: ServiceConfig) -> int:
         """Find the 'monitoring' port from the service config."""
-        ports = getattr(service_config.service, "ports", [])
+        if not service_config.service:
+            raise ValueError(f"No service defined for service {service_config.name}")
+        ports = service_config.service.ports or []
         for port in ports:
             if port.name == "monitoring":
                 return port.port
@@ -233,7 +239,7 @@ class SequencerNodeChart(Chart):
     @staticmethod
     def _load_service_config_paths(service_config: ServiceConfig) -> dict:
         """Load or construct config values from the ServiceConfig."""
-        config_paths = getattr(service_config, "configPaths", [])
+        config_paths = service_config.configPaths
         result = {}
         for path in config_paths:
             # Example: load JSON or YAML config files if needed

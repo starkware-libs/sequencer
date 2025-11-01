@@ -1,23 +1,28 @@
 import typing
 
-from constructs import Construct
 from imports import k8s
 
+from src.constructs.base import BaseConstruct
 
-class ServiceConstruct(Construct):
+
+class ServiceConstruct(BaseConstruct):
     def __init__(
         self,
-        scope: Construct,
+        scope,
         id: str,
+        common_config,
         service_config,
-        labels: dict,
-        node_config: dict,
+        labels,
+        monitoring_endpoint_port,
     ):
-        super().__init__(scope, id)
-
-        self.service_config = service_config
-        self.labels = labels
-        self.node_config = node_config
+        super().__init__(
+            scope,
+            id,
+            common_config,
+            service_config,
+            labels,
+            monitoring_endpoint_port,
+        )
 
         self.service = self._create_service()
 
