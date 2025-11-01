@@ -35,7 +35,21 @@ class StatefulSet(StrictBaseModel):
 
 
 class Rbac(StrictBaseModel):
-    create: Optional[bool] = None
+    enabled: bool = False
+    # Type: "Role" for namespaced, "ClusterRole" for cluster-scoped
+    type: str = "Role"  # "Role" or "ClusterRole"
+    roleName: Optional[str] = None  # Name of the Role/ClusterRole
+    roleBindingName: Optional[str] = None  # Name of the RoleBinding/ClusterRoleBinding
+    annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    # Rules define what resources and verbs are allowed
+    rules: List[AnyDict] = Field(default_factory=list)  # List of PolicyRule objects
+    # Subjects define who the RoleBinding applies to
+    subjects: List[AnyDict] = Field(
+        default_factory=list
+    )  # List of Subject objects (ServiceAccount, User, Group)
+    # roleRef references the Role/ClusterRole (usually auto-set, but can be customized)
+    roleRef: Optional[AnyDict] = None  # RoleRef object
 
 
 class ServiceAccount(StrictBaseModel):

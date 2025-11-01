@@ -18,6 +18,7 @@ This directory contains comprehensive documentation for all Kubernetes manifest 
 - **[POD_DISRUPTION_BUDGET_CONFIGURATION.md](POD_DISRUPTION_BUDGET_CONFIGURATION.md)** - PodDisruptionBudget configuration for pod availability during disruptions
 - **[NETWORK_POLICY_CONFIGURATION.md](NETWORK_POLICY_CONFIGURATION.md)** - NetworkPolicy configuration for pod-to-pod network traffic control
 - **[PRIORITY_CLASS_CONFIGURATION.md](PRIORITY_CLASS_CONFIGURATION.md)** - PriorityClass configuration for pod scheduling priority and preemption
+- **[RBAC_CONFIGURATION.md](RBAC_CONFIGURATION.md)** - RBAC configuration for Role, RoleBinding, ClusterRole, and ClusterRoleBinding
 
 ### GCP-Specific Resources
 
@@ -146,6 +147,20 @@ priorityClass:
   value: 2000
   description: "High priority for production workloads"
   preemptionPolicy: "PreemptLowerPriority"
+```
+
+### RBAC
+```yaml
+rbac:
+  enabled: true
+  type: Role
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "configmaps"]
+      verbs: ["get", "list", "watch"]
+  subjects:
+    - kind: ServiceAccount
+      name: sequencer-node-sa
 ```
 
 ### GCP PodMonitoring

@@ -43,8 +43,17 @@ statefulSet:
     type: RollingUpdate
 
 # RBAC Configuration
+# See docs/RBAC_CONFIGURATION.md for all available options
 rbac:
-  create: true
+  enabled: false
+  type: Role # "Role" for namespaced, "ClusterRole" for cluster-scoped
+  roleName: ""
+  roleBindingName: ""
+  annotations: {}
+  labels: {}
+  rules: []
+  subjects: []
+  roleRef: null
 
 # Container Command
 # Override the default container command (optional)
