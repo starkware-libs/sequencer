@@ -47,3 +47,7 @@ deployments/papyrus/helm/config/*
 !deployments/papyrus/helm/config/example.json
 
 integration_test_temporary_logs
+
+# Test data and logs
+data_compare_*/
+test_*.log
