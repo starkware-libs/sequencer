@@ -15,6 +15,7 @@ This directory contains comprehensive documentation for all Kubernetes manifest 
 - **[CONFIGMAP_CONFIGURATION.md](CONFIGMAP_CONFIGURATION.md)** - ConfigMap configuration for JSON file loading and merging
 - **[SERVICE_CONFIGURATION.md](SERVICE_CONFIGURATION.md)** - Service configuration for different types and cloud load balancers
 - **[VOLUME_CONFIGURATION.md](VOLUME_CONFIGURATION.md)** - PersistentVolume configuration for various storage classes
+- **[POD_DISRUPTION_BUDGET_CONFIGURATION.md](POD_DISRUPTION_BUDGET_CONFIGURATION.md)** - PodDisruptionBudget configuration for pod availability during disruptions
 
 ### GCP-Specific Resources
 
@@ -101,6 +102,14 @@ hpa:
   minReplicas: 3
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
+```
+
+### PodDisruptionBudget
+```yaml
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: "25%"
+  unhealthyPodEvictionPolicy: "IfHealthyBudget"
 ```
 
 ### GCP PodMonitoring

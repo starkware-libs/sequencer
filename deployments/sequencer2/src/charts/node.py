@@ -10,6 +10,7 @@ from src.constructs.deployment import DeploymentConstruct
 from src.constructs.hpa import HpaConstruct
 from src.constructs.ingress import IngressConstruct
 from src.constructs.podmonitoring import PodMonitoringConstruct
+from src.constructs.poddisruptionbudget import PodDisruptionBudgetConstruct
 from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.service import ServiceConstruct
 from src.constructs.secret import SecretConstruct
@@ -176,6 +177,20 @@ class SequencerNodeChart(Chart):
             self.pod_monitoring = PodMonitoringConstruct(
                 self,
                 "pod-monitoring",
+                common_config=self.common_config,
+                service_config=self.service_config,
+                labels=labels,
+                monitoring_endpoint_port=monitoring_endpoint_port,
+            )
+
+        # Create PodDisruptionBudget if enabled
+        if (
+            self.service_config.podDisruptionBudget
+            and self.service_config.podDisruptionBudget.enabled
+        ):
+            self.pod_disruption_budget = PodDisruptionBudgetConstruct(
+                self,
+                "pod-disruption-budget",
                 common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,

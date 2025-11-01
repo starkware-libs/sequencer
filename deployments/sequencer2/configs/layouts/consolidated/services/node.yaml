@@ -111,6 +111,20 @@ hpa:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
+# PodDisruptionBudget Configuration
+# See docs/POD_DISRUPTION_BUDGET_CONFIGURATION.md for all available options
+podDisruptionBudget:
+  enabled: true
+  name: ""
+  annotations: {}
+  labels: {}
+  selector:
+    matchLabels: {}
+    matchExpressions: []
+  minAvailable: null # Use minAvailable OR maxUnavailable (not both)
+  maxUnavailable: "50%" # Use maxUnavailable OR minAvailable (not both)
+  unhealthyPodEvictionPolicy: "IfHealthyBudget" # IfHealthyBudget, AlwaysAllow
+
 # GCP PodMonitoring Configuration
 # See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
 gcpPodMonitoring:

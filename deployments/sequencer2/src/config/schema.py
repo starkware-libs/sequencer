@@ -110,10 +110,14 @@ class Ingress(StrictBaseModel):
 
 
 class PodDisruptionBudget(StrictBaseModel):
-    enabled: Optional[bool] = None
-    maxUnavailable: Optional[int] = None
-    minAvailable: Optional[int] = None
-    unhealthyPodEvictionPolicy: Optional[str] = None
+    enabled: bool = False
+    name: Optional[str] = None
+    annotations: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
+    selector: AnyDict = Field(default_factory=dict)  # matchLabels and/or matchExpressions
+    minAvailable: Optional[int | str] = None  # int or string like "50%"
+    maxUnavailable: Optional[int | str] = None  # int or string like "50%"
+    unhealthyPodEvictionPolicy: Optional[str] = None  # IfHealthyBudget, AlwaysAllow
 
 
 class PersistentVolume(StrictBaseModel):
