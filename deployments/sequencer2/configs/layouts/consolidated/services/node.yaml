@@ -46,6 +46,22 @@ statefulSet:
 rbac:
   create: true
 
+# Container Command
+# Override the default container command (optional)
+# If not specified, uses the image's default ENTRYPOINT/CMD
+command: []
+#   - /bin/sh
+#   - -c
+#   - "your-command-here"
+
+# Container Args
+# Override the default container arguments (optional)
+# If not specified, uses the image's default CMD args
+args:
+  - "--config_file"
+  - "--flag2=value"
+  - "positional-arg"
+
 # ServiceAccount Configuration
 # See docs/SERVICE_ACCOUNT_CONFIGURATION.md for all available options
 serviceAccount:
@@ -95,6 +111,33 @@ hpa:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
+# GCP PodMonitoring Configuration
+# See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
+gcpPodMonitoring:
+  enabled: true
+  name: ""
+  annotations: {}
+  labels: {}
+  spec:
+    selector:
+      matchLabels: {}
+      matchExpressions: []
+    endpoints:
+      - port: 9090
+        path: "/monitoring/metrics"
+        interval: "10s"
+        timeout: "5s"
+        scheme: "http"
+    filterRunning: true
+    limits:
+      samples: 0
+      labels: 0
+      labelNameLength: 0
+      labelValueLength: 0
+    targetLabels:
+      metadata: ["pod", "container"]
+      fromPod: []
+
 # Secret Configuration
 # See docs/SECRET_CONFIGURATION.md for all available options
 secret:
@@ -139,8 +182,9 @@ persistentVolume:
   volumeMode: Filesystem
   existingClaim: ""
 
-# BackendConfig Configuration
-backendConfig:
+# GCP BackendConfig Configuration
+# See docs/GCP_BACKEND_CONFIG_CONFIGURATION.md for all available options
+gcpBackendConfig:
   enabled: false
   customRequestHeaders: []
   connectionDrainingTimeoutSeconds: 0
@@ -167,7 +211,14 @@ configMapAnnotations: {}
 deploymentAnnotations: {}
 
 # Environment Variables
-env: []
+# Each environment variable requires 'name' and 'value' fields
+env:
+  - name: RUST_LOG
+    value: "debug"
+  - name: RUST_BACKTRACE
+    value: "full"
+  - name: NO_COLOR
+    value: "1"
 
 # Node Selection
 nodeSelector: {}
