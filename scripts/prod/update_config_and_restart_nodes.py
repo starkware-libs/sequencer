@@ -8,9 +8,11 @@ from typing import Any
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     Colors,
+    MetricConditionGater,
     NamespaceAndInstructionArgs,
     Service,
     ServiceRestarter,
+    WaitOnMetrticOneByOneRestarter,
     print_colored,
     print_error,
     update_config_and_restart_nodes,
@@ -155,10 +157,19 @@ Examples:
         None,
     )
 
-    restarter = ServiceRestarter.from_restart_strategy(
-        args.restart_strategy,
+    # Create the appropriate restarter based on the restart strategy
+    # restarter = ServiceRestarter.from_restart_strategy(
+    #     args.restart_strategy,
+    #     namespace_and_instruction_args,
+    #     args.service,
+    # )
+
+    restarter = WaitOnMetrticOneByOneRestarter(
         namespace_and_instruction_args,
         args.service,
+        "mempool_p2p_propagator_local_msgs_processed",
+        8082,
+        MetricConditionGater.MetricCondition(lambda val: val > 4247916, "Greater than 4247916"),
     )
 
     update_config_and_restart_nodes(
