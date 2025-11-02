@@ -125,13 +125,11 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             .select(block_range.clone())
             .events(events)
             .address(self.config.starknet_contract_address);
-
         let matching_logs = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_logs(&filter),
         )
         .await??;
-
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
         debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
