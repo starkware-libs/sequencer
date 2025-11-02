@@ -31,6 +31,7 @@ async fn main() {
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
+        false,
     )
     .await;
 

@@ -24,6 +24,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::PositiveFlowIntegrationTest,
+        false,
     )
     .await;
 

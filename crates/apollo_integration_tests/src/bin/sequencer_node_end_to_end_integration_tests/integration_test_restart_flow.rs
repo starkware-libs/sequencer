@@ -40,6 +40,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RestartFlowIntegrationTest,
+        false,
     )
     .await;
 

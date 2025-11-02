@@ -102,6 +102,16 @@ pub struct StorageTestSetup {
     pub storage_handles: StorageTestHandles,
 }
 
+pub(crate) fn default_state_diff_and_classes(
+    test_defined_accounts: Vec<AccountTransactionGenerator>,
+    chain_info: &ChainInfo,
+) -> (ThinStateDiff, TestClasses) {
+    let preset_test_contracts = PresetTestContracts::new();
+    let classes = TestClasses::new(&test_defined_accounts, preset_test_contracts.clone());
+    let state_diff = prepare_state_diff(chain_info, &test_defined_accounts, &preset_test_contracts);
+    (state_diff, classes)
+}
+
 impl StorageTestSetup {
     pub fn new(
         test_defined_accounts: Vec<AccountTransactionGenerator>,

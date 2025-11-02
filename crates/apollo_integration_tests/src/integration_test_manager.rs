@@ -69,8 +69,8 @@ use crate::utils::{
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
     set_validator_id,
+    spawn_local_central_server,
     spawn_local_eth_to_strk_oracle,
-    spawn_local_success_recorder,
     ConsensusTxs,
     DeclareTx,
     DeployAndInvokeTxs,
@@ -263,6 +263,7 @@ impl IntegrationTestManager {
         num_of_hybrid_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
+        use_cende: bool,
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
@@ -273,6 +274,7 @@ impl IntegrationTestManager {
             num_of_hybrid_nodes,
             custom_paths,
             test_unique_id,
+            use_cende,
         )
         .await;
 
@@ -826,6 +828,7 @@ async fn get_sequencer_setup_configs(
     num_of_hybrid_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
+    use_cende: bool,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
@@ -895,8 +898,13 @@ async fn get_sequencer_setup_configs(
 
     // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
-    let (recorder_url, _join_handle) =
-        spawn_local_success_recorder(base_layer_ports.get_next_port());
+
+    let (recorder_url, _join_handle) = spawn_local_central_server(
+        base_layer_ports.get_next_port(),
+        accounts.to_vec(),
+        &chain_info,
+        use_cende,
+    );
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
@@ -962,6 +970,7 @@ async fn get_sequencer_setup_configs(
                 BLOCK_MAX_CAPACITY_GAS,
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
+                use_cende,
             );
 
             let base_app_config = DeploymentBaseAppConfig::new(
