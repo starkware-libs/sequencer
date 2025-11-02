@@ -849,6 +849,24 @@ impl Batcher {
         }
     }
 
+    #[instrument(skip(self), err)]
+    pub async fn get_proposal_state_diff(
+        &self,
+        proposal_id: ProposalId,
+    ) -> BatcherResult<ThinStateDiff> {
+        let guard = self.executed_proposals.lock().await;
+        let artifacts = guard
+            .get(&proposal_id)
+            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
+            .as_ref()
+            .map_err(|e| {
+                error!("Failed to get block execution artifacts: {}", e);
+                BatcherError::InternalError
+            })?;
+
+        Ok(artifacts.thin_state_diff())
+    }
+
     // Ends the current active proposal.
     // This call is non-blocking.
     async fn abort_active_proposal(&mut self) {

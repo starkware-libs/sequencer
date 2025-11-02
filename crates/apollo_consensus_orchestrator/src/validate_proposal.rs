@@ -26,6 +26,7 @@ use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::StarknetApiError;
 use strum::EnumVariantNames;
@@ -123,8 +124,18 @@ pub(crate) enum ValidateProposalError {
     InvalidProposal(String),
     #[error("Proposal part {1:?} failed validation: {0}.")]
     ProposalPartFailed(String, Option<ProposalPart>),
-    #[error("proposal_commitment built by the batcher does not match the proposal fin.")]
-    ProposalFinMismatch,
+    #[error(
+        "Proposal mismatch at height {height}: received_fin.proposal_commitment: {proposer_hash:?}, validator \
+         proposal_commitment: {validator_hash:?} (validator proposal_id: {validator_proposal_id}). \
+         state diff computed by validator: {validator_state_diff:?}"
+    )]
+    ProposalFinMismatch {
+        height: BlockNumber,
+        proposer_hash: ProposalCommitment,
+        validator_hash: ProposalCommitment,
+        validator_proposal_id: ProposalId,
+        validator_state_diff: Option<ThinStateDiff>,
+    },
     #[error("Cannot calculate deadline. timeout: {timeout:?}, now: {now:?}")]
     CannotCalculateDeadline { timeout: Duration, now: DateTime },
 }
@@ -231,8 +242,26 @@ pub(crate) async fn validate_proposal(
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
+        let validator_state_diff =
+            match args.deps.batcher.get_proposal_state_diff(args.proposal_id).await {
+                Ok(state_diff) => Some(state_diff),
+                Err(err) => {
+                    warn!(
+                        "Could not retrieve validator's computed state diff for proposal {}: {}",
+                        args.proposal_id.0, err
+                    );
+                    None
+                }
+            };
+
         CONSENSUS_PROPOSAL_FIN_MISMATCH.increment(1);
-        return Err(ValidateProposalError::ProposalFinMismatch);
+        return Err(ValidateProposalError::ProposalFinMismatch {
+            height: args.block_info_validation.height,
+            proposer_hash: received_fin.proposal_commitment,
+            validator_hash: built_block,
+            validator_proposal_id: args.proposal_id,
+            validator_state_diff,
+        });
     }
 
     Ok(built_block)

@@ -341,7 +341,7 @@ async fn proposal_fin_mismatch() {
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::ProposalFinMismatch)));
+    assert!(matches!(res, Err(ValidateProposalError::ProposalFinMismatch { .. })));
 }
 
 #[tokio::test]
