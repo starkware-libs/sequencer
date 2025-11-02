@@ -112,6 +112,17 @@ externalSecret:
 - **Description**: What happens to the target secret when ExternalSecret is deleted
 - **Values**: `"Retain"` or `"Delete"`
 
+### `mountPath` (string, optional)
+- **Default**: `"/etc/secrets"`
+- **Description**: Path where the external secret will be mounted in the container
+- **Note**: The secret is mounted as a single file `secrets.json` at `{mountPath}/secrets.json`
+- **Example**:
+  ```yaml
+  externalSecret:
+    enabled: true
+    mountPath: "/custom/secrets/path"
+  ```
+
 ## Provider-Specific Examples
 
 ### Google Cloud Secret Manager
@@ -268,6 +279,78 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/component: secrets
+```
+
+## Mounting in Pods
+
+The ExternalSecret is **automatically mounted** in pods when `enabled: true`. The secret is mounted as a single file `secrets.json` at the specified mount path (default: `/etc/secrets`).
+
+**Important**: The target secret created by ExternalSecret must contain a key named `secrets.json` for this to work. You can use the `template` option to structure the secret with a `secrets.json` key, or ensure your ExternalSecret data mapping includes a key named `secrets.json`:
+
+```yaml
+externalSecret:
+  enabled: true
+  secretStore:
+    name: "gcp-secret-store"
+    kind: "ClusterSecretStore"
+  data:
+    - secretKey: secrets.json  # Key must be "secrets.json" for auto-mounting
+      remoteKey: "sequencer/secrets"
+      property: "value"
+  targetName: "sequencer-secrets"
+  # mountPath: /etc/secrets  # Optional: Override default mount path (default: "/etc/secrets")
+```
+
+Alternatively, you can use the `template` option to merge multiple keys into a single `secrets.json` file:
+
+```yaml
+externalSecret:
+  enabled: true
+  secretStore:
+    name: "gcp-secret-store"
+    kind: "ClusterSecretStore"
+  data:
+    - secretKey: database-url
+      remoteKey: "sequencer/database-url"
+      property: "value"
+    - secretKey: api-key
+      remoteKey: "sequencer/api-key"
+      property: "value"
+  targetName: "sequencer-secrets"
+  template:
+    type: "Opaque"
+    data:
+      secrets.json: |
+        {
+          "database": {
+            "url": "{{ .database-url }}"
+          },
+          "api": {
+            "key": "{{ .api-key }}"
+          }
+        }
+```
+
+The generated volume mount looks like:
+
+```yaml
+volumeMounts:
+  - name: sequencer-secrets-secrets-volume
+    mountPath: /etc/secrets/secrets.json  # or {mountPath}/secrets.json if custom
+    subPath: secrets.json
+    readOnly: true
+```
+
+## Automatic Container Arguments
+
+When an ExternalSecret is enabled, the container **automatically receives** the `--config_file` argument pointing to the mounted secret file:
+
+```yaml
+args:
+  - --config_file
+  - /config/sequencer/presets/  # from ConfigMap (always present)
+  - --config_file
+  - /etc/secrets/secrets.json   # from ExternalSecret (if enabled)
 ```
 
 ## Best Practices

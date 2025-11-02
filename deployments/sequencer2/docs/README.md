@@ -2,6 +2,10 @@
 
 This directory contains comprehensive documentation for all Kubernetes manifest configurations available in the Sequencer deployment system.
 
+## Configuration System
+
+- **[LAYOUT_OVERLAY_CONFIGURATION.md](LAYOUT_OVERLAY_CONFIGURATION.md)** - Complete guide to the layout and overlay mechanism for managing configurations across environments
+
 ## Available Documentation
 
 ### Core Kubernetes Resources
@@ -40,6 +44,35 @@ Each documentation file provides:
 5. **Best Practices** - Recommended approaches and security considerations
 6. **Generated Kubernetes Resources** - Example of the actual YAML output
 
+## Automatic Features
+
+### Automatic Volume Mounting
+
+The following resources are automatically mounted in pods when enabled:
+
+- **ConfigMap**: Automatically mounted at `/config/sequencer/presets/` (or custom `mountPath`)
+- **Secret**: Automatically mounted as `/etc/secrets/secrets.json` (or custom path) using `subPath`
+- **ExternalSecret**: Automatically mounted as `/etc/secrets/secrets.json` (or custom path) using `subPath`
+
+### Automatic Container Arguments
+
+Container arguments are automatically generated based on enabled resources:
+
+1. **ConfigMap**: Always adds `--config_file {mountPath}` (default: `--config_file /config/sequencer/presets/`)
+2. **Secret/ExternalSecret**: Adds `--config_file {mountPath}/secrets.json` (default: `--config_file /etc/secrets/secrets.json`)
+3. **Custom Args**: Any additional args from `node.yaml` are appended after the automatic args
+
+**Example generated args:**
+```yaml
+args:
+  - --config_file
+  - /config/sequencer/presets/      # From ConfigMap
+  - --config_file
+  - /etc/secrets/secrets.json       # From Secret/ExternalSecret (if enabled)
+  - --custom-arg                    # From node.yaml args section
+  - value
+```
+
 ## Quick Reference
 
 ### ServiceAccount
@@ -51,6 +84,17 @@ serviceAccount:
     "iam.gke.io/gcp-service-account": "my-service@project.iam.gserviceaccount.com"
 ```
 
+### Config (ConfigMap)
+```yaml
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+  # mountPath: /config/sequencer/presets/  # Optional: defaults to "/config/sequencer/presets/"
+```
+
+**Note**: The ConfigMap is automatically mounted and a `--config_file {mountPath}` argument is automatically added to container args.
+
 ### Secret
 ```yaml
 secret:
@@ -58,9 +102,16 @@ secret:
   name: "app-secrets"
   type: Opaque
   stringData:
-    database-url: "postgresql://user:password@localhost:5432/db"
-    api-key: "your-api-key-here"
+    secrets.json: |
+      {
+        "database": {
+          "url": "postgresql://user:password@localhost:5432/db"
+        }
+      }
+  # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
 ```
+
+**Note**: The Secret is automatically mounted as `{mountPath}/secrets.json` and a `--config_file {mountPath}/secrets.json` argument is automatically added to container args. The secret must contain a key named `secrets.json`.
 
 ### ExternalSecret
 ```yaml
@@ -70,9 +121,12 @@ externalSecret:
     name: "gcp-secret-store"
     kind: "ClusterSecretStore"
   data:
-    - secretKey: "database-url"
-      remoteKey: "sequencer/database-url"
+    - secretKey: "secrets.json"  # Key must be "secrets.json" for auto-mounting
+      remoteKey: "sequencer/secrets"
+  # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
 ```
+
+**Note**: The ExternalSecret is automatically mounted as `{mountPath}/secrets.json` and a `--config_file {mountPath}/secrets.json` argument is automatically added to container args. The target secret must contain a key named `secrets.json`.
 
 ### Ingress
 ```yaml

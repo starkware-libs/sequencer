@@ -106,6 +106,17 @@ secret:
 - **Description**: Whether the Secret is immutable
 - **Security Note**: Set to `true` for enhanced security
 
+### `mountPath` (string, optional)
+- **Default**: `"/etc/secrets"`
+- **Description**: Path where the secret will be mounted in the container
+- **Note**: The secret is mounted as a single file `secrets.json` at `{mountPath}/secrets.json`
+- **Example**:
+  ```yaml
+  secret:
+    enabled: true
+    mountPath: "/custom/secrets/path"
+  ```
+
 ## Secret Type Examples
 
 ### Opaque Secret (Default)
@@ -275,23 +286,48 @@ immutable: true
 
 ## Mounting in Pods
 
-The Secret can be mounted in pods using volume mounts:
+The Secret is **automatically mounted** in pods when `enabled: true`. The secret is mounted as a single file `secrets.json` at the specified mount path (default: `/etc/secrets`).
+
+**Important**: The secret must contain a key named `secrets.json` for this to work. You can create the secret with this key:
 
 ```yaml
-volumes:
-  - name: secret-volume
-    secret:
-      secretName: sequencer-secrets
-      items:
-        - key: database-url
-          path: database-url
-        - key: api-key
-          path: api-key
+secret:
+  enabled: true
+  name: "sequencer-secrets"
+  type: Opaque
+  stringData:
+    secrets.json: |
+      {
+        "database": {
+          "url": "postgresql://user:password@localhost:5432/db"
+        },
+        "api": {
+          "key": "your-api-key-here"
+        }
+      }
+  # mountPath: /etc/secrets  # Optional: Override default mount path (default: "/etc/secrets")
+```
 
+The generated volume mount looks like:
+
+```yaml
 volumeMounts:
-  - name: secret-volume
-    mountPath: /app/secrets
+  - name: sequencer-secrets-volume
+    mountPath: /etc/secrets/secrets.json  # or {mountPath}/secrets.json if custom
+    subPath: secrets.json
     readOnly: true
+```
+
+## Automatic Container Arguments
+
+When a Secret is enabled, the container **automatically receives** the `--config_file` argument pointing to the mounted secret file:
+
+```yaml
+args:
+  - --config_file
+  - /config/sequencer/presets/  # from ConfigMap (always present)
+  - --config_file
+  - /etc/secrets/secrets.json   # from Secret (if enabled)
 ```
 
 ## Environment Variable Injection
@@ -333,12 +369,19 @@ secret:
   name: "database-secrets"
   type: Opaque
   stringData:
-    username: dbuser
-    password: securepassword
-    host: localhost
-    port: "5432"
-    database: myapp
+    secrets.json: |
+      {
+        "database": {
+          "username": "dbuser",
+          "password": "securepassword",
+          "host": "localhost",
+          "port": "5432",
+          "database": "myapp"
+        }
+      }
 ```
+
+**Note**: When using auto-mounting, the secret must contain a key named `secrets.json`. The file will be mounted at `/etc/secrets/secrets.json`.
 
 ### API Keys
 
@@ -348,10 +391,17 @@ secret:
   name: "api-secrets"
   type: Opaque
   stringData:
-    stripe-key: sk_test_...
-    aws-access-key: AKIA...
-    aws-secret-key: wJalrXUtn...
+    secrets.json: |
+      {
+        "api": {
+          "stripe-key": "sk_test_...",
+          "aws-access-key": "AKIA...",
+          "aws-secret-key": "wJalrXUtn..."
+        }
+      }
 ```
+
+**Note**: When using auto-mounting, the secret must contain a key named `secrets.json`. The file will be mounted at `/etc/secrets/secrets.json`.
 
 ### TLS Certificates
 

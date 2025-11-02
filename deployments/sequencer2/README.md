@@ -223,6 +223,8 @@ Configuration files are located in `configs/`:
 
 See `docs/README.md` for detailed configuration documentation for each Kubernetes resource.
 
+For information on how layouts and overlays work together, see [docs/LAYOUT_OVERLAY_CONFIGURATION.md](docs/LAYOUT_OVERLAY_CONFIGURATION.md).
+
 ## Troubleshooting
 
 ### Python Version Issues

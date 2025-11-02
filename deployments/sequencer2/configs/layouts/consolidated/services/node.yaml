@@ -38,7 +38,7 @@ config:
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
 statefulSet:
-  enabled: true
+  enabled: false
   annotations: {}
   labels: {}
   podManagementPolicy: OrderedReady
@@ -74,7 +74,7 @@ args: []
 # ServiceAccount Configuration
 # See docs/SERVICE_ACCOUNT_CONFIGURATION.md for all available options
 serviceAccount:
-  enabled: true
+  enabled: false
   name: ""
   annotations: {}
   labels: {}
@@ -90,13 +90,13 @@ terminationGracePeriodSeconds: 300
 service:
   type: ClusterIP
   ports:
-    - name: http
-      port: 80
+    - name: consensus-p2p
+      port: 9000
       targetPort: 8080
       protocol: TCP
     - name: monitoring
-      port: 9090
-      targetPort: 9090
+      port: 8082
+      targetPort: 8082
       protocol: TCP
   annotations: {}
   labels: {}
@@ -104,17 +104,16 @@ service:
 # Ingress Configuration
 # See docs/INGRESS_CONFIGURATION.md for all available options
 ingress:
-  enabled: true
-  ingressClassName: "nginx"
+  enabled: false
+  ingressClassName: "" # Optional: Leave empty to use default IngressClass
   annotations: {}
-  hosts:
-    - sequencer.example.com
+  hosts: []
   tls: []
 
 # HPA Configuration
 # See docs/HPA_FLEXIBILITY_GUIDE.md for all available options
 hpa:
-  enabled: true
+  enabled: false
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 70
@@ -123,7 +122,7 @@ hpa:
 # PodDisruptionBudget Configuration
 # See docs/POD_DISRUPTION_BUDGET_CONFIGURATION.md for all available options
 podDisruptionBudget:
-  enabled: true
+  enabled: false
   name: ""
   annotations: {}
   labels: {}
@@ -163,7 +162,7 @@ priorityClass:
 # GCP PodMonitoring Configuration
 # See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
 gcpPodMonitoring:
-  enabled: true
+  enabled: false
   name: ""
   annotations: {}
   labels: {}
@@ -172,7 +171,7 @@ gcpPodMonitoring:
       matchLabels: {}
       matchExpressions: []
     endpoints:
-      - port: 9090
+      - port: 8082
         path: "/monitoring/metrics"
         interval: "10s"
         timeout: "5s"
@@ -190,7 +189,7 @@ gcpPodMonitoring:
 # Secret Configuration
 # See docs/SECRET_CONFIGURATION.md for all available options
 secret:
-  enabled: true
+  enabled: false
   name: "sequencer-secrets"
   type: Opaque
   data: {}
@@ -204,9 +203,9 @@ secret:
 # ExternalSecret Configuration
 # See docs/EXTERNAL_SECRET_CONFIGURATION.md for all available options
 externalSecret:
-  enabled: true
+  enabled: false
   secretStore:
-    name: external-secrets-project
+    name: external-secrets-store
     kind: ClusterSecretStore
   data:
     - secretKey: ext_key
@@ -223,7 +222,7 @@ persistentVolume:
   enabled: true
   size: 10Gi
   mountPath: /data
-  storageClass: "premiun-rwo"
+  # storageClass: ""  # Optional: Leave empty to use default StorageClass
   accessModes:
     - ReadWriteOnce
   annotations: {}
@@ -261,13 +260,13 @@ deploymentAnnotations: {}
 
 # Environment Variables
 # Each environment variable requires 'name' and 'value' fields
-env:
-  - name: RUST_LOG
-    value: "debug"
-  - name: RUST_BACKTRACE
-    value: "full"
-  - name: NO_COLOR
-    value: "1"
+env: []
+  # - name: RUST_LOG
+  #   value: "debug"
+  # - name: RUST_BACKTRACE
+  #   value: "full"
+  # - name: NO_COLOR
+  #   value: "1"
 
 # Node Selection
 nodeSelector: {}

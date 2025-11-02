@@ -5,31 +5,50 @@ This document describes all available configuration options for the ConfigMap co
 ## Basic Configuration
 
 ```yaml
-configPaths:
-  - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
 ```
 
 ## Advanced Configuration
 
 ```yaml
-configPaths:
-  - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/monitoring_config.json"
-  - "crates/apollo_deployments/resources/app_configs/logging_config.json"
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/monitoring_config.json"
+    - "crates/apollo_deployments/resources/app_configs/logging_config.json"
+  # mountPath: /config/sequencer/presets/  # Optional: Override default mount path
 ```
 
 ## Configuration Options
 
-### `configPaths` (array of strings)
+### `config` (object)
+- **Required**: Yes
+- **Description**: Configuration for ConfigMap creation and mounting
+
+#### `configPaths` (array of strings)
 - **Required**: Yes
 - **Description**: List of JSON configuration file paths to load and merge into the ConfigMap
 - **Example**:
   ```yaml
-  configPaths:
-    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+  config:
+    configPaths:
+      - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+      - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+  ```
+
+#### `mountPath` (string, optional)
+- **Default**: `"/config/sequencer/presets/"`
+- **Description**: Path where the config will be mounted in the container
+- **Example**:
+  ```yaml
+  config:
+    configPaths:
+      - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    mountPath: "/custom/config/path"
   ```
 
 ## File Path Resolution
@@ -147,22 +166,35 @@ data:
 
 ## Mounting in Pods
 
-The ConfigMap can be mounted in pods using volume mounts:
+The ConfigMap is **automatically mounted** in pods when the `config` section is provided. The mount path defaults to `/config/sequencer/presets/` but can be customized:
 
 ```yaml
-volumes:
-  - name: config-volume
-    configMap:
-      name: sequencer-node-config
-      items:
-        - key: config.json
-          path: config.json
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+  mountPath: "/custom/config/path"  # Optional: defaults to "/config/sequencer/presets/"
+```
 
+The ConfigMap is mounted as a directory at the specified path. The generated volume mount looks like:
+
+```yaml
 volumeMounts:
-  - name: config-volume
-    mountPath: /app/config
+  - name: sequencer-node-config
+    mountPath: /config/sequencer/presets/  # or custom path
     readOnly: true
 ```
+
+## Automatic Container Arguments
+
+When a ConfigMap is configured, the container **automatically receives** the `--config_file` argument pointing to the mount path:
+
+```yaml
+args:
+  - --config_file
+  - /config/sequencer/presets/  # or custom mountPath if specified
+```
+
+This argument is always added first, before any additional arguments you may provide in the `args` section of `node.yaml`.
 
 ## Environment Variable Injection
 
@@ -198,35 +230,40 @@ env:
 
 ```yaml
 # Development
-configPaths:
-  - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/dev_config.json"
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/dev_config.json"
 
 # Production
-configPaths:
-  - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/prod_config.json"
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/prod_config.json"
 ```
 
 ### Feature-Based Configuration
 
 ```yaml
-configPaths:
-  - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
-  - "crates/apollo_deployments/resources/app_configs/monitoring_config.json"
-  - "crates/apollo_deployments/resources/app_configs/logging_config.json"
-  - "crates/apollo_deployments/resources/app_configs/caching_config.json"
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/monitoring_config.json"
+    - "crates/apollo_deployments/resources/app_configs/logging_config.json"
+    - "crates/apollo_deployments/resources/app_configs/caching_config.json"
 ```
 
 ### Layered Configuration
 
 ```yaml
-configPaths:
-  - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"      # Base configuration
-  - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"      # Service-specific
-  - "crates/apollo_deployments/resources/app_configs/environment_config.json"    # Environment-specific
-  - "crates/apollo_deployments/resources/app_configs/override_config.json"       # Overrides
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"      # Base configuration
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"      # Service-specific
+    - "crates/apollo_deployments/resources/app_configs/environment_config.json"    # Environment-specific
+    - "crates/apollo_deployments/resources/app_configs/override_config.json"       # Overrides
+  mountPath: "/config/sequencer/presets/"  # Optional: defaults to "/config/sequencer/presets/"
 ```
