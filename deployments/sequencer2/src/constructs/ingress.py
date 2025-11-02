@@ -31,6 +31,11 @@ class IngressConstruct(BaseConstruct):
         """Create a Kubernetes Ingress resource directly from the config."""
         ingress_config = self.service_config.ingress
 
+        # Merge Ingress labels with common labels
+        ingress_labels = (
+            {**self.labels, **ingress_config.labels} if ingress_config.labels else self.labels
+        )
+
         # Get service port
         service_port = 8080
         if self.service_config.service and self.service_config.service.ports:
@@ -41,7 +46,7 @@ class IngressConstruct(BaseConstruct):
             "ingress",
             metadata=k8s.ObjectMeta(
                 name=f"{self.service_config.name}-ingress",
-                labels=self.labels,
+                labels=ingress_labels,
                 annotations=ingress_config.annotations,
             ),
             spec=k8s.IngressSpec(

@@ -26,10 +26,17 @@ class StatefulSetConstruct(BaseConstruct):
         self.statefulset = self._create_statefulset()
 
     def _create_statefulset(self) -> k8s.KubeStatefulSet:
+        # Merge StatefulSet labels with common labels
+        statefulset_labels = (
+            {**self.labels, **self.service_config.statefulSet.labels}
+            if self.service_config.statefulSet and self.service_config.statefulSet.labels
+            else self.labels
+        )
+
         pod_builder = PodBuilder(
             self.common_config,
             self.service_config,
-            self.labels,
+            statefulset_labels,
             self.monitoring_endpoint_port,
         )
 
@@ -37,7 +44,7 @@ class StatefulSetConstruct(BaseConstruct):
             self,
             "statefulset",
             metadata=k8s.ObjectMeta(
-                labels=self.labels,
+                labels=statefulset_labels,
                 annotations=(
                     self.service_config.statefulSet.annotations
                     if self.service_config.statefulSet
@@ -47,14 +54,18 @@ class StatefulSetConstruct(BaseConstruct):
             spec=k8s.StatefulSetSpec(
                 service_name=self.service_config.name,
                 replicas=self.service_config.replicas,
-                selector=k8s.LabelSelector(match_labels=self.labels),
+                selector=k8s.LabelSelector(match_labels=statefulset_labels),
                 update_strategy=k8s.StatefulSetUpdateStrategy(
-                    type=self.service_config.statefulSet.updateStrategy.type
+                    type=(
+                        self.service_config.statefulSet.updateStrategy.type
+                        if self.service_config.statefulSet.updateStrategy
+                        else "RollingUpdate"
+                    )
                 ),
                 pod_management_policy=self.service_config.statefulSet.podManagementPolicy,
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
-                        labels=self.labels,
+                        labels=statefulset_labels,
                         annotations=self.service_config.podAnnotations,
                     ),
                     spec=pod_builder.build_pod_spec(),

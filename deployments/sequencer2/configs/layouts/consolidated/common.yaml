@@ -1,10 +1,11 @@
 imagePullSecrets: []
 
-## Additional labels to attach to all resources
-commonMetaLabels: {}
+## Base labels to attach to all resources
+commonMetaLabels:
+  app: sequencer
 
 image:
-  repository: ghcr.io/starkware-libs/sequencer
+  repository: ghcr.io/starkware-libs/sequencer/sequencer
   tag: "dev"
   digest: ""
   imagePullPolicy: IfNotPresent

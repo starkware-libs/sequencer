@@ -115,7 +115,7 @@ externalSecret:
 ### `mountPath` (string, optional)
 - **Default**: `"/etc/secrets"`
 - **Description**: Path where the external secret will be mounted in the container
-- **Note**: The secret is mounted as a single file `secrets.json` at `{mountPath}/secrets.json`
+- **Note**: The secret is mounted as a single file `external-secret.json` at `{mountPath}/external-secret.json`
 - **Example**:
   ```yaml
   externalSecret:
@@ -283,25 +283,11 @@ spec:
 
 ## Mounting in Pods
 
-The ExternalSecret is **automatically mounted** in pods when `enabled: true`. The secret is mounted as a single file `secrets.json` at the specified mount path (default: `/etc/secrets`).
+The ExternalSecret is **automatically mounted** in pods when `enabled: true`. The target secret is mounted as a **directory** at the specified mount path (default: `/etc/secrets`). **All secret keys become individual files** in this directory.
 
-**Important**: The target secret created by ExternalSecret must contain a key named `secrets.json` for this to work. You can use the `template` option to structure the secret with a `secrets.json` key, or ensure your ExternalSecret data mapping includes a key named `secrets.json`:
-
-```yaml
-externalSecret:
-  enabled: true
-  secretStore:
-    name: "gcp-secret-store"
-    kind: "ClusterSecretStore"
-  data:
-    - secretKey: secrets.json  # Key must be "secrets.json" for auto-mounting
-      remoteKey: "sequencer/secrets"
-      property: "value"
-  targetName: "sequencer-secrets"
-  # mountPath: /etc/secrets  # Optional: Override default mount path (default: "/etc/secrets")
-```
-
-Alternatively, you can use the `template` option to merge multiple keys into a single `secrets.json` file:
+**Example**: If your ExternalSecret creates a secret with keys `{database-url: "...", api-key: "..."}`, they will be mounted as:
+- `/etc/secrets/database-url`
+- `/etc/secrets/api-key`
 
 ```yaml
 externalSecret:
@@ -310,25 +296,15 @@ externalSecret:
     name: "gcp-secret-store"
     kind: "ClusterSecretStore"
   data:
-    - secretKey: database-url
+    - secretKey: database-url  # Any key name - becomes a file in the mount directory
       remoteKey: "sequencer/database-url"
       property: "value"
-    - secretKey: api-key
+    - secretKey: api-key  # Another key - becomes another file
       remoteKey: "sequencer/api-key"
       property: "value"
   targetName: "sequencer-secrets"
-  template:
-    type: "Opaque"
-    data:
-      secrets.json: |
-        {
-          "database": {
-            "url": "{{ .database-url }}"
-          },
-          "api": {
-            "key": "{{ .api-key }}"
-          }
-        }
+  # mountPath: /etc/external-secrets  # Optional: Override default mount path (default: "/etc/secrets")
+  # Note: Use a different path if Secret is also enabled to avoid conflicts
 ```
 
 The generated volume mount looks like:
@@ -336,22 +312,27 @@ The generated volume mount looks like:
 ```yaml
 volumeMounts:
   - name: sequencer-secrets-secrets-volume
-    mountPath: /etc/secrets/secrets.json  # or {mountPath}/secrets.json if custom
-    subPath: secrets.json
+    mountPath: /etc/secrets  # All ExternalSecret keys become files here
     readOnly: true
 ```
 
+**Important**: If you also use Secret, make sure they use different mount paths to avoid conflicts. For example:
+- Secret: `mountPath: /etc/secrets`
+- ExternalSecret: `mountPath: /etc/external-secrets`
+
 ## Automatic Container Arguments
 
-When an ExternalSecret is enabled, the container **automatically receives** the `--config_file` argument pointing to the mounted secret file:
+When an ExternalSecret is enabled, the container **automatically receives** the `--config_file` argument pointing to the mounted secret directory:
 
 ```yaml
 args:
   - --config_file
   - /config/sequencer/presets/  # from ConfigMap (always present)
   - --config_file
-  - /etc/secrets/secrets.json   # from ExternalSecret (if enabled)
+  - /etc/secrets   # from ExternalSecret (if enabled) - directory containing all secret files
 ```
+
+Your application should then read the specific files it needs from this directory (e.g., `/etc/secrets/database-url`, `/etc/secrets/api-key`).
 
 ## Best Practices
 

@@ -51,16 +51,17 @@ Each documentation file provides:
 The following resources are automatically mounted in pods when enabled:
 
 - **ConfigMap**: Automatically mounted at `/config/sequencer/presets/` (or custom `mountPath`)
-- **Secret**: Automatically mounted as `/etc/secrets/secrets.json` (or custom path) using `subPath`
-- **ExternalSecret**: Automatically mounted as `/etc/secrets/secrets.json` (or custom path) using `subPath`
+- **Secret**: Automatically mounted as `/etc/secrets/secret.json` (or custom path) using `subPath`
+- **ExternalSecret**: Automatically mounted as `/etc/secrets/external-secret.json` (or custom path) using `subPath`
 
 ### Automatic Container Arguments
 
 Container arguments are automatically generated based on enabled resources:
 
 1. **ConfigMap**: Always adds `--config_file {mountPath}` (default: `--config_file /config/sequencer/presets/`)
-2. **Secret/ExternalSecret**: Adds `--config_file {mountPath}/secrets.json` (default: `--config_file /etc/secrets/secrets.json`)
-3. **Custom Args**: Any additional args from `node.yaml` are appended after the automatic args
+2. **Secret**: Adds `--config_file {mountPath}/secret.json` (default: `--config_file /etc/secrets/secret.json`)
+3. **ExternalSecret**: Adds `--config_file {mountPath}/external-secret.json` (default: `--config_file /etc/secrets/external-secret.json`)
+4. **Custom Args**: Any additional args from `node.yaml` are appended after the automatic args
 
 **Example generated args:**
 ```yaml
@@ -68,7 +69,9 @@ args:
   - --config_file
   - /config/sequencer/presets/      # From ConfigMap
   - --config_file
-  - /etc/secrets/secrets.json       # From Secret/ExternalSecret (if enabled)
+  - /etc/secrets/secret.json       # From Secret (if enabled)
+  - --config_file
+  - /etc/secrets/external-secret.json  # From ExternalSecret (if enabled)
   - --custom-arg                    # From node.yaml args section
   - value
 ```
@@ -102,7 +105,7 @@ secret:
   name: "app-secrets"
   type: Opaque
   stringData:
-    secrets.json: |
+    secret.json: |
       {
         "database": {
           "url": "postgresql://user:password@localhost:5432/db"
@@ -111,7 +114,7 @@ secret:
   # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
 ```
 
-**Note**: The Secret is automatically mounted as `{mountPath}/secrets.json` and a `--config_file {mountPath}/secrets.json` argument is automatically added to container args. The secret must contain a key named `secrets.json`.
+**Note**: The Secret is automatically mounted as `{mountPath}/secret.json` and a `--config_file {mountPath}/secret.json` argument is automatically added to container args. The secret must contain a key named `secret.json`.
 
 ### ExternalSecret
 ```yaml
@@ -121,12 +124,12 @@ externalSecret:
     name: "gcp-secret-store"
     kind: "ClusterSecretStore"
   data:
-    - secretKey: "secrets.json"  # Key must be "secrets.json" for auto-mounting
+    - secretKey: "external-secret.json"  # Key must be "external-secret.json" for auto-mounting
       remoteKey: "sequencer/secrets"
   # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
 ```
 
-**Note**: The ExternalSecret is automatically mounted as `{mountPath}/secrets.json` and a `--config_file {mountPath}/secrets.json` argument is automatically added to container args. The target secret must contain a key named `secrets.json`.
+**Note**: The ExternalSecret is automatically mounted as `{mountPath}/external-secret.json` and a `--config_file {mountPath}/external-secret.json` argument is automatically added to container args. The target secret must contain a key named `external-secret.json`.
 
 ### Ingress
 ```yaml

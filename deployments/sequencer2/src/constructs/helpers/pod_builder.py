@@ -23,7 +23,7 @@ class PodBuilder:
         return k8s.PodSpec(
             service_account_name=self._get_service_account_name(),
             termination_grace_period_seconds=self.service_config.terminationGracePeriodSeconds,
-            priority_class_name=self.service_config.priorityClassName,
+            priority_class_name=self._get_priority_class_name(),
             security_context=self._build_security_context(),
             image_pull_secrets=self._build_image_pull_secrets(),
             volumes=self._build_volumes(),
@@ -32,6 +32,22 @@ class PodBuilder:
             affinity=self._build_affinity(),
             containers=[self._build_container()],
         )
+
+    def _get_priority_class_name(self) -> str | None:
+        """Get the priority class name to use in pod spec."""
+        if not self.service_config.priorityClass or not self.service_config.priorityClass.enabled:
+            return None
+
+        # If existingPriorityClass is set, use it
+        if self.service_config.priorityClass.existingPriorityClass:
+            return self.service_config.priorityClass.existingPriorityClass
+
+        # Otherwise, use the name of the PriorityClass we created (or default name)
+        if self.service_config.priorityClass.name:
+            return self.service_config.priorityClass.name
+
+        # Default name follows the pattern
+        return f"sequencer-{self.service_config.name}-priorityclass"
 
     def build_container(self) -> k8s.Container:
         """Build a single container specification."""
@@ -56,35 +72,46 @@ class PodBuilder:
         )
 
     def _build_container_args(self) -> list[str]:
-        """Build container arguments, always including --config_file with mountPath."""
-        # Default mountPath is "/config/sequencer/presets/"
-        mount_path = "/config/sequencer/presets/"
-        if self.service_config.config and self.service_config.config.mountPath:
-            mount_path = self.service_config.config.mountPath
+        """Build container arguments, always including --config_file with fixed file paths."""
+        args = []
 
-        # Always add --config_file {mountPath} as first args
-        args = ["--config_file", mount_path]
+        # Add --config_file /config/sequencer/presets/config.json (ConfigMap)
+        if self.service_config.config and self.service_config.config.configPaths:
+            mount_path = (
+                self.service_config.config.mountPath
+                if self.service_config.config.mountPath
+                else "/config/sequencer/presets"
+            )
+            args.append("--config_file")
+            args.append(f"{mount_path}/config.json")
 
-        # Add --config_file /etc/secrets/secrets.json if Secret or ExternalSecret is enabled
-        has_secret = (
+        # Add --config_file /etc/secrets/secret.json (Secret)
+        if (
             self.service_config.secret
             and self.service_config.secret.enabled
             and (self.service_config.secret.data or self.service_config.secret.stringData)
-        )
-        has_external_secret = (
+        ):
+            mount_path = (
+                self.service_config.secret.mountPath
+                if self.service_config.secret.mountPath
+                else "/etc/secrets"
+            )
+            args.append("--config_file")
+            args.append(f"{mount_path}/secret.json")
+
+        # Add --config_file /etc/secrets/external-secret.json (ExternalSecret)
+        if (
             self.service_config.externalSecret
             and self.service_config.externalSecret.enabled
             and self.service_config.externalSecret.data
-        )
-        if has_secret or has_external_secret:
-            # Determine mount path for secrets
-            secret_mount_path = "/etc/secrets"
-            if has_secret and self.service_config.secret.mountPath:
-                secret_mount_path = self.service_config.secret.mountPath
-            elif has_external_secret and self.service_config.externalSecret.mountPath:
-                secret_mount_path = self.service_config.externalSecret.mountPath
-
-            args.extend(["--config_file", f"{secret_mount_path}/secrets.json"])
+        ):
+            mount_path = (
+                self.service_config.externalSecret.mountPath
+                if self.service_config.externalSecret.mountPath
+                else "/etc/secrets"
+            )
+            args.append("--config_file")
+            args.append(f"{mount_path}/external-secret.json")
 
         # Append any additional args from node.yaml
         if self.service_config.args:
@@ -155,22 +182,23 @@ class PodBuilder:
         """Build volume mounts for the container."""
         volume_mounts: list[k8s.VolumeMount] = []
 
-        # Auto-mount ConfigMap if config exists
+        # Auto-mount ConfigMap if config exists (as config.json file)
         if self.service_config.config and self.service_config.config.configPaths:
-            # Default mountPath is "/config/sequencer/presets/"
-            mount_path = "/config/sequencer/presets/"
+            # Default mountPath is "/config/sequencer/presets"
+            mount_path = "/config/sequencer/presets"
             if self.service_config.config.mountPath:
                 mount_path = self.service_config.config.mountPath
 
             volume_mounts.append(
                 k8s.VolumeMount(
                     name=f"sequencer-{self.service_config.name}-config",
-                    mount_path=mount_path,
+                    mount_path=f"{mount_path}/config.json",
+                    sub_path="config_json",  # Matches the ConfigMap key (dots not allowed in K8s keys)
                     read_only=True,
                 )
             )
 
-        # Mount Secret if enabled
+        # Mount Secret if enabled (always mounted as secret.json regardless of key name)
         if (
             self.service_config.secret
             and self.service_config.secret.enabled
@@ -186,18 +214,26 @@ class PodBuilder:
                 if self.service_config.secret.mountPath
                 else "/etc/secrets"
             )
-            # Mount secrets.json file specifically using subPath
-            # This requires the secret to have a key named "secrets.json"
-            volume_mounts.append(
-                k8s.VolumeMount(
-                    name=secret_volume_name,
-                    mount_path=f"{mount_path}/secrets.json",
-                    sub_path="secrets.json",
-                    read_only=True,
-                )
-            )
 
-        # Mount ExternalSecret if enabled
+            # Get the first available key (any key name is fine)
+            secret_key = None
+            if self.service_config.secret.stringData:
+                secret_key = next(iter(self.service_config.secret.stringData.keys()))
+            elif self.service_config.secret.data:
+                secret_key = next(iter(self.service_config.secret.data.keys()))
+
+            if secret_key:
+                # Mount whatever key they provided as secret.json using subPath
+                volume_mounts.append(
+                    k8s.VolumeMount(
+                        name=secret_volume_name,
+                        mount_path=f"{mount_path}/secret.json",
+                        sub_path=secret_key,
+                        read_only=True,
+                    )
+                )
+
+        # Mount ExternalSecret if enabled (always mounted as external-secret.json regardless of key name)
         if (
             self.service_config.externalSecret
             and self.service_config.externalSecret.enabled
@@ -215,16 +251,24 @@ class PodBuilder:
                 if self.service_config.externalSecret.mountPath
                 else "/etc/secrets"
             )
-            # Mount secrets.json file specifically using subPath
-            # This requires the ExternalSecret to create a secret with a key named "secrets.json"
-            volume_mounts.append(
-                k8s.VolumeMount(
-                    name=external_secret_volume_name,
-                    mount_path=f"{mount_path}/secrets.json",
-                    sub_path="secrets.json",
-                    read_only=True,
-                )
+
+            # Get the first available key (any key name is fine)
+            external_secret_key = (
+                self.service_config.externalSecret.data[0].secretKey
+                if self.service_config.externalSecret.data
+                else None
             )
+
+            if external_secret_key:
+                # Mount whatever key they provided as external-secret.json using subPath
+                volume_mounts.append(
+                    k8s.VolumeMount(
+                        name=external_secret_volume_name,
+                        mount_path=f"{mount_path}/external-secret.json",
+                        sub_path=external_secret_key,
+                        read_only=True,
+                    )
+                )
 
         # Mount persistentVolume if enabled
         if (

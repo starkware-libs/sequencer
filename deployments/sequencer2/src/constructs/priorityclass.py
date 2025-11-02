@@ -23,11 +23,20 @@ class PriorityClassConstruct(BaseConstruct):
         )
 
         if self.service_config.priorityClass and self.service_config.priorityClass.enabled:
-            self.priority_class = self._create_priority_class()
+            # Only create PriorityClass if existingPriorityClass is not set
+            if not self.service_config.priorityClass.existingPriorityClass:
+                self.priority_class = self._create_priority_class()
 
     def _create_priority_class(self) -> k8s.KubePriorityClass:
         """Create PriorityClass resource."""
         pc_config = self.service_config.priorityClass
+
+        # Validate that value is set when creating a new PriorityClass
+        if not pc_config.value:
+            raise ValueError(
+                "priorityClass.value is required when creating a new PriorityClass. "
+                "Set existingPriorityClass to use an existing PriorityClass instead."
+            )
 
         # Merge labels with common labels
         merged_labels = {**self.labels, **pc_config.labels}

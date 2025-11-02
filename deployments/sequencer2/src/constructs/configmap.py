@@ -44,6 +44,9 @@ class ConfigMapConstruct(BaseConstruct):
         return k8s.KubeConfigMap(
             self,
             "configmap",
-            metadata=k8s.ObjectMeta(name=f"sequencer-{self.service_config.name}-config"),
-            data=dict(config=config_data),
-        )
+            metadata=k8s.ObjectMeta(
+                name=f"sequencer-{self.service_config.name}-config",
+                labels=self.labels,
+            ),
+            data=dict(config_json=config_data),
+        )  # Note: Key is "config_json" (no dots allowed in Kubernetes keys), but mounted as config.json via subPath

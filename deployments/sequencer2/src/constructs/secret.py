@@ -38,6 +38,10 @@ class SecretConstruct(BaseConstruct):
         # Add any existing data (already base64 encoded)
         data.update(self.service_config.secret.data)
 
+        # Ensure secret.json key exists (validation is done in schema, but double-check)
+        if not data and not self.service_config.secret.stringData:
+            raise ValueError("Secret must have data or stringData with at least secret.json key")
+
         return k8s.KubeSecret(
             self,
             "secret",

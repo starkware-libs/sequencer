@@ -110,17 +110,15 @@ class Ingress(StrictBaseModel):
     enabled: Optional[bool] = None
     ingressClassName: Optional[str] = None
     annotations: StrDict = Field(default_factory=dict)
-    extraLabels: StrDict = Field(default_factory=dict)
+    labels: StrDict = Field(default_factory=dict)
     hosts: List[str] = Field(default_factory=list)
     path: Optional[str] = None
     pathType: Optional[str] = None
     extraPaths: List[AnyDict] = Field(default_factory=list)
     tls: List[AnyDict] = Field(default_factory=list)
     # Additional fields for more complex ingress configurations
-    internal: Optional[bool] = None
     alternative_names: List[str] = Field(default_factory=list)
     rules: List[AnyDict] = Field(default_factory=list)
-    cloud_armor_policy_name: Optional[str] = None
 
 
 class PodDisruptionBudget(StrictBaseModel):
@@ -192,11 +190,16 @@ class ExternalSecret(StrictBaseModel):
     refreshInterval: str = "1m"
     targetName: Optional[str] = None  # Custom target secret name
     data: List[ExternalSecretData] = Field(default_factory=list)
-    mountPath: Optional[str] = None  # Where to mount the external secret (default: /app/secrets)
+    mountPath: Optional[str] = None  # Where to mount the external secret (default: /etc/secrets)
     # Advanced options
     template: Optional[AnyDict] = None  # Custom template for secret generation
     metadata: Optional[AnyDict] = None  # Custom metadata for the secret
     deletionPolicy: str = "Retain"  # Retain, Delete, Merge
+
+    def model_post_init(self, __context):
+        """Validate that ExternalSecret has at least one data entry when enabled."""
+        if self.enabled and not self.data:
+            raise ValueError("ExternalSecret must contain at least one data entry when enabled")
 
 
 class HealthCheck(StrictBaseModel):
@@ -226,7 +229,34 @@ class Secret(StrictBaseModel):
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
     immutable: Optional[bool] = None
-    mountPath: Optional[str] = None  # Where to mount the secret (default: /app/secrets)
+    mountPath: Optional[str] = None  # Where to mount the secret (default: /etc/secrets)
+
+    def model_post_init(self, __context):
+        """Validate that secret content is valid JSON."""
+        import json
+
+        if self.enabled:
+            all_keys = set()
+            if self.stringData:
+                all_keys.update(self.stringData.keys())
+            if self.data:
+                all_keys.update(self.data.keys())
+
+            if not all_keys:
+                raise ValueError("Secret must contain at least one key when enabled")
+
+            # Validate that all stringData values are valid JSON
+            if self.stringData:
+                for key, value in self.stringData.items():
+                    try:
+                        json.loads(value)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        raise ValueError(
+                            f"Secret key '{key}' contains invalid JSON. Content must be valid JSON. Error: {e}"
+                        ) from e
+
+            # Note: data is already base64 encoded, we can't validate JSON here without decoding
+            # Users should use stringData for JSON content validation
 
 
 class CommonConfig(StrictBaseModel):
@@ -298,10 +328,15 @@ class NetworkPolicy(StrictBaseModel):
 
 class PriorityClass(StrictBaseModel):
     enabled: bool = False
+    existingPriorityClass: Optional[str] = (
+        None  # Use existing PriorityClass by name (skip creation)
+    )
     name: Optional[str] = None
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
-    value: int  # Required: priority value (higher = more important)
+    value: Optional[int] = (
+        None  # Priority value (higher = more important) - required when creating new PriorityClass
+    )
     globalDefault: bool = False  # Whether this is the default PriorityClass
     description: Optional[str] = None  # Description of the PriorityClass
     preemptionPolicy: Optional[str] = None  # "Never" or "PreemptLowerPriority"
@@ -323,7 +358,6 @@ class ServiceConfig(StrictBaseModel):
     terminationGracePeriodSeconds: Optional[int] = None
     command: List[str] = Field(default_factory=list)
     args: List[str] = Field(default_factory=list)
-    priorityClassName: Optional[str] = None
     env: List[AnyDict] = Field(default_factory=list)
     securityContext: Optional[SecurityContext] = None
     resources: Optional[Resources] = None

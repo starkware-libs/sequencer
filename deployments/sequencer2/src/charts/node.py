@@ -38,11 +38,11 @@ class SequencerNodeChart(Chart):
         self.service_config = service_config
         self.common_config = common_config
 
-        # Create labels dictionary (avoid conflict with Chart.labels property)
-        labels = {
-            "app": "sequencer",
-            "service": Names.to_label_value(self, include_hash=False),
-        }
+        # Create labels dictionary from common config + service name
+        # Base labels from common.yaml (commonMetaLabels)
+        labels = dict(common_config.commonMetaLabels) if common_config.commonMetaLabels else {}
+        # Add service label (dynamic per service)
+        labels["service"] = service_config.name
 
         # Determine monitoring port
         monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config)

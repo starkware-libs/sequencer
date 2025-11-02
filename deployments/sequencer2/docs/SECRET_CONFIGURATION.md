@@ -108,8 +108,8 @@ secret:
 
 ### `mountPath` (string, optional)
 - **Default**: `"/etc/secrets"`
-- **Description**: Path where the secret will be mounted in the container
-- **Note**: The secret is mounted as a single file `secrets.json` at `{mountPath}/secrets.json`
+- **Description**: Path where the secret will be mounted in the container as a directory
+- **Note**: All secret keys become individual files in this directory. If you also use ExternalSecret, use different mount paths to avoid conflicts.
 - **Example**:
   ```yaml
   secret:
@@ -286,9 +286,11 @@ immutable: true
 
 ## Mounting in Pods
 
-The Secret is **automatically mounted** in pods when `enabled: true`. The secret is mounted as a single file `secrets.json` at the specified mount path (default: `/etc/secrets`).
+The Secret is **automatically mounted** in pods when `enabled: true`. The secret is mounted as a **directory** at the specified mount path (default: `/etc/secrets`). **All secret keys become individual files** in this directory.
 
-**Important**: The secret must contain a key named `secrets.json` for this to work. You can create the secret with this key:
+**Example**: If your secret has keys `{database-url: "...", api-key: "..."}`, they will be mounted as:
+- `/etc/secrets/database-url`
+- `/etc/secrets/api-key`
 
 ```yaml
 secret:
@@ -296,13 +298,13 @@ secret:
   name: "sequencer-secrets"
   type: Opaque
   stringData:
-    secrets.json: |
+    database-url: "postgresql://user:password@localhost:5432/db"
+    api-key: "your-api-key-here"
+    config.json: |
       {
         "database": {
-          "url": "postgresql://user:password@localhost:5432/db"
-        },
-        "api": {
-          "key": "your-api-key-here"
+          "host": "localhost",
+          "port": 5432
         }
       }
   # mountPath: /etc/secrets  # Optional: Override default mount path (default: "/etc/secrets")
@@ -313,22 +315,25 @@ The generated volume mount looks like:
 ```yaml
 volumeMounts:
   - name: sequencer-secrets-volume
-    mountPath: /etc/secrets/secrets.json  # or {mountPath}/secrets.json if custom
-    subPath: secrets.json
+    mountPath: /etc/secrets  # All secret keys become files here
     readOnly: true
 ```
 
+**Note**: If you also use ExternalSecret, make sure they use different mount paths to avoid conflicts.
+
 ## Automatic Container Arguments
 
-When a Secret is enabled, the container **automatically receives** the `--config_file` argument pointing to the mounted secret file:
+When a Secret is enabled, the container **automatically receives** the `--config_file` argument pointing to the mounted secret directory:
 
 ```yaml
 args:
   - --config_file
   - /config/sequencer/presets/  # from ConfigMap (always present)
   - --config_file
-  - /etc/secrets/secrets.json   # from Secret (if enabled)
+  - /etc/secrets   # from Secret (if enabled) - directory containing all secret files
 ```
+
+Your application should then read the specific files it needs from this directory (e.g., `/etc/secrets/database-url`, `/etc/secrets/config.json`).
 
 ## Environment Variable Injection
 
@@ -381,7 +386,7 @@ secret:
       }
 ```
 
-**Note**: When using auto-mounting, the secret must contain a key named `secrets.json`. The file will be mounted at `/etc/secrets/secrets.json`.
+**Note**: When using auto-mounting, the secret must contain a key named `secret.json`. The file will be mounted at `/etc/secrets/secret.json`.
 
 ### API Keys
 
@@ -401,7 +406,7 @@ secret:
       }
 ```
 
-**Note**: When using auto-mounting, the secret must contain a key named `secrets.json`. The file will be mounted at `/etc/secrets/secrets.json`.
+**Note**: When using auto-mounting, the secret must contain a key named `secret.json`. The file will be mounted at `/etc/secrets/secret.json`.
 
 ### TLS Certificates
 
