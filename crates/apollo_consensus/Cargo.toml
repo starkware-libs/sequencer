@@ -41,6 +41,7 @@ apollo_test_utils.workspace = true
 enum-as-inner.workspace = true
 mockall.workspace = true
 test-case.workspace = true
+rstest.workspace = true
 
 [lints]
 workspace = true
