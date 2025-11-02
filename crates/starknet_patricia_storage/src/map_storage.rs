@@ -107,4 +107,8 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.cache.pop(key);
         self.storage.delete(key)
     }
+
+    fn get_stats(&self) -> Option<String> {
+        self.storage.get_stats()
+    }
 }
