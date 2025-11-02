@@ -21,8 +21,7 @@ async fn main() {
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
 
     const N_INVOKE_TXS: usize = 50;
-    // TODO(Arni): handle L1 handlers in this scenario.
-    const N_L1_HANDLER_TXS: usize = 0;
+    const N_L1_HANDLER_TXS: usize = 5;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 5;
     /// The number of hybrid sequencers that participate in the test.
