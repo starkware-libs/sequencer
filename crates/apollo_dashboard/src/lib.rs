@@ -7,6 +7,4 @@ pub mod dashboard_definitions;
 mod metric_definitions_test;
 mod panels;
 
-// TODO(MatanL): Remove cfg(test) when used
-#[cfg(test)]
 mod query_builder;
