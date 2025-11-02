@@ -15,6 +15,7 @@ use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder;
+use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
@@ -31,8 +32,8 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
 fn get_panel_mempool_transactions_committed() -> Panel {
     Panel::new(
         "Transactions Committed",
-        "Number of transactions committed to a block (10m window)",
-        query_builder::increase(&MEMPOOL_TRANSACTIONS_COMMITTED, "10m"),
+        format!("Number of transactions committed to a block ({DEFAULT_DURATION} window)"),
+        query_builder::increase(&MEMPOOL_TRANSACTIONS_COMMITTED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }

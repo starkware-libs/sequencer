@@ -47,6 +47,7 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder;
+use crate::query_builder::DEFAULT_DURATION;
 
 // The key events that are relevant to the consensus panel.
 const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
@@ -95,9 +96,11 @@ pub(crate) fn get_panel_consensus_round() -> Panel {
 pub(crate) fn get_panel_consensus_round_advanced() -> Panel {
     Panel::new(
         "Consensus Round Advanced",
-        "The number of times the consensus round advanced (counter is increased whenever round > \
-         0) (10m window)",
-        query_builder::increase(&CONSENSUS_ROUND_ADVANCES, "10m"),
+        format!(
+            "The number of times the consensus round advanced (counter is increased whenever \
+             round > 0) ({DEFAULT_DURATION} window)",
+        ),
+        query_builder::increase(&CONSENSUS_ROUND_ADVANCES, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
@@ -131,8 +134,8 @@ pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
         "Decisions Reached By Consensus",
-        "The number of decisions reached by way of consensus (10m window)",
-        query_builder::increase(&CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, "10m"),
+        format!("The number of decisions reached by way of consensus ({DEFAULT_DURATION} window)",),
+        query_builder::increase(&CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("DECISION_REACHED: Decision reached for round")
@@ -142,8 +145,8 @@ fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
 fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
     Panel::new(
         "Decisions Reached By Sync",
-        "The number of decisions reached by way of sync (10m window)",
-        query_builder::increase(&CONSENSUS_DECISIONS_REACHED_BY_SYNC, "10m"),
+        format!("The number of decisions reached by way of sync ({DEFAULT_DURATION} window)",),
+        query_builder::increase(&CONSENSUS_DECISIONS_REACHED_BY_SYNC, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Decision learned via sync protocol.")
@@ -153,8 +156,8 @@ fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
 fn get_panel_consensus_proposals_received() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Received Proposals",
-        "The number of proposals received from the network (10m window)",
-        query_builder::increase(&CONSENSUS_PROPOSALS_RECEIVED, "10m"),
+        format!("The number of proposals received from the network ({DEFAULT_DURATION} window)",),
+        query_builder::increase(&CONSENSUS_PROPOSALS_RECEIVED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -162,8 +165,11 @@ fn get_panel_consensus_proposals_received() -> Panel {
 fn get_panel_consensus_proposals_validated() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Validated Proposals",
-        "The number of proposals received and validated successfully (10m window)",
-        query_builder::increase(&CONSENSUS_PROPOSALS_VALIDATED, "10m"),
+        format!(
+            "The number of proposals received and validated successfully ({DEFAULT_DURATION} \
+             window)",
+        ),
+        query_builder::increase(&CONSENSUS_PROPOSALS_VALIDATED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
@@ -173,8 +179,10 @@ fn get_panel_consensus_proposals_validated() -> Panel {
 fn get_panel_consensus_proposals_invalid() -> Panel {
     Panel::new(
         "Proposal Validation: Number of Invalid Proposals",
-        "The number of proposals received and failed validation (10m window)",
-        query_builder::increase(&CONSENSUS_PROPOSALS_INVALID, "10m"),
+        format!(
+            "The number of proposals received and failed validation ({DEFAULT_DURATION} window)",
+        ),
+        query_builder::increase(&CONSENSUS_PROPOSALS_INVALID, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"Validated proposal.\" OR \"PROPOSAL_FAILED\"")
@@ -199,8 +207,8 @@ fn get_panel_validate_proposal_failure() -> Panel {
 fn get_panel_consensus_build_proposal_total() -> Panel {
     Panel::new(
         "Proposal Build: Number of Proposals Started",
-        "The number of proposals that started building (10m window)",
-        query_builder::increase(&CONSENSUS_BUILD_PROPOSAL_TOTAL, "10m"),
+        format!("The number of proposals that started building ({DEFAULT_DURATION} window)",),
+        query_builder::increase(&CONSENSUS_BUILD_PROPOSAL_TOTAL, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -208,8 +216,8 @@ fn get_panel_consensus_build_proposal_total() -> Panel {
 fn get_panel_consensus_build_proposal_failed() -> Panel {
     Panel::new(
         "Proposal Build: Number of Proposals Failed",
-        "The number of proposals that failed to be built (10m window)",
-        query_builder::increase(&CONSENSUS_BUILD_PROPOSAL_FAILED, "10m"),
+        format!("The number of proposals that failed to be built ({DEFAULT_DURATION} window)",),
+        query_builder::increase(&CONSENSUS_BUILD_PROPOSAL_FAILED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -287,8 +295,8 @@ fn get_panel_cende_write_blob_success() -> Panel {
 
     Panel::new(
         "Write Blob Success",
-        "The number of successful blob writes to Cende (10m window)",
-        query_builder::increase(&CENDE_WRITE_BLOB_SUCCESS, "10m"),
+        format!("The number of successful blob writes to Cende ({DEFAULT_DURATION} window)"),
+        query_builder::increase(&CENDE_WRITE_BLOB_SUCCESS, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query(query_expression)
@@ -311,9 +319,11 @@ fn get_panel_cende_write_blob_failure() -> Panel {
 fn get_panel_cende_write_preconfirmed_block() -> Panel {
     Panel::new(
         "Write Preconfirmed Block Success",
-        "The number of successful writes to Cende for preconfirmed blocks (10m window). Each \
-         preconfirmed block may involve multiple writes.",
-        query_builder::increase(&PRECONFIRMED_BLOCK_WRITTEN, "10m"),
+        format!(
+            "The number of successful writes to Cende for preconfirmed blocks ({DEFAULT_DURATION} \
+             window). Each preconfirmed block may involve multiple writes.",
+        ),
+        query_builder::increase(&PRECONFIRMED_BLOCK_WRITTEN, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("write_pre_confirmed_block request succeeded.")
@@ -420,8 +430,11 @@ fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
 fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
     Panel::new(
         "Consensus Decisions Reached As Proposer",
-        "The number of rounds with decision reached where this node is the proposer (10m window)",
-        query_builder::increase(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, "10m"),
+        format!(
+            "The number of rounds with decision reached where this node is the proposer \
+             ({DEFAULT_DURATION} window)",
+        ),
+        query_builder::increase(&CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"")
