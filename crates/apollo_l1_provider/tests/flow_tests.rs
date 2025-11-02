@@ -45,6 +45,86 @@ const LAST_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number + NUMBER_OF_BL
 const START_L2_HEIGHT: BlockNumber = BlockNumber(0);
 const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
 
+/// Setup an anvil base layer with some blocks on it.
+async fn setup_anvil_base_layer() -> AnvilBaseLayer {
+    let base_layer = AnvilBaseLayer::new().await;
+    anvil_mine_blocks(
+        base_layer.ethereum_base_layer.config.clone(),
+        NUMBER_OF_BLOCKS_TO_MINE,
+        &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
+    )
+    .await;
+    base_layer
+}
+
+/// Set up the scraper and provider, return a provider client.
+async fn setup_scraper_and_provider(
+    base_layer: &AnvilBaseLayer,
+) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
+    // Setup the state sync client.
+    let mut state_sync_client = MockStateSyncClient::default();
+    state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
+
+    // Set up the L1 provider client and server.
+    // This channel connects the L1Provider client to the server.
+    let (tx, rx) = channel::<RequestWrapper<L1ProviderRequest, L1ProviderResponse>>(32);
+
+    // Create the provider client.
+    let l1_provider_client =
+        LocalComponentClient::new(tx, L1_PROVIDER_INFRA_METRICS.get_local_client_metrics());
+
+    // L1 provider setup.
+    let l1_provider_config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_millis(COOLDOWN_MILLIS),
+        ..Default::default()
+    };
+    let l1_provider = L1ProviderBuilder::new(
+        l1_provider_config,
+        Arc::new(l1_provider_client.clone()),
+        Arc::new(MockBatcherClient::default()), // Consider saving a copy of this to interact
+        Arc::new(state_sync_client),
+    )
+    .startup_height(START_L2_HEIGHT)
+    .catchup_height(TARGET_L2_HEIGHT)
+    .build();
+
+    // Create the server.
+    let mut l1_provider_server = LocalComponentServer::new(
+        l1_provider,
+        &LocalServerConfig::default(),
+        rx,
+        L1_PROVIDER_INFRA_METRICS.get_local_server_metrics(),
+    );
+    // Start the server:
+    tokio::spawn(async move {
+        l1_provider_server.start().await;
+    });
+
+    // Set up the L1 scraper and run it as a server.
+    let l1_scraper_config = L1ScraperConfig {
+        polling_interval_seconds: Duration::from_secs(1),
+        chain_id: CHAIN_ID,
+        ..Default::default()
+    };
+    let mut scraper = L1Scraper::new(
+        l1_scraper_config,
+        Arc::new(l1_provider_client.clone()),
+        base_layer.ethereum_base_layer.clone(),
+        &[],
+        START_L1_BLOCK,
+    )
+    .await
+    .expect("Should be able to create the scraper");
+
+    // Run the scraper in a separate task.
+    tokio::spawn(async move {
+        scraper.start().await;
+    });
+    tokio::time::sleep(Duration::from_millis(SMALL_DELAY_MILLIS)).await;
+
+    l1_provider_client
+}
+
 /// Send a message from L1 to L2 and return the transaction hash on L2.
 async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionHash {
     let contract = &base_layer.ethereum_base_layer.contract;
@@ -92,78 +172,13 @@ async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionH
 #[tokio::test]
 async fn flow_tests() {
     // Setup.
-    // Setup the state sync client.
-    let mut state_sync_client = MockStateSyncClient::default();
-    state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
 
     // Setup the base layer.
-    let base_layer = AnvilBaseLayer::new().await;
-
-    anvil_mine_blocks(
-        base_layer.ethereum_base_layer.config.clone(),
-        NUMBER_OF_BLOCKS_TO_MINE,
-        &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
-    )
-    .await;
+    let base_layer = setup_anvil_base_layer().await;
 
     let l2_hash = send_message_from_l1_to_l2(&base_layer).await;
 
-    // Set up the L1 provider client and server.
-    // This channel connects the L1Provider client to the server.
-    let (tx, rx) = channel::<RequestWrapper<L1ProviderRequest, L1ProviderResponse>>(32);
-
-    // Create the provider client.
-    let l1_provider_client =
-        LocalComponentClient::new(tx, L1_PROVIDER_INFRA_METRICS.get_local_client_metrics());
-
-    // L1 provider setup.
-    let l1_provider_config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_millis(COOLDOWN_MILLIS),
-        ..Default::default()
-    };
-    let l1_provider = L1ProviderBuilder::new(
-        l1_provider_config,
-        Arc::new(l1_provider_client.clone()),
-        Arc::new(MockBatcherClient::default()), // Consider saving a copy of this to interact
-        Arc::new(state_sync_client),
-    )
-    .startup_height(START_L2_HEIGHT)
-    .catchup_height(TARGET_L2_HEIGHT)
-    .build();
-
-    // Create the server.
-    let mut l1_provider_server = LocalComponentServer::new(
-        l1_provider,
-        &LocalServerConfig::default(),
-        rx,
-        L1_PROVIDER_INFRA_METRICS.get_local_server_metrics(),
-    );
-    // Start the server:
-    tokio::spawn(async move {
-        l1_provider_server.start().await;
-    });
-
-    // Set up the L1 scraper and run it as a server.
-    let l1_scraper_config = L1ScraperConfig {
-        polling_interval_seconds: Duration::from_secs(1),
-        chain_id: CHAIN_ID,
-        ..Default::default()
-    };
-    let mut scraper = L1Scraper::new(
-        l1_scraper_config,
-        Arc::new(l1_provider_client.clone()),
-        base_layer,
-        &[],
-        START_L1_BLOCK,
-    )
-    .await
-    .expect("Should be able to create the scraper");
-
-    // Run the scraper in a separate task.
-    tokio::spawn(async move {
-        scraper.start().await;
-    });
-    tokio::time::sleep(Duration::from_millis(SMALL_DELAY_MILLIS)).await;
+    let l1_provider_client = setup_scraper_and_provider(&base_layer).await;
 
     // Test.
     let next_block_height = BlockNumber(TARGET_L2_HEIGHT.0 + 1);
