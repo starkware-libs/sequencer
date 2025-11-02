@@ -35,7 +35,7 @@ pub fn transfers_benchmark(c: &mut Criterion) {
         recipient_generator_type: RecipientGeneratorType::Random,
         #[cfg(feature = "cairo_native")]
         cairo_version: CairoVersion::Cairo1(RunnableCairo1::Native),
-        concurrency_config: ConcurrencyConfig::create_for_testing(false),
+        concurrency_config: ConcurrencyConfig::create_for_testing(true),
         ..Default::default()
     };
     let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
@@ -58,7 +58,7 @@ pub fn transfers_benchmark(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-    config = Criterion::default().sample_size(30);
+    config = Criterion::default().sample_size(50);
     targets = transfers_benchmark
 }
 criterion_main!(benches);
