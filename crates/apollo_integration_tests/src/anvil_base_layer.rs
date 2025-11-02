@@ -59,10 +59,8 @@ impl AnvilBaseLayer {
             );
         }
 
-        // TODO(Arni): Remove the allow(deprecated) once we remove the deprecated function.
-        #[allow(deprecated)]
         let anvil_client = ProviderBuilder::new()
-            .on_anvil_with_wallet_and_config(|anvil| anvil.port(Self::DEFAULT_ANVIL_PORT))
+            .connect_anvil_with_wallet_and_config(|anvil| anvil.port(Self::DEFAULT_ANVIL_PORT))
             .unwrap_or_else(|error| match error {
                 AnvilError::SpawnError(e)
                     if e.to_string().contains("No such file or directory") =>
