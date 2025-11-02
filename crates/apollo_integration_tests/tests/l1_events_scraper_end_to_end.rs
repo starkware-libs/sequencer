@@ -19,16 +19,8 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 
-pub fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 #[tokio::test]
 async fn scraper_end_to_end() {
-    if !in_ci() {
-        return;
-    }
-
     // Setup.
     let base_layer = AnvilBaseLayer::new().await;
     let contract = &base_layer.ethereum_base_layer.contract;
