@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;
@@ -8,6 +9,7 @@ use starknet_committer_cli::commands::run_storage_benchmark;
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksdbStorage;
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -154,20 +156,33 @@ pub async fn run_committer_cli(
                     let storage_path = storage_path
                         .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
                     fs::create_dir_all(&storage_path).expect("Failed to create storage directory.");
-                    let storage = RocksdbStorage::open(Path::new(&storage_path)).unwrap();
-                    run_storage_benchmark(
-                        seed,
-                        n_iterations,
-                        n_diffs,
-                        &output_dir,
-                        Some(&checkpoint_dir),
-                        storage,
-                        checkpoint_interval,
-                    )
-                    .await;
+                    let mut storage = RocksdbStorage::open(Path::new(&storage_path)).unwrap();
+                    memory_db_test(&mut storage).await;
+                    // run_storage_benchmark(
+                    //     seed,
+                    //     n_iterations,
+                    //     n_diffs,
+                    //     &output_dir,
+                    //     Some(&checkpoint_dir),
+                    //     storage,
+                    //     checkpoint_interval,
+                    // )
+                    // .await;
                 }
             }
         }
+    }
+}
+
+pub async fn memory_db_test(db: &mut RocksdbStorage) {
+    let mut i: u32 = 1;
+    while i > 0 {
+        let res = db.set(DbKey(i.to_be_bytes().to_vec()), DbValue(i.to_be_bytes().to_vec())).unwrap();
+        let range_to_read = max(i-1000, 0)..i;
+        let db_keys: Vec<DbKey> = range_to_read.map(|j| DbKey(j.to_be_bytes().to_vec())).collect();
+        let keys_to_read: Vec<&DbKey> = db_keys.iter().collect();
+        let values = db.mget(&keys_to_read).unwrap();
+        i += 1;
     }
 }
 
