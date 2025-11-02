@@ -6,7 +6,7 @@ use apollo_node_config::node_config::NodeDynamicConfig;
 use crate::config_manager::ConfigManager;
 
 #[tokio::test]
-async fn test_config_manager_update_config() {
+async fn config_manager_update_config() {
     // Set a config manager.
     let config = ConfigManagerConfig::default();
 
