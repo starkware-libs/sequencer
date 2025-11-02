@@ -153,6 +153,7 @@ fn log_config_diff_changes() {
     let old_dynamic_config = NodeDynamicConfig {
         consensus_dynamic_config: Some(ConsensusDynamicConfig {
             validator_id: ContractAddress::from(1u128),
+            ..Default::default()
         }),
         ..Default::default()
     };
@@ -160,6 +161,7 @@ fn log_config_diff_changes() {
     let new_dynamic_config = NodeDynamicConfig {
         consensus_dynamic_config: Some(ConsensusDynamicConfig {
             validator_id: ContractAddress::from(2u128),
+            ..Default::default()
         }),
         ..Default::default()
     };
@@ -174,7 +176,7 @@ fn log_config_diff_changes() {
 
     runner.log_config_diff(&old_dynamic_config, &new_dynamic_config);
 
-    assert!(logs_contain(
-        r#"consensus_dynamic_config changed from {"validator_id":"0x1"} to {"validator_id":"0x2"}"#
-    ));
+    assert!(logs_contain("consensus_dynamic_config changed from"));
+    assert!(logs_contain(r#""validator_id":"0x1""#));
+    assert!(logs_contain(r#""validator_id":"0x2""#));
 }

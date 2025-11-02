@@ -284,7 +284,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             self.consensus_config.dynamic_config.validator_id,
             validators,
             self.quorum_type,
-            self.consensus_config.static_config.timeouts.clone(),
+            self.consensus_config.dynamic_config.timeouts.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
 
@@ -301,7 +301,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         // Loop over incoming proposals, messages, and self generated events.
         let clock = DefaultClock;
-        let sync_retry_interval = self.consensus_config.static_config.sync_retry_interval;
+        let sync_retry_interval = self.consensus_config.dynamic_config.sync_retry_interval;
         let mut sync_poll_deadline = clock.now() + sync_retry_interval;
         loop {
             self.report_max_cached_block_number_metric(height);

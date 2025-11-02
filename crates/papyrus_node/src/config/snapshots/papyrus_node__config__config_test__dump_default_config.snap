@@ -101,6 +101,34 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
+  "consensus.dynamic_config.sync_retry_interval": {
+    "description": "The duration (seconds) between sync attempts.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "value": {
+      "$serde_json::private::Number": "3.0"
+    },
+    "privacy": "Public"
+  },
   "consensus.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
     "value": "0x64",
@@ -131,34 +159,6 @@ expression: dumped_default_config
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "value": {
       "$serde_json::private::Number": "5"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.sync_retry_interval": {
-    "description": "The duration (seconds) between sync attempts.",
-    "value": {
-      "$serde_json::private::Number": "1.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
-    "value": {
-      "$serde_json::private::Number": "1.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
-    "value": {
-      "$serde_json::private::Number": "1.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
-    "value": {
-      "$serde_json::private::Number": "3.0"
     },
     "privacy": "Public"
   },
