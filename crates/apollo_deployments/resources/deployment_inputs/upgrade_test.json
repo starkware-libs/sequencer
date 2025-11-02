@@ -16,5 +16,6 @@
   "deployment_environment": "UpgradeTest",
   "audited_libfuncs_only": false,
   "requires_k8s_service_config_params": true,
-  "http_server_port": 8080
+  "http_server_port": 8080,
+  "monitoring_endpoint_config_port": 8082
 }
