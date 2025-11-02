@@ -111,7 +111,6 @@ impl TransactionManager {
         let validation_status = self.with_record(tx_hash, |record| {
             // If the current time affects the state, update state now.
             record.update_time_based_state(unix_now, policy);
-
             if !record.is_validatable() {
                 match record.state {
                     TransactionState::Committed => {
@@ -261,6 +260,7 @@ impl TransactionManager {
                 TransactionState::CancelledOnL2 => {
                     snapshot.cancelled_on_l2.push(tx_hash);
                 }
+                // TODO(guyn): add a CancellationFinalizedOnL1 state.
                 TransactionState::Consumed => {
                     snapshot.consumed.push(tx_hash);
                 }
