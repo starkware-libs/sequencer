@@ -60,6 +60,28 @@ pub const BENCHMARKS: &[BenchmarkConfig] = &[
             "dummy_process_large_input",
         ]),
     },
+    BenchmarkConfig {
+        name: "transfers_benchmark_cairo_native",
+        package: "blockifier",
+        cmd_args: &[
+            "bench",
+            "-p",
+            "blockifier",
+            "--bench",
+            "blockifier",
+            "--features",
+            "testing,cairo_native",
+        ],
+        input_dir: None,
+        criterion_benchmark_names: Some(&["transfers"]),
+    },
+    BenchmarkConfig {
+        name: "transfers_benchmark_vm",
+        package: "blockifier",
+        cmd_args: &["bench", "-p", "blockifier", "--bench", "blockifier", "--features", "testing"],
+        input_dir: None,
+        criterion_benchmark_names: Some(&["transfers"]),
+    },
 ];
 
 /// Helper functions for working with benchmarks.
