@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use alloy::primitives::U256;
 use apollo_batcher_types::communication::MockBatcherClient;
@@ -13,22 +14,33 @@ use apollo_l1_provider::l1_provider::L1ProviderBuilder;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_provider::{event_identifiers_to_track, L1ProviderConfig};
-use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse};
+use apollo_l1_provider_types::{
+    Event,
+    L1ProviderClient,
+    L1ProviderRequest,
+    L1ProviderResponse,
+    SessionState,
+    ValidationStatus,
+};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;
 use tokio::sync::mpsc::channel;
 
 #[tokio::test]
 async fn flow_tests() {
     // Setup.
+    // Must wait at least 1 second, as timestamps are integer seconds.
+    const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
+    const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
     const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
     let chain_id = ChainId::Mainnet;
+
     let start_l1_block = L1BlockReference::default();
     let start_l1_block_number: L1BlockNumber = start_l1_block.number;
     let last_l1_block_number: L1BlockNumber = start_l1_block.number + NUMBER_OF_BLOCKS_TO_MINE + 1;
@@ -69,7 +81,7 @@ async fn flow_tests() {
 
     // Make sure the L1 event was posted to Anvil
     let event_filter = event_identifiers_to_track();
-    let events = base_layer
+    let mut events = base_layer
         .ethereum_base_layer
         .events(
             start_l1_block_number..=last_l1_block_number + 1, /* Include the last block with the
@@ -79,6 +91,16 @@ async fn flow_tests() {
         .await
         .unwrap();
     assert!(events.len() == 1);
+    let l1_event = events.pop().unwrap();
+
+    // Convert the L1 event to an Apollo event, so we can get the L2 hash.
+    let l1_event_converted =
+        apollo_l1_provider_types::Event::from_l1_event(&chain_id, l1_event, message_timestamp.0)
+            .unwrap();
+    let Event::L1HandlerTransaction { l1_handler_tx, .. } = l1_event_converted else {
+        panic!("L1 event converted is not a L1 handler transaction");
+    };
+    let l2_hash = l1_handler_tx.tx_hash;
 
     // Set up the L1 provider client and server.
     // This channel connects the L1Provider client to the server.
@@ -89,8 +111,12 @@ async fn flow_tests() {
         LocalComponentClient::new(tx, L1_PROVIDER_INFRA_METRICS.get_local_client_metrics());
 
     // L1 provider setup.
+    let l1_provider_config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: COOLDOWN_DURATION,
+        ..Default::default()
+    };
     let l1_provider = L1ProviderBuilder::new(
-        L1ProviderConfig::default(),
+        l1_provider_config,
         Arc::new(l1_provider_client.clone()),
         Arc::new(MockBatcherClient::default()), // Consider saving a copy of this to interact
         Arc::new(state_sync_client),
@@ -112,7 +138,11 @@ async fn flow_tests() {
     });
 
     // Set up the L1 scraper and run it as a server.
-    let l1_scraper_config = L1ScraperConfig { chain_id, ..Default::default() };
+    let l1_scraper_config = L1ScraperConfig {
+        polling_interval_seconds: COOLDOWN_DURATION,
+        chain_id,
+        ..Default::default()
+    };
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client.clone()),
@@ -127,5 +157,37 @@ async fn flow_tests() {
     tokio::spawn(async move {
         scraper.start().await;
     });
-    // TODO(guyn): add the actual test here.
+    tokio::time::sleep(WAIT_FOR_L1_DURATION).await;
+
+    // Test.
+    let next_block_height = BlockNumber(target_l2_height.0 + 1);
+
+    // Check that we can validate this message even though no time has passed.
+    l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
+    assert_eq!(
+        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
+        ValidationStatus::Validated
+    );
+
+    // Test that we do not propose anything before the cooldown is over.
+    l1_provider_client.start_block(SessionState::Propose, next_block_height).await.unwrap();
+    let n_txs = 1;
+    let txs = l1_provider_client.get_txs(n_txs, next_block_height).await.unwrap();
+    assert!(txs.is_empty());
+
+    // Sleep at least one second more than the  cooldown to make sure we are not failing due to
+    // fractional seconds.
+    tokio::time::sleep(COOLDOWN_DURATION + Duration::from_secs(1)).await;
+
+    // Test that we propose after the cooldown is over.
+    l1_provider_client.start_block(SessionState::Propose, next_block_height).await.unwrap();
+    let txs = l1_provider_client.get_txs(n_txs, next_block_height).await.unwrap();
+    assert!(!txs.is_empty());
+
+    // Check that we can validate this message after the cooldown, too.
+    l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
+    assert_eq!(
+        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
+        ValidationStatus::Validated
+    );
 }
