@@ -15,11 +15,7 @@ fn get_panel_n_classes() -> Panel {
     Panel::new(
         "Number of Classes",
         "Number of classes, labeled by type (regular, deprecated)",
-        vec![format!(
-            "sum by ({}) (increase({}[10m]))",
-            "class_type",
-            N_CLASSES.get_name_with_filter()
-        )],
+        format!("sum by ({}) (increase({}[10m]))", "class_type", N_CLASSES.get_name_with_filter()),
         PanelType::Stat,
     )
 }

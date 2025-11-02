@@ -37,11 +37,11 @@ fn get_panel_mempool_p2p_network_events_by_type() -> Panel {
     Panel::new(
         MEMPOOL_P2P_NETWORK_EVENTS.get_name(),
         MEMPOOL_P2P_NETWORK_EVENTS.get_description(),
-        vec![format!(
+        format!(
             "sum by ({}) ({})",
             LABEL_NAME_EVENT_TYPE,
             MEMPOOL_P2P_NETWORK_EVENTS.get_name_with_filter()
-        )],
+        ),
         PanelType::TimeSeries,
     )
 }
@@ -50,11 +50,11 @@ fn get_panel_mempool_p2p_dropped_messages_by_reason() -> Panel {
     Panel::new(
         MEMPOOL_P2P_NUM_DROPPED_MESSAGES.get_name(),
         MEMPOOL_P2P_NUM_DROPPED_MESSAGES.get_description(),
-        vec![format!(
+        format!(
             "sum by ({}) ({})",
             LABEL_NAME_BROADCAST_DROP_REASON,
             MEMPOOL_P2P_NUM_DROPPED_MESSAGES.get_name_with_filter()
-        )],
+        ),
         PanelType::TimeSeries,
     )
 }
