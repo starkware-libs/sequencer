@@ -10,6 +10,7 @@ from update_config_and_restart_nodes_lib import (
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
+    ServiceRestarter,
     get_configmap,
     get_current_block_number,
     get_logs_explorer_url,
@@ -124,15 +125,22 @@ Examples:
             f"Please check logs and verify that the node has proposed a block that was accepted. Logs URL: {url}"
         )
 
+    namespace_and_instruction_args = NamespaceAndInstructionArgs(
+        namespace_list,
+        context_list,
+        post_restart_instructions,
+    )
+    restarter = ServiceRestarter.from_restart_strategy(
+        RestartStrategy.ALL_AT_ONCE,
+        namespace_and_instruction_args,
+        Service.Core,
+    )
+
     update_config_and_restart_nodes(
         config_overrides,
-        NamespaceAndInstructionArgs(
-            namespace_list,
-            context_list,
-            post_restart_instructions,
-        ),
+        namespace_and_instruction_args,
         Service.Core,
-        RestartStrategy.ALL_AT_ONCE,
+        restarter,
     )
 
 
