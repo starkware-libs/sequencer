@@ -1589,6 +1589,7 @@ dependencies = [
  "apollo_l1_scraper_config",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
+ "apollo_metrics",
  "apollo_monitoring_endpoint",
  "apollo_monitoring_endpoint_config",
  "apollo_network",

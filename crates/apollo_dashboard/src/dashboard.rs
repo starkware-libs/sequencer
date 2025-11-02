@@ -8,6 +8,7 @@ use apollo_infra::metrics::{
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
+    MetricCommon,
     MetricCounter,
     MetricGauge,
     MetricHistogram,

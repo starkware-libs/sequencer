@@ -6,6 +6,7 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
 };
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 

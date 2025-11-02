@@ -1,3 +1,4 @@
+use apollo_metrics::MetricCommon;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
