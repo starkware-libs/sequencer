@@ -75,6 +75,10 @@ pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
         .collect())
 }
 
+pub(crate) fn deserialize_blob(raw_blob: &[u8]) -> Vec<Fr> {
+    raw_blob.chunks(BYTES_PER_FIELD_ELEMENT).map(BigUint::from_bytes_be).map(Fr::from).collect()
+}
+
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
     let commitment_bytes: [u8; COMMITMENT_BYTES_LENGTH] = *commitment.to_bytes().as_ref();
 
@@ -262,4 +266,27 @@ pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts
     }
 
     Ok(BlobArtifacts { commitments, cell_proofs, versioned_hashes })
+}
+
+pub fn decode_blobs(raw_blobs: Vec<Vec<u8>>) -> Result<Vec<Felt>, FftError> {
+    let mut result = Vec::new();
+
+    for raw_blob in raw_blobs.iter() {
+        let mut coeffs = deserialize_blob(raw_blob);
+
+        if coeffs.len() != FIELD_ELEMENTS_PER_BLOB {
+            return Err(FftError::InvalidBlobSize(coeffs.len()));
+        }
+
+        bit_reversal(&mut coeffs)?;
+        let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
+            .ok_or(FftError::EvalDomainCreation)?;
+        domain.ifft_in_place(&mut coeffs);
+
+        for fr_elem in coeffs {
+            let bytes = fr_elem.into_bigint().to_bytes_be();
+            result.push(Felt::from_bytes_be_slice(&bytes));
+        }
+    }
+    Ok(result)
 }
