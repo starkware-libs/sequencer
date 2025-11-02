@@ -40,6 +40,7 @@ apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 enum-as-inner.workspace = true
 mockall.workspace = true
+rstest.workspace = true
 test-case.workspace = true
 
 [lints]

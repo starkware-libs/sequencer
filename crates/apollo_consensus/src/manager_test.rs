@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
@@ -21,6 +20,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
+use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
@@ -44,6 +44,18 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
+
+#[fixture]
+fn consensus_config() -> ConsensusConfig {
+    ConsensusConfig::from_parts(
+        ConsensusDynamicConfig {
+            validator_id: *VALIDATOR_ID,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+        },
+        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
+    )
+}
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<Vote>, msg: Vote) {
     let broadcasted_message_metadata =
@@ -80,8 +92,9 @@ fn assert_decision(res: RunHeightRes, id: Felt) {
     }
 }
 
+#[rstest]
 #[tokio::test]
-async fn manager_multiple_heights_unordered() {
+async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
@@ -115,15 +128,6 @@ async fn manager_multiple_heights_unordered() {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    // TODO(Asmaa): Extract to a #[fixture]
-    let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig {
-            validator_id: *VALIDATOR_ID,
-            timeouts: TIMEOUTS.clone(),
-            sync_retry_interval: SYNC_RETRY_INTERVAL,
-        },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
-    );
     let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -153,8 +157,9 @@ async fn manager_multiple_heights_unordered() {
     assert_decision(decision, Felt::TWO);
 }
 
+#[rstest]
 #[tokio::test]
-async fn run_consensus_sync() {
+async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     // Set expectations.
     let mut context = MockTestContext::new();
     let (decision_tx, decision_rx) = oneshot::channel();
@@ -191,14 +196,6 @@ async fn run_consensus_sync() {
     let mut network_sender = mock_network.broadcasted_messages_sender;
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-    let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig {
-            validator_id: *VALIDATOR_ID,
-            timeouts: TIMEOUTS.clone(),
-            sync_retry_interval: SYNC_RETRY_INTERVAL,
-        },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
-    );
     let run_consensus_args = RunConsensusArguments {
         consensus_config,
         start_active_height: BlockNumber(1),
@@ -221,8 +218,9 @@ async fn run_consensus_sync() {
     decision_rx.await.unwrap();
 }
 
+#[rstest]
 #[tokio::test]
-async fn test_timeouts() {
+async fn test_timeouts(consensus_config: ConsensusConfig) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
@@ -261,14 +259,7 @@ async fn test_timeouts() {
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig {
-            validator_id: *VALIDATOR_ID,
-            timeouts: TIMEOUTS.clone(),
-            sync_retry_interval: SYNC_RETRY_INTERVAL,
-        },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
-    );
+    // Ensure our validator id matches the expectation in the broadcast assertion.
     let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let manager_handle = tokio::spawn(async move {
         let decision = manager
@@ -302,8 +293,9 @@ async fn test_timeouts() {
     manager_handle.await.unwrap();
 }
 
+#[rstest]
 #[tokio::test]
-async fn timely_message_handling() {
+async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // TODO(matan): Make run_height more generic so don't need mock network?
     // Check that, even when sync is immediately ready, consensus still handles queued messages.
     let mut context = MockTestContext::new();
@@ -325,14 +317,6 @@ async fn timely_message_handling() {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-    let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig {
-            validator_id: *VALIDATOR_ID,
-            timeouts: TIMEOUTS.clone(),
-            sync_retry_interval: SYNC_RETRY_INTERVAL,
-        },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
-    );
     let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let res = manager
         .run_height(
@@ -351,8 +335,11 @@ async fn timely_message_handling() {
     assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
 }
 
+#[rstest]
 #[tokio::test]
-async fn run_consensus_dynamic_client_updates_validator_between_heights() {
+async fn run_consensus_dynamic_client_updates_validator_between_heights(
+    consensus_config: ConsensusConfig,
+) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     // Keep a handle to the vote sender so the paired receiver stays alive.
@@ -395,35 +382,14 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights() {
         })
         .times(1);
 
-    // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID
+    // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID (order is important)
     let mut mock_client = MockConfigManagerClient::new();
-    let call_count = Arc::new(AtomicUsize::new(0));
-    let call_count_clone = Arc::clone(&call_count);
-    mock_client.expect_get_consensus_dynamic_config().times(2).returning(move || {
-        let n = call_count_clone.fetch_add(1, Ordering::SeqCst);
-        if n == 0 {
-            Ok(apollo_consensus_config::config::ConsensusDynamicConfig {
-                validator_id: *VALIDATOR_ID,
-                timeouts: TIMEOUTS.clone(),
-                sync_retry_interval: SYNC_RETRY_INTERVAL,
-            })
-        } else {
-            Ok(apollo_consensus_config::config::ConsensusDynamicConfig {
-                validator_id: *PROPOSER_ID,
-                timeouts: TIMEOUTS.clone(),
-                sync_retry_interval: SYNC_RETRY_INTERVAL,
-            })
-        }
-    });
+    let validator_config = consensus_config.dynamic_config.clone();
+    let proposer_config =
+        ConsensusDynamicConfig { validator_id: *PROPOSER_ID, ..validator_config.clone() };
+    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(validator_config));
+    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
 
-    let consensus_config = ConsensusConfig::from_parts(
-        ConsensusDynamicConfig {
-            validator_id: *VALIDATOR_ID,
-            timeouts: TIMEOUTS.clone(),
-            sync_retry_interval: SYNC_RETRY_INTERVAL,
-        },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
-    );
     let run_consensus_args = RunConsensusArguments {
         start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
