@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
@@ -111,15 +112,16 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 /// Configuration for the preconfirmed Cende client component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PreconfirmedCendeConfig {
-    pub recorder_url: Url,
+    pub recorder_url: Sensitive<Url>,
 }
 
 impl Default for PreconfirmedCendeConfig {
     fn default() -> Self {
         Self {
-            recorder_url: "https://recorder_url"
-                .parse()
-                .expect("recorder_url must be a valid Recorder URL"),
+            recorder_url: Sensitive::new(
+                "https://recorder_url".parse().expect("recorder_url must be a valid Recorder URL"),
+                None,
+            ),
         }
     }
 }
