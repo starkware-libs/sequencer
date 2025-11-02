@@ -181,7 +181,7 @@ impl StorageTestSetup {
 }
 
 #[derive(Clone)]
-struct PresetTestContracts {
+pub(crate) struct PresetTestContracts {
     pub default_test_contracts: Vec<Contract>,
     pub erc20_contract: Contract,
 }
@@ -207,13 +207,13 @@ impl PresetTestContracts {
     }
 }
 
-struct TestClasses {
+pub(crate) struct TestClasses {
     pub cairo0_contract_classes: Vec<(ClassHash, DeprecatedContractClass)>,
     pub cairo1_contract_classes: Vec<(ClassHash, (SierraContractClass, CasmContractClass))>,
 }
 
 impl TestClasses {
-    pub fn new(
+    fn new(
         test_defined_accounts: &[AccountTransactionGenerator],
         preset_test_contracts: PresetTestContracts,
     ) -> TestClasses {
