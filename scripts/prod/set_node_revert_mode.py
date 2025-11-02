@@ -6,6 +6,7 @@ from typing import Optional
 import urllib.parse
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
+    ConstConfigValuesUpdater,
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
@@ -65,7 +66,7 @@ def set_revert_mode(
     )
 
     update_config_and_restart_nodes(
-        config_overrides,
+        ConstConfigValuesUpdater(config_overrides),
         namespace_and_instruction_args,
         Service.Core,
         restarter,
