@@ -17,7 +17,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
-use apollo_time::time::{sleep_until, Clock, DefaultClock};
+use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
@@ -318,7 +318,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
-                _ = sleep_until(sync_poll_deadline, &clock) => {
+                _ = clock.sleep_until(sync_poll_deadline) => {
                     sync_poll_deadline += sync_retry_interval;
                     if context.try_sync(height).await {
                         return Ok(RunHeightRes::Sync);
