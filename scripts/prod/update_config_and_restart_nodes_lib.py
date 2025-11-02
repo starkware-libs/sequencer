@@ -433,6 +433,20 @@ class NamespaceAndInstructionArgs:
         ]
 
 
+def _get_pod_names(
+    namespace: str, service: Service, index: int, cluster: Optional[str] = None
+) -> list[str]:
+    kubectl_args = [
+        "get",
+        "pods",
+        "-o",
+        "name",
+    ]
+    kubectl_args.extend(get_namespace_args(namespace, cluster))
+    pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
+    return [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
+
+
 class ServiceRestarter(ABC):
     """Abstract class for restarting service instances."""
 
@@ -449,18 +463,7 @@ class ServiceRestarter(ABC):
         namespace: str, service: Service, index: int, cluster: Optional[str] = None
     ) -> None:
         """Restart pod by deleting it"""
-        # Get the list of pods (one string per line).
-        kubectl_args = [
-            "get",
-            "pods",
-            "-o",
-            "name",
-        ]
-        kubectl_args.extend(get_namespace_args(namespace, cluster))
-        pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
-
-        # Filter the list of pods to only include the ones that match the service and extract the pod name.
-        pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
+        pods = _get_pod_names(namespace, service, index, cluster)
 
         if not pods:
             print_error(f"Could not find pods for service {service.pod_name}.")
@@ -546,6 +549,87 @@ class ChecksBetweenRestarts(ServiceRestarter):
             Colors.YELLOW,
         )
         return self.check_between_restarts(instance_index)
+
+
+class WaitOnMetrticOneByOneRestarter(ChecksBetweenRestarts):
+    def __init__(
+        self,
+        namespace_and_instruction_args: NamespaceAndInstructionArgs,
+        service: Service,
+        metric_name: str,
+        metrics_port: int,
+        metric_value_condition: "MetricConditionGater.MetricCondition",
+    ):
+        def _check_between_restarts(instance_index: int) -> bool:
+            # This is to prevent the case where we get the pod name of the old pod we just deleted.
+            # TODO(guy.f): Verify this is not the name of the old pod some other way.
+            sleep(2)
+            pod_names = WaitOnMetrticOneByOneRestarter._wait_for_pods_to_be_ready(
+                namespace_and_instruction_args.get_namespace(instance_index),
+                namespace_and_instruction_args.get_cluster(instance_index),
+                service,
+            )
+            if pod_names is None:
+                return False
+
+            for pod_name in pod_names:
+                metric_condition_gater = MetricConditionGater(
+                    metric_name,
+                    namespace_and_instruction_args.get_namespace(instance_index),
+                    namespace_and_instruction_args.get_cluster(instance_index),
+                    pod_name,
+                    metrics_port,
+                    metric_value_condition,
+                )
+                metric_condition_gater.gate()
+            if instance_index == namespace_and_instruction_args.size() - 1:
+                return True
+            return wait_until_y_or_n(f"Do you want to restart the next pod?")
+
+        super().__init__(namespace_and_instruction_args, service, _check_between_restarts)
+
+    @staticmethod
+    def _wait_for_pods_to_be_ready(
+        namespace: str,
+        cluster: Optional[str],
+        service: Service,
+        wait_timeout: int = 180,
+        num_retry: int = 3,
+        refresh_delay_sec: int = 3,
+    ) -> Optional[list[str]]:
+        for i in range(num_retry):
+            pods = _get_pod_names(namespace, service, 0, cluster)
+            if pods:
+                for pod in pods:
+                    print_colored(
+                        f"Waiting for pod {pod} to be ready... (timeout: {wait_timeout}s)"
+                    )
+                    kubectl_args = [
+                        "wait",
+                        "--for=condition=ready",
+                        f"pod/{pod}",
+                        "--timeout",
+                        f"{wait_timeout}s",
+                    ]
+                    kubectl_args.extend(get_namespace_args(namespace, cluster))
+                    result = run_kubectl_command(kubectl_args, capture_output=False)
+
+                    if result.returncode != 0:
+                        print_colored(
+                            f"Timed out waiting for pod {pod} to be ready: {result.stderr}, retrying... (attempt {i + 1}/{num_retry})",
+                            Colors.YELLOW,
+                        )
+                        break
+                return pods
+            else:
+                print_colored(
+                    f"Could not get pod names for service {service.pod_name}, retrying... (attempt {i + 1}/{num_retry})",
+                    Colors.YELLOW,
+                )
+            sleep(refresh_delay_sec)
+
+        print_error(f"Pods for service {service.pod_name} are not ready after {num_retry} attempts")
+        return None
 
 
 class NoOpServiceRestarter(ServiceRestarter):
