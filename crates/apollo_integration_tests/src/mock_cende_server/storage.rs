@@ -1,15 +1,51 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use apollo_starknet_client::reader::{Block, ContractClass, GenericContractClass, StateUpdate};
+use apollo_starknet_client::reader::objects::block::BlockPostV0_13_1;
+use apollo_starknet_client::reader::{
+    Block,
+    ContractClass,
+    DeclaredClassHashEntry,
+    DeployedContract,
+    GenericContractClass,
+    StateDiff,
+    StateUpdate,
+    StorageEntry,
+};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{
+    BlockHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
+    StarknetVersion,
+};
+use starknet_api::contract_address;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, CompiledClassHash};
-use starknet_api::state::SierraContractClass;
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    EventCommitment,
+    GlobalRoot,
+    SequencerContractAddress,
+    TransactionCommitment,
+};
+use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::state::{SierraContractClass, ThinStateDiff};
+use starknet_api::test_utils::{
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use tokio::sync::RwLock;
 
+use crate::state_reader::TestClasses;
 /// In-memory storage for mock CENDE server
 pub struct MockCendeStorage {
     blocks: Arc<RwLock<BTreeMap<BlockNumber, String>>>,
@@ -116,4 +152,132 @@ impl MockCendeStorage {
         let blocks = self.blocks.read().await;
         blocks.keys().max().copied()
     }
+
+    pub async fn initialize_with_block_0(&self, state_diff: ThinStateDiff, classes: TestClasses) {
+        let block_0 = create_block_0();
+        let state_update_0 = create_state_update_0(state_diff);
+
+        let sierra_contract_classes = prepare_sierra_contracts(&classes);
+        let (compiled_classes_vec, class_hash_to_compiled_class_hash) =
+            prepare_compiled_classes(&classes);
+
+        self.add_block_data(
+            BlockNumber(0),
+            block_0,
+            state_update_0,
+            sierra_contract_classes,
+            compiled_classes_vec,
+            class_hash_to_compiled_class_hash,
+        )
+        .await;
+    }
+}
+
+fn create_block_0() -> Block {
+    let block_number = BlockNumber(0);
+
+    let block_hash = BlockHash(starknet_api::hash::StarkHash::from_bytes_be_slice(&[0u8; 32]));
+
+    Block::PostV0_13_1(BlockPostV0_13_1 {
+        block_hash,
+        block_number,
+        parent_block_hash: BlockHash::default(),
+        sequencer_address: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
+        state_root: GlobalRoot::default(),
+        status: apollo_starknet_client::reader::objects::block::BlockStatus::AcceptedOnL2,
+        timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+        transactions: Vec::new(),
+        transaction_receipts: Vec::new(),
+        starknet_version: StarknetVersion::default(),
+        l1_da_mode: L1DataAvailabilityMode::Calldata,
+        l1_gas_price: GasPricePerToken {
+            price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
+            price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
+        },
+        l1_data_gas_price: GasPricePerToken {
+            price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
+            price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
+        },
+        l2_gas_price: GasPricePerToken {
+            price_in_wei: VersionedConstants::latest_constants()
+                .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+            price_in_fri: VersionedConstants::latest_constants()
+                .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+        },
+        transaction_commitment: TransactionCommitment::default(),
+        event_commitment: EventCommitment::default(),
+        state_diff_commitment: None,
+        receipt_commitment: None,
+        state_diff_length: None,
+        l2_gas_consumed: GasAmount(0),
+        next_l2_gas_price: GasPrice(0),
+    })
+}
+
+fn create_state_update_0(thin_state_diff: ThinStateDiff) -> StateUpdate {
+    let state_diff = convert_thin_state_diff_to_feeder_gateway(thin_state_diff);
+
+    let block_hash = BlockHash(starknet_api::hash::StarkHash::from_bytes_be_slice(&[0u8; 32]));
+
+    StateUpdate {
+        block_hash,
+        new_root: GlobalRoot::default(),
+        old_root: GlobalRoot::default(),
+        state_diff,
+    }
+}
+
+fn convert_thin_state_diff_to_feeder_gateway(thin_state_diff: ThinStateDiff) -> StateDiff {
+    StateDiff {
+        storage_diffs: thin_state_diff
+            .storage_diffs
+            .into_iter()
+            .map(|(address, entries)| {
+                (
+                    address,
+                    entries.into_iter().map(|(key, value)| StorageEntry { key, value }).collect(),
+                )
+            })
+            .collect(),
+        deployed_contracts: thin_state_diff
+            .deployed_contracts
+            .into_iter()
+            .map(|(address, class_hash)| DeployedContract { address, class_hash })
+            .collect(),
+        declared_classes: thin_state_diff
+            .class_hash_to_compiled_class_hash
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| DeclaredClassHashEntry {
+                class_hash,
+                compiled_class_hash,
+            })
+            .collect(),
+        migrated_compiled_classes: Vec::new(),
+        old_declared_contracts: thin_state_diff.deprecated_declared_classes,
+        nonces: thin_state_diff.nonces,
+        replaced_classes: Vec::new(),
+    }
+}
+
+fn prepare_sierra_contracts(classes: &TestClasses) -> Vec<(ClassHash, SierraContractClass)> {
+    let mut sierras = Vec::new();
+    for (class_hash, (sierra, _casm)) in classes.cairo1_contract_classes.iter() {
+        sierras.push((*class_hash, sierra.clone()));
+    }
+    sierras
+}
+
+fn prepare_compiled_classes(
+    classes: &TestClasses,
+) -> (Vec<(CompiledClassHash, CasmContractClass)>, IndexMap<ClassHash, CompiledClassHash>) {
+    let mut compiled_classes_vec = Vec::new();
+    let mut class_hash_to_compiled_class_hash = IndexMap::new();
+
+    for (class_hash, (_sierra, casm)) in classes.cairo1_contract_classes.iter() {
+        let compiled_class_hash = casm.hash(&HashVersion::V2);
+        compiled_classes_vec.push((compiled_class_hash, casm.clone()));
+        class_hash_to_compiled_class_hash.insert(*class_hash, compiled_class_hash);
+    }
+
+    (compiled_classes_vec, class_hash_to_compiled_class_hash)
 }
