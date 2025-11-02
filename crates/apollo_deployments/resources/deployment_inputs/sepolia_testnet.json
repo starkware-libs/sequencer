@@ -15,5 +15,6 @@
   "p2p_communication_type": "External",
   "deployment_environment": "SepoliaTestnet",
   "audited_libfuncs_only": true,
-  "requires_k8s_service_config_params": true
+  "requires_k8s_service_config_params": true,
+  "http_server_port": 8080
 }

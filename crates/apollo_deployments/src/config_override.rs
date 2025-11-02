@@ -156,6 +156,8 @@ pub struct DeploymentConfigOverride {
     consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
     #[serde(flatten, with = "mempool_prefix")]
     mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
+    #[serde(rename = "http_server_config.port")]
+    http_server_config_port: u16,
 }
 
 impl DeploymentConfigOverride {
@@ -172,6 +174,7 @@ impl DeploymentConfigOverride {
         consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
         mempool_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
         sierra_compiler_config_audited_libfuncs_only: bool,
+        http_server_config_port: u16,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -194,6 +197,7 @@ impl DeploymentConfigOverride {
             state_sync_config: state_sync_type.get_state_sync_config(),
             consensus_p2p_bootstrap_config,
             mempool_p2p_bootstrap_config,
+            http_server_config_port,
         }
     }
 }
