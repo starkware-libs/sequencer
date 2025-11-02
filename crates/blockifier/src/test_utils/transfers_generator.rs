@@ -237,6 +237,7 @@ impl TransfersGenerator {
                 executor.execute_txs(txs, execution_deadline)
             }
         };
+        assert!(results.len() == 1, "results.len() is not 1, it is {}", results.len());
 
         // Extract execution infos and validate that no transactions reverted.
         results

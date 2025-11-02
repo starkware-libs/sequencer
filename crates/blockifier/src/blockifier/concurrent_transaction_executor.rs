@@ -107,14 +107,14 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
-        let (from_tx, to_tx) = self.worker_executor.add_txs(txs);
+        let (from_tx, _to_tx) = self.worker_executor.add_txs(txs);
         assert_eq!(
             from_tx, self.n_output_txs,
             "Can't add transaction after a partial result from an early run. Returned {} out of \
              {from_tx} transactions.",
             self.n_output_txs
         );
-        self.worker_executor.scheduler.wait_for_completion(to_tx);
+        self.worker_executor.scheduler.wait_for_completion(from_tx+1);
         self.get_new_results()
     }
 

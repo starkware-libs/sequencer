@@ -184,7 +184,7 @@ impl<S: StateReader> WorkerExecutor<S> {
         &self,
         from_tx: usize,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
-        let n_committed_txs = self.scheduler.get_n_committed_txs();
+        let n_committed_txs = from_tx + 1;
         (from_tx..n_committed_txs)
             .map(|tx_index| {
                 let execution_output = self.extract_execution_output(tx_index);
