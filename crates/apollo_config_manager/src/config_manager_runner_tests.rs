@@ -89,7 +89,7 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
 }
 
 #[tokio::test]
-async fn test_config_manager_runner_update_config_with_changed_values() {
+async fn config_manager_runner_update_config_with_changed_values() {
     // Set a mock config manager client to expect the update dynamic config request.
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1..).return_const(Ok(()));
