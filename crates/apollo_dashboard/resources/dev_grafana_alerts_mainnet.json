@@ -1594,7 +1594,7 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2",
-      "observer_applicable": "true"
+      "observer_applicable": "false"
     },
     {
       "name": "state_sync_stuck",
