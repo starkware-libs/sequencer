@@ -14,7 +14,7 @@ deserialize = [
   "starknet_patricia/deserialize",
 ]
 include_program_output = []
-testing = ["blockifier/testing", "starknet_patricia/testing"]
+testing = ["blockifier/testing", "itertools", "starknet_patricia/testing"]
 
 [dependencies]
 apollo_starknet_os_program.workspace = true
@@ -38,6 +38,7 @@ derive_more.workspace = true
 digest.workspace = true
 indexmap.workspace = true
 indoc.workspace = true
+itertools = { workspace = true, optional = true }
 log.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
