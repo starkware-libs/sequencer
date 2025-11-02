@@ -58,7 +58,7 @@ pub fn transfers_benchmark(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-    config = Criterion::default().sample_size(50);
+    config = Criterion::default().sample_size(30);
     targets = transfers_benchmark
 }
 criterion_main!(benches);
