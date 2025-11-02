@@ -30,6 +30,7 @@ use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockNumber, L1BlockReference};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;
+use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::channel;
 
 // Must wait at least 1 second, as timestamps are integer seconds.
@@ -43,23 +44,9 @@ const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
 const START_L2_HEIGHT: BlockNumber = BlockNumber(0);
 const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
 
-#[tokio::test]
-async fn flow_tests() {
-    // Setup.
-    // Setup the state sync client.
-    let mut state_sync_client = MockStateSyncClient::default();
-    state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
-
-    // Setup the base layer.
-    let base_layer = AnvilBaseLayer::new(None).await;
+/// Send a message from L1 to L2 and return the transaction hash on L2.
+async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionHash {
     let contract = &base_layer.ethereum_base_layer.contract;
-    anvil_mine_blocks(
-        base_layer.ethereum_base_layer.config.clone(),
-        NUMBER_OF_BLOCKS_TO_MINE,
-        &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
-    )
-    .await;
-
     let finality = 0;
     let last_l1_block_number =
         base_layer.ethereum_base_layer.latest_l1_block_number(finality).await.unwrap();
@@ -112,7 +99,27 @@ async fn flow_tests() {
     let Event::L1HandlerTransaction { l1_handler_tx, .. } = l1_event_converted else {
         panic!("L1 event converted is not a L1 handler transaction");
     };
-    let l2_hash = l1_handler_tx.tx_hash;
+    l1_handler_tx.tx_hash
+}
+
+#[tokio::test]
+async fn flow_tests() {
+    // Setup.
+    // Setup the state sync client.
+    let mut state_sync_client = MockStateSyncClient::default();
+    state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
+
+    // Setup the base layer.
+    let base_layer = AnvilBaseLayer::new(None).await;
+
+    anvil_mine_blocks(
+        base_layer.ethereum_base_layer.config.clone(),
+        NUMBER_OF_BLOCKS_TO_MINE,
+        &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
+    )
+    .await;
+
+    let l2_hash = send_message_from_l1_to_l2(&base_layer).await;
 
     // Set up the L1 provider client and server.
     // This channel connects the L1Provider client to the server.
