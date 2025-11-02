@@ -27,25 +27,25 @@ use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
-use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference};
+use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockNumber, L1BlockReference};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;
 use tokio::sync::mpsc::channel;
 
+// Must wait at least 1 second, as timestamps are integer seconds.
+const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
+const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
+const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
+const CHAIN_ID: ChainId = ChainId::Mainnet;
+
+const START_L1_BLOCK: L1BlockReference = L1BlockReference { number: 0, hash: L1BlockHash([0; 32]) };
+const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
+const START_L2_HEIGHT: BlockNumber = BlockNumber(0);
+const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
+
 #[tokio::test]
 async fn flow_tests() {
     // Setup.
-    // Must wait at least 1 second, as timestamps are integer seconds.
-    const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
-    const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
-    const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
-    let chain_id = ChainId::Mainnet;
-
-    let start_l1_block = L1BlockReference::default();
-    let start_l1_block_number: L1BlockNumber = start_l1_block.number;
-    let start_l2_height = BlockNumber(0);
-    let target_l2_height = BlockNumber(1);
-
     // Setup the state sync client.
     let mut state_sync_client = MockStateSyncClient::default();
     state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
@@ -63,7 +63,7 @@ async fn flow_tests() {
     let finality = 0;
     let last_l1_block_number =
         base_layer.ethereum_base_layer.latest_l1_block_number(finality).await.unwrap();
-    assert!(last_l1_block_number > start_l1_block_number + NUMBER_OF_BLOCKS_TO_MINE);
+    assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
 
     // Send message from L1 to L2.
     let l2_contract_address = "0x12";
@@ -91,13 +91,13 @@ async fn flow_tests() {
     let finality = 0;
     let last_l1_block_number =
         base_layer.ethereum_base_layer.latest_l1_block_number(finality).await.unwrap();
-    assert!(last_l1_block_number > start_l1_block_number + NUMBER_OF_BLOCKS_TO_MINE);
+    assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
     let event_filter = event_identifiers_to_track();
     let mut events = base_layer
         .ethereum_base_layer
         .events(
             // Include last block with message.
-            start_l1_block_number..=last_l1_block_number + 1,
+            START_L1_BLOCK_NUMBER..=last_l1_block_number + 1,
             event_filter,
         )
         .await
@@ -107,7 +107,7 @@ async fn flow_tests() {
 
     // Convert the L1 event to an Apollo event, so we can get the L2 hash.
     let l1_event_converted =
-        apollo_l1_provider_types::Event::from_l1_event(&chain_id, l1_event, message_timestamp.0)
+        apollo_l1_provider_types::Event::from_l1_event(&CHAIN_ID, l1_event, message_timestamp.0)
             .unwrap();
     let Event::L1HandlerTransaction { l1_handler_tx, .. } = l1_event_converted else {
         panic!("L1 event converted is not a L1 handler transaction");
@@ -133,8 +133,8 @@ async fn flow_tests() {
         Arc::new(MockBatcherClient::default()), // Consider saving a copy of this to interact
         Arc::new(state_sync_client),
     )
-    .startup_height(start_l2_height)
-    .catchup_height(target_l2_height)
+    .startup_height(START_L2_HEIGHT)
+    .catchup_height(TARGET_L2_HEIGHT)
     .build();
 
     // Create the server.
@@ -152,7 +152,7 @@ async fn flow_tests() {
     // Set up the L1 scraper and run it as a server.
     let l1_scraper_config = L1ScraperConfig {
         polling_interval_seconds: COOLDOWN_DURATION,
-        chain_id,
+        chain_id: CHAIN_ID,
         ..Default::default()
     };
     let mut scraper = L1Scraper::new(
@@ -160,7 +160,7 @@ async fn flow_tests() {
         Arc::new(l1_provider_client.clone()),
         base_layer,
         &[],
-        start_l1_block,
+        START_L1_BLOCK,
     )
     .await
     .expect("Should be able to create the scraper");
@@ -172,7 +172,7 @@ async fn flow_tests() {
     tokio::time::sleep(WAIT_FOR_L1_DURATION).await;
 
     // Test.
-    let next_block_height = BlockNumber(target_l2_height.0 + 1);
+    let next_block_height = BlockNumber(TARGET_L2_HEIGHT.0 + 1);
 
     // Check that we can validate this message even though no time has passed.
     l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
