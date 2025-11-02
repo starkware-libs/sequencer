@@ -1,3 +1,5 @@
+from typing import Optional
+
 from constructs import Construct
 from imports import k8s
 
@@ -9,7 +11,7 @@ class BaseConstruct(Construct):
         self,
         scope: Construct,
         id: str,
-        common_config: CommonConfig,
+        common_config: Optional[CommonConfig],
         service_config: ServiceConfig,
         labels,
         monitoring_endpoint_port,

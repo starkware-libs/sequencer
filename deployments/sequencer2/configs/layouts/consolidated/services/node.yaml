@@ -5,32 +5,35 @@ name: node
 
 replicas: 1
 
-# ConfigMap Configuration
-# See docs/CONFIGMAP_CONFIGURATION.md for all available options
-configPaths:
-  - crates/apollo_deployments/resources/app_configs/base_layer_config.json
-  - crates/apollo_deployments/resources/app_configs/batcher_config.json
-  - crates/apollo_deployments/resources/app_configs/class_manager_config.json
-  - crates/apollo_deployments/resources/app_configs/config_manager_config.json
-  - crates/apollo_deployments/resources/app_configs/consensus_manager_config.json
-  - crates/apollo_deployments/resources/app_configs/revert_config.json
-  - crates/apollo_deployments/resources/app_configs/versioned_constants_overrides_config.json
-  - crates/apollo_deployments/resources/app_configs/validate_resource_bounds_config.json
-  - crates/apollo_deployments/resources/app_configs/gateway_config.json
-  - crates/apollo_deployments/resources/app_configs/http_server_config.json
-  - crates/apollo_deployments/resources/app_configs/l1_endpoint_monitor_config.json
-  - crates/apollo_deployments/resources/app_configs/l1_gas_price_provider_config.json
-  - crates/apollo_deployments/resources/app_configs/l1_gas_price_scraper_config.json
-  - crates/apollo_deployments/resources/app_configs/l1_provider_config.json
-  - crates/apollo_deployments/resources/app_configs/l1_scraper_config.json
-  - crates/apollo_deployments/resources/app_configs/mempool_config.json
-  - crates/apollo_deployments/resources/app_configs/mempool_p2p_config.json
-  - crates/apollo_deployments/resources/app_configs/monitoring_endpoint_config.json
-  - crates/apollo_deployments/resources/app_configs/sierra_compiler_config.json
-  - crates/apollo_deployments/resources/app_configs/state_sync_config.json
-  - crates/apollo_deployments/resources/deployments/testing/deployment_config_override.json
-  - crates/apollo_deployments/resources/deployments/testing/consolidated.json
-  - crates/apollo_deployments/resources/services/consolidated/node.json
+# Config Configuration
+# configPaths: List of paths to Sequencer JSON config files (required)
+# mountPath: Path where the config will be mounted in the container (optional, default: "/config/sequencer/presets/")
+config:
+  configPaths:
+    - crates/apollo_deployments/resources/app_configs/base_layer_config.json
+    - crates/apollo_deployments/resources/app_configs/batcher_config.json
+    - crates/apollo_deployments/resources/app_configs/class_manager_config.json
+    - crates/apollo_deployments/resources/app_configs/config_manager_config.json
+    - crates/apollo_deployments/resources/app_configs/consensus_manager_config.json
+    - crates/apollo_deployments/resources/app_configs/revert_config.json
+    - crates/apollo_deployments/resources/app_configs/versioned_constants_overrides_config.json
+    - crates/apollo_deployments/resources/app_configs/validate_resource_bounds_config.json
+    - crates/apollo_deployments/resources/app_configs/gateway_config.json
+    - crates/apollo_deployments/resources/app_configs/http_server_config.json
+    - crates/apollo_deployments/resources/app_configs/l1_endpoint_monitor_config.json
+    - crates/apollo_deployments/resources/app_configs/l1_gas_price_provider_config.json
+    - crates/apollo_deployments/resources/app_configs/l1_gas_price_scraper_config.json
+    - crates/apollo_deployments/resources/app_configs/l1_provider_config.json
+    - crates/apollo_deployments/resources/app_configs/l1_scraper_config.json
+    - crates/apollo_deployments/resources/app_configs/mempool_config.json
+    - crates/apollo_deployments/resources/app_configs/mempool_p2p_config.json
+    - crates/apollo_deployments/resources/app_configs/monitoring_endpoint_config.json
+    - crates/apollo_deployments/resources/app_configs/sierra_compiler_config.json
+    - crates/apollo_deployments/resources/app_configs/state_sync_config.json
+    - crates/apollo_deployments/resources/deployments/testing/deployment_config_override.json
+    - crates/apollo_deployments/resources/deployments/testing/consolidated.json
+    - crates/apollo_deployments/resources/services/consolidated/node.json
+  # mountPath: /config/sequencer/presets/  # Optional: Override default mount path
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -66,10 +69,7 @@ command: []
 # Container Args
 # Override the default container arguments (optional)
 # If not specified, uses the image's default CMD args
-args:
-  - "--config_file"
-  - "--flag2=value"
-  - "positional-arg"
+args: []
 
 # ServiceAccount Configuration
 # See docs/SERVICE_ACCOUNT_CONFIGURATION.md for all available options
@@ -199,7 +199,7 @@ secret:
   annotations: {}
   labels: {}
   immutable: false
-  mountPath: "/app/secrets"
+  # mountPath: /etc/secrets  # Optional: Override default mount path (default: "/etc/secrets")
 
 # ExternalSecret Configuration
 # See docs/EXTERNAL_SECRET_CONFIGURATION.md for all available options
@@ -212,7 +212,7 @@ externalSecret:
     - secretKey: ext_key
       remoteKey: test/remote
   targetName: "sequencer-external"
-  mountPath: "/app/external-secrets"
+  # mountPath: /etc/secrets  # Optional: Override default mount path (default: "/etc/secrets")
   template: {}
   metadata: {}
   deletionPolicy: Retain

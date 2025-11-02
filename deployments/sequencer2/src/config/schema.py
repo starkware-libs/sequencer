@@ -307,10 +307,15 @@ class PriorityClass(StrictBaseModel):
     preemptionPolicy: Optional[str] = None  # "Never" or "PreemptLowerPriority"
 
 
+class Config(StrictBaseModel):
+    configPaths: List[str] = Field(default_factory=list)
+    mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
+
+
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
     name: str
-    configPaths: List[str] = Field(default_factory=list)
+    config: Optional[Config] = None
     replicas: int = 1
     statefulSet: Optional[StatefulSet] = None
     rbac: Optional[Rbac] = None

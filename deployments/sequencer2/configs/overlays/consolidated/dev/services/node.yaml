@@ -14,8 +14,8 @@ hpa:
 secret:
   enabled: false
 
-externalSecret:
-  enabled: false
+# externalSecret:
+#   enabled: false
 
 persistentVolume:
   enabled: false

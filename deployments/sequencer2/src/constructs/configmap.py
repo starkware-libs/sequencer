@@ -1,6 +1,5 @@
 import json
 
-from constructs import Construct
 from imports import k8s
 
 from src.config.loaders import NodeConfigLoader
@@ -29,20 +28,18 @@ class ConfigMapConstruct(BaseConstruct):
         self.config_map = self._get_config_map()
 
     def _get_config_map(self) -> k8s.KubeConfigMap:
-        # Try to load JSON configs using NodeConfigLoader if config_paths are provided
-        if self.service_config.configPaths:
-            try:
-                node_config_loader = NodeConfigLoader(
-                    config_paths=self.service_config.configPaths,
-                )
-                node_config = node_config_loader.load()
-                config_data = json.dumps(node_config, indent=2)
-            except (ValueError, FileNotFoundError):
-                # Fallback to common_config if JSON files don't exist
-                config_data = json.dumps(self.common_config, indent=2)
-        else:
-            # Fallback to common_config if no config_paths
-            config_data = json.dumps(self.common_config, indent=2)
+        # config is mandatory
+        if not self.service_config.config or not self.service_config.config.configPaths:
+            raise ValueError(
+                f"config.configPaths is required for service '{self.service_config.name}' but was not provided"
+            )
+
+        # Load JSON configs using NodeConfigLoader
+        node_config_loader = NodeConfigLoader(
+            config_paths=self.service_config.config.configPaths,
+        )
+        node_config = node_config_loader.load()
+        config_data = json.dumps(node_config, indent=2)
 
         return k8s.KubeConfigMap(
             self,
