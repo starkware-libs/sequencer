@@ -42,6 +42,8 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 
+const COMPRESSION_MODULE_PATH: &str = "starkware.starknet.core.os.data_availability.compression";
+
 /// Runs the OS compression function and returns the compressed data, plus the execution resources
 /// used to compress the data.
 fn cairo_compress(data: &Vec<Felt>) -> (Vec<Felt>, ExecutionResources) {
@@ -54,7 +56,7 @@ fn cairo_compress(data: &Vec<Felt>) -> (Vec<Felt>, ExecutionResources) {
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
         OS_PROGRAM_BYTES,
-        "starkware.starknet.core.os.data_availability.compression.compress",
+        &format!("{COMPRESSION_MODULE_PATH}.compress"),
         &[range_check_arg.clone()],
         HashMap::new(),
     )
@@ -113,6 +115,74 @@ fn cairo_compress(data: &Vec<Felt>) -> (Vec<Felt>, ExecutionResources) {
         .get_integer_range(compressed_dst, (compressed_end - compressed_dst).unwrap())
         .unwrap();
     (compressed_data.into_iter().map(|f| *f).collect(), runner.get_execution_resources().unwrap())
+}
+
+/// Runs the OS decompression function and returns the decompressed data.
+fn cairo_decompress(compressed: &Vec<Felt>) -> Vec<Felt> {
+    let range_check_arg = ImplicitArg::Builtin(BuiltinName::range_check);
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::starknet,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    };
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        &format!("{COMPRESSION_MODULE_PATH}.decompress"),
+        &[range_check_arg.clone()],
+        HashMap::new(),
+    )
+    .unwrap();
+
+    // Function accepts destination pointer explicitly, and the compressed data pointer is passed
+    // as an implicit argument (along with the range check pointer). A pointer to the end of the
+    // decompressed data is returned as an explicit argument.
+    let compressed_ptr = runner
+        .vm
+        .gen_arg(&compressed.iter().map(|x| MaybeRelocatable::Int(*x)).collect::<Vec<_>>())
+        .unwrap()
+        .get_relocatable()
+        .unwrap();
+    let decompressed_dst = runner.vm.add_memory_segment();
+    let explicit_args = vec![EndpointArg::Value(ValueArg::Single(decompressed_dst.into()))];
+    let implicit_args = vec![
+        range_check_arg,
+        ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(compressed_ptr.into()))),
+    ];
+    // Dummy value, just to indicate to the runner that a return value is expected.
+    let expected_explicit_return_values = vec![EndpointArg::from(Felt::ZERO)];
+
+    // Run the entrypoint.
+    // The compressed data is stored in the segment starting at `compressed_dst`, the returned
+    // implicit value is the end of the compressed data.
+    let state_reader = None;
+    let (_implicit_return_values, explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            &mut runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
+
+    // The explicit return value should be the decompressed end pointer.
+    assert_eq!(explicit_return_values.len(), 1);
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::RelocatableValue(decompressed_end))) =
+        explicit_return_values[0]
+    else {
+        panic!("Expected a single felt return value, got {:?}", explicit_return_values[0]);
+    };
+
+    // Read the compressed data from the segment and return.
+    let decompressed_data = runner
+        .vm
+        .get_integer_range(decompressed_dst, (decompressed_end - decompressed_dst).unwrap())
+        .unwrap();
+    decompressed_data.into_iter().map(|f| *f).collect()
 }
 
 #[rstest]
@@ -420,6 +490,6 @@ fn test_cairo_compress(
             + expected_bucket_indices_packed_length
     );
 
+    assert_eq!(data, cairo_decompress(&compressed));
     assert_eq!(data, decompress(&mut compressed.into_iter()));
-    // TODO(Dori): Check cairo decompression.
 }
