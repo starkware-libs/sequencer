@@ -218,6 +218,10 @@ fn expected_l1_provider_snapshot() -> L1ProviderSnapshot {
     let expected_rejected_hashes = (10..15).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_rejected_staged_hashes = (10..12).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_committed_hashes = (15..20).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_cancellation_started_on_l2 = (20..25).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_cancelled_on_l2 = (25..30).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_consumed = (30..35).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_number_of_txs_in_records = 35;
     let l1_provider_state = String::from("Validate");
     let current_height = BlockNumber(1);
     L1ProviderSnapshot {
@@ -226,6 +230,10 @@ fn expected_l1_provider_snapshot() -> L1ProviderSnapshot {
         rejected_transactions: expected_rejected_hashes,
         rejected_staged_transactions: expected_rejected_staged_hashes,
         committed_transactions: expected_committed_hashes,
+        cancellation_started_on_l2: expected_cancellation_started_on_l2,
+        cancelled_on_l2: expected_cancelled_on_l2,
+        consumed: expected_consumed,
+        number_of_txs_in_records: expected_number_of_txs_in_records,
         l1_provider_state,
         current_height,
     }

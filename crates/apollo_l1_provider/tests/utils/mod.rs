@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use alloy::primitives::U256;
+use alloy::primitives::{Uint, U256};
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::component_client::LocalComponentClient;
@@ -15,17 +15,11 @@ use apollo_l1_provider::l1_provider::L1ProviderBuilder;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_provider::{event_identifiers_to_track, L1ProviderConfig};
-use apollo_l1_provider_types::{
-    Event,
-    L1ProviderClient,
-    L1ProviderRequest,
-    L1ProviderResponse,
-    SessionState,
-    ValidationStatus,
-};
+use apollo_l1_provider_types::{Event, L1ProviderRequest, L1ProviderResponse};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use papyrus_base_layer::ethereum_base_layer_contract::Starknet::LogMessageToL2;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockNumber, L1BlockReference};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
@@ -34,18 +28,27 @@ use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::channel;
 
 // Must wait at least 1 second, as timestamps are integer seconds.
-const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
-const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
+pub(crate) const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
+pub(crate) const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
 const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
 const CHAIN_ID: ChainId = ChainId::Mainnet;
+const L1_CONTRACT_ADDRESS: &str = "0x12";
+const L2_ENTRY_POINT: &str = "0x34";
+pub(crate) const CALL_DATA: &[u8] = &[1_u8, 2_u8];
+#[allow(dead_code)]
+pub(crate) const CALL_DATA_2: &[u8] = &[3_u8, 4_u8];
 
 const START_L1_BLOCK: L1BlockReference = L1BlockReference { number: 0, hash: L1BlockHash([0; 32]) };
 const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
 const START_L2_HEIGHT: BlockNumber = BlockNumber(0);
-const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
+pub(crate) const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
+
+fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
+    call_data.iter().map(|x| U256::from(*x)).collect()
+}
 
 /// Setup an anvil base layer with some blocks on it.
-async fn setup_anvil_base_layer() -> AnvilBaseLayer {
+pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
     let base_layer = AnvilBaseLayer::new(None).await;
     anvil_mine_blocks(
         base_layer.ethereum_base_layer.config.clone(),
@@ -57,7 +60,7 @@ async fn setup_anvil_base_layer() -> AnvilBaseLayer {
 }
 
 /// Set up the scraper and provider, return a provider client.
-async fn setup_scraper_and_provider(
+pub(crate) async fn setup_scraper_and_provider(
     base_layer: &AnvilBaseLayer,
 ) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
     // Setup the state sync client.
@@ -75,6 +78,8 @@ async fn setup_scraper_and_provider(
     // L1 provider setup.
     let l1_provider_config = L1ProviderConfig {
         new_l1_handler_cooldown_seconds: COOLDOWN_DURATION,
+        // Use the same time as new l1 handler cooldown, for simplicity.
+        l1_handler_cancellation_timelock_seconds: COOLDOWN_DURATION,
         ..Default::default()
     };
     let l1_provider = L1ProviderBuilder::new(
@@ -125,7 +130,10 @@ async fn setup_scraper_and_provider(
 }
 
 /// Send a message from L1 to L2 and return the transaction hash on L2.
-async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionHash {
+pub(crate) async fn send_message_from_l1_to_l2(
+    base_layer: &AnvilBaseLayer,
+    call_data: &[u8],
+) -> (TransactionHash, Uint<256, 4>) {
     let contract = &base_layer.ethereum_base_layer.contract;
     let finality = 0;
     let last_l1_block_number =
@@ -133,19 +141,20 @@ async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionH
     assert!(last_l1_block_number > START_L1_BLOCK_NUMBER + NUMBER_OF_BLOCKS_TO_MINE);
 
     // Send message from L1 to L2.
-    let l2_contract_address = "0x12";
-    let l2_entry_point = "0x34";
-    let call_data = vec![U256::from(1_u8), U256::from(2_u8)];
+    let call_data = convert_call_data_to_u256(call_data);
     let fee = 1_u8;
     let message_to_l2 = contract
         .sendMessageToL2(
-            l2_contract_address.parse().unwrap(),
-            l2_entry_point.parse().unwrap(),
+            L1_CONTRACT_ADDRESS.parse().unwrap(),
+            L2_ENTRY_POINT.parse().unwrap(),
             call_data,
         )
         .value(U256::from(fee));
-    message_to_l2.call().await.unwrap(); // Query for errors.
     let receipt = message_to_l2.send().await.unwrap().get_receipt().await.unwrap();
+    let message_to_l2_event = receipt
+        .decoded_log::<LogMessageToL2>()
+        .expect("Failed to decode LogMessageToL2 event from transaction receipt");
+    let nonce = message_to_l2_event.nonce;
     let message_timestamp = base_layer
         .get_block_header(receipt.block_number.unwrap())
         .await
@@ -169,7 +178,7 @@ async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionH
         )
         .await
         .unwrap();
-    assert!(events.len() == 1);
+    assert!(!events.is_empty());
     let l1_event = events.pop().unwrap();
 
     // Convert the L1 event to an Apollo event, so we can get the L2 hash.
@@ -179,49 +188,41 @@ async fn send_message_from_l1_to_l2(base_layer: &AnvilBaseLayer) -> TransactionH
     let Event::L1HandlerTransaction { l1_handler_tx, .. } = l1_event_converted else {
         panic!("L1 event converted is not a L1 handler transaction");
     };
-    l1_handler_tx.tx_hash
+    (l1_handler_tx.tx_hash, nonce)
 }
 
-#[tokio::test]
-async fn flow_tests() {
-    // Setup.
-
-    // Setup the base layer.
-    let base_layer = setup_anvil_base_layer().await;
-
-    let l2_hash = send_message_from_l1_to_l2(&base_layer).await;
-
-    let l1_provider_client = setup_scraper_and_provider(&base_layer).await;
-
-    // Test.
-    let next_block_height = BlockNumber(TARGET_L2_HEIGHT.0 + 1);
-
-    // Check that we can validate this message even though no time has passed.
-    l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
-    assert_eq!(
-        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
-        ValidationStatus::Validated
+// Need to allow dead code as this is only used in some of the test crates.
+#[allow(dead_code)]
+pub(crate) async fn send_cancellation_request(
+    base_layer: &AnvilBaseLayer,
+    call_data: &[u8],
+    nonce: Uint<256, 4>,
+) {
+    let contract = &base_layer.ethereum_base_layer.contract;
+    let call_data = convert_call_data_to_u256(call_data);
+    let cancellation_request = contract.startL1ToL2MessageCancellation(
+        L1_CONTRACT_ADDRESS.parse().unwrap(),
+        L2_ENTRY_POINT.parse().unwrap(),
+        call_data,
+        nonce,
     );
+    let _receipt = cancellation_request.send().await.unwrap().get_receipt().await.unwrap();
+}
 
-    // Test that we do not propose anything before the cooldown is over.
-    l1_provider_client.start_block(SessionState::Propose, next_block_height).await.unwrap();
-    let n_txs = 1;
-    let txs = l1_provider_client.get_txs(n_txs, next_block_height).await.unwrap();
-    assert!(txs.is_empty());
-
-    // Sleep at least one second more than the cooldown to make sure we are not failing due to
-    // fractional seconds.
-    tokio::time::sleep(COOLDOWN_DURATION + Duration::from_secs(1)).await;
-
-    // Test that we propose after the cooldown is over.
-    l1_provider_client.start_block(SessionState::Propose, next_block_height).await.unwrap();
-    let txs = l1_provider_client.get_txs(n_txs, next_block_height).await.unwrap();
-    assert!(!txs.is_empty());
-
-    // Check that we can validate this message after the cooldown, too.
-    l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
-    assert_eq!(
-        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
-        ValidationStatus::Validated
+// Need to allow dead code as this is only used in some of the test crates.
+#[allow(dead_code)]
+pub(crate) async fn send_cancellation_finalization(
+    base_layer: &AnvilBaseLayer,
+    call_data: &[u8],
+    nonce: Uint<256, 4>,
+) {
+    let contract = &base_layer.ethereum_base_layer.contract;
+    let call_data = convert_call_data_to_u256(call_data);
+    let cancellation_finalization = contract.cancelL1ToL2Message(
+        L1_CONTRACT_ADDRESS.parse().unwrap(),
+        L2_ENTRY_POINT.parse().unwrap(),
+        call_data,
+        nonce,
     );
+    let _receipt = cancellation_finalization.send().await.unwrap().get_receipt().await.unwrap();
 }
