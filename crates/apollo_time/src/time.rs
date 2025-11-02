@@ -18,18 +18,25 @@ pub trait Clock: Send + Sync + Debug {
     }
 }
 
-/// Free function to sleep until a given deadline using a provided clock.
-#[cfg(feature = "tokio")]
-pub async fn sleep_until(deadline: DateTime, clock: &dyn Clock) {
-    // Calculate how much time is left until the deadline.
-    // If the deadline has already passed, this will be a negative duration.
-    let time_delta = deadline - clock.now();
-    // Convert to `std::time::Duration`, clamping any negative value to zero.
-    // A zero-duration sleep is effectively a no-op.
-    let duration_to_sleep = time_delta.to_std().unwrap_or_default();
-    // Sleep for the computed duration (or return immediately if zero).
-    tokio::time::sleep(duration_to_sleep).await;
+pub trait ClockExt: Clock {
+    fn sleep_until<'a>(
+        &'a self,
+        deadline: DateTime,
+    ) -> impl core::future::Future<Output = ()> + Send + 'a {
+        async move {
+            // Calculate how much time is left until the deadline.
+            // If the deadline has already passed, this will be a negative duration.
+            let time_delta = deadline - self.now();
+            // Convert to `std::time::Duration`, clamping any negative value to zero.
+            // A zero-duration sleep is effectively a no-op.
+            let duration_to_sleep = time_delta.to_std().unwrap_or_default();
+            // Sleep for the computed duration (or return immediately if zero).
+            tokio::time::sleep(duration_to_sleep).await;
+        }
+    }
 }
+
+impl<T: Clock + ?Sized> ClockExt for T {}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DefaultClock;
