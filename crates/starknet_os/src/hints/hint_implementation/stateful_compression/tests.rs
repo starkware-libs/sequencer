@@ -16,6 +16,11 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::io::os_output_types::{FullOsStateDiff, TryFromOutputIter};
+use crate::test_utils::cairo_dict::{
+    allocate_squashed_cairo_dict,
+    flatten_cairo_dict,
+    parse_squashed_cairo_dict,
+};
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
     initialize_cairo_runner,
@@ -26,13 +31,7 @@ use crate::test_utils::cairo_runner::{
     PointerArg,
     ValueArg,
 };
-use crate::test_utils::utils::{
-    allocate_squashed_cairo_dict,
-    flatten_cairo_dict,
-    get_entrypoint_runner_config,
-    parse_squashed_cairo_dict,
-    test_cairo_function,
-};
+use crate::test_utils::utils::{get_entrypoint_runner_config, test_cairo_function};
 
 const DEFAULT_CLASS_HASH: u128 = 7777;
 
