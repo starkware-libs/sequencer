@@ -13,7 +13,7 @@ use crate::config_utils::create_validation_error;
 use crate::definitions::ConfigExpectation::{self, Redundant, Required};
 use crate::definitions::ConfigPresence::{self, Absent, Present};
 
-const DEFAULT_URL: &str = "localhost";
+pub const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 const DEFAULT_INVALID_PORT: u16 = 0;
 

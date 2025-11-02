@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
@@ -59,6 +60,7 @@ const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const N_CONCURRENT_TXS: usize = 3;
 const TX_POLLING_INTERVAL: u64 = 100;
+const DEFAULT_IDLE_TIMEOUT_MS: Duration = Duration::from_millis(2000);
 
 struct TestExpectations {
     mock_transaction_executor: MockTransactionExecutorTrait,
@@ -679,6 +681,7 @@ async fn run_build_block(
     is_validator: bool,
     abort_receiver: tokio::sync::oneshot::Receiver<()>,
     deadline_secs: u64,
+    idle_timeout_duration: Duration,
 ) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(deadline_secs);
     let transaction_converter = TransactionConverter::new(
@@ -695,7 +698,11 @@ async fn run_build_block(
         transaction_converter,
         N_CONCURRENT_TXS,
         TX_POLLING_INTERVAL,
-        BlockBuilderExecutionParams { deadline, is_validator },
+        BlockBuilderExecutionParams {
+            deadline,
+            is_validator,
+            proposer_idle_detection_delay: idle_timeout_duration,
+        },
     );
 
     block_builder.build_block().await
@@ -725,6 +732,12 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let (output_tx_sender, output_tx_receiver) = output_channel();
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
+    let idle_timeout_duration = if test_expectations.expected_idle_execution_timeout_metric > 0 {
+        Duration::from_millis(100)
+    } else {
+        DEFAULT_IDLE_TIMEOUT_MS
+    };
+
     let result_block_artifacts = run_build_block(
         test_expectations.mock_transaction_executor,
         test_expectations.mock_tx_provider,
@@ -732,6 +745,7 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
         false,
         abort_receiver,
         test_expectations.deadline_secs,
+        idle_timeout_duration,
     )
     .await
     .unwrap();
@@ -763,6 +777,7 @@ async fn test_validate_block() {
         true,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap();
@@ -796,6 +811,7 @@ async fn test_validate_block_excluded_txs() {
         true,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap();
@@ -827,6 +843,7 @@ async fn test_validate_block_with_error(
         true,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap_err();
@@ -863,6 +880,7 @@ async fn test_validate_block_l1_handler_validation_error(#[case] status: Invalid
         true,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await;
 
@@ -912,6 +930,7 @@ async fn test_build_block_abort() {
             false,
             abort_receiver,
             BLOCK_GENERATION_LONG_DEADLINE_SECS,
+            DEFAULT_IDLE_TIMEOUT_MS,
         )
         .await,
         Err(BlockBuilderError::Aborted)
@@ -944,6 +963,7 @@ async fn test_build_block_abort_immediately() {
             false,
             abort_receiver,
             BLOCK_GENERATION_LONG_DEADLINE_SECS,
+            DEFAULT_IDLE_TIMEOUT_MS,
         )
         .await,
         Err(BlockBuilderError::Aborted)
@@ -966,6 +986,7 @@ async fn test_l2_gas_used() {
         true,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap();
@@ -996,6 +1017,7 @@ async fn test_execution_info_order() {
         false,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap();
@@ -1044,6 +1066,7 @@ async fn failed_l1_handler_transaction_consumed() {
         false,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap();
@@ -1107,6 +1130,7 @@ async fn partial_chunk_execution_proposer() {
         is_validator,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await
     .unwrap();
@@ -1157,6 +1181,7 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
         is_validator,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
     )
     .await;
 

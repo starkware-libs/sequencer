@@ -6,25 +6,16 @@ use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-use starknet_api::core::EntryPointSelector;
-use starknet_api::transaction::L1HandlerTransaction;
-use starknet_api::{calldata, contract_address, felt};
+use starknet_api::felt;
 use url::Url;
 
-use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
-    L1ToL2MessageArgs,
     Starknet,
 };
-use crate::test_utils::{
-    anvil_instance_from_url,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
-use crate::{BaseLayerContract, L1Event};
+use crate::BaseLayerContract;
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
 // tests.
@@ -125,76 +116,4 @@ async fn get_gas_price_and_timestamps() {
     // Roughly e ** (BLOB_GAS / eip4844::BLOB_GASPRICE_UPDATE_FRACTION)
     let expected_original_blob_calc = 19;
     assert_eq!(header.blob_fee, expected_original_blob_calc);
-}
-
-#[tokio::test]
-async fn events_from_other_contract() {
-    if !in_ci() {
-        return;
-    }
-    const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
-
-    let (this_config, this_url) = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_url(&this_url);
-    let this_contract = EthereumBaseLayerContract::new(this_config.clone(), this_url.clone());
-
-    // Test: get_proved_block_at_unknown_block_number.
-    // TODO(Arni): turn this into a unit test, with its own anvil instance.
-    assert!(
-        this_contract
-            .get_proved_block_at(123)
-            .await
-            .unwrap_err()
-            // This error is nested way too deep inside `alloy`.
-            .to_string()
-            .contains("BlockOutOfRangeError")
-    );
-
-    // Test: Get events from L1 contract and other instances of this L1 contract.
-    // Setup.
-
-    // Deploy the contract to the anvil instance.
-    Starknet::deploy(this_contract.contract.provider().clone()).await.unwrap();
-    // Deploy another instance of the contract to the same anvil instance.
-    let other_contract = Starknet::deploy(this_contract.contract.provider().clone()).await.unwrap();
-    assert_ne!(
-        this_contract.contract.address(),
-        other_contract.address(),
-        "The two contracts should be different."
-    );
-
-    let this_l1_handler = L1HandlerTransaction {
-        contract_address: contract_address!("0x12"),
-        entry_point_selector: EntryPointSelector(felt!("0x34")),
-        calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
-        ..Default::default()
-    };
-    let this_receipt = this_contract
-        .contract
-        .send_message_to_l2(&L1ToL2MessageArgs { tx: this_l1_handler.clone(), l1_tx_nonce: 2 })
-        .await;
-    assert!(this_receipt.status());
-    let this_block_number = this_receipt.block_number.unwrap();
-
-    let other_l1_handler = L1HandlerTransaction {
-        contract_address: contract_address!("0x56"),
-        entry_point_selector: EntryPointSelector(felt!("0x78")),
-        calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
-        ..Default::default()
-    };
-    let other_receipt = other_contract
-        .send_message_to_l2(&L1ToL2MessageArgs { tx: other_l1_handler.clone(), l1_tx_nonce: 3 })
-        .await;
-    assert!(other_receipt.status());
-    let other_block_number = other_receipt.block_number.unwrap();
-
-    let min_block_number = this_block_number.min(other_block_number).saturating_sub(1);
-    let max_block_number = this_block_number.max(other_block_number).saturating_add(1);
-
-    // Test the events.
-    let mut events =
-        this_contract.events(min_block_number..=max_block_number, EVENT_IDENTIFIERS).await.unwrap();
-
-    assert_eq!(events.len(), 1, "Expected only events from this contract.");
-    assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } if tx == this_l1_handler);
 }

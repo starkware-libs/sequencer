@@ -10,12 +10,14 @@ workspace = true
 clap = { workspace = true, features = ["derive"] }
 criterion.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils.workspace = true
 glob.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 
 [[bench]]
 harness = false

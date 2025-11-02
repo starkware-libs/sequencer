@@ -5,12 +5,12 @@ use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use alloy::node_bindings::AnvilInstance;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_endpoint_monitor::monitor::MIN_EXPECTED_BLOCK_NUMBER;
 use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -29,15 +29,8 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    StarknetL1Contract,
-};
-use papyrus_base_layer::test_utils::{
-    anvil_mine_blocks,
-    ethereum_base_layer_config_for_anvil,
-    spawn_anvil_and_deploy_starknet_l1_contract,
-};
+use papyrus_base_layer::test_utils::anvil_mine_blocks;
+use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -47,8 +40,8 @@ use starknet_api::transaction::TransactionHash;
 use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
-use url::Url;
 
+use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
     assert_no_reverted_txs,
@@ -152,15 +145,15 @@ impl NodeSetup {
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.batcher_index].monitoring_client
+        &self.get_batcher().monitoring_client
     }
 
     pub fn state_sync_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.state_sync_index].monitoring_client
+        &self.get_state_sync().monitoring_client
     }
 
     pub fn consensus_manager_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.consensus_manager_index].monitoring_client
+        &self.get_consensus_manager().monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -182,22 +175,26 @@ impl NodeSetup {
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.as_ref().expect("Should have http server config").port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
+            HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
+            MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
-        serialize_to_file(json_data, path);
+        serialize_to_file(&json_data, path);
     }
 
-    pub fn get_batcher_index(&self) -> usize {
-        self.batcher_index
+    pub fn get_batcher(&self) -> &ExecutableSetup {
+        &self.executables[self.batcher_index]
     }
 
-    pub fn get_http_server_index(&self) -> usize {
-        self.http_server_index
+    pub fn get_http_server(&self) -> &ExecutableSetup {
+        &self.executables[self.http_server_index]
     }
 
-    pub fn get_state_sync_index(&self) -> usize {
-        self.state_sync_index
+    pub fn get_state_sync(&self) -> &ExecutableSetup {
+        &self.executables[self.state_sync_index]
+    }
+
+    pub fn get_consensus_manager(&self) -> &ExecutableSetup {
+        &self.executables[self.consensus_manager_index]
     }
 
     pub fn run(self) -> RunningNode {
@@ -254,10 +251,9 @@ pub struct IntegrationTestManager {
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
-    // Handle for L1 server: the server is dropped when handle is dropped.
-    #[allow(dead_code)]
-    l1_handle: AnvilInstance,
-    starknet_l1_contract: StarknetL1Contract,
+    // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
+    // instance is dropped.
+    anvil_base_layer: AnvilBaseLayer,
 }
 
 impl IntegrationTestManager {
@@ -280,27 +276,6 @@ impl IntegrationTestManager {
         )
         .await;
 
-        fn get_base_layer_config(sequencers_setup: &NodeSetup) -> (EthereumBaseLayerConfig, Url) {
-            // TODO(Tsabary): the pattern of iterating over executables to find the relevant config
-            // should be unified and improved, throughout.
-            for executable_setup in &sequencers_setup.executables {
-                // Must find both base layer config and url in the same executable, then return
-                // them.
-                if let Some(config) = &executable_setup.get_config().base_layer_config {
-                    let base_layer_config = config;
-                    if let Some(l1_monitor_config) =
-                        &executable_setup.get_config().l1_endpoint_monitor_config
-                    {
-                        let base_layer_url = l1_monitor_config.ordered_l1_endpoint_urls[0].clone();
-                        return (base_layer_config.clone(), base_layer_url);
-                    }
-                }
-            }
-            unreachable!("No executable with a set base layer config.")
-        }
-        let (base_layer_config, base_layer_url) =
-            get_base_layer_config(sequencers_setup.first().unwrap());
-
         // TODO(Tsabary): these should be functions of `NodeSetup`.
         fn get_l1_gas_price_scraper_config(
             sequencers_setup: &NodeSetup,
@@ -318,26 +293,29 @@ impl IntegrationTestManager {
         let l1_gas_price_scraper_config =
             get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
 
-        let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
+        let anvil_base_layer = AnvilBaseLayer::new().await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
 
-        anvil_mine_blocks(base_layer_config.clone(), num_blocks_needed_on_l1, &base_layer_url)
-            .await;
+        assert!(
+            num_blocks_needed_on_l1 <= MIN_EXPECTED_BLOCK_NUMBER,
+            "num_blocks_needed_on_l1 ({}) exceeds MIN_EXPECTED_BLOCK_NUMBER ({})",
+            num_blocks_needed_on_l1,
+            MIN_EXPECTED_BLOCK_NUMBER
+        );
+
+        anvil_mine_blocks(
+            anvil_base_layer.ethereum_base_layer.config.clone(),
+            MIN_EXPECTED_BLOCK_NUMBER,
+            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
+        )
+        .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self {
-            node_indices,
-            idle_nodes,
-            running_nodes,
-            tx_generator,
-            l1_handle: anvil,
-            starknet_l1_contract,
-        }
+        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -436,7 +414,7 @@ impl IntegrationTestManager {
                     "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
                      executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_batcher_index(),
+                    running_node_setup.batcher_index,
                 )),
             );
 
@@ -448,7 +426,7 @@ impl IntegrationTestManager {
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
                      {} executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_state_sync_index(),
+                    running_node_setup.state_sync_index,
                 )),
             );
 
@@ -695,7 +673,7 @@ impl IntegrationTestManager {
         let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
             send_message_to_l2_and_calculate_tx_hash(
                 l1_handler_tx,
-                &self.starknet_l1_contract,
+                &self.anvil_base_layer,
                 &chain_id,
             )
         };
@@ -720,14 +698,12 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
-            let state_sync_index = node_setup.get_state_sync_index();
             await_block(
                 batcher_monitoring_client,
-                batcher_index,
+                node_setup.batcher_index,
                 state_sync_monitoring_client,
-                state_sync_index,
+                node_setup.state_sync_index,
                 expected_block_number,
                 sequencer_idx,
             )
@@ -753,7 +729,7 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
+            let batcher_index = node_setup.batcher_index;
             let expected_height = expected_block_number.unchecked_next();
 
             let logger = CustomLogger::new(
@@ -912,8 +888,8 @@ async fn get_sequencer_setup_configs(
     let mut base_layer_ports = available_ports_generator
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
-    let (base_layer_config, base_layer_url) =
-        ethereum_base_layer_config_for_anvil(Some(base_layer_ports.get_next_port()));
+    let base_layer_config = AnvilBaseLayer::config();
+    let base_layer_url = AnvilBaseLayer::url();
 
     let mut nodes = Vec::new();
 

@@ -1,6 +1,7 @@
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
@@ -54,10 +55,6 @@ use crate::metrics::{PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
-
-/// Minimum timeout for block building before finishing due to timeout without new transactions.
-// TODO(dan): Make this configurable and fix the corresponding test.
-pub const MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS: u64 = 2;
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -163,6 +160,7 @@ pub trait BlockBuilderTrait: Send {
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
     pub is_validator: bool,
+    pub proposer_idle_detection_delay: Duration,
 }
 
 pub struct BlockBuilder {
@@ -263,7 +261,7 @@ impl BlockBuilder {
                 info!(
                     "No transactions are being executed and {:?} passed since block building \
                      started (timeout is set to {:?}), finishing block building.",
-                    time_since_start, MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+                    time_since_start, self.execution_params.proposer_idle_detection_delay,
                 );
                 // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
                 crate::metrics::BLOCK_CLOSE_REASON.increment(
@@ -381,6 +379,7 @@ impl BlockBuilder {
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
         } = block_summary;
+
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
@@ -560,7 +559,7 @@ impl BlockBuilder {
         };
         let now = tokio::time::Instant::now();
         let time_since_start = now.duration_since(self.block_building_start);
-        time_since_start.as_secs() >= MIN_BLOCK_BUILDING_NO_NEW_TXS_TIMEOUT_SECS
+        time_since_start >= self.execution_params.proposer_idle_detection_delay
     }
 
     async fn sleep(&mut self) {

@@ -821,7 +821,7 @@
         {
           "evaluator": {
             "params": [
-              0.3
+              0.5
             ],
             "type": "gt"
           },

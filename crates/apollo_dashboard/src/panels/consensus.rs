@@ -4,6 +4,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
     CONSENSUS_CONFLICTING_VOTES,
+    CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_PROPOSALS_INVALID,
@@ -432,6 +433,20 @@ fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
     )
 }
 
+fn get_panel_consensus_decisions_reached_as_proposer() -> Panel {
+    Panel::new(
+        "Consensus Decisions Reached As Proposer",
+        "The number of rounds with decision reached where this node is the proposer (10m window)",
+        vec![format!(
+            "increase({}[10m])",
+            CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+    .with_log_query("\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"")
+    .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
+}
+
 pub(crate) fn get_consensus_row() -> Row {
     Row::new(
         "Consensus",
@@ -442,6 +457,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_block_time_avg(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_from_sync(),
+            get_panel_consensus_decisions_reached_as_proposer(),
             get_panel_consensus_decisions_reached_by_consensus(),
             get_panel_consensus_decisions_reached_by_sync(),
             get_panel_consensus_build_proposal_total(),

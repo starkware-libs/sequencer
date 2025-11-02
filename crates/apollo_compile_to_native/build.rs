@@ -16,7 +16,7 @@ fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
 
-    let cargo_install_args = &["cairo-native", "--version", required_version, "--bin", binary_name];
+    let cargo_install_args = &[binary_name, "--version", required_version];
     install_compiler_binary(binary_name, required_version, cargo_install_args, &out_dir());
 }
 

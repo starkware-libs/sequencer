@@ -137,6 +137,18 @@
           "extra_params": {}
         },
         {
+          "title": "Consensus Decisions Reached As Proposer",
+          "description": "The number of rounds with decision reached where this node is the proposer (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_decisions_reached_as_proposer{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
           "title": "Decisions Reached By Consensus",
           "description": "The number of decisions reached by way of consensus (10m window)",
           "type": "timeseries",
@@ -959,6 +971,24 @@
             "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Average Sierra Gas Usage in Block",
+          "description": "The average sierra gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_sierra_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average Proving Gas Usage in Block",
+          "description": "The average proving gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
@@ -1085,6 +1115,29 @@
           "type": "stat",
           "exprs": [
             "sum by (event_type) (increase(apollo_consensus_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) > 0"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
+    "Reverts": {
+      "panels": [
+        {
+          "title": "apollo_consensus_reverted_batcher_up_to_and_including",
+          "description": "The block number up to which the batcher has reverted",
+          "type": "stat",
+          "exprs": [
+            "apollo_consensus_reverted_batcher_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_state_sync_reverted_up_to_and_including",
+          "description": "The block number up to which the state sync has reverted",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_reverted_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         }

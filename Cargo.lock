@@ -1127,6 +1127,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "tracing-test",
 ]
 
 [[package]]
@@ -1160,6 +1161,7 @@ dependencies = [
 name = "apollo_consensus"
 version = "0.16.0-rc.1"
 dependencies = [
+ "apollo_config_manager_types",
  "apollo_consensus_config",
  "apollo_infra_utils",
  "apollo_metrics",
@@ -1576,11 +1578,14 @@ dependencies = [
  "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor",
  "apollo_l1_endpoint_monitor_config",
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
+ "apollo_l1_provider",
  "apollo_l1_provider_config",
+ "apollo_l1_provider_types",
  "apollo_l1_scraper_config",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
@@ -1597,17 +1602,20 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
+ "async-trait",
  "axum",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
  "clap",
+ "colored 3.0.0",
  "futures",
  "hex",
  "indexmap 2.11.0",
  "mempool_test_utils",
  "metrics 0.24.2",
  "metrics-exporter-prometheus",
+ "mockall",
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
@@ -2190,6 +2198,7 @@ name = "apollo_reverts"
 version = "0.16.0-rc.1"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "apollo_storage",
  "futures",
  "serde",
@@ -3356,6 +3365,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -4306,34 +4316,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cairo-lang-test-plugin"
-version = "2.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1e90cf75528c423cd6b6faaab2dde0c1b23efe36103e1e57f338293552ee16f"
-dependencies = [
- "anyhow",
- "cairo-lang-compiler",
- "cairo-lang-debug",
- "cairo-lang-defs",
- "cairo-lang-filesystem",
- "cairo-lang-lowering",
- "cairo-lang-parser",
- "cairo-lang-semantic",
- "cairo-lang-sierra",
- "cairo-lang-sierra-generator",
- "cairo-lang-starknet",
- "cairo-lang-starknet-classes",
- "cairo-lang-syntax",
- "cairo-lang-utils",
- "indoc 2.0.6",
- "itertools 0.14.0",
- "num-bigint 0.4.6",
- "num-traits",
- "serde",
- "starknet-types-core",
-]
-
-[[package]]
 name = "cairo-lang-test-utils"
 version = "2.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4365,33 +4347,23 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.6.2"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64a1b73479b3b3676bf81d2e3586f7e7d234227d7bdb6d8635b0256af7a41592"
+checksum = "4353361398d63962a78dfeada310701dcff26218ee0aee8754354dc81a5b38a0"
 dependencies = [
- "anyhow",
  "aquamarine",
  "ark-ec 0.5.0",
  "ark-ff 0.5.0",
  "ark-secp256k1 0.5.0",
  "ark-secp256r1 0.5.0",
  "bumpalo",
- "cairo-lang-compiler",
- "cairo-lang-defs",
- "cairo-lang-filesystem",
  "cairo-lang-runner",
- "cairo-lang-semantic",
  "cairo-lang-sierra",
  "cairo-lang-sierra-ap-change",
  "cairo-lang-sierra-gas",
  "cairo-lang-sierra-to-casm",
- "cairo-lang-starknet",
  "cairo-lang-starknet-classes",
- "cairo-lang-test-plugin",
  "cairo-lang-utils",
- "cc",
- "clap",
- "colored 2.2.0",
  "educe 0.5.11",
  "itertools 0.14.0",
  "keccak",
@@ -4410,11 +4382,9 @@ dependencies = [
  "sha2",
  "starknet-curve",
  "starknet-types-core",
- "stats_alloc",
  "tempfile",
  "thiserror 2.0.16",
  "tracing",
- "tracing-subscriber",
  "utf8_iter",
 ]
 
@@ -9743,7 +9713,6 @@ dependencies = [
  "apollo_l1_endpoint_monitor_types",
  "assert_matches",
  "async-trait",
- "colored 3.0.0",
  "ethers",
  "ethers-core",
  "futures",
@@ -12773,12 +12742,6 @@ dependencies = [
  "num 0.2.1",
  "rand 0.6.5",
 ]
-
-[[package]]
-name = "stats_alloc"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c0e04424e733e69714ca1bbb9204c1a57f09f5493439520f9f68c132ad25eec"
 
 [[package]]
 name = "string_cache"

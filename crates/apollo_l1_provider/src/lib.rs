@@ -27,9 +27,14 @@ use crate::transaction_manager::TransactionManagerConfig;
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderState {
+    /// Provider is not read for proposing or validating. Use start_block to transition to Propose
+    /// or Validate.
     Pending,
+    /// Provider is ready for proposing. Use commit_block to finish and return to Pending.
     Propose,
+    /// Provider is catching up using sync. Only happens on startup.
     Bootstrap(Bootstrapper),
+    /// Provider is ready for validating. Use validate to validate a transaction.
     Validate,
 }
 

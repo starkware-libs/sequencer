@@ -57,7 +57,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 5000000000
+    "value": 6000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
@@ -143,6 +143,11 @@
     "description": "Number of transactions in each request from the tx_provider.",
     "privacy": "Public",
     "value": 100
+  },
+  "batcher_config.block_builder_config.proposer_idle_detection_delay_millis": {
+    "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
+    "privacy": "Public",
+    "value": 2000
   },
   "batcher_config.block_builder_config.tx_polling_interval_millis": {
     "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
