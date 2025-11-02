@@ -324,16 +324,17 @@ fn run_compiled_class_hash_entry_point(
     // Run the Cairo entrypoint function.
     // State reader is not used in this test.
     let state_reader = None;
-    let (_implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
-        entrypoint,
-        &explicit_args,
-        &implicit_args,
-        state_reader,
-        &mut runner,
-        &program,
-        &runner_config,
-        &expected_return_values,
-    )?;
+    let (_implicit_return_values, explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            &mut runner,
+            &program,
+            &runner_config,
+            &expected_return_values,
+        )?;
 
     // Get the actual execution resources, and compare with expected values.
     let actual_execution_resources = runner.get_execution_resources().unwrap();

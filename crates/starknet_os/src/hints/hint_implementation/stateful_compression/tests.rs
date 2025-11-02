@@ -529,17 +529,18 @@ fn test_allocate_addresses_for_state_diff_and_replace(
     ];
 
     // Run the entrypoint with validations on the explicit & implicit args.
-    let (_, explicit_return_values) = run_cairo_0_entrypoint(
-        entrypoint,
-        &explicit_args,
-        &implicit_args,
-        Some(state_reader),
-        &mut cairo_runner,
-        &program,
-        &runner_config,
-        &expected_explicit_return_values,
-    )
-    .unwrap();
+    let (_implicit_return_values, explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            Some(state_reader),
+            &mut cairo_runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
 
     let [
         EndpointArg::Pointer(PointerArg::Array(aliases_storage_updates)),
