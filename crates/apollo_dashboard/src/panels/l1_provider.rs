@@ -7,22 +7,29 @@ use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
 use crate::query_builder;
+use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::new(
         "L1 Message Scraper Success Count",
-        "The increase in the number of times the L1 message scraper successfully scraped messages \
-         (10m window)",
-        query_builder::increase(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, "10m"),
+        format!(
+            "The increase in the number of times the L1 message scraper successfully scraped \
+             messages ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
 fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
     Panel::new(
         "L1 Message Scraper Base Layer Error Count",
-        "The increase in the number of times the L1 message scraper encountered an error while \
-         scraping the base layer (10m window)",
-        query_builder::increase(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, "10m"),
+        format!(
+            "The increase in the number of times the L1 message scraper encountered an error \
+             while scraping the base layer ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }

@@ -16,12 +16,16 @@ use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder;
+use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_validator_wasted_txs() -> Panel {
     Panel::new(
         "Proposal Validation: Wasted TXs",
-        "Number of txs executed by the validator but excluded from the block (10m window)",
-        query_builder::increase(&VALIDATOR_WASTED_TXS, "10m"),
+        format!(
+            "Number of txs executed by the validator but excluded from the block ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&VALIDATOR_WASTED_TXS, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Finished building block as validator. Started executing")
@@ -30,8 +34,12 @@ fn get_panel_validator_wasted_txs() -> Panel {
 fn get_panel_proposer_deferred_txs() -> Panel {
     Panel::new(
         "Proposal Build: Deferred TXs",
-        "Number of txs started execution by the proposer but excluded from the block (10m window)",
-        query_builder::increase(&PROPOSER_DEFERRED_TXS, "10m"),
+        format!(
+            "Number of txs started execution by the proposer but excluded from the block ({} \
+             window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&PROPOSER_DEFERRED_TXS, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Finished building block as proposer. Started executing")
@@ -48,18 +56,21 @@ fn get_panel_storage_height() -> Panel {
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
-    let rejected_txs_expr = query_builder::increase(&REJECTED_TRANSACTIONS, "10m");
-    let reverted_txs_expr = query_builder::increase(&REVERTED_TRANSACTIONS, "10m");
+    let rejected_txs_expr = query_builder::increase(&REJECTED_TRANSACTIONS, DEFAULT_DURATION);
+    let reverted_txs_expr = query_builder::increase(&REVERTED_TRANSACTIONS, DEFAULT_DURATION);
 
     let denominator_expr = format!(
         "({} + {} + {})",
         rejected_txs_expr,
         reverted_txs_expr,
-        query_builder::increase(&BATCHED_TRANSACTIONS, "10m"),
+        query_builder::increase(&BATCHED_TRANSACTIONS, DEFAULT_DURATION),
     );
     Panel::new(
         "Rejected / Reverted TXs Ratio",
-        "Ratio of rejected / reverted transactions out of all processed txs (10m window)",
+        format!(
+            "Ratio of rejected / reverted transactions out of all processed txs ({} window)",
+            DEFAULT_DURATION
+        ),
         vec![
             format!("{rejected_txs_expr} / {denominator_expr}"),
             format!("{reverted_txs_expr} / {denominator_expr}"),
@@ -83,7 +94,7 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
 fn get_panel_block_close_reasons() -> Panel {
     Panel::new(
         "Block Close Reasons",
-        "Number of blocks closed by reason (10m window)",
+        format!("Number of blocks closed by reason ({} window)", DEFAULT_DURATION),
         format!(
             "sum by ({}) (increase({}[10m]))",
             LABEL_NAME_BLOCK_CLOSE_REASON,

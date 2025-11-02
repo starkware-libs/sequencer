@@ -15,12 +15,13 @@ use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
 use crate::query_builder;
+use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
     Panel::new(
         "ETH→STRK Rate Query Error Count",
-        "The number of times the ETH→STRK rate query failed (10m window)",
-        query_builder::increase(&ETH_TO_STRK_ERROR_COUNT, "10m"),
+        format!("The number of times the ETH→STRK rate query failed ({} window)", DEFAULT_DURATION),
+        query_builder::increase(&ETH_TO_STRK_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -60,9 +61,12 @@ fn get_panel_eth_to_strk_rate() -> Panel {
 fn get_panel_l1_gas_price_provider_insufficient_history() -> Panel {
     Panel::new(
         "L1 Gas Price Provider Insufficient History",
-        "The number of times the L1 gas price provider calculated an average with too few blocks \
-         (10m window)",
-        query_builder::increase(&L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, "10m"),
+        format!(
+            "The number of times the L1 gas price provider calculated an average with too few \
+             blocks ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Not enough history to calculate the mean gas price.")
@@ -71,9 +75,12 @@ fn get_panel_l1_gas_price_provider_insufficient_history() -> Panel {
 fn get_panel_l1_gas_price_scraper_success_count() -> Panel {
     Panel::new(
         "L1 Gas Price Scraper Success Count",
-        "The number of times the L1 gas price scraper successfully scraped and updated gas prices \
-         (10m window)",
-        query_builder::increase(&L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT, "10m"),
+        format!(
+            "The number of times the L1 gas price scraper successfully scraped and updated gas \
+             prices ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -81,9 +88,12 @@ fn get_panel_l1_gas_price_scraper_success_count() -> Panel {
 fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
     Panel::new(
         "L1 Gas Price Scraper Base Layer Error Count",
-        "The number of times the L1 gas price scraper encountered an error while scraping the \
-         base layer (10m window)",
-        query_builder::increase(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, "10m"),
+        format!(
+            "The number of times the L1 gas price scraper encountered an error while scraping the \
+             base layer ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -91,9 +101,12 @@ fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
 fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
     Panel::new(
         "L1 Gas Price Scraper Reorg Detected",
-        "The number of times the L1 gas price scraper detected a reorganization in the base layer \
-         (10m window)",
-        query_builder::increase(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED, "10m"),
+        format!(
+            "The number of times the L1 gas price scraper detected a reorganization in the base \
+             layer ({} window)",
+            DEFAULT_DURATION
+        ),
+        query_builder::increase(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
