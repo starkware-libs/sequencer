@@ -1341,6 +1341,7 @@ dependencies = [
  "apollo_storage",
  "blockifier",
  "indexmap 2.11.0",
+ "rstest",
  "serde",
  "serde_json",
  "serde_with",

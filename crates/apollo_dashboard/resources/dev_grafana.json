@@ -575,7 +575,7 @@
           "description": "The number of transactions received by source (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) "
+            "sum by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {
             "log_query": "\"Processing tx\" AND \"is_p2p=\""
@@ -586,7 +586,7 @@
           "description": "The number of transactions received by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range])) "
+            "sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {
             "log_query": "\"Processing tx\""
@@ -617,7 +617,7 @@
           "description": "The number of transactions sent to mempool by type (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
+            "sum by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {}
         },
@@ -673,7 +673,7 @@
           "description": "Number of transactions dropped from the mempool by reason (over the selected time range)",
           "type": "stat",
           "exprs": [
-            "sum  by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
+            "sum by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$__range]))"
           ],
           "extra_params": {}
         },
@@ -1009,7 +1009,7 @@
         },
         {
           "title": "Number of Classes",
-          "description": "Number of classes, labeled by type (regular, deprecated)",
+          "description": "Number of classes, labeled by type (regular, deprecated) (10m window)",
           "type": "stat",
           "exprs": [
             "sum by (class_type) (increase(class_manager_n_classes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]))"
