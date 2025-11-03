@@ -6,8 +6,7 @@ use apollo_l1_provider::metrics::{
 use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
-use crate::query_builder;
-use crate::query_builder::DEFAULT_DURATION;
+use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::new(
@@ -16,7 +15,7 @@ fn get_panel_l1_message_scraper_success_count() -> Panel {
             "The increase in the number of times the L1 message scraper successfully scraped \
              messages ({DEFAULT_DURATION} window)",
         ),
-        query_builder::increase(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
+        increase(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -27,7 +26,7 @@ fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
             "The increase in the number of times the L1 message scraper encountered an error \
              while scraping the base layer ({DEFAULT_DURATION} window)",
         ),
-        query_builder::increase(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
+        increase(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -35,7 +34,7 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
     Panel::new(
         "L1 Message Scraper Reorg Detected",
         "The increase in the number of times the L1 message scraper detected a reorg (12h window)",
-        query_builder::increase(&L1_MESSAGE_SCRAPER_REORG_DETECTED, "12h"),
+        increase(&L1_MESSAGE_SCRAPER_REORG_DETECTED, "12h"),
         PanelType::TimeSeries,
     )
 }
