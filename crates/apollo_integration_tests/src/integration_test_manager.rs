@@ -293,7 +293,7 @@ impl IntegrationTestManager {
         let l1_gas_price_scraper_config =
             get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
 
-        let anvil_base_layer = AnvilBaseLayer::new().await;
+        let anvil_base_layer = AnvilBaseLayer::new(Some(1)).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;

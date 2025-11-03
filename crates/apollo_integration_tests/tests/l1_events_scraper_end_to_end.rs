@@ -22,7 +22,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, Transac
 #[tokio::test]
 async fn scraper_end_to_end() {
     // Setup.
-    let base_layer = AnvilBaseLayer::new().await;
+    let base_layer = AnvilBaseLayer::new(None).await;
     let contract = &base_layer.ethereum_base_layer.contract;
     let mut l1_provider_client = MockL1ProviderClient::default();
 
