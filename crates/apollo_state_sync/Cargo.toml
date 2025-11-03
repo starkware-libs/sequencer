@@ -34,8 +34,10 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_starknet_client = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
+mockall.workspace = true
 rand_chacha.workspace = true

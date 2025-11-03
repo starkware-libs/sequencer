@@ -160,7 +160,6 @@ impl StateSync {
             (Err(StateSyncError::BlockNotFound(_)), Some(starknet_client)) => {
                 // As a fallback, try to get the block hash through the feeder directly. This
                 // method is faster than get_block which the sync runner uses.
-                // TODO(shahak): Test this flow.
                 starknet_client
                     .block_hash(block_number)
                     .await?
