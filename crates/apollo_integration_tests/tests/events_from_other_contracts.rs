@@ -14,7 +14,7 @@ use starknet_api::{calldata, contract_address, felt};
 async fn events_from_other_contract() {
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
-    let anvil_base_layer = AnvilBaseLayer::new().await;
+    let anvil_base_layer = AnvilBaseLayer::new(None).await;
     // Anvil base layer already auto-deployed a starknet contract.
     let this_contract = &anvil_base_layer.ethereum_base_layer.contract;
 

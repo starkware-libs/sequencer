@@ -49,7 +49,7 @@ impl AnvilBaseLayer {
     /// Note: if you have port conflicts, you might have a zombie anvil instance
     /// running, but that should be impossible if using through this service, you probably have a
     /// manually triggered Anvil instance somewhere in your shell.
-    pub async fn new() -> Self {
+    pub async fn new(block_time: Option<u64>) -> Self {
         let is_unit_test = cfg!(test);
         if is_unit_test {
             panic!(
@@ -60,7 +60,10 @@ impl AnvilBaseLayer {
         }
 
         let anvil_client = ProviderBuilder::new()
-            .connect_anvil_with_wallet_and_config(|anvil| anvil.port(Self::DEFAULT_ANVIL_PORT))
+            .connect_anvil_with_wallet_and_config(|anvil| {
+                let anvil = anvil.port(Self::DEFAULT_ANVIL_PORT);
+                if let Some(block_time) = block_time { anvil.block_time(block_time) } else { anvil }
+            })
             .unwrap_or_else(|error| match error {
                 AnvilError::SpawnError(e)
                     if e.to_string().contains("No such file or directory") =>

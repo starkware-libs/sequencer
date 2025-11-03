@@ -10,7 +10,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 
 #[tokio::test]
 async fn test_mocked_starknet_state_update() {
-    let base_layer = AnvilBaseLayer::new().await;
+    let base_layer = AnvilBaseLayer::new(None).await;
 
     // Check that the contract was initialized (during the construction above).
     let no_finality = 0;
