@@ -9,14 +9,13 @@ use apollo_http_server::metrics::{
 use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
-use crate::query_builder;
-use crate::query_builder::DEFAULT_DURATION;
+use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_total_transactions_received() -> Panel {
     Panel::new(
         "Transactions Received",
         format!("Number of transactions received ({DEFAULT_DURATION} window)"),
-        query_builder::increase(&ADDED_TRANSACTIONS_TOTAL, DEFAULT_DURATION),
+        increase(&ADDED_TRANSACTIONS_TOTAL, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"ADD_TX_START\"")
@@ -31,8 +30,8 @@ fn get_panel_transaction_success_rate() -> Panel {
         ),
         format!(
             "{s} / ({s} + {f})",
-            s = query_builder::increase(&ADDED_TRANSACTIONS_SUCCESS, DEFAULT_DURATION),
-            f = query_builder::increase(&ADDED_TRANSACTIONS_FAILURE, DEFAULT_DURATION),
+            s = increase(&ADDED_TRANSACTIONS_SUCCESS, DEFAULT_DURATION),
+            f = increase(&ADDED_TRANSACTIONS_FAILURE, DEFAULT_DURATION),
         ),
         PanelType::TimeSeries,
     )
