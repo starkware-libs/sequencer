@@ -53,7 +53,7 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated list of file/path patterns that should trigger the test.",
     )
     parser.add_argument(
-        "--path_triggers-exclude",
+        "--path_triggers_exclude",
         type=str,
         default="",
         help="Comma-separated list of file/path patterns that should not trigger the test. Takes precedence over path_triggers.",
