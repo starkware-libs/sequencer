@@ -23,8 +23,8 @@ use crate::io::os_output_types::{
 use crate::vm_utils::{LoadIntoVmMemory, VmUtilsResult};
 
 #[cfg(test)]
-#[path = "aggregator_utils_test.rs"]
-mod aggregator_utils_test;
+#[path = "utils_test.rs"]
+mod utils_test;
 
 pub(crate) trait ToMaybeRelocatables {
     fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable>;

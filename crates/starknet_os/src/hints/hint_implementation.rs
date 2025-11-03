@@ -1,5 +1,4 @@
 pub(crate) mod aggregator;
-pub(crate) mod aggregator_utils;
 pub(crate) mod blake2s;
 pub(crate) mod block_context;
 pub(crate) mod bls_field;
