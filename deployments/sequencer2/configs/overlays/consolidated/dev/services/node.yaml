@@ -1,0 +1,21 @@
+name: node
+
+# StatefulSet Configuration
+# See docs/STATEFULSET_CONFIGURATION.md for all available options
+statefulSet:
+  enabled: false
+
+ingress:
+  enabled: false
+
+hpa:
+  enabled: false
+
+secret:
+  enabled: false
+
+# externalSecret:
+#   enabled: false
+
+persistentVolume:
+  enabled: false

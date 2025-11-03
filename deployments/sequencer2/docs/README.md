@@ -1,0 +1,264 @@
+# Configuration Documentation
+
+This directory contains comprehensive documentation for all Kubernetes manifest configurations available in the Sequencer deployment system.
+
+## Configuration System
+
+- **[LAYOUT_OVERLAY_CONFIGURATION.md](LAYOUT_OVERLAY_CONFIGURATION.md)** - Complete guide to the layout and overlay mechanism for managing configurations across environments
+
+## Available Documentation
+
+### Core Kubernetes Resources
+
+- **[SERVICE_ACCOUNT_CONFIGURATION.md](SERVICE_ACCOUNT_CONFIGURATION.md)** - ServiceAccount configuration options including cloud provider integrations (GKE, EKS, AKS)
+- **[SECRET_CONFIGURATION.md](SECRET_CONFIGURATION.md)** - Secret configuration for various types (Opaque, TLS, Docker, Basic Auth, SSH)
+- **[EXTERNAL_SECRET_CONFIGURATION.md](EXTERNAL_SECRET_CONFIGURATION.md)** - ExternalSecret configuration for multiple secret providers (GCP, AWS, Azure, Vault)
+- **[INGRESS_CONFIGURATION.md](INGRESS_CONFIGURATION.md)** - Ingress configuration for various controllers (NGINX, Traefik, Istio)
+- **[STATEFULSET_CONFIGURATION.md](STATEFULSET_CONFIGURATION.md)** - StatefulSet configuration with advanced scheduling and security options
+- **[DEPLOYMENT_CONFIGURATION.md](DEPLOYMENT_CONFIGURATION.md)** - Deployment configuration with scaling and update strategies
+- **[CONFIGMAP_CONFIGURATION.md](CONFIGMAP_CONFIGURATION.md)** - ConfigMap configuration for JSON file loading and merging
+- **[SERVICE_CONFIGURATION.md](SERVICE_CONFIGURATION.md)** - Service configuration for different types and cloud load balancers
+- **[VOLUME_CONFIGURATION.md](VOLUME_CONFIGURATION.md)** - PersistentVolume configuration for various storage classes
+- **[POD_DISRUPTION_BUDGET_CONFIGURATION.md](POD_DISRUPTION_BUDGET_CONFIGURATION.md)** - PodDisruptionBudget configuration for pod availability during disruptions
+- **[NETWORK_POLICY_CONFIGURATION.md](NETWORK_POLICY_CONFIGURATION.md)** - NetworkPolicy configuration for pod-to-pod network traffic control
+- **[PRIORITY_CLASS_CONFIGURATION.md](PRIORITY_CLASS_CONFIGURATION.md)** - PriorityClass configuration for pod scheduling priority and preemption
+- **[RBAC_CONFIGURATION.md](RBAC_CONFIGURATION.md)** - RBAC configuration for Role, RoleBinding, ClusterRole, and ClusterRoleBinding
+
+### GCP-Specific Resources
+
+- **[GCP_POD_MONITORING_CONFIGURATION.md](GCP_POD_MONITORING_CONFIGURATION.md)** - GCP PodMonitoring configuration for Managed Prometheus on GKE
+- **[GCP_BACKEND_CONFIG_CONFIGURATION.md](GCP_BACKEND_CONFIG_CONFIGURATION.md)** - GCP BackendConfig configuration for Google Cloud Load Balancer
+
+### Specialized Features
+
+- **[HPA_FLEXIBILITY_GUIDE.md](HPA_FLEXIBILITY_GUIDE.md)** - HorizontalPodAutoscaler configuration with advanced scaling behaviors
+
+## Usage
+
+Each documentation file provides:
+
+1. **Basic Configuration** - Simple examples to get started
+2. **Advanced Configuration** - Complex examples with all options
+3. **Configuration Options** - Detailed explanation of each field
+4. **Cloud Provider Examples** - Specific examples for AWS, GCP, Azure
+5. **Best Practices** - Recommended approaches and security considerations
+6. **Generated Kubernetes Resources** - Example of the actual YAML output
+
+## Automatic Features
+
+### Automatic Volume Mounting
+
+The following resources are automatically mounted in pods when enabled:
+
+- **ConfigMap**: Automatically mounted at `/config/sequencer/presets/` (or custom `mountPath`)
+- **Secret**: Automatically mounted as `/etc/secrets/secret.json` (or custom path) using `subPath`
+- **ExternalSecret**: Automatically mounted as `/etc/secrets/external-secret.json` (or custom path) using `subPath`
+
+### Automatic Container Arguments
+
+Container arguments are automatically generated based on enabled resources:
+
+1. **ConfigMap**: Always adds `--config_file {mountPath}` (default: `--config_file /config/sequencer/presets/`)
+2. **Secret**: Adds `--config_file {mountPath}/secret.json` (default: `--config_file /etc/secrets/secret.json`)
+3. **ExternalSecret**: Adds `--config_file {mountPath}/external-secret.json` (default: `--config_file /etc/secrets/external-secret.json`)
+4. **Custom Args**: Any additional args from `node.yaml` are appended after the automatic args
+
+**Example generated args:**
+```yaml
+args:
+  - --config_file
+  - /config/sequencer/presets/      # From ConfigMap
+  - --config_file
+  - /etc/secrets/secret.json       # From Secret (if enabled)
+  - --config_file
+  - /etc/secrets/external-secret.json  # From ExternalSecret (if enabled)
+  - --custom-arg                    # From node.yaml args section
+  - value
+```
+
+## Quick Reference
+
+### ServiceAccount
+```yaml
+serviceAccount:
+  enabled: true
+  name: "my-sa"
+  annotations:
+    "iam.gke.io/gcp-service-account": "my-service@project.iam.gserviceaccount.com"
+```
+
+### Config (ConfigMap)
+```yaml
+config:
+  configPaths:
+    - "crates/apollo_deployments/resources/app_configs/base_layer_config.json"
+    - "crates/apollo_deployments/resources/app_configs/sequencer_config.json"
+  # mountPath: /config/sequencer/presets/  # Optional: defaults to "/config/sequencer/presets/"
+```
+
+**Note**: The ConfigMap is automatically mounted and a `--config_file {mountPath}` argument is automatically added to container args.
+
+### Secret
+```yaml
+secret:
+  enabled: true
+  name: "app-secrets"
+  type: Opaque
+  stringData:
+    secret.json: |
+      {
+        "database": {
+          "url": "postgresql://user:password@localhost:5432/db"
+        }
+      }
+  # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
+```
+
+**Note**: The Secret is automatically mounted as `{mountPath}/secret.json` and a `--config_file {mountPath}/secret.json` argument is automatically added to container args. The secret must contain a key named `secret.json`.
+
+### ExternalSecret
+```yaml
+externalSecret:
+  enabled: true
+  secretStore:
+    name: "gcp-secret-store"
+    kind: "ClusterSecretStore"
+  data:
+    - secretKey: "external-secret.json"  # Key must be "external-secret.json" for auto-mounting
+      remoteKey: "sequencer/secrets"
+  # mountPath: /etc/secrets  # Optional: defaults to "/etc/secrets"
+```
+
+**Note**: The ExternalSecret is automatically mounted as `{mountPath}/external-secret.json` and a `--config_file {mountPath}/external-secret.json` argument is automatically added to container args. The target secret must contain a key named `external-secret.json`.
+
+### Ingress
+```yaml
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - "sequencer.example.com"
+  tls:
+    - secretName: "sequencer-tls"
+      hosts: ["sequencer.example.com"]
+```
+
+### StatefulSet
+```yaml
+statefulSet:
+  enabled: true
+  replicas: 3
+  updateStrategy:
+    type: "RollingUpdate"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+```
+
+### HPA
+```yaml
+hpa:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+```
+
+### PodDisruptionBudget
+```yaml
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: "25%"
+  unhealthyPodEvictionPolicy: "IfHealthyBudget"
+```
+
+### NetworkPolicy
+```yaml
+networkPolicy:
+  enabled: true
+  podSelector:
+    matchLabels:
+      app: sequencer
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+```
+
+### PriorityClass
+```yaml
+priorityClass:
+  enabled: true
+  name: "sequencer-high-priority"
+  value: 2000
+  description: "High priority for production workloads"
+  preemptionPolicy: "PreemptLowerPriority"
+```
+
+### RBAC
+```yaml
+rbac:
+  enabled: true
+  type: Role
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "configmaps"]
+      verbs: ["get", "list", "watch"]
+  subjects:
+    - kind: ServiceAccount
+      name: sequencer-node-sa
+```
+
+### GCP PodMonitoring
+```yaml
+gcpPodMonitoring:
+  enabled: true
+  spec:
+    selector:
+      matchLabels:
+        app: sequencer
+    endpoints:
+      - port: 9090
+        path: "/monitoring/metrics"
+        interval: "10s"
+```
+
+### GCP BackendConfig
+```yaml
+gcpBackendConfig:
+  enabled: true
+  connectionDrainingTimeoutSeconds: 60
+  timeOutSeconds: 30
+  healthCheck:
+    checkIntervalSeconds: 10
+    timeoutSeconds: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    requestPath: "/health"
+    port: 80
+```
+
+## Contributing
+
+When adding new configuration options:
+
+1. Update the relevant documentation file
+2. Add examples for different use cases
+3. Include cloud provider-specific examples
+4. Update this README with the new documentation
+5. Test the configuration with `cdk8s synth`
+
+## Schema Validation
+
+All configurations are validated against Pydantic schemas defined in `src/config/schema.py`. The documentation reflects the actual schema structure and available options.
