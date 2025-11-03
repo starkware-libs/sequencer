@@ -44,7 +44,6 @@
   "consensus_manager_config.network_config.idle_connection_timeout": 120,
   "consensus_manager_config.network_config.peer_manager_config.malicious_timeout_seconds": 0,
   "consensus_manager_config.network_config.peer_manager_config.unstable_timeout_millis": 0,
-  "consensus_manager_config.network_config.port": 53080,
   "consensus_manager_config.network_config.reported_peer_ids_buffer_size": 100000,
   "consensus_manager_config.network_config.session_timeout": 120,
   "consensus_manager_config.proposals_topic": "consensus_proposals",
