@@ -361,8 +361,10 @@ pub struct L1ProviderSnapshot {
     pub rejected_transactions: Vec<TransactionHash>,
     pub rejected_staged_transactions: Vec<TransactionHash>,
     pub committed_transactions: Vec<TransactionHash>,
+    pub consumed_transactions: Vec<TransactionHash>,
     pub l1_provider_state: String,
     pub current_height: BlockNumber,
+    pub number_of_txs_in_records: usize,
 }
 
 generate_permutation_labels! {

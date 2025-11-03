@@ -27,7 +27,8 @@ async fn new_l1_handler_tx_propose_validate_cancellation_timelock() {
 
     let (l2_hash, nonce) = send_message_from_l1_to_l2(&base_layer).await;
 
-    let l1_provider_client = setup_scraper_and_provider(&base_layer).await;
+    let l1_provider_client =
+        setup_scraper_and_provider(base_layer.ethereum_base_layer.clone()).await;
 
     // Test.
     let next_block_height = BlockNumber(TARGET_L2_HEIGHT.0 + 1);

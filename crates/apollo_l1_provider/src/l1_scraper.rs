@@ -133,6 +133,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .await;
 
         let l1_events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
+
         // Used for debug. Collect the L1 tx hashes and L1 block timestamps.
         let l1_messages_info = l1_events
             .iter()
@@ -152,7 +153,6 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                     .map_err(L1ScraperError::HashCalculationError)
             })
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
-
         // Used for debug. Collect the L2 hashes for events that are L1 handler transactions.
         let l2_hashes = events.iter().filter_map(|event| match event {
             Event::L1HandlerTransaction { l1_handler_tx, .. } => Some(l1_handler_tx.tx_hash),

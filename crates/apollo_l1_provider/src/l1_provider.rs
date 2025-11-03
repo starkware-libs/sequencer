@@ -435,8 +435,10 @@ impl L1Provider {
             rejected_transactions: txs_snapshot.rejected,
             rejected_staged_transactions: txs_snapshot.rejected_staged,
             committed_transactions: txs_snapshot.committed,
+            consumed_transactions: txs_snapshot.consumed,
             l1_provider_state: self.state.as_str().to_string(),
             current_height: self.current_height,
+            number_of_txs_in_records: self.tx_manager.records.len(),
         })
     }
 }

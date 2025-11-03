@@ -1,3 +1,5 @@
+use std::error::Error;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -30,18 +32,20 @@ use tokio::sync::mpsc::channel;
 // Must wait at least 1 second, as timestamps are integer seconds.
 pub(crate) const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
 pub(crate) const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
-const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
-const CHAIN_ID: ChainId = ChainId::Mainnet;
-const L1_CONTRACT_ADDRESS: &str = "0x12";
-const L2_ENTRY_POINT: &str = "0x34";
-const CALL_DATA: &[u8] = &[1_u8, 2_u8];
+pub(crate) const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
+pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
+pub(crate) const L1_CONTRACT_ADDRESS: &str = "0x12";
+pub(crate) const L2_ENTRY_POINT: &str = "0x34";
+pub(crate) const CALL_DATA: &[u8] = &[1_u8, 2_u8];
 
 const START_L1_BLOCK: L1BlockReference = L1BlockReference { number: 0, hash: L1BlockHash([0; 32]) };
-const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
+pub(crate) const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
 const START_L2_HEIGHT: BlockNumber = BlockNumber(0);
 pub(crate) const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
 
 /// Setup an anvil base layer with some blocks on it.
+// Need to allow dead code as this is only used in some of the test crates.
+#[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
     let base_layer = AnvilBaseLayer::new(None).await;
     anvil_mine_blocks(
@@ -54,8 +58,11 @@ pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
 }
 
 /// Set up the scraper and provider, return a provider client.
-pub(crate) async fn setup_scraper_and_provider(
-    base_layer: &AnvilBaseLayer,
+pub(crate) async fn setup_scraper_and_provider<
+    T: BaseLayerContract<Error = E> + Send + Sync + Debug + 'static,
+    E: Error + Send + Sync + Debug + 'static,
+>(
+    base_layer: T,
 ) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
     // Setup the state sync client.
     let mut state_sync_client = MockStateSyncClient::default();
@@ -74,6 +81,8 @@ pub(crate) async fn setup_scraper_and_provider(
         new_l1_handler_cooldown_seconds: COOLDOWN_DURATION,
         // Use the same time as new l1 handler cooldown, for simplicity.
         l1_handler_cancellation_timelock_seconds: COOLDOWN_DURATION,
+        // The slightly longer timelock allows testing consumption and the timelock for deletion.
+        l1_handler_consumption_timelock_seconds: COOLDOWN_DURATION,
         ..Default::default()
     };
     let l1_provider = L1ProviderBuilder::new(
@@ -107,7 +116,7 @@ pub(crate) async fn setup_scraper_and_provider(
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client.clone()),
-        base_layer.ethereum_base_layer.clone(),
+        base_layer,
         &[],
         START_L1_BLOCK,
     )
@@ -124,6 +133,8 @@ pub(crate) async fn setup_scraper_and_provider(
 }
 
 /// Send a message from L1 to L2 and return the transaction hash on L2.
+// Need to allow dead code as this is only used in some of the test crates.
+#[allow(dead_code)]
 pub(crate) async fn send_message_from_l1_to_l2(
     base_layer: &AnvilBaseLayer,
 ) -> (TransactionHash, Uint<256, 4>) {
