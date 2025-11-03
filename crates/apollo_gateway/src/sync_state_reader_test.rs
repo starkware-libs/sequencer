@@ -31,7 +31,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::state_reader::MempoolStateReader;
-use crate::sync_state_reader::{SyncStateReader, OLD_DEPLOY_CLASS_HASH_WHITELIST};
+use crate::sync_state_reader::SyncStateReader;
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
@@ -228,38 +228,28 @@ fn assert_eq_state_result(
 #[case::class_declared(
     Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
     Ok(true),
-    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
-    *DUMMY_CLASS_HASH,
+    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap()))
 )]
 #[case::class_not_declared_but_in_class_manager(
     Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
     Ok(false),
-    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
-    *DUMMY_CLASS_HASH,
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH))
 )]
 #[case::class_not_declared(
     Ok(None),
     Ok(false),
-    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
-    *DUMMY_CLASS_HASH,
-)]
-// TODO(shahak): Put cairo 0 class here to better illustrate the possible scenario.
-#[case::class_in_whitelist(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
-    Ok(false),
-    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
-    OLD_DEPLOY_CLASS_HASH_WHITELIST[0],
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH))
 )]
 #[tokio::test]
 async fn test_get_compiled_class(
     #[case] class_manager_client_result: ClassManagerClientResult<Option<ExecutableClass>>,
     #[case] sync_client_result: StateSyncClientResult<bool>,
     #[case] expected_result: StateResult<RunnableCompiledClass>,
-    #[case] class_hash: ClassHash,
 ) {
     let mut mock_state_sync_client = MockStateSyncClient::new();
     let mut mock_class_manager_client = MockClassManagerClient::new();
 
+    let class_hash = *DUMMY_CLASS_HASH;
     let block_number = BlockNumber(1);
 
     mock_class_manager_client
@@ -295,7 +285,6 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
         Ok(None),
         Ok(true),
         Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
-        *DUMMY_CLASS_HASH,
     )
     .await;
 }
