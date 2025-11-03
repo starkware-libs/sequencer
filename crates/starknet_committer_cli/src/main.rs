@@ -7,6 +7,7 @@ use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::run_storage_benchmark;
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -28,6 +29,54 @@ pub enum StorageType {
 
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 
+/// Key size, in bytes, for the short key storage.
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+pub enum ShortKeySizeArg {
+    U16,
+    U17,
+    U18,
+    U19,
+    U20,
+    U21,
+    U22,
+    U23,
+    U24,
+    U25,
+    U26,
+    U27,
+    U28,
+    U29,
+    U30,
+    U31,
+    U32,
+}
+
+/// Define this conversion to make sure the arg-enum matches the original enum.
+/// The original enum defines the possible sizes, but we do not want to implement ValueEnum for it.
+impl From<ShortKeySizeArg> for ShortKeySize {
+    fn from(arg: ShortKeySizeArg) -> Self {
+        match arg {
+            ShortKeySizeArg::U16 => Self::U16,
+            ShortKeySizeArg::U17 => Self::U17,
+            ShortKeySizeArg::U18 => Self::U18,
+            ShortKeySizeArg::U19 => Self::U19,
+            ShortKeySizeArg::U20 => Self::U20,
+            ShortKeySizeArg::U21 => Self::U21,
+            ShortKeySizeArg::U22 => Self::U22,
+            ShortKeySizeArg::U23 => Self::U23,
+            ShortKeySizeArg::U24 => Self::U24,
+            ShortKeySizeArg::U25 => Self::U25,
+            ShortKeySizeArg::U26 => Self::U26,
+            ShortKeySizeArg::U27 => Self::U27,
+            ShortKeySizeArg::U28 => Self::U28,
+            ShortKeySizeArg::U29 => Self::U29,
+            ShortKeySizeArg::U30 => Self::U30,
+            ShortKeySizeArg::U31 => Self::U31,
+            ShortKeySizeArg::U32 => Self::U32,
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 struct StorageArgs {
     /// Seed for the random number generator.
@@ -43,10 +92,9 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
-    /// If not none, wraps the storage in a key-shrinking storage.
-    /// See `short_key_storage.rs` for more details and allowed values.
+    /// If not none, wraps the storage in the key-shrinking storage of the given size.
     #[clap(long, default_value = None)]
-    key_size: Option<u8>,
+    key_size: Option<ShortKeySizeArg>,
     /// If using cached storage, the size of the cache.
     #[clap(long, default_value = "1000000")]
     cache_size: usize,
@@ -91,7 +139,7 @@ macro_rules! generate_short_key_benchmark {
         $checkpoint_dir_arg:expr,
         $storage:expr,
         $checkpoint_interval:expr,
-        $( ($size:expr, $name:ident) ),+ $(,)?
+        $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
         match $key_size {
             None => {
@@ -107,7 +155,7 @@ macro_rules! generate_short_key_benchmark {
                 .await
             }
             $(
-                Some(size) if size == $size => {
+                Some(ShortKeySizeArg::$size) => {
                     let storage = starknet_patricia_storage::short_key_storage::$name::new($storage);
                     run_storage_benchmark(
                         $seed,
@@ -121,7 +169,6 @@ macro_rules! generate_short_key_benchmark {
                     .await
                 }
             )+
-            Some(other_size) => panic!("Invalid key size: {other_size}"),
         }
     }
 }
@@ -164,23 +211,23 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         checkpoint_dir_arg,
         storage,
         checkpoint_interval,
-        (16, ShortKeyStorage16),
-        (17, ShortKeyStorage17),
-        (18, ShortKeyStorage18),
-        (19, ShortKeyStorage19),
-        (20, ShortKeyStorage20),
-        (21, ShortKeyStorage21),
-        (22, ShortKeyStorage22),
-        (23, ShortKeyStorage23),
-        (24, ShortKeyStorage24),
-        (25, ShortKeyStorage25),
-        (26, ShortKeyStorage26),
-        (27, ShortKeyStorage27),
-        (28, ShortKeyStorage28),
-        (29, ShortKeyStorage29),
-        (30, ShortKeyStorage30),
-        (31, ShortKeyStorage31),
-        (32, ShortKeyStorage32)
+        (U16, ShortKeyStorage16),
+        (U17, ShortKeyStorage17),
+        (U18, ShortKeyStorage18),
+        (U19, ShortKeyStorage19),
+        (U20, ShortKeyStorage20),
+        (U21, ShortKeyStorage21),
+        (U22, ShortKeyStorage22),
+        (U23, ShortKeyStorage23),
+        (U24, ShortKeyStorage24),
+        (U25, ShortKeyStorage25),
+        (U26, ShortKeyStorage26),
+        (U27, ShortKeyStorage27),
+        (U28, ShortKeyStorage28),
+        (U29, ShortKeyStorage29),
+        (U30, ShortKeyStorage30),
+        (U31, ShortKeyStorage31),
+        (U32, ShortKeyStorage32)
     );
 }
 
