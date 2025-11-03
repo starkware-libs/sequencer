@@ -81,14 +81,14 @@ pub async fn end_to_end_flow(
         info!("Starting scenario {i}.");
         // Create and send transactions.
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
-        let l1_to_l2_messages_args = create_l1_to_l2_messages_args_fn(&mut tx_generator);
-        mock_running_system.send_messages_to_l2(&l1_to_l2_messages_args).await;
+        let l1_handlers = create_l1_to_l2_messages_args_fn(&mut tx_generator);
+        mock_running_system.send_messages_to_l2(&l1_handlers).await;
 
         // Run the test scenario and get the expected batched tx hashes of the current scenario.
         let expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
-            l1_to_l2_messages_args,
+            l1_handlers,
             &mut send_rpc_tx_fn,
             test_tx_hashes_fn,
             &chain_id,
