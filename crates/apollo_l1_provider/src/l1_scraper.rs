@@ -70,7 +70,6 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         debug!("Latest L1 block for initialize: {latest_l1_block:?}");
         debug!("All events scraped during initialize: {events:?}");
-
         // If this gets too high, send in batches.
         let initialize_result = self.l1_provider_client.initialize(events).await;
         handle_client_error(initialize_result)?;
@@ -88,7 +87,6 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         // TODO(guyn): remove these _every_n_sec because the polling interval is longer.
         trace!("scraped up to {latest_l1_block:?}");
         info_every_n_sec!(1, "scraped up to {latest_l1_block:?}");
-
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no
         // network). If this gets spammy, short-circuit on events.empty().

@@ -1763,6 +1763,8 @@ dependencies = [
  "apollo_time",
  "assert_matches",
  "async-trait",
+ "chrono",
+ "futures",
  "indexmap 2.11.0",
  "itertools 0.12.1",
  "mockall",

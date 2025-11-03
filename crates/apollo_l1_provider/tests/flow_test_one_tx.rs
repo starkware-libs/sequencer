@@ -12,7 +12,8 @@ use utils::{
     TARGET_L2_HEIGHT,
 };
 
-#[tokio::test]
+// Start the test paused
+#[tokio::test(start_paused = true)]
 async fn new_l1_handler_tx_propose_validate_cooldown() {
     // Setup.
 
@@ -42,7 +43,7 @@ async fn new_l1_handler_tx_propose_validate_cooldown() {
 
     // Sleep at least one second more than the cooldown to make sure we are not failing due to
     // fractional seconds.
-    tokio::time::sleep(COOLDOWN_DURATION + Duration::from_secs(1)).await;
+    tokio::time::advance(COOLDOWN_DURATION + Duration::from_secs(1)).await;
 
     // Test that we propose after the cooldown is over.
     l1_provider_client.start_block(SessionState::Propose, next_block_height).await.unwrap();

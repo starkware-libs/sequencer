@@ -205,7 +205,6 @@ impl TransactionManager {
 
         // Mark the transaction as consumed.
         self.with_record(tx_hash, |record| record.mark_consumed(consumed_at));
-
         Ok(())
     }
 
@@ -214,7 +213,6 @@ impl TransactionManager {
             unix_now.saturating_sub(self.config.l1_handler_consumption_timelock_seconds.as_secs());
         let still_timelocked = self.consumed_queue.split_off(&BlockTimestamp(cutoff));
         let passed_timelock = std::mem::replace(&mut self.consumed_queue, still_timelocked);
-
         for tx_hashes in passed_timelock.values() {
             for tx_hash in tx_hashes {
                 self.records.remove(tx_hash);

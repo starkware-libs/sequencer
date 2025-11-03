@@ -1,6 +1,9 @@
 use std::error::Error;
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Poll;
 use std::time::Duration;
 
 use alloy::primitives::{Uint, U256};
@@ -17,10 +20,19 @@ use apollo_l1_provider::l1_provider::L1ProviderBuilder;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_provider::{event_identifiers_to_track, L1ProviderConfig};
-use apollo_l1_provider_types::{Event, L1ProviderRequest, L1ProviderResponse};
+use apollo_l1_provider_types::{
+    Event,
+    L1ProviderClient,
+    L1ProviderRequest,
+    L1ProviderResponse,
+    ProviderState,
+};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_time::time::Clock;
+use chrono::{DateTime, Duration as ChronoDur, Utc};
+use futures::{poll, FutureExt};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet::LogMessageToL2;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockNumber, L1BlockReference};
@@ -28,12 +40,12 @@ use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::channel;
+use tokio::time::Instant;
 
-// Must wait at least 1 second, as timestamps are integer seconds.
-pub(crate) const COOLDOWN_DURATION: Duration = Duration::from_millis(1000);
-// Make the cooldown long enough to be able to scrape it, but it would still be locked.
-pub(crate) const TIMELOCK_DURATION: Duration = Duration::from_millis(3000);
-pub(crate) const WAIT_FOR_L1_DURATION: Duration = Duration::from_millis(10);
+pub(crate) const POLLING_INTERVAL_DURATION: Duration = Duration::from_secs(10);
+pub(crate) const COOLDOWN_DURATION: Duration = Duration::from_secs(30);
+pub(crate) const TIMELOCK_DURATION: Duration = Duration::from_secs(30);
+pub(crate) const WAIT_FOR_ASYNC_PROCESSING_DURATION: Duration = Duration::from_millis(50);
 const NUMBER_OF_BLOCKS_TO_MINE: u64 = 100;
 const CHAIN_ID: ChainId = ChainId::Mainnet;
 pub(crate) const L1_CONTRACT_ADDRESS: &str = "0x12";
@@ -55,13 +67,16 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 // Need to allow dead code as this is only used in some of the test crates.
 #[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
-    let base_layer = AnvilBaseLayer::new(None).await;
+    let mut base_layer = AnvilBaseLayer::new(None).await;
     anvil_mine_blocks(
         base_layer.ethereum_base_layer.config.clone(),
         NUMBER_OF_BLOCKS_TO_MINE,
         &base_layer.ethereum_base_layer.get_url().await.expect("Failed to get anvil url."),
     )
     .await;
+    // We use a really long timeout because in the tests we sometimes advance the fake time by large
+    // jumps (e.g., when the runtime yields, tokio moves the fake time to the next pending timer).
+    base_layer.ethereum_base_layer.config.timeout_millis = Duration::from_secs(10000);
     base_layer
 }
 
@@ -72,6 +87,8 @@ pub(crate) async fn setup_scraper_and_provider<
 >(
     base_layer: T,
 ) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
+    let fake_clock = Arc::new(TokioLinkedClock::new());
+
     // Setup the state sync client.
     let mut state_sync_client = MockStateSyncClient::default();
     state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
@@ -99,6 +116,7 @@ pub(crate) async fn setup_scraper_and_provider<
     )
     .startup_height(START_L2_HEIGHT)
     .catchup_height(TARGET_L2_HEIGHT)
+    .clock(fake_clock.clone())
     .build();
 
     // Create the server.
@@ -115,7 +133,7 @@ pub(crate) async fn setup_scraper_and_provider<
 
     // Set up the L1 scraper and run it as a server.
     let l1_scraper_config = L1ScraperConfig {
-        polling_interval_seconds: COOLDOWN_DURATION,
+        polling_interval_seconds: POLLING_INTERVAL_DURATION,
         chain_id: CHAIN_ID,
         ..Default::default()
     };
@@ -129,11 +147,28 @@ pub(crate) async fn setup_scraper_and_provider<
     .await
     .expect("Should be able to create the scraper");
 
+    scraper.clock = fake_clock.clone();
+
     // Run the scraper in a separate task.
     tokio::spawn(async move {
         scraper.start().await;
     });
-    tokio::time::sleep(WAIT_FOR_L1_DURATION).await;
+
+    // Loop around until the provider becomes initialized.
+    for _ in 0..100 {
+        let state = l1_provider_client.get_provider_state().await.unwrap();
+        if state == ProviderState::Pending {
+            break;
+        }
+        tokio::time::sleep(WAIT_FOR_ASYNC_PROCESSING_DURATION).await;
+    }
+
+    tokio::spawn(async {
+        loop {
+            // This tiny sleep keeps the runtime from ever being fully idle
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+        }
+    });
 
     l1_provider_client
 }
@@ -162,6 +197,7 @@ pub(crate) async fn send_message_from_l1_to_l2(
         )
         .value(U256::from(fee));
     let receipt = message_to_l2.send().await.unwrap().get_receipt().await.unwrap();
+
     let message_to_l2_event = receipt
         .decoded_log::<LogMessageToL2>()
         .expect("Failed to decode LogMessageToL2 event from transaction receipt");
@@ -217,7 +253,11 @@ pub(crate) async fn send_cancellation_request(
         call_data,
         nonce,
     );
-    let _receipt = cancellation_request.send().await.unwrap().get_receipt().await.unwrap();
+    // let _receipt = cancellation_request.send().await.unwrap().get_receipt().await.unwrap();
+    let mut fut = cancellation_request.send().boxed();
+    let _output = fake_wait_for_future(fut.as_mut()).await;
+    // If you need the receipt, put _output.get_receipt().boxed() into a new future and send that to
+    // another fake_wait_for_future.
 }
 
 // Need to allow dead code as this is only used in some of the test crates.
@@ -235,5 +275,44 @@ pub(crate) async fn send_cancellation_finalization(
         call_data,
         nonce,
     );
-    let _receipt = cancellation_finalization.send().await.unwrap().get_receipt().await.unwrap();
+    let mut fut = cancellation_finalization.send().boxed();
+    let _output = fake_wait_for_future(fut.as_mut()).await;
+    // If you need the receipt, put _output.get_receipt().boxed() into a new future and send that to
+    // another fake_wait_for_future.
+}
+
+pub(crate) async fn fake_wait_for_future<T>(
+    mut fut: Pin<&mut (dyn Future<Output = T> + Send)>,
+) -> T {
+    loop {
+        match poll!(fut.as_mut()) {
+            Poll::Ready(v) => break v,
+            Poll::Pending => tokio::time::advance(Duration::from_millis(1)).await,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TokioLinkedClock {
+    anchor_instant: Instant,
+    anchor_datetime: DateTime<Utc>,
+}
+
+impl TokioLinkedClock {
+    /// Anchor `now()` to the current real UTC time and the current Tokio instant.
+    pub fn new() -> Self {
+        Self { anchor_instant: Instant::now(), anchor_datetime: Utc::now() }
+    }
+
+    /// Compute UTC "now" as: anchor_datetime + (TokioInstant::now() - anchor_instant)
+    fn utc_now(&self) -> DateTime<Utc> {
+        let elapsed = Instant::now().saturating_duration_since(self.anchor_instant);
+        self.anchor_datetime + ChronoDur::from_std(elapsed).unwrap()
+    }
+}
+
+impl Clock for TokioLinkedClock {
+    fn now(&self) -> DateTime<Utc> {
+        self.utc_now()
+    }
 }
