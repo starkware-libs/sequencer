@@ -14,6 +14,14 @@ impl RocksdbStorage {
         let mut opts = Options::default();
         opts.create_if_missing(true);
 
+        opts.set_allow_mmap_reads(false);
+        opts.set_use_direct_reads(true);
+        opts.set_use_direct_io_for_flush_and_compaction(true);
+        opts.set_advise_random_on_open(true);
+        opts.set_max_open_files(1024);
+        opts.set_db_write_buffer_size(512 << 20);
+
+
         opts.set_bytes_per_sync(1024 * 1024);
         // collect more data before writing to disk
         opts.set_write_buffer_size(128 * 1024 * 1024);
