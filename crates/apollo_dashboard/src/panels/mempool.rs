@@ -14,8 +14,7 @@ use apollo_mempool::metrics::{
 use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
-use crate::query_builder;
-use crate::query_builder::DEFAULT_DURATION;
+use crate::query_builder::{self, DEFAULT_DURATION, RANGE_DURATION};
 
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
@@ -41,10 +40,11 @@ fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
         "Dropped Transactions by Reason",
         "Number of transactions dropped from the mempool by reason (over the selected time range)",
-        format!(
-            "sum  by ({}) (increase({}[$__range]))",
+        query_builder::sum_by_label(
+            &MEMPOOL_TRANSACTIONS_DROPPED,
             LABEL_NAME_DROP_REASON,
-            MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(RANGE_DURATION),
+            false,
         ),
         PanelType::Stat,
     )

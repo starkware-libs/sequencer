@@ -47,7 +47,7 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder;
-use crate::query_builder::DEFAULT_DURATION;
+use crate::query_builder::{DEFAULT_DURATION, RANGE_DURATION};
 
 // The key events that are relevant to the consensus panel.
 const CONSENSUS_KEY_EVENTS_LOG_QUERY: &str =
@@ -193,10 +193,11 @@ fn get_panel_validate_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Validation: Proposal Failure by Reason",
         "The number of validate proposal failures (over the selected time range)",
-        format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+        query_builder::sum_by_label(
+            &CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
             LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
-            CONSENSUS_VALIDATE_PROPOSAL_FAILURE.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(RANGE_DURATION),
+            true,
         ),
         PanelType::Stat,
     )
@@ -226,10 +227,11 @@ fn get_panel_build_proposal_failure() -> Panel {
     Panel::new(
         "Proposal Build: Proposal Failure by Reason",
         "The number of build proposal failures (over the selected time range)",
-        format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+        query_builder::sum_by_label(
+            &CONSENSUS_BUILD_PROPOSAL_FAILURE,
             LABEL_BUILD_PROPOSAL_FAILURE_REASON,
-            CONSENSUS_BUILD_PROPOSAL_FAILURE.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(RANGE_DURATION),
+            true,
         ),
         PanelType::Stat,
     )
@@ -240,16 +242,20 @@ fn get_panel_build_proposal_failure() -> Panel {
 fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
         "Consensus Timeouts By Type",
-        "The number of times consensus has timed out by type (10m window). \n- TimeoutPropose: as \
-         proposer, didn’t finish building in time; as validator, either didn’t receive the \
-         proposal or didn’t finish validation in time.\n- TimeoutPrevote: the node voted and \
-         received a quorum of prevotes, but not on the same value.\n- TimeoutPrecommit: didn’t \
-         finish validation but quorum of precommits received, or it finished but no decision \
-         reached.",
         format!(
-            "sum by ({}) (increase({}[10m]))",
+            "The number of times consensus has timed out by type ({} window). \n- TimeoutPropose: \
+             as proposer, didn’t finish building in time; as validator, either didn’t receive the \
+             proposal or didn’t finish validation in time.\n- TimeoutPrevote: the node voted and \
+             received a quorum of prevotes, but not on the same value.\n- TimeoutPrecommit: \
+             didn’t finish validation but quorum of precommits received, or it finished but no \
+             decision reached.",
+            DEFAULT_DURATION
+        ),
+        query_builder::sum_by_label(
+            &CONSENSUS_TIMEOUTS,
             LABEL_NAME_TIMEOUT_TYPE,
-            CONSENSUS_TIMEOUTS.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
         ),
         PanelType::TimeSeries,
     )
@@ -305,11 +311,12 @@ fn get_panel_cende_write_blob_success() -> Panel {
 fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         "Write Blob Failure by Reason",
-        "The number of failed blob writes to Cende (10m window)",
-        format!(
-            "sum by ({}) (increase({}[10m]))",
+        format!("The number of failed blob writes to Cende ({} window)", DEFAULT_DURATION),
+        query_builder::sum_by_label(
+            &CENDE_WRITE_BLOB_FAILURE,
             LABEL_CENDE_FAILURE_REASON,
-            CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
         ),
         PanelType::TimeSeries,
     )
@@ -391,10 +398,11 @@ fn get_panel_consensus_network_events_by_type() -> Panel {
     Panel::new(
         "Consensus Network Events By Type",
         "Network events received by consensus p2p, by event type (over the selected time range)",
-        format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+        query_builder::sum_by_label(
+            &CONSENSUS_NETWORK_EVENTS,
             LABEL_NAME_EVENT_TYPE,
-            CONSENSUS_NETWORK_EVENTS.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(RANGE_DURATION),
+            true,
         ),
         PanelType::Stat,
     )
@@ -404,10 +412,11 @@ fn get_panel_consensus_votes_dropped_messages_by_reason() -> Panel {
     Panel::new(
         "Consensus Votes Dropped Messages By Reason",
         "The number of dropped consensus votes messages, by reason (over the selected time range)",
-        format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+        query_builder::sum_by_label(
+            &CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
             LABEL_NAME_BROADCAST_DROP_REASON,
-            CONSENSUS_VOTES_NUM_DROPPED_MESSAGES.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(RANGE_DURATION),
+            true,
         ),
         PanelType::Stat,
     )
@@ -418,10 +427,11 @@ fn get_panel_consensus_proposals_dropped_messages_by_reason() -> Panel {
         "Consensus Proposals Dropped Messages By Reason",
         "The number of dropped consensus proposals messages, by reason (over the selected time \
          range)",
-        format!(
-            "sum by ({}) (increase({}[$__range])) > 0",
+        query_builder::sum_by_label(
+            &CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
             LABEL_NAME_BROADCAST_DROP_REASON,
-            CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(RANGE_DURATION),
+            true,
         ),
         PanelType::Stat,
     )

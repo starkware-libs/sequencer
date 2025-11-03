@@ -93,11 +93,12 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
 fn get_panel_block_close_reasons() -> Panel {
     Panel::new(
         "Block Close Reasons",
-        "Number of blocks closed by reason (10m window)",
-        format!(
-            "sum by ({}) (increase({}[10m]))",
+        format!("Number of blocks closed by reason ({} window)", DEFAULT_DURATION),
+        query_builder::sum_by_label(
+            &BLOCK_CLOSE_REASON,
             LABEL_NAME_BLOCK_CLOSE_REASON,
-            BLOCK_CLOSE_REASON.get_name_with_filter()
+            query_builder::DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
         ),
         PanelType::Stat,
     )
