@@ -1,4 +1,5 @@
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use num_traits::ToPrimitive;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -22,7 +23,7 @@ mod os_output_types_test;
 // Defined in output.cairo
 const N_UPDATES_BOUND: NonZeroFelt =
     NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("10000000000000000")); // 2^64.
-const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
+pub(crate) const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
     NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("100")); // 2^8.
 const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
@@ -85,6 +86,16 @@ pub struct FullContractStorageUpdate {
     pub(crate) key: StorageKey,
     pub(crate) prev_value: Felt,
     pub(crate) new_value: Felt,
+}
+
+impl FullContractStorageUpdate {
+    pub fn encode(&self, full_output: bool) -> Vec<Felt> {
+        if full_output {
+            vec![self.key.into(), self.prev_value, self.new_value]
+        } else {
+            vec![self.key.into(), self.new_value]
+        }
+    }
 }
 
 impl DictEntry for FullContractStorageUpdate {
@@ -218,6 +229,51 @@ pub struct FullContractChanges {
     pub new_class_hash: ClassHash,
     // The storage changes of the contract (includes the previous and new value).
     pub storage_changes: Vec<FullContractStorageUpdate>,
+}
+
+impl FullContractChanges {
+    pub fn encode(&self, full_output: bool) -> Vec<Felt> {
+        let encoded_storage_changes_iter =
+            self.storage_changes.iter().flat_map(|update| update.encode(full_output));
+
+        if full_output {
+            return [
+                **self.addr,
+                self.prev_nonce.0,
+                self.new_nonce.0,
+                self.prev_class_hash.into(),
+                self.new_class_hash.into(),
+                self.storage_changes.len().into(),
+            ]
+            .into_iter()
+            .chain(encoded_storage_changes_iter)
+            .collect();
+        }
+
+        // Encode packed output.
+        let n_updates = self.storage_changes.len();
+        let nonce_changed = self.prev_nonce != self.new_nonce;
+        let class_changed = self.prev_class_hash != self.new_class_hash;
+        let is_n_updates_small =
+            n_updates < Felt::from(N_UPDATES_SMALL_PACKING_BOUND).to_usize().unwrap();
+        let n_updates_bound =
+            if is_n_updates_small { N_UPDATES_SMALL_PACKING_BOUND } else { N_UPDATES_BOUND };
+
+        let mut header_packed_word = if nonce_changed { self.new_nonce.0 } else { Felt::ZERO };
+        header_packed_word =
+            header_packed_word * Felt::from(n_updates_bound) + Felt::from(n_updates);
+        header_packed_word =
+            header_packed_word * Felt::from(FLAG_BOUND) + Felt::from(is_n_updates_small);
+        header_packed_word =
+            header_packed_word * Felt::from(FLAG_BOUND) + Felt::from(class_changed);
+
+        let mut result = vec![**self.addr, header_packed_word];
+        if class_changed {
+            result.push(self.new_class_hash.0);
+        }
+        result.extend(encoded_storage_changes_iter);
+        result
+    }
 }
 
 impl TryFromOutputIter for FullContractChanges {
