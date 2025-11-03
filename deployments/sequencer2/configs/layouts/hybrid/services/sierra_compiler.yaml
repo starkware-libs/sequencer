@@ -1,0 +1,300 @@
+# Sequencer Node Configuration
+# For detailed configuration options, see docs/ directory
+
+name: sierra-compiler
+
+replicas: 1
+
+# Config Configuration
+# See docs/CONFIGMAP_CONFIGURATION.md for all available options
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
+  # mountPath: "/config/sequencer/presets"  # Override default mount path
+
+  sequencerConfig: {}
+
+# StatefulSet Configuration
+# See docs/STATEFULSET_CONFIGURATION.md for all available options
+statefulSet:
+  enabled: false # Whether to create a StatefulSet
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  # podManagementPolicy: "OrderedReady"  # Pod management policy (OrderedReady, Parallel)
+  updateStrategy: # Update strategy configuration
+    type: "RollingUpdate" # RollingUpdate, OnDelete
+
+# RBAC Configuration
+# See docs/RBAC_CONFIGURATION.md for all available options
+rbac:
+  enabled: false # Whether to create RBAC resources
+  type: "Role" # RBAC type (Role, ClusterRole)
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  rules: [] # List of PolicyRule objects defining permissions
+  subjects: []
+  # roleName: ""  #  Custom name for Role/ClusterRole
+  # roleBindingName: ""  #  Custom name for RoleBinding
+  # roleRef: null  #  Custom RoleRef (usually auto-generated)
+
+command: [] # Override container command (uses image ENTRYPOINT if empty)
+
+args: [] # Override container arguments (uses image CMD if empty)
+
+# ServiceAccount Configuration
+# See docs/SERVICE_ACCOUNT_CONFIGURATION.md for all available options
+serviceAccount:
+  enabled: false # Whether to create a ServiceAccount
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  # name: ""  #  Custom ServiceAccount name
+  # automountServiceAccountToken: true  # Whether to auto-mount service account token
+  imagePullSecrets: [] # List of image pull secret names
+  secrets: [] # List of secrets to attach
+
+terminationGracePeriodSeconds: 300 # Grace period for pod termination (seconds)
+
+# Service Configuration
+# See docs/SERVICE_CONFIGURATION.md for all available options
+service:
+  enabled: true #  Enable/disable service
+  type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
+  ports: # List of service ports
+    - name: http-server
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: consensus-p2p
+      port: 9000
+      targetPort: 8080
+      protocol: TCP
+    - name: monitoring
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+  annotations: {} # Service annotations
+  labels: {} # Additional labels merged with base labels
+  # servicePort: null  #  Legacy port configuration
+  # clusterIP: ""  #  Specific cluster IP address
+  # externalIPs: []  #  List of external IP addresses
+  # loadBalancerIP: ""  #  LoadBalancer IP (deprecated)
+  # loadBalancerSourceRanges: []  #  Allowed source IP ranges
+  # sessionAffinity: "None"  #  Session affinity (None, ClientIP)
+
+# Ingress Configuration
+# See docs/INGRESS_CONFIGURATION.md for all available options
+ingress:
+  enabled: false # Whether to create an Ingress resource
+  annotations: {} # Ingress annotations (controller-specific)
+  labels: {} # Additional labels merged with base labels
+  hosts: []
+    # - sequenccer.my-domain # List of hostnames
+  # ingressClassName: ""  #  Ingress class name (nginx, traefik, etc.)
+  # path: "/"  #  Default path for all hosts
+  # pathType: "Prefix"  #  Path type (Prefix, Exact, ImplementationSpecific)
+  extraPaths: [] #  Additional paths for complex routing
+  tls: [] #  TLS configuration list
+  alternative_names: [] #  Alternative hostnames
+  rules: [] #  Custom ingress rules (advanced)
+
+# HPA Configuration
+# See docs/HPA_FLEXIBILITY_GUIDE.md for all available options
+hpa:
+  enabled: false # Whether to create an HPA resource
+  minReplicas: 1 # Minimum number of replicas
+  maxReplicas: 3 # Maximum number of replicas
+  # targetCPUUtilizationPercentage: 70  #  Target CPU utilization (%)
+  # targetMemoryUtilizationPercentage: 80  #  Target memory utilization (%)
+  metrics: [] #  Custom metrics for scaling
+  # behavior: null  #  Custom scaling behavior configuration
+  # scaleUpStabilizationWindowSeconds: 0  #  Scale-up stabilization window
+  # scaleDownStabilizationWindowSeconds: 300  #  Scale-down stabilization window
+  scaleUpPolicies: [] #  Scale-up policies
+  scaleDownPolicies: [] #  Scale-down policies
+
+# PodDisruptionBudget Configuration
+# See docs/POD_DISRUPTION_BUDGET_CONFIGURATION.md for all available options
+podDisruptionBudget:
+  enabled: false # Whether to create a PodDisruptionBudget
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  selector: # Pod selector
+    matchLabels: {} # Label selector (defaults to service labels if empty)
+    matchExpressions: [] # Expression-based selector
+  # name: ""  #  Custom PDB name
+  # minAvailable: 1  #  Minimum pods that must be available (int or "50%")
+  # maxUnavailable: "50%"  #  Maximum pods that can be unavailable
+  # unhealthyPodEvictionPolicy: "IfHealthyBudget"  #  Eviction policy
+
+# NetworkPolicy Configuration
+# See docs/NETWORK_POLICY_CONFIGURATION.md for all available options
+networkPolicy:
+  enabled: false # Whether to create a NetworkPolicy
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  podSelector: # Pod selector (defaults to service labels if empty)
+    matchLabels: {} # Label-based selector
+    matchExpressions: [] # Expression-based selector
+  policyTypes: [] #  Policy types (Ingress, Egress) - auto-detected if empty
+  ingress: [] #  Ingress rules
+  egress: [] #  Egress rules
+  # name: ""  #  Custom NetworkPolicy name
+
+# PriorityClass Configuration
+# See docs/PRIORITY_CLASS_CONFIGURATION.md for all available options
+priorityClass:
+  enabled: false # Whether to create or use a PriorityClass
+  # existingPriorityClass: ""  # Use existing PriorityClass by name (skips creation)
+  annotations: {} # Resource annotations (only used when creating new PriorityClass)
+  labels: {} # Additional labels merged with base labels (only used when creating new PriorityClass)
+  value: 1000 # Priority value (higher = more important) - required when creating new PriorityClass
+  globalDefault: false # Whether this is the default PriorityClass (only used when creating new PriorityClass)
+  # name: ""  # Custom PriorityClass name (only used when creating new PriorityClass)
+  # description: ""  # Description of the PriorityClass (only used when creating new PriorityClass)
+  # preemptionPolicy: "PreemptLowerPriority"  # Preemption policy (only used when creating new PriorityClass)
+
+# GCP PodMonitoring Configuration
+# See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
+gcpPodMonitoring:
+  enabled: false # Whether to create a PodMonitoring resource
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  spec: # PodMonitoring specification
+    selector: # Pod selector
+      matchLabels: {} # Label-based selector
+      matchExpressions: [] # Expression-based selector
+    endpoints: # Required: List of endpoints to scrape
+      - port: 8082 # Port number or name
+        path: "/monitoring/metrics" # Metrics path
+        interval: "10s" # Scrape interval
+        # timeout: "5s"  #  Scrape timeout
+        # scheme: "http"  #  Protocol scheme (http, https)
+        # params: {}  #  HTTP GET parameters
+        # proxyUrl: ""  #  HTTP proxy URL
+        metricRelabeling: [] #  Metric relabeling rules
+        # authorization: {}  #  HTTP authorization credentials
+        # basicAuth: {}  #  HTTP basic auth
+        # oauth2: {}  #  OAuth2 credentials
+        # tls: {}  #  TLS configuration
+    # filterRunning: true  #  Filter out Failed/Succeeded pods
+    # limits:  #  Scrape limits
+    #   samples: 0  # Max samples per scrape
+    #   labels: 0  # Max labels per sample
+    #   labelNameLength: 0  # Max label name length
+    #   labelValueLength: 0  # Max label value length
+    # targetLabels:  #  Labels to add to targets
+    #   metadata: ["pod", "container"]  # Metadata labels
+    #   fromPod: []  # Pod label mappings
+  # name: ""  #  Custom PodMonitoring name
+
+# Secret Configuration
+# See docs/SECRET_CONFIGURATION.md for all available options
+secret:
+  enabled: false # Whether to create a Secret resource
+  type: "Opaque" # Secret type (Opaque, kubernetes.io/tls, etc.)
+  stringData: {}
+    # my-secret-key:
+    #   | # Any key name is fine - will be mounted as /etc/secrets/secret.json. Content must be valid JSON.
+    #     {
+    #       "key": "value",
+    #       "nested": {
+    #         "property": "value"
+    #       }
+    #     }
+  annotations: {} # Resource annotations
+  labels: {} # Additional labels merged with base labels
+  # name: ""  #  Custom Secret name
+  # immutable: false  #  Whether secret is immutable
+  # mountPath: "/etc/secrets"  #  Override default mount path (default: "/etc/secrets")
+  # Note: Secret is mounted as secret.json at /etc/secrets/secret.json using subPath. Must contain a key named 'secret.json'. All keys must end with '.json'.
+
+# ExternalSecret Configuration
+# See docs/EXTERNAL_SECRET_CONFIGURATION.md for all available options
+externalSecret:
+  enabled: false # Whether to create an ExternalSecret resource
+  secretStore: # Secret store configuration
+    name: "external-secrets-store" # Secret store name
+    kind: "ClusterSecretStore" # Store kind (ClusterSecretStore, SecretStore)
+    provider: "gcp" # Provider (gcp, aws, azure, vault)
+  refreshInterval: "1m" # How often to refresh secrets
+  data:
+    - secretKey: "my-external-secret-key" # Any key name is fine - will be mounted as /etc/secrets/external-secret.json. Remote secret must contain valid JSON.
+      remoteKey: "secret/password"
+  deletionPolicy: "Retain" # Deletion policy (Retain, Delete, Merge)
+  # targetName: ""  #  Custom target secret name
+  # mountPath: "/etc/secrets"  #  Override default mount path (default: "/etc/secrets")
+  # Note: ExternalSecret is mounted as external-secret.json at /etc/secrets/external-secret.json using subPath. Any key name is fine - will always mount as external-secret.json. Remote secret content must be valid JSON.
+  # template: {}  #  Custom template for secret generation
+  # metadata: {}  #  Custom metadata for the secret
+
+# Volume Configuration
+# See docs/VOLUME_CONFIGURATION.md for all available options
+persistentVolume:
+  enabled: true # Whether to create a PersistentVolumeClaim
+  accessModes: # Required: Volume access modes
+    - ReadWriteOnce
+  mountPath: "/data" # Path where volume is mounted in container
+  size: "10Gi" # Volume size
+  labels: {} # Additional labels merged with base labels
+  annotations: {} # Resource annotations
+  # existingClaim: ""  #  Use existing PVC instead of creating new one
+  # storageClass: ""  #  Storage class (uses default if empty)
+  # volumeMode: "Filesystem"  #  Volume mode (Filesystem, Block)
+  # volumeName: ""  #  Specific volume name
+
+# GCP BackendConfig Configuration
+# See docs/GCP_BACKEND_CONFIG_CONFIGURATION.md for all available options
+gcpBackendConfig:
+  enabled: false # Whether to create a BackendConfig resource
+  customRequestHeaders: [] # List of custom request headers
+  # connectionDrainingTimeoutSeconds: 60  #  Connection draining timeout
+  # securityPolicy: ""  #  Security policy name
+  # timeOutSeconds: 30  #  Backend timeout
+  # healthCheck:  #  Health check configuration
+  #   port: 80  # Health check port
+  #   requestPath: "/health"  # Health check path
+  #   checkIntervalSeconds: 10  # Check interval
+  #   timeoutSeconds: 5  # Check timeout
+  #   healthyThreshold: 2  # Healthy threshold
+  #   unhealthyThreshold: 3  # Unhealthy threshold
+
+podAnnotations: {} # Pod-level annotations
+
+podLabels: {} # Pod-level labels
+
+configMapAnnotations: {} # ConfigMap annotations
+
+deploymentAnnotations: {} # Deployment annotations
+
+env: [] # Environment variables
+
+nodeSelector: {} # Node selector for pod scheduling
+
+tolerations: [] # Pod tolerations
+
+affinity: {} # Pod affinity rules
+
+podAntiAffinity: {} # Pod anti-affinity rules
+
+topologySpreadConstraints: [] # Topology spread constraints
+
+resources: {} # Container resource requests and limits
+  # Example:
+  # requests:
+  #   cpu: "100m"
+  #   memory: "128Mi"
+  # limits:
+  #   cpu: "500m"
+  #   memory: "512Mi"
+
+updateStrategy: # Deployment update strategy
+  type: "RollingUpdate" # Strategy type (RollingUpdate, Recreate)
+
+securityContext: {} # Pod security context (runAsUser, runAsNonRoot, runAsGroup, fsGroup)
+
+dnsPolicy: "ClusterFirst" # DNS policy (ClusterFirst, Default, etc.)
+
+startupProbe: {} #  Startup probe (enabled, path, periodSeconds, failureThreshold, timeoutSeconds)
+
+readinessProbe: {} #  Readiness probe (enabled, path, periodSeconds, failureThreshold, timeoutSeconds)
+
+livenessProbe: {} #  Liveness probe (enabled, path, periodSeconds, failureThreshold, timeoutSeconds)
