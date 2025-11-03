@@ -76,7 +76,7 @@ class PodBuilder:
         args = []
 
         # Add --config_file /config/sequencer/presets/config.json (ConfigMap)
-        if self.service_config.config and self.service_config.config.configPaths:
+        if self.service_config.config and self.service_config.config.configList:
             mount_path = (
                 self.service_config.config.mountPath
                 if self.service_config.config.mountPath
@@ -183,7 +183,7 @@ class PodBuilder:
         volume_mounts: list[k8s.VolumeMount] = []
 
         # Auto-mount ConfigMap if config exists (as config.json file)
-        if self.service_config.config and self.service_config.config.configPaths:
+        if self.service_config.config and self.service_config.config.configList:
             # Default mountPath is "/config/sequencer/presets"
             mount_path = "/config/sequencer/presets"
             if self.service_config.config.mountPath:
@@ -290,7 +290,7 @@ class PodBuilder:
         volumes: list[k8s.Volume] = []
 
         # Always create ConfigMap volume if config exists
-        if self.service_config.config and self.service_config.config.configPaths:
+        if self.service_config.config and self.service_config.config.configList:
             volumes.append(
                 k8s.Volume(
                     name=f"sequencer-{self.service_config.name}-config",

@@ -29,16 +29,27 @@ class ConfigMapConstruct(BaseConstruct):
 
     def _get_config_map(self) -> k8s.KubeConfigMap:
         # config is mandatory
-        if not self.service_config.config or not self.service_config.config.configPaths:
+        if not self.service_config.config:
             raise ValueError(
-                f"config.configPaths is required for service '{self.service_config.name}' but was not provided"
+                f"config is required for service '{self.service_config.name}' but was not provided"
+            )
+        if not self.service_config.config.configList:
+            raise ValueError(
+                f"config.configList is required for service '{self.service_config.name}' but was not provided"
             )
 
         # Load JSON configs using NodeConfigLoader
         node_config_loader = NodeConfigLoader(
-            config_paths=self.service_config.config.configPaths,
+            config_list_json_path=self.service_config.config.configList,
         )
         node_config = node_config_loader.load()
+
+        # Apply sequencerConfig overrides from YAML if provided
+        if self.service_config.config.sequencerConfig:
+            node_config = NodeConfigLoader.apply_sequencer_overrides(
+                node_config, self.service_config.config.sequencerConfig
+            )
+
         config_data = json.dumps(node_config, indent=2)
 
         return k8s.KubeConfigMap(
