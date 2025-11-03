@@ -112,30 +112,114 @@ class DeploymentConfigLoader(Config):
 class NodeConfigLoader(Config):
     ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../../")
 
-    def __init__(self, config_paths: List[str]):
-        self.config_paths = config_paths
+    def __init__(self, config_list_json_path: str):
+        """
+        Initialize NodeConfigLoader.
+
+        Args:
+            config_list_json_path: Path to JSON file containing a list of config paths
+        """
+        self.config_list_json_path = config_list_json_path
         self._validate()
 
     def _validate(self):
-        # Note: We don't validate individual files here since they might not exist yet
-        pass
+        # Validate the config list JSON file
+        full_path = os.path.join(self.ROOT_DIR, self.config_list_json_path)
+        self._validate_file(full_path)
 
     def load(self) -> dict:
+        # Load the JSON file containing the list of config paths
+        config_list_full_path = os.path.join(self.ROOT_DIR, self.config_list_json_path)
+        config_list: List[str] = self._try_load_json(file_path=config_list_full_path)
+
+        # Validate that it's a list of strings
+        if not isinstance(config_list, list):
+            raise ValueError(
+                f"Config list JSON file '{self.config_list_json_path}' must contain a JSON array. Got: {type(config_list)}"
+            )
+        if not all(isinstance(item, str) for item in config_list):
+            raise ValueError(
+                f"Config list JSON file '{self.config_list_json_path}' must contain a JSON array of strings."
+            )
+
+        # Load and merge all config files in the list
         result = {}
-        for config_path in self.config_paths:
-            # Use the full path as provided in config_paths
-            full_path = os.path.join(self.ROOT_DIR, config_path)
+        for config_path in config_list:
+            # Use the full path as provided in the config list
+            config_full_path = os.path.join(self.ROOT_DIR, config_path)
             try:
-                data = self._try_load_json(file_path=full_path)
+                data = self._try_load_json(file_path=config_full_path)
+                if not isinstance(data, dict):
+                    raise ValueError(
+                        f"Config file '{config_path}' must contain a JSON object (dict), got: {type(data)}"
+                    )
                 result.update(data)  # later values overwrite previous
             except FileNotFoundError:
                 # Fail fast if a specified config file doesn't exist
-                raise FileNotFoundError(f"Config file not found: {full_path}")
+                raise FileNotFoundError(f"Config file not found: {config_full_path}")
             except ValueError as e:
                 # Fail fast if a config file has invalid JSON
-                raise ValueError(f"Invalid JSON in config file {full_path}: {e}")
+                raise ValueError(f"Invalid JSON in config file {config_full_path}: {e}")
 
         # Return a lexicographically sorted dict to ensure consistent ordering and simpler CM diffs.
+        return dict[Any, Any](sorted(result.items()))
+
+    @staticmethod
+    def _set_nested_dotted_key(data: dict, dotted_key: str, value: Any) -> None:
+        """Set value in nested dict using dotted key notation, creating structure if needed.
+
+        Examples:
+            _set_nested_dotted_key({}, 'a.b.c', 123) -> {'a': {'b': {'c': 123}}}
+            _set_nested_dotted_key({'a': {'x': 1}}, 'a.b.c', 123) -> {'a': {'x': 1, 'b': {'c': 123}}}
+        """
+        keys = dotted_key.split(".")
+        current = data
+        for key in keys[:-1]:
+            if key not in current or not isinstance(current[key], dict):
+                current[key] = {}
+            current = current[key]
+        current[keys[-1]] = value
+
+    @staticmethod
+    def apply_sequencer_overrides(
+        merged_json_config: dict, sequencer_config: Dict[str, Any]
+    ) -> dict:
+        """Apply sequencerConfig overrides from YAML to merged JSON config.
+
+        YAML keys should match JSON keys exactly (snake_case with dots).
+        Supports both flat JSON keys and nested structures.
+
+        Args:
+            merged_json_config: The merged JSON config dictionary from all config files
+            sequencer_config: Dictionary from YAML with keys matching JSON format:
+                {
+                    'consensus_manager_config.context_config.num_validators': '123',
+                    'base_layer_config.starknet_contract_address': '0x...'
+                }
+
+        Returns:
+            Updated config dictionary with overrides applied
+
+        Examples:
+            JSON: {'consensus_manager_config.context_config.num_validators': '$$$_..._$$$'}
+            YAML: {'consensus_manager_config.context_config.num_validators': '123'}
+            Result: {'consensus_manager_config.context_config.num_validators': '123'}
+        """
+        result = merged_json_config.copy()
+
+        for json_key, value in sequencer_config.items():
+            # Try to find exact key match first (flat structure)
+            if json_key in result:
+                # Direct key match - replace the value
+                result[json_key] = value
+            else:
+                # Try nested structure approach
+                # Split the dotted path into nested dict structure
+                # e.g., 'base_layer_config.starknet_contract_address'
+                #       -> result['base_layer_config']['starknet_contract_address'] = value
+                NodeConfigLoader._set_nested_dotted_key(result, json_key, value)
+
+        # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))
 
 

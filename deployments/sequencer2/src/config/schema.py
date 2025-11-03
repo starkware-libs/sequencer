@@ -343,8 +343,11 @@ class PriorityClass(StrictBaseModel):
 
 
 class Config(StrictBaseModel):
-    configPaths: List[str] = Field(default_factory=list)
+    configList: str  # Path to JSON file containing list of config paths
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
+    sequencerConfig: Optional[AnyDict] = (
+        None  # Override values for sequencer config (keys should match JSON keys exactly: snake_case with dots). Values can be int, float, or str.
+    )
 
 
 class ServiceConfig(StrictBaseModel):

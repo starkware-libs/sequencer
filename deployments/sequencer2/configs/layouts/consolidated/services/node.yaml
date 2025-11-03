@@ -8,31 +8,32 @@ replicas: 1
 # Config Configuration
 # See docs/CONFIGMAP_CONFIGURATION.md for all available options
 config:
-  configPaths: # Required: List of paths to JSON config files
-    - crates/apollo_deployments/resources/app_configs/base_layer_config.json
-    - crates/apollo_deployments/resources/app_configs/batcher_config.json
-    - crates/apollo_deployments/resources/app_configs/class_manager_config.json
-    - crates/apollo_deployments/resources/app_configs/config_manager_config.json
-    - crates/apollo_deployments/resources/app_configs/consensus_manager_config.json
-    - crates/apollo_deployments/resources/app_configs/revert_config.json
-    - crates/apollo_deployments/resources/app_configs/versioned_constants_overrides_config.json
-    - crates/apollo_deployments/resources/app_configs/validate_resource_bounds_config.json
-    - crates/apollo_deployments/resources/app_configs/gateway_config.json
-    - crates/apollo_deployments/resources/app_configs/http_server_config.json
-    - crates/apollo_deployments/resources/app_configs/l1_endpoint_monitor_config.json
-    - crates/apollo_deployments/resources/app_configs/l1_gas_price_provider_config.json
-    - crates/apollo_deployments/resources/app_configs/l1_gas_price_scraper_config.json
-    - crates/apollo_deployments/resources/app_configs/l1_provider_config.json
-    - crates/apollo_deployments/resources/app_configs/l1_scraper_config.json
-    - crates/apollo_deployments/resources/app_configs/mempool_config.json
-    - crates/apollo_deployments/resources/app_configs/mempool_p2p_config.json
-    - crates/apollo_deployments/resources/app_configs/monitoring_endpoint_config.json
-    - crates/apollo_deployments/resources/app_configs/sierra_compiler_config.json
-    - crates/apollo_deployments/resources/app_configs/state_sync_config.json
-    - crates/apollo_deployments/resources/deployments/testing/deployment_config_override.json
-    - crates/apollo_deployments/resources/deployments/testing/consolidated.json
-    - crates/apollo_deployments/resources/services/consolidated/node.json
+  configList: crates/apollo_deployments/resources/services/consolidated/replacer_deployment_node.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
+
+  sequencerConfig:
+    base_layer_config.starknet_contract_address: 123
+    chain_id: "$$$_CHAIN_ID_$$$"
+    consensus_manager_config.context_config.num_validators: "1"
+    consensus_manager_config.network_config.advertised_multiaddr: "$$$_CONSENSUS_MANAGER_CONFIG-NETWORK_CONFIG-ADVERTISED_MULTIADDR_$$$"
+    consensus_manager_config.network_config.advertised_multiaddr.#is_none: "$$$_CONSENSUS_MANAGER_CONFIG-NETWORK_CONFIG-ADVERTISED_MULTIADDR-IS_NONE_$$$"
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr: "$$$_CONSENSUS_MANAGER_CONFIG-NETWORK_CONFIG-BOOTSTRAP_PEER_MULTIADDR_$$$"
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: "$$$_CONSENSUS_MANAGER_CONFIG-NETWORK_CONFIG-BOOTSTRAP_PEER_MULTIADDR-IS_NONE_$$$"
+    eth_fee_token_address: "$$$_ETH_FEE_TOKEN_ADDRESS_$$$"
+    http_server_config.port: "$$$_HTTP_SERVER_CONFIG-PORT_$$$"
+    l1_provider_config.provider_startup_height_override: "$$$_L1_PROVIDER_CONFIG-PROVIDER_STARTUP_HEIGHT_OVERRIDE_$$$"
+    l1_provider_config.provider_startup_height_override.#is_none: "$$$_L1_PROVIDER_CONFIG-PROVIDER_STARTUP_HEIGHT_OVERRIDE-IS_NONE_$$$"
+    mempool_p2p_config.network_config.advertised_multiaddr: "$$$_MEMPOOL_P2P_CONFIG-NETWORK_CONFIG-ADVERTISED_MULTIADDR_$$$"
+    mempool_p2p_config.network_config.advertised_multiaddr.#is_none: "$$$_MEMPOOL_P2P_CONFIG-NETWORK_CONFIG-ADVERTISED_MULTIADDR-IS_NONE_$$$"
+    mempool_p2p_config.network_config.bootstrap_peer_multiaddr: "$$$_MEMPOOL_P2P_CONFIG-NETWORK_CONFIG-BOOTSTRAP_PEER_MULTIADDR_$$$"
+    mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none: "$$$_MEMPOOL_P2P_CONFIG-NETWORK_CONFIG-BOOTSTRAP_PEER_MULTIADDR-IS_NONE_$$$"
+    sierra_compiler_config.audited_libfuncs_only: "$$$_SIERRA_COMPILER_CONFIG-AUDITED_LIBFUNCS_ONLY_$$$"
+    starknet_url: "$$$_STARKNET_URL_$$$"
+    state_sync_config.central_sync_client_config.#is_none: "$$$_STATE_SYNC_CONFIG-CENTRAL_SYNC_CLIENT_CONFIG-IS_NONE_$$$"
+    state_sync_config.network_config.#is_none: "$$$_STATE_SYNC_CONFIG-NETWORK_CONFIG-IS_NONE_$$$"
+    state_sync_config.p2p_sync_client_config.#is_none: "$$$_STATE_SYNC_CONFIG-P2P_SYNC_CLIENT_CONFIG-IS_NONE_$$$"
+    strk_fee_token_address: "$$$_STRK_FEE_TOKEN_ADDRESS_$$$"
+    validator_id: "$$$_VALIDATOR_ID_$$$"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -80,6 +81,10 @@ service:
   enabled: true #  Enable/disable service
   type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
   ports: # List of service ports
+    - name: http-server
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
     - name: consensus-p2p
       port: 9000
       targetPort: 8080

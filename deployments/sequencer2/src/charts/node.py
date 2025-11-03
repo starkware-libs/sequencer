@@ -245,13 +245,9 @@ class SequencerNodeChart(Chart):
     @staticmethod
     def _load_service_config_paths(service_config: ServiceConfig) -> dict:
         """Load or construct config values from the ServiceConfig."""
-        config_paths = service_config.configPaths
-        result = {}
-        for path in config_paths:
-            # Example: load JSON or YAML config files if needed
-            # or just record file paths for other constructs
-            result[path] = {"path": path}
-        return result
+        # For configList, we can't extract the paths here as they're in a JSON file
+        # This method may not be applicable for configList format
+        return {}
 
     def _get_nested_attr(self, obj: dict, dotted_key: str):
         """Traverse nested dict keys like 'a.b.c'."""
