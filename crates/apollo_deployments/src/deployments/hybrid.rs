@@ -886,6 +886,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                     inputs.audited_libfuncs_only,
                     inputs.http_server_port,
                     inputs.monitoring_endpoint_config_port,
+                    inputs.state_sync_config_rpc_config_port,
                 ),
                 &inputs.node_namespace_format,
                 &inputs.ingress_domain,

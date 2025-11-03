@@ -160,6 +160,8 @@ pub struct DeploymentConfigOverride {
     http_server_config_port: u16,
     #[serde(rename = "monitoring_endpoint_config.port")]
     monitoring_endpoint_config_port: u16,
+    #[serde(rename = "state_sync_config.rpc_config.port")]
+    state_sync_config_rpc_config_port: u16,
 }
 
 impl DeploymentConfigOverride {
@@ -178,6 +180,7 @@ impl DeploymentConfigOverride {
         sierra_compiler_config_audited_libfuncs_only: bool,
         http_server_config_port: u16,
         monitoring_endpoint_config_port: u16,
+        state_sync_config_rpc_config_port: u16,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -202,6 +205,7 @@ impl DeploymentConfigOverride {
             mempool_p2p_bootstrap_config,
             http_server_config_port,
             monitoring_endpoint_config_port,
+            state_sync_config_rpc_config_port,
         }
     }
 }

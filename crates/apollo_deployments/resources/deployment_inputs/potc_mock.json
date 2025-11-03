@@ -42,5 +42,6 @@
   "audited_libfuncs_only": true,
   "requires_k8s_service_config_params": false,
   "http_server_port": 8080,
-  "monitoring_endpoint_config_port": 8082
+  "monitoring_endpoint_config_port": 8082,
+  "state_sync_config_rpc_config_port": 8090
 }

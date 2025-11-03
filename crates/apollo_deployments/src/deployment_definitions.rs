@@ -90,6 +90,7 @@ pub struct DeploymentInputs {
     pub audited_libfuncs_only: bool,
     pub http_server_port: u16,
     pub monitoring_endpoint_config_port: u16,
+    pub state_sync_config_rpc_config_port: u16,
 }
 
 impl DeploymentInputs {
