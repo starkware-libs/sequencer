@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::MockConfigManagerClient;
@@ -14,14 +15,15 @@ use apollo_mempool_types::communication::{
     LocalMempoolClient,
     SharedMempoolClient,
 };
-use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, CommitBlockArgs};
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricCounter, MetricGauge, MetricScope};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use async_trait::async_trait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use indexmap::IndexSet;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -251,6 +253,7 @@ impl BenchTestSetup {
     /// Simulates concurrent consumers in a real system
     async fn get_txs_task(client: SharedMempoolClient, n_txs: usize, chunk_size: usize) {
         let mut txs_received = 0;
+        let mut last_received_chunk = 0;
 
         while txs_received < n_txs {
             let retrieved_txs = client
@@ -259,6 +262,29 @@ impl BenchTestSetup {
                 .unwrap_or_else(|e| panic!("Failed to get txs from mempool: {e:?}"));
 
             txs_received += retrieved_txs.len();
+
+            if last_received_chunk < txs_received / chunk_size {
+                last_received_chunk += 1;
+                // Perform commit
+                let mut address_to_nonce = HashMap::<ContractAddress, Nonce>::new();
+
+                for tx in &retrieved_txs {
+                    let nonce = tx.nonce();
+                    let contract_address = tx.contract_address();
+
+                    let last_nonce = *address_to_nonce.get(&contract_address).unwrap_or(&nonce!(0));
+                    if nonce > last_nonce {
+                        address_to_nonce.insert(contract_address, nonce);
+                    }
+                }
+                client
+                    .commit_block(CommitBlockArgs {
+                        address_to_nonce,
+                        rejected_tx_hashes: IndexSet::new(),
+                    })
+                    .await
+                    .unwrap();
+            }
 
             // If no txs retrieved, wait a bit for add_tx_task to add more
             if retrieved_txs.is_empty() {
