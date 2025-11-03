@@ -41,7 +41,7 @@ fn get_state_sync_lag(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }
