@@ -1,7 +1,9 @@
 mod utils;
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_l1_provider_types::{L1ProviderClient, SessionState, ValidationStatus};
+use apollo_time::time::Clock;
 use papyrus_base_layer::{
     L1BlockHash,
     L1BlockNumber,
@@ -14,17 +16,29 @@ use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
-use utils::{setup_scraper_and_provider, COOLDOWN_DURATION, TARGET_L2_HEIGHT, TIMELOCK_DURATION};
+use utils::{setup_scraper_and_provider, TARGET_L2_HEIGHT, TIMELOCK_DURATION};
 
-use crate::utils::{CALL_DATA, L1_CONTRACT_ADDRESS, L2_ENTRY_POINT};
+use crate::utils::{
+    TokioLinkedClock,
+    CALL_DATA,
+    L1_CONTRACT_ADDRESS,
+    L2_ENTRY_POINT,
+    POLLING_INTERVAL_DURATION,
+};
 
 fn block_from_number(number: L1BlockNumber) -> L1BlockReference {
     L1BlockReference { number, hash: L1BlockHash::default() }
 }
 
+fn block_timestamp(clock: Arc<TokioLinkedClock>, offset: u64) -> BlockTimestamp {
+    BlockTimestamp(clock.unix_now() + offset)
+}
+
 #[tokio::test]
 async fn l1_handler_tx_consumed_txs() {
     // Setup.
+    let fake_clock = Arc::new(TokioLinkedClock::new());
+    const OFFSET: u64 = 10;
     // Make a transaction to send from L1 to L2.
     let call_data: Vec<Felt> = CALL_DATA.iter().map(|x| Felt::from(*x)).collect();
     let l1_handler_tx = L1HandlerTransaction {
@@ -40,15 +54,17 @@ async fn l1_handler_tx_consumed_txs() {
         tx: l1_handler_tx.clone(),
         fee: Fee::default(),
         l1_tx_hash: None,
-        block_timestamp: BlockTimestamp::default(),
+        block_timestamp: block_timestamp(fake_clock.clone(), 0),
     };
     // On the next time we scrape, we would find the consumed event.
-    let message_consumed_event =
-        L1Event::ConsumedMessageToL2 { tx: l1_handler_tx, timestamp: BlockTimestamp::default() };
+    let message_consumed_event = L1Event::ConsumedMessageToL2 {
+        tx: l1_handler_tx,
+        timestamp: block_timestamp(fake_clock.clone(), OFFSET),
+    };
     // This consumed event is sent only to trigger deletion on the provider records.
     let message_consumed_event_2 = L1Event::ConsumedMessageToL2 {
         tx: L1HandlerTransaction::default(),
-        timestamp: BlockTimestamp::default(),
+        timestamp: block_timestamp(fake_clock.clone(), OFFSET * 2),
     };
 
     // Setup the base layer. Using a mock because we cannot actively cause a tx to be consumed
@@ -78,6 +94,8 @@ async fn l1_handler_tx_consumed_txs() {
     });
 
     let l1_provider_client = setup_scraper_and_provider(base_layer).await;
+
+    tokio::time::pause();
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
     assert!(!snapshot.uncommitted_transactions.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 1);
@@ -96,7 +114,16 @@ async fn l1_handler_tx_consumed_txs() {
     // Sleep at least one second more than the polling interval to make sure we are not failing due
     // to fractional seconds. After the polling interval passes, the transaction should be
     // consumed.
-    tokio::time::sleep(COOLDOWN_DURATION + Duration::from_secs(1)).await;
+    tokio::time::advance(POLLING_INTERVAL_DURATION + Duration::from_secs(1)).await;
+
+    for _i in 0..100 {
+        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        // The transaction is consumed, but still in the records.
+        if !snapshot.consumed.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(1)).await;
+    }
 
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
     // The transaction is consumed, but still in the records.
@@ -104,10 +131,18 @@ async fn l1_handler_tx_consumed_txs() {
     assert_eq!(snapshot.number_of_txs_in_records, 1);
 
     // Wait again to make sure the consumption timelock has passed, allowing a deletion to occur.
-    tokio::time::sleep(TIMELOCK_DURATION + Duration::from_secs(1)).await;
+    tokio::time::advance(TIMELOCK_DURATION + Duration::from_secs(1)).await;
+
+    // Scraping the second consumed event triggers a deletion of the transaction from the records.
+    for _i in 0..100 {
+        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        if snapshot.consumed.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(1)).await;
+    }
 
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
-    // Scraping the second consumed event triggers a deletion of the transaction from the records.
     assert!(snapshot.consumed.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 0);
 }
