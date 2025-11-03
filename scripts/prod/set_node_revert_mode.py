@@ -4,17 +4,19 @@ import sys
 from typing import Optional
 
 import urllib.parse
-from update_config_and_restart_nodes_lib import (
-    ApolloArgsParserBuilder,
-    ConstConfigValuesUpdater,
+from common_lib import (
     NamespaceAndInstructionArgs,
     RestartStrategy,
     Service,
-    ServiceRestarter,
-    get_current_block_number,
-    get_logs_explorer_url,
     print_colored,
     print_error,
+)
+from restarter_lib import ServiceRestarter
+from update_config_and_restart_nodes_lib import (
+    ApolloArgsParserBuilder,
+    ConstConfigValuesUpdater,
+    get_current_block_number,
+    get_logs_explorer_url,
     update_config_and_restart_nodes,
 )
 
