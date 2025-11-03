@@ -2,21 +2,16 @@
 
 from typing import Optional
 
-import urllib.error
 import urllib.parse
-import urllib.request
+from common_lib import NamespaceAndInstructionArgs, RestartStrategy, Service, print_colored
+from restarter_lib import ServiceRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConstConfigValuesUpdater,
-    NamespaceAndInstructionArgs,
-    RestartStrategy,
-    Service,
-    ServiceRestarter,
     get_configmap,
     get_current_block_number,
     get_logs_explorer_url,
     parse_config_from_yaml,
-    print_colored,
     update_config_and_restart_nodes,
 )
 
