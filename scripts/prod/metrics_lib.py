@@ -9,9 +9,8 @@ import signal
 import socket
 import urllib.error
 import urllib.request
+from common_lib import Colors, get_namespace_args, print_colored, print_error
 from prometheus_client.parser import text_string_to_metric_families
-
-from scripts.prod.common_lib import Colors, get_namespace_args, print_colored, print_error
 
 
 class MetricConditionGater:
@@ -20,32 +19,32 @@ class MetricConditionGater:
     This class was meant to be used with counter/gauge metrics. It may not work properly with histogram metrics.
     """
 
-    class MetricCondition:
+    class Metric:
         def __init__(
             self,
+            name: str,
             value_condition: Callable[[Any], bool],
             condition_description: Optional[str] = None,
         ):
+            self.name = name
             self.value_condition = value_condition
             self.condition_description = condition_description
 
     def __init__(
         self,
-        metric_name: str,
+        metric: "MetricConditionGater.Metric",
         namespace: str,
         cluster: Optional[str],
         pod: str,
         metrics_port: int,
-        metric_value_condition: "MetricConditionGater.MetricCondition",
         refresh_interval_seconds: int = 3,
     ):
-        self.metric_name = metric_name
+        self.metric = metric
         self.local_port = self._get_free_port()
         self.namespace = namespace
         self.cluster = cluster
         self.pod = pod
         self.metrics_port = metrics_port
-        self.metric_value_condition = metric_value_condition
         self.refresh_interval_seconds = refresh_interval_seconds
 
     @staticmethod
@@ -77,8 +76,8 @@ class MetricConditionGater:
     def _poll_until_condition_met(self):
         """Poll metrics until the condition is met for the metric."""
         condition_description = (
-            f"({self.metric_value_condition.condition_description}) "
-            if self.metric_value_condition.condition_description is not None
+            f"({self.metric.condition_description}) "
+            if self.metric.condition_description is not None
             else ""
         )
 
@@ -89,26 +88,26 @@ class MetricConditionGater:
             metric_families = text_string_to_metric_families(metrics)
             val = None
             for metric_family in metric_families:
-                if metric_family.name == self.metric_name:
+                if metric_family.name == self.metric.name:
                     if len(metric_family.samples) > 1:
                         print_error(
-                            f"Multiple samples found for metric {self.metric_name}. Using the first one.",
+                            f"Multiple samples found for metric {self.metric.name}. Using the first one.",
                         )
                     val = metric_family.samples[0].value
                     break
 
             if val is None:
                 print_colored(
-                    f"Metric '{self.metric_name}' not found in pod {self.pod}. Assuming the node is not ready."
+                    f"Metric '{self.metric.name}' not found in pod {self.pod}. Assuming the node is not ready."
                 )
-            elif self.metric_value_condition.value_condition(val):
+            elif self.metric.value_condition(val):
                 print_colored(
-                    f"Metric {self.metric_name} condition {condition_description}met (value={val})."
+                    f"Metric {self.metric.name} condition {condition_description}met (value={val})."
                 )
                 return
             else:
                 print_colored(
-                    f"Metric {self.metric_name} condition {condition_description}not met (value={val}). Continuing to wait."
+                    f"Metric {self.metric.name} condition {condition_description}not met (value={val}). Continuing to wait."
                 )
 
             sleep(self.refresh_interval_seconds)
