@@ -5,15 +5,11 @@ import json
 import sys
 from typing import Any
 
+from common_lib import Colors, NamespaceAndInstructionArgs, Service, print_colored, print_error
+from restarter_lib import ServiceRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
-    Colors,
     ConstConfigValuesUpdater,
-    NamespaceAndInstructionArgs,
-    Service,
-    ServiceRestarter,
-    print_colored,
-    print_error,
     update_config_and_restart_nodes,
 )
 
