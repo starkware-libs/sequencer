@@ -12610,6 +12610,7 @@ dependencies = [
  "apollo_infra_utils",
  "clap",
  "rand 0.8.5",
+ "sha3",
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",

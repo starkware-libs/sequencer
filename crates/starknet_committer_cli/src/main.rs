@@ -1,7 +1,9 @@
-use std::cmp::max;
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use rand::Rng;
+use sha3::{Digest, Keccak256};
+
 
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
@@ -174,14 +176,32 @@ pub async fn run_committer_cli(
     }
 }
 
+pub const NUM_READS: u32 = 10000;
+
 pub async fn memory_db_test(db: &mut RocksdbStorage) {
+
     let mut i: u32 = 1;
     while i > 0 {
-        let res = db.set(DbKey(i.to_be_bytes().to_vec()), DbValue(i.to_be_bytes().to_vec())).unwrap();
-        let range_to_read = max(i-1000, 0)..i;
-        let db_keys: Vec<DbKey> = range_to_read.map(|j| DbKey(j.to_be_bytes().to_vec())).collect();
-        let keys_to_read: Vec<&DbKey> = db_keys.iter().collect();
-        let values = db.mget(&keys_to_read).unwrap();
+        info!("iteration: {}", i);
+
+        let mut rng = rand::thread_rng();
+
+        // read NUM_READS random keys of the form h(x) where x is in the range [0, i+1k]
+        let random_preimages_to_read = (0..NUM_READS).map(|_| rng.gen_range(0..(i+1000)));
+        let keys = random_preimages_to_read.map(|r| {
+            let mut hash_state = Keccak256::default();
+            hash_state.update(r.to_be_bytes().to_vec());
+            DbKey(hash_state.finalize().to_vec())
+        }).collect::<Vec<DbKey>>();
+        let key_refs: Vec<&DbKey> = keys.iter().collect();
+        let values = db.mget(key_refs.as_slice()).unwrap();
+
+        // write h(i)
+        let mut hash_state = Keccak256::default();
+        hash_state.update(i.to_be_bytes().to_vec());
+        let key = DbKey(hash_state.finalize().to_vec());
+        let res = db.set(key, DbValue(i.to_be_bytes().to_vec())).unwrap();
+
         i += 1;
     }
 }
