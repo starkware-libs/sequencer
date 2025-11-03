@@ -162,6 +162,10 @@ pub struct DeploymentConfigOverride {
     monitoring_endpoint_config_port: u16,
     #[serde(rename = "state_sync_config.rpc_config.port")]
     state_sync_config_rpc_config_port: u16,
+    #[serde(rename = "mempool_p2p_config.network_config.port")]
+    mempool_p2p_config_network_config_port: u16,
+    #[serde(rename = "consensus_manager_config.network_config.port")]
+    consensus_manager_config_network_config_port: u16,
 }
 
 impl DeploymentConfigOverride {
@@ -181,6 +185,8 @@ impl DeploymentConfigOverride {
         http_server_config_port: u16,
         monitoring_endpoint_config_port: u16,
         state_sync_config_rpc_config_port: u16,
+        mempool_p2p_config_network_config_port: u16,
+        consensus_manager_config_network_config_port: u16, 
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -206,6 +212,8 @@ impl DeploymentConfigOverride {
             http_server_config_port,
             monitoring_endpoint_config_port,
             state_sync_config_rpc_config_port,
+            mempool_p2p_config_network_config_port,
+            consensus_manager_config_network_config_port,
         }
     }
 }

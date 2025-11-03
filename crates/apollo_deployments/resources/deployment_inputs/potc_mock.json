@@ -43,5 +43,7 @@
   "requires_k8s_service_config_params": false,
   "http_server_port": 8080,
   "monitoring_endpoint_config_port": 8082,
-  "state_sync_config_rpc_config_port": 8090
+  "state_sync_config_rpc_config_port": 8090,
+  "mempool_p2p_config_network_config_port": 53200,
+  "consensus_manager_config_network_config_port": 53080
 }
