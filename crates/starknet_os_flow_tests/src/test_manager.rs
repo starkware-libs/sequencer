@@ -18,7 +18,7 @@ use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -27,7 +27,7 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::CommitmentOutput;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
@@ -71,7 +71,6 @@ use crate::utils::{
     divide_vec_into_n_parts,
     execute_transactions,
     maybe_dummy_block_hash_and_number,
-    CommitmentOutput,
     ExecutionOutput,
 };
 
@@ -109,8 +108,8 @@ pub(crate) struct TestManager<S: FlowTestState> {
 }
 
 pub(crate) struct OsTestExpectedValues {
-    pub(crate) previous_global_root: HashOutput,
-    pub(crate) new_global_root: HashOutput,
+    pub(crate) previous_global_root: GlobalRoot,
+    pub(crate) new_global_root: GlobalRoot,
     pub(crate) previous_block_number: PreviousBlockNumber,
     pub(crate) new_block_number: BlockNumber,
     pub(crate) config_hash: Felt,
