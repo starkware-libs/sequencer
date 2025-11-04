@@ -128,8 +128,6 @@ pub async fn end_to_end_flow(
     }
 
     assert_full_blocks_flow(&global_recorder_handle, expecting_full_blocks);
-    // TODO(Arni): Remove this once we have a test that expects reverted transactions.
-    assert!(!expecting_reverted_transactions, "No test should expect reverted transactions.");
     assert_on_number_of_reverted_transactions_flow(
         &global_recorder_handle,
         expecting_reverted_transactions,
