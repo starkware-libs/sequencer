@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 pub type StarkHash = Felt;
 
@@ -60,4 +60,14 @@ macro_rules! felt {
     ($s:expr) => {
         <$crate::hash::FeltConverter as $crate::hash::TryIntoFelt<_>>::to_felt_unchecked($s)
     };
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq, Hash)]
+pub struct HashOutput(pub Felt);
+
+impl HashOutput {
+    pub const ROOT_OF_EMPTY_TREE: Self = Self(Felt::ZERO);
+    pub fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
+        Ok(HashOutput(Felt::from_hex(hex_string)?))
+    }
 }
