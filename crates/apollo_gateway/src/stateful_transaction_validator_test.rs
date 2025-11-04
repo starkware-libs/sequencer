@@ -6,7 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetError,
     StarknetErrorCode,
 };
-use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_mempool_types::communication::{MempoolClient, MockMempoolClient};
 use blockifier::blockifier::stateful_validator::{
     MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
@@ -65,7 +65,6 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
         Ok(false)
     });
     let mempool_client = Arc::new(mock_mempool_client);
-    let runtime = tokio::runtime::Handle::current();
 
     let mut stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig::default(),
@@ -73,12 +72,11 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
     };
 
     let executable_tx = create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let is_account_tx_in_mempool =
+        mempool_client.account_tx_in_pool_or_recent_block(executable_tx.contract_address()).await;
     let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.extract_state_nonce_and_run_validations(
-            &executable_tx,
-            mempool_client,
-            runtime,
-        )
+        stateful_validator
+            .extract_state_nonce_and_run_validations(&executable_tx, is_account_tx_in_mempool)
     })
     .await
     .unwrap();
@@ -137,19 +135,17 @@ async fn test_extract_state_nonce_and_run_validations(
         Ok(false)
     });
     let mempool_client = Arc::new(mock_mempool_client);
-    let runtime = tokio::runtime::Handle::current();
 
     let mut stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig::default(),
         blockifier_stateful_tx_validator: mock_blockifier_validator,
     };
 
+    let is_account_tx_in_mempool =
+        mempool_client.account_tx_in_pool_or_recent_block(executable_tx.contract_address()).await;
     let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.extract_state_nonce_and_run_validations(
-            &executable_tx,
-            mempool_client,
-            runtime,
-        )
+        stateful_validator
+            .extract_state_nonce_and_run_validations(&executable_tx, is_account_tx_in_mempool)
     })
     .await
     .unwrap();
@@ -238,7 +234,8 @@ async fn test_skip_validate(
         .returning(move |_| Ok(contains_tx));
     let mempool_client = Arc::new(mock_mempool_client);
 
-    let runtime = tokio::runtime::Handle::current();
+    let is_account_tx_in_mempool =
+        mempool_client.account_tx_in_pool_or_recent_block(executable_tx.contract_address()).await;
 
     let mut stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig::default(),
@@ -249,8 +246,7 @@ async fn test_skip_validate(
         let _ = stateful_validator.run_transaction_validations(
             &executable_tx,
             sender_nonce,
-            mempool_client,
-            runtime,
+            is_account_tx_in_mempool,
         );
     })
     .await
@@ -352,12 +348,17 @@ async fn validate_resource_bounds(
         blockifier_stateful_tx_validator: mock_blockifier_validator,
     };
 
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+    let mempool_client = Arc::new(mock_mempool_client);
+    let is_account_tx_in_mempool =
+        mempool_client.account_tx_in_pool_or_recent_block(executable_tx.contract_address()).await;
+
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_transaction_validations(
             &executable_tx,
             account_nonce,
-            Arc::new(MockMempoolClient::new()),
-            tokio::runtime::Handle::current(),
+            is_account_tx_in_mempool,
         )
     })
     .await
@@ -401,12 +402,17 @@ async fn test_is_valid_nonce(
         nonce: tx_nonce,
         resource_bounds: ValidResourceBounds::create_for_testing(),
     ));
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+    let mempool_client = Arc::new(mock_mempool_client);
+    let is_account_tx_in_mempool =
+        mempool_client.account_tx_in_pool_or_recent_block(executable_tx.contract_address()).await;
+
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_transaction_validations(
             &executable_tx,
             account_nonce,
-            Arc::new(MockMempoolClient::new()),
-            tokio::runtime::Handle::current(),
+            is_account_tx_in_mempool,
         )
     })
     .await
@@ -449,12 +455,17 @@ async fn test_reject_future_declares(
         blockifier_stateful_tx_validator: mock_blockifier_validator,
     };
 
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+    let mempool_client = Arc::new(mock_mempool_client);
+    let is_account_tx_in_mempool =
+        mempool_client.account_tx_in_pool_or_recent_block(executable_tx.contract_address()).await;
+
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_transaction_validations(
             &executable_tx,
             nonce!(account_nonce),
-            Arc::new(MockMempoolClient::new()),
-            tokio::runtime::Handle::current(),
+            is_account_tx_in_mempool,
         )
     })
     .await
