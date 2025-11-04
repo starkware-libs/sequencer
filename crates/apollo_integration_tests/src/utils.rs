@@ -201,7 +201,7 @@ pub fn create_node_config(
     let l1_scraper_config = L1ScraperConfig {
         chain_id: chain_info.chain_id.clone(),
         startup_rewind_time_seconds: Duration::from_secs(0),
-        polling_interval_seconds: Duration::from_secs(0),
+        polling_interval_seconds: Duration::from_secs(1),
         ..Default::default()
     };
     let l1_provider_config = L1ProviderConfig {
