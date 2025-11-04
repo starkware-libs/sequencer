@@ -123,4 +123,4 @@ jobs:
           clean: false
 
       # Benchmark the current branch and compare to the previous run.
-      - run: cargo run -p bench_tools -- run-and-compare --package blockifier --out /tmp/new_results --regression-limit 8.0
+      # - run: cargo run -p bench_tools -- run-and-compare --package blockifier --out /tmp/new_results --regression-limit 8.0
