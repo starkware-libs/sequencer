@@ -19,7 +19,11 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
+use apollo_mempool_types::communication::{
+    AddTransactionArgsWrapper,
+    MempoolClientError,
+    SharedMempoolClient,
+};
 use apollo_mempool_types::mempool_types::AddTransactionArgs;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -150,8 +154,15 @@ impl Gateway {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
+        // Prefetch mempool result in async context to avoid blocking-on-async in a blocking
+        // thread.
+        let is_account_tx_in_mempool = self
+            .mempool_client
+            .account_tx_in_pool_or_recent_block(executable_tx.contract_address())
+            .await;
+
         let blocking_task =
-            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current());
+            ProcessTxBlockingTask::new(self, executable_tx, is_account_tx_in_mempool);
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let handle =
@@ -235,23 +246,21 @@ impl Gateway {
 struct ProcessTxBlockingTask {
     stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
-    mempool_client: SharedMempoolClient,
     executable_tx: AccountTransaction,
-    runtime: tokio::runtime::Handle,
+    is_account_tx_in_mempool: Result<bool, MempoolClientError>,
 }
 
 impl ProcessTxBlockingTask {
     pub fn new(
         gateway: &Gateway,
         executable_tx: AccountTransaction,
-        runtime: tokio::runtime::Handle,
+        is_account_tx_in_mempool: Result<bool, MempoolClientError>,
     ) -> Self {
         Self {
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
-            mempool_client: gateway.mempool_client.clone(),
             executable_tx,
-            runtime,
+            is_account_tx_in_mempool,
         }
     }
 
@@ -262,8 +271,7 @@ impl ProcessTxBlockingTask {
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,
-            self.mempool_client,
-            self.runtime,
+            self.is_account_tx_in_mempool,
         )?;
 
         Ok(nonce)

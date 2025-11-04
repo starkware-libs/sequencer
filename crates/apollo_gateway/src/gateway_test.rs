@@ -118,6 +118,14 @@ fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTr
 }
 
 #[fixture]
+fn default_mock_mempool_client() -> MockMempoolClient {
+    let mut mock_mempool_client = MockMempoolClient::new();
+    // Gateway tests don't require the mempool client to be checked, any value is fine.
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+    mock_mempool_client
+}
+
+#[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
@@ -128,7 +136,7 @@ fn mock_dependencies() -> MockDependencies {
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
-    let mock_mempool_client = MockMempoolClient::new();
+    let mock_mempool_client = default_mock_mempool_client();
     let mock_transaction_converter = MockTransactionConverterTrait::new();
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     MockDependencies {
@@ -315,13 +323,13 @@ async fn run_add_tx_and_extract_metrics(
 
 fn process_tx_task(
     stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    is_account_tx_in_mempool: Result<bool, MempoolClientError>,
 ) -> ProcessTxBlockingTask {
     ProcessTxBlockingTask {
         stateful_tx_validator_factory: Arc::new(stateful_transaction_validator_factory),
         state_reader_factory: Arc::new(MockStateReaderFactory::new()),
-        mempool_client: Arc::new(MockMempoolClient::new()),
         executable_tx: executable_invoke_tx(invoke_args()),
-        runtime: tokio::runtime::Handle::current(),
+        is_account_tx_in_mempool,
     }
 }
 
@@ -559,13 +567,13 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator
         .expect_extract_state_nonce_and_run_validations()
-        .return_once(|_, _, _| Err(expected_error));
+        .return_once(|_, _| Err(expected_error));
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
         .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
-    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
+    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory, Ok(false));
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
@@ -608,7 +616,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
         .expect_instantiate_validator()
         .return_once(|_| Err(expected_error));
 
-    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
+    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory, Ok(false));
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
