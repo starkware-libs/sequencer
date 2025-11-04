@@ -31,7 +31,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::state_reader::MempoolStateReader;
-use crate::sync_state_reader::{SyncStateReader, OLD_DEPLOY_CLASS_HASH_WHITELIST};
+use crate::sync_state_reader::SyncStateReader;
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
@@ -242,13 +242,6 @@ fn assert_eq_state_result(
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
     *DUMMY_CLASS_HASH,
-)]
-// TODO(shahak): Put cairo 0 class here to better illustrate the possible scenario.
-#[case::class_in_whitelist(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
-    Ok(false),
-    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
-    OLD_DEPLOY_CLASS_HASH_WHITELIST[0],
 )]
 #[tokio::test]
 async fn test_get_compiled_class(
