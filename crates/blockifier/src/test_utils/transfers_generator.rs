@@ -175,6 +175,7 @@ impl TransfersGenerator {
     /// Returns the transactions and the executor wrapper.
     pub fn prepare_to_run_block_of_transfers(
         &mut self,
+        worker_pool: Option<Arc<WorkerPool<CachedState<DictStateReader>>>>,
         timeout: Option<Duration>,
     ) -> (Vec<Transaction>, ExecutorWrapper) {
         // Reset nonce manager since we create a fresh state.
@@ -204,8 +205,10 @@ impl TransfersGenerator {
         };
 
         let executor_wrapper = if executor_config.concurrency_config.enabled {
-            let worker_pool =
-                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
+            //
+            let worker_pool = worker_pool.unwrap_or_else(|| {
+                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()))
+            });
 
             let executor = ConcurrentTransactionExecutor::new_for_testing(
                 state,
@@ -287,7 +290,7 @@ impl TransfersGenerator {
         timeout: Option<Duration>,
     ) -> (BlockExecutionSummary, Vec<TransactionExecutionInfo>) {
         // Prepare: generates transactions and creates executor.
-        let (txs, mut executor_wrapper) = self.prepare_to_run_block_of_transfers(timeout);
+        let (txs, mut executor_wrapper) = self.prepare_to_run_block_of_transfers(None, timeout);
 
         // Run: executes the transactions and asserts that none of them reverted.
         let execution_deadline = timeout.map(|timeout_duration| Instant::now() + timeout_duration);
