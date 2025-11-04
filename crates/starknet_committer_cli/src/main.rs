@@ -4,7 +4,7 @@ use std::path::Path;
 
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
-use starknet_committer_cli::commands::run_storage_benchmark;
+use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
 use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
@@ -85,9 +85,9 @@ struct StorageArgs {
     /// Number of iterations to run the benchmark.
     #[clap(long, default_value = "1000")]
     n_iterations: usize,
-    /// Number of storage updates per iteration.
-    #[clap(long, default_value = "1000")]
-    n_diffs: usize,
+    /// Benchmark flavor determines the size and structure of the generated state diffs.
+    #[clap(long, default_value = "1k-diff")]
+    flavor: BenchmarkFlavor,
     /// Storage impl to use. Note that MapStorage isn't persisted in the file system, so
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
@@ -134,7 +134,7 @@ macro_rules! generate_short_key_benchmark {
         $key_size:expr,
         $seed:expr,
         $n_iterations:expr,
-        $n_diffs:expr,
+        $flavor:expr,
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
@@ -146,7 +146,7 @@ macro_rules! generate_short_key_benchmark {
                 run_storage_benchmark(
                     $seed,
                     $n_iterations,
-                    $n_diffs,
+                    $flavor,
                     &$output_dir,
                     $checkpoint_dir_arg,
                     $storage,
@@ -160,7 +160,7 @@ macro_rules! generate_short_key_benchmark {
                     run_storage_benchmark(
                         $seed,
                         $n_iterations,
-                        $n_diffs,
+                        $flavor,
                         &$output_dir,
                         $checkpoint_dir_arg,
                         storage,
@@ -179,7 +179,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
     StorageArgs {
         seed,
         n_iterations,
-        n_diffs,
+        flavor,
         storage_type,
         checkpoint_interval,
         data_path,
@@ -206,7 +206,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         key_size,
         seed,
         n_iterations,
-        n_diffs,
+        flavor,
         output_dir,
         checkpoint_dir_arg,
         storage,
