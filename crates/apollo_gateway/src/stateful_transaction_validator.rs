@@ -5,7 +5,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewaySpecError;
-use apollo_mempool_types::communication::SharedMempoolClient;
+use apollo_mempool_types::communication::MempoolClientError;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
@@ -104,8 +104,12 @@ pub trait StatefulTransactionValidatorTrait: Send {
         &mut self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
-        mempool_client: SharedMempoolClient,
-        runtime: tokio::runtime::Handle,
+        is_account_tx_in_mempool: Result<bool, MempoolClientError>,
+    ) -> StatefulTransactionValidatorResult<Nonce>;
+
+    fn get_nonce(
+        &mut self,
+        account_address: ContractAddress,
     ) -> StatefulTransactionValidatorResult<Nonce>;
 
     fn get_nonce(
@@ -126,10 +130,9 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTra
         &mut self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
-        mempool_client: SharedMempoolClient,
-        runtime: tokio::runtime::Handle,
+        is_account_tx_in_mempool: Result<bool, MempoolClientError>,
     ) -> StatefulTransactionValidatorResult<Nonce> {
-        self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
+        self.run_transaction_validations(executable_tx, account_nonce, is_account_tx_in_mempool)?;
         Ok(account_nonce)
     }
 
@@ -148,11 +151,10 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidator<B>
         &mut self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
-        mempool_client: SharedMempoolClient,
-        runtime: tokio::runtime::Handle,
+        is_account_tx_in_mempool: Result<bool, MempoolClientError>,
     ) -> StatefulTransactionValidatorResult<()> {
         self.validate_state_preconditions(executable_tx, account_nonce)?;
-        self.run_validate_entry_point(executable_tx, account_nonce, mempool_client, runtime)?;
+        self.run_validate_entry_point(executable_tx, account_nonce, is_account_tx_in_mempool)?;
         Ok(())
     }
 
@@ -215,11 +217,10 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidator<B>
         &mut self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
-        mempool_client: SharedMempoolClient,
-        runtime: tokio::runtime::Handle,
+        is_account_tx_in_mempool: Result<bool, MempoolClientError>,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate =
-            skip_stateful_validations(executable_tx, account_nonce, mempool_client, runtime)?;
+            skip_stateful_validations(executable_tx, account_nonce, is_account_tx_in_mempool)?;
         let only_query = false;
         let charge_fee = enforce_fee(executable_tx, only_query);
         let strict_nonce_check = false;
@@ -290,8 +291,7 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidator<B>
 fn skip_stateful_validations(
     tx: &ExecutableTransaction,
     account_nonce: Nonce,
-    mempool_client: SharedMempoolClient,
-    runtime: tokio::runtime::Handle,
+    is_account_tx_in_mempool: Result<bool, MempoolClientError>,
 ) -> StatefulTransactionValidatorResult<bool> {
     if let ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) = tx {
         // check if the transaction nonce is 1, meaning it is post deploy_account, and the
@@ -303,8 +303,7 @@ fn skip_stateful_validations(
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
-            return runtime
-                .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
+            return is_account_tx_in_mempool
                 .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err))
                 .inspect(|exists| {
                     if *exists {

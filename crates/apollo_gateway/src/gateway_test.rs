@@ -119,6 +119,14 @@ fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTr
 }
 
 #[fixture]
+fn default_mock_mempool_client() -> MockMempoolClient {
+    let mut mock_mempool_client = MockMempoolClient::new();
+    // Gateway tests don't require the mempool client to be checked, any value is fine.
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+    mock_mempool_client
+}
+
+#[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
@@ -129,7 +137,7 @@ fn mock_dependencies() -> MockDependencies {
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
-    let mock_mempool_client = MockMempoolClient::new();
+    let mock_mempool_client = default_mock_mempool_client();
     let mock_transaction_converter = MockTransactionConverterTrait::new();
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     MockDependencies {
@@ -318,16 +326,12 @@ fn process_tx_task(
     stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) -> ProcessTxBlockingTask {
     let state_reader_factory = Arc::new(MockStateReaderFactory::new());
-    let stateful_tx_validator = StatefulTransactionValidatorFactoryTrait::instantiate_validator(
-        &stateful_transaction_validator_factory,
-        state_reader_factory.as_ref(),
-    )
-    .expect("instantiate_validator should be mocked in tests");
+    let stateful_tx_validator = stateful_transaction_validator_factory
+        .instantiate_validator(state_reader_factory.as_ref())
+        .expect("instantiate_validator should be mocked in tests");
     ProcessTxBlockingTask {
         stateful_tx_validator,
-        mempool_client: Arc::new(MockMempoolClient::new()),
         executable_tx: executable_invoke_tx(invoke_args()),
-        runtime: tokio::runtime::Handle::current(),
     }
 }
 
@@ -572,10 +576,11 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
         .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
-    let account_nonce = nonce!(0);
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx(account_nonce))
-        .await
-        .unwrap();
+
+    let result =
+        tokio::task::spawn_blocking(move || process_tx_task.process_tx(nonce!(0), Ok(false)))
+            .await
+            .unwrap();
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -608,21 +613,22 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     mut mock_dependencies: MockDependencies,
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) {
-    // Prepare transaction conversion to reach instantiation.
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
 
-    // Fail validator instantiation.
     let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
     let expected_error = StarknetError { code: error_code.clone(), message: "placeholder".into() };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
         .return_once(|_| Err(expected_error));
 
-    // Build gateway and inject the failing factory.
     let mut gateway = mock_dependencies.gateway();
     gateway.stateful_tx_validator_factory = Arc::new(mock_stateful_transaction_validator_factory);
 
     let err = gateway.add_tx(tx_args.get_rpc_tx(), p2p_message_metadata()).await.unwrap_err();
     assert_eq!(err.code, error_code);
 }
+
+// With current implementation, validator instantiation occurs inside ProcessTxBlockingTask::new()
+// and unwraps on error. Therefore, add_tx will panic if instantiation fails.
+// Gateway should return an error (not panic) when validator instantiation fails.

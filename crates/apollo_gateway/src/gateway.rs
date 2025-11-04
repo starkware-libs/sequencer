@@ -19,7 +19,11 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
+use apollo_mempool_types::communication::{
+    AddTransactionArgsWrapper,
+    MempoolClientError,
+    SharedMempoolClient,
+};
 use apollo_mempool_types::mempool_types::AddTransactionArgs;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -33,6 +37,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
 };
+use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn, Span};
 
 use crate::errors::{
@@ -152,32 +157,31 @@ impl Gateway {
             })?;
 
         let mut blocking_task =
-            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current())
-                .map_err(|e| {
-                    info!(
-                        "Gateway validation failed for tx with signature: {:?} with error: {}",
-                        tx.signature(),
-                        e
-                    );
-                    metric_counters.record_add_tx_failure(&e);
+        ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current())
+            .map_err(|e| {
+                info!(
+                    "Gateway validation failed for tx with signature: {:?} with error: {}",
+                    tx.signature(),
                     e
-                })?;
-
-        // Obtain account nonce before spawning the blocking computation.
-        let account_nonce = blocking_task.get_nonce().map_err(|e| {
-            info!(
-                "Gateway validation failed for tx with signature: {:?} with error: {}",
-                tx.signature(),
+                );
+                metric_counters.record_add_tx_failure(&e);
                 e
-            );
-            metric_counters.record_add_tx_failure(&e);
-            e
-        })?;
+            })?;
 
-        // Run the blocking task in the current span.
+        let account_nonce = blocking_task.get_nonce()?;
+
+        let is_account_tx_in_mempool =
+            if should_query_mempool_for_account_tx(&executable_tx, account_nonce) {
+                self.mempool_client
+                    .account_tx_in_pool_or_recent_block(executable_tx.contract_address())
+                    .await
+            } else {
+                Ok(false)
+            };
+
         let curr_span = Span::current();
         let handle = tokio::task::spawn_blocking(move || {
-            curr_span.in_scope(|| blocking_task.process_tx(account_nonce))
+            curr_span.in_scope(|| blocking_task.process_tx(account_nonce, is_account_tx_in_mempool))
         });
         let handle_result = handle.await;
         let nonce = match handle_result {
@@ -253,43 +257,47 @@ impl Gateway {
     }
 }
 
+// Returns true if we should prefetch mempool data to potentially skip stateful validations:
+// applies only to Invoke with nonce == 1 and when the account nonce is zero (pre-deploy state).
+fn should_query_mempool_for_account_tx(
+    executable_tx: &AccountTransaction,
+    account_nonce: Nonce,
+) -> bool {
+    matches!(executable_tx, AccountTransaction::Invoke(_))
+        && executable_tx.nonce() == Nonce(Felt::ONE)
+        && account_nonce == Nonce(Felt::ZERO)
+}
+
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
     stateful_tx_validator: Box<dyn StatefulTransactionValidatorTrait + Send>,
-    mempool_client: SharedMempoolClient,
     executable_tx: AccountTransaction,
-    runtime: tokio::runtime::Handle,
 }
 
 impl ProcessTxBlockingTask {
-    pub fn new(
-        gateway: &Gateway,
-        executable_tx: AccountTransaction,
-        runtime: tokio::runtime::Handle,
-    ) -> GatewayResult<Self> {
+    pub fn new(gateway: &Gateway, executable_tx: AccountTransaction) -> GatewayResult<Self> {
         let stateful_tx_validator = gateway
             .stateful_tx_validator_factory
             .instantiate_validator(gateway.state_reader_factory.as_ref())?;
-        Ok(Self {
-            stateful_tx_validator,
-            mempool_client: gateway.mempool_client.clone(),
-            executable_tx,
-            runtime,
-        })
+        Ok(Self { stateful_tx_validator, executable_tx })
     }
 
     fn get_nonce(&mut self) -> GatewayResult<Nonce> {
         let address = self.executable_tx.contract_address();
-        self.stateful_tx_validator.get_nonce(address)
+        let nonce = self.stateful_tx_validator.get_nonce(address)?;
+        Ok(nonce)
     }
 
-    fn process_tx(mut self, account_nonce: Nonce) -> GatewayResult<Nonce> {
+    fn process_tx(
+        mut self,
+        account_nonce: Nonce,
+        is_account_tx_in_mempool: Result<bool, MempoolClientError>,
+    ) -> GatewayResult<Nonce> {
         let nonce = self.stateful_tx_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,
             account_nonce,
-            self.mempool_client,
-            self.runtime,
+            is_account_tx_in_mempool,
         )?;
 
         Ok(nonce)
