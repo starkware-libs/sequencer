@@ -19,6 +19,7 @@ pub trait Clock: Send + Sync + Debug {
 }
 
 pub trait ClockExt: Clock {
+    #[cfg(feature = "tokio")]
     fn sleep_until<'a>(
         &'a self,
         deadline: DateTime,
