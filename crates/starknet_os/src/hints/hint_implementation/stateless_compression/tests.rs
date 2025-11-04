@@ -1,6 +1,12 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use assert_matches::assert_matches;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::{expect, Expect};
 use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
@@ -27,6 +33,87 @@ use crate::hints::hint_implementation::stateless_compression::utils::{
     unpack_felts,
     unpack_felts_to_usize,
 };
+use crate::test_utils::cairo_runner::{
+    initialize_cairo_runner,
+    run_cairo_0_entrypoint,
+    EndpointArg,
+    EntryPointRunnerConfig,
+    ImplicitArg,
+    ValueArg,
+};
+
+/// Runs the OS compression function and returns the compressed data, plus the execution resources
+/// used to compress the data.
+fn cairo_compress(data: &[Felt]) -> (Vec<Felt>, ExecutionResources) {
+    let range_check_arg = ImplicitArg::Builtin(BuiltinName::range_check);
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::starknet,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    };
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        OS_PROGRAM_BYTES,
+        "starkware.starknet.core.os.data_availability.compression.compress",
+        std::slice::from_ref(&range_check_arg),
+        HashMap::new(),
+    )
+    .unwrap();
+
+    // Function accepts start and end pointers explicitly, and the destination pointer is passed
+    // as an implicit argument (along with the range check pointer).
+    let data_start = runner
+        .vm
+        .gen_arg(&data.iter().map(|x| MaybeRelocatable::Int(*x)).collect::<Vec<_>>())
+        .unwrap()
+        .get_relocatable()
+        .unwrap();
+    let compressed_dst = runner.vm.add_memory_segment();
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(data_start.into())),
+        EndpointArg::Value(ValueArg::Single((data_start + data.len()).unwrap().into())),
+    ];
+    let implicit_args = vec![
+        range_check_arg,
+        ImplicitArg::NonBuiltin(EndpointArg::Value(ValueArg::Single(compressed_dst.into()))),
+    ];
+
+    // Run the entrypoint.
+    // The compressed data is stored in the segment starting at `compressed_dst`, the returned
+    // implicit value is the end of the compressed data.
+    let state_reader = None;
+    let expected_explicit_return_values = vec![];
+    let (implicit_return_values, _explicit_return_values, _hint_processor) =
+        run_cairo_0_entrypoint(
+            entrypoint,
+            &explicit_args,
+            &implicit_args,
+            state_reader,
+            &mut runner,
+            &program,
+            &runner_config,
+            &expected_explicit_return_values,
+        )
+        .unwrap();
+
+    // The implicit return values are [range_check_ptr, compressed_end].
+    assert_eq!(implicit_return_values.len(), 2);
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::RelocatableValue(compressed_end))) =
+        implicit_return_values[1]
+    else {
+        panic!(
+            "Unexpected implicit return value for compressed_end, got: {:?}",
+            implicit_return_values[1]
+        );
+    };
+
+    // Read the compressed data from the segment and return.
+    let compressed_data = runner
+        .vm
+        .get_integer_range(compressed_dst, (compressed_end - compressed_dst).unwrap())
+        .unwrap();
+    (compressed_data.into_iter().map(|f| *f).collect(), runner.get_execution_resources().unwrap())
+}
 
 #[rstest]
 #[case::zero([false; 10], Felt::ZERO)]
@@ -273,4 +360,37 @@ fn test_compression_length(
 #[case(7, 83)]
 fn test_get_n_elms_per_felt(#[case] elm_bound: u32, #[case] expected_n_elems: usize) {
     assert_eq!(get_n_elms_per_felt(elm_bound), expected_n_elems);
+}
+
+/// Test that Cairo and Rust implementations of compress are identical. Also verifies resources
+/// required for cairo compression.
+#[rstest]
+#[case::no_buckets(vec![], None)]
+#[case::single_bucket_one_value(vec![Felt::from(7777777)], Some(expect![[r#"
+    1271
+"#]]))]
+#[case::large_duplicates(vec![Felt::from(BigUint::from(2_u8).pow(250)); 100], Some(expect![[r#"
+    78
+"#]]))]
+#[case::small_values((0..(1 << 15)).map(Felt::from).collect(), Some(expect![[r#"
+    60
+"#]]))]
+#[case::mixed_buckets(
+    (0..252).map(|i| Felt::from(BigUint::from(2_u8).pow(i))).collect(),
+    Some(expect![[r#"
+    62
+"#]]))]
+fn test_cairo_compress(#[case] data: Vec<Felt>, #[case] expected_n_steps_per_elm: Option<Expect>) {
+    let compressed = compress(&data);
+    let (cairo_compressed, execution_resources) = cairo_compress(&data);
+    assert_eq!(cairo_compressed, compressed);
+
+    if !data.is_empty() {
+        expected_n_steps_per_elm
+            .unwrap()
+            .assert_debug_eq(&(execution_resources.n_steps / data.len()));
+    }
+
+    assert_eq!(data, decompress(&mut compressed.into_iter()));
+    // TODO(Dori): Check cairo decompression.
 }
