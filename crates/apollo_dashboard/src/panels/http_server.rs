@@ -10,12 +10,13 @@ use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder;
+use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_total_transactions_received() -> Panel {
     Panel::new(
         "Transactions Received",
-        "Number of transactions received (10m window)",
-        query_builder::increase(&ADDED_TRANSACTIONS_TOTAL, "10m"),
+        format!("Number of transactions received ({DEFAULT_DURATION} window)"),
+        query_builder::increase(&ADDED_TRANSACTIONS_TOTAL, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"ADD_TX_START\"")
@@ -24,11 +25,14 @@ fn get_panel_transaction_success_rate() -> Panel {
     // TODO(MatanL): use Panel::ratio_time_series
     Panel::new(
         "Transaction Success Rate",
-        "The ratio of transactions successfully added to the gateway (10m window)",
+        format!(
+            "The ratio of transactions successfully added to the gateway ({DEFAULT_DURATION} \
+             window)",
+        ),
         format!(
             "{s} / ({s} + {f})",
-            s = query_builder::increase(&ADDED_TRANSACTIONS_SUCCESS, "10m"),
-            f = query_builder::increase(&ADDED_TRANSACTIONS_FAILURE, "10m"),
+            s = query_builder::increase(&ADDED_TRANSACTIONS_SUCCESS, DEFAULT_DURATION),
+            f = query_builder::increase(&ADDED_TRANSACTIONS_FAILURE, DEFAULT_DURATION),
         ),
         PanelType::TimeSeries,
     )
