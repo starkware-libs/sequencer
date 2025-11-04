@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use assert_matches::assert_matches;
 use num_bigint::BigUint;
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,

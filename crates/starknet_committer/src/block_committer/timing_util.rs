@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use csv::Writer;
 use serde::{Deserialize, Serialize};
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 

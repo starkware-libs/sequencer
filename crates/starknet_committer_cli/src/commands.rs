@@ -4,6 +4,7 @@ use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 use starknet_api::core::PatriciaKey;
+use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
@@ -14,7 +15,6 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::storage_trait::Storage;
 use starknet_types_core::felt::Felt;
 use tracing::info;

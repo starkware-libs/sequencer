@@ -4,10 +4,10 @@ use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::storage_trait::DbHashMap;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};

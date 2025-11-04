@@ -20,7 +20,7 @@ use super::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use super::updated_skeleton_tree::hash_function::TreeHashFunction;
 use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
 use crate::felt::u256_from_felt;
-use crate::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
 
 pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
