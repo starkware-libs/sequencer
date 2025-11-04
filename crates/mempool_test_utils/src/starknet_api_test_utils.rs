@@ -178,19 +178,26 @@ struct L1HandlerTransactionGenerator {
 impl L1HandlerTransactionGenerator {
     const L1_ACCOUNT_ADDRESS: StarkHash = DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 
-    /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
+    /// Creates an L1 handler transaction calling either "l1_handler_set_value" or
+    /// "l1_handler_set_value_and_revert" entry point in
     /// [TestContract](FeatureContract::TestContract).
-    fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
+    fn create_l1_to_l2_message_args(&mut self, should_revert: bool) -> L1HandlerTransaction {
         self.n_generated_txs += 1;
 
         // TODO(Arni): Get test contract from test setup.
         let test_contract =
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
+        let entry_point_selector = if should_revert {
+            selector_from_name("l1_handler_set_value_and_revert")
+        } else {
+            selector_from_name("l1_handler_set_value")
+        };
+
         L1HandlerTransaction {
             contract_address: test_contract.get_instance_address(0),
             // TODO(Arni): Consider saving this value as a lazy constant.
-            entry_point_selector: selector_from_name("l1_handler_set_value"),
+            entry_point_selector,
             calldata: calldata![
                 Self::L1_ACCOUNT_ADDRESS,
                 // Arbitrary key and value.
@@ -360,8 +367,8 @@ impl MultiAccountTransactionGenerator {
             .collect()
     }
 
-    pub fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
-        self.l1_handler_tx_generator.create_l1_to_l2_message_args()
+    pub fn create_l1_to_l2_message_args(&mut self, should_revert: bool) -> L1HandlerTransaction {
+        self.l1_handler_tx_generator.create_l1_to_l2_message_args(should_revert)
     }
 
     pub fn n_l1_txs(&self) -> usize {
