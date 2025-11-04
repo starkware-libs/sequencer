@@ -1,20 +1,36 @@
-#![allow(dead_code)]
-
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use apollo_starknet_os_program::AGGREGATOR_PROGRAM;
 use ark_bls12_381::Fr;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::vm::runners::cairo_pie::{
+    BuiltinAdditionalData,
+    OutputBuiltinAdditionalData,
+    PublicMemoryPage,
+};
+use itertools::Itertools;
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::ToPrimitive;
+use rstest::rstest;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
+use tempfile::NamedTempFile;
 
+use crate::hint_processor::aggregator_hint_processor::{
+    AggregatorHintProcessor,
+    AggregatorInput,
+    DataAvailability,
+};
 use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_kzg_commitment,
     BLS_PRIME,
 };
+use crate::hints::hint_implementation::output::{MAX_PAGE_SIZE, OUTPUT_ATTRIBUTE_FACT_TOPOLOGY};
 use crate::hints::hint_implementation::stateless_compression::utils::compress;
 use crate::io::os_input::OsChainInfo;
 use crate::io::os_output_types::{
@@ -22,11 +38,13 @@ use crate::io::os_output_types::{
     FullContractStorageUpdate,
     N_UPDATES_SMALL_PACKING_BOUND,
 };
+use crate::runner::{run_program, RunnerReturnObject};
+use crate::test_utils::validations::validate_builtins;
 
 // Dummy values for the test.
 static OS_CONFIG_HASH: LazyLock<Felt> = LazyLock::new(|| {
     OsChainInfo {
-        chain_id: ChainId::Other("0".to_string()),
+        chain_id: ChainId::Other("\0".to_string()),
         strk_fee_token_address: ContractAddress::default(),
     }
     .compute_os_config_hash(None)
@@ -153,6 +171,107 @@ impl FailureModifier {
     /// returns x.
     fn corrupt_for(&self, x: Felt, modifier: Self) -> Felt {
         if self == &modifier { x + Felt::from(10u8) } else { x }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct FactTopology {
+    pub(crate) tree_structure: Vec<usize>,
+    pub(crate) page_sizes: Vec<usize>,
+}
+
+impl FactTopology {
+    pub(crate) fn from_output_additional_data(
+        output_size: usize,
+        data: &OutputBuiltinAdditionalData,
+    ) -> Self {
+        let tree_structure = match data.attributes.get(OUTPUT_ATTRIBUTE_FACT_TOPOLOGY).cloned() {
+            Some(tree_structure) => {
+                let bound = 1usize << 30;
+                assert_eq!(tree_structure.len() % 2, 0, "Tree structure should be of even length.");
+                assert!(!tree_structure.is_empty());
+                assert!(tree_structure.len() <= 10);
+                assert!(tree_structure.iter().all(|x| *x <= bound));
+                tree_structure
+            }
+            None => {
+                assert!(
+                    data.pages.is_empty(),
+                    "Additional pages cannot be used since the '{OUTPUT_ATTRIBUTE_FACT_TOPOLOGY}' \
+                     attribute is not specified."
+                );
+                vec![1, 0]
+            }
+        };
+        Self {
+            tree_structure,
+            page_sizes: Self::get_page_sizes_from_page_dict(output_size, &data.pages),
+        }
+    }
+
+    pub(crate) fn trivial(page0_size: usize) -> Self {
+        assert!(
+            page0_size <= MAX_PAGE_SIZE,
+            "Page size {page0_size} exceeded the maximum {MAX_PAGE_SIZE}."
+        );
+        Self { tree_structure: vec![1, 0], page_sizes: vec![page0_size] }
+    }
+
+    /// Returns the sizes of the program output pages, given the pages dictionary that appears in
+    /// the additional attributes of the output builtin.
+    fn get_page_sizes_from_page_dict(
+        output_size: usize,
+        pages: &HashMap<usize, PublicMemoryPage>,
+    ) -> Vec<usize> {
+        // Make sure the pages are adjacent to each other.
+
+        // The first page id is expected to be 1.
+        let mut expected_page_id = 1;
+        // We don't expect anything on its start value.
+        let mut expected_page_start = None;
+        // The size of page 0 is output_size if there are no other pages, or the start of page 1
+        // otherwise.
+        let mut page0_size = output_size;
+
+        for (page_id, page_start, page_size) in
+            pages.iter().map(|(page_id, page)| (*page_id, page.start, page.size)).sorted()
+        {
+            assert_eq!(
+                page_id, expected_page_id,
+                "Expected page id {expected_page_id}, found {page_id}."
+            );
+            if page_id == 1 {
+                assert!(page_start > 0, "Page start must be greater than 0.");
+                assert!(
+                    page_start <= output_size,
+                    "Page start must be less than or equal to output size. Found {page_start}, \
+                     output size is {output_size}."
+                );
+                page0_size = page_start;
+            } else {
+                assert_eq!(page_start, expected_page_start.unwrap());
+            }
+
+            assert!(page_size > 0, "Page size must be greater than 0.");
+            assert!(
+                page_size <= output_size,
+                "Page size must be less than or equal to output size. Found {page_size}, output \
+                 size is {output_size}."
+            );
+            expected_page_start = Some(page_start + page_size);
+            expected_page_id += 1;
+        }
+
+        if !pages.is_empty() {
+            assert_eq!(
+                expected_page_start.unwrap(),
+                output_size,
+                "Pages must cover the entire program output. Expected size of \
+                 {expected_page_start:?}, found {output_size}."
+            );
+        }
+
+        [vec![page0_size], pages.values().map(|page| page.size).collect::<Vec<usize>>()].concat()
     }
 }
 
@@ -287,7 +406,7 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
             addr: ContractAddress(CONTRACT_ADDR0.try_into().unwrap()),
             prev_nonce: Nonce(Felt::ONE),
             new_nonce: Nonce(Felt::TWO),
-            prev_class_hash: ClassHash(CLASS_HASH0_0),
+            prev_class_hash: ClassHash(CLASS_HASH0_1),
             new_class_hash: ClassHash(CLASS_HASH0_1),
             storage_changes: vec![
                 FullContractStorageUpdate {
@@ -353,8 +472,6 @@ fn multi_block1_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt
         } else {
             vec![]
         },
-        vec![COMPILED_CLASS_HASH0_1, CLASS_HASH1_0],
-        if full_output { vec![COMPILED_CLASS_HASH1_0] } else { vec![] },
         vec![COMPILED_CLASS_HASH0_2],
     ]
     .concat();
@@ -509,4 +626,113 @@ fn bootloader_output(full_output: bool, modifier: FailureModifier) -> Vec<Felt> 
         block1,
     ]
     .concat()
+}
+
+#[rstest]
+#[case(false, false, FailureModifier::None, None)]
+#[case(true, false, FailureModifier::None, None)]
+#[case(false, true, FailureModifier::None, None)]
+#[case(true, true, FailureModifier::None, None)]
+#[case(
+    true,
+    false,
+    FailureModifier::BlockHash,
+    Some(format!("{MULTI_BLOCK0_HASH} != {}", MULTI_BLOCK0_HASH + 10))
+)]
+#[case(
+    true,
+    false,
+    FailureModifier::BlockNumber,
+    Some(format!("{NUMBER_OF_BLOCKS_IN_MULTI_BLOCK} != {}", NUMBER_OF_BLOCKS_IN_MULTI_BLOCK + 10))
+)]
+#[case(true, false, FailureModifier::ProgramHash, Some("0 != 10".to_string()))]
+#[case(
+    true,
+    false,
+    FailureModifier::OsConfigHash,
+    Some(format!("{} != {}", *OS_CONFIG_HASH, *OS_CONFIG_HASH + 10))
+)]
+#[case(
+    true,
+    false,
+    FailureModifier::StorageValue,
+    Some(format!("{STORAGE_VALUE0_1} != {}", STORAGE_VALUE0_1 + 10))
+)]
+#[case(
+    true,
+    false,
+    FailureModifier::CompiledClassHash,
+    Some(format!("{COMPILED_CLASS_HASH0_1} != {}", COMPILED_CLASS_HASH0_1 + 10))
+)]
+fn test_aggregator(
+    #[case] full_output: bool,
+    #[case] use_kzg_da: bool,
+    #[case] modifier: FailureModifier,
+    #[case] error_message: Option<String>,
+) {
+    let temp_file = NamedTempFile::new().unwrap();
+    let temp_file_path = temp_file.path();
+
+    let bootloader_output_data = bootloader_output(true, modifier);
+    let aggregator_input = AggregatorInput {
+        bootloader_output: Some(bootloader_output_data.clone()),
+        full_output,
+        da: if use_kzg_da {
+            DataAvailability::Blob(temp_file_path.to_path_buf())
+        } else {
+            DataAvailability::CallData
+        },
+        debug_mode: false,
+        fee_token_address: Felt::ZERO,
+        chain_id: Felt::ZERO,
+        public_keys: None,
+    };
+
+    // Create the aggregator hint processor.
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+
+    let result =
+        run_program(LayoutName::all_cairo, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor);
+
+    let RunnerReturnObject { raw_output, cairo_pie, mut cairo_runner } = match result {
+        Err(error) => {
+            assert!(error.to_string().contains(error_message.unwrap().as_str()));
+            return;
+        }
+        Ok(runner_output) => {
+            assert!(error_message.is_none());
+            runner_output
+        }
+    };
+
+    validate_builtins(&mut cairo_runner);
+
+    let combined_output = combined_output(full_output, use_kzg_da);
+    assert_eq!(
+        raw_output.iter().collect::<Vec<&Felt>>(),
+        bootloader_output_data.iter().chain(combined_output.iter()).collect::<Vec<_>>()
+    );
+
+    let BuiltinAdditionalData::Output(output_builtin_data) =
+        cairo_pie.additional_data.0.get(&BuiltinName::output).unwrap()
+    else {
+        panic!("Output builtin data should be present in the CairoPie.");
+    };
+    let fact_topology =
+        FactTopology::from_output_additional_data(raw_output.len(), output_builtin_data);
+
+    if use_kzg_da {
+        assert_eq!(fact_topology, FactTopology::trivial(raw_output.len()));
+    } else {
+        let da_len = combined_output_da(full_output).len();
+        let len_without_da = raw_output.len() - da_len;
+        assert_eq!(
+            fact_topology,
+            FactTopology {
+                tree_structure: vec![2, 1, 0, 2],
+                page_sizes: vec![len_without_da, da_len]
+            }
+        );
+    }
 }

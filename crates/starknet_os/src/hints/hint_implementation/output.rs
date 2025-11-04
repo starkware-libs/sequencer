@@ -21,7 +21,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 
-const MAX_PAGE_SIZE: usize = 3800;
+pub(crate) const MAX_PAGE_SIZE: usize = 3800;
 pub(crate) const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
 
 fn felt_to_bool(felt: Felt, id: Ids) -> Result<bool, OsHintError> {
