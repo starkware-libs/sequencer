@@ -4,6 +4,8 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetError,
     StarknetErrorCode,
 };
+use apollo_mempool_types::communication::MempoolClientError;
+use apollo_mempool_types::errors::MempoolError;
 use blockifier::blockifier::stateful_validator::{
     MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
@@ -436,4 +438,42 @@ async fn test_reject_future_declares(
     .unwrap()
     .map_err(|err| err.code);
     assert_eq!(result, expected_result_code);
+}
+
+#[rstest]
+#[case(Ok(true), false)] // account tx in mempool → skip validation
+#[case(Ok(false), true)] // account tx not in mempool → run validation
+#[case(Err(MempoolClientError::MempoolError(MempoolError::MempoolFull)), true)]
+#[tokio::test]
+async fn test_account_tx_in_mempool_influence_on_validation(
+    #[case] is_account_tx_in_mempool: Result<bool, MempoolClientError>,
+    #[case] expected_validate: bool,
+) {
+    let sender_nonce = nonce!(0);
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)));
+
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator
+        .expect_validate()
+        .withf(move |tx| tx.execution_flags.validate == expected_validate)
+        .returning(|_| Ok(()));
+
+    let mut stateful_validator = StatefulTransactionValidator {
+        config: StatefulTransactionValidatorConfig {
+            validate_resource_bounds: false,
+            ..Default::default()
+        },
+        blockifier_stateful_tx_validator: mock_blockifier_validator,
+    };
+
+    // Blockifier mock asserts validate flag matches expectation.
+    tokio::task::spawn_blocking(move || {
+        let _ = stateful_validator.run_transaction_validations(
+            &executable_tx,
+            sender_nonce,
+            is_account_tx_in_mempool,
+        );
+    })
+    .await
+    .unwrap();
 }
