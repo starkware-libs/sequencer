@@ -3,6 +3,9 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 use starknet_types_core::felt::{Felt, FromStrError};
+use starknet_types_core::hash::{Poseidon, StarkHash as StarkHashTrait};
+
+use crate::core::{GlobalRoot, GLOBAL_STATE_VERSION};
 
 pub type StarkHash = Felt;
 
@@ -65,6 +68,7 @@ macro_rules! felt {
 #[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq, Hash)]
 pub struct HashOutput(pub Felt);
 
+/// Felt wrapper for a result of hash function.
 impl HashOutput {
     pub const ROOT_OF_EMPTY_TREE: Self = Self(Felt::ZERO);
 }
@@ -72,5 +76,26 @@ impl HashOutput {
 impl HashOutput {
     pub fn from_hex(hex_string: &str) -> Result<Self, FromStrError> {
         Ok(HashOutput(Felt::from_hex(hex_string)?))
+    }
+}
+
+/// Output of committing a state.
+pub struct CommitmentOutput {
+    pub contracts_trie_root_hash: HashOutput,
+    pub classes_trie_root_hash: HashOutput,
+}
+
+impl CommitmentOutput {
+    pub fn global_root(&self) -> GlobalRoot {
+        if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+            && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+        {
+            return GlobalRoot::ROOT_OF_EMPTY_STATE;
+        }
+        GlobalRoot(Poseidon::hash_array(&[
+            GLOBAL_STATE_VERSION,
+            self.contracts_trie_root_hash.0,
+            self.classes_trie_root_hash.0,
+        ]))
     }
 }
