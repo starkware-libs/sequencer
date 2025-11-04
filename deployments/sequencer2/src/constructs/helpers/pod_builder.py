@@ -56,11 +56,13 @@ class PodBuilder:
     def _build_container(self) -> k8s.Container:
         """Build the main application container."""
         image = f"{self.common_config.image.repository}:{self.common_config.image.tag}"
+        # Use None for command if empty list (allows image default)
+        command = self.service_config.command if self.service_config.command else None
         return k8s.Container(
-            name=self.service_config.name,
+            name=f"sequencer-{self.service_config.name}",
             image=image,
             image_pull_policy=self.common_config.image.imagePullPolicy,
-            command=self.service_config.command,
+            command=command,
             args=self._build_container_args(),
             env=self._build_container_env(),
             ports=self._build_container_ports(),
@@ -75,7 +77,8 @@ class PodBuilder:
         """Build container arguments, always including --config_file with fixed file paths."""
         args = []
 
-        # Add --config_file /config/sequencer/presets/config.json (ConfigMap)
+        # Add --config_file /config/sequencer/presets/config (ConfigMap)
+        # Note: node version uses directory mount, so path is just the directory + "config"
         if self.service_config.config and self.service_config.config.configList:
             mount_path = (
                 self.service_config.config.mountPath
@@ -83,9 +86,24 @@ class PodBuilder:
                 else "/config/sequencer/presets"
             )
             args.append("--config_file")
-            args.append(f"{mount_path}/config.json")
+            args.append(f"{mount_path}/config")
 
-        # Add --config_file /etc/secrets/secret.json (Secret)
+        # Add --config_file /etc/secrets/secrets.json (ExternalSecret)
+        # Note: node version uses directory mount, so path is /etc/secrets/secrets.json
+        if (
+            self.service_config.externalSecret
+            and self.service_config.externalSecret.enabled
+            and self.service_config.externalSecret.data
+        ):
+            mount_path = (
+                self.service_config.externalSecret.mountPath
+                if self.service_config.externalSecret.mountPath
+                else "/etc/secrets"
+            )
+            args.append("--config_file")
+            args.append(f"{mount_path}/secrets.json")
+
+        # Add --config_file /etc/secrets/secret.json (Secret) - if using regular Secret
         if (
             self.service_config.secret
             and self.service_config.secret.enabled
@@ -98,20 +116,6 @@ class PodBuilder:
             )
             args.append("--config_file")
             args.append(f"{mount_path}/secret.json")
-
-        # Add --config_file /etc/secrets/external-secret.json (ExternalSecret)
-        if (
-            self.service_config.externalSecret
-            and self.service_config.externalSecret.enabled
-            and self.service_config.externalSecret.data
-        ):
-            mount_path = (
-                self.service_config.externalSecret.mountPath
-                if self.service_config.externalSecret.mountPath
-                else "/etc/secrets"
-            )
-            args.append("--config_file")
-            args.append(f"{mount_path}/external-secret.json")
 
         # Append any additional args from node.yaml
         if self.service_config.args:
@@ -146,11 +150,10 @@ class PodBuilder:
         ports = []
         if self.service_config.service and self.service_config.service.ports:
             for port_config in self.service_config.service.ports:
+                # Node version doesn't use port names or protocol
                 ports.append(
                     k8s.ContainerPort(
                         container_port=port_config.port,
-                        name=port_config.name,
-                        protocol=port_config.protocol,
                     )
                 )
         return ports
@@ -160,11 +163,8 @@ class PodBuilder:
         if not probe_config or not probe_config.enabled:
             return None
 
-        # Find the port number from the service definition
+        # Always use monitoring_endpoint_port for probes
         port_number = self.monitoring_endpoint_port
-        if self.service_config.service and self.service_config.service.ports:
-            # Assuming the first port is the target for the probe if not specified otherwise
-            port_number = self.service_config.service.ports[0].port
 
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
@@ -182,18 +182,18 @@ class PodBuilder:
         """Build volume mounts for the container."""
         volume_mounts: list[k8s.VolumeMount] = []
 
-        # Auto-mount ConfigMap if config exists (as config.json file)
+        # Auto-mount ConfigMap if config exists (as directory, not file)
         if self.service_config.config and self.service_config.config.configList:
             # Default mountPath is "/config/sequencer/presets"
             mount_path = "/config/sequencer/presets"
             if self.service_config.config.mountPath:
                 mount_path = self.service_config.config.mountPath
 
+            # Mount as directory (node version uses directory mount)
             volume_mounts.append(
                 k8s.VolumeMount(
                     name=f"sequencer-{self.service_config.name}-config",
-                    mount_path=f"{mount_path}/config.json",
-                    sub_path="config_json",  # Matches the ConfigMap key (dots not allowed in K8s keys)
+                    mount_path=mount_path,
                     read_only=True,
                 )
             )
@@ -233,7 +233,7 @@ class PodBuilder:
                     )
                 )
 
-        # Mount ExternalSecret if enabled (always mounted as external-secret.json regardless of key name)
+        # Mount ExternalSecret if enabled (mount as directory, not file)
         if (
             self.service_config.externalSecret
             and self.service_config.externalSecret.enabled
@@ -244,7 +244,7 @@ class PodBuilder:
                 if self.service_config.externalSecret.targetName
                 else f"sequencer-{self.service_config.name}-secret"
             )
-            external_secret_volume_name = f"{external_secret_target_name}-secrets-volume"
+            external_secret_volume_name = external_secret_target_name
             # Default mountPath is "/etc/secrets"
             mount_path = (
                 self.service_config.externalSecret.mountPath
@@ -252,23 +252,14 @@ class PodBuilder:
                 else "/etc/secrets"
             )
 
-            # Get the first available key (any key name is fine)
-            external_secret_key = (
-                self.service_config.externalSecret.data[0].secretKey
-                if self.service_config.externalSecret.data
-                else None
-            )
-
-            if external_secret_key:
-                # Mount whatever key they provided as external-secret.json using subPath
-                volume_mounts.append(
-                    k8s.VolumeMount(
-                        name=external_secret_volume_name,
-                        mount_path=f"{mount_path}/external-secret.json",
-                        sub_path=external_secret_key,
-                        read_only=True,
-                    )
+            # Mount as directory (node version uses directory mount)
+            volume_mounts.append(
+                k8s.VolumeMount(
+                    name=external_secret_volume_name,
+                    mount_path=mount_path,
+                    read_only=True,
                 )
+            )
 
         # Mount persistentVolume if enabled
         if (
@@ -278,8 +269,9 @@ class PodBuilder:
         ):
             volume_mounts.append(
                 k8s.VolumeMount(
-                    name=f"sequencer-{self.service_config.name}-pvc",
+                    name=f"sequencer-{self.service_config.name}-data",
                     mount_path=self.service_config.persistentVolume.mountPath,
+                    read_only=False,
                 )
             )
 
@@ -319,6 +311,7 @@ class PodBuilder:
 
         # Create ExternalSecret volume if enabled
         # ExternalSecret creates a target Secret that we mount
+        # Node version uses items with key/path and defaultMode: 400
         if (
             self.service_config.externalSecret
             and self.service_config.externalSecret.enabled
@@ -329,11 +322,28 @@ class PodBuilder:
                 if self.service_config.externalSecret.targetName
                 else f"sequencer-{self.service_config.name}-secret"
             )
-            external_secret_volume_name = f"{external_secret_target_name}-secrets-volume"
+            external_secret_volume_name = external_secret_target_name
+
+            # Get the first secret key
+            secret_key = (
+                self.service_config.externalSecret.data[0].secretKey
+                if self.service_config.externalSecret.data
+                else "secrets.json"
+            )
+
             volumes.append(
                 k8s.Volume(
                     name=external_secret_volume_name,
-                    secret=k8s.SecretVolumeSource(secret_name=external_secret_target_name),
+                    secret=k8s.SecretVolumeSource(
+                        secret_name=external_secret_target_name,
+                        default_mode=400,  # Match node/ format (Kubernetes interprets as octal)
+                        items=[
+                            k8s.KeyToPath(
+                                key=secret_key,
+                                path="secrets.json",
+                            )
+                        ],
+                    ),
                 )
             )
 
@@ -342,11 +352,11 @@ class PodBuilder:
             pvc_name = (
                 self.service_config.persistentVolume.existingClaim
                 if self.service_config.persistentVolume.existingClaim
-                else f"sequencer-{self.service_config.name}-pvc"
+                else f"sequencer-{self.service_config.name}-data"
             )
             volumes.append(
                 k8s.Volume(
-                    name=f"sequencer-{self.service_config.name}-pvc",
+                    name=f"sequencer-{self.service_config.name}-data",
                     persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
                         claim_name=pvc_name
                     ),
@@ -406,9 +416,133 @@ class PodBuilder:
         return tolerations
 
     def _build_affinity(self) -> k8s.Affinity | None:
-        """Build pod affinity configuration."""
-        return (
+        """Build pod affinity configuration, merging affinity and podAntiAffinity."""
+        # Start with existing affinity if present
+        base_affinity = (
             k8s.Affinity.from_json(self.service_config.affinity)
             if self.service_config.affinity
-            else None
+            else k8s.Affinity()
+        )
+
+        # Build pod anti-affinity from structured config if enabled
+        pod_anti_affinity = None
+        if self.service_config.podAntiAffinity and self.service_config.podAntiAffinity.enabled:
+            pod_anti_affinity = self._build_pod_anti_affinity(self.service_config.podAntiAffinity)
+
+            # Merge with existing pod anti-affinity if present
+            if base_affinity.pod_anti_affinity:
+                # Merge preferred rules
+                existing_preferred = (
+                    base_affinity.pod_anti_affinity.preferred_during_scheduling_ignored_during_execution
+                    or []
+                )
+                new_preferred = (
+                    pod_anti_affinity.preferred_during_scheduling_ignored_during_execution or []
+                )
+                merged_preferred = existing_preferred + new_preferred
+
+                # Merge required rules
+                existing_required = (
+                    base_affinity.pod_anti_affinity.required_during_scheduling_ignored_during_execution
+                    or []
+                )
+                new_required = (
+                    pod_anti_affinity.required_during_scheduling_ignored_during_execution or []
+                )
+                merged_required = existing_required + new_required
+
+                # Create merged pod anti-affinity
+                pod_anti_affinity = k8s.PodAntiAffinity(
+                    preferred_during_scheduling_ignored_during_execution=(
+                        merged_preferred if merged_preferred else None
+                    ),
+                    required_during_scheduling_ignored_during_execution=(
+                        merged_required if merged_required else None
+                    ),
+                )
+
+            # Create new Affinity object with merged pod anti-affinity
+            return k8s.Affinity(
+                node_affinity=base_affinity.node_affinity,
+                pod_affinity=base_affinity.pod_affinity,
+                pod_anti_affinity=pod_anti_affinity,
+            )
+        elif pod_anti_affinity:
+            # Only pod anti-affinity, no existing affinity
+            return k8s.Affinity(
+                node_affinity=None,
+                pod_affinity=None,
+                pod_anti_affinity=pod_anti_affinity,
+            )
+
+        # Return None if affinity is empty, otherwise return the configured affinity
+        if (
+            not base_affinity.node_affinity
+            and not base_affinity.pod_affinity
+            and not base_affinity.pod_anti_affinity
+        ):
+            return None
+
+        return base_affinity
+
+    def _build_pod_anti_affinity(self, pod_anti_affinity_config) -> k8s.PodAntiAffinity:
+        """Build Kubernetes PodAntiAffinity from structured configuration."""
+        preferred = []
+        required = []
+
+        # Build preferred rules
+        for rule in pod_anti_affinity_config.preferred:
+            if rule.weight is None:
+                rule.weight = 100  # Default weight if not specified
+
+            # Build label selector from dict
+            label_selector = self._build_label_selector(rule.labelSelector)
+
+            preferred.append(
+                k8s.WeightedPodAffinityTerm(
+                    weight=rule.weight,
+                    pod_affinity_term=k8s.PodAffinityTerm(
+                        label_selector=label_selector,
+                        topology_key=rule.topologyKey,
+                    ),
+                )
+            )
+
+        # Build required rules
+        for rule in pod_anti_affinity_config.required:
+            # Build label selector from dict
+            label_selector = self._build_label_selector(rule.labelSelector)
+
+            required.append(
+                k8s.PodAffinityTerm(
+                    label_selector=label_selector,
+                    topology_key=rule.topologyKey,
+                )
+            )
+
+        return k8s.PodAntiAffinity(
+            preferred_during_scheduling_ignored_during_execution=preferred if preferred else None,
+            required_during_scheduling_ignored_during_execution=required if required else None,
+        )
+
+    def _build_label_selector(self, label_selector_dict: dict) -> k8s.LabelSelector:
+        """Build Kubernetes LabelSelector from dictionary."""
+        match_labels = label_selector_dict.get("matchLabels", {})
+        match_expressions = label_selector_dict.get("matchExpressions", [])
+
+        # Convert matchExpressions to LabelSelectorRequirement if provided
+        label_selector_requirements = None
+        if match_expressions:
+            label_selector_requirements = [
+                k8s.LabelSelectorRequirement(
+                    key=expr.get("key"),
+                    operator=expr.get("operator"),
+                    values=expr.get("values", []),
+                )
+                for expr in match_expressions
+            ]
+
+        return k8s.LabelSelector(
+            match_labels=match_labels,
+            match_expressions=label_selector_requirements,
         )

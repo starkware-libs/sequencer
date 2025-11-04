@@ -127,7 +127,7 @@ class PodMonitoringConstruct(BaseConstruct):
         name = (
             pod_monitoring_config.name
             if pod_monitoring_config.name
-            else f"sequencer-{self.service_config.name}-podmonitoring"
+            else f"sequencer-{self.service_config.name}-pod-monitoring"
         )
 
         return PodMonitoring(

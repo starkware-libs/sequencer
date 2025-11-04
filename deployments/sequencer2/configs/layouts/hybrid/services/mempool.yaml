@@ -11,7 +11,11 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    base_layer_config_starknet_contract_address: "idan-override-this"
+    components_sierra_compiler_port: "idan-override-this"
+    components_sierra_compiler_url: "idan-override-this"
+    consensus_manager_config_context_config_num_validators: "idan-override-this"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options

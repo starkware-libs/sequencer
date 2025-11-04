@@ -11,7 +11,15 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_l1.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    components_batcher_port: "idan-override-this"
+    components_batcher_url: "idan-override-this"
+    components_l1_gas_price_provider_port: "idan-override-this"
+    components_l1_gas_price_provider_url: "idan-override-this"
+    components_l1_provider_port: "idan-override-this"
+    components_l1_provider_url: "idan-override-this"
+    components_state_sync_port: "idan-override-this"
+    components_state_sync_url: "idan-override-this"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options

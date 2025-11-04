@@ -237,10 +237,30 @@ class SequencerNodeChart(Chart):
         if not service_config.service:
             raise ValueError(f"No service defined for service {service_config.name}")
         ports = service_config.service.ports or []
+
+        if not ports:
+            raise ValueError(
+                f"No ports defined for service {service_config.name}. "
+                f"Please define at least one port in service.ports."
+            )
+
+        # First, look for exact "monitoring-endpoint" port (prioritized)
         for port in ports:
-            if port.name == "monitoring":
+            if port.name and port.name.lower() == "monitoring-endpoint":
                 return port.port
-        raise ValueError(f"No 'monitoring' port defined for service {service_config.name}")
+
+        # Then, look for any port with "monitoring" in the name (case-insensitive)
+        for port in ports:
+            if port.name and "monitoring" in port.name.lower():
+                return port.port
+
+        # If not found, provide helpful error message with available ports
+        available_names = [p.name for p in ports if p.name]
+        raise ValueError(
+            f"No 'monitoring' port defined for service {service_config.name}. "
+            f"Available ports: {available_names}. "
+            f"Please add a port with 'monitoring' in the name (e.g., 'monitoring' or 'monitoring-endpoint')."
+        )
 
     @staticmethod
     def _load_service_config_paths(service_config: ServiceConfig) -> dict:

@@ -22,8 +22,14 @@ class Image(StrictBaseModel):
     imagePullPolicy: Optional[str] = None
 
 
+class RollingUpdate(StrictBaseModel):
+    maxUnavailable: Optional[str] = None
+    partition: Optional[int] = None
+
+
 class UpdateStrategy(StrictBaseModel):
     type: str = "RollingUpdate"
+    rollingUpdate: Optional[RollingUpdate] = None
 
 
 class StatefulSet(StrictBaseModel):
@@ -170,10 +176,16 @@ class HPA(StrictBaseModel):
     scaleDownPolicies: List[AnyDict] = Field(default_factory=list)
 
 
-class ExternalSecretData(StrictBaseModel):
-    secretKey: str
-    remoteKey: str
+class ExternalSecretRemoteRef(StrictBaseModel):
+    key: str  # Remote key in the secret store
     property: Optional[str] = None  # For JSON property extraction
+    version: Optional[str] = None  # Secret version (provider-specific)
+    decoding_strategy: Optional[str] = None  # Decoding strategy (Auto, Base64, Base64Url, None)
+
+
+class ExternalSecretData(StrictBaseModel):
+    secretKey: str  # Key name in the generated secret
+    remoteRef: ExternalSecretRemoteRef  # Remote reference configuration
 
 
 class ExternalSecretStore(StrictBaseModel):
@@ -263,6 +275,7 @@ class CommonConfig(StrictBaseModel):
     image: Image = Image(repository="ghcr.io/starkware-libs/sequencer", tag="dev")
     imagePullSecrets: List[str] = Field(default_factory=list)
     commonMetaLabels: StrDict = Field(default_factory=dict)
+    config: Optional["Config"] = None  # Forward reference - Config is defined later
 
 
 class PodMonitoringEndpoint(StrictBaseModel):
@@ -306,6 +319,28 @@ class PodMonitoringSpec(StrictBaseModel):
     targetLabels: Optional[PodMonitoringTargetLabels] = None  # Labels to add to targets
 
 
+class PodAntiAffinityRule(StrictBaseModel):
+    """Single pod anti-affinity rule configuration."""
+
+    weight: Optional[int] = None  # Weight for preferred rules (1-100)
+    topologyKey: str  # Topology key (e.g., "kubernetes.io/hostname", "topology.kubernetes.io/zone")
+    labelSelector: AnyDict = Field(
+        default_factory=dict
+    )  # Label selector with matchLabels or matchExpressions
+
+
+class PodAntiAffinity(StrictBaseModel):
+    """Pod anti-affinity configuration supporting multiple rules."""
+
+    enabled: bool = False
+    preferred: List[PodAntiAffinityRule] = Field(
+        default_factory=list
+    )  # Preferred rules (soft constraints)
+    required: List[PodAntiAffinityRule] = Field(
+        default_factory=list
+    )  # Required rules (hard constraints, weight ignored)
+
+
 class PodMonitoring(StrictBaseModel):
     enabled: bool = False
     name: Optional[str] = None
@@ -343,10 +378,12 @@ class PriorityClass(StrictBaseModel):
 
 
 class Config(StrictBaseModel):
-    configList: str  # Path to JSON file containing list of config paths
+    configList: Optional[str] = (
+        None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
+    )
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
     sequencerConfig: Optional[AnyDict] = (
-        None  # Override values for sequencer config (keys should match JSON keys exactly: snake_case with dots). Values can be int, float, or str.
+        None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
     )
 
 
@@ -370,7 +407,7 @@ class ServiceConfig(StrictBaseModel):
     tolerations: List[AnyDict] = Field(default_factory=list)
     nodeSelector: StrDict = Field(default_factory=dict)
     affinity: AnyDict = Field(default_factory=dict)
-    podAntiAffinity: AnyDict = Field(default_factory=dict)
+    podAntiAffinity: Optional[PodAntiAffinity] = None
     topologySpreadConstraints: List[AnyDict] = Field(default_factory=list)
     podDisruptionBudget: Optional[PodDisruptionBudget] = None
     persistentVolume: Optional[PersistentVolume] = None

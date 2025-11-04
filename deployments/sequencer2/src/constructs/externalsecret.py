@@ -5,6 +5,7 @@ from imports.io.external_secrets import (
     ExternalSecretV1Beta1SpecData as ExternalSecretSpecData,
     ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
     ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+    ExternalSecretV1Beta1SpecDataRemoteRefDecodingStrategy as ExternalSecretSpecDataRemoteRefDecodingStrategy,
     ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
     ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
     ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget,
@@ -65,7 +66,7 @@ class ExternalSecretConstruct(BaseConstruct):
             self,
             "external-secret",
             metadata=ApiObjectMetadata(
-                name=f"sequencer-{self.service_config.name}-externalsecret",
+                name=f"sequencer-{self.service_config.name}-external-secret",
                 labels=self.labels,
             ),
             spec=spec,
@@ -84,14 +85,34 @@ class ExternalSecretConstruct(BaseConstruct):
 
     def _build_secret_data(self) -> list[ExternalSecretSpecData]:
         """Build secret data based on provider and configuration."""
-        return [
-            ExternalSecretSpecData(
-                secret_key=item.secretKey,
-                remote_ref=ExternalSecretSpecDataRemoteRef(
-                    key=item.remoteKey,
-                    property=item.property,
-                    conversion_strategy=ExternalSecretSpecDataRemoteRefConversionStrategy.DEFAULT,
-                ),
+        result = []
+        for item in self.service_config.externalSecret.data:
+            remote_ref = ExternalSecretSpecDataRemoteRef(
+                key=item.remoteRef.key,
+                property=item.remoteRef.property,
+                conversion_strategy=ExternalSecretSpecDataRemoteRefConversionStrategy.DEFAULT,
             )
-            for item in self.service_config.externalSecret.data
-        ]
+
+            # Add optional properties if provided
+            if item.remoteRef.version:
+                remote_ref.version = item.remoteRef.version
+
+            if item.remoteRef.decoding_strategy:
+                # Map string to enum
+                decoding_map = {
+                    "Auto": ExternalSecretSpecDataRemoteRefDecodingStrategy.AUTO,
+                    "Base64": ExternalSecretSpecDataRemoteRefDecodingStrategy.BASE64,
+                    "Base64Url": ExternalSecretSpecDataRemoteRefDecodingStrategy.BASE64URL,
+                    "None": ExternalSecretSpecDataRemoteRefDecodingStrategy.NONE,
+                }
+                if item.remoteRef.decoding_strategy in decoding_map:
+                    remote_ref.decoding_strategy = decoding_map[item.remoteRef.decoding_strategy]
+
+            result.append(
+                ExternalSecretSpecData(
+                    secret_key=item.secretKey,
+                    remote_ref=remote_ref,
+                )
+            )
+
+        return result

@@ -1,17 +1,19 @@
 # Sequencer Node Configuration
 # For detailed configuration options, see docs/ directory
 
-name: sierra-compiler
+name: http-server
 
 replicas: 1
 
 # Config Configuration
 # See docs/CONFIGMAP_CONFIGURATION.md for all available options
 config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_http_server.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    components_gateway_port: "idan-override-this"
+    components_gateway_url: "idan-override-this"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
