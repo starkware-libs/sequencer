@@ -9,6 +9,7 @@ mod sync_test;
 
 use std::cmp::min;
 use std::collections::BTreeMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -44,7 +45,8 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures::future::pending;
 use futures::stream;
-use futures_util::{Stream, StreamExt, pin_mut, select};
+use futures_util::stream::FuturesOrdered;
+use futures_util::{Future, Stream, StreamExt, pin_mut};
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
 use serde::{Deserialize, Serialize};
@@ -60,7 +62,7 @@ use starknet_api::block::{
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{StateDiff, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateDiff, ThinStateDiff};
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{JoinError, spawn_blocking};
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -85,6 +87,23 @@ const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
 // The first starknet version where we can send sierras to the class manager without casms and it
 // will compile them, in a backward-compatible manner.
 const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12_0;
+
+// Type alias for single block compiled data
+type CompiledBlockData = (
+    BlockNumber,
+    ThinStateDiff,
+    IndexMap<ClassHash, SierraContractClass>,
+    IndexMap<ClassHash, DeprecatedContractClass>, // Declared deprecated classes
+    IndexMap<ClassHash, DeprecatedContractClass>, // Deployed contract class definitions
+    bool,
+);
+
+// Type alias for batch of compiled blocks
+type CompiledBatchData = Vec<CompiledBlockData>;
+
+// Type alias for compilation tasks - each task compiles ONE block and returns the compiled data
+type CompilationTask =
+    Pin<Box<dyn Future<Output = Result<CompiledBlockData, StateSyncError>> + Send>>;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
@@ -212,9 +231,8 @@ pub struct GenericStateSync<
     class_manager_client: Option<SharedClassManagerClient>,
     // Accumulator for batching blocks
     pending_blocks: Vec<(BlockNumber, Block, BlockSignature)>,
-    // Accumulator for batching state diffs
-    pending_state_diffs:
-        Vec<(BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>)>,
+    // Queue for compilation tasks - maintains ordering while allowing concurrent compilation
+    compilation_tasks: FuturesOrdered<CompilationTask>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -295,7 +313,7 @@ pub enum SyncEvent {
 impl<
     TCentralSource: CentralSourceTrait + Sync + Send + 'static,
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
-    TBaseLayerSource: BaseLayerSourceTrait + Sync + Send,
+    TBaseLayerSource: BaseLayerSourceTrait + Sync + Send + 'static,
 > GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
 {
     pub async fn run(mut self) -> StateSyncResult {
@@ -431,20 +449,78 @@ impl<
         );
 
         loop {
-            // this is the concurrency sync- where we open sync for all 4 things (instead of doing
-            // it smarter as reth do).
-            debug!("Selecting between block sync and state diff sync.");
-            let sync_event = select! {
-              res = block_stream.next() => res,
-              res = state_diff_stream.next() => res,
-              res = compiled_class_stream.next() => res,
-              res = base_layer_block_stream.next() => res,
-              res = check_sync_progress.next() => res,
-              complete => break,
+            // this is the concurrency sync- where we open sync for all 5 things plus compilation
+            // tasks
+            debug!("Selecting between block sync, state diff sync, and compilation tasks.");
+
+            // Check if we need to collect and flush a batch
+            if self.compilation_tasks.len() >= self.config.block_batch_size {
+                info!(
+                    "Batch size reached ({} blocks). Collecting compiled results...",
+                    self.compilation_tasks.len()
+                );
+
+                // Collect all completed compilations (in order!)
+                let mut compiled_batch = Vec::new();
+                for _ in 0..self.config.block_batch_size {
+                    if let Some(result) = self.compilation_tasks.next().await {
+                        match result {
+                            Ok(compiled_block) => {
+                                compiled_batch.push(compiled_block);
+                            }
+                            Err(e) => {
+                                error!("Compilation task failed: {:?}", e);
+                                return Err(e);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                if !compiled_batch.is_empty() {
+                    let batch_size = compiled_batch.len();
+                    let first_block = compiled_batch.first().map(|(bn, _, _, _, _, _)| *bn);
+                    let last_block = compiled_batch.last().map(|(bn, _, _, _, _, _)| *bn);
+                    info!(
+                        "Collected {batch_size} compiled blocks ({first_block:?} to \
+                         {last_block:?}). Writing to storage in ONE transaction..."
+                    );
+
+                    // Write all compiled blocks in ONE transaction
+                    self.write_compiled_batch(compiled_batch).await?;
+
+                    info!("Successfully wrote {batch_size} blocks to storage in one transaction.");
+                }
             }
-            .expect("Received None as a sync event.")?;
-            self.process_sync_event(sync_event).await?;
-            debug!("Finished processing sync event.");
+
+            // Select from all streams
+            tokio::select! {
+                // No longer check compilation_tasks here - we collect them in batches above
+                // Check for sync events from streams
+                res = block_stream.next() => {
+                    let sync_event = res.expect("Received None from block stream.")?;
+                    self.process_sync_event(sync_event).await?;
+                }
+                res = state_diff_stream.next() => {
+                    let sync_event = res.expect("Received None from state diff stream.")?;
+                    self.process_sync_event(sync_event).await?;
+                }
+                res = compiled_class_stream.next() => {
+                    let sync_event = res.expect("Received None from compiled class stream.")?;
+                    self.process_sync_event(sync_event).await?;
+                }
+                res = base_layer_block_stream.next() => {
+                    let sync_event = res.expect("Received None from base layer stream.")?;
+                    self.process_sync_event(sync_event).await?;
+                }
+                res = check_sync_progress.next() => {
+                    let sync_event = res.expect("Received None from sync progress check.")?;
+                    self.process_sync_event(sync_event).await?;
+                }
+                else => break,
+            }
+            debug!("Finished processing event.");
         }
         unreachable!("Fetching data loop should never return.");
     }
@@ -474,19 +550,29 @@ impl<
                 deployed_contract_class_definitions,
             } => {
                 if self.config.enable_block_batching {
-                    // Add state diff to batch
-                    self.pending_state_diffs.push((
-                        block_number,
-                        block_hash,
-                        state_diff,
-                        deployed_contract_class_definitions,
-                    ));
+                    // Submit each block individually for compilation
+                    let class_manager_client = self.class_manager_client.clone();
+                    let reader = self.reader.clone();
 
-                    // Flush if batch is full (let blocks batch independently)
-                    if self.pending_state_diffs.len() >= self.config.block_batch_size {
-                        let state_diffs = std::mem::take(&mut self.pending_state_diffs);
-                        self.store_state_diffs_batched(state_diffs).await?;
-                    }
+                    let compilation_future: CompilationTask =
+                        Box::pin(Self::compile_single_state_diff(
+                            class_manager_client,
+                            reader,
+                            block_number,
+                            state_diff,
+                            deployed_contract_class_definitions,
+                        ));
+
+                    // Add to FuturesOrdered - maintains order while allowing concurrency
+                    self.compilation_tasks.push_back(compilation_future);
+
+                    info!(
+                        "Compilation task submitted for block {}. Batch count: {}/{}",
+                        block_number,
+                        self.compilation_tasks.len(),
+                        self.config.block_batch_size
+                    );
+
                     Ok(())
                 } else {
                     // Non-batching mode: flush blocks then process state diff
@@ -738,84 +824,68 @@ impl<
         Ok(())
     }
 
-    // Store multiple state diffs in a single database transaction for better performance
-    #[instrument(skip(self, state_diffs), level = "info")]
-    async fn store_state_diffs_batched(
-        &mut self,
-        state_diffs: Vec<(
-            BlockNumber,
-            BlockHash,
-            StateDiff,
-            IndexMap<ClassHash, DeprecatedContractClass>,
-        )>,
-    ) -> StateSyncResult {
-        if state_diffs.is_empty() {
-            return Ok(());
+    // Compile a single state diff asynchronously (non-blocking compilation)
+    // This is a static method so it can be used to create a Future without &mut self
+    async fn compile_single_state_diff(
+        class_manager_client: Option<SharedClassManagerClient>,
+        reader: StorageReader,
+        block_number: BlockNumber,
+        state_diff: StateDiff,
+        deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
+    ) -> Result<CompiledBlockData, StateSyncError> {
+        let (thin_state_diff, classes, deprecated_classes) =
+            ThinStateDiff::from_state_diff(state_diff);
+
+        let mut block_contains_old_classes = false;
+
+        // Handle class manager operations if available (this is the slow compilation part)
+        if let Some(ref class_manager_client) = class_manager_client {
+            let compiler_backward_compatibility_marker =
+                reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
+
+            if compiler_backward_compatibility_marker <= block_number {
+                for (expected_class_hash, class) in &classes {
+                    let class_hash =
+                        class_manager_client.add_class(class.clone()).await?.class_hash;
+                    if class_hash != *expected_class_hash {
+                        panic!(
+                            "Class hash mismatch. Expected: {expected_class_hash}, got: \
+                             {class_hash}."
+                        );
+                    }
+                }
+            } else {
+                block_contains_old_classes = true;
+            }
+
+            for (class_hash, deprecated_class) in &deprecated_classes {
+                class_manager_client
+                    .add_deprecated_class(*class_hash, deprecated_class.clone())
+                    .await?;
+            }
         }
 
-        let batch_start = Instant::now();
-        let first_block_number = state_diffs.first().unwrap().0;
-        let last_block_number = state_diffs.last().unwrap().0;
-        let batch_size = state_diffs.len();
+        Ok((
+            block_number,
+            thin_state_diff,
+            classes,
+            deprecated_classes,
+            deployed_contract_class_definitions,
+            block_contains_old_classes,
+        ))
+    }
 
-        info!(
-            "STATE_DIFF_BATCH_TIMING_START: Starting batched storage of {} state diffs ({} to {})",
-            batch_size, first_block_number, last_block_number
-        );
+    // Write a compiled batch to storage (called after compilation completes)
+    async fn write_compiled_batch(&mut self, compiled_batch: CompiledBatchData) -> StateSyncResult {
+        let batch_start = Instant::now();
+        let first_block_number = compiled_batch.first().unwrap().0;
+        let last_block_number = compiled_batch.last().unwrap().0;
+        let batch_size = compiled_batch.len();
 
         let has_class_manager = self.class_manager_client.is_some();
         let store_sierras_and_casms = self.config.store_sierras_and_casms;
-        let class_manager_client = self.class_manager_client.clone();
-        let reader = self.reader.clone();
 
-        // Process all classes first (outside the transaction)
-        let mut all_classes_data = Vec::new();
-        for (block_number, _block_hash, state_diff, deployed_contract_class_definitions) in
-            &state_diffs
-        {
-            let (thin_state_diff, classes, deprecated_classes) =
-                ThinStateDiff::from_state_diff(state_diff.clone());
-
-            let mut block_contains_old_classes = false;
-
-            // Handle class manager operations if available
-            if let Some(ref class_manager_client) = class_manager_client {
-                let compiler_backward_compatibility_marker =
-                    reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
-
-                if compiler_backward_compatibility_marker <= *block_number {
-                    for (expected_class_hash, class) in &classes {
-                        let class_hash =
-                            class_manager_client.add_class(class.clone()).await?.class_hash;
-                        if class_hash != *expected_class_hash {
-                            panic!(
-                                "Class hash mismatch. Expected: {expected_class_hash}, got: \
-                                 {class_hash}."
-                            );
-                        }
-                    }
-                } else {
-                    block_contains_old_classes = true;
-                }
-
-                for (class_hash, deprecated_class) in &deprecated_classes {
-                    class_manager_client
-                        .add_deprecated_class(*class_hash, deprecated_class.clone())
-                        .await?;
-                }
-            }
-
-            all_classes_data.push((
-                *block_number,
-                thin_state_diff,
-                classes,
-                deprecated_classes,
-                deployed_contract_class_definitions.clone(),
-                block_contains_old_classes,
-            ));
-        }
-
-        // Now write all state diffs in a single transaction
+        // Write all state diffs in a single transaction
         let storage_start = Instant::now();
         self.perform_storage_writes(move |writer| {
             let txn_start = Instant::now();
@@ -838,7 +908,7 @@ impl<
                 deprecated_classes,
                 deployed_contract_class_definitions,
                 block_contains_old_classes,
-            ) in all_classes_data
+            ) in compiled_batch
             {
                 let state_diff_start = Instant::now();
 
@@ -884,11 +954,11 @@ impl<
         );
 
         // Update metrics for all blocks in batch
-        for (block_number, block_hash, _, _) in &state_diffs {
-            STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
-
-            // Print SYNC_NEW_BLOCK for each
-            info!("SYNC_NEW_BLOCK: Added block {} with hash {:#064x}.", block_number, block_hash.0);
+        #[allow(clippy::as_conversions)]
+        for i in 0..batch_size {
+            let bn = BlockNumber(first_block_number.0 + i as u64);
+            STATE_SYNC_STATE_MARKER.set_lossy(bn.unchecked_next().0);
+            info!("SYNC_NEW_BLOCK: Added block {}.", bn);
         }
 
         let total_time = batch_start.elapsed();
@@ -1394,7 +1464,7 @@ impl StateSync {
             sequencer_pub_key: None,
             class_manager_client,
             pending_blocks: Vec::new(),
-            pending_state_diffs: Vec::new(),
+            compilation_tasks: FuturesOrdered::new(),
         }
     }
 }
