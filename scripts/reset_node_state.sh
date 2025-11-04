@@ -63,4 +63,3 @@ echo "This reset ensures:"
 echo "   Consensus starts from block 0 (not block 10540!)"
 echo "   Batcher starts fresh and will show logs immediately"
 echo "   All components are synchronized from genesis"
-
