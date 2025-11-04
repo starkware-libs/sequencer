@@ -153,9 +153,15 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
         )
         .unwrap();
     if expecting_full_blocks {
-        assert!(full_blocks_metric > 0);
+        assert!(
+            full_blocks_metric > 0,
+            "Expected full blocks, but found {full_blocks_metric} full blocks."
+        );
     } else {
-        assert_eq!(full_blocks_metric, 0);
+        assert_eq!(
+            full_blocks_metric, 0,
+            "Expected no full blocks, but found {full_blocks_metric} full blocks."
+        );
     }
 }
 
