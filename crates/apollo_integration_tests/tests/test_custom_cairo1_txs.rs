@@ -35,6 +35,7 @@ async fn custom_cairo1_txs() {
         BouncerWeights::default().proving_gas,
         false,
         false,
+        false,
     )
     .await
 }

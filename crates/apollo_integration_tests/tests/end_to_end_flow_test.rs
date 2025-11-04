@@ -25,11 +25,12 @@ async fn test_end_to_end_flow() {
         BouncerWeights::default().proving_gas,
         false,
         false,
+        false,
     )
     .await
 }
 
-pub fn create_test_scenarios() -> Vec<TestScenario> {
+fn create_test_scenarios() -> Vec<TestScenario> {
     vec![
         // This block should be the first to be tested, as the addition of L1 handler transaction
         // does not work smoothly with the current architecture of the test.

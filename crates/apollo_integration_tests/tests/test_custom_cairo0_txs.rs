@@ -29,6 +29,7 @@ async fn custom_cairo0_txs() {
         GasAmount(110000000),
         false,
         false,
+        false,
     )
     .await
 }

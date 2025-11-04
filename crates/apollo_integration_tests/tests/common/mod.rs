@@ -34,6 +34,7 @@ pub async fn end_to_end_flow(
     test_blocks_scenarios: Vec<TestScenario>,
     block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     expecting_full_blocks: bool,
+    expecting_reverted_transactions: bool,
     allow_bootstrap_txs: bool,
 ) {
     configure_tracing().await;
@@ -127,7 +128,12 @@ pub async fn end_to_end_flow(
     }
 
     assert_full_blocks_flow(&global_recorder_handle, expecting_full_blocks);
-    assert_no_reverted_transactions_flow(&global_recorder_handle);
+    // TODO(Arni): Remove this once we have a test that expects reverted transactions.
+    assert!(!expecting_reverted_transactions, "No test should expect reverted transactions.");
+    assert_on_number_of_reverted_transactions_flow(
+        &global_recorder_handle,
+        expecting_reverted_transactions,
+    );
 }
 
 pub struct TestScenario {
@@ -165,11 +171,27 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
     }
 }
 
-fn assert_no_reverted_transactions_flow(recorder_handle: &PrometheusHandle) {
+fn assert_on_number_of_reverted_transactions_flow(
+    recorder_handle: &PrometheusHandle,
+    expecting_reverted_transactions: bool,
+) {
     let metrics = recorder_handle.render();
     let reverted_transactions_metric =
         REVERTED_TRANSACTIONS.parse_numeric_metric::<u64>(&metrics).unwrap();
-    assert_eq!(reverted_transactions_metric, 0);
+
+    if expecting_reverted_transactions {
+        assert!(
+            reverted_transactions_metric > 0,
+            "Expected reverted transactions, but found {reverted_transactions_metric} reverted \
+             transactions."
+        );
+    } else {
+        assert_eq!(
+            reverted_transactions_metric, 0,
+            "Expected no reverted transactions, but found {reverted_transactions_metric} reverted \
+             transactions."
+        );
+    }
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {

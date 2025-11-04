@@ -25,6 +25,7 @@ async fn bootstrap_declare() {
         create_bootstrap_declare_scenario(),
         GasAmount(29000000),
         false,
+        false,
         true,
     )
     .await
