@@ -51,15 +51,40 @@ def _get_base_dir() -> Path:
 def _get_config_paths(
     base_dir: Path, layout: str, overlay: str | None
 ) -> tuple[Path, Path, Path | None, Path | None]:
-    """Get layout and overlay config paths."""
+    """Get layout and overlay config paths.
+
+    Overlay path must start with the layout name and use dot notation for nested paths:
+    - 'hybrid.sepolia-integration.node-01' -> configs/overlays/hybrid/sepolia-integration/node-01/
+    - 'hybrid.sepolia-integration.node-02' -> configs/overlays/hybrid/sepolia-integration/node-02/
+    """
     layout_common = base_dir / "configs" / "layouts" / layout / "common.yaml"
     layout_services = base_dir / "configs" / "layouts" / layout / "services"
 
     overlay_common = None
     overlay_services = None
     if overlay:
-        overlay_common = base_dir / "configs" / "overlays" / layout / overlay / "common.yaml"
-        overlay_services = base_dir / "configs" / "overlays" / layout / overlay / "services"
+        # Split dot-separated path into segments
+        # e.g., "hybrid.sepolia-integration.node-01" -> ["hybrid", "sepolia-integration", "node-01"]
+        overlay_path_segments = overlay.split(".")
+
+        # First segment must be the layout name
+        if not overlay_path_segments or overlay_path_segments[0] != layout:
+            raise ValueError(
+                f"Overlay path '{overlay}' must start with the layout name '{layout}'. "
+                f"Example: '{layout}.sepolia-integration.node-01'"
+            )
+
+        # Build overlay path: configs/overlays/{layout}/{segment2}/{segment3}/...
+        # Skip first segment (layout) since it's already in the path
+        overlay_base_path = base_dir / "configs" / "overlays" / layout
+        for segment in overlay_path_segments[1:]:
+            overlay_base_path = overlay_base_path / segment
+
+        overlay_services = overlay_base_path / "services"
+
+        # common.yaml is optional in overlay paths
+        overlay_common_path = overlay_base_path / "common.yaml"
+        overlay_common = overlay_common_path if overlay_common_path.exists() else None
 
     return (layout_common, layout_services, overlay_common, overlay_services)
 

@@ -73,8 +73,7 @@ class DeploymentConfigLoader(Config):
     def _validate(self):
         """Validate directory existence and file readability."""
         self._validate_directory(self.configs_dir_path)
-        if self.common_config_path and not self.common_config_path.exists():
-            raise ValueError(f"Common config path {self.common_config_path} does not exist")
+        # Note: common_config_path is optional - it may not exist in overlay paths
 
     def _load_service_configs_from_dir(self) -> List[ServiceConfig]:
         """Load and validate each service YAML file in the directory."""
@@ -181,43 +180,214 @@ class NodeConfigLoader(Config):
         current[keys[-1]] = value
 
     @staticmethod
+    def _replace_placeholder_value(obj: Any, placeholder: str, replacement: Any) -> Any:
+        """Recursively search for a placeholder value and replace it with the replacement value.
+
+        Args:
+            obj: The object to search (dict, list, or primitive)
+            placeholder: The placeholder string to find (e.g., '$$$_CHAIN_ID_$$$')
+            replacement: The value to replace it with
+
+        Returns:
+            The object with placeholder replaced (if found)
+        """
+        if isinstance(obj, dict):
+            return {
+                k: NodeConfigLoader._replace_placeholder_value(v, placeholder, replacement)
+                for k, v in obj.items()
+            }
+        elif isinstance(obj, list):
+            return [
+                NodeConfigLoader._replace_placeholder_value(item, placeholder, replacement)
+                for item in obj
+            ]
+        elif isinstance(obj, str) and obj == placeholder:
+            return replacement
+        elif isinstance(obj, (int, float)) and str(obj) == placeholder:
+            return replacement
+        else:
+            return obj
+
+    @staticmethod
+    def _placeholder_exists(obj: Any, placeholder: str) -> bool:
+        """Check if a placeholder value exists anywhere in the config object.
+
+        Args:
+            obj: The object to search (dict, list, or primitive)
+            placeholder: The placeholder string to find (e.g., '$$$_CHAIN_ID_$$$')
+
+        Returns:
+            True if placeholder is found, False otherwise
+        """
+        if isinstance(obj, dict):
+            return any(NodeConfigLoader._placeholder_exists(v, placeholder) for v in obj.values())
+        elif isinstance(obj, list):
+            return any(NodeConfigLoader._placeholder_exists(item, placeholder) for item in obj)
+        elif isinstance(obj, str) and obj == placeholder:
+            return True
+        elif isinstance(obj, (int, float)) and str(obj) == placeholder:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def _normalize_placeholder(placeholder: str) -> str:
+        """Normalize placeholder by replacing dashes with underscores.
+
+        Only affects values matching the $$$_..._$$$ pattern. This ensures all
+        placeholders use underscores consistently for matching.
+
+        Args:
+            placeholder: The placeholder string (e.g., '$$$_COMPONENTS-SIERRA-COMPILER-URL_$$$')
+
+        Returns:
+            Normalized placeholder with dashes replaced by underscores
+            (e.g., '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$')
+
+        Examples:
+            '$$$_COMPONENTS-SIERRA-COMPILER-URL_$$$' -> '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$'
+            '$$$_CHAIN_ID_$$$' -> '$$$_CHAIN_ID_$$$' (no change)
+            'regular_string' -> 'regular_string' (no change)
+        """
+        if (
+            isinstance(placeholder, str)
+            and placeholder.startswith("$$$_")
+            and placeholder.endswith("_$$$")
+        ):
+            # Replace dashes with underscores in the middle part (between $$$_ and _$$$)
+            middle = placeholder[4:-4]  # Remove $$$_ prefix and _$$$ suffix
+            normalized_middle = middle.replace("-", "_")
+            return f"$$$_{normalized_middle}_$$$"
+        return placeholder
+
+    @staticmethod
+    def _normalize_placeholders_in_config(obj: Any) -> Any:
+        """Recursively normalize all placeholders in a config object.
+
+        Traverses dictionaries, lists, and primitive values, replacing dashes
+        with underscores in all placeholder values matching $$$_..._$$$ pattern.
+
+        Args:
+            obj: The config object to normalize (dict, list, or primitive)
+
+        Returns:
+            The normalized config object with all placeholders normalized
+        """
+        if isinstance(obj, dict):
+            return {
+                k: NodeConfigLoader._normalize_placeholders_in_config(v) for k, v in obj.items()
+            }
+        elif isinstance(obj, list):
+            return [NodeConfigLoader._normalize_placeholders_in_config(item) for item in obj]
+        elif isinstance(obj, str):
+            return NodeConfigLoader._normalize_placeholder(obj)
+        else:
+            # For int, float, bool, etc., check if string representation is a placeholder
+            if isinstance(obj, (int, float)):
+                str_repr = str(obj)
+                if str_repr.startswith("$$$_") and str_repr.endswith("_$$$"):
+                    normalized = NodeConfigLoader._normalize_placeholder(str_repr)
+                    # Try to preserve original type if possible
+                    try:
+                        if isinstance(obj, int):
+                            return int(normalized)
+                        elif isinstance(obj, float):
+                            return float(normalized)
+                    except (ValueError, TypeError):
+                        return normalized
+            return obj
+
+    @staticmethod
+    def _yaml_key_to_placeholder(yaml_key: str) -> str:
+        """Convert a YAML key to the full placeholder format.
+
+        Assumes all placeholders in the application config use snake_case (e.g., COMPONENTS_SIERRA_COMPILER_URL).
+        The YAML key should match this format (e.g., components_sierra_compiler_url).
+
+        Args:
+            yaml_key: The YAML key in snake_case (e.g., 'chain_id', 'components_sierra_compiler_url')
+
+        Returns:
+            The full placeholder format (e.g., '$$$_CHAIN_ID_$$$', '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$')
+
+        Examples:
+            'chain_id' -> '$$$_CHAIN_ID_$$$'
+            'components_sierra_compiler_url' -> '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$'
+            'consensus_manager_config_network_config_advertised_multiaddr' -> '$$$_CONSENSUS_MANAGER_CONFIG_NETWORK_CONFIG_ADVERTISED_MULTIADDR_$$$'
+        """
+        # Simple: just uppercase the key and wrap with placeholder markers
+        placeholder = yaml_key.upper()
+        return f"$$$_{placeholder}_$$$"
+
+    @staticmethod
     def apply_sequencer_overrides(
-        merged_json_config: dict, sequencer_config: Dict[str, Any]
+        merged_json_config: dict, sequencer_config: Dict[str, Any], service_name: str = "unknown"
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
-        YAML keys should match JSON keys exactly (snake_case with dots).
-        Supports both flat JSON keys and nested structures.
+        Overrides are applied by placeholder value, not by JSON key. This makes the
+        deployment resilient to JSON key changes as long as the placeholder values remain the same.
+
+        YAML keys are simplified (e.g., 'chain_id') and automatically converted to
+        placeholder format (e.g., '$$$_CHAIN_ID_$$$') for matching.
 
         Args:
             merged_json_config: The merged JSON config dictionary from all config files
-            sequencer_config: Dictionary from YAML with keys matching JSON format:
+            sequencer_config: Dictionary from YAML with simplified keys:
                 {
-                    'consensus_manager_config.context_config.num_validators': '123',
-                    'base_layer_config.starknet_contract_address': '0x...'
+                    'chain_id': '$$$_CHAIN_ID_$$$',
+                    'starknet_url': '$$$_STARKNET_URL_$$$'
                 }
+                These are converted to placeholder format for matching.
 
         Returns:
             Updated config dictionary with overrides applied
 
-        Examples:
-            JSON: {'consensus_manager_config.context_config.num_validators': '$$$_..._$$$'}
-            YAML: {'consensus_manager_config.context_config.num_validators': '123'}
-            Result: {'consensus_manager_config.context_config.num_validators': '123'}
-        """
-        result = merged_json_config.copy()
+        Raises:
+            ValueError: If any YAML key doesn't match any placeholder in the config
 
-        for json_key, value in sequencer_config.items():
-            # Try to find exact key match first (flat structure)
-            if json_key in result:
-                # Direct key match - replace the value
-                result[json_key] = value
-            else:
-                # Try nested structure approach
-                # Split the dotted path into nested dict structure
-                # e.g., 'base_layer_config.starknet_contract_address'
-                #       -> result['base_layer_config']['starknet_contract_address'] = value
-                NodeConfigLoader._set_nested_dotted_key(result, json_key, value)
+        Examples:
+            JSON: {'chain_id': '$$$_CHAIN_ID_$$$', 'some_other_key': '$$$_CHAIN_ID_$$$'}
+            YAML: {'chain_id': '123'}
+            Result: {'chain_id': '123', 'some_other_key': '123'}
+        """
+        # Step 1: Normalize all placeholders in the merged config (replace - with _)
+        result = NodeConfigLoader._normalize_placeholders_in_config(merged_json_config)
+
+        # Step 2: Validate that all YAML keys match existing placeholders
+        unmatched_keys = []
+        for yaml_key, replacement_value in sequencer_config.items():
+            # Convert YAML key to placeholder format and normalize it
+            placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
+            placeholder = NodeConfigLoader._normalize_placeholder(placeholder)
+            # Check if placeholder exists in the normalized config
+            exists = NodeConfigLoader._placeholder_exists(result, placeholder)
+            if not exists:
+                unmatched_keys.append((yaml_key, placeholder))
+
+        # Raise error if any keys don't match
+        if unmatched_keys:
+            error_messages = []
+            for yaml_key, placeholder in unmatched_keys:
+                error_messages.append(
+                    f"  - YAML key '{yaml_key}' (maps to placeholder '{placeholder}') "
+                    f"does not match any placeholder in the application config"
+                )
+            raise ValueError(
+                f"Invalid sequencerConfig override keys found for service '{service_name}'. "
+                f"The following keys do not match any placeholder in the application config:\n"
+                + "\n".join(error_messages)
+            )
+
+        # Step 3: Apply overrides
+        for yaml_key, replacement_value in sequencer_config.items():
+            # Convert YAML key to placeholder format and normalize it
+            placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
+            placeholder = NodeConfigLoader._normalize_placeholder(placeholder)
+            # Replace the placeholder value wherever it appears in the config
+            result = NodeConfigLoader._replace_placeholder_value(
+                result, placeholder, replacement_value
+            )
 
         # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))

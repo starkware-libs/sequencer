@@ -45,7 +45,7 @@ class IngressConstruct(BaseConstruct):
             self,
             "ingress",
             metadata=k8s.ObjectMeta(
-                name=f"{self.service_config.name}-ingress",
+                name=f"sequencer-{self.service_config.name}-ingress",
                 labels=ingress_labels,
                 annotations=ingress_config.annotations,
             ),
@@ -71,12 +71,16 @@ class IngressConstruct(BaseConstruct):
                     )
                     for host in ingress_config.hosts
                 ],
-                tls=[
-                    k8s.IngressTls(
-                        hosts=tls_config["hosts"],
-                        secret_name=tls_config["secretName"],
-                    )
-                    for tls_config in ingress_config.tls
-                ],
+                tls=(
+                    [
+                        k8s.IngressTls(
+                            hosts=tls_config["hosts"],
+                            secret_name=tls_config.get("secretName"),
+                        )
+                        for tls_config in ingress_config.tls
+                    ]
+                    if ingress_config.tls
+                    else None
+                ),
             ),
         )

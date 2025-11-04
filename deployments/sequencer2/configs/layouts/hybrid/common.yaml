@@ -9,3 +9,28 @@ image:
   tag: "dev"
   digest: ""
   imagePullPolicy: IfNotPresent
+
+config:
+  sequencerConfig:
+    base_layer_config_starknet_contract_address: "idan-override-this"
+    chain_id: "idan-override-this"
+    consensus_manager_config_context_config_num_validators: "idan-override-this"
+    consensus_manager_config_network_config_advertised_multiaddr: "idan-override-this"
+    consensus_manager_config_network_config_advertised_multiaddr_is_none: "idan-override-this"
+    consensus_manager_config_network_config_bootstrap_peer_multiaddr: "idan-override-this"
+    consensus_manager_config_network_config_bootstrap_peer_multiaddr_is_none: "idan-override-this"
+    eth_fee_token_address: "idan-override-this"
+    http_server_config_port: "idan-override-this"
+    l1_provider_config_provider_startup_height_override: "idan-override-this"
+    l1_provider_config_provider_startup_height_override_is_none: "idan-override-this"
+    mempool_p2p_config_network_config_advertised_multiaddr: "idan-override-this"
+    mempool_p2p_config_network_config_advertised_multiaddr_is_none: "idan-override-this"
+    mempool_p2p_config_network_config_bootstrap_peer_multiaddr: "idan-override-this"
+    mempool_p2p_config_network_config_bootstrap_peer_multiaddr_is_none: "idan-override-this"
+    sierra_compiler_config_audited_libfuncs_only: "idan-override-this"
+    starknet_url: "idan-override-this"
+    state_sync_config_central_sync_client_config_is_none: "idan-override-this"
+    state_sync_config_network_config_is_none: "idan-override-this"
+    state_sync_config_p2p_sync_client_config_is_none: "idan-override-this"
+    strk_fee_token_address: "idan-override-this"
+    validator_id: "idan-override-this"

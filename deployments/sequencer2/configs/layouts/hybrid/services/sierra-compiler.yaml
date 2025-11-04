@@ -1,17 +1,19 @@
 # Sequencer Node Configuration
 # For detailed configuration options, see docs/ directory
 
-name: http-server
+name: sierra-compiler
 
 replicas: 1
 
 # Config Configuration
 # See docs/CONFIGMAP_CONFIGURATION.md for all available options
 config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_http_server.json
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    components_sierra_compiler_port: "idan-override-this"
+    components_sierra_compiler_url: "idan-override-this"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -23,7 +25,7 @@ statefulSet:
   updateStrategy: # Update strategy configuration
     type: "RollingUpdate" # RollingUpdate, OnDelete
 
-# RBAC Configuration
+# RBAC Configuration 
 # See docs/RBAC_CONFIGURATION.md for all available options
 rbac:
   enabled: false # Whether to create RBAC resources

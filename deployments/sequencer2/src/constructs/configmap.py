@@ -44,10 +44,21 @@ class ConfigMapConstruct(BaseConstruct):
         )
         node_config = node_config_loader.load()
 
-        # Apply sequencerConfig overrides from YAML if provided
+        # Merge sequencerConfig overrides: common first, then service (service overrides common)
+        merged_sequencer_config = {}
+
+        # Apply common config sequencerConfig if provided
+        if self.common_config.config and self.common_config.config.sequencerConfig:
+            merged_sequencer_config.update(self.common_config.config.sequencerConfig)
+
+        # Apply service config sequencerConfig if provided (overrides common)
         if self.service_config.config.sequencerConfig:
+            merged_sequencer_config.update(self.service_config.config.sequencerConfig)
+
+        # Apply merged overrides
+        if merged_sequencer_config:
             node_config = NodeConfigLoader.apply_sequencer_overrides(
-                node_config, self.service_config.config.sequencerConfig
+                node_config, merged_sequencer_config, service_name=self.service_config.name
             )
 
         config_data = json.dumps(node_config, indent=2)
@@ -59,5 +70,5 @@ class ConfigMapConstruct(BaseConstruct):
                 name=f"sequencer-{self.service_config.name}-config",
                 labels=self.labels,
             ),
-            data=dict(config_json=config_data),
-        )  # Note: Key is "config_json" (no dots allowed in Kubernetes keys), but mounted as config.json via subPath
+            data=dict(config=config_data),
+        )  # Key is "config" to match node/ format, mounted as /config/sequencer/presets/config
