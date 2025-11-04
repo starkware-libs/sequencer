@@ -22,7 +22,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     Transaction as StarknetAPITransaction,
 };
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{CommitmentOutput, HashOutput};
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
@@ -48,7 +48,6 @@ use crate::utils::{
     create_declare_tx,
     execute_transactions,
     get_class_hash_of_feature_contract,
-    CommitmentOutput,
     ExecutionOutput,
 };
 
