@@ -4,6 +4,7 @@ use std::future::Future;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::base_layer::BaseLayerStorageWriter;
+use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
@@ -124,6 +125,8 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .try_revert_base_layer_marker(target_block_marker)
         .unwrap()
         .revert_partial_block_hash_components(&target_block_marker)
+        .unwrap()
+        .revert_block_hash(&target_block_marker)
         .unwrap()
         .commit()
         .unwrap();
