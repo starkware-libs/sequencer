@@ -21,6 +21,14 @@ use blockifier::test_utils::transfers_generator::{
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
+/// The name of the benchmark.
+/// Differentiates between the benchmark running with the Cairo Native and the Cairo VM,
+/// enabling proper comparison and regression tracking for each.
+#[cfg(feature = "cairo_native")]
+pub const BENCHMARK_NAME: &str = "transfers_benchmark_cairo_native";
+#[cfg(not(feature = "cairo_native"))]
+pub const BENCHMARK_NAME: &str = "transfers_benchmark_vm";
+
 // TODO(Arni): Consider how to run this benchmark both with and without setting the allocator. Maybe
 // hide this macro call under a feature, and run this benchmark regularly or with
 // `cargo bench --bench blockifier --feature=specified_allocator`
@@ -41,7 +49,7 @@ pub fn transfers_benchmark(c: &mut Criterion) {
     let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
     // Benchmark only the execution phase (run_block_of_transfers call).
     // Transaction generation and state setup happen for each iteration but are not timed.
-    c.bench_function("transfers", |benchmark| {
+    c.bench_function(BENCHMARK_NAME, |benchmark| {
         benchmark.iter_batched(
             || {
                 // Setup: prepare transactions and executor (not measured).
