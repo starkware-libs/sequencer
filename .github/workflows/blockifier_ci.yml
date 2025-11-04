@@ -106,6 +106,14 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Restore Cargo build cache.
+      - name: Restore Cargo build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: blockifier-bench
+          cache-on-failure: true
+          cache-workspace-crates: true
+
       # Benchmark the base branch code.
       - run: cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results
 
