@@ -61,15 +61,13 @@ pub const BENCHMARKS: &[BenchmarkConfig] = &[
         ]),
     },
     BenchmarkConfig {
-        name: "transfers_benchmark_cairo_native",
+        name: "transfers_sequential_benchmark_cairo_native",
         package: "blockifier",
         cmd_args: &[
             "bench",
-            "-p",
-            "blockifier",
             "--bench",
             "blockifier",
-            "transfers",
+            "transfers_sequential",
             "--features",
             "testing,cairo_native",
         ],
@@ -77,15 +75,13 @@ pub const BENCHMARKS: &[BenchmarkConfig] = &[
         criterion_benchmark_names: None, // Single benchmark with same name.
     },
     BenchmarkConfig {
-        name: "transfers_benchmark_vm",
+        name: "transfers_sequential_benchmark_vm",
         package: "blockifier",
         cmd_args: &[
             "bench",
-            "-p",
-            "blockifier",
             "--bench",
             "blockifier",
-            "transfers",
+            "transfers_sequential",
             "--features",
             "testing",
         ],

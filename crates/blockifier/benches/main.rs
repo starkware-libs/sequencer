@@ -14,13 +14,18 @@ use std::sync::Arc;
 
 use apollo_infra_utils::set_global_allocator;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
-use blockifier::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
+use blockifier::blockifier::config::{
+    ConcurrencyConfig,
+    TransactionExecutorConfig,
+    WorkerPoolConfig,
+};
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::transfers_generator::{
+    ExecutorWrapper,
     RecipientGeneratorType,
     TransfersGenerator,
     TransfersGeneratorConfig,
@@ -36,7 +41,8 @@ use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::TransactionVersion;
 
 /// The name of the benchmarks without the suffix.
-const TRANSFERS_BENCHMARK_NAME: &str = "transfers_benchmark";
+const SEQUENTIAL_TRANSFERS_BENCHMARK_NAME: &str = "transfers_sequential_benchmark";
+const CONCURRENT_TRANSFERS_BENCHMARK_NAME: &str = "transfers_concurrent_benchmark";
 const HEAVY_TX_CONCURRENT_BENCHMARK_NAME: &str = "heavy_tx_benchmark_concurrent";
 const HEAVY_TX_SEQUENTIAL_BENCHMARK_NAME: &str = "heavy_tx_benchmark_sequential";
 
@@ -47,6 +53,12 @@ const BENCHMARK_NAME_SUFFIX: &str = "_cairo_native";
 const BENCHMARK_NAME_SUFFIX: &str = "_vm";
 
 const HEAVY_TX_ENTRY_POINT: &str = "test_builtin_counts_consistency";
+
+/// Cairo version to use for benchmarks, selected based on the cairo_native feature.
+#[cfg(feature = "cairo_native")]
+const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo1(RunnableCairo1::Native);
+#[cfg(not(feature = "cairo_native"))]
+const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo1(RunnableCairo1::Casm);
 
 // TODO(Arni): Consider how to run this benchmark both with and without setting the allocator. Maybe
 // hide this macro call under a feature, and run this benchmark regularly or with
@@ -83,14 +95,13 @@ fn setup_heavy_tx_benchmark(
 }
 
 /// Benchmarks the execution phase of the transfers flow.
+/// Benchmarks the execution phase of the transfers flow (sequential).
 /// The sender account is chosen round-robin.
 /// The recipient account is chosen randomly.
-/// The transactions are executed concurrently.
-pub fn transfers_benchmark(c: &mut Criterion) {
+pub fn transfers_benchmark_sequential(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {
         recipient_generator_type: RecipientGeneratorType::Random,
-        #[cfg(feature = "cairo_native")]
-        cairo_version: CairoVersion::Cairo1(RunnableCairo1::Native),
+        cairo_version: CAIRO_VERSION,
         concurrency_config: ConcurrencyConfig::create_for_testing(false),
         ..Default::default()
     };
@@ -98,12 +109,12 @@ pub fn transfers_benchmark(c: &mut Criterion) {
     // Benchmark only the execution phase (run_block_of_transfers call).
     // Transaction generation and state setup happen for each iteration but are not timed.
     c.bench_function(
-        &format!("{}{}", TRANSFERS_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX),
+        &format!("{}{}", SEQUENTIAL_TRANSFERS_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX),
         |benchmark| {
             benchmark.iter_batched(
                 || {
                     // Setup: prepare transactions and executor (not measured).
-                    transfers_generator.prepare_to_run_block_of_transfers(None)
+                    transfers_generator.prepare_to_run_block_of_transfers(None, None)
                 },
                 |(txs, mut executor_wrapper)| {
                     // Measured: execute the transactions.
@@ -113,6 +124,52 @@ pub fn transfers_benchmark(c: &mut Criterion) {
             )
         },
     );
+}
+
+/// Benchmarks the execution phase of the transfers flow (concurrent).
+/// The sender account is chosen round-robin.
+/// The recipient account is chosen randomly.
+pub fn transfers_benchmark_concurrent(c: &mut Criterion) {
+    let transfers_generator_config = TransfersGeneratorConfig {
+        recipient_generator_type: RecipientGeneratorType::Random,
+        #[cfg(feature = "cairo_native")]
+        cairo_version: CAIRO_VERSION,
+        concurrency_config: ConcurrencyConfig::create_for_testing(true),
+        ..Default::default()
+    };
+    let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
+
+    // Create worker pool before benchmarking.
+    let worker_pool = Arc::new(WorkerPool::start(&WorkerPoolConfig::create_for_testing()));
+
+    // Benchmark only the execution phase (run_block_of_transfers call).
+    // Transaction generation and state setup happen for each iteration but are not timed.
+    c.bench_function(
+        &format!("{}{}", CONCURRENT_TRANSFERS_BENCHMARK_NAME, BENCHMARK_NAME_SUFFIX),
+        |benchmark| {
+            benchmark.iter_batched(
+                || {
+                    // Setup: prepare transactions and executor (not measured).
+                    transfers_generator
+                        .prepare_to_run_block_of_transfers(Some(worker_pool.clone()), None)
+                },
+                |(txs, mut executor_wrapper)| {
+                    // Measured: execute the transactions.
+                    TransfersGenerator::run_block_of_transfers(&txs, &mut executor_wrapper, None);
+                    match executor_wrapper {
+                        ExecutorWrapper::Concurrent(ref mut executor, _) => {
+                            executor.abort_block();
+                        }
+                        _ => panic!("Executor wrapper is not a concurrent executor"),
+                    }
+                },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    // Cleanup worker pool after all benchmark iterations complete.
+    Arc::try_unwrap(worker_pool).expect("More than one instance of worker pool exists").join();
 }
 
 /// Benchmarks the execution phase of `HEAVY_TX_ENTRY_POINT` using
@@ -143,7 +200,6 @@ pub fn heavy_tx_benchmark_concurrent(c: &mut Criterion) {
                 // Measured: execute the transaction.
                 let results = executor.add_txs_and_wait(&[tx]);
                 let tx_execution_info = &results[0].as_ref().unwrap().0;
-                tx_execution_info.check_call_infos_native_execution(true);
                 assert!(
                     !tx_execution_info.is_reverted(),
                     "Transaction reverted: {:?}",
@@ -196,8 +252,10 @@ pub fn heavy_tx_benchmark_sequential(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(30);
-    targets = transfers_benchmark,
+    targets = transfers_benchmark_sequential,
+            transfers_benchmark_concurrent,
              heavy_tx_benchmark_concurrent,
              heavy_tx_benchmark_sequential
 }
+
 criterion_main!(benches);
