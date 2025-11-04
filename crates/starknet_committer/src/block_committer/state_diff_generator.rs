@@ -13,11 +13,26 @@ pub mod state_diff_generator_test;
 
 pub const RANDOM_STATE_DIFF_CONTRACT_ADDRESS: u32 = 500_u32;
 
-pub fn generate_random_state_diff<R: Rng>(rng: &mut R, n_storage_updates: usize) -> StateDiff {
+/// Generates a random state diff with the given number of storage updates.
+/// If `keys_override` is provided, use it as the keys for the storage updates.
+/// Otherwise, generates random keys.
+pub fn generate_random_state_diff<R: Rng>(
+    rng: &mut R,
+    n_storage_updates: usize,
+    keys_override: Option<Vec<StarknetStorageKey>>,
+) -> StateDiff {
+    if let Some(keys_override) = keys_override.as_ref() {
+        assert_eq!(
+            keys_override.len(),
+            n_storage_updates,
+            "Number of keys override must match number of storage updates"
+        );
+    }
     let mut storage_updates = HashMap::new();
     let mut contract_updates = HashMap::with_capacity(n_storage_updates);
-    for _ in 0..n_storage_updates {
-        let storage_entry = generate_random_storage_entry(rng);
+    for i in 0..n_storage_updates {
+        let storage_entry =
+            generate_random_storage_entry(rng, keys_override.as_ref().map(|v| v[i]));
         contract_updates.insert(storage_entry.0, storage_entry.1);
     }
 
@@ -28,8 +43,10 @@ pub fn generate_random_state_diff<R: Rng>(rng: &mut R, n_storage_updates: usize)
 
 fn generate_random_storage_entry<R: Rng>(
     rng: &mut R,
+    key_override: Option<StarknetStorageKey>,
 ) -> (StarknetStorageKey, StarknetStorageValue) {
-    let key = StarknetStorageKey(StorageKey(PatriciaKey::random(rng, None)));
+    let key =
+        key_override.unwrap_or(StarknetStorageKey(StorageKey(PatriciaKey::random(rng, None))));
     let value = StarknetStorageValue::random(rng, None);
     (key, value)
 }
