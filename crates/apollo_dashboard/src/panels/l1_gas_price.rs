@@ -14,14 +14,13 @@ use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
-use crate::query_builder;
-use crate::query_builder::DEFAULT_DURATION;
+use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
     Panel::new(
         "ETH→STRK Rate Query Error Count",
         format!("The number of times the ETH→STRK rate query failed ({DEFAULT_DURATION} window)"),
-        query_builder::increase(&ETH_TO_STRK_ERROR_COUNT, DEFAULT_DURATION),
+        increase(&ETH_TO_STRK_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -65,7 +64,7 @@ fn get_panel_l1_gas_price_provider_insufficient_history() -> Panel {
             "The number of times the L1 gas price provider calculated an average with too few \
              blocks ({DEFAULT_DURATION} window)",
         ),
-        query_builder::increase(&L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, DEFAULT_DURATION),
+        increase(&L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Not enough history to calculate the mean gas price.")
@@ -78,7 +77,7 @@ fn get_panel_l1_gas_price_scraper_success_count() -> Panel {
             "The number of times the L1 gas price scraper successfully scraped and updated gas \
              prices ({DEFAULT_DURATION} window)",
         ),
-        query_builder::increase(&L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
+        increase(&L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -90,7 +89,7 @@ fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
             "The number of times the L1 gas price scraper encountered an error while scraping the \
              base layer ({DEFAULT_DURATION} window)",
         ),
-        query_builder::increase(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
+        increase(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -102,7 +101,7 @@ fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
             "The number of times the L1 gas price scraper detected a reorganization in the base \
              layer ({DEFAULT_DURATION} window)",
         ),
-        query_builder::increase(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED, DEFAULT_DURATION),
+        increase(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }

@@ -1,8 +1,8 @@
 use apollo_class_manager::metrics::{CLASS_SIZES, N_CLASSES};
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
-use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::query_builder::{sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 fn get_panel_compilation_duration() -> Panel {
     Panel::from_hist(
@@ -15,8 +15,10 @@ fn get_panel_compilation_duration() -> Panel {
 fn get_panel_n_classes() -> Panel {
     Panel::new(
         "Number of Classes",
-        "Number of classes, labeled by type (regular, deprecated)",
-        format!("sum by ({}) (increase({}[10m]))", "class_type", N_CLASSES.get_name_with_filter()),
+        format!(
+            "Number of classes, labeled by type (regular, deprecated) ({DEFAULT_DURATION} window)"
+        ),
+        sum_by_label(&N_CLASSES, "class_type", DisplayMethod::Increase(DEFAULT_DURATION), false),
         PanelType::Stat,
     )
 }
