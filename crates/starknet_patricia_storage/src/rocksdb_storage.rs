@@ -15,11 +15,11 @@ impl RocksdbStorage {
         opts.create_if_missing(true);
 
         opts.set_allow_mmap_reads(false);
-        opts.set_use_direct_reads(true);
+        opts.set_use_direct_reads(false );
         opts.set_use_direct_io_for_flush_and_compaction(true);
         opts.set_advise_random_on_open(true);
-        opts.set_max_open_files(1024);
-        opts.set_db_write_buffer_size(512 << 20);
+        opts.set_max_open_files(4096);
+        opts.set_db_write_buffer_size(1024 << 20);
 
 
         opts.set_bytes_per_sync(1024 * 1024);
@@ -31,7 +31,7 @@ impl RocksdbStorage {
         opts.set_max_write_buffer_number(4);
 
         let mut block = BlockBasedOptions::default();
-        let cache = Cache::new_lru_cache(2 * 1024 * 1024 * 1024); // 2 GiB
+        let cache = Cache::new_lru_cache(8   * 1024 * 1024 * 1024); // 2 GiB
         block.set_block_cache(&cache);
 
         // With a single level filter blocks become too large to sit in cache
@@ -44,7 +44,7 @@ impl RocksdbStorage {
         // make sure filter blocks are cached
         block.set_pin_l0_filter_and_index_blocks_in_cache(true);
 
-        block.set_bloom_filter(10.0, false);
+        block.set_bloom_filter(12.0, false);
 
         opts.set_block_based_table_factory(&block);
 
