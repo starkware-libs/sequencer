@@ -117,9 +117,10 @@ impl TestScenario for ConsensusTxs {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
+        const SHOULD_REVERT: bool = false;
         (
             create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
-            create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs),
+            create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs, SHOULD_REVERT),
         )
     }
 
@@ -529,8 +530,9 @@ pub fn create_invoke_txs(
 pub fn create_l1_to_l2_messages_args(
     tx_generator: &mut MultiAccountTransactionGenerator,
     n_txs: usize,
+    should_revert: bool,
 ) -> Vec<L1HandlerTransaction> {
-    (0..n_txs).map(|_| tx_generator.create_l1_to_l2_message_args()).collect()
+    (0..n_txs).map(|_| tx_generator.create_l1_to_l2_message_args(should_revert)).collect()
 }
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(
