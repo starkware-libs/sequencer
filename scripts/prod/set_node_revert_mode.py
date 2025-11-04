@@ -41,14 +41,22 @@ def set_revert_mode(
     project_name: str,
     should_revert: bool,
     revert_up_to_block: int,
+    immediate_active_height: Optional[int] = None,
 ):
     config_overrides = {
         "revert_config.should_revert": should_revert,
         "revert_config.revert_up_to_and_including": revert_up_to_block,
     }
+    if immediate_active_height is not None:
+        assert not should_revert, "Immediate active height should not be set when reverting"
+        # We need a short variable name to avoid splitting to multiple lines which local black
+        # formatting does in a way that CI black doesn't like and fails on.
+        height = immediate_active_height
+        config_overrides["consensus_manager_config.immediate_active_height"] = height
+        config_overrides["consensus_manager_config.cende_config.skip_write_height"] = height
 
     post_restart_instructions = []
-    for namespace, context in zip(namespace_list, context_list or [None] * len(namespace_list)):
+    for namespace in namespace_list:
         url = get_logs_explorer_url_for_revert(namespace, revert_up_to_block, project_name)
 
         post_restart_instructions.append(
@@ -183,6 +191,8 @@ Examples:
             args.project_name,
             False,
             18446744073709551615,
+            # Immediate active height is the block number which will be the first block proposed.
+            revert_up_to_block,
         )
 
 
