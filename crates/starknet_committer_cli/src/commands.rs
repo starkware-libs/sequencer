@@ -18,12 +18,23 @@ pub enum BenchmarkFlavor {
     /// Constant 4000 state diffs per iteration.
     #[value(alias("4k-diff"))]
     Constant4KDiff,
+    /// Periodic peaks of 1000 state diffs per iteration, with 200 diffs on non-peak iterations.
+    /// Peaks are 10 iterations every 500 iterations.
+    #[value(alias("peaks"))]
+    PeriodicPeaks,
 }
 
-fn n_updates(flavor: &BenchmarkFlavor) -> usize {
+fn n_updates(flavor: &BenchmarkFlavor, iteration: usize) -> usize {
     match flavor {
         BenchmarkFlavor::Constant1KDiff => 1000,
         BenchmarkFlavor::Constant4KDiff => 4000,
+        BenchmarkFlavor::PeriodicPeaks => {
+            if iteration % 500 < 10 {
+                1000
+            } else {
+                200
+            }
+        }
     }
 }
 
@@ -55,7 +66,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(i).unwrap());
         let input = InputImpl {
-            state_diff: generate_random_state_diff(&mut rng, n_updates(&flavor)),
+            state_diff: generate_random_state_diff(&mut rng, n_updates(&flavor, i)),
             contracts_trie_root_hash,
             classes_trie_root_hash,
             config: ConfigImpl::default(),
