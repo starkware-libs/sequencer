@@ -51,7 +51,12 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
-use crate::metrics::{PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS};
+use crate::metrics::{
+    record_block_close_reason,
+    BlockCloseReason,
+    PROPOSER_DEFERRED_TXS,
+    VALIDATOR_WASTED_TXS,
+};
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
@@ -244,14 +249,7 @@ impl BlockBuilder {
                 if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
-                // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
-                crate::metrics::BLOCK_CLOSE_REASON.increment(
-                    1,
-                    &[(
-                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
-                        crate::metrics::BlockCloseReason::Deadline.into(),
-                    )],
-                );
+                record_block_close_reason(BlockCloseReason::Deadline);
                 break;
             }
 
@@ -263,14 +261,7 @@ impl BlockBuilder {
                      started (timeout is set to {:?}), finishing block building.",
                     time_since_start, self.execution_params.proposer_idle_detection_delay,
                 );
-                // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
-                crate::metrics::BLOCK_CLOSE_REASON.increment(
-                    1,
-                    &[(
-                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
-                        crate::metrics::BlockCloseReason::IdleExecutionTimeout.into(),
-                    )],
-                );
+                record_block_close_reason(BlockCloseReason::IdleExecutionTimeout);
                 break;
             }
             if final_n_executed_txs.is_none() {
@@ -293,14 +284,7 @@ impl BlockBuilder {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
-                // TODO(Dan): extract to a function (as in record_validate_proposal_failure).
-                crate::metrics::BLOCK_CLOSE_REASON.increment(
-                    1,
-                    &[(
-                        crate::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
-                        crate::metrics::BlockCloseReason::FullBlock.into(),
-                    )],
-                );
+                record_block_close_reason(BlockCloseReason::FullBlock);
                 break;
             }
 
