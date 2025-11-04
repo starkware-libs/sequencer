@@ -71,6 +71,10 @@ generate_permutation_labels! {
     (LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason),
 }
 
+pub(crate) fn record_block_close_reason(reason: BlockCloseReason) {
+    BLOCK_CLOSE_REASON.increment(1, &[(LABEL_NAME_BLOCK_CLOSE_REASON, reason.into())]);
+}
+
 pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     STORAGE_HEIGHT.set_lossy(storage_height.0);
