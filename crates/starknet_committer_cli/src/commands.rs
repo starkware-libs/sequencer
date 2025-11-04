@@ -10,13 +10,30 @@ use tracing::info;
 
 pub type InputImpl = Input<ConfigImpl>;
 
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+pub enum BenchmarkFlavor {
+    /// Constant 1000 state diffs per iteration.
+    #[value(alias("1k-diff"))]
+    Constant1KDiff,
+    /// Constant 4000 state diffs per iteration.
+    #[value(alias("4k-diff"))]
+    Constant4KDiff,
+}
+
+fn n_updates(flavor: &BenchmarkFlavor) -> usize {
+    match flavor {
+        BenchmarkFlavor::Constant1KDiff => 1000,
+        BenchmarkFlavor::Constant4KDiff => 4000,
+    }
+}
+
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
 pub async fn run_storage_benchmark<S: Storage>(
     seed: u64,
     n_iterations: usize,
-    n_storage_updates_per_iteration: usize,
+    flavor: BenchmarkFlavor,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
@@ -38,7 +55,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(i).unwrap());
         let input = InputImpl {
-            state_diff: generate_random_state_diff(&mut rng, n_storage_updates_per_iteration),
+            state_diff: generate_random_state_diff(&mut rng, n_updates(&flavor)),
             contracts_trie_root_hash,
             classes_trie_root_hash,
             config: ConfigImpl::default(),
