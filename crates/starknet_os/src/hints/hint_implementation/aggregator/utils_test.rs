@@ -5,7 +5,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::felt;
 
 use super::{FullStateDiffWriter, StateEntry};
-use crate::hints::hint_implementation::aggregator_utils::ToMaybeRelocatables;
+use crate::hints::hint_implementation::aggregator::utils::ToMaybeRelocatables;
 use crate::io::os_output_types::{FullContractChanges, FullContractStorageUpdate};
 
 #[test]

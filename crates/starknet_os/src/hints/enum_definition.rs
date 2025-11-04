@@ -10,7 +10,7 @@ use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
-use crate::hints::hint_implementation::aggregator::{
+use crate::hints::hint_implementation::aggregator::implementation::{
     allocate_segments_for_messages,
     disable_da_page_creation,
     get_aggregator_output,
