@@ -12,7 +12,12 @@ use crate::config_override::{
     PeerToPeerBootstrapConfig,
 };
 use crate::deployment::Deployment;
-use crate::deployment_definitions::{CONSENSUS_P2P_PORT, Environment, MEMPOOL_P2P_PORT, StateSyncType};
+use crate::deployment_definitions::{
+    Environment,
+    StateSyncType,
+    CONSENSUS_P2P_PORT,
+    MEMPOOL_P2P_PORT,
+};
 use crate::k8s::IngressParams;
 use crate::service::NodeType;
 

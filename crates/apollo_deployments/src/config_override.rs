@@ -186,7 +186,7 @@ impl DeploymentConfigOverride {
         monitoring_endpoint_config_port: u16,
         state_sync_config_rpc_config_port: u16,
         mempool_p2p_config_network_config_port: u16,
-        consensus_manager_config_network_config_port: u16, 
+        consensus_manager_config_network_config_port: u16,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
