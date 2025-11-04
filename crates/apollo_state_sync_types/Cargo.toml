@@ -26,7 +26,6 @@ starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
