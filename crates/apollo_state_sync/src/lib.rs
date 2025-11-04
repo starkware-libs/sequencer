@@ -119,6 +119,7 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 impl StateSync {
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let storage_reader = self.storage_reader.clone();
+        // TODO(Tsabary): remove spawn blocking from this file.
         tokio::task::spawn_blocking(move || {
             let txn = storage_reader.begin_ro_txn()?;
 
