@@ -23,7 +23,7 @@ impl RocksdbStorage {
         opts.set_max_write_buffer_number(4);
 
         let mut block = BlockBasedOptions::default();
-        let cache = Cache::new_lru_cache(2 * 1024 * 1024 * 1024); // 2 GiB
+        let cache = Cache::new_lru_cache(4 * 1024 * 1024 * 1024); // 4 GiB
         block.set_block_cache(&cache);
 
         // With a single level filter blocks become too large to sit in cache
@@ -39,6 +39,11 @@ impl RocksdbStorage {
         block.set_bloom_filter(10.0, false);
 
         opts.set_block_based_table_factory(&block);
+
+        opts.set_allow_mmap_reads(false);
+        opts.set_allow_mmap_writes(false);
+        opts.set_use_direct_reads(false);
+        opts.set_max_open_files(5000);
 
         let db = DB::open(&opts, path).unwrap();
         Ok(Self { db })
