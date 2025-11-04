@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
+
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;

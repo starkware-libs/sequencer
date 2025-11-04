@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
@@ -9,7 +10,6 @@ use starknet_patricia_storage::storage_trait::{
 };
 use thiserror::Error;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
 use crate::patricia_merkle_tree::node_data::inner_node::{

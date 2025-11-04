@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::felt;
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia_storage::db_object::Deserializable;
 use starknet_patricia_storage::storage_trait::DbValue;
