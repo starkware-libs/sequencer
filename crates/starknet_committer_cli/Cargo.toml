@@ -11,11 +11,14 @@ workspace = true
 
 [dependencies]
 apollo_infra_utils.workspace = true
+blake2.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 rand.workspace = true
+starknet_api.workspace = true
 starknet_committer = { workspace = true, features = ["testing"] }
 starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
+starknet-types-core.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
