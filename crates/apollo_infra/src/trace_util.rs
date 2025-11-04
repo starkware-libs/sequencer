@@ -36,7 +36,12 @@ pub async fn configure_tracing() {
                 .add_directive("alloy_transport_http=info".parse().unwrap())
                 .add_directive("alloy_rpc_client=info".parse().unwrap())
                 .add_directive("futures-util=info".parse().unwrap())
+                // TODO(shahak): understand if we need - or _ and erase the one we don't need.
                 .add_directive("hickory-proto=info".parse().unwrap())
+                .add_directive("hickory_proto=info".parse().unwrap())
+                // TODO(shahak): understand if we need - or _ and erase the one we don't need.
+                .add_directive("hickory-resolver=info".parse().unwrap())
+                .add_directive("hickory_resolver=info".parse().unwrap())
                 .add_directive("hyper=info".parse().unwrap())
                 .add_directive("hyper_util=info".parse().unwrap())
                 .add_directive("h2=info".parse().unwrap())
