@@ -119,53 +119,46 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 impl StateSync {
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let storage_reader = self.storage_reader.clone();
-        // TODO(Tsabary): remove spawn blocking from this file.
-        tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn()?;
 
-            let block_header = txn
-                .get_block_header(block_number)?
-                .ok_or(StateSyncError::BlockNotFound(block_number))?;
-            let block_transactions_with_hash = txn
-                .get_block_transactions_with_hash(block_number)?
-                .ok_or(StateSyncError::BlockNotFound(block_number))?;
-            let thin_state_diff = txn
-                .get_state_diff(block_number)?
-                .ok_or(StateSyncError::BlockNotFound(block_number))?;
-            drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
+        let txn = storage_reader.begin_ro_txn()?;
 
-            let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
-            let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
+        let block_header = txn
+            .get_block_header(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
+        let block_transactions_with_hash = txn
+            .get_block_transactions_with_hash(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
+        let thin_state_diff =
+            txn.get_state_diff(block_number)?.ok_or(StateSyncError::BlockNotFound(block_number))?;
+        drop(txn); // Drop txn so we don't unnecessarily hold it open during the procedure below.
 
-            for (tx, tx_hash) in block_transactions_with_hash {
-                match tx {
-                    Transaction::L1Handler(_) => l1_transaction_hashes.push(tx_hash),
-                    _ => account_transaction_hashes.push(tx_hash),
-                }
+        let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
+        let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
+
+        for (tx, tx_hash) in block_transactions_with_hash {
+            match tx {
+                Transaction::L1Handler(_) => l1_transaction_hashes.push(tx_hash),
+                _ => account_transaction_hashes.push(tx_hash),
             }
+        }
 
-            Ok(SyncBlock {
-                state_diff: thin_state_diff,
-                block_header_without_hash: block_header.block_header_without_hash,
-                account_transaction_hashes,
-                l1_transaction_hashes,
-            })
+        Ok(SyncBlock {
+            state_diff: thin_state_diff,
+            block_header_without_hash: block_header.block_header_without_hash,
+            account_transaction_hashes,
+            l1_transaction_hashes,
         })
-        .await?
     }
 
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
         // Attempt reading the block hash from the storage.
         let storage_reader = self.storage_reader.clone();
-        let block_hash_opt = tokio::task::spawn_blocking(move || {
-            Ok::<_, StateSyncError>(
-                storage_reader
-                    .begin_ro_txn()?
-                    .get_block_header(block_number)?
-                    .map(|header| header.block_hash),
-            )
-        })
-        .await??;
+        let block_hash_opt = Ok::<_, StateSyncError>(
+            storage_reader
+                .begin_ro_txn()?
+                .get_block_header(block_number)?
+                .map(|header| header.block_hash),
+        )?;
 
         match (block_hash_opt, self.starknet_client.as_ref()) {
             (Some(block_hash), _) => Ok(block_hash),
@@ -188,20 +181,18 @@ impl StateSync {
         storage_key: StorageKey,
     ) -> StateSyncResult<Felt> {
         let storage_reader = self.storage_reader.clone();
-        tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn()?;
-            verify_synced_up_to(&txn, block_number)?;
 
-            let state_number = StateNumber::unchecked_right_after_block(block_number);
-            let state_reader = txn.get_state_reader()?;
+        let txn = storage_reader.begin_ro_txn()?;
+        verify_synced_up_to(&txn, block_number)?;
 
-            verify_contract_deployed(&state_reader, state_number, contract_address)?;
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let state_reader = txn.get_state_reader()?;
 
-            let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
+        verify_contract_deployed(&state_reader, state_number, contract_address)?;
 
-            Ok(res)
-        })
-        .await?
+        let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
+
+        Ok(res)
     }
 
     async fn get_nonce_at(
@@ -210,22 +201,20 @@ impl StateSync {
         contract_address: ContractAddress,
     ) -> StateSyncResult<Nonce> {
         let storage_reader = self.storage_reader.clone();
-        tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn()?;
-            verify_synced_up_to(&txn, block_number)?;
 
-            let state_number = StateNumber::unchecked_right_after_block(block_number);
-            let state_reader = txn.get_state_reader()?;
+        let txn = storage_reader.begin_ro_txn()?;
+        verify_synced_up_to(&txn, block_number)?;
 
-            verify_contract_deployed(&state_reader, state_number, contract_address)?;
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let state_reader = txn.get_state_reader()?;
 
-            let res = state_reader
-                .get_nonce_at(state_number, &contract_address)?
-                .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        verify_contract_deployed(&state_reader, state_number, contract_address)?;
 
-            Ok(res)
-        })
-        .await?
+        let res = state_reader
+            .get_nonce_at(state_number, &contract_address)?
+            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+
+        Ok(res)
     }
 
     async fn get_class_hash_at(
@@ -234,28 +223,22 @@ impl StateSync {
         contract_address: ContractAddress,
     ) -> StateSyncResult<ClassHash> {
         let storage_reader = self.storage_reader.clone();
-        tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn()?;
-            verify_synced_up_to(&txn, block_number)?;
+        let txn = storage_reader.begin_ro_txn()?;
+        verify_synced_up_to(&txn, block_number)?;
 
-            let state_number = StateNumber::unchecked_right_after_block(block_number);
-            let state_reader = txn.get_state_reader()?;
-            let class_hash = state_reader
-                .get_class_hash_at(state_number, &contract_address)?
-                .ok_or(StateSyncError::ContractNotFound(contract_address))?;
-            Ok(class_hash)
-        })
-        .await?
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let state_reader = txn.get_state_reader()?;
+        let class_hash = state_reader
+            .get_class_hash_at(state_number, &contract_address)?
+            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        Ok(class_hash)
     }
 
     async fn get_latest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
         let storage_reader = self.storage_reader.clone();
-        tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn()?;
-            let latest_block_number = latest_synced_block(&txn)?;
-            Ok(latest_block_number)
-        })
-        .await?
+        let txn = storage_reader.begin_ro_txn()?;
+        let latest_block_number = latest_synced_block(&txn)?;
+        Ok(latest_block_number)
     }
 
     async fn is_class_declared_at(
@@ -264,28 +247,25 @@ impl StateSync {
         class_hash: ClassHash,
     ) -> StateSyncResult<bool> {
         let storage_reader = self.storage_reader.clone();
-        tokio::task::spawn_blocking(move || {
-            let class_definition_block_number_opt = storage_reader
-                .begin_ro_txn()?
-                .get_state_reader()?
-                .get_class_definition_block_number(&class_hash)?;
-            if let Some(class_definition_block_number) = class_definition_block_number_opt {
-                return Ok(class_definition_block_number <= block_number);
-            }
+        let class_definition_block_number_opt = storage_reader
+            .begin_ro_txn()?
+            .get_state_reader()?
+            .get_class_definition_block_number(&class_hash)?;
+        if let Some(class_definition_block_number) = class_definition_block_number_opt {
+            return Ok(class_definition_block_number <= block_number);
+        }
 
-            // TODO(noamsp): Add unit testing for cairo0
-            let deprecated_class_definition_block_number_opt = storage_reader
-                .begin_ro_txn()?
-                .get_state_reader()?
-                .get_deprecated_class_definition_block_number(&class_hash)?;
+        // TODO(noamsp): Add unit testing for cairo0
+        let deprecated_class_definition_block_number_opt = storage_reader
+            .begin_ro_txn()?
+            .get_state_reader()?
+            .get_deprecated_class_definition_block_number(&class_hash)?;
 
-            Ok(deprecated_class_definition_block_number_opt.is_some_and(
-                |deprecated_class_definition_block_number| {
-                    deprecated_class_definition_block_number <= block_number
-                },
-            ))
-        })
-        .await?
+        Ok(deprecated_class_definition_block_number_opt.is_some_and(
+            |deprecated_class_definition_block_number| {
+                deprecated_class_definition_block_number <= block_number
+            },
+        ))
     }
 }
 
