@@ -18,6 +18,7 @@ pub struct MempoolP2pConfig {
     pub max_transaction_batch_size: usize,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub transaction_batch_rate_millis: Duration,
+    pub max_concurrent_gateway_requests: usize,
 }
 
 impl Default for MempoolP2pConfig {
@@ -28,6 +29,7 @@ impl Default for MempoolP2pConfig {
             // TODO(Eitan): Change to appropriate values.
             max_transaction_batch_size: 1,
             transaction_batch_rate_millis: Duration::from_secs(1),
+            max_concurrent_gateway_requests: 10000,
         }
     }
 }
@@ -53,6 +55,13 @@ impl SerializeConfig for MempoolP2pConfig {
                     &self.transaction_batch_rate_millis.as_millis(),
                     "Maximum time until a transaction batch is closed and propagated in \
                      milliseconds.",
+                    ParamPrivacyInput::Public,
+                ),
+                ser_param(
+                    "max_concurrent_gateway_requests",
+                    &self.max_concurrent_gateway_requests,
+                    "Maximum number of concurrent gateway requests before rejecting new \
+                     transactions.",
                     ParamPrivacyInput::Public,
                 ),
             ]),
