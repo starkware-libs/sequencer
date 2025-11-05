@@ -29,28 +29,8 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
-<<<<<<< HEAD
-use papyrus_base_layer::test_utils::{
-    make_block_history_on_anvil,
-    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
-    OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
-};
-use papyrus_base_layer::BaseLayerContract;
-||||||| 912efc99a
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    StarknetL1Contract,
-};
-use papyrus_base_layer::test_utils::{
-    ethereum_base_layer_config_for_anvil,
-    make_block_history_on_anvil,
-    spawn_anvil_and_deploy_starknet_l1_contract,
-    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
-};
-=======
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::BaseLayerContract;
->>>>>>> origin/main-v0.14.1
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -313,51 +293,14 @@ impl IntegrationTestManager {
         let l1_gas_price_scraper_config =
             get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
 
-<<<<<<< HEAD
-        let anvil_base_layer = AnvilBaseLayer::new().await;
-||||||| 912efc99a
-        let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
-=======
         let anvil_base_layer = AnvilBaseLayer::new(Some(1)).await;
->>>>>>> origin/main-v0.14.1
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-<<<<<<< HEAD
-        let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
-            + l1_gas_price_scraper_config.finality)
-            .try_into()
-            .unwrap();
-        let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
-        let receiver_address = OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
-||||||| 912efc99a
-        let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
-            + l1_gas_price_scraper_config.finality)
-            .try_into()
-            .unwrap();
-        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
-        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
-=======
         let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality;
->>>>>>> origin/main-v0.14.1
 
-<<<<<<< HEAD
-        make_block_history_on_anvil(
-            sender_address,
-            receiver_address,
-            anvil_base_layer.ethereum_base_layer.config.clone(),
-            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
-||||||| 912efc99a
-        make_block_history_on_anvil(
-            sender_address,
-            receiver_address,
-            base_layer_config.clone(),
-            &base_layer_url,
-=======
         assert!(
             num_blocks_needed_on_l1 <= MIN_EXPECTED_BLOCK_NUMBER,
             "num_blocks_needed_on_l1 ({}) exceeds MIN_EXPECTED_BLOCK_NUMBER ({})",
->>>>>>> origin/main-v0.14.1
             num_blocks_needed_on_l1,
             MIN_EXPECTED_BLOCK_NUMBER
         );
