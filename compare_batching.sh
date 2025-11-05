@@ -93,9 +93,9 @@ while true; do
         break
     fi
     
-    # Safety timeout: 20 minutes
-    if [ $ELAPSED -ge 1200 ]; then
-        echo "WARNING: Timeout reached (20 minutes). Stopping test."
+    # Safety timeout: 40 minutes
+    if [ $ELAPSED -ge 2400 ]; then
+        echo "WARNING: Timeout reached (40 minutes). Stopping test."
         break
     fi
 done
@@ -104,6 +104,18 @@ done
 echo "Stopping test 1 node..."
 kill $NODE_PID 2>/dev/null || pkill -f apollo_node || true
 sleep 5
+
+# Ensure port is released
+echo "Waiting for port 8090 to be released..."
+for i in {1..10}; do
+    if ! lsof -i:8090 > /dev/null 2>&1; then
+        echo "Port 8090 is now free"
+        break
+    fi
+    echo "  Port still in use, waiting... ($i/10)"
+    pkill -f apollo_node || true
+    sleep 3
+done
 
 END_TIME=$(date +%s)
 DURATION_WITH_BATCHING=$((END_TIME - START_TIME))
@@ -145,6 +157,24 @@ cat > /tmp/test_config.json << EOF
 EOF
 
 jq -s '.[0] * .[1]' /tmp/config_backup.json /tmp/test_config.json > crates/apollo_deployments/resources/app_configs/state_sync_config.json
+
+# Verify port 8090 is free before starting
+echo "Checking if port 8090 is available..."
+for i in {1..5}; do
+    if ! lsof -i:8090 > /dev/null 2>&1; then
+        echo "Port 8090 is available. Proceeding..."
+        break
+    fi
+    echo "  Port 8090 still in use, killing processes... ($i/5)"
+    pkill -f apollo_node || true
+    sleep 3
+done
+
+if lsof -i:8090 > /dev/null 2>&1; then
+    echo "ERROR: Port 8090 is still in use after cleanup!"
+    lsof -i:8090
+    exit 1
+fi
 
 echo "Starting node WITHOUT batching (batch_size=1)..."
 bash scripts/run_mainnet_node.sh > test_batching_off.log 2>&1 &
@@ -189,9 +219,9 @@ while true; do
         break
     fi
     
-    # Safety timeout: 20 minutes
-    if [ $ELAPSED -ge 1200 ]; then
-        echo "WARNING: Timeout reached (20 minutes). Stopping test."
+    # Safety timeout: 40 minutes
+    if [ $ELAPSED -ge 2400 ]; then
+        echo "WARNING: Timeout reached (40 minutes). Stopping test."
         break
     fi
 done
@@ -255,9 +285,9 @@ if [ $DURATION_NO_BATCHING -gt 0 ] && [ $DURATION_WITH_BATCHING -gt 0 ]; then
     echo "  Speedup: ${PERCENT_IMPROVEMENT}%"
     
     if [ $TIME_SAVED -gt 0 ]; then
-        echo "  Batching is FASTER!"
+        echo "  ✅ Batching is FASTER!"
     elif [ $TIME_SAVED -lt 0 ]; then
-        echo "  Batching is slower (but this might be due to network variance)"
+        echo "  ⚠️  Batching is slower (but this might be due to network variance)"
     else
         echo "  ≈ Similar performance"
     fi
