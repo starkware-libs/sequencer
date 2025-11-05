@@ -1,0 +1,21 @@
+[package]
+name = "apollo_base_layer_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+
+[lints]
+workspace = true
+
+[dependencies]
+alloy.workspace = true
+async-trait.workspace = true
+colored.workspace = true
+papyrus_base_layer = { workspace = true, features = ["testing"] }
+starknet_api.workspace = true
+url.workspace = true
+
+[dev-dependencies]

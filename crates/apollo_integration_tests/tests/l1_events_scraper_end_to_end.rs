@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::primitives::U256;
-use apollo_integration_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};

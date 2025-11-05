@@ -5,6 +5,7 @@ use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -41,7 +42,6 @@ use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
-use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
     assert_no_reverted_txs,
