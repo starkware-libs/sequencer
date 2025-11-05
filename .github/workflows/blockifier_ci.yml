@@ -92,3 +92,35 @@ jobs:
       # tracing is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features tracing
       - run: cargo test -p blockifier --features tracing
+
+  benchmarking:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: ${{ github.event_name == 'pull_request' }}
+    steps:
+      # Checkout the base branch to benchmark the old code.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Restore cargo artifacts build cache.
+      - name: Restore Cargo build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: blockifier-bench
+          cache-on-failure: true
+          cache-workspace-crates: true
+
+      # Benchmark the base branch code.
+      - run: cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results
+
+      # Checkout the current branch to benchmark the new code.
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+
+      # Benchmark the current branch and compare to the previous run.
+      - run: cargo run -p bench_tools -- run-and-compare --package blockifier --out /tmp/new_results --regression-limit 8.0
