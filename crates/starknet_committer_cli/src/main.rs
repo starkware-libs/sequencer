@@ -3,7 +3,7 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
-use clap::{Args, Parser, Subcommand};
+use clap::{ArgAction, Args, Parser, Subcommand};
 use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
@@ -95,6 +95,11 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// If true, the storage will use memory-mapped files. Only relevant for Rocksdb.
+    /// False by default, as fact storage layout does not benefit from mapping disk pages to
+    /// memory, as there is no locality of related data.
+    #[clap(long, short, action=ArgAction::SetFalse)]
+    allow_mmap: bool,
     /// If not none, wraps the storage in the key-shrinking storage of the given size.
     #[clap(long, default_value = None)]
     key_size: Option<ShortKeySizeArg>,
@@ -250,6 +255,7 @@ pub async fn run_committer_cli(
                 ref data_path,
                 ref storage_type,
                 ref cache_size,
+                allow_mmap,
                 ..
             } = storage_args;
 
@@ -277,6 +283,11 @@ pub async fn run_committer_cli(
                 cache_size: NonZeroUsize::new(*cache_size).unwrap(),
                 cache_on_write: true,
             };
+            let rocksdb_options = if allow_mmap {
+                RocksDbOptions::default()
+            } else {
+                RocksDbOptions::default_no_mmap()
+            };
             match storage_type {
                 StorageType::MapStorage => {
                     let storage = MapStorage::default();
@@ -294,13 +305,13 @@ pub async fn run_committer_cli(
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
                 StorageType::Rocksdb => {
-                    let options = RocksDbOptions::default();
-                    let storage = RocksDbStorage::open(Path::new(&storage_path), options).unwrap();
+                    let storage =
+                        RocksDbStorage::open(Path::new(&storage_path), rocksdb_options).unwrap();
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
                 StorageType::CachedRocksdb => {
-                    let options = RocksDbOptions::default();
-                    let storage = RocksDbStorage::open(Path::new(&storage_path), options).unwrap();
+                    let storage =
+                        RocksDbStorage::open(Path::new(&storage_path), rocksdb_options).unwrap();
                     let storage = CachedStorage::new(storage, cached_storage_config);
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
