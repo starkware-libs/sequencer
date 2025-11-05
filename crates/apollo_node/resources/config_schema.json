@@ -2194,6 +2194,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "mempool_p2p_config.max_concurrent_gateway_requests": {
+    "description": "Maximum number of concurrent gateway requests before rejecting new transactions.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
     "privacy": "Public",
