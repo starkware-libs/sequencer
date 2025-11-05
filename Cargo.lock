@@ -12608,8 +12608,11 @@ name = "starknet_committer_cli"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra_utils",
+ "blake2",
  "clap",
  "rand 0.8.5",
+ "starknet-types-core",
+ "starknet_api",
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",
