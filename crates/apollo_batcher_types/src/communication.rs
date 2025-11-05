@@ -26,6 +26,7 @@ use crate::batcher_types::{
     RevertBlockInput,
     SendProposalContentInput,
     SendProposalContentResponse,
+    SetBlockCommitmentInput,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -79,6 +80,13 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
+
+    /// Sets the block commitments for a given block number.
+    /// If the given block number matches the commitment marker, increments the commitment marker.
+    async fn set_block_commitments(
+        &self,
+        input: SetBlockCommitmentInput,
+    ) -> BatcherClientResult<()>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -97,6 +105,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
+    SetBlockCommitments(SetBlockCommitmentInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
@@ -118,6 +127,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
+    SetBlockCommitments(BatcherResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -236,6 +246,20 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             RevertBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn set_block_commitments(
+        &self,
+        input: SetBlockCommitmentInput,
+    ) -> BatcherClientResult<()> {
+        let request = BatcherRequest::SetBlockCommitments(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            SetBlockCommitments,
             BatcherClientError,
             BatcherError,
             Direct

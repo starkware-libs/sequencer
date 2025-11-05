@@ -19,6 +19,7 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
+    SetBlockCommitmentInput,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -32,6 +33,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::commitment::{BlockCommitmentStorageReader, BlockCommitmentStorageWriter};
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -46,10 +48,11 @@ use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::hash::BlockCommitment;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -921,6 +924,39 @@ impl Batcher {
         REVERTED_BLOCKS.increment(1);
         Ok(())
     }
+
+    pub async fn set_block_commitments(
+        &mut self,
+        SetBlockCommitmentInput { block_number, commitment }: SetBlockCommitmentInput,
+    ) -> BatcherResult<()> {
+        let offset = self.get_commitment_offset()?;
+        if block_number == offset {
+            info!("Setting block commitments for height {}.", block_number);
+            self.storage_writer.set_block_commitment(block_number, commitment).map_err(|err| {
+                error!("Failed to set block commitment in storage: {}", err);
+                BatcherError::InternalError
+            })?;
+            self.storage_writer.set_commitment_marker(block_number.unchecked_next()).map_err(
+                |err| {
+                    error!("Failed to set commitment marker in storage: {}", err);
+                    BatcherError::InternalError
+                },
+            )?;
+        } else {
+            warn!(
+                "Unexpected block number {} for setting commitment. Expected {}.",
+                block_number, offset
+            );
+        }
+        Ok(())
+    }
+
+    fn get_commitment_offset(&self) -> BatcherResult<BlockNumber> {
+        self.storage_reader.commitment_height().map_err(|err| {
+            error!("Failed to get commitment height from storage: {}", err);
+            BatcherError::InternalError
+        })
+    }
 }
 
 /// Logs the result of the transactions execution in the proposal.
@@ -1001,11 +1037,18 @@ pub fn create_batcher(
 pub trait BatcherStorageReaderTrait: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> apollo_storage::StorageResult<BlockNumber>;
+
+    /// Returns the next height that the batcher should store commitment for.
+    fn commitment_height(&self) -> apollo_storage::StorageResult<BlockNumber>;
 }
 
 impl BatcherStorageReaderTrait for apollo_storage::StorageReader {
     fn height(&self) -> apollo_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn commitment_height(&self) -> apollo_storage::StorageResult<BlockNumber> {
+        self.begin_ro_txn()?.get_block_commitment_marker()
     }
 }
 
@@ -1019,6 +1062,14 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
     ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
+
+    fn set_block_commitment(
+        &mut self,
+        block_number: BlockNumber,
+        commitment: BlockCommitment,
+    ) -> apollo_storage::StorageResult<()>;
+
+    fn set_commitment_marker(&mut self, height: BlockNumber) -> apollo_storage::StorageResult<()>;
 }
 
 impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
@@ -1038,6 +1089,18 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
     // This function will panic if there is a storage failure to revert the block.
     fn revert_block(&mut self, height: BlockNumber) {
         revert_block(self, height);
+    }
+
+    fn set_block_commitment(
+        &mut self,
+        block_number: BlockNumber,
+        commitment: BlockCommitment,
+    ) -> apollo_storage::StorageResult<()> {
+        self.begin_rw_txn()?.set_block_commitment(&block_number, commitment)?.commit()
+    }
+
+    fn set_commitment_marker(&mut self, height: BlockNumber) -> apollo_storage::StorageResult<()> {
+        self.begin_rw_txn()?.update_block_commitment_marker(&height)?.commit()
     }
 }
 

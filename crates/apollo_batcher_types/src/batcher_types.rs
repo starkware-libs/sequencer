@@ -11,6 +11,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::BlockCommitment;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -146,6 +147,12 @@ pub struct DecisionReachedInput {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RevertBlockInput {
     pub height: BlockNumber,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SetBlockCommitmentInput {
+    pub commitment: BlockCommitment,
+    pub block_number: BlockNumber,
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;
