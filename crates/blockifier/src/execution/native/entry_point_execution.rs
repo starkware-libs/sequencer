@@ -114,6 +114,7 @@ fn create_callinfo(
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
         builtin_counters,
+        syscalls_usage: syscall_handler.base.syscalls_usage,
     })
 }
 
