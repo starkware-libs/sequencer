@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -113,6 +114,7 @@ pub fn run_and_compare_benchmarks(
     input_dir: Option<&str>,
     output_dir: &str,
     regression_limit: f64,
+    absolute_time_ns_limits: HashMap<String, f64>,
 ) {
     // Run benchmarks first.
     run_benchmarks(benchmarks, input_dir, output_dir);
@@ -123,8 +125,15 @@ pub fn run_and_compare_benchmarks(
         bench_names.extend(bench.criterion_benchmark_names.unwrap_or(&[bench.name]));
     }
 
-    println!("\n📊 Checking for performance regressions (limit: {}%):", regression_limit);
-    let regression_result = crate::comparison::check_regressions(&bench_names, regression_limit);
+    print!("\n📊 Checking for performance regressions (limit: {}%", regression_limit);
+    if !absolute_time_ns_limits.is_empty() {
+        print!(", {} benchmark(s) with absolute time limits", absolute_time_ns_limits.len());
+    }
+    let regression_result = crate::comparison::check_regressions(
+        &bench_names,
+        regression_limit,
+        &absolute_time_ns_limits,
+    );
 
     match regression_result {
         Ok(_) => {
@@ -134,15 +143,26 @@ pub fn run_and_compare_benchmarks(
             // Some benchmarks exceeded the limit - print detailed results.
             println!("\nBenchmark Results:");
             for result in results {
-                if result.exceeds_limit {
+                if result.exceeds_regression_limit {
                     println!(
-                        "  ❌ {}: {:+.2}% (EXCEEDS {:.1}% limit)",
+                        " ❌ {}: {:+.2}% (EXCEEDS {:.1}% limit)",
                         result.name, result.change_percentage, regression_limit
                     );
-                } else {
+                }
+
+                if result.exceeds_absolute_limit {
+                    if let Some(&limit) = absolute_time_ns_limits.get(&result.name) {
+                        println!(
+                            " ❌ {}: {:.2}ns (EXCEEDS {:.0}ns limit)",
+                            result.name, result.absolute_time_ns, limit
+                        );
+                    }
+                }
+
+                if !result.exceeds_regression_limit && !result.exceeds_absolute_limit {
                     println!(
-                        "  ✓ {}: {:+.2}% (within {:.1}% limit)",
-                        result.name, result.change_percentage, regression_limit
+                        "  ✓ {}: {:+.2}% | {:.2}ns",
+                        result.name, result.change_percentage, result.absolute_time_ns
                     );
                 }
             }
