@@ -15,8 +15,10 @@ pub type DbHashMap = HashMap<DbKey, DbValue>;
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
     /// An error that occurred in the database library.
+    #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
+    #[cfg(feature = "rocksdb_storage")]
     #[error(transparent)]
     Rocksdb(#[from] rust_rocksdb::Error),
 }

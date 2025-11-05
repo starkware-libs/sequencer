@@ -7,19 +7,22 @@ license-file.workspace = true
 description = "Library for storage traits and serde for Patricia-Merkle tree commitment types."
 
 [features]
+mdbx_storage = ["libmdbx", "page_size"]
+rocksdb_storage = ["rust-rocksdb"]
+short_key_storage = ["blake2", "digest"]
 testing = []
 
 [lints]
 workspace = true
 
 [dependencies]
-blake2.workspace = true
-digest.workspace = true
+blake2 = { workspace = true, optional = true }
+digest = { workspace = true, optional = true }
 hex.workspace = true
-libmdbx.workspace = true
+libmdbx = { workspace = true, optional = true }
 lru.workspace = true
-page_size.workspace = true
-rust-rocksdb.workspace = true
+page_size = { workspace = true, optional = true }
+rust-rocksdb = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
