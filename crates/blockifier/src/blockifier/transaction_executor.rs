@@ -185,7 +185,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let mut results = Vec::new();
-        for tx in txs {
+        for tx in txs.iter().take(1).collect::<Vec<_>>() {
             if let Some(deadline) = execution_deadline {
                 if Instant::now() > deadline {
                     log::debug!("Execution timed out.");
