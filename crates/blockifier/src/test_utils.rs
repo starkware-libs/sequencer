@@ -316,7 +316,7 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
 pub fn get_const_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscalls_usage: SyscallUsageMap =
-        HashMap::from([(syscall_selector, SyscallUsage::new(1, 0))]);
+        HashMap::from([(syscall_selector, SyscallUsage::with_call_count(1))]);
     versioned_constants.get_additional_os_syscall_resources(&syscalls_usage)
 }
 
