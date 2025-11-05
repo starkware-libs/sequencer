@@ -132,7 +132,11 @@ use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::l1_handler::{l1_handler_set_value_and_revert, l1handler_tx};
+use crate::test_utils::l1_handler::{
+    l1_handler_set_value_and_revert,
+    l1handler_tx,
+    L1_HANDLER_SET_VALUE_ENTRY_POINT_SELECTOR,
+};
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
@@ -2706,7 +2710,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             class_hash: Some(test_contract.get_class_hash()),
             code_address: None,
             entry_point_type: EntryPointType::L1Handler,
-            entry_point_selector: selector_from_name("l1_handler_set_value"),
+            entry_point_selector: *L1_HANDLER_SET_VALUE_ENTRY_POINT_SELECTOR,
             calldata: calldata.clone(),
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
