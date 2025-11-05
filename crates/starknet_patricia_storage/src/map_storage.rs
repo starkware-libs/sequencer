@@ -41,15 +41,28 @@ impl Storage for MapStorage {
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache_on_write: bool,
+}
+
+pub struct CachedStorageConfig {
+    // Max number of entries in the cache.
+    pub cache_size: NonZeroUsize,
+
+    // If true, the cache is updated on write operations even if the value is not in the cache.
+    pub cache_on_write: bool,
 }
 
 impl<S: Storage> CachedStorage<S> {
-    pub fn new(storage: S, cache_capacity: NonZeroUsize) -> Self {
-        Self { storage, cache: LruCache::new(cache_capacity) }
+    pub fn new(storage: S, config: CachedStorageConfig) -> Self {
+        Self {
+            storage,
+            cache: LruCache::new(config.cache_size),
+            cache_on_write: config.cache_on_write,
+        }
     }
 
     fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache.contains(key) {
+        if self.cache_on_write || self.cache.contains(key) {
             self.cache.put(key.clone(), Some(value.clone()));
         }
     }
@@ -67,8 +80,9 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+        let prev_value = self.storage.set(key.clone(), value.clone())?;
         self.update_cached_value(&key, &value);
-        self.storage.set(key, value)
+        Ok(prev_value)
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -97,10 +111,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+        self.storage.mset(key_to_value.clone())?;
         key_to_value.iter().for_each(|(key, value)| {
             self.update_cached_value(key, value);
         });
-        self.storage.mset(key_to_value)
+        Ok(())
     }
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
