@@ -41,15 +41,28 @@ impl Storage for MapStorage {
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache_on_write: bool,
+}
+
+pub struct CachedStorageConfig {
+    // Max number of entries in the cache.
+    pub cache_size: NonZeroUsize,
+
+    // If true, the cache is updated on write operations even if the value is not in the cache.
+    pub cache_on_write: bool,
 }
 
 impl<S: Storage> CachedStorage<S> {
-    pub fn new(storage: S, cache_capacity: NonZeroUsize) -> Self {
-        Self { storage, cache: LruCache::new(cache_capacity) }
+    pub fn new(storage: S, config: CachedStorageConfig) -> Self {
+        Self {
+            storage,
+            cache: LruCache::new(config.cache_size),
+            cache_on_write: config.cache_on_write,
+        }
     }
 
     fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache.contains(key) {
+        if self.cache_on_write || self.cache.contains(key) {
             self.cache.put(key.clone(), Some(value.clone()));
         }
     }
