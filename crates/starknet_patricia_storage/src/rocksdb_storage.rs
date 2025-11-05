@@ -5,6 +5,7 @@ use rust_rocksdb::{
     BlockBasedOptions,
     Cache,
     Options,
+    SliceTransform,
     WriteBatch,
     WriteOptions,
     DB,
@@ -14,11 +15,13 @@ use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageRe
 
 // General database Options.
 
-const DB_BLOCK_SIZE: usize = 4 * 1024; // 4MB
-const DB_CACHE_SIZE: usize = 2 * 1024 * 1024 * 1024; // 2GB
+const DB_BLOCK_SIZE: usize = 8 * 1024; // 8KB
+const DB_CACHE_SIZE: usize = 8 * 1024 * 1024 * 1024; // 8GB
 // Number of bits in the bloom filter (increase to reduce false positives at the cost of more
 // memory).
 const BLOOM_FILTER_NUM_BITS: f64 = 10.0;
+
+const KEY_PREFIX_BYTES_LENGTH: usize = 32;
 
 // Write Options.
 
@@ -49,6 +52,8 @@ impl Default for RocksDbOptions {
         opts.increase_parallelism(NUM_THREADS);
         opts.set_max_background_jobs(MAX_BACKGROUND_JOBS);
         opts.set_max_write_buffer_number(MAX_WRITE_BUFFERS);
+
+        opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(KEY_PREFIX_BYTES_LENGTH));
 
         let mut block = BlockBasedOptions::default();
         let cache = Cache::new_lru_cache(DB_CACHE_SIZE);

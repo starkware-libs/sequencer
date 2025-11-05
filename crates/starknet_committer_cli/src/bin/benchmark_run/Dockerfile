@@ -1,3 +1,17 @@
+# ---- Stage 1: Builder (has cargo/rustc)
+FROM rust:1.89 as builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    cmake \
+    clang lld \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+RUN cargo build --release -p starknet_committer_cli --bin starknet_committer_cli
+
 FROM ubuntu:24.04
 
 # Install required runtime dependencies
@@ -11,7 +25,7 @@ RUN groupadd -r committer_benchmark && useradd -m -r -g committer_benchmark comm
 # flag.
 # Note: need to disable the .dockerignore file during the image build process if it has the "target"
 # directory in it.
-COPY target/release/starknet_committer_cli /usr/local/bin/starknet_committer_cli
+COPY --from=builder /app/target/release/starknet_committer_cli /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/starknet_committer_cli
 RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_committer_cli
@@ -30,7 +44,7 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 #   a specific node)
 
 CMD ["--n-iterations", "1000000", \
-    "--flavor", "4k-diff", \
+    "--flavor", "overlap-1k-diff", \
     "--storage-type", "cached-rocksdb", \
     "--cache-size", "10000000", \
     "--checkpoint-interval", "1000", \

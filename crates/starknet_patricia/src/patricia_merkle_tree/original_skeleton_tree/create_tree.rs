@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::storage_trait::Storage;
+use starknet_types_core::felt::Felt;
 use tracing::warn;
 
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
@@ -40,13 +41,15 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
+        tree_prefix: Option<Felt>,
     ) -> OriginalSkeletonTreeResult<()> {
         let mut current_subtrees = subtrees;
         let mut next_subtrees = Vec::new();
         while !current_subtrees.is_empty() {
             let should_fetch_modified_leaves =
                 config.compare_modified_leaves() || previous_leaves.is_some();
-            let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage)?;
+            let filled_roots =
+                calculate_subtrees_roots::<L>(&current_subtrees, storage, tree_prefix)?;
             for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
                 match filled_root.data {
                     // Binary node.
@@ -142,6 +145,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
+        tree_prefix: Option<Felt>,
     ) -> OriginalSkeletonTreeResult<Self> {
         if sorted_leaf_indices.is_empty() {
             return Ok(Self::create_unmodified(root_hash));
@@ -154,7 +158,8 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             )?;
             return Ok(Self::create_empty(sorted_leaf_indices));
         }
-        let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+        let main_subtree =
+            SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash, tree_prefix };
         let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
         skeleton_tree.fetch_nodes::<L>(
             vec![main_subtree],
@@ -162,6 +167,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             leaf_modifications,
             config,
             None,
+            tree_prefix,
         )?;
         Ok(skeleton_tree)
     }
@@ -172,6 +178,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         sorted_leaf_indices: SortedLeafIndices<'a>,
         leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        tree_prefix: Option<Felt>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         if sorted_leaf_indices.is_empty() {
             let unmodified = Self::create_unmodified(root_hash);
@@ -183,7 +190,8 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                 sorted_leaf_indices.get_indices().iter().map(|idx| (*idx, L::default())).collect(),
             ));
         }
-        let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
+        let main_subtree =
+            SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash, tree_prefix };
         let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
         let mut leaves = HashMap::new();
         skeleton_tree.fetch_nodes::<L>(
@@ -192,6 +200,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             leaf_modifications,
             config,
             Some(&mut leaves),
+            tree_prefix,
         )?;
         Ok((skeleton_tree, leaves))
     }

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::hash::HashOutput;
+use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress};
 use starknet_patricia::generate_trie_config;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
@@ -75,6 +74,7 @@ fn fetch_all_patricia_paths(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
+        Some(ascii_as_felt("CLASSES_TREE_PREFIX").unwrap()),
     )?;
 
     // Contracts trie - the leaves are required.
@@ -84,6 +84,7 @@ fn fetch_all_patricia_paths(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
+        Some(ascii_as_felt("CONTRACTS_TREE_PREFIX").unwrap()),
     )?;
 
     // Contracts storage tries.
@@ -91,6 +92,12 @@ fn fetch_all_patricia_paths(
         HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
 
     for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
+        let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
+            panic!(
+                "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
+                 {idx:?}."
+            )
+        });
         let storage_root_hash = leaves
             .get(idx)
             .expect("Contract address must exist in the contracts trie leaves data.")
@@ -102,16 +109,9 @@ fn fetch_all_patricia_paths(
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
+            Some(contract_address.into()),
         )?;
-        contracts_trie_storage_proofs.insert(
-            try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
-                panic!(
-                    "Converting leaf NodeIndex to ContractAddress should succeed; failed to \
-                     convert {idx:?}."
-                )
-            }),
-            proof,
-        );
+        contracts_trie_storage_proofs.insert(contract_address, proof);
     }
 
     // Convert contract_leaves_data keys from NodeIndex to ContractAddress.
