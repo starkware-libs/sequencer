@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, ascii_as_felt};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
@@ -83,6 +83,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_sorted_indices,
             &OriginalSkeletonContractsTrieConfig::new(),
             &HashMap::new(),
+            Some(ascii_as_felt("CONTRACTS_TREE_PREFIX").unwrap())
         )?)
     }
 
@@ -110,6 +111,7 @@ impl<'a> OriginalSkeletonForest<'a> {
                 *sorted_leaf_indices,
                 &config,
                 updates,
+                Some((*address).into())
             )?;
             storage_tries.insert(*address, original_skeleton);
         }
@@ -131,6 +133,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_sorted_indices,
             &config,
             actual_classes_updates,
+            Some(ascii_as_felt("CLASSES_TREE_PREFIX").unwrap())
         )?)
     }
 }
