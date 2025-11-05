@@ -55,6 +55,8 @@ use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
 const VALIDATE_GAS_OVERHEAD: GasAmount = GasAmount(21);
 
+#[allow(dead_code)]
+pub const ONLY_QUERY: bool = true;
 struct FlavorTestInitialState {
     pub state: CachedState<DictStateReader>,
     pub account_address: ContractAddress,

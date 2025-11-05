@@ -1,6 +1,6 @@
 use std::mem;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
@@ -322,6 +322,8 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     where
         S: 'static,
     {
+        std::thread::sleep(Duration::from_millis(300));
+
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs, execution_deadline)
