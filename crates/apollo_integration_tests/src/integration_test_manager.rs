@@ -10,6 +10,7 @@ use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_endpoint_monitor::monitor::MIN_EXPECTED_BLOCK_NUMBER;
 use apollo_l1_gas_price_provider_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -28,12 +29,28 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
+<<<<<<< HEAD
 use papyrus_base_layer::test_utils::{
     make_block_history_on_anvil,
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::BaseLayerContract;
+||||||| 912efc99a
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    StarknetL1Contract,
+};
+use papyrus_base_layer::test_utils::{
+    ethereum_base_layer_config_for_anvil,
+    make_block_history_on_anvil,
+    spawn_anvil_and_deploy_starknet_l1_contract,
+    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
+};
+=======
+use papyrus_base_layer::test_utils::anvil_mine_blocks;
+use papyrus_base_layer::BaseLayerContract;
+>>>>>>> origin/main-v0.14.1
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -148,15 +165,15 @@ impl NodeSetup {
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.batcher_index].monitoring_client
+        &self.get_batcher().monitoring_client
     }
 
     pub fn state_sync_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.state_sync_index].monitoring_client
+        &self.get_state_sync().monitoring_client
     }
 
     pub fn consensus_manager_monitoring_client(&self) -> &MonitoringClient {
-        &self.executables[self.consensus_manager_index].monitoring_client
+        &self.get_consensus_manager().monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -178,22 +195,26 @@ impl NodeSetup {
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.as_ref().expect("Should have http server config").port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
+            HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
+            MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
         });
-        serialize_to_file(json_data, path);
+        serialize_to_file(&json_data, path);
     }
 
-    pub fn get_batcher_index(&self) -> usize {
-        self.batcher_index
+    pub fn get_batcher(&self) -> &ExecutableSetup {
+        &self.executables[self.batcher_index]
     }
 
-    pub fn get_http_server_index(&self) -> usize {
-        self.http_server_index
+    pub fn get_http_server(&self) -> &ExecutableSetup {
+        &self.executables[self.http_server_index]
     }
 
-    pub fn get_state_sync_index(&self) -> usize {
-        self.state_sync_index
+    pub fn get_state_sync(&self) -> &ExecutableSetup {
+        &self.executables[self.state_sync_index]
+    }
+
+    pub fn get_consensus_manager(&self) -> &ExecutableSetup {
+        &self.executables[self.consensus_manager_index]
     }
 
     pub fn run(self) -> RunningNode {
@@ -259,6 +280,7 @@ impl IntegrationTestManager {
     pub async fn new(
         num_of_consolidated_nodes: usize,
         num_of_distributed_nodes: usize,
+        num_of_hybrid_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
     ) -> Self {
@@ -268,6 +290,7 @@ impl IntegrationTestManager {
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
+            num_of_hybrid_nodes,
             custom_paths,
             test_unique_id,
         )
@@ -290,21 +313,59 @@ impl IntegrationTestManager {
         let l1_gas_price_scraper_config =
             get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
 
+<<<<<<< HEAD
         let anvil_base_layer = AnvilBaseLayer::new().await;
+||||||| 912efc99a
+        let (anvil, starknet_l1_contract) =
+            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
+=======
+        let anvil_base_layer = AnvilBaseLayer::new(Some(1)).await;
+>>>>>>> origin/main-v0.14.1
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
+<<<<<<< HEAD
         let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality)
             .try_into()
             .unwrap();
         let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
         let receiver_address = OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
+||||||| 912efc99a
+        let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
+            + l1_gas_price_scraper_config.finality)
+            .try_into()
+            .unwrap();
+        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
+        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+=======
+        let num_blocks_needed_on_l1 = l1_gas_price_scraper_config.number_of_blocks_for_mean
+            + l1_gas_price_scraper_config.finality;
+>>>>>>> origin/main-v0.14.1
 
+<<<<<<< HEAD
         make_block_history_on_anvil(
             sender_address,
             receiver_address,
             anvil_base_layer.ethereum_base_layer.config.clone(),
             &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
+||||||| 912efc99a
+        make_block_history_on_anvil(
+            sender_address,
+            receiver_address,
+            base_layer_config.clone(),
+            &base_layer_url,
+=======
+        assert!(
+            num_blocks_needed_on_l1 <= MIN_EXPECTED_BLOCK_NUMBER,
+            "num_blocks_needed_on_l1 ({}) exceeds MIN_EXPECTED_BLOCK_NUMBER ({})",
+>>>>>>> origin/main-v0.14.1
             num_blocks_needed_on_l1,
+            MIN_EXPECTED_BLOCK_NUMBER
+        );
+
+        anvil_mine_blocks(
+            anvil_base_layer.ethereum_base_layer.config.clone(),
+            MIN_EXPECTED_BLOCK_NUMBER,
+            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
         )
         .await;
 
@@ -410,7 +471,7 @@ impl IntegrationTestManager {
                     "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
                      executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_batcher_index(),
+                    running_node_setup.batcher_index,
                 )),
             );
 
@@ -422,7 +483,7 @@ impl IntegrationTestManager {
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
                      {} executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_state_sync_index(),
+                    running_node_setup.state_sync_index,
                 )),
             );
 
@@ -694,14 +755,12 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
-            let state_sync_index = node_setup.get_state_sync_index();
             await_block(
                 batcher_monitoring_client,
-                batcher_index,
+                node_setup.batcher_index,
                 state_sync_monitoring_client,
-                state_sync_index,
+                node_setup.state_sync_index,
                 expected_block_number,
                 sequencer_idx,
             )
@@ -727,7 +786,7 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
+            let batcher_index = node_setup.batcher_index;
             let expected_height = expected_block_number.unchecked_next();
 
             let logger = CustomLogger::new(
@@ -821,23 +880,23 @@ async fn get_sequencer_setup_configs(
     // TODO(Tsabary/Nadin): instead of number of nodes, this should be a vector of deployments.
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
+    num_of_hybrid_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
-    let mut node_component_configs =
-        Vec::with_capacity(num_of_consolidated_nodes + num_of_distributed_nodes);
+    let mut node_component_configs = Vec::with_capacity(
+        num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
+    );
     for _ in 0..num_of_consolidated_nodes {
         node_component_configs.push(create_consolidated_component_configs());
     }
-    // Testing the two various node configurations: distributed and hybrid.
-    // TODO(Tsabary): better handling of the number of each type.
-    for _ in 0..num_of_distributed_nodes / 2 {
+    for _ in 0..num_of_hybrid_nodes {
         node_component_configs
             .push(create_hybrid_component_configs(&mut available_ports_generator));
     }
-    for _ in num_of_distributed_nodes / 2..num_of_distributed_nodes {
+    for _ in 0..num_of_distributed_nodes {
         node_component_configs
             .push(create_distributed_component_configs(&mut available_ports_generator));
     }

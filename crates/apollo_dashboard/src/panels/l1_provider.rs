@@ -1,30 +1,32 @@
 use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
-    L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
+use apollo_metrics::MetricCommon;
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
+use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::new(
         "L1 Message Scraper Success Count",
-        "The increase in the number of times the L1 message scraper successfully scraped messages \
-         (10m window)",
-        vec![format!("increase({}[10m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter())],
+        format!(
+            "The increase in the number of times the L1 message scraper successfully scraped \
+             messages ({DEFAULT_DURATION} window)",
+        ),
+        increase(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
 fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
     Panel::new(
         "L1 Message Scraper Base Layer Error Count",
-        "The increase in the number of times the L1 message scraper encountered an error while \
-         scraping the base layer (10m window)",
-        vec![format!(
-            "increase({}[10m])",
-            L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
-        )],
+        format!(
+            "The increase in the number of times the L1 message scraper encountered an error \
+             while scraping the base layer ({DEFAULT_DURATION} window)",
+        ),
+        increase(&L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -32,18 +34,20 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
     Panel::new(
         "L1 Message Scraper Reorg Detected",
         "The increase in the number of times the L1 message scraper detected a reorg (12h window)",
-        vec![format!(
-            "increase({}[12h])",
-            L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()
-        )],
+        increase(&L1_MESSAGE_SCRAPER_REORG_DETECTED, "12h"),
         PanelType::TimeSeries,
     )
 }
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
-    Panel::from_gauge(
-        &L1_MESSAGE_SCRAPER_SECONDS_SINCE_LAST_SUCCESSFUL_SCRAPE,
+    Panel::new(
+        "Seconds since last successful l1 event scrape",
+        "The number of seconds since the last successful scrape of the L1 message scraper \
+         (assuming there was a scrape in the last 12 hours)",
+        get_time_since_last_increase_expr(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Seconds)
+    .with_log_query("BaseLayerError during scraping")
 }
 
 // TODO(noamsp): rename to l1_event_row

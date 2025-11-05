@@ -10,15 +10,19 @@ use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node_config::component_config::ComponentConfig;
-use apollo_node_config::component_execution_config::ReactiveComponentExecutionConfig;
+use apollo_node_config::component_execution_config::{
+    ReactiveComponentExecutionConfig,
+    DEFAULT_URL,
+};
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
-use serde_json::json;
+use serde_json::{json, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::config_override::{deployment_replacer_file_path, instance_replacer_file_path};
 use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::{
     ComponentConfigInService,
@@ -40,6 +44,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+use crate::replacers::insert_replacer_annotations;
 use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
@@ -84,8 +89,6 @@ impl Service {
 
         // TODO(Tsabary): reduce visibility of relevant functions and consts.
 
-        let service_file_path = node_service.get_service_file_path();
-
         let components_in_service = node_service
             .get_components_in_service()
             .into_iter()
@@ -93,9 +96,26 @@ impl Service {
             .collect::<Vec<_>>();
         let config_paths = components_in_service
             .into_iter()
-            .chain(config_filenames)
-            .chain(once(service_file_path))
+            .chain(config_filenames.clone())
+            .chain(once(node_service.get_service_file_path()))
             .collect();
+
+        // TODO(Tsabary): currently using the creation of the non-replacer service struct to DUMP
+        // the list of files of the replacer format. This should be triggered by a new flow.
+        let replacer_components_in_service = node_service
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_component_config_file_paths())
+            .collect::<Vec<_>>();
+        let replacer_config_filenames: Vec<String> =
+            vec![deployment_replacer_file_path(), instance_replacer_file_path()];
+        let replacer_config_paths: Vec<String> = replacer_components_in_service
+            .into_iter()
+            .chain(replacer_config_filenames)
+            .chain(once(node_service.get_replacer_service_file_path()))
+            .collect();
+        let replacer_deployment_file_path = node_service.replacer_deployment_file_path();
+        serialize_to_file(&replacer_config_paths, &replacer_deployment_file_path);
 
         let controller = node_service.get_controller();
         let scale_policy = node_service.get_scale_policy();
@@ -162,11 +182,24 @@ pub enum NodeService {
     Distributed(DistributedNodeServiceName),
 }
 
+// TODO(Tsabary): move p2p ports from the application configs to the replacer format.
+
 impl NodeService {
+    pub fn replacer_deployment_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(NodeType::from(self).get_folder_name())
+            .join(format!("replacer_deployment_{}.json", self.as_inner()))
+            .to_string_lossy()
+            .to_string()
+    }
+
     fn get_config_file_path(&self) -> String {
-        let mut name = self.as_inner().to_string();
-        name.push_str(".json");
-        name
+        format!("{}.json", self.as_inner())
+    }
+
+    fn get_replacer_config_file_path(&self) -> String {
+        format!("replacer_{}.json", self.as_inner())
     }
 
     pub fn create_service(
@@ -244,11 +277,22 @@ impl NodeService {
         self.as_inner().k8s_service_name()
     }
 
+    // TODO(Tsabary): deprecate this function after we complete the transition to the replacer
+    // format.
     fn get_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
             .join(NodeType::from(self).get_folder_name())
             .join(self.get_config_file_path())
+            .to_string_lossy()
+            .to_string()
+    }
+
+    fn get_replacer_service_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(NodeType::from(self).get_folder_name())
+            .join(self.get_replacer_config_file_path())
             .to_string_lossy()
             .to_string()
     }
@@ -394,8 +438,29 @@ impl NodeType {
                 ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
             let flattened = config_to_preset(&json!(wrapper.dump()));
             let pruned = prune_by_is_none(flattened);
+            // TODO(Tsabary): deprecate this section after we complete the transition to the
+            // replacer format. Dumping in the original format.
             let file_path = node_service.get_service_file_path();
             writer(&pruned, &file_path);
+
+            // Dumping in the replacer format.
+
+            let replace_pred = |key: &str, value: &Value| {
+                // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
+                let port_cond =
+                    key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false);
+
+                // Condition 2: service urls: ".url" suffix and a non-localhost string value
+                let url_cond = key.ends_with(".url")
+                    && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
+
+                port_cond || url_cond
+            };
+
+            let pruned_with_replacer_annotations =
+                insert_replacer_annotations(pruned, replace_pred);
+            let file_path = node_service.get_replacer_service_file_path();
+            writer(&pruned_with_replacer_annotations, &file_path);
         }
     }
 

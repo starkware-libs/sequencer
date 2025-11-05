@@ -1,93 +1,199 @@
 #!/usr/bin/env python3
 
 import sys
+from typing import Optional
 
-from update_config_and_restart_nodes_lib import (
-    ApolloArgsParserBuilder,
+import urllib.parse
+from common_lib import (
+    NamespaceAndInstructionArgs,
+    RestartStrategy,
+    Service,
     print_colored,
     print_error,
+)
+from restarter_lib import ServiceRestarter
+from update_config_and_restart_nodes_lib import (
+    ApolloArgsParserBuilder,
+    ConstConfigValuesUpdater,
+    get_current_block_number,
+    get_logs_explorer_url,
     update_config_and_restart_nodes,
 )
+
+
+# TODO(guy.f): Remove this once we have metrics we use to decide based on.
+def get_logs_explorer_url_for_revert(
+    namespace: str,
+    block_number: int,
+    project_name: str,
+) -> str:
+    query = (
+        f'resource.labels.namespace_name:"{urllib.parse.quote(namespace)}"\n'
+        f'resource.labels.container_name="sequencer-core"\n'
+        f'textPayload =~ "Done reverting.*storage up to height {block_number}"'
+    )
+    return get_logs_explorer_url(query, project_name)
+
+
+def set_revert_mode(
+    namespace_list: list[str],
+    context_list: Optional[list[str]],
+    project_name: str,
+    should_revert: bool,
+    revert_up_to_block: int,
+    immediate_active_height: Optional[int] = None,
+):
+    config_overrides = {
+        "revert_config.should_revert": should_revert,
+        "revert_config.revert_up_to_and_including": revert_up_to_block,
+    }
+    if immediate_active_height is not None:
+        assert not should_revert, "Immediate active height should not be set when reverting"
+        # We need a short variable name to avoid splitting to multiple lines which local black
+        # formatting does in a way that CI black doesn't like and fails on.
+        height = immediate_active_height
+        config_overrides["consensus_manager_config.immediate_active_height"] = height
+        config_overrides["consensus_manager_config.cende_config.skip_write_height"] = height
+
+    post_restart_instructions = []
+    for namespace in namespace_list:
+        url = get_logs_explorer_url_for_revert(namespace, revert_up_to_block, project_name)
+
+        post_restart_instructions.append(
+            f"Please check logs and verify that revert has completed (both in the batcher and for sync). Logs URL: {url}"
+        )
+
+    namespace_and_instruction_args = NamespaceAndInstructionArgs(
+        namespace_list,
+        context_list,
+        post_restart_instructions,
+    )
+    restarter = ServiceRestarter.from_restart_strategy(
+        RestartStrategy.ALL_AT_ONCE,
+        namespace_and_instruction_args,
+        Service.Core,
+    )
+
+    update_config_and_restart_nodes(
+        ConstConfigValuesUpdater(config_overrides),
+        namespace_and_instruction_args,
+        Service.Core,
+        restarter,
+    )
 
 
 def main():
     usage_example = """
 Examples:
   # Set revert mode up to a specific block
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 revert --revert_up_to_block 12345
-  %(prog)s -n apollo-sepolia-integration -N 3 revert -b 12345
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --revert_up_to_block 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -b 12345
+  
+  # Set revert mode using feeder URL to get current block
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --revert-only --feeder-url feeder.integration-sepolia.starknet.io   
+  %(prog)s -n apollo-sepolia-integration -N 3 --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Disable revert mode
-  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 disable-revert
-  %(prog)s -n apollo-sepolia-integration -N 3 disable-revert
+  %(prog)s --namespace apollo-sepolia-integration --num-nodes 3 --disable-revert-only
+  %(prog)s -n apollo-sepolia-integration -N 3 --disable-revert-only
   
   # Set revert mode with cluster prefix
-  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster revert -b 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --revert-only -b 12345
   
-  # Disable revert mode without restarting nodes
-  %(prog)s -n apollo-sepolia-integration -N 3 disable-revert --no-restart
-  
-  # Set revert mode with explicit restart
-  %(prog)s -n apollo-sepolia-integration -N 3 revert -b 12345 -r
+  # Set revert mode with feeder URL and cluster prefix
+  %(prog)s -n apollo-sepolia-integration -N 3 -c my-cluster --revert-only -f feeder.integration-sepolia.starknet.io
   
   # Set revert mode starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 revert -b 12345
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --revert-only -b 12345
+  
+  # Set revert mode with feeder URL starting from specific node index
+  %(prog)s -n apollo-sepolia-integration -N 3 -i 5 --revert-only -f feeder.integration-sepolia.starknet.io
         """
 
     args_builder = ApolloArgsParserBuilder(
-        "Sets or unsets the revert mode for the sequencer nodes", usage_example
+        "Sets or unsets the revert mode for the sequencer nodes",
+        usage_example,
+        include_restart_strategy=False,
     )
 
-    # Create subparsers for revert operations
-    subparsers = args_builder.parser.add_subparsers(
-        dest="command", help="Available commands", required=True
+    revert_group = args_builder.parser.add_mutually_exclusive_group()
+    revert_group.add_argument("--revert-only", action="store_true", help="Enable revert mode")
+    revert_group.add_argument(
+        "--disable-revert-only", action="store_true", help="Disable revert mode"
     )
 
-    # Revert subcommand
-    revert_parser = subparsers.add_parser("revert", help="Enable revert mode")
-    revert_parser.add_argument(
+    args_builder.add_argument(
         "-b",
-        "--revert_up_to_block",
+        "--revert-up-to-block",
         type=int,
-        required=True,
-        help="Block number up to which to revert. Must be a positive integer.",
+        help="Block number up to which to revert (inclusive). Must be a positive integer.",
     )
 
-    # No-revert subcommand
-    subparsers.add_parser("disable-revert", help="Disable revert mode")
+    args_builder.add_argument(
+        "-f",
+        "--feeder-url",
+        type=str,
+        help="The feeder URL to get the current block from. We will revert all blocks above it.",
+    )
+
+    # TODO(guy.f): Remove this when we rely on metrics for restarting.
+    args_builder.add_argument(
+        "--project-name",
+        required=True,
+        help="The name of the project to get logs from. If One_By_One strategy is used, this is required.",
+    )
 
     args = args_builder.build()
-    # Validate block number for revert command
-    if args.command == "revert":
-        if args.revert_up_to_block <= 0:
-            print_error("Error: --revert_up_to_block (-b) must be a positive integer")
+
+    should_revert = not args.disable_revert_only
+    if should_revert:
+        if args.feeder_url is None and args.revert_up_to_block is None:
+            print_error(
+                "Error: Either --feeder-url or --revert_up_to_block (-b) are required when reverting is requested."
+            )
+            sys.exit(1)
+        if args.feeder_url is not None and args.revert_up_to_block is not None:
+            print_error("Error: Cannot specify both --feeder-url and --revert_up_to_block (-b).")
             sys.exit(1)
 
-    # Add revert-specific configuration based on subcommand
-    if args.command == "revert":
-        should_revert = True
-        revert_up_to_block = args.revert_up_to_block
-        print_colored(
-            f"\nEnabling revert mode up to (and including) block {args.revert_up_to_block}"
+    if args.disable_revert_only:
+        if args.feeder_url is not None:
+            print_error("Error: --feeder-url cannot be set when using --disable-revert-only")
+            sys.exit(1)
+        if args.revert_up_to_block is not None:
+            print_error("Error: --revert-up-to-block (-b) cannot be set when disabling revert.")
+            sys.exit(1)
+
+    namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
+    context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
+
+    should_disable_revert = not args.revert_only
+    if should_revert:
+        revert_up_to_block = (
+            args.revert_up_to_block
+            if args.revert_up_to_block is not None
+            else get_current_block_number(args.feeder_url)
         )
-    elif args.command == "disable-revert":
-        should_revert = False
-        revert_up_to_block = 18446744073709551615  # Max unit64.
+        f"\nEnabling revert mode up to (and including) block {revert_up_to_block}"
+        set_revert_mode(
+            namespace_list,
+            context_list,
+            args.project_name,
+            True,
+            revert_up_to_block,
+        )
+    if should_disable_revert:
         print_colored(f"\nDisabling revert mode")
-
-    config_overrides = {
-        "revert_config.should_revert": should_revert,
-        "revert_config.revert_up_to_and_including": revert_up_to_block,
-    }
-
-    update_config_and_restart_nodes(
-        config_overrides,
-        args.namespace,
-        args.num_nodes,
-        args.start_index,
-        args.cluster,
-        not args.no_restart,
-    )
+        # Setting to max block to max u64.
+        set_revert_mode(
+            namespace_list,
+            context_list,
+            args.project_name,
+            False,
+            18446744073709551615,
+            # Immediate active height is the block number which will be the first block proposed.
+            revert_up_to_block,
+        )
 
 
 if __name__ == "__main__":

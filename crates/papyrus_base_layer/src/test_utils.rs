@@ -135,3 +135,27 @@ pub async fn make_block_history_on_anvil(
         prev_block_number = new_block_number;
     }
 }
+
+/// Mine multiple blocks instantly on Anvil using the `anvil_mine` RPC method.
+///
+/// Note: This creates empty blocks. For blocks with transactions, use the
+/// `make_block_history_on_anvil` function instead.
+pub async fn anvil_mine_blocks(
+    base_layer_config: EthereumBaseLayerConfig,
+    num_blocks: u64,
+    url: &Url,
+) {
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone(), url.clone());
+    let provider = base_layer.contract.provider();
+
+    let block_before = provider.get_block_number().await.expect("Failed to get block number");
+    debug!("Block number before mining: {}", block_before);
+
+    let _result: Option<String> = provider
+        .raw_request("anvil_mine".into(), [num_blocks])
+        .await
+        .expect("Failed to mine blocks on Anvil");
+
+    let block_after = provider.get_block_number().await.expect("Failed to get block number");
+    debug!("Block number after mining: {}", block_after);
+}

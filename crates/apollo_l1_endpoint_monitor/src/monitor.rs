@@ -15,6 +15,9 @@ pub mod l1_endpoint_monitor_tests;
 // a bug in infura where the connectivity was fine, but get_block_number() failed.
 pub const HEALTH_CHECK_RPC_METHOD: &str = "eth_blockNumber";
 
+/// The minimum expected L1 block number for a valid endpoint response.
+pub const MIN_EXPECTED_BLOCK_NUMBER: u64 = 1000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1EndpointMonitor {
     pub current_l1_endpoint_index: usize,
@@ -41,6 +44,7 @@ impl L1EndpointMonitor {
         for offset in 1..n_urls {
             let idx = (current_l1_endpoint_index + offset) % n_urls;
             if self.is_operational(idx).await {
+                // TODO(guyn): print the end point without the API key (use to_safe_string)
                 warn!(
                     "L1 endpoint {} down; switched to {}",
                     to_safe_string(self.get_node_url(current_l1_endpoint_index)),
@@ -69,7 +73,7 @@ impl L1EndpointMonitor {
     // high-level readability (through a dedicated const) and to improve testability.
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
-        let l1_client = ProviderBuilder::new().on_http(l1_endpoint_url.clone());
+        let l1_client = ProviderBuilder::new().connect_http(l1_endpoint_url.clone());
         let l1_endpoint_url = to_safe_string(l1_endpoint_url);
 
         // Note: response type annotation is coupled with the rpc method used.
@@ -91,7 +95,7 @@ impl L1EndpointMonitor {
             Ok(Ok(block_number)) => {
                 // TODO(guyn): remove this once we understand where these low numbers are coming
                 // from.
-                if block_number < U64::from(1000) {
+                if block_number < U64::from(MIN_EXPECTED_BLOCK_NUMBER) {
                     warn!(
                         "L1 endpoint {l1_endpoint_url} is operational, but block number is too \
                          low: {block_number}"

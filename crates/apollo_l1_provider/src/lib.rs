@@ -15,8 +15,9 @@ pub use apollo_l1_provider_config::config::L1ProviderConfig;
 use apollo_l1_provider_types::SessionState;
 use papyrus_base_layer::constants::{
     EventIdentifier,
-    CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+    CONSUMED_MESSAGE_TO_L2_EVENT_IDENTIFIER,
     LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
 
@@ -26,9 +27,14 @@ use crate::transaction_manager::TransactionManagerConfig;
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderState {
+    /// Provider is not read for proposing or validating. Use start_block to transition to Propose
+    /// or Validate.
     Pending,
+    /// Provider is ready for proposing. Use commit_block to finish and return to Pending.
     Propose,
+    /// Provider is catching up using sync. Only happens on startup.
     Bootstrap(Bootstrapper),
+    /// Provider is ready for validating. Use validate to validate a transaction.
     Validate,
 }
 
@@ -105,6 +111,7 @@ pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
     &[
         LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
         MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
-        CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+        MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
+        CONSUMED_MESSAGE_TO_L2_EVENT_IDENTIFIER,
     ]
 }

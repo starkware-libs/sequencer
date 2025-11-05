@@ -1,6 +1,11 @@
 use std::sync::OnceLock;
 
-use apollo_metrics::metrics::{MetricHistogram, MetricScope, COLLECT_SEQUENCER_PROFILING_METRICS};
+use apollo_metrics::metrics::{
+    MetricCommon,
+    MetricHistogram,
+    MetricScope,
+    COLLECT_SEQUENCER_PROFILING_METRICS,
+};
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use apollo_test_utils::prometheus_is_contained;
 use metrics::set_default_local_recorder;

@@ -1,5 +1,15 @@
 {
+<<<<<<< HEAD
   "os": "0x531f02411cefe723700b6bd91ec3608002279a1235bd6923afef0d51ba34ba5",
   "aggregator": "0x267b62790ec5ca1b3f8889835a87808086a2c385abc62e562c3a7910a37d313",
   "aggregator_with_prefix": "0x1780e4ffea136af2dd609b5399a7d73dd42432fd00ea9c2da146ac5269efb70"
+||||||| 912efc99a
+  "os": "0xe4be3f413aec9b9f867ef2f5bf29e92d4c2849487c96317a4fb0e3eb38db13",
+  "aggregator": "0x78b933fe424c0c000b1da7f414cfb6362af87b694b9dd7a6a42aa500f3a6891",
+  "aggregator_with_prefix": "0x3c2bf03c21bd2794125c481d7e224fbd8793ac675d24cdc9d476761d0d4ccab"
+=======
+  "os": "0x1c8437ab86fa4d9154bacb3fdbf3e5d7a63dba228748dd7d71f1d4986c2dc18",
+  "aggregator": "0x78b933fe424c0c000b1da7f414cfb6362af87b694b9dd7a6a42aa500f3a6891",
+  "aggregator_with_prefix": "0x3c2bf03c21bd2794125c481d7e224fbd8793ac675d24cdc9d476761d0d4ccab"
+>>>>>>> origin/main-v0.14.1
 }

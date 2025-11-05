@@ -1789,7 +1789,7 @@ fn test_declare_redeposit_amount_regression() {
 #[apply(cairo_version)]
 #[case(TransactionVersion::ZERO, CairoVersion::Cairo0, None)]
 #[case(TransactionVersion::ONE, CairoVersion::Cairo0, None)]
-#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), None)]
+#[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm), Some(HashVersion::V2))]
 #[case(
     TransactionVersion::THREE,
     CairoVersion::Cairo1(RunnableCairo1::Casm),

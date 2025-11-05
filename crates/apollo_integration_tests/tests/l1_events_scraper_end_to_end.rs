@@ -7,6 +7,7 @@ use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
+use mockall::predicate::eq;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
@@ -18,19 +19,31 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 
-pub fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 #[tokio::test]
 async fn scraper_end_to_end() {
+<<<<<<< HEAD
     if !in_ci() {
         return;
     }
 
+||||||| 912efc99a
+    // if !in_ci() {
+    //     return;
+    // }
+
+=======
+>>>>>>> origin/main-v0.14.1
     // Setup.
+<<<<<<< HEAD
     let base_layer = AnvilBaseLayer::new().await;
     let contract = &base_layer.ethereum_base_layer.contract;
+||||||| 912efc99a
+    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
+    let _anvil_server_guard = anvil_instance_from_url(&base_layer_url);
+=======
+    let base_layer = AnvilBaseLayer::new(None).await;
+    let contract = &base_layer.ethereum_base_layer.contract;
+>>>>>>> origin/main-v0.14.1
     let mut l1_provider_client = MockL1ProviderClient::default();
 
     // Send messages from L1 to L2.
@@ -136,23 +149,13 @@ async fn scraper_end_to_end() {
         cancellation_request_timestamp: cancel_timestamp,
     };
 
-    let expected_events = vec![first_expected_log, second_expected_log, expected_cancel_message];
-
     let mut sequence = Sequence::new();
     // Expect first call to return all the events defined further down.
     l1_provider_client
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
-        .withf(move |events| {
-            if events.len() != expected_events.len() {
-                return false;
-            }
-            for (event, expected_event) in events.iter().zip(expected_events.iter()) {
-                event.assert_event_almost_eq(expected_event);
-            }
-            true
-        })
+        .with(eq(vec![first_expected_log, second_expected_log, expected_cancel_message]))
         .returning(|_| Ok(()));
 
     // Expect second call to return nothing, no events left to scrape.

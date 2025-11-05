@@ -9,16 +9,20 @@ from typing import List, Set
 from tests_utils import get_local_changes, get_tested_packages
 
 
-def is_file_triggered(commit_id: str, trigger_patterns: List[str]) -> bool:
+def is_file_triggered(
+    commit_id: str, trigger_patterns: List[str], exclude_patterns: List[str]
+) -> bool:
     """
     Returns True if any file changed since `commit_id` matches any of the given
-    wildcard patterns in `trigger_patterns`.
+    wildcard patterns in `trigger_patterns` and does not match any in `exclude_patterns`.
     """
     changed_files = get_local_changes(".", commit_id)
     for changed in changed_files:
         normalized = changed.replace(os.sep, "/")
         for pattern in trigger_patterns:
-            if fnmatch.fnmatch(normalized, pattern):
+            if fnmatch.fnmatch(normalized, pattern) and not any(
+                fnmatch.fnmatch(normalized, exclude_pattern) for exclude_pattern in exclude_patterns
+            ):
                 return True
     return False
 
@@ -48,6 +52,12 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Comma-separated list of file/path patterns that should trigger the test.",
     )
+    parser.add_argument(
+        "--path_triggers_exclude",
+        type=str,
+        default="",
+        help="Comma-separated list of file/path patterns that should not trigger the test. Takes precedence over path_triggers.",
+    )
     return parser.parse_args()
 
 
@@ -56,6 +66,7 @@ def main():
 
     crate_triggers: Set[str] = set(filter(None, args.crate_triggers.split(",")))
     path_triggers: List[str] = list(filter(None, args.path_triggers.split(",")))
+    path_triggers_exclude: List[str] = list(filter(None, args.path_triggers_exclude.split(",")))
 
     tested = get_tested_packages(
         changes_only=True, commit_id=args.commit_id, include_dependencies=True
@@ -67,7 +78,7 @@ def main():
     crate_trigger = any(crate in crate_triggers for crate in tested)
     print(f"crate_trigger: {crate_trigger}", file=sys.stderr)
 
-    file_trigger = is_file_triggered(args.commit_id, path_triggers)
+    file_trigger = is_file_triggered(args.commit_id, path_triggers, path_triggers_exclude)
     print(f"file_trigger: {file_trigger}", file=sys.stderr)
 
     should_run = crate_trigger or file_trigger

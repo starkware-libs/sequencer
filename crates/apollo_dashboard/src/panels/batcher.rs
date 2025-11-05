@@ -12,14 +12,19 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 fn get_panel_validator_wasted_txs() -> Panel {
     Panel::new(
         "Proposal Validation: Wasted TXs",
-        "Number of txs executed by the validator but excluded from the block (10m window)",
-        vec![format!("increase({}[10m])", VALIDATOR_WASTED_TXS.get_name_with_filter())],
+        format!(
+            "Number of txs executed by the validator but excluded from the block \
+             ({DEFAULT_DURATION} window)",
+        ),
+        increase(&VALIDATOR_WASTED_TXS, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Finished building block as validator. Started executing")
@@ -28,8 +33,11 @@ fn get_panel_validator_wasted_txs() -> Panel {
 fn get_panel_proposer_deferred_txs() -> Panel {
     Panel::new(
         "Proposal Build: Deferred TXs",
-        "Number of txs started execution by the proposer but excluded from the block (10m window)",
-        vec![format!("increase({}[10m])", PROPOSER_DEFERRED_TXS.get_name_with_filter())],
+        format!(
+            "Number of txs started execution by the proposer but excluded from the block \
+             ({DEFAULT_DURATION} window)",
+        ),
+        increase(&PROPOSER_DEFERRED_TXS, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("Finished building block as proposer. Started executing")
@@ -39,31 +47,31 @@ fn get_panel_storage_height() -> Panel {
     Panel::new(
         "Storage Height",
         "The height of the batcher's storage",
-        vec![STORAGE_HEIGHT.get_name_with_filter().to_string()],
+        STORAGE_HEIGHT.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
     .with_log_query("Committing block at height")
 }
 
 fn get_panel_rejection_reverted_ratio() -> Panel {
+    let rejected_txs_expr = increase(&REJECTED_TRANSACTIONS, DEFAULT_DURATION);
+    let reverted_txs_expr = increase(&REVERTED_TRANSACTIONS, DEFAULT_DURATION);
+
     let denominator_expr = format!(
-        "(increase({}[10m]) + increase({}[10m]) + increase({}[10m]))",
-        REJECTED_TRANSACTIONS.get_name_with_filter(),
-        REVERTED_TRANSACTIONS.get_name_with_filter(),
-        BATCHED_TRANSACTIONS.get_name_with_filter(),
+        "({} + {} + {})",
+        rejected_txs_expr,
+        reverted_txs_expr,
+        increase(&BATCHED_TRANSACTIONS, DEFAULT_DURATION),
     );
     Panel::new(
         "Rejected / Reverted TXs Ratio",
-        "Ratio of rejected / reverted transactions out of all processed txs (10m window)",
+        format!(
+            "Ratio of rejected / reverted transactions out of all processed txs \
+             ({DEFAULT_DURATION} window)"
+        ),
         vec![
-            format!(
-                "increase({}[10m]) / {denominator_expr}",
-                REJECTED_TRANSACTIONS.get_name_with_filter(),
-            ),
-            format!(
-                "increase({}[10m]) / {denominator_expr}",
-                REVERTED_TRANSACTIONS.get_name_with_filter(),
-            ),
+            format!("{rejected_txs_expr} / {denominator_expr}"),
+            format!("{reverted_txs_expr} / {denominator_expr}"),
         ],
         PanelType::TimeSeries,
     )
@@ -75,7 +83,7 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
     Panel::new(
         "Batched Transactions Rate (TPS)",
         "The rate of transactions batched by the Batcher (1m window)",
-        vec![format!("rate({}[1m])", BATCHED_TRANSACTIONS.get_name_with_filter())],
+        format!("rate({}[1m])", BATCHED_TRANSACTIONS.get_name_with_filter()),
         PanelType::TimeSeries,
     )
     .with_log_query("BATCHER_FIN_VALIDATOR")
@@ -84,12 +92,13 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
 fn get_panel_block_close_reasons() -> Panel {
     Panel::new(
         "Block Close Reasons",
-        "Number of blocks closed by reason (10m window)",
-        vec![format!(
-            "sum by ({}) (increase({}[10m]))",
+        format!("Number of blocks closed by reason ({} window)", DEFAULT_DURATION),
+        sum_by_label(
+            &BLOCK_CLOSE_REASON,
             LABEL_NAME_BLOCK_CLOSE_REASON,
-            BLOCK_CLOSE_REASON.get_name_with_filter()
-        )],
+            DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
+        ),
         PanelType::Stat,
     )
     .with_log_query("\"Block builder deadline reached.\" OR \"Block is full.\"")
@@ -99,7 +108,7 @@ fn get_panel_num_batches_in_proposal() -> Panel {
     Panel::new(
         "Number of Chunks in Proposal",
         "The number of transaction batches received in a valid proposal",
-        vec![CONSENSUS_NUM_BATCHES_IN_PROPOSAL.get_name_with_filter().to_string()],
+        CONSENSUS_NUM_BATCHES_IN_PROPOSAL.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
 }
@@ -108,7 +117,7 @@ fn get_panel_num_txs_in_proposal() -> Panel {
     Panel::new(
         "Number of Transactions in Proposal",
         "The total number of individual transactions in a valid proposal received",
-        vec![CONSENSUS_NUM_TXS_IN_PROPOSAL.get_name_with_filter().to_string()],
+        CONSENSUS_NUM_TXS_IN_PROPOSAL.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
     .with_log_query("BATCHER_FIN_PROPOSER")

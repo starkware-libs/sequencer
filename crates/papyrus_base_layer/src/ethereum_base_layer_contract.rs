@@ -5,7 +5,14 @@ use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
+<<<<<<< HEAD
 use alloy::primitives::Address;
+||||||| 912efc99a
+use alloy::primitives::Address as EthereumContractAddress;
+=======
+use alloy::network::Ethereum;
+use alloy::primitives::Address;
+>>>>>>> origin/main-v0.14.1
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
@@ -58,8 +65,60 @@ sol!(
 
 /// An interface that plays the role of the starknet L1 contract. It is able to create messages to
 /// L2 from this contract, which appear on the corresponding base layer.
+<<<<<<< HEAD
 pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
 
+||||||| 912efc99a
+pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
+
+#[cfg(any(feature = "testing", test))]
+pub struct L1ToL2MessageArgs {
+    pub tx: starknet_api::transaction::L1HandlerTransaction,
+    pub l1_tx_nonce: u64,
+}
+
+#[cfg(any(feature = "testing", test))]
+impl StarknetL1Contract {
+    /// Converts a given [L1 handler transaction](starknet_api::transaction::L1HandlerTransaction)
+    /// to match the interface of the given [starknet l1 contract](StarknetL1Contract), and
+    /// triggers the L1 entry point which sends the message to L2.
+    pub async fn send_message_to_l2(
+        &self,
+        l1_to_l2_message_args: &L1ToL2MessageArgs,
+    ) -> alloy::rpc::types::TransactionReceipt {
+        use alloy::primitives::U256;
+        const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
+
+        let L1ToL2MessageArgs { tx: l1_handler, l1_tx_nonce } = l1_to_l2_message_args;
+        tracing::info!("Sending message to L2 with the l1 nonce: {l1_tx_nonce}");
+        let l2_contract_address =
+            l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
+        let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
+
+        // The calldata of an L1 handler transaction consists of the L1 sender address followed by
+        // the transaction payload. We remove the sender address to extract the message
+        // payload.
+        let payload =
+            l1_handler.calldata.0[1..].iter().map(|x| x.to_hex_string().parse().unwrap()).collect();
+        let msg = self.sendMessageToL2(l2_contract_address, l2_entry_point, payload);
+
+        msg
+            // Sets a non-zero fee to be paid on L1.
+            .value(PAID_FEE_ON_L1)
+            // Sets the nonce of the L1 handler transaction, to avoid L1 nonce collisions.
+            .nonce(*l1_tx_nonce)
+            // Sends the transaction to the Starknet L1 contract. For debugging purposes, replace
+            // `.send()` with `.call_raw()` to retrieve detailed error messages from L1.
+            .send().await.expect("Transaction submission to Starknet L1 contract failed.")
+            // Waits until the transaction is received on L1 and then fetches its receipt.
+            .get_receipt().await.expect("Transaction was not received on L1 or receipt retrieval failed.")
+    }
+}
+
+=======
+pub type StarknetL1Contract = Starknet::StarknetInstance<RootProvider, Ethereum>;
+
+>>>>>>> origin/main-v0.14.1
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
     pub url: Url,
@@ -78,6 +137,7 @@ impl EthereumBaseLayerContract {
 impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
 
+    /// Get the Starknet block that is proved on the base layer at a specific L1 block number.
     #[instrument(skip(self), err)]
     async fn get_proved_block_at(
         &self,
@@ -92,10 +152,9 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             call_state_block_hash.call_raw().into_future()
         )?;
 
-        let validate = true;
-        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number)
             .inspect_err(|err| error!("{err}: {state_block_number}"))?;
-        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash)
             .inspect_err(|err| error!("{err}: {state_block_hash}"))?;
         Ok(BlockHashAndNumber {
             number: BlockNumber(block_number),
@@ -327,7 +386,7 @@ fn build_contract_instance(
     starknet_contract_address: EthereumContractAddress,
     node_url: Url,
 ) -> StarknetL1Contract {
-    let l1_client = ProviderBuilder::default().on_http(node_url);
+    let l1_client = ProviderBuilder::default().connect_http(node_url);
     // This type is generated from `sol!` macro, and the `new` method assumes it is already
     // deployed at L1, and wraps it with a type.
     Starknet::new(starknet_contract_address, l1_client)

@@ -32,13 +32,6 @@ jobs:
       - name: Install commitlint
         run: npm install --global @commitlint/cli @commitlint/config-conventional
 
-      - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
-
       - name: Validate PR title with commitlint
         if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
         env:

@@ -1,7 +1,14 @@
 use std::sync::LazyLock;
 
 use ark_bls12_381::Fr;
+<<<<<<< HEAD
 use c_kzg::{KzgCommitment, BYTES_PER_FIELD_ELEMENT};
+||||||| 912efc99a
+use c_kzg::KzgCommitment;
+=======
+use ark_ff::{BigInteger, PrimeField};
+use c_kzg::KzgCommitment;
+>>>>>>> origin/main-v0.14.1
 use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
@@ -9,7 +16,13 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
     bit_reversal,
+<<<<<<< HEAD
     deserialize_blob,
+||||||| 912efc99a
+=======
+    decode_blobs,
+    deserialize_blob,
+>>>>>>> origin/main-v0.14.1
     polynomial_coefficients_to_blob,
     serialize_blob,
     split_commitment,
@@ -116,4 +129,32 @@ fn test_split_commitment_function(
 fn test_fft_blob_regression(#[case] input: Vec<Fr>, #[case] expected_output: &Vec<u8>) {
     let bytes = polynomial_coefficients_to_blob(input).unwrap();
     assert_eq!(&bytes, expected_output);
+}
+
+#[rstest]
+fn test_serialize_deserialize_blob() {
+    let blob: Vec<Fr> = (1..=FIELD_ELEMENTS_PER_BLOB).map(|i| Fr::from(BigUint::from(i))).collect();
+    let bytes = serialize_blob(&blob).unwrap();
+    let deserialized_blob = deserialize_blob(&bytes);
+    assert_eq!(deserialized_blob, blob);
+}
+
+#[rstest]
+#[case::simple(vec![Fr::from(1_u8), Fr::from(2_u8), Fr::from(3_u8)])]
+#[case::zero(vec![Fr::zero()])]
+#[case::one(vec![Fr::one()])]
+#[case::regression(BLOB_REGRESSION_INPUT.to_vec())]
+fn test_decode_blobs(#[case] coefficients: Vec<Fr>) {
+    let raw_blob = polynomial_coefficients_to_blob(coefficients.clone()).unwrap();
+    let decoded = decode_blobs(vec![raw_blob]).unwrap();
+    let mut expected = coefficients.clone();
+    expected.resize(FIELD_ELEMENTS_PER_BLOB, Fr::zero());
+    let expected_felt: Vec<Felt> = expected
+        .iter()
+        .map(|fr| {
+            let bytes = fr.into_bigint().to_bytes_be();
+            Felt::from_bytes_be_slice(&bytes)
+        })
+        .collect();
+    assert_eq!(decoded, expected_felt);
 }

@@ -6,28 +6,33 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
 };
+use apollo_metrics::MetricCommon;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_total_transactions_received() -> Panel {
     Panel::new(
         "Transactions Received",
-        "Number of transactions received (10m window)",
-        vec![format!("increase({}[10m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter())],
+        format!("Number of transactions received ({DEFAULT_DURATION} window)"),
+        increase(&ADDED_TRANSACTIONS_TOTAL, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
     .with_log_query("\"ADD_TX_START\"")
 }
 fn get_panel_transaction_success_rate() -> Panel {
+    // TODO(MatanL): use Panel::ratio_time_series
     Panel::new(
         "Transaction Success Rate",
-        "The ratio of transactions successfully added to the gateway (10m window)",
-        vec![format!(
-            "increase({}[10m]) / (increase({}[10m]) + increase({}[10m]))",
-            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
-            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
-            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
-        )],
+        format!(
+            "The ratio of transactions successfully added to the gateway ({DEFAULT_DURATION} \
+             window)",
+        ),
+        format!(
+            "{s} / ({s} + {f})",
+            s = increase(&ADDED_TRANSACTIONS_SUCCESS, DEFAULT_DURATION),
+            f = increase(&ADDED_TRANSACTIONS_FAILURE, DEFAULT_DURATION),
+        ),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::PercentUnit)
@@ -37,7 +42,7 @@ pub(crate) fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
         "HTTP Server Transactions Received Rate (TPS)",
         "The rate of transactions received by the HTTP Server (1m window)",
-        vec![format!("rate({}[1m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter())],
+        format!("rate({}[1m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }

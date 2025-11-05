@@ -57,7 +57,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 5000000000
+    "value": 6000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
@@ -144,6 +144,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "batcher_config.block_builder_config.proposer_idle_detection_delay_millis": {
+    "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "batcher_config.block_builder_config.tx_polling_interval_millis": {
     "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
     "privacy": "Public",
@@ -155,7 +160,7 @@
     "privacy": "Public"
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": {
-    "description": "Maximum number of events that can be emitted from the transation.",
+    "description": "Maximum number of events that can be emitted from the transaction.",
     "pointer_target": "versioned_constants_overrides.max_n_events",
     "privacy": "Public"
   },
@@ -1544,22 +1549,22 @@
     "privacy": "Public",
     "value": 5
   },
-  "consensus_manager_config.consensus_manager_config.static_config.sync_retry_interval": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.static_config.timeouts.precommit_timeout": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.static_config.timeouts.prevote_timeout": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.static_config.timeouts.proposal_timeout": {
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
@@ -1624,32 +1629,42 @@
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.context_config.override_l1_data_gas_price": {
-    "description": "Replace the L1 data gas price with this value.",
+  "consensus_manager_config.context_config.override_eth_to_fri_rate": {
+    "description": "Replace the Eth-to-Fri conversion rate with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_l1_data_gas_price.#is_none": {
+  "consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.override_l1_gas_price": {
-    "description": "Replace the L1 gas price with this value.",
+  "consensus_manager_config.context_config.override_l1_data_gas_price_wei": {
+    "description": "Replace the L1 data gas price (wei) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_l1_gas_price.#is_none": {
+  "consensus_manager_config.context_config.override_l1_data_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.context_config.override_l2_gas_price": {
-    "description": "Replace the L2 gas price with this value.",
+  "consensus_manager_config.context_config.override_l1_gas_price_wei": {
+    "description": "Replace the L1 gas price (wei) with this value.",
     "privacy": "Public",
     "value": 0
   },
-  "consensus_manager_config.context_config.override_l2_gas_price.#is_none": {
+  "consensus_manager_config.context_config.override_l1_gas_price_wei.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.context_config.override_l2_gas_price_fri": {
+    "description": "Replace the L2 gas price (fri) with this value.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.override_l2_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
@@ -1865,7 +1880,7 @@
     "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
-    "description": "Maximum number of events that can be emitted from the transation.",
+    "description": "Maximum number of events that can be emitted from the transaction.",
     "pointer_target": "versioned_constants_overrides.max_n_events",
     "privacy": "Public"
   },
@@ -1897,7 +1912,7 @@
   "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
-    "value": 1100000000
+    "value": 1200000000
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
@@ -2745,7 +2760,7 @@
     "value": 10000000
   },
   "versioned_constants_overrides.max_n_events": {
-    "description": "Maximum number of events that can be emitted from the transation.",
+    "description": "Maximum number of events that can be emitted from the transaction.",
     "privacy": "TemporaryValue",
     "value": 1000
   },

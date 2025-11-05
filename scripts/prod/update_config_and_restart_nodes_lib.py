@@ -2,15 +2,30 @@
 
 import argparse
 import json
-import subprocess
 import sys
+<<<<<<< HEAD
 import tempfile
 import urllib.parse
 from difflib import unified_diff
 from enum import Enum
+||||||| 912efc99a
+from enum import Enum
+=======
+from abc import ABC, abstractmethod
+>>>>>>> origin/main-v0.14.1
 from typing import Any, Optional
 
+<<<<<<< HEAD
+||||||| 912efc99a
+import tempfile
+import urllib.parse
+=======
+import tempfile
+import urllib.error
+import urllib.request
+>>>>>>> origin/main-v0.14.1
 import yaml
+<<<<<<< HEAD
 
 
 class Colors(Enum):
@@ -30,12 +45,50 @@ def print_colored(message: str, color: Colors = Colors.RESET, file=sys.stdout) -
 
 def print_error(message: str) -> None:
     print_colored(message, color=Colors.RED, file=sys.stderr)
+||||||| 912efc99a
+from difflib import unified_diff
+
+
+class Colors(Enum):
+    """ANSI color codes for terminal output"""
+
+    RED = "\033[1;31m"
+    GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[1;34m"
+    RESET = "\033[0m"
+
+
+def print_colored(message: str, color: Colors = Colors.RESET, file=sys.stdout) -> None:
+    """Print message with color"""
+    print(f"{color.value}{message}{Colors.RESET.value}", file=file)
+
+
+def print_error(message: str) -> None:
+    print_colored(message, color=Colors.RED, file=sys.stderr)
+=======
+from common_lib import (
+    Colors,
+    NamespaceAndInstructionArgs,
+    RestartStrategy,
+    Service,
+    ask_for_confirmation,
+    get_namespace_args,
+    print_colored,
+    print_error,
+    restart_strategy_converter,
+    run_kubectl_command,
+)
+from difflib import unified_diff
+from restarter_lib import ServiceRestarter
+>>>>>>> origin/main-v0.14.1
 
 
 class ApolloArgsParserBuilder:
     """Builder class for creating argument parsers with required flags and custom arguments."""
 
-    def __init__(self, description: str, usage_example: str):
+    # TODO(guy.f): If we need to exclude more than just the restart flag, create a more generic mechanism.
+    def __init__(self, description: str, usage_example: str, include_restart_strategy: bool = True):
         """Initialize the builder with usage example for epilog.
 
         Args:
@@ -48,10 +101,14 @@ class ApolloArgsParserBuilder:
             epilog=usage_example,
         )
 
-        self._add_common_flags()
+        self._add_common_flags(include_restart_strategy)
 
-    def _add_common_flags(self):
-        """Add all common flags."""
+    def _add_common_flags(self, include_restart_strategy: bool):
+        """Add all common flags.
+
+        Args:
+            include_restart_strategy: Whether to include the restart strategy flag.
+        """
         namespace_group = self.parser.add_mutually_exclusive_group(required=True)
         namespace_group.add_argument(
             "-n",
@@ -91,19 +148,15 @@ class ApolloArgsParserBuilder:
             help="Space separated list of cluster names for kubectl contexts",
         )
 
-        restart_group = self.parser.add_mutually_exclusive_group()
-        restart_group.add_argument(
-            "-r",
-            "--restart-nodes",
-            action="store_true",
-            default=None,
-            help="Restart the pods after updating configuration (default behavior)",
-        )
-        restart_group.add_argument(
-            "--no-restart",
-            action="store_true",
-            help="Do not restart the pods after updating configuration",
-        )
+        if include_restart_strategy:
+            self.add_argument(
+                "-t",
+                "--restart-strategy",
+                type=restart_strategy_converter,
+                choices=list(RestartStrategy),
+                required=True,
+                help="Strategy for restarting nodes",
+            )
 
     def add_argument(self, *args, **kwargs):
         """Add a new argument to the parser.
@@ -124,27 +177,6 @@ class ApolloArgsParserBuilder:
         args = self.parser.parse_args()
         validate_arguments(args)
         return args
-
-
-class Service(Enum):
-    """Service types mapping to their configmap and pod names."""
-
-    Core = ("sequencer-core-config", "sequencer-core-statefulset-0")
-    Gateway = ("sequencer-gateway-config", "sequencer-gateway-deployment")
-    HttpServer = (
-        "sequencer-httpserver-config",
-        "sequencer-httpserver-deployment",
-    )
-    L1 = ("sequencer-l1-config", "sequencer-l1-deployment")
-    Mempool = ("sequencer-mempool-config", "sequencer-mempool-deployment")
-    SierraCompiler = (
-        "sequencer-sierracompiler-config",
-        "sequencer-sierracompiler-deployment",
-    )
-
-    def __init__(self, config_map_name: str, pod_name: str) -> None:
-        self.config_map_name = config_map_name
-        self.pod_name = pod_name
 
 
 def validate_arguments(args: argparse.Namespace) -> None:
@@ -183,35 +215,6 @@ def validate_arguments(args: argparse.Namespace) -> None:
             sys.exit(1)
 
 
-def get_namespace_list_from_args(
-    args: argparse.Namespace,
-) -> list[str]:
-    """Get a list of namespaces based on the arguments"""
-    if args.namespace_list:
-        return args.namespace_list
-
-    return [
-        f"{args.namespace_prefix}-{i}"
-        for i in range(args.start_index, args.start_index + args.num_nodes)
-    ]
-
-
-def get_context_list_from_args(
-    args: argparse.Namespace,
-) -> list[str]:
-    """Get a list of contexts based on the arguments"""
-    if args.cluster_list:
-        return args.cluster_list
-
-    if args.cluster_prefix is None:
-        return None
-
-    return [
-        f"{args.cluster_prefix}-{i}"
-        for i in range(args.start_index, args.start_index + args.num_nodes)
-    ]
-
-
 def get_logs_explorer_url(
     query: str,
     project_name: Optional[str] = None,
@@ -229,22 +232,84 @@ def get_logs_explorer_url(
     )
 
 
-def run_kubectl_command(args: list, capture_output: bool = True) -> subprocess.CompletedProcess:
-    full_command = ["kubectl"] + args
+class ConfigValuesUpdater(ABC):
+    """Abstract class for updating configuration values for different service instances."""
+
+    def get_updated_config(self, orig_config_yaml: str, instance_index: int) -> str:
+        """Get updated configuration YAML for a specific instance.
+
+        Args:
+            orig_config_yaml: Original configuration as YAML string
+            instance_index: Index of the instance to update configuration for
+
+        Returns:
+            Updated configuration as YAML string
+        """
+        config, config_data = parse_config_from_yaml(orig_config_yaml)
+        updated_config_data = self.get_updated_config_for_instance(config_data, instance_index)
+        return serialize_config_to_yaml(config, updated_config_data)
+
+    @abstractmethod
+    def get_updated_config_for_instance(
+        self, config_data: dict[str, Any], instance_index: int
+    ) -> dict[str, Any]:
+        """Get updated configuration data for a specific instance.
+
+        Args:
+            config_data: Current configuration data dictionary
+            instance_index: Index of the instance to update configuration for
+
+        Returns:
+            Updated configuration data dictionary
+        """
+
+
+class ConstConfigValuesUpdater(ConfigValuesUpdater):
+    """Concrete implementation that applies constant configuration overrides."""
+
+    def __init__(self, config_overrides: dict[str, Any]):
+        """Initialize with configuration overrides.
+
+        Args:
+            config_overrides: Dictionary of configuration keys and values to override
+        """
+        self.config_overrides = config_overrides
+
+    def get_updated_config_for_instance(
+        self, config_data: dict[str, Any], instance_index: int
+    ) -> dict[str, Any]:
+        """Apply the same configuration overrides to the config data for each instance."""
+        updated_config = config_data.copy()
+
+        for key, value in self.config_overrides.items():
+            print_colored(f"  Overriding config: {key} = {value}")
+            updated_config[key] = value
+
+        return updated_config
+
+
+def get_current_block_number(feeder_url: str) -> int:
+    """Get the current block number from the feeder URL."""
     try:
-        result = subprocess.run(full_command, capture_output=capture_output, text=True, check=True)
-        return result
-    except subprocess.CalledProcessError as e:
-        print_error(f"kubectl command failed: {' '.join(full_command)}")
-        print_error(f"Error: {e.stderr}")
+        url = f"https://{feeder_url}/feeder_gateway/get_block"
+        with urllib.request.urlopen(url) as response:
+            if response.status != 200:
+                raise urllib.error.HTTPError(
+                    url, response.status, "HTTP Error", response.headers, None
+                )
+            data = json.loads(response.read().decode("utf-8"))
+            current_block_number = data["block_number"]
+            return current_block_number
+
+    except urllib.error.URLError as e:
+        print_error(f"Failed to fetch block number from feeder URL: {e}")
         sys.exit(1)
-
-
-def get_namespace_args(namespace: str, cluster: Optional[str] = None) -> list[str]:
-    ret = ["-n", f"{namespace}"]
-    if cluster:
-        ret.extend(["--context", f"{cluster}"])
-    return ret
+    except KeyError as e:
+        print_error(f"Unexpected response format from feeder URL: {e}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print_error(f"Failed to parse JSON response from feeder URL: {e}")
+        sys.exit(1)
 
 
 def get_configmap(
@@ -330,22 +395,6 @@ def serialize_config_to_yaml(full_config: dict, config_data: dict) -> str:
     return result
 
 
-def update_config_values(
-    config_content: str,
-    config_overrides: dict[str, Any] = None,
-) -> str:
-    """Update configuration values in the YAML content and return the updated YAML"""
-    # Parse the configuration
-    config, config_data = parse_config_from_yaml(config_content)
-
-    for key, value in config_overrides.items():
-        print_colored(f"  Overriding config: {key} = {value}")
-        config_data[key] = value
-
-    # Serialize back to YAML
-    return serialize_config_to_yaml(config, config_data)
-
-
 def normalize_config(config_content: str) -> str:
     """Normalize configuration by parsing and re-serializing without changes.
 
@@ -379,26 +428,6 @@ def show_config_diff(old_content: str, new_content: str, index: int) -> None:
         print_colored("No changes detected", Colors.BLUE)
 
 
-def ask_for_confirmation() -> bool:
-    """Ask user for confirmation to proceed"""
-    response = (
-        input(f"{Colors.BLUE.value}Do you approve these changes? (y/n){Colors.RESET.value}")
-        .strip()
-        .lower()
-    )
-    return response == "y"
-
-
-def wait_until_y_or_n(question: str) -> bool:
-    """Wait until user enters y or n. Cotinues asking until user enters y or n."""
-    while True:
-        response = input(f"{Colors.BLUE.value}{question} (y/n){Colors.RESET.value}").strip().lower()
-        if response == "y" or response == "n":
-            break
-        print_error(f"Invalid response: {response}")
-    return response == "y"
-
-
 def apply_configmap(
     config_content: str,
     namespace: str,
@@ -421,95 +450,44 @@ def apply_configmap(
             sys.exit(1)
 
 
-def restart_pod(
-    namespace: str, service: Service, index: int, cluster: Optional[str] = None
-) -> None:
-    """Restart pod by deleting it"""
-    # Get the list of pods (one string per line).
-    kubectl_args = [
-        "get",
-        "pods",
-        "-o",
-        "name",
-    ]
-    pods = run_kubectl_command(kubectl_args, capture_output=True).stdout.splitlines()
-
-    # Filter the list of pods to only include the ones that match the service and extract the pod name.
-    pods = [pod.split("/")[1] for pod in pods if pod.startswith(f"pod/{service.pod_name}")]
-
-    if not pods:
-        print_error(f"Could not find pods for service {service.pod_name}.")
-        sys.exit(1)
-
-    # Go over each pod and delete it.
-    for pod in pods:
-        kubectl_args = [
-            "delete",
-            "pod",
-            pod,
-        ]
-        kubectl_args.extend(get_namespace_args(namespace, cluster))
-
-        try:
-            run_kubectl_command(kubectl_args, capture_output=False)
-            print_colored(f"Restarted {pod} for node {index}")
-        except Exception as e:
-            print_error(f"Failed restarting {pod} for node {index}: {e}")
-            sys.exit(1)
-
-
 def update_config_and_restart_nodes(
-    config_overrides: dict[str, Any],
-    namespace_list: list[str],
+    config_values_updater: ConfigValuesUpdater,
+    namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
-    cluster_list: Optional[list[str]] = None,
-    restart_nodes: bool = True,
-    # TODO(guy.f): Remove this once we have metrics we use to decide based on.
-    wait_between_restarts: bool = False,
-    post_restart_instructions: Optional[list[str]] = None,
+    restarter: ServiceRestarter,
 ) -> None:
-    assert config_overrides is not None, "config_overrides must be provided"
-    assert namespace_list is not None and len(namespace_list) > 0, "namespaces must be provided"
+    assert config_values_updater is not None, "config_values_updater must be provided"
+    assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
 
-    if post_restart_instructions is not None:
-        assert len(post_restart_instructions) == len(
-            namespace_list
-        ), f"logs_explorer_urls must have the same length as namespace_list. logs_explorer_urls: {len(post_restart_instructions)}, namespace_list: {len(namespace_list)}"
-
-    if wait_between_restarts:
-        assert (
-            post_restart_instructions is not None
-        ), "logs_explorer_urls must be provided when wait_between_restarts is True"
-    else:
-        assert (
-            post_restart_instructions is None
-        ), "logs_explorer_urls must be None when wait_between_restarts is False"
-
-    if not cluster_list:
+    if not namespace_and_instruction_args.cluster_list:
         print_colored(
             "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
             Colors.RED,
         )
-    else:
-        assert len(cluster_list) == len(
-            namespace_list
-        ), f"cluster_list must have the same number of values as namespace_list. cluster_list: {cluster_list}, namespace_list: {namespace_list}"
 
     # Store original and updated configs for all nodes
     configs = []
 
     # Process each node's configuration
-    for index, namespace in enumerate(namespace_list):
-        cluster = cluster_list[index] if cluster_list else None
+    for index in range(namespace_and_instruction_args.size()):
+        namespace = namespace_and_instruction_args.get_namespace(index)
+        cluster = namespace_and_instruction_args.get_cluster(index)
+
         print_colored(
-            f"\nProcessing node for namespace {namespace} (cluster: {cluster if cluster else 'current cluster'})..."
+            f"\nProcessing node for namespace {namespace} (cluster: {cluster if cluster is not None else 'current cluster'})..."
         )
 
         # Get current config and normalize it (e.g. " vs ') to ensure not showing bogus diffs.
-        original_config = normalize_config(get_configmap(namespace, cluster, service))
+        original_config = normalize_config(
+            get_configmap(
+                namespace,
+                cluster,
+                service,
+            )
+        )
 
         # Update config
-        updated_config = update_config_values(original_config, config_overrides)
+        updated_config = config_values_updater.get_updated_config(original_config, index)
 
         # Store configs
         configs.append({"original": original_config, "updated": updated_config})
@@ -527,27 +505,16 @@ def update_config_and_restart_nodes(
         print(f"Applying config {index}...")
         apply_configmap(
             config["updated"],
-            namespace_list[index],
+            namespace_and_instruction_args.get_namespace(index),
             index,
-            cluster_list[index] if cluster_list else None,
+            namespace_and_instruction_args.get_cluster(index),
         )
 
-    if restart_nodes:
-        for index, config in enumerate(configs):
-            restart_pod(
-                namespace_list[index], service, index, cluster_list[index] if cluster_list else None
-            )
-            if wait_between_restarts:
-                instructions = post_restart_instructions[index]
-                print_colored(f"Restarted pod.\n{instructions}. ", Colors.YELLOW)
-                # Don't ask in the case of the last job.
-                if index != len(configs) - 1 and not wait_until_y_or_n(
-                    f"Do you want to restart the next pod?"
-                ):
-                    print_colored("\nAborting restart process.")
-                    return
-        print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
-    else:
-        print_colored("\nSkipping pod restart (--no-restart was specified)")
+    for index, config in enumerate(configs):
+        if not restarter.restart_service(index):
+            print_colored("\nAborting restart process.")
+            sys.exit(1)
+
+    print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
 
     print("\nOperation completed successfully!")

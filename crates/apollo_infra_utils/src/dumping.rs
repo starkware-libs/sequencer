@@ -15,14 +15,14 @@ use crate::path::resolve_project_relative_path;
 use crate::test_utils::assert_json_eq;
 
 #[cfg(any(feature = "testing", test))]
-pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary_name: &str) {
+pub fn serialize_to_file_test<T: Serialize>(data: &T, file_path: &str, fix_binary_name: &str) {
     let file_path = resolve_project_relative_path("").unwrap().join(file_path);
     let file = File::open(&file_path).unwrap_or_else(|err| {
         panic!("Failed to open file '{}': {}", file_path.display(), err);
     });
     let loaded_data: Value = from_reader(file).unwrap();
     let serialized_data =
-        to_value(&data).expect("Should have been able to serialize the data to JSON");
+        to_value(data).expect("Should have been able to serialize the data to JSON");
 
     let error_message = format!(
         "{}{}{}\n{}",
@@ -36,7 +36,7 @@ pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary
     assert_json_eq(&loaded_data, &serialized_data, error_message);
 }
 
-pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
+pub fn serialize_to_file<T: Serialize>(data: &T, file_path: &str) {
     // Ensure the parent directory exists
     if let Some(parent) = PathBuf::from(file_path).parent() {
         create_dir_all(parent).unwrap_or_else(|err| {
@@ -51,7 +51,7 @@ pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
     let mut writer = BufWriter::new(file);
 
     // Add config as JSON content to writer.
-    to_writer_pretty(&mut writer, &data)
+    to_writer_pretty(&mut writer, data)
         .expect("Should have been able to serialize input data to JSON.");
 
     // Add an extra newline after the JSON content.

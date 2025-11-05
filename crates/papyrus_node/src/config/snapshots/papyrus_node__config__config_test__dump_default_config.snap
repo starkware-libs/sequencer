@@ -101,6 +101,34 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
+  "consensus.dynamic_config.sync_retry_interval": {
+    "description": "The duration (seconds) between sync attempts.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "value": {
+      "$serde_json::private::Number": "3.0"
+    },
+    "privacy": "Public"
+  },
   "consensus.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
     "value": "0x64",
@@ -131,34 +159,6 @@ expression: dumped_default_config
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "value": {
       "$serde_json::private::Number": "5"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.sync_retry_interval": {
-    "description": "The duration (seconds) between sync attempts.",
-    "value": {
-      "$serde_json::private::Number": "1.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
-    "value": {
-      "$serde_json::private::Number": "1.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
-    "value": {
-      "$serde_json::private::Number": "1.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
-    "value": {
-      "$serde_json::private::Number": "3.0"
     },
     "privacy": "Public"
   },
@@ -245,38 +245,50 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "context.override_l1_data_gas_price": {
-    "description": "Replace the L1 data gas price with this value.",
+  "context.override_eth_to_fri_rate": {
+    "description": "Replace the Eth-to-Fri conversion rate with this value.",
     "value": {
       "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
-  "context.override_l1_data_gas_price.#is_none": {
+  "context.override_eth_to_fri_rate.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "context.override_l1_gas_price": {
-    "description": "Replace the L1 gas price with this value.",
+  "context.override_l1_data_gas_price_wei": {
+    "description": "Replace the L1 data gas price (wei) with this value.",
     "value": {
       "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
-  "context.override_l1_gas_price.#is_none": {
+  "context.override_l1_data_gas_price_wei.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "context.override_l2_gas_price": {
-    "description": "Replace the L2 gas price with this value.",
+  "context.override_l1_gas_price_wei": {
+    "description": "Replace the L1 gas price (wei) with this value.",
     "value": {
       "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
-  "context.override_l2_gas_price.#is_none": {
+  "context.override_l1_gas_price_wei.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "context.override_l2_gas_price_fri": {
+    "description": "Replace the L2 gas price (fri) with this value.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
+  "context.override_l2_gas_price_fri.#is_none": {
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"

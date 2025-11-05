@@ -7,9 +7,11 @@ use apollo_config_manager_types::communication::{
     MockConfigManagerClient,
     SharedConfigManagerClient,
 };
+use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{
+    NodeDynamicConfig,
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
@@ -17,6 +19,7 @@ use apollo_node_config::node_config::{
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
+use tracing_test::traced_test;
 
 use crate::config_manager_runner::ConfigManagerRunner;
 
@@ -86,7 +89,7 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
 }
 
 #[tokio::test]
-async fn test_config_manager_runner_update_config_with_changed_values() {
+async fn config_manager_runner_update_config_with_changed_values() {
     // Set a mock config manager client to expect the update dynamic config request.
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1..).return_const(Ok(()));
@@ -98,9 +101,15 @@ async fn test_config_manager_runner_update_config_with_changed_values() {
     // Create a temporary config file and get the validator id value.
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
 
+    let node_dynamic_config = NodeDynamicConfig::default();
+
     // Create a config manager runner and update the config.
-    let config_manager_runner =
-        ConfigManagerRunner::new(config_manager_config, config_manager_client, cli_args);
+    let mut config_manager_runner = ConfigManagerRunner::new(
+        config_manager_config,
+        config_manager_client,
+        node_dynamic_config,
+        cli_args,
+    );
 
     // Helper function to convert a hex string to a u128.
     fn hex_to_u128(s: &str) -> u128 {
@@ -136,4 +145,38 @@ async fn test_config_manager_runner_update_config_with_changed_values() {
         second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
+}
+
+#[traced_test]
+#[test]
+fn log_config_diff_changes() {
+    let old_dynamic_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(ConsensusDynamicConfig {
+            validator_id: ContractAddress::from(1u128),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let new_dynamic_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(ConsensusDynamicConfig {
+            validator_id: ContractAddress::from(2u128),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let mock_client = MockConfigManagerClient::new();
+    let runner = ConfigManagerRunner::new(
+        ConfigManagerConfig::default(),
+        Arc::new(mock_client),
+        old_dynamic_config.clone(),
+        Vec::<String>::new(),
+    );
+
+    runner.log_config_diff(&old_dynamic_config, &new_dynamic_config);
+
+    assert!(logs_contain("consensus_dynamic_config changed from"));
+    assert!(logs_contain(r#""validator_id":"0x1""#));
+    assert!(logs_contain(r#""validator_id":"0x2""#));
 }

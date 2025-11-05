@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use apollo_metrics::MetricCommon;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
@@ -40,7 +41,7 @@ fn get_state_sync_lag(
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
-        ObserverApplicability::Applicable,
+        ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
 }

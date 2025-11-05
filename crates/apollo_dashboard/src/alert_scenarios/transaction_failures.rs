@@ -5,6 +5,7 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_TOTAL,
 };
 use apollo_mempool::metrics::{MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED};
+use apollo_metrics::MetricCommon;
 
 use crate::alerts::{
     Alert,
@@ -57,7 +58,7 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.3,
+            comparison_value: 0.5,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,

@@ -1,8 +1,8 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 
-// Gets a felt that represent a 256-bit unsigned integer stored as an array of eight 32-bit unsigned integers
-// represented in little-endian notation. Return the felt representation of the integer modulo prime.
+// Gets a felt that represents a 256-bit unsigned integer stored as an array of eight 32-bit unsigned integers
+// represented in little-endian notation. Returns the felt representation of the integer modulo prime.
 func felt_from_le_u32s(u32s: felt*) -> felt {
     let value = u32s[7] * 2 ** 224 + u32s[6] * 2 ** 192 + u32s[5] * 2 ** 160 + u32s[4] * 2 ** 128 +
         u32s[3] * 2 ** 96 + u32s[2] * 2 ** 64 + u32s[1] * 2 ** 32 + u32s[0];
@@ -61,11 +61,9 @@ func create_initial_state_for_blake2s() -> (initial_state: felt*) {
 // Encodes one felt252 into eight u32s represented in little-endian order.
 func naive_encode_felt252_to_u32s(packed_value: felt, unpacked_u32s: felt*) {
     %{ NaiveUnpackFelt252ToU32s %}
-    tempvar out = unpacked_u32s;
-
     // TODO(Noa): Assert that the limbs represent a number in the range [0, PRIME-1].
     // Assert that the limbs represent the number.
-    let actual_value = felt_from_le_u32s(u32s=out);
+    let actual_value = felt_from_le_u32s(u32s=unpacked_u32s);
     assert packed_value = actual_value;
 
     return ();

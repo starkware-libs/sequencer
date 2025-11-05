@@ -1,7 +1,20 @@
+use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
+<<<<<<< HEAD
 use apollo_consensus_config::config::{FutureMsgLimitsConfig, TimeoutsConfig};
+||||||| 912efc99a
+use apollo_consensus_config::config::TimeoutsConfig;
+=======
+use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_consensus_config::config::{
+    ConsensusConfig,
+    ConsensusDynamicConfig,
+    ConsensusStaticConfig,
+    TimeoutsConfig,
+};
+>>>>>>> origin/main-v0.14.1
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
@@ -13,6 +26,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
+use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
@@ -41,6 +55,18 @@ const FUTURE_MSG_LIMIT: FutureMsgLimitsConfig = FutureMsgLimitsConfig {
     future_round_limit: 10,
     future_height_round_limit: 1,
 };
+
+#[fixture]
+fn consensus_config() -> ConsensusConfig {
+    ConsensusConfig::from_parts(
+        ConsensusDynamicConfig {
+            validator_id: *VALIDATOR_ID,
+            timeouts: TIMEOUTS.clone(),
+            sync_retry_interval: SYNC_RETRY_INTERVAL,
+        },
+        ConsensusStaticConfig { startup_delay: Duration::ZERO, ..Default::default() },
+    )
+}
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<Vote>, msg: Vote) {
     let broadcasted_message_metadata =
@@ -80,8 +106,9 @@ fn assert_decision(res: RunHeightRes, id: Felt, round: u32) {
     }
 }
 
+#[rstest]
 #[tokio::test]
-async fn manager_multiple_heights_unordered() {
+async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
@@ -115,6 +142,7 @@ async fn manager_multiple_heights_unordered() {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
+<<<<<<< HEAD
     let mut manager = MultiHeightManager::new(
         *VALIDATOR_ID,
         SYNC_RETRY_INTERVAL,
@@ -122,6 +150,16 @@ async fn manager_multiple_heights_unordered() {
         TIMEOUTS.clone(),
         FUTURE_MSG_LIMIT,
     );
+||||||| 912efc99a
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
+=======
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+>>>>>>> origin/main-v0.14.1
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -150,8 +188,9 @@ async fn manager_multiple_heights_unordered() {
     assert_decision(decision, Felt::TWO, 0);
 }
 
+#[rstest]
 #[tokio::test]
-async fn run_consensus_sync() {
+async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     // Set expectations.
     let mut context = MockTestContext::new();
     let (decision_tx, decision_rx) = oneshot::channel();
@@ -189,14 +228,16 @@ async fn run_consensus_sync() {
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     let run_consensus_args = RunConsensusArguments {
+        consensus_config,
         start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
-        validator_id: *VALIDATOR_ID,
-        consensus_delay: Duration::ZERO,
-        timeouts: TIMEOUTS.clone(),
-        sync_retry_interval: SYNC_RETRY_INTERVAL,
         quorum_type: QuorumType::Byzantine,
+<<<<<<< HEAD
         future_msg_limit: FUTURE_MSG_LIMIT,
+||||||| 912efc99a
+=======
+        config_manager_client: None,
+>>>>>>> origin/main-v0.14.1
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -213,8 +254,9 @@ async fn run_consensus_sync() {
     decision_rx.await.unwrap();
 }
 
+#[rstest]
 #[tokio::test]
-async fn test_timeouts() {
+async fn test_timeouts(consensus_config: ConsensusConfig) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
@@ -253,6 +295,7 @@ async fn test_timeouts() {
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
+<<<<<<< HEAD
     let mut manager = MultiHeightManager::new(
         *VALIDATOR_ID,
         SYNC_RETRY_INTERVAL,
@@ -260,6 +303,17 @@ async fn test_timeouts() {
         TIMEOUTS.clone(),
         FUTURE_MSG_LIMIT,
     );
+||||||| 912efc99a
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
+=======
+    // Ensure our validator id matches the expectation in the broadcast assertion.
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+>>>>>>> origin/main-v0.14.1
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -292,8 +346,9 @@ async fn test_timeouts() {
     manager_handle.await.unwrap();
 }
 
+#[rstest]
 #[tokio::test]
-async fn timely_message_handling() {
+async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // TODO(matan): Make run_height more generic so don't need mock network?
     // Check that, even when sync is immediately ready, consensus still handles queued messages.
     let mut context = MockTestContext::new();
@@ -315,6 +370,7 @@ async fn timely_message_handling() {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
+<<<<<<< HEAD
     let mut manager = MultiHeightManager::new(
         *VALIDATOR_ID,
         SYNC_RETRY_INTERVAL,
@@ -322,6 +378,16 @@ async fn timely_message_handling() {
         TIMEOUTS.clone(),
         FUTURE_MSG_LIMIT,
     );
+||||||| 912efc99a
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
+=======
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+>>>>>>> origin/main-v0.14.1
     let res = manager
         .run_height(
             &mut context,
@@ -338,6 +404,7 @@ async fn timely_message_handling() {
     proposal_receiver_sender.try_send(mpsc::channel(1).1).unwrap();
     assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
 }
+<<<<<<< HEAD
 
 #[tokio::test]
 async fn future_height_limit_caching_and_dropping() {
@@ -593,3 +660,82 @@ async fn current_height_round_limit_caching_and_dropping() {
         .unwrap();
     assert_decision(decision, Felt::ONE, 2);
 }
+||||||| 912efc99a
+=======
+
+#[rstest]
+#[tokio::test]
+async fn run_consensus_dynamic_client_updates_validator_between_heights(
+    consensus_config: ConsensusConfig,
+) {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    // Keep a handle to the vote sender so the paired receiver stays alive.
+    let _vote_sender = mock_network.broadcasted_messages_sender;
+    let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+
+    // Context with expectations: H1 we are the validator, learn height via sync; at H2 we are the
+    // proposer.
+    let mut context = MockTestContext::new();
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_validators().returning(move |h: BlockNumber| {
+        if h == BlockNumber(1) { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] }
+    });
+    context.expect_proposer().returning(move |h: BlockNumber, _| {
+        if h == BlockNumber(1) { *VALIDATOR_ID } else { *PROPOSER_ID }
+    });
+    context.expect_try_sync().withf(move |h| *h == BlockNumber(1)).times(1).returning(|_| true);
+    context.expect_try_sync().returning(|_| false);
+    context.expect_broadcast().returning(move |_| Ok(()));
+
+    // In this test, build_proposal should be called only when the dynamic config returns that we
+    // are the proposer, which happens at H2.
+    context
+        .expect_build_proposal()
+        .withf(move |init, _| init.height == BlockNumber(2) && init.proposer == *PROPOSER_ID)
+        .returning(move |_, _| {
+            let (sender, receiver) = oneshot::channel();
+            sender.send(ProposalCommitment(Felt::TWO)).unwrap();
+            receiver
+        })
+        .times(1);
+    // Expect a decision at height 2.
+    let (decision_tx, decision_rx) = oneshot::channel();
+    context
+        .expect_decision_reached()
+        .withf(move |_, votes| votes.first().map(|v| v.height) == Some(2))
+        .return_once(move |_, _| {
+            let _ = decision_tx.send(());
+            Ok(())
+        })
+        .times(1);
+
+    // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID (order is important)
+    let mut mock_client = MockConfigManagerClient::new();
+    let validator_config = consensus_config.dynamic_config.clone();
+    let proposer_config =
+        ConsensusDynamicConfig { validator_id: *PROPOSER_ID, ..validator_config.clone() };
+    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(validator_config));
+    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
+
+    let run_consensus_args = RunConsensusArguments {
+        start_active_height: BlockNumber(1),
+        start_observe_height: BlockNumber(1),
+        consensus_config,
+        quorum_type: QuorumType::Byzantine,
+        config_manager_client: Some(Arc::new(mock_client)),
+    };
+
+    // Spawn consensus and wait for a decision at height 2.
+    tokio::spawn(async move {
+        run_consensus(
+            run_consensus_args,
+            context,
+            subscriber_channels.into(),
+            proposal_receiver_receiver,
+        )
+        .await
+    });
+    decision_rx.await.unwrap();
+}
+>>>>>>> origin/main-v0.14.1

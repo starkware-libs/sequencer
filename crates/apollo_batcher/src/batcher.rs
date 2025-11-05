@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherConfig;
@@ -68,9 +69,11 @@ use crate::metrics::{
     LAST_PROPOSED_BLOCK_HEIGHT,
     LAST_SYNCED_BLOCK_HEIGHT,
     NUM_TRANSACTION_IN_BLOCK,
+    PROVING_GAS_IN_LAST_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     REVERTED_TRANSACTIONS,
+    SIERRA_GAS_IN_LAST_BLOCK,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -279,6 +282,10 @@ impl Batcher {
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(propose_block_input.deadline)?,
                     is_validator: false,
+                    proposer_idle_detection_delay: self
+                        .config
+                        .block_builder_config
+                        .proposer_idle_detection_delay_millis,
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
@@ -362,6 +369,10 @@ impl Batcher {
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(validate_block_input.deadline)?,
                     is_validator: true,
+                    proposer_idle_detection_delay: self
+                        .config
+                        .block_builder_config
+                        .proposer_idle_detection_delay_millis,
                 },
                 Box::new(tx_provider),
                 None,
@@ -635,6 +646,9 @@ impl Batcher {
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         REVERTED_TRANSACTIONS.increment(n_reverted_count);
         NUM_TRANSACTION_IN_BLOCK.record_lossy(n_txs);
+        SIERRA_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.bouncer_weights.sierra_gas.0);
+        PROVING_GAS_IN_LAST_BLOCK
+            .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
 
         Ok(DecisionReachedResponse {
             state_diff,
@@ -911,25 +925,36 @@ fn log_txs_execution_result(
     proposal_id: ProposalId,
     result: &Result<BlockExecutionArtifacts, Arc<BlockBuilderError>>,
 ) {
-    // Constructing log message.
     if let Ok(block_artifacts) = result {
-        let mut log_msg = format!(
+        let execution_infos = &block_artifacts.execution_data.execution_infos;
+        let rejected_hashes = &block_artifacts.execution_data.rejected_tx_hashes;
+
+        // Estimate capacity: base message + (hash + status) per transaction
+        // TransactionHash is 66 chars (0x + 64 hex), status is ~12 chars, separator is 4 chars
+        // Total per transaction: ~82 chars
+        const CHARS_PER_TX: usize = 82;
+        const BASE_CAPACITY: usize = 80; // Base message length
+        let total_txs = execution_infos.len() + rejected_hashes.len();
+        let estimated_capacity = BASE_CAPACITY + total_txs * CHARS_PER_TX;
+
+        let mut log_msg = String::with_capacity(estimated_capacity);
+        let _ = write!(
+            &mut log_msg,
             "Finished generating proposal {} with {} transactions",
             proposal_id,
-            block_artifacts.execution_data.execution_infos.len(),
+            execution_infos.len(),
         );
-        block_artifacts.execution_data.execution_infos.iter().for_each(|(tx_hash, info)| {
-            log_msg.push_str(&format!(", {tx_hash}:"));
-            if info.revert_error.is_some() {
-                log_msg.push_str(" Reverted");
-            } else {
-                log_msg.push_str(" Successful");
-            }
-        });
-        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
-            log_msg.push_str(&format!(", {tx_hash}: Rejected"));
-        });
-        info!(log_msg);
+
+        for (tx_hash, info) in execution_infos {
+            let status = if info.revert_error.is_some() { "Reverted" } else { "Successful" };
+            let _ = write!(&mut log_msg, ", {tx_hash}: {status}");
+        }
+
+        for tx_hash in rejected_hashes {
+            let _ = write!(&mut log_msg, ", {tx_hash}: Rejected");
+        }
+
+        info!("{}", log_msg);
     }
 }
 

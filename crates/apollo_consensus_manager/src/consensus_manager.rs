@@ -34,7 +34,7 @@ use apollo_network::network_manager::{
     NetworkManager,
 };
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
-use apollo_reverts::revert_blocks_and_eternal_pending;
+use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
@@ -44,12 +44,14 @@ use starknet_api::block::BlockNumber;
 use tracing::{info, info_span, Instrument};
 
 use crate::metrics::{
+    register_metrics,
     CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
     CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
@@ -263,18 +265,16 @@ impl ConsensusManager {
         // TODO(Asmaa): refactor to pass entire consensus_manager_config instead of extracting
         // each field, and handle non-config params.
         apollo_consensus::RunConsensusArguments {
+            consensus_config: self.config.consensus_manager_config.clone(),
             start_active_height: active_height,
             start_observe_height: observer_height,
-            validator_id: self.config.consensus_manager_config.dynamic_config.validator_id,
-            consensus_delay: self.config.consensus_manager_config.static_config.startup_delay,
-            timeouts: self.config.consensus_manager_config.static_config.timeouts.clone(),
-            sync_retry_interval: self
-                .config
-                .consensus_manager_config
-                .static_config
-                .sync_retry_interval,
             quorum_type,
+<<<<<<< HEAD
             future_msg_limit: self.config.consensus_manager_config.static_config.future_msg_limit,
+||||||| 912efc99a
+=======
+            config_manager_client: Some(Arc::clone(&self.config_manager_client)),
+>>>>>>> origin/main-v0.14.1
         }
     }
 
@@ -296,11 +296,15 @@ impl ConsensusManager {
                 .expect("Failed to revert block at height {height} in the batcher");
         };
 
+        const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
+            name: "Batcher",
+            revert_metric: CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
+        };
         revert_blocks_and_eternal_pending(
             batcher_height_marker,
             revert_up_to_and_including,
             revert_blocks_fn,
-            "Batcher",
+            &BATCHER_REVERT_COMPONENT_DATA,
         )
         .await;
     }
@@ -330,6 +334,7 @@ pub fn create_consensus_manager(
 impl ComponentStarter for ConsensusManager {
     async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
+        register_metrics();
         self.run().await;
     }
 }

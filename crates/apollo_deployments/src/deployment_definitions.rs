@@ -88,6 +88,7 @@ pub struct DeploymentInputs {
     pub deployment_environment: Environment,
     pub requires_k8s_service_config_params: bool,
     pub audited_libfuncs_only: bool,
+    pub http_server_port: u16,
 }
 
 impl DeploymentInputs {
