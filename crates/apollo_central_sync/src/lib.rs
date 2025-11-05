@@ -310,6 +310,20 @@ pub enum SyncEvent {
     },
 }
 
+// SAFETY: GenericStateSync is Sync because:
+// - All fields except `compilation_tasks` are Sync (they implement Sync via trait bounds)
+// - `compilation_tasks` (FuturesOrdered) is only accessed from within the single async task
+//   that owns the GenericStateSync instance (via `run(mut self)`), so there's no actual
+//   sharing across threads despite the type not being Sync.
+// - Methods that take `&self` only read thread-safe fields (reader, config, etc.)
+unsafe impl<
+    TCentralSource: CentralSourceTrait + Sync + Send + 'static,
+    TPendingSource: PendingSourceTrait + Sync + Send + 'static,
+    TBaseLayerSource: BaseLayerSourceTrait + Sync + Send + 'static,
+> Sync for GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
+{
+}
+
 impl<
     TCentralSource: CentralSourceTrait + Sync + Send + 'static,
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
