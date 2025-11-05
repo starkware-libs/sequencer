@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce, ascii_as_felt};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -38,10 +38,10 @@ impl FilledForest {
         // Serialize all trees to one hash map.
         let new_db_objects: DbHashMap = self
             .storage_tries
-            .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(self.contracts_trie.serialize())
-            .chain(self.classes_trie.serialize())
+            .iter()
+            .flat_map(|(address,tree)| tree.serialize(Some((*address).into())).into_iter())
+            .chain(self.contracts_trie.serialize(Some(ascii_as_felt("CONTRACTS_TREE_PREFIX").unwrap())))
+            .chain(self.classes_trie.serialize(Some(ascii_as_felt("CLASSES_TREE_PREFIX").unwrap())))
             .collect();
 
         // Store the new hash map.

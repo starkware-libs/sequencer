@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::storage_trait::DbHashMap;
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey};
+use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
@@ -42,7 +43,7 @@ pub trait FilledTree<L: Leaf>: Sized + Send {
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
     /// to a storage key and its serialized storage value.
-    fn serialize(&self) -> DbHashMap;
+    fn serialize(&self, tree_prefix: Option<Felt>) -> DbHashMap;
 
     fn get_root_hash(&self) -> HashOutput;
 }
@@ -363,10 +364,13 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         })
     }
 
-    fn serialize(&self) -> DbHashMap {
+    fn serialize(&self, tree_prefix: Option<Felt>) -> DbHashMap {
         // This function iterates over each node in the tree, using the node's `db_key` as the
         // hashmap key and the result of the node's `serialize` method as the value.
-        self.get_all_nodes().values().map(|node| (node.db_key(), node.serialize())).collect()
+
+        // self.get_all_nodes().values().map(|node| (node.db_key(), node.serialize())).collect()
+        self.get_all_nodes().keys().map(|node_index| (
+            DbKey(tree_prefix.map_or(vec![], |prefix| prefix.to_bytes_be().to_vec()).into_iter().chain(node_index.to_bytes()).collect()), self.tree_map.get(node_index).unwrap().serialize())).collect()
     }
 
     fn get_root_hash(&self) -> HashOutput {
