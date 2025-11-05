@@ -5,7 +5,7 @@ use std::path::Path;
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{Args, Parser, Subcommand};
 use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
-use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
+use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
@@ -268,6 +268,10 @@ pub async fn run_committer_cli(
             // Run the storage benchmark.
             // Explicitly create a different concrete storage type in each match arm to avoid
             // dynamic dispatch.
+            let cached_storage_config = CachedStorageConfig {
+                cache_size: NonZeroUsize::new(*cache_size).unwrap(),
+                cache_on_write: true,
+            };
             match storage_type {
                 StorageType::MapStorage => {
                     let storage = MapStorage::default();
@@ -280,7 +284,7 @@ pub async fn run_committer_cli(
                 StorageType::CachedMdbx => {
                     let storage = CachedStorage::new(
                         MdbxStorage::open(Path::new(&storage_path)).unwrap(),
-                        NonZeroUsize::new(*cache_size).unwrap(),
+                        cached_storage_config,
                     );
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
