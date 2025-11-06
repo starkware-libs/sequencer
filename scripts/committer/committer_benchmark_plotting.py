@@ -1,10 +1,13 @@
 import argparse
 import csv
 import sys
+from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import plotly.graph_objects as go
+
+TICK_FORMAT = "%d/%m/%Y %H:%M:%S.%L"
 
 
 class BenchmarkData:
@@ -30,6 +33,9 @@ class BenchmarkData:
             self.block_duration_millis = [float(row["block_duration_millis"]) for row in data]
             self.read_duration_millis = [float(row["read_duration_millis"]) for row in data]
             self.compute_duration_millis = [float(row["compute_duration_millis"]) for row in data]
+            self.time_of_measurement = [
+                datetime.fromtimestamp(int(row["time_of_measurement"]) / 1000) for row in data
+            ]
             self.write_duration_millis = [float(row["write_duration_millis"]) for row in data]
             self.n_new_facts = [int(row["n_new_facts"]) for row in data]
             self.n_read_facts = [int(row["n_read_facts"]) for row in data]
@@ -40,7 +46,7 @@ class BenchmarkData:
     def _duration_per_fact(self, duration_millis: List[float], n_facts: List[int]) -> List[float]:
         return [ms * 1000 / n if n > 0 else 0 for ms, n in zip(duration_millis, n_facts)]
 
-    def _create_figure(self) -> go.Figure:
+    def create_durations_figure(self) -> go.Figure:
         read_duration_per_read_fact = self._duration_per_fact(
             self.read_duration_millis, self.n_read_facts
         )
@@ -57,89 +63,120 @@ class BenchmarkData:
             self.block_duration_millis, self.n_new_facts
         )
 
-        fig = go.Figure()
+        durations_figure = go.Figure()
 
         # Add traces for different metrics
-        fig.add_trace(
+        durations_figure.add_trace(
             go.Scatter(
-                x=self.initial_facts_in_db,
+                x=self.time_of_measurement,
                 y=self.block_duration_millis,
                 mode="lines+markers",
                 name="Block Duration (ms)",
             )
         )
-        fig.add_trace(
+        durations_figure.add_trace(
             go.Scatter(
-                x=self.initial_facts_in_db,
+                x=self.time_of_measurement,
                 y=read_duration_per_read_fact,
                 mode="lines+markers",
                 name="Read Duration per read fact (µs)",
             )
         )
-        fig.add_trace(
+        durations_figure.add_trace(
             go.Scatter(
-                x=self.initial_facts_in_db,
+                x=self.time_of_measurement,
                 y=read_duration_per_new_fact,
                 mode="lines+markers",
                 name="Read Duration per new fact (µs)",
             )
         )
-        fig.add_trace(
+
+        durations_figure.add_trace(
             go.Scatter(
-                x=self.initial_facts_in_db,
+                x=self.time_of_measurement,
                 y=compute_duration_per_new_fact,
                 mode="lines+markers",
                 name="Compute Duration per new fact (µs)",
             )
         )
-        fig.add_trace(
+        durations_figure.add_trace(
             go.Scatter(
-                x=self.initial_facts_in_db,
+                x=self.time_of_measurement,
                 y=write_duration_per_new_fact,
                 mode="lines+markers",
                 name="Write Duration per new fact (µs)",
             )
         )
-        fig.add_trace(
+        durations_figure.add_trace(
             go.Scatter(
-                x=self.initial_facts_in_db,
+                x=self.time_of_measurement,
                 y=total_duration_per_new_fact,
                 mode="lines+markers",
                 name="Total Duration per new fact (µs)",
             )
         )
 
-        fig.update_traces(hoverlabel=dict(namelength=-1))  # show full trace name if included
+        durations_figure.update_traces(
+            hoverlabel=dict(namelength=-1)
+        )  # show full trace name if included
 
         # Customize layout
-        fig.update_layout(
+        durations_figure.update_layout(
             title=f"Committer Benchmark - {max(self.block_numbers)} blocks",
-            xaxis_title="Initial Facts in DB",
+            xaxis_title="Time of Measurement",
+            xaxis=dict(tickformat=TICK_FORMAT),
             yaxis_title="Time per Fact",
             legend_title="Metrics",
             hovermode="x unified",
         )
 
-        return fig
+        return durations_figure
 
-    def plot(self, output_path: str = None, output_dir: str = None):
-        fig = self._create_figure()
-
-        if output_path is not None or output_dir is not None:
-            output_file = Path(
-                output_path if output_path is not None else f"{output_dir}/{self.file_stem}.html"
+    def create_total_facts_figure(self) -> go.Figure:
+        total_facts_figure = go.Figure()
+        total_facts_figure.add_trace(
+            go.Scatter(
+                x=self.time_of_measurement,
+                y=self.initial_facts_in_db,
+                mode="lines+markers",
+                name="Total facts in the DB",
             )
-            output_file.parent.mkdir(parents=True, exist_ok=True)
-            fig.write_html(str(output_file))
-            print(f"Plot saved to {str(output_file)}")
+        )
+        total_facts_figure.update_traces(
+            hoverlabel=dict(namelength=-1)
+        )  # show full trace name if included
+        total_facts_figure.update_layout(
+            title=f"Committer Benchmark - {max(self.block_numbers)} blocks",
+            xaxis_title="Time of Measurement",
+            xaxis=dict(tickformat=TICK_FORMAT),
+            yaxis_title="Total facts in the DB",
+            legend_title="Metrics",
+            hovermode="x unified",
+        )
+        return total_facts_figure
+
+    def plot(self, output_dir: Optional[str] = None):
+        durations_figure = self.create_durations_figure()
+        total_facts_figure = self.create_total_facts_figure()
+
+        if output_dir is not None:
+            durations_output_file = Path(f"{output_dir}/{self.file_stem}_durations.html")
+            total_facts_output_file = Path(f"{output_dir}/{self.file_stem}_total_facts.html")
+            durations_output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            durations_figure.write_html(str(durations_output_file))
+            total_facts_figure.write_html(str(total_facts_output_file))
+            print(f"Plot saved to {str(durations_output_file)}")
+            print(f"Plot saved to {str(total_facts_output_file)}")
         else:
-            fig.show()
+            durations_figure.show()
+            total_facts_figure.show()
 
 
-def create_benchmark_plot(csv_file: str, output_path: str = None, output_dir: str = None):
+def create_benchmark_plot(csv_file: str, output_dir: Optional[str] = None):
     """Create benchmark plot from a single CSV file."""
     data = BenchmarkData(csv_file=csv_file)
-    data.plot(output_path=output_path, output_dir=output_dir)
+    data.plot(output_dir=output_dir)
 
 
 def main():
@@ -148,22 +185,18 @@ def main():
     )
     parser.add_argument("csv_file", type=str, help="Path to CSV file to plot")
     parser.add_argument(
-        "-o", "--output", type=str, help="Output HTML file path (default: show in browser)"
-    )
-    parser.add_argument(
         "-d",
         "--output-dir",
         type=str,
-        help="Output directory for the plot with the name <csv_file_name>.html.  \
-            Ignored if --output is provided.",
+        default=None,
+        help="Output directory for the plot with the name <csv_file_name>.html. \
+            If not provided, opens a browser with the plots.",
     )
 
     args = parser.parse_args()
 
     try:
-        create_benchmark_plot(
-            csv_file=args.csv_file, output_path=args.output, output_dir=args.output_dir
-        )
+        create_benchmark_plot(csv_file=args.csv_file, output_dir=args.output_dir)
     except Exception as e:
         print(f"Error creating plot: {e}", file=sys.stderr)
         sys.exit(1)
