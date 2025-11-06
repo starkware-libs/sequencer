@@ -885,6 +885,7 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                     mempool_p2p_bootstrap_config.clone(),
                     inputs.audited_libfuncs_only,
                     inputs.http_server_port,
+                    inputs.monitoring_endpoint_config_port,
                 ),
                 &inputs.node_namespace_format,
                 &inputs.ingress_domain,

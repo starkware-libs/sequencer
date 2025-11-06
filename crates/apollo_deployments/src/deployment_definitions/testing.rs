@@ -1,4 +1,5 @@
 use apollo_http_server_config::config::HTTP_SERVER_PORT;
+use apollo_monitoring_endpoint_config::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use starknet_api::block::BlockNumber;
 use url::Url;
 
@@ -39,6 +40,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         PeerToPeerBootstrapConfig::new(None),
         false,
         HTTP_SERVER_PORT,
+        MONITORING_ENDPOINT_DEFAULT_PORT,
     )
 }
 
