@@ -28,17 +28,38 @@ pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 
 /// A trait for the statistics of a storage. Used as a trait bound for a storage associated stats
 /// type.
-pub trait StorageStats: Display {}
+pub trait StorageStats: Display {
+    fn column_titles() -> Vec<&'static str>;
+
+    fn column_values(&self) -> Vec<String>;
+
+    fn stat_string(&self) -> String {
+        Self::column_titles()
+            .iter()
+            .zip(self.column_values().iter())
+            .map(|(title, value)| format!("{title}: {value}"))
+            .collect::<Vec<String>>()
+            .join(",")
+    }
+}
 
 pub struct NoStats;
+
+impl StorageStats for NoStats {
+    fn column_titles() -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![]
+    }
+}
 
 impl Display for NoStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "NoStats")
     }
 }
-
-impl StorageStats for NoStats {}
 
 pub trait Storage {
     /// Returns value from storage, if it exists.
