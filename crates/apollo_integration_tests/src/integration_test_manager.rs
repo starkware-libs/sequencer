@@ -195,7 +195,9 @@ impl NodeSetup {
             .iter()
             .find(|(components, _)| components.contains(&component))
             .map(|(_, executable)| executable)
-            .unwrap_or_else(|| panic!("No executable with component {:?}", component))
+            .unwrap_or_else(|| {
+                panic!("Expected at least one executable with component {:?}", component)
+            })
     }
 
     pub fn get_batcher(&self) -> &ExecutableSetup {
