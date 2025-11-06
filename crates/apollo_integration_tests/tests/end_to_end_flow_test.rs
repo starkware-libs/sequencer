@@ -11,7 +11,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 
-use crate::common::{end_to_end_flow, test_single_tx, TestScenario};
+use crate::common::{end_to_end_flow, test_single_tx, EndToEndFlowArgs, TestScenario};
 
 mod common;
 
@@ -19,17 +19,15 @@ mod common;
 /// Number of threads is 3 = Num of sequencer + 1 for the test thread.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn test_end_to_end_flow() {
-    end_to_end_flow(
+    end_to_end_flow(EndToEndFlowArgs::new(
         TestIdentifier::EndToEndFlowTest,
         create_test_scenarios(),
         BouncerWeights::default().proving_gas,
-        false,
-        false,
-    )
+    ))
     .await
 }
 
-pub fn create_test_scenarios() -> Vec<TestScenario> {
+fn create_test_scenarios() -> Vec<TestScenario> {
     vec![
         // This block should be the first to be tested, as the addition of L1 handler transaction
         // does not work smoothly with the current architecture of the test.
