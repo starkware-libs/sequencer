@@ -1,9 +1,17 @@
+use std::fmt::Display;
 use std::num::NonZeroUsize;
 
 use lru::LruCache;
 use serde::Serialize;
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+    StorageStats,
+};
 
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
@@ -54,6 +62,29 @@ pub struct CachedStorageConfig {
     // If true, the cache is updated on write operations even if the value is not in the cache.
     pub cache_on_write: bool,
 }
+
+#[derive(Default)]
+pub struct CachedStorageStats<S: StorageStats> {
+    pub reads: u128,
+    pub cached_reads: u128,
+    pub writes: u128,
+    pub inner_stats: S,
+}
+
+impl<S: StorageStats> Display for CachedStorageStats<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[allow(clippy::as_conversions)]
+        let cache_hit_rate = self.cached_reads as f64 / self.reads as f64;
+        write!(
+            f,
+            "CachedStorageStats: reads: {}, cached reads: {}, writes: {}. Cache hit rate: \
+             {cache_hit_rate:.4}. Inner stats: {}",
+            self.reads, self.cached_reads, self.writes, self.inner_stats
+        )
+    }
+}
+
+impl<S: StorageStats> StorageStats for CachedStorageStats<S> {}
 
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig) -> Self {
@@ -149,19 +180,12 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.storage.delete(key)
     }
 
-    fn get_stats(&self) -> Option<String> {
-        let inner_stats = self.storage.get_stats();
-        #[allow(clippy::as_conversions)]
-        let mut stats = format!(
-            "CachedStorage stats: reads: {}, cached reads: {}, writes: {}. Cache hit rate: {:.4}.",
-            self.reads,
-            self.cached_reads,
-            self.writes,
-            self.cached_reads as f64 / self.reads as f64,
-        );
-        if let Some(inner_stats) = inner_stats {
-            stats.push_str(&format!("\nInner Stats: {inner_stats}"));
-        }
-        Some(stats)
+    fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
+        Ok(CachedStorageStats {
+            reads: self.reads,
+            cached_reads: self.cached_reads,
+            writes: self.writes,
+            inner_stats: self.storage.get_stats()?,
+        })
     }
 }
