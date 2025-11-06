@@ -15,6 +15,7 @@ pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
     async fn get_block_info(&self) -> Result<BlockInfo, StateError>;
 }
 
+#[async_trait]
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait StateReaderFactory: Send + Sync {
