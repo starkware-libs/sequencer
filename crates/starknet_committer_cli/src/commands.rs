@@ -78,7 +78,8 @@ impl BenchmarkFlavor {
             Self::Overlap1KDiff => {
                 // Invariant: if there are a total of L leaves in the DB, then the nonzero keys are
                 // [hash(i) for i in 0..L].
-                let overlap_warmup_blocks = 1000;
+                // Warmup phase: all leaves should be new, until 100M nonzero leaves exist.
+                let overlap_warmup_blocks = 100_000;
                 if block_number < overlap_warmup_blocks {
                     // Warmup phase: all leaves should be new.
                     let total_leaves = block_number * n_updates;
