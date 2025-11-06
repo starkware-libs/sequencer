@@ -39,6 +39,8 @@ pub enum FftError {
     InvalidBinaryToUsize(ParseIntError),
     #[error("Blob size must be {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     InvalidBlobSize(usize),
+    #[error("Invalid bytes in blob: {0}.")]
+    InvalidBytesInBlob(usize),
     #[error(transparent)]
     ParseBigUint(#[from] ParseBigIntError),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
@@ -65,25 +67,25 @@ fn pad_bytes(input_bytes: Vec<u8>, length: usize) -> Vec<u8> {
     bytes
 }
 
-pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
+pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<[u8; BYTES_PER_BLOB], FftError> {
     if blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(blob.len()));
     }
-    Ok(blob
+    let flattened_blob = blob
         .iter()
         .flat_map(|x| pad_bytes(x.into_bigint().to_bytes_be(), BYTES_PER_FIELD_ELEMENT))
-        .collect())
+        .collect::<Vec<_>>();
+    let flattened_blob_bytes = flattened_blob.len();
+    Ok(flattened_blob.try_into().map_err(|_| FftError::InvalidBytesInBlob(flattened_blob_bytes))?)
 }
 
-pub fn deserialize_blob(
-    blob_bytes: &[u8; BYTES_PER_BLOB],
-) -> Result<[Fr; FIELD_ELEMENTS_PER_BLOB], FftError> {
-    Ok(blob_bytes
+pub fn deserialize_blob(blob_bytes: &[u8; BYTES_PER_BLOB]) -> [Fr; FIELD_ELEMENTS_PER_BLOB] {
+    blob_bytes
         .chunks_exact(BYTES_PER_FIELD_ELEMENT)
         .map(|slice| Fr::from(BigUint::from_bytes_be(slice)))
         .collect::<Vec<Fr>>()
         .try_into()
-        .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB"))
+        .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB")
 }
 
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
@@ -129,7 +131,9 @@ pub(crate) fn bit_reversal<T>(unreversed_blob: &mut [T]) -> Result<(), FftError>
     Ok(())
 }
 
-pub(crate) fn polynomial_coefficients_to_blob(coefficients: Vec<Fr>) -> Result<Vec<u8>, FftError> {
+pub(crate) fn polynomial_coefficients_to_blob(
+    coefficients: Vec<Fr>,
+) -> Result<[u8; BYTES_PER_BLOB], FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
@@ -279,20 +283,16 @@ pub fn compute_blob_commitments(raw_blobs: Vec<Vec<u8>>) -> Result<BlobArtifacts
     Ok(BlobArtifacts { commitments, cell_proofs, versioned_hashes })
 }
 
-pub fn decode_blobs(raw_blobs: Vec<Vec<u8>>) -> Result<Vec<Felt>, FftError> {
+pub fn decode_blobs(raw_blobs: Vec<[u8; BYTES_PER_BLOB]>) -> Result<Vec<Felt>, FftError> {
     let mut result = Vec::new();
 
     for raw_blob in raw_blobs.iter() {
         let mut coeffs = deserialize_blob(raw_blob);
 
-        if coeffs.len() != FIELD_ELEMENTS_PER_BLOB {
-            return Err(FftError::InvalidBlobSize(coeffs.len()));
-        }
-
         bit_reversal(&mut coeffs)?;
         let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
             .ok_or(FftError::EvalDomainCreation)?;
-        domain.ifft_in_place(&mut coeffs);
+        domain.ifft_in_place(&mut coeffs.to_vec());
 
         for fr_elem in coeffs {
             let bytes = fr_elem.into_bigint().to_bytes_be();
