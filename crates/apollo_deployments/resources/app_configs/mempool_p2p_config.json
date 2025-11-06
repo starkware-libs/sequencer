@@ -9,7 +9,6 @@
   "mempool_p2p_config.network_config.idle_connection_timeout": 120,
   "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout_seconds": 0,
   "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout_millis": 0,
-  "mempool_p2p_config.network_config.port": 53200,
   "mempool_p2p_config.network_config.reported_peer_ids_buffer_size": 100000,
   "mempool_p2p_config.network_config.session_timeout": 120,
   "mempool_p2p_config.transaction_batch_rate_millis": 100

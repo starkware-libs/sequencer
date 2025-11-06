@@ -12,7 +12,12 @@ use crate::config_override::{
     PeerToPeerBootstrapConfig,
 };
 use crate::deployment::Deployment;
-use crate::deployment_definitions::{Environment, StateSyncType};
+use crate::deployment_definitions::{
+    Environment,
+    StateSyncType,
+    CONSENSUS_P2P_PORT,
+    MEMPOOL_P2P_PORT,
+};
 use crate::k8s::IngressParams;
 use crate::service::NodeType;
 
@@ -43,6 +48,8 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         HTTP_SERVER_PORT,
         MONITORING_ENDPOINT_DEFAULT_PORT,
         RPC_CONFIG_DEFAULT_PORT,
+        MEMPOOL_P2P_PORT,
+        CONSENSUS_P2P_PORT,
     )
 }
 
