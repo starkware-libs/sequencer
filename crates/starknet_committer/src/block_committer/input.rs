@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::HashOutput;
-use starknet_api::state::StorageKey;
+use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
@@ -61,6 +61,41 @@ pub struct StateDiff {
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
     pub storage_updates:
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
+}
+
+impl From<ThinStateDiff> for StateDiff {
+    fn from(
+        ThinStateDiff {
+            class_hash_to_compiled_class_hash,
+            deployed_contracts,
+            storage_diffs,
+            nonces,
+            ..
+        }: ThinStateDiff,
+    ) -> Self {
+        Self {
+            address_to_class_hash: deployed_contracts.into_iter().collect(),
+            address_to_nonce: nonces.into_iter().collect(),
+            class_hash_to_compiled_class_hash: class_hash_to_compiled_class_hash
+                .into_iter()
+                .map(|(k, v)| (k, CompiledClassHash(v.0)))
+                .collect(),
+            storage_updates: storage_diffs
+                .into_iter()
+                .map(|(address, updates)| {
+                    (
+                        address,
+                        updates
+                            .into_iter()
+                            .map(|(key, value)| {
+                                (StarknetStorageKey(key), StarknetStorageValue(value))
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+        }
+    }
 }
 
 /// Trait contains all optional configurations of the committer.
