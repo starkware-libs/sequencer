@@ -274,7 +274,6 @@ impl ConsensusManager {
                 .static_config
                 .sync_retry_interval,
             quorum_type,
-            future_msg_limit: self.config.consensus_manager_config.static_config.future_msg_limit,
         }
     }
 
