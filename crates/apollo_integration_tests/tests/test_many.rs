@@ -5,7 +5,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::common::{end_to_end_flow, TestScenario};
+use crate::common::{end_to_end_flow, EndToEndFlowArgs, TestScenario};
 
 mod common;
 
@@ -14,11 +14,12 @@ mod common;
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn many_txs_fill_at_least_one_block() {
     end_to_end_flow(
-        TestIdentifier::EndToEndFlowTestManyTxs,
-        create_many_txs_scenario(),
-        GasAmount(40000000),
-        true,
-        false,
+        EndToEndFlowArgs::new(
+            TestIdentifier::EndToEndFlowTestManyTxs,
+            create_many_txs_scenario(),
+            GasAmount(40000000),
+        )
+        .expecting_full_blocks(),
     )
     .await
 }
