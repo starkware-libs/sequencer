@@ -163,9 +163,13 @@ pub async fn run_storage_benchmark<S: Storage>(
                     &contracts_trie_root_hash,
                 )
             }
-            if let Some(stats) = storage.get_stats() {
-                info!("{}", stats);
-            }
+            info!(
+                "{}",
+                storage
+                    .get_stats()
+                    .map(|s| format!("{s}"))
+                    .unwrap_or_else(|e| format!("Failed to retrieve statistics: {e}"))
+            );
         }
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
