@@ -1,5 +1,5 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
-use axum::async_trait;
+use async_trait::async_trait;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
