@@ -985,8 +985,14 @@ name = "apollo_committer_types"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
+ "async-trait",
  "mockall",
  "serde",
+ "starknet_committer",
+ "starknet_patricia",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
