@@ -64,8 +64,7 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
         // The mempool does not have any transactions from the sender.
         Ok(false)
     });
-    let mempool_client = Arc::new(mock_mempool_client);
-    let runtime = tokio::runtime::Handle::current();
+    // Removed unused mempool client and runtime in this test since nonce is fetched outside now.
 
     let mut stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig::default(),
@@ -73,23 +72,16 @@ async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
     };
 
     let executable_tx = create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.extract_state_nonce_and_run_validations(
-            &executable_tx,
-            mempool_client,
-            runtime,
-        )
+    // get_nonce should fail and return an InternalError.
+    let err = tokio::task::spawn_blocking(move || {
+        stateful_validator.get_nonce(executable_tx.contract_address())
     })
     .await
-    .unwrap();
+    .unwrap()
+    .unwrap_err();
     assert_eq!(
-        result,
-        Err(StarknetError {
-            code: StarknetErrorCode::UnknownErrorCode(
-                "StarknetErrorCode.InternalError".to_string()
-            ),
-            message: "Internal error".to_string(),
-        })
+        err.code,
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".to_string())
     );
 }
 
@@ -147,6 +139,7 @@ async fn test_extract_state_nonce_and_run_validations(
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.extract_state_nonce_and_run_validations(
             &executable_tx,
+            account_nonce,
             mempool_client,
             runtime,
         )

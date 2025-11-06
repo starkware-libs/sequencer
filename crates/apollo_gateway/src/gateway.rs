@@ -151,7 +151,7 @@ impl Gateway {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let blocking_task =
+        let mut blocking_task =
             ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current())
                 .map_err(|e| {
                     info!(
@@ -162,10 +162,23 @@ impl Gateway {
                     metric_counters.record_add_tx_failure(&e);
                     e
                 })?;
+
+        // Obtain account nonce before spawning the blocking computation.
+        let account_nonce = blocking_task.get_nonce().map_err(|e| {
+            info!(
+                "Gateway validation failed for tx with signature: {:?} with error: {}",
+                tx.signature(),
+                e
+            );
+            metric_counters.record_add_tx_failure(&e);
+            e
+        })?;
+
         // Run the blocking task in the current span.
         let curr_span = Span::current();
-        let handle =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()));
+        let handle = tokio::task::spawn_blocking(move || {
+            curr_span.in_scope(|| blocking_task.process_tx(account_nonce))
+        });
         let handle_result = handle.await;
         let nonce = match handle_result {
             Ok(Ok(nonce)) => nonce,
@@ -266,9 +279,15 @@ impl ProcessTxBlockingTask {
         })
     }
 
-    fn process_tx(mut self) -> GatewayResult<Nonce> {
+    fn get_nonce(&mut self) -> GatewayResult<Nonce> {
+        let address = self.executable_tx.contract_address();
+        self.stateful_tx_validator.get_nonce(address)
+    }
+
+    fn process_tx(mut self, account_nonce: Nonce) -> GatewayResult<Nonce> {
         let nonce = self.stateful_tx_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,
+            account_nonce,
             self.mempool_client,
             self.runtime,
         )?;
