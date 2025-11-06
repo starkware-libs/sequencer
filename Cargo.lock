@@ -981,6 +981,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_committer_types"
+version = "0.17.0-rc.0"
+dependencies = [
+ "apollo_infra",
+ "mockall",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "apollo_compilation_utils"
 version = "0.17.0-rc.0"
 dependencies = [
