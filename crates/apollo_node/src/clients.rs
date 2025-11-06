@@ -16,6 +16,14 @@ use apollo_class_manager_types::{
     RemoteClassManagerClient,
     SharedClassManagerClient,
 };
+use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
+use apollo_committer_types::communication::{
+    CommitterRequest,
+    CommitterResponse,
+    LocalCommitterClient,
+    SharedCommitterClient,
+    RemoteCommitterClient,
+};
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_compile_to_casm_types::{
     LocalSierraCompilerClient,
@@ -98,6 +106,7 @@ use crate::communication::SequencerNodeCommunication;
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
     class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
+    committer_client: Client<CommitterRequest, CommitterResponse>,
     config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
     l1_endpoint_monitor_client: Client<L1EndpointMonitorRequest, L1EndpointMonitorResponse>,
@@ -172,6 +181,16 @@ impl SequencerNodeClients {
 
     pub fn get_class_manager_shared_client(&self) -> Option<SharedClassManagerClient> {
         get_shared_client!(self, class_manager_client)
+    }
+
+    pub fn get_committer_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<CommitterRequest, CommitterResponse>> {
+        self.committer_client.get_local_client()
+    }
+
+    pub fn get_committer_shared_client(&self) -> Option<SharedCommitterClient> {
+        get_shared_client!(self, committer_client)
     }
 
     pub fn get_config_manager_shared_client(&self) -> Option<SharedConfigManagerClient> {
@@ -378,6 +397,18 @@ pub fn create_node_clients(
         &CLASS_MANAGER_INFRA_METRICS.get_remote_client_metrics()
     );
 
+    let committer_client = create_client!(
+        &config.components.committer.execution_mode,
+        LocalCommitterClient,
+        RemoteCommitterClient,
+        channels.take_committer_tx(),
+        &config.components.committer.remote_client_config,
+        &config.components.committer.url,
+        config.components.committer.port,
+        &COMMITTER_INFRA_METRICS.get_local_client_metrics(),
+        &COMMITTER_INFRA_METRICS.get_remote_client_metrics()
+    );
+
     let config_manager_client = create_client!(
         &config.components.config_manager.execution_mode,
         LocalConfigManagerClient,
@@ -501,6 +532,7 @@ pub fn create_node_clients(
     SequencerNodeClients {
         batcher_client,
         class_manager_client,
+        committer_client,
         config_manager_client,
         gateway_client,
         l1_endpoint_monitor_client,
