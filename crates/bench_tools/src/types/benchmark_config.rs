@@ -69,6 +69,7 @@ pub const BENCHMARKS: &[BenchmarkConfig] = &[
             "blockifier",
             "--bench",
             "blockifier",
+            "transfers",
             "--features",
             "testing,cairo_native",
         ],
@@ -78,7 +79,16 @@ pub const BENCHMARKS: &[BenchmarkConfig] = &[
     BenchmarkConfig {
         name: "transfers_benchmark_vm",
         package: "blockifier",
-        cmd_args: &["bench", "-p", "blockifier", "--bench", "blockifier", "--features", "testing"],
+        cmd_args: &[
+            "bench",
+            "-p",
+            "blockifier",
+            "--bench",
+            "blockifier",
+            "transfers",
+            "--features",
+            "testing",
+        ],
         input_dir: None,
         criterion_benchmark_names: None, // Single benchmark with same name.
     },
