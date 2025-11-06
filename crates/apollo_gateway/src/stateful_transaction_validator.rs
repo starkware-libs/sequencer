@@ -19,7 +19,7 @@ use blockifier::transaction::account_transaction::{AccountTransaction, Execution
 use blockifier::transaction::transactions::enforce_fee;
 use num_rational::Ratio;
 use starknet_api::block::{BlockInfo, NonzeroGasPrice};
-use starknet_api::core::Nonce;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
@@ -106,6 +106,11 @@ pub trait StatefulTransactionValidatorTrait: Send {
         mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce>;
+
+    fn get_nonce(
+        &mut self,
+        account_address: ContractAddress,
+    ) -> StatefulTransactionValidatorResult<Nonce>;
 }
 
 pub struct StatefulTransactionValidator<B: BlockifierStatefulValidatorTrait + Send> {
@@ -123,17 +128,18 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTra
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce> {
         let address = executable_tx.contract_address();
-        let account_nonce =
-            self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
-                // TODO(noamsp): Fix this. Need to map the errors better.
-                StarknetError::internal_with_signature_logging(
-                    format!("Failed to get nonce for sender address {address}"),
-                    &executable_tx.signature(),
-                    e,
-                )
-            })?;
+        let account_nonce = self.get_nonce(address)?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)
+    }
+
+    fn get_nonce(
+        &mut self,
+        account_address: ContractAddress,
+    ) -> StatefulTransactionValidatorResult<Nonce> {
+        self.blockifier_stateful_tx_validator
+            .get_nonce(account_address)
+            .map_err(|e| StarknetError::internal_with_logging("Failed to get nonce", e))
     }
 }
 
