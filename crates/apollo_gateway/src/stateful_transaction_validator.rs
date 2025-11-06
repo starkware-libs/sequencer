@@ -99,7 +99,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
 }
 
 #[cfg_attr(test, mockall::automock)]
-pub trait StatefulTransactionValidatorTrait {
+pub trait StatefulTransactionValidatorTrait: Send {
     fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
@@ -108,12 +108,12 @@ pub trait StatefulTransactionValidatorTrait {
     ) -> StatefulTransactionValidatorResult<Nonce>;
 }
 
-pub struct StatefulTransactionValidator<B: BlockifierStatefulValidatorTrait> {
+pub struct StatefulTransactionValidator<B: BlockifierStatefulValidatorTrait + Send> {
     config: StatefulTransactionValidatorConfig,
     blockifier_stateful_tx_validator: B,
 }
 
-impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
+impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTrait
     for StatefulTransactionValidator<B>
 {
     fn extract_state_nonce_and_run_validations(
@@ -137,7 +137,7 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
     }
 }
 
-impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
+impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidator<B> {
     fn run_transaction_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,

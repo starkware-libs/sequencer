@@ -45,6 +45,7 @@ use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
     StatefulTransactionValidatorFactoryTrait,
+    StatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::{
     StatelessTransactionValidator,
@@ -151,7 +152,16 @@ impl Gateway {
             })?;
 
         let blocking_task =
-            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current());
+            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current())
+                .map_err(|e| {
+                    info!(
+                        "Gateway validation failed for tx with signature: {:?} with error: {}",
+                        tx.signature(),
+                        e
+                    );
+                    metric_counters.record_add_tx_failure(&e);
+                    e
+                })?;
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let handle =
@@ -233,8 +243,7 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
-    state_reader_factory: Arc<dyn StateReaderFactory>,
+    stateful_tx_validator: Box<dyn StatefulTransactionValidatorTrait + Send>,
     mempool_client: SharedMempoolClient,
     executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
@@ -245,22 +254,20 @@ impl ProcessTxBlockingTask {
         gateway: &Gateway,
         executable_tx: AccountTransaction,
         runtime: tokio::runtime::Handle,
-    ) -> Self {
-        Self {
-            stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
-            state_reader_factory: gateway.state_reader_factory.clone(),
+    ) -> GatewayResult<Self> {
+        let stateful_tx_validator = gateway
+            .stateful_tx_validator_factory
+            .instantiate_validator(gateway.state_reader_factory.as_ref())?;
+        Ok(Self {
+            stateful_tx_validator,
             mempool_client: gateway.mempool_client.clone(),
             executable_tx,
             runtime,
-        }
+        })
     }
 
-    fn process_tx(self) -> GatewayResult<Nonce> {
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref())?;
-
-        let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
+    fn process_tx(mut self) -> GatewayResult<Nonce> {
+        let nonce = self.stateful_tx_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,
             self.mempool_client,
             self.runtime,
