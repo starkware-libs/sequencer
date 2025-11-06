@@ -3,14 +3,7 @@ use std::marker::PhantomData;
 use blake2::Blake2s;
 use digest::Digest;
 
-use crate::storage_trait::{
-    DbHashMap,
-    DbKey,
-    DbValue,
-    PatriciaStorageResult,
-    Storage,
-    StorageStats,
-};
+use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
 
 #[macro_export]
 macro_rules! define_short_key_storage {

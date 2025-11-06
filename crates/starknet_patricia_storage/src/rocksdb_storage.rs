@@ -138,4 +138,8 @@ impl Storage for RocksDbStorage {
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
     }
+
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        Ok(NoStats)
+    }
 }
