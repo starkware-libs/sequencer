@@ -103,6 +103,7 @@ pub trait StatefulTransactionValidatorTrait: Send {
     fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce>;
@@ -124,11 +125,10 @@ impl<B: BlockifierStatefulValidatorTrait + Send> StatefulTransactionValidatorTra
     fn extract_state_nonce_and_run_validations(
         &mut self,
         executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce> {
-        let address = executable_tx.contract_address();
-        let account_nonce = self.get_nonce(address)?;
         self.run_transaction_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)
     }

@@ -565,15 +565,17 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator
         .expect_extract_state_nonce_and_run_validations()
-        .return_once(|_, _, _| Err(expected_error));
+        .return_once(|_, _, _, _| Err(expected_error));
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
         .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
-
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+    let account_nonce = nonce!(0);
+    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx(account_nonce))
+        .await
+        .unwrap();
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
