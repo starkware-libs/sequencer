@@ -73,20 +73,38 @@ pub struct CachedStorageStats<S: StorageStats> {
     pub inner_stats: S,
 }
 
-impl<S: StorageStats> Display for CachedStorageStats<S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<S: StorageStats> CachedStorageStats<S> {
+    fn cache_hit_rate(&self) -> f64 {
         #[allow(clippy::as_conversions)]
-        let cache_hit_rate = self.cached_reads as f64 / self.reads as f64;
-        write!(
-            f,
-            "CachedStorageStats: reads: {}, cached reads: {}, writes: {}. Cache hit rate: \
-             {cache_hit_rate:.4}. Inner stats: {}",
-            self.reads, self.cached_reads, self.writes, self.inner_stats
-        )
+        let ratio = self.cached_reads as f64 / self.reads as f64;
+        ratio
     }
 }
 
-impl<S: StorageStats> StorageStats for CachedStorageStats<S> {}
+impl<S: StorageStats> Display for CachedStorageStats<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CachedStorageStats: {}", self.stat_string())
+    }
+}
+
+impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
+    fn column_titles() -> Vec<&'static str> {
+        [vec!["reads", "cached reads", "writes", "cache hit rate"], S::column_titles()].concat()
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        [
+            vec![
+                self.reads.to_string(),
+                self.cached_reads.to_string(),
+                self.writes.to_string(),
+                self.cache_hit_rate().to_string(),
+            ],
+            self.inner_stats.column_values(),
+        ]
+        .concat()
+    }
+}
 
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig) -> Self {
