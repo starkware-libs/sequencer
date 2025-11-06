@@ -28,6 +28,8 @@ impl<T> Sensitive<T> {
 
 
 
+
+
 // Trying to implement `impl<T> From<Sensitive<T>> for T` is a violation of the orphan rule. Additionally, trying to implement `impl<T> Into<T> for Sensitive<T>` overlaps with the existing blanket impl of `From<T> for Sensitive<T>`.
 // So, we use a custom trait to gate impls for specific types.
 trait AllowSensitiveInto {}
