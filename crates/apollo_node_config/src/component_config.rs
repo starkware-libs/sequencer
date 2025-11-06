@@ -22,6 +22,8 @@ pub struct ComponentConfig {
     #[validate]
     pub class_manager: ReactiveComponentExecutionConfig,
     #[validate]
+    pub committer: ReactiveComponentExecutionConfig,
+    #[validate]
     pub config_manager: ReactiveComponentExecutionConfig,
     #[validate]
     pub gateway: ReactiveComponentExecutionConfig,
@@ -60,6 +62,7 @@ impl SerializeConfig for ComponentConfig {
         let sub_configs = vec![
             prepend_sub_config_name(self.batcher.dump(), "batcher"),
             prepend_sub_config_name(self.class_manager.dump(), "class_manager"),
+            prepend_sub_config_name(self.committer.dump(), "committer"),
             prepend_sub_config_name(self.config_manager.dump(), "config_manager"),
             prepend_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             prepend_sub_config_name(self.gateway.dump(), "gateway"),
@@ -86,6 +89,7 @@ impl ComponentConfig {
         ComponentConfig {
             batcher: ReactiveComponentExecutionConfig::disabled(),
             class_manager: ReactiveComponentExecutionConfig::disabled(),
+            committer: ReactiveComponentExecutionConfig::disabled(),
             config_manager: ReactiveComponentExecutionConfig::disabled(),
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
@@ -108,6 +112,7 @@ impl ComponentConfig {
     pub fn set_urls_to_localhost(&mut self) {
         self.batcher.set_url_to_localhost();
         self.class_manager.set_url_to_localhost();
+        self.committer.set_url_to_localhost();
         self.config_manager.set_url_to_localhost();
         self.gateway.set_url_to_localhost();
         self.l1_endpoint_monitor.set_url_to_localhost();
