@@ -28,6 +28,7 @@ const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
 const LOG2_FIELD_ELEMENTS_PER_BLOB: usize = 12;
 pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << LOG2_FIELD_ELEMENTS_PER_BLOB;
+const _: () = assert!(BYTES_PER_BLOB == FIELD_ELEMENTS_PER_BLOB * BYTES_PER_FIELD_ELEMENT);
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
