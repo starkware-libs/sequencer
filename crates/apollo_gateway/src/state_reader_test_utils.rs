@@ -34,6 +34,13 @@ impl MempoolStateReader for TestStateReader {
     async fn get_block_info(&self) -> Result<BlockInfo, StateError> {
         Ok(self.block_info.clone())
     }
+
+    async fn get_account_nonce(
+        &self,
+        contract_address: ContractAddress,
+    ) -> Result<Nonce, StateError> {
+        self.blockifier_state_reader.get_nonce_at(contract_address)
+    }
 }
 
 impl FetchCompiledClasses for TestStateReader {

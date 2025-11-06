@@ -17,6 +17,7 @@ use starknet_types_core::felt::Felt;
 #[async_trait]
 pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
     async fn get_block_info(&self) -> StateResult<BlockInfo>;
+    async fn get_account_nonce(&self, contract_address: ContractAddress) -> StateResult<Nonce>;
 }
 
 #[cfg_attr(test, automock)]
@@ -74,6 +75,10 @@ impl MempoolStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
     async fn get_block_info(&self) -> StateResult<BlockInfo> {
         self.as_ref().get_block_info().await
     }
+
+    async fn get_account_nonce(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.as_ref().get_account_nonce(contract_address).await
+    }
 }
 
 impl GatewayStateReaderWithCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {}
@@ -84,5 +89,9 @@ impl MempoolStateReader
 {
     async fn get_block_info(&self) -> StateResult<BlockInfo> {
         self.state_reader.get_block_info().await
+    }
+
+    async fn get_account_nonce(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.state_reader.get_account_nonce(contract_address).await
     }
 }

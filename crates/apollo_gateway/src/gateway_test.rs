@@ -98,7 +98,6 @@ use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateR
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
-    StatefulTransactionValidatorFactoryTrait,
 };
 use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
@@ -317,17 +316,12 @@ async fn run_add_tx_and_extract_metrics(
 }
 
 async fn process_tx_task(
-    stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    stateful_tx_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) -> ProcessTxBlockingTask {
     let state_reader_factory = Arc::new(MockStateReaderFactory::new());
-    let stateful_tx_validator = StatefulTransactionValidatorFactoryTrait::instantiate_validator(
-        &stateful_transaction_validator_factory,
-        state_reader_factory,
-    )
-    .await
-    .expect("instantiate_validator should be mocked in tests");
     ProcessTxBlockingTask {
-        stateful_transaction_validator: stateful_tx_validator,
+        state_reader_factory,
+        stateful_tx_validator_factory: Arc::new(stateful_tx_validator_factory),
         mempool_client: Arc::new(MockMempoolClient::new()),
         executable_tx: executable_invoke_tx(invoke_args()),
         runtime: tokio::runtime::Handle::current(),
@@ -559,7 +553,7 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
 async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_fails(
     #[case] error_code: StarknetErrorCode,
     mut mock_stateful_transaction_validator: MockStatefulTransactionValidatorTrait,
-    mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) {
     let expected_error = StarknetError {
         code: error_code.clone(),
@@ -568,15 +562,15 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator
         .expect_extract_state_nonce_and_run_validations()
-        .return_once(|_, _, _| Err(expected_error));
-
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|_, _, _, _| Err(expected_error));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory).await;
-
-    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+    let account_nonce = nonce!(0);
+    let result = tokio::task::spawn_blocking(move || {
+        process_tx_task.process_tx(account_nonce, Box::new(mock_stateful_transaction_validator))
+    })
+    .await
+    .unwrap();
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -605,7 +599,7 @@ async fn stateless_transaction_validator_error(mut mock_dependencies: MockDepend
 
 #[rstest]
 #[tokio::test]
-async fn add_tx_returns_error_when_instantiating_validator_fails(
+async fn add_tx_returns_error_when_getting_state_reader_fails(
     mut mock_dependencies: MockDependencies,
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) {
@@ -613,11 +607,10 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
 
-    // Fail validator instantiation.
     let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
     let expected_error = StarknetError { code: error_code.clone(), message: "placeholder".into() };
     mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
+        .expect_get_state_reader_for_validation()
         .return_once(|_| Err(expected_error));
 
     // Build gateway and inject the failing factory.
