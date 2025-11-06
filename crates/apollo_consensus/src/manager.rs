@@ -11,14 +11,13 @@ mod manager_test;
 
 use std::collections::BTreeMap;
 
-<<<<<<< HEAD
-use apollo_consensus_config::config::{FutureMsgLimitsConfig, TimeoutsConfig};
-||||||| 912efc99a
-use apollo_consensus_config::config::TimeoutsConfig;
-=======
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
->>>>>>> origin/main-v0.14.1
+use apollo_consensus_config::config::{
+    ConsensusConfig,
+    ConsensusDynamicConfig,
+    FutureMsgLimitsConfig,
+    TimeoutsConfig,
+};
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
@@ -56,11 +55,6 @@ pub struct RunConsensusArguments {
     pub start_observe_height: BlockNumber,
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
-<<<<<<< HEAD
-    /// Future message limits configuration.
-    pub future_msg_limit: FutureMsgLimitsConfig,
-||||||| 912efc99a
-=======
     /// Optional client for fetching dynamic consensus config between heights.
     pub config_manager_client: Option<SharedConfigManagerClient>,
 }
@@ -75,7 +69,6 @@ impl std::fmt::Debug for RunConsensusArguments {
             .field("quorum_type", &self.quorum_type)
             .finish()
     }
->>>>>>> origin/main-v0.14.1
 }
 
 /// Run consensus indefinitely.
@@ -118,13 +111,6 @@ where
     let mut manager = MultiHeightManager::new(
         run_consensus_args.consensus_config.clone(),
         run_consensus_args.quorum_type,
-<<<<<<< HEAD
-        run_consensus_args.timeouts,
-        run_consensus_args.future_msg_limit,
-||||||| 912efc99a
-        run_consensus_args.timeouts,
-=======
->>>>>>> origin/main-v0.14.1
     );
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
@@ -196,47 +182,16 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
-<<<<<<< HEAD
-    timeouts: TimeoutsConfig,
-    future_msg_limit: FutureMsgLimitsConfig,
-||||||| 912efc99a
-    timeouts: TimeoutsConfig,
-=======
->>>>>>> origin/main-v0.14.1
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
-<<<<<<< HEAD
-    pub(crate) fn new(
-        validator_id: ValidatorId,
-        sync_retry_interval: Duration,
-        quorum_type: QuorumType,
-        timeouts: TimeoutsConfig,
-        future_msg_limit: FutureMsgLimitsConfig,
-    ) -> Self {
-||||||| 912efc99a
-    pub(crate) fn new(
-        validator_id: ValidatorId,
-        sync_retry_interval: Duration,
-        quorum_type: QuorumType,
-        timeouts: TimeoutsConfig,
-    ) -> Self {
-=======
     pub(crate) fn new(consensus_config: ConsensusConfig, quorum_type: QuorumType) -> Self {
->>>>>>> origin/main-v0.14.1
         Self {
             consensus_config,
             quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
-<<<<<<< HEAD
-            timeouts,
-            future_msg_limit,
-||||||| 912efc99a
-            timeouts,
-=======
->>>>>>> origin/main-v0.14.1
         }
     }
 
