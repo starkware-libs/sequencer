@@ -12,6 +12,7 @@ members = [
   "crates/apollo_class_manager",
   "crates/apollo_class_manager_config",
   "crates/apollo_class_manager_types",
+  "crates/apollo_committer",
   "crates/apollo_committer_types",
   "crates/apollo_compilation_utils",
   "crates/apollo_compile_to_casm",
@@ -129,6 +130,7 @@ apollo_central_sync_config.path = "crates/apollo_central_sync_config"
 apollo_class_manager.path = "crates/apollo_class_manager"
 apollo_class_manager_config.path = "crates/apollo_class_manager_config"
 apollo_class_manager_types.path = "crates/apollo_class_manager_types"
+apollo_committer.path = "crates/apollo_committer"
 apollo_committer_types.path = "crates/apollo_committer_types"
 apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.17.0-rc.0" }
 apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
