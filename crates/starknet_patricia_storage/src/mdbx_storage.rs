@@ -43,22 +43,27 @@ fn get_page_size(os_page_size: usize) -> PageSize {
 
 pub struct MdbxStorageStats(Stat);
 
-impl Display for MdbxStorageStats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "MdbxStorageStats: Page size: {} bytes, Tree depth: {}, Branch pages: {}, Leaf pages: \
-             {}, Overflow pages: {}",
-            self.0.page_size(),
-            self.0.depth(),
-            self.0.branch_pages(),
-            self.0.leaf_pages(),
-            self.0.overflow_pages()
-        )
+impl StorageStats for MdbxStorageStats {
+    fn column_titles() -> Vec<&'static str> {
+        vec!["Page size", "Tree depth", "Branch pages", "Leaf pages", "Overflow pages"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![
+            self.0.page_size().to_string(),
+            self.0.depth().to_string(),
+            self.0.branch_pages().to_string(),
+            self.0.leaf_pages().to_string(),
+            self.0.overflow_pages().to_string(),
+        ]
     }
 }
 
-impl StorageStats for MdbxStorageStats {}
+impl Display for MdbxStorageStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MdbxStorageStats: {}", self.stat_string())
+    }
+}
 
 impl MdbxStorage {
     pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
