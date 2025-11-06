@@ -79,6 +79,15 @@ impl Default for RocksDbOptions {
     }
 }
 
+impl RocksDbOptions {
+    pub fn default_no_mmap() -> Self {
+        let mut opts = Self::default();
+        opts.db_options.set_allow_mmap_reads(false);
+        opts.db_options.set_allow_mmap_writes(false);
+        opts
+    }
+}
+
 pub struct RocksDbStorage {
     db: DB,
     write_options: WriteOptions,
