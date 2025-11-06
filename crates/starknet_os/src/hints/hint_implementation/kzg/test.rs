@@ -1,14 +1,8 @@
 use std::sync::LazyLock;
 
 use ark_bls12_381::Fr;
-<<<<<<< HEAD
-use c_kzg::{KzgCommitment, BYTES_PER_FIELD_ELEMENT};
-||||||| 912efc99a
-use c_kzg::KzgCommitment;
-=======
 use ark_ff::{BigInteger, PrimeField};
-use c_kzg::KzgCommitment;
->>>>>>> origin/main-v0.14.1
+use c_kzg::{KzgCommitment, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
@@ -16,13 +10,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
     bit_reversal,
-<<<<<<< HEAD
-    deserialize_blob,
-||||||| 912efc99a
-=======
     decode_blobs,
     deserialize_blob,
->>>>>>> origin/main-v0.14.1
     polynomial_coefficients_to_blob,
     serialize_blob,
     split_commitment,

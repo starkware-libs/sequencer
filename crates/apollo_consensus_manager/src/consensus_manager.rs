@@ -269,12 +269,7 @@ impl ConsensusManager {
             start_active_height: active_height,
             start_observe_height: observer_height,
             quorum_type,
-<<<<<<< HEAD
-            future_msg_limit: self.config.consensus_manager_config.static_config.future_msg_limit,
-||||||| 912efc99a
-=======
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
->>>>>>> origin/main-v0.14.1
         }
     }
 

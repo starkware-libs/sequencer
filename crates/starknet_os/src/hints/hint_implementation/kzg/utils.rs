@@ -4,13 +4,7 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-<<<<<<< HEAD
-use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
-||||||| 912efc99a
-use c_kzg::{Blob, KzgCommitment, KzgProof, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-=======
-use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
->>>>>>> origin/main-v0.14.1
+use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
@@ -81,7 +75,6 @@ pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
         .collect())
 }
 
-<<<<<<< HEAD
 pub fn deserialize_blob(
     blob_bytes: &[u8; BYTES_PER_BLOB],
 ) -> Result<[Fr; FIELD_ELEMENTS_PER_BLOB], FftError> {
@@ -93,13 +86,6 @@ pub fn deserialize_blob(
         .expect("BYTES_PER_BLOB/BYTES_PER_FIELD_ELEMENT is FIELD_ELEMENTS_PER_BLOB"))
 }
 
-||||||| 912efc99a
-=======
-pub(crate) fn deserialize_blob(raw_blob: &[u8]) -> Vec<Fr> {
-    raw_blob.chunks(BYTES_PER_FIELD_ELEMENT).map(BigUint::from_bytes_be).map(Fr::from).collect()
-}
-
->>>>>>> origin/main-v0.14.1
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
     let commitment_bytes: [u8; COMMITMENT_BYTES_LENGTH] = *commitment.to_bytes().as_ref();
 
@@ -186,36 +172,12 @@ pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     Ok([d0, d1, Felt::from(d2)])
 }
 
-<<<<<<< HEAD
 pub(crate) fn horner_eval(coefficients: &[BigUint], point: &BigUint, prime: &BigUint) -> BigUint {
     coefficients.iter().rev().fold(BigUint::ZERO, |acc, coeff| (acc * point + coeff) % prime)
 }
 
-/// Structure to hold blob data, commitments, proofs, and versioned hashes.
-pub struct Blobs {
-    pub blobs: Vec<Vec<u8>>,
-    pub commitments: Vec<KzgCommitment>,
-    pub proofs: Vec<KzgProof>,
-    pub versioned_hashes: Vec<[u8; 32]>,
-}
-
-/// Serializable structure to hold blob data, commitments, proofs, and versioned hashes.
-/// All cryptographic objects are converted to byte arrays for easy serialization.
-||||||| 912efc99a
-/// Structure to hold blob data, commitments, proofs, and versioned hashes.
-pub struct Blobs {
-    pub blobs: Vec<Vec<u8>>,
-    pub commitments: Vec<KzgCommitment>,
-    pub proofs: Vec<KzgProof>,
-    pub versioned_hashes: Vec<[u8; 32]>,
-}
-
-/// Serializable structure to hold blob data, commitments, proofs, and versioned hashes.
-/// All cryptographic objects are converted to byte arrays for easy serialization.
-=======
 /// Structure to hold blob artifacts: commitments, proofs, and versioned hashes.
 #[serde_as]
->>>>>>> origin/main-v0.14.1
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LegacyBlobArtifacts {
     #[serde_as(as = "Vec<Bytes>")]

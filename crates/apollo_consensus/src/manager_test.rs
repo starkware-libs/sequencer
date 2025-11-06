@@ -2,19 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
-<<<<<<< HEAD
-use apollo_consensus_config::config::{FutureMsgLimitsConfig, TimeoutsConfig};
-||||||| 912efc99a
-use apollo_consensus_config::config::TimeoutsConfig;
-=======
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
     ConsensusStaticConfig,
+    FutureMsgLimitsConfig,
     TimeoutsConfig,
 };
->>>>>>> origin/main-v0.14.1
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
@@ -50,11 +45,6 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
-const FUTURE_MSG_LIMIT: FutureMsgLimitsConfig = FutureMsgLimitsConfig {
-    future_height_limit: 10,
-    future_round_limit: 10,
-    future_height_round_limit: 1,
-};
 
 #[fixture]
 fn consensus_config() -> ConsensusConfig {
@@ -142,24 +132,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-<<<<<<< HEAD
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        FUTURE_MSG_LIMIT,
-    );
-||||||| 912efc99a
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-    );
-=======
     let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
->>>>>>> origin/main-v0.14.1
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -232,12 +205,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
         quorum_type: QuorumType::Byzantine,
-<<<<<<< HEAD
-        future_msg_limit: FUTURE_MSG_LIMIT,
-||||||| 912efc99a
-=======
         config_manager_client: None,
->>>>>>> origin/main-v0.14.1
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -295,25 +263,8 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
-<<<<<<< HEAD
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        FUTURE_MSG_LIMIT,
-    );
-||||||| 912efc99a
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-    );
-=======
     // Ensure our validator id matches the expectation in the broadcast assertion.
     let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
->>>>>>> origin/main-v0.14.1
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -370,24 +321,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-<<<<<<< HEAD
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        FUTURE_MSG_LIMIT,
-    );
-||||||| 912efc99a
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-    );
-=======
     let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
->>>>>>> origin/main-v0.14.1
     let res = manager
         .run_height(
             &mut context,
@@ -404,14 +338,16 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     proposal_receiver_sender.try_send(mpsc::channel(1).1).unwrap();
     assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
 }
-<<<<<<< HEAD
 
+#[rstest]
 #[tokio::test]
-async fn future_height_limit_caching_and_dropping() {
+async fn future_height_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
     // Use very low limit - only cache 1 height ahead with round 0.
-    const LOW_HEIGHT_LIMIT: u32 = 1;
-    const LOW_ROUND_LIMIT: u32 = 0;
-    const LOW_HEIGHT_ROUND_LIMIT: u32 = 0;
+    consensus_config.static_config.future_msg_limits = FutureMsgLimitsConfig {
+        future_height_limit: 1,
+        future_round_limit: 0,
+        future_height_round_limit: 0,
+    };
 
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
@@ -468,17 +404,7 @@ async fn future_height_limit_caching_and_dropping() {
     // Handle all other broadcasts normally.
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        FutureMsgLimitsConfig {
-            future_height_limit: LOW_HEIGHT_LIMIT,
-            future_round_limit: LOW_ROUND_LIMIT,
-            future_height_round_limit: LOW_HEIGHT_ROUND_LIMIT,
-        },
-    );
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let mut subscriber_channels = subscriber_channels.into();
 
     // Run height 0 - should drop height 2 messages, cache height 1 messages, and reach consensus.
@@ -532,11 +458,14 @@ async fn future_height_limit_caching_and_dropping() {
     }
 }
 
+#[rstest]
 #[tokio::test]
-async fn current_height_round_limit_caching_and_dropping() {
-    const HEIGHT_LIMIT: u32 = 10;
-    const LOW_ROUND_LIMIT: u32 = 0; // Accept only current round (current_round + 0).
-    const HEIGHT_ROUND_LIMIT: u32 = 1;
+async fn current_height_round_limit_caching_and_dropping(mut consensus_config: ConsensusConfig) {
+    consensus_config.static_config.future_msg_limits = FutureMsgLimitsConfig {
+        future_height_limit: 10,
+        future_round_limit: 0, // Accept only current round (current_round + 0).
+        future_height_round_limit: 1,
+    };
 
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
@@ -601,17 +530,7 @@ async fn current_height_round_limit_caching_and_dropping() {
     // Handle all other set_height_and_round calls normally.
     context.expect_set_height_and_round().returning(move |_, _| ());
 
-    let mut manager = MultiHeightManager::new(
-        *VALIDATOR_ID,
-        SYNC_RETRY_INTERVAL,
-        QuorumType::Byzantine,
-        TIMEOUTS.clone(),
-        FutureMsgLimitsConfig {
-            future_height_limit: HEIGHT_LIMIT,
-            future_round_limit: LOW_ROUND_LIMIT,
-            future_height_round_limit: HEIGHT_ROUND_LIMIT,
-        },
-    );
+    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
     let mut subscriber_channels = subscriber_channels.into();
 
     // Spawn tasks to send messages when rounds advance.
@@ -660,8 +579,6 @@ async fn current_height_round_limit_caching_and_dropping() {
         .unwrap();
     assert_decision(decision, Felt::ONE, 2);
 }
-||||||| 912efc99a
-=======
 
 #[rstest]
 #[tokio::test]
@@ -738,4 +655,3 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     });
     decision_rx.await.unwrap();
 }
->>>>>>> origin/main-v0.14.1

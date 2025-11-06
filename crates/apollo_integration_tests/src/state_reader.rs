@@ -32,14 +32,8 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
-<<<<<<< HEAD
-use starknet_api::contract_class::ContractClass;
-||||||| 912efc99a
-use starknet_api::contract_class::{ContractClass, SierraVersion};
-=======
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::contract_class::{ContractClass, SierraVersion};
->>>>>>> origin/main-v0.14.1
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
