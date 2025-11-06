@@ -392,21 +392,12 @@ def apply_configmap(
             sys.exit(1)
 
 
-def update_config_and_restart_nodes(
+def _update_config(
     config_values_updater: ConfigValuesUpdater,
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
-    restarter: ServiceRestarter,
 ) -> None:
-    assert config_values_updater is not None, "config_values_updater must be provided"
-    assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
-
-    if not namespace_and_instruction_args.cluster_list:
-        print_colored(
-            "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
-            Colors.RED,
-        )
-
+    """Update and apply configurations for all nodes."""
     # Store original and updated configs for all nodes
     configs = []
 
@@ -452,11 +443,27 @@ def update_config_and_restart_nodes(
             namespace_and_instruction_args.get_cluster(index),
         )
 
-    for index, config in enumerate(configs):
+
+def update_config_and_restart_nodes(
+    config_values_updater: Optional[ConfigValuesUpdater],
+    namespace_and_instruction_args: NamespaceAndInstructionArgs,
+    service: Service,
+    restarter: ServiceRestarter,
+) -> None:
+    assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
+
+    if not namespace_and_instruction_args.cluster_list:
+        print_colored(
+            "cluster-prefix/cluster-list not provided. Assuming all nodes are on the current cluster",
+            Colors.RED,
+        )
+
+    if config_values_updater is not None:
+        _update_config(config_values_updater, namespace_and_instruction_args, service)
+
+    for index in range(namespace_and_instruction_args.size()):
         if not restarter.restart_service(index):
             print_colored("\nAborting restart process.")
             sys.exit(1)
-
-    print_colored("\nAll pods have been successfully restarted!", Colors.GREEN)
 
     print("\nOperation completed successfully!")
