@@ -16,5 +16,6 @@
   "state_sync_config.central_sync_client_config.#is_none": "$$$_STATE_SYNC_CONFIG-CENTRAL_SYNC_CLIENT_CONFIG-IS_NONE_$$$",
   "state_sync_config.network_config.#is_none": "$$$_STATE_SYNC_CONFIG-NETWORK_CONFIG-IS_NONE_$$$",
   "state_sync_config.p2p_sync_client_config.#is_none": "$$$_STATE_SYNC_CONFIG-P2P_SYNC_CLIENT_CONFIG-IS_NONE_$$$",
+  "state_sync_config.rpc_config.port": "$$$_STATE_SYNC_CONFIG-RPC_CONFIG-PORT_$$$",
   "strk_fee_token_address": "$$$_STRK_FEE_TOKEN_ADDRESS_$$$"
 }

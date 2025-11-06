@@ -67,6 +67,8 @@ const GENESIS_HASH: &str = "0x0";
 /// Maximum size of a supported transaction body - 10MB.
 pub const SERVER_MAX_BODY_SIZE: u32 = 10 * 1024 * 1024;
 
+pub const RPC_CONFIG_DEFAULT_PORT: u16 = 8090;
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Validate)]
 pub struct RpcConfig {
     #[validate(custom = "validate_ascii")]
@@ -87,7 +89,7 @@ impl Default for RpcConfig {
         RpcConfig {
             chain_id: ChainId::Mainnet,
             ip: "0.0.0.0".parse().unwrap(),
-            port: 8090,
+            port: RPC_CONFIG_DEFAULT_PORT,
             max_events_chunk_size: 1000,
             max_events_keys: 100,
             collect_metrics: false,
