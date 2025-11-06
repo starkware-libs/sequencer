@@ -62,6 +62,8 @@ impl Display for NoStats {
 }
 
 pub trait Storage {
+    type Stats: StorageStats;
+
     /// Returns value from storage, if it exists.
     /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
     /// for caching).
@@ -82,9 +84,7 @@ pub trait Storage {
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
     /// If implemented, returns the statistics of the storage.
-    fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
-        Ok(NoStats)
-    }
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;
 }
 
 #[derive(Debug)]
