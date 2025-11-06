@@ -77,7 +77,7 @@ pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<[u8; BYTES_PER_BLOB], FftErr
         .flat_map(|x| pad_bytes(x.into_bigint().to_bytes_be(), BYTES_PER_FIELD_ELEMENT))
         .collect::<Vec<_>>();
     let flattened_blob_bytes = flattened_blob.len();
-    Ok(flattened_blob.try_into().map_err(|_| FftError::InvalidBytesInBlob(flattened_blob_bytes))?)
+    flattened_blob.try_into().map_err(|_| FftError::InvalidBytesInBlob(flattened_blob_bytes))
 }
 
 pub fn deserialize_blob(blob_bytes: &[u8; BYTES_PER_BLOB]) -> [Fr; FIELD_ELEMENTS_PER_BLOB] {
