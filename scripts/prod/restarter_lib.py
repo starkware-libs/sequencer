@@ -91,16 +91,18 @@ class ServiceRestarter(ABC):
                 else wait_until_y_or_n(f"Do you want to restart the next pod?")
             )
 
-            return ChecksBetweenRestarts(
+            return ChecksBetweenRestartsCompositeRestarter(
                 namespace_and_instruction_args,
                 service,
                 check_between_restarts,
+                RestartPodOnlyRestarter(namespace_and_instruction_args, service),
             )
         elif restart_strategy == RestartStrategy.ALL_AT_ONCE:
-            return ChecksBetweenRestarts(
+            return ChecksBetweenRestartsCompositeRestarter(
                 namespace_and_instruction_args,
                 service,
                 lambda instance_index: True,
+                RestartPodOnlyRestarter(namespace_and_instruction_args, service),
             )
         elif restart_strategy == RestartStrategy.NO_RESTART:
             assert (
@@ -111,7 +113,27 @@ class ServiceRestarter(ABC):
             raise ValueError(f"Invalid restart strategy: {restart_strategy}")
 
 
-class ChecksBetweenRestarts(ServiceRestarter):
+class RestartPodOnlyRestarter(ServiceRestarter):
+    """Restarter that only restarts the pod and does not check anything else."""
+
+    def __init__(
+        self, namespace_and_instruction_args: NamespaceAndInstructionArgs, service: Service
+    ):
+        super().__init__(namespace_and_instruction_args, service)
+
+    def restart_service(self, instance_index: int) -> bool:
+        """Restarts the pod and does nothing else."""
+        self._restart_pod(
+            self.namespace_and_instruction_args.get_namespace(instance_index),
+            self.service,
+            instance_index,
+            self.namespace_and_instruction_args.get_cluster(instance_index),
+        )
+        print_colored(f"Restarted pod {instance_index}. ", Colors.YELLOW)
+        return True
+
+
+class ChecksBetweenRestartsCompositeRestarter(ServiceRestarter):
     """Checks between restarts."""
 
     def __init__(
@@ -119,23 +141,19 @@ class ChecksBetweenRestarts(ServiceRestarter):
         namespace_and_instruction_args: NamespaceAndInstructionArgs,
         service: Service,
         check_between_restarts: Callable[[int], bool],
+        base_service_restarter: ServiceRestarter,
     ):
         super().__init__(namespace_and_instruction_args, service)
         self.check_between_restarts = check_between_restarts
+        self.base_service_restarter = base_service_restarter
 
     def restart_service(self, instance_index: int) -> bool:
-        """Restart the instance one by one, running the use code in between each restart."""
-        self._restart_pod(
-            self.namespace_and_instruction_args.get_namespace(instance_index),
-            self.service,
-            instance_index,
-            self.namespace_and_instruction_args.get_cluster(instance_index),
-        )
+        """Call the base restarter on each instance one by one, running the check_between_restarts in between each."""
+        self.base_service_restarter.restart_service(instance_index)
+
         instructions = self.namespace_and_instruction_args.get_instruction(instance_index)
-        print_colored(
-            f"Restarted pod {instance_index}.\n{instructions if instructions is not None else ''} ",
-            Colors.YELLOW,
-        )
+        if instructions is not None:
+            print_colored(f"{instructions} ", Colors.YELLOW)
         return self.check_between_restarts(instance_index)
 
 
@@ -148,7 +166,7 @@ class NoOpServiceRestarter(ServiceRestarter):
         return True
 
 
-class WaitOnMetricRestarter(ChecksBetweenRestarts):
+class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
     def __init__(
         self,
         namespace_and_instruction_args: NamespaceAndInstructionArgs,
@@ -161,13 +179,18 @@ class WaitOnMetricRestarter(ChecksBetweenRestarts):
         self.metrics_port = metrics_port
         if restart_strategy == RestartStrategy.ONE_BY_ONE:
             check_function = self._check_between_each_restart
+            base_restarter = RestartPodOnlyRestarter(namespace_and_instruction_args, service)
         elif restart_strategy == RestartStrategy.ALL_AT_ONCE:
             check_function = self._check_all_only_after_last_restart
+            base_restarter = RestartPodOnlyRestarter(namespace_and_instruction_args, service)
+        elif restart_strategy == RestartStrategy.NO_RESTART:
+            check_function = self._check_between_each_restart
+            base_restarter = NoOpServiceRestarter(namespace_and_instruction_args, service)
         else:
             print_error(f"Invalid restart strategy: {restart_strategy} for WaitOnMetricRestarter.")
             sys.exit(1)
 
-        super().__init__(namespace_and_instruction_args, service, check_function)
+        super().__init__(namespace_and_instruction_args, service, check_function, base_restarter)
 
     def _check_between_each_restart(self, instance_index: int) -> bool:
         self._wait_for_pod_to_satisfy_condition(instance_index)
