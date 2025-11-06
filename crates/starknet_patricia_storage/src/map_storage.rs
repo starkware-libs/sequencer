@@ -42,6 +42,9 @@ pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
     pub cache_on_write: bool,
+    reads: u128,
+    cached_reads: u128,
+    writes: u128,
 }
 
 pub struct CachedStorageConfig {
@@ -58,6 +61,9 @@ impl<S: Storage> CachedStorage<S> {
             storage,
             cache: LruCache::new(config.cache_size),
             cache_on_write: config.cache_on_write,
+            reads: 0,
+            cached_reads: 0,
+            writes: 0,
         }
     }
 
@@ -66,11 +72,25 @@ impl<S: Storage> CachedStorage<S> {
             self.cache.put(key.clone(), Some(value.clone()));
         }
     }
+
+    pub fn total_reads(&self) -> u128 {
+        self.reads
+    }
+
+    pub fn total_cached_reads(&self) -> u128 {
+        self.cached_reads
+    }
+
+    pub fn total_writes(&self) -> u128 {
+        self.writes
+    }
 }
 
 impl<S: Storage> Storage for CachedStorage<S> {
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
+            self.cached_reads += 1;
             return Ok(cached_value.clone());
         }
 
@@ -80,6 +100,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+        self.writes += 1;
         let prev_value = self.storage.set(key.clone(), value.clone())?;
         self.update_cached_value(&key, &value);
         Ok(prev_value)
@@ -99,6 +120,10 @@ impl<S: Storage> Storage for CachedStorage<S> {
             }
         }
 
+        self.reads += u128::try_from(keys.len()).expect("usize should fit in u128");
+        self.cached_reads +=
+            u128::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u128");
+
         let fetched_values = self.storage.mget(keys_to_fetch.as_slice())?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
@@ -111,6 +136,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+        self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone())?;
         key_to_value.iter().for_each(|(key, value)| {
             self.update_cached_value(key, value);
@@ -124,6 +150,18 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn get_stats(&self) -> Option<String> {
-        self.storage.get_stats()
+        let inner_stats = self.storage.get_stats();
+        #[allow(clippy::as_conversions)]
+        let mut stats = format!(
+            "CachedStorage stats: reads: {}, cached reads: {}, writes: {}. Cache hit rate: {:.4}.",
+            self.reads,
+            self.cached_reads,
+            self.writes,
+            self.cached_reads as f64 / self.reads as f64,
+        );
+        if let Some(inner_stats) = inner_stats {
+            stats.push_str(&format!("\nInner Stats: {inner_stats}"));
+        }
+        Some(stats)
     }
 }
