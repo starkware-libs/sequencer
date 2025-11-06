@@ -4,14 +4,13 @@ import argparse
 import json
 import sys
 import tempfile
+import urllib.error
 import urllib.parse
-from difflib import unified_diff
+import urllib.request
 from abc import ABC, abstractmethod
+from difflib import unified_diff
 from typing import Any, Optional
 
-import tempfile
-import urllib.error
-import urllib.request
 import yaml
 from common_lib import (
     Colors,
@@ -25,7 +24,6 @@ from common_lib import (
     restart_strategy_converter,
     run_kubectl_command,
 )
-from difflib import unified_diff
 from restarter_lib import ServiceRestarter
 
 

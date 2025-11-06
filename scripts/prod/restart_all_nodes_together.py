@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 
-import argparse
-import json
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from enum import Enum
 from typing import Optional
 
 from common_lib import NamespaceAndInstructionArgs, RestartStrategy, Service, print_colored

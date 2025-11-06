@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
+import signal
+import socket
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from time import sleep
 from typing import Any, Callable, Optional
 
-import signal
-import socket
-import urllib.error
-import urllib.request
 from common_lib import Colors, get_namespace_args, print_colored, print_error
 from prometheus_client.parser import text_string_to_metric_families
 

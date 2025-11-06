@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import sys
+import urllib.parse
 from typing import Optional
 
-import urllib.parse
 from common_lib import (
     NamespaceAndInstructionArgs,
     RestartStrategy,
