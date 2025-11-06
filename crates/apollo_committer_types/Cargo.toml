@@ -5,10 +5,20 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+testing = ["mockall"]
+
 [dependencies]
 apollo_infra.workspace = true
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
 serde.workspace = true
+starknet_api.workspace = true
+starknet_committer.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
 
 [lints]
 workspace = true
