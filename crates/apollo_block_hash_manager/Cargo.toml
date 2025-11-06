@@ -1,0 +1,21 @@
+[package]
+name = "apollo_block_hash_manager"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_batcher_types.workspace = true
+apollo_infra.workspace = true
+starknet_api.workspace = true
+starknet_committer.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true

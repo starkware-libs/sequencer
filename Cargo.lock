@@ -940,6 +940,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_block_hash_manager"
+version = "0.17.0-rc.0"
+dependencies = [
+ "apollo_batcher_types",
+ "apollo_infra",
+ "starknet_api",
+ "starknet_committer",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "apollo_central_sync"
 version = "0.17.0-rc.0"
 dependencies = [

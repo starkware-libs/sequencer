@@ -7,6 +7,7 @@ members = [
   "crates/apollo_batcher",
   "crates/apollo_batcher_config",
   "crates/apollo_batcher_types",
+  "crates/apollo_block_hash_manager",
   "crates/apollo_central_sync",
   "crates/apollo_central_sync_config",
   "crates/apollo_class_manager",
@@ -125,6 +126,7 @@ anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_config.path = "crates/apollo_batcher_config"
 apollo_batcher_types.path = "crates/apollo_batcher_types"
+apollo_block_hash_manager.path = "crates/apollo_block_hash_manager"
 apollo_central_sync.path = "crates/apollo_central_sync"
 apollo_central_sync_config.path = "crates/apollo_central_sync_config"
 apollo_class_manager.path = "crates/apollo_class_manager"
