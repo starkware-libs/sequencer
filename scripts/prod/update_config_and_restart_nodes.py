@@ -5,13 +5,22 @@ import json
 import sys
 from typing import Any
 
-from common_lib import Colors, NamespaceAndInstructionArgs, Service, print_colored, print_error
-from restarter_lib import ServiceRestarter
+from common_lib import (
+    Colors,
+    NamespaceAndInstructionArgs,
+    RestartStrategy,
+    Service,
+    print_colored,
+    print_error,
+)
+from restarter_lib import ServiceRestarter, WaitOnMetricRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConstConfigValuesUpdater,
     update_config_and_restart_nodes,
 )
+
+from scripts.prod.metrics_lib import MetricConditionGater
 
 
 def parse_config_overrides(config_overrides: list[str]) -> dict[str, Any]:
@@ -135,6 +144,12 @@ Examples:
         help="Service type to operate on; determines configmap and pod names (default: Core)",
     )
 
+    args_builder.add_argument(
+        "--no-check-for-good-proposal",
+        action="store_true",
+        help="If set, for restarts of Core (only), will not stop to check that a new proposal succeeded post restarts before continuing.",
+    )
+
     args = args_builder.build()
     config_overrides = parse_config_overrides(args.config_overrides)
 
@@ -152,11 +167,35 @@ Examples:
         None,
     )
 
-    restarter = ServiceRestarter.from_restart_strategy(
-        args.restart_strategy,
-        namespace_and_instruction_args,
-        args.service,
-    )
+    if args.no_gate_restart_on_good_proposal:
+        if args.service != Service.Core:
+            print_error("The --no-check-for-good-proposal flag is only relevant for Core.")
+            sys.exit(1)
+        if args.restart_strategy == RestartStrategy.NO_RESTART:
+            print_error(
+                "The --no-check-for-good-proposal flag is not relevant when using no_restart."
+            )
+            sys.exit(1)
+
+        restarter = ServiceRestarter.from_restart_strategy(
+            args.restart_strategy,
+            namespace_and_instruction_args,
+            args.service,
+        )
+    else:
+        assert args.service == Service.Core
+
+        restarter = WaitOnMetricRestarter(
+            namespace_and_instruction_args,
+            args.service,
+            [
+                MetricConditionGater.Metric(
+                    "consensus_decisions_reached_as_proposer", lambda x: x > 0
+                )
+            ],
+            metrics_port=8082,
+            restart_strategy=args.restart_strategy,
+        )
 
     update_config_and_restart_nodes(
         ConstConfigValuesUpdater(config_overrides),
