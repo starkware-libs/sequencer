@@ -1,34 +1,16 @@
 #!/usr/bin/env python3
 
-<<<<<<< HEAD
 import argparse
 import json
 import sys
 import urllib.error
-||||||| 912efc99a
-import argparse
-import json
-import sys
-from enum import Enum
-from typing import Optional
-
-import urllib.error
-=======
-from typing import Optional
-
->>>>>>> origin/main-v0.14.1
 import urllib.parse
-<<<<<<< HEAD
 import urllib.request
 from enum import Enum
 from typing import Optional
 
-||||||| 912efc99a
-import urllib.request
-=======
 from common_lib import NamespaceAndInstructionArgs, RestartStrategy, Service, print_colored
 from restarter_lib import ServiceRestarter
->>>>>>> origin/main-v0.14.1
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConstConfigValuesUpdater,

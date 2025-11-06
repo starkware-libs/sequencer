@@ -3,70 +3,16 @@
 import argparse
 import json
 import sys
-<<<<<<< HEAD
 import tempfile
 import urllib.parse
 from difflib import unified_diff
-from enum import Enum
-||||||| 912efc99a
-from enum import Enum
-=======
 from abc import ABC, abstractmethod
->>>>>>> origin/main-v0.14.1
 from typing import Any, Optional
 
-<<<<<<< HEAD
-||||||| 912efc99a
-import tempfile
-import urllib.parse
-=======
 import tempfile
 import urllib.error
 import urllib.request
->>>>>>> origin/main-v0.14.1
 import yaml
-<<<<<<< HEAD
-
-
-class Colors(Enum):
-    """ANSI color codes for terminal output"""
-
-    RED = "\033[1;31m"
-    GREEN = "\033[1;32m"
-    YELLOW = "\033[1;33m"
-    BLUE = "\033[1;34m"
-    RESET = "\033[0m"
-
-
-def print_colored(message: str, color: Colors = Colors.RESET, file=sys.stdout) -> None:
-    """Print message with color"""
-    print(f"{color.value}{message}{Colors.RESET.value}", file=file)
-
-
-def print_error(message: str) -> None:
-    print_colored(message, color=Colors.RED, file=sys.stderr)
-||||||| 912efc99a
-from difflib import unified_diff
-
-
-class Colors(Enum):
-    """ANSI color codes for terminal output"""
-
-    RED = "\033[1;31m"
-    GREEN = "\033[1;32m"
-    YELLOW = "\033[1;33m"
-    BLUE = "\033[1;34m"
-    RESET = "\033[0m"
-
-
-def print_colored(message: str, color: Colors = Colors.RESET, file=sys.stdout) -> None:
-    """Print message with color"""
-    print(f"{color.value}{message}{Colors.RESET.value}", file=file)
-
-
-def print_error(message: str) -> None:
-    print_colored(message, color=Colors.RED, file=sys.stderr)
-=======
 from common_lib import (
     Colors,
     NamespaceAndInstructionArgs,
@@ -81,7 +27,6 @@ from common_lib import (
 )
 from difflib import unified_diff
 from restarter_lib import ServiceRestarter
->>>>>>> origin/main-v0.14.1
 
 
 class ApolloArgsParserBuilder:

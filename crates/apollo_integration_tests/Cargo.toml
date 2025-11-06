@@ -80,13 +80,8 @@ url.workspace = true
 
 [dev-dependencies]
 apollo_infra.workspace = true
-<<<<<<< HEAD
-apollo_l1_provider_types = { workspace = true, features = ["testing"] }
-||||||| 912efc99a
-=======
 apollo_l1_provider.workspace = true
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
->>>>>>> origin/main-v0.14.1
 futures.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true

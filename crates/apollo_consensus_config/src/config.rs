@@ -35,34 +35,8 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
-<<<<<<< HEAD
-    /// Timeouts configuration for consensus.
-    pub timeouts: TimeoutsConfig,
-    /// The duration (seconds) between sync attempts.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub sync_retry_interval: Duration,
     /// Future message limits configuration.
-    pub future_msg_limit: FutureMsgLimitsConfig,
-||||||| 912efc99a
-    /// Timeouts configuration for consensus.
-    pub timeouts: TimeoutsConfig,
-    /// The duration (seconds) between sync attempts.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub sync_retry_interval: Duration,
-    /// How many heights in the future should we cache.
-    pub future_height_limit: u32,
-    /// How many rounds in the future (for current height) should we cache.
-    pub future_round_limit: u32,
-    /// How many rounds should we cache for future heights.
-    pub future_height_round_limit: u32,
-=======
-    /// How many heights in the future should we cache.
-    pub future_height_limit: u32,
-    /// How many rounds in the future (for current height) should we cache.
-    pub future_round_limit: u32,
-    /// How many rounds should we cache for future heights.
-    pub future_height_round_limit: u32,
->>>>>>> origin/main-v0.14.1
+    pub future_msg_limits: FutureMsgLimitsConfig,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -89,34 +63,6 @@ impl SerializeConfig for ConsensusDynamicConfig {
                 "The duration (seconds) between sync attempts.",
                 ParamPrivacyInput::Public,
             ),
-<<<<<<< HEAD
-        ]);
-        config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
-        config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
-        config
-||||||| 912efc99a
-            ser_param(
-                "future_height_limit",
-                &self.future_height_limit,
-                "How many heights in the future should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_round_limit",
-                &self.future_round_limit,
-                "How many rounds in the future (for current height) should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_height_round_limit",
-                &self.future_height_round_limit,
-                "How many rounds should we cache for future heights.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-        config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
-        config
-=======
         ]);
         config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
         config
@@ -125,33 +71,15 @@ impl SerializeConfig for ConsensusDynamicConfig {
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "startup_delay",
-                &self.startup_delay.as_secs(),
-                "Delay (seconds) before starting consensus to give time for network peering.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_height_limit",
-                &self.future_height_limit,
-                "How many heights in the future should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_round_limit",
-                &self.future_round_limit,
-                "How many rounds in the future (for current height) should we cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "future_height_round_limit",
-                &self.future_height_round_limit,
-                "How many rounds should we cache for future heights.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
->>>>>>> origin/main-v0.14.1
+        let mut config = BTreeMap::from_iter([ser_param(
+            "startup_delay",
+            &self.startup_delay.as_secs(),
+            "Delay (seconds) before starting consensus to give time for network peering.",
+            ParamPrivacyInput::Public,
+        )]);
+        config.extend(prepend_sub_config_name(self.future_msg_limits.dump(), "future_msg_limit"));
+
+        config
     }
 }
 
@@ -178,21 +106,7 @@ impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
             startup_delay: Duration::from_secs(5),
-<<<<<<< HEAD
-            timeouts: TimeoutsConfig::default(),
-            sync_retry_interval: Duration::from_secs_f64(1.0),
-            future_msg_limit: FutureMsgLimitsConfig::default(),
-||||||| 912efc99a
-            timeouts: TimeoutsConfig::default(),
-            sync_retry_interval: Duration::from_secs_f64(1.0),
-            future_height_limit: 10,
-            future_round_limit: 10,
-            future_height_round_limit: 1,
-=======
-            future_height_limit: 10,
-            future_round_limit: 10,
-            future_height_round_limit: 1,
->>>>>>> origin/main-v0.14.1
+            future_msg_limits: FutureMsgLimitsConfig::default(),
         }
     }
 }
