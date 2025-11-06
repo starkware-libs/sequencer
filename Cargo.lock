@@ -2025,6 +2025,8 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager",
  "apollo_class_manager_types",
+ "apollo_committer",
+ "apollo_committer_types",
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
  "apollo_config",

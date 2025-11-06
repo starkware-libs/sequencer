@@ -1,5 +1,6 @@
 use apollo_batcher_types::communication::BatcherRequestWrapper;
 use apollo_class_manager_types::ClassManagerRequestWrapper;
+use apollo_committer_types::CommitterRequestWrapper;
 use apollo_compile_to_casm_types::SierraCompilerRequestWrapper;
 use apollo_config_manager_types::communication::ConfigManagerRequestWrapper;
 use apollo_gateway_types::communication::GatewayRequestWrapper;
@@ -19,6 +20,7 @@ use tracing::info;
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestWrapper>,
     class_manager_channel: ComponentCommunication<ClassManagerRequestWrapper>,
+    committer_channel: ComponentCommunication<CommitterRequestWrapper>,
     config_manager_channel: ComponentCommunication<ConfigManagerRequestWrapper>,
     gateway_channel: ComponentCommunication<GatewayRequestWrapper>,
     l1_endpoint_monitor_channel: ComponentCommunication<L1EndpointMonitorRequestWrapper>,
@@ -46,6 +48,14 @@ impl SequencerNodeCommunication {
 
     pub fn take_class_manager_rx(&mut self) -> Receiver<ClassManagerRequestWrapper> {
         self.class_manager_channel.take_rx()
+    }
+
+    pub fn take_committer_tx(&mut self) -> Sender<CommitterRequestWrapper> {
+        self.committer_channel.take_tx()
+    }
+
+    pub fn take_committer_rx(&mut self) -> Receiver<CommitterRequestWrapper> {
+        self.committer_channel.take_rx()
     }
 
     pub fn take_config_manager_tx(&mut self) -> Sender<ConfigManagerRequestWrapper> {
@@ -161,6 +171,23 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
                         .inbound_requests_channel_capacity,
                 );
                 (Some(tx_class_manager), Some(rx_class_manager))
+            }
+            false => (None, None),
+        };
+
+    let (tx_committer, rx_committer) =
+        match config.components.committer.execution_mode.is_running_locally() {
+            true => {
+                let (tx_committer, rx_committer) = channel::<CommitterRequestWrapper>(
+                    config
+                        .components
+                        .committer
+                        .local_server_config
+                        .as_ref()
+                        .expect("Committer local server config should be available.")
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_committer), Some(rx_committer))
             }
             false => (None, None),
         };
@@ -342,6 +369,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
         class_manager_channel: ComponentCommunication::new(tx_class_manager, rx_class_manager),
+        committer_channel: ComponentCommunication::new(tx_committer, rx_committer),
         config_manager_channel: ComponentCommunication::new(tx_config_manager, rx_config_manager),
         gateway_channel: ComponentCommunication::new(tx_gateway, rx_gateway),
         l1_endpoint_monitor_channel: ComponentCommunication::new(
