@@ -52,7 +52,9 @@ class ServiceRestarter(ABC):
         pods = _get_pod_names(namespace, service, index, cluster)
 
         if not pods:
-            print_error(f"Could not find pods for service {service.pod_name}.")
+            print_error(
+                f"Could not find pods for service {service.pod_name} with namespace {namespace} and cluster {cluster}."
+            )
             sys.exit(1)
 
         # Go over each pod and delete it.

@@ -13,14 +13,13 @@ from common_lib import (
     print_colored,
     print_error,
 )
+from metrics_lib import MetricConditionGater
 from restarter_lib import ServiceRestarter, WaitOnMetricRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConstConfigValuesUpdater,
     update_config_and_restart_nodes,
 )
-
-from scripts.prod.metrics_lib import MetricConditionGater
 
 
 def parse_config_overrides(config_overrides: list[str]) -> dict[str, Any]:
@@ -167,24 +166,7 @@ Examples:
         None,
     )
 
-    if args.no_gate_restart_on_good_proposal:
-        if args.service != Service.Core:
-            print_error("The --no-check-for-good-proposal flag is only relevant for Core.")
-            sys.exit(1)
-        if args.restart_strategy == RestartStrategy.NO_RESTART:
-            print_error(
-                "The --no-check-for-good-proposal flag is not relevant when using no_restart."
-            )
-            sys.exit(1)
-
-        restarter = ServiceRestarter.from_restart_strategy(
-            args.restart_strategy,
-            namespace_and_instruction_args,
-            args.service,
-        )
-    else:
-        assert args.service == Service.Core
-
+    if args.service == Service.Core and not args.no_check_for_good_proposal:
         restarter = WaitOnMetricRestarter(
             namespace_and_instruction_args,
             args.service,
@@ -195,6 +177,12 @@ Examples:
             ],
             metrics_port=8082,
             restart_strategy=args.restart_strategy,
+        )
+    else:
+        restarter = ServiceRestarter.from_restart_strategy(
+            args.restart_strategy,
+            namespace_and_instruction_args,
+            args.service,
         )
 
     update_config_and_restart_nodes(
