@@ -981,6 +981,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_committer"
+version = "0.17.0-rc.0"
+dependencies = [
+ "apollo_committer_types",
+ "apollo_infra",
+ "apollo_metrics",
+ "async-trait",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "apollo_committer_types"
 version = "0.17.0-rc.0"
 dependencies = [
