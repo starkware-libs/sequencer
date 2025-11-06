@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use csv::Writer;
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,8 @@ pub struct TimeMeasurement {
     pub compute_durations: Vec<u64>, // Duration of a block new facts computation (milliseconds).
     pub write_durations: Vec<u64>, // Duration of a block new facts write (milliseconds).
     pub facts_in_db: Vec<usize>,   // Number of facts in the DB prior to the current block.
+    pub time_of_measurement: Vec<u128>, /* Milliseconds since epoch (timestamp) of the measurement
+                                    * for each action. */
     pub block_number: usize,
     pub total_facts: usize,
 
@@ -54,6 +56,7 @@ impl TimeMeasurement {
             write_durations: Vec::with_capacity(size),
             block_durations: Vec::with_capacity(size),
             facts_in_db: Vec::with_capacity(size),
+            time_of_measurement: Vec::with_capacity(size),
             block_number: 0,
             total_facts: 0,
             storage_stat_columns,
@@ -73,6 +76,7 @@ impl TimeMeasurement {
         self.n_new_facts.clear();
         self.block_durations.clear();
         self.facts_in_db.clear();
+        self.time_of_measurement.clear();
         self.n_read_facts.clear();
         self.read_durations.clear();
         self.compute_durations.clear();
@@ -103,6 +107,8 @@ impl TimeMeasurement {
                 self.total_time += millis;
                 self.n_new_facts.push(facts_count.unwrap());
                 self.facts_in_db.push(self.total_facts);
+                self.time_of_measurement
+                    .push(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
                 self.total_facts += facts_count.unwrap();
                 self.block_number += 1;
             }
@@ -196,6 +202,7 @@ impl TimeMeasurement {
                     "n_new_facts",
                     "n_read_facts",
                     "initial_facts_in_db",
+                    "time_of_measurement",
                     "block_duration_millis",
                     "read_duration_millis",
                     "compute_duration_millis",
@@ -215,6 +222,7 @@ impl TimeMeasurement {
                 self.n_new_facts[i].to_string(),
                 self.n_read_facts[i].to_string(),
                 self.facts_in_db[i].to_string(),
+                self.time_of_measurement[i].to_string(),
                 self.block_durations[i].to_string(),
                 self.read_durations[i].to_string(),
                 self.compute_durations[i].to_string(),
