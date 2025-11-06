@@ -68,8 +68,7 @@ fn generate(generator: &BigUint) -> Vec<BigUint> {
 
 #[test]
 fn test_blob_bytes_serde() {
-    let serded_blob =
-        deserialize_blob(&serialize_blob(&BLOB_REGRESSION_INPUT).unwrap().try_into().unwrap());
+    let serded_blob = deserialize_blob(&serialize_blob(&BLOB_REGRESSION_INPUT).unwrap());
     assert_eq!(*BLOB_REGRESSION_INPUT, serded_blob);
 }
 
