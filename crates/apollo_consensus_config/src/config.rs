@@ -36,7 +36,7 @@ pub struct ConsensusStaticConfig {
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
     /// Future message limits configuration.
-    pub future_msg_limits: FutureMsgLimitsConfig,
+    pub future_msg_limit: FutureMsgLimitsConfig,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -77,7 +77,7 @@ impl SerializeConfig for ConsensusStaticConfig {
             "Delay (seconds) before starting consensus to give time for network peering.",
             ParamPrivacyInput::Public,
         )]);
-        config.extend(prepend_sub_config_name(self.future_msg_limits.dump(), "future_msg_limit"));
+        config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
 
         config
     }
@@ -106,7 +106,7 @@ impl Default for ConsensusStaticConfig {
     fn default() -> Self {
         Self {
             startup_delay: Duration::from_secs(5),
-            future_msg_limits: FutureMsgLimitsConfig::default(),
+            future_msg_limit: FutureMsgLimitsConfig::default(),
         }
     }
 }

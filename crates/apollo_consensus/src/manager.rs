@@ -574,7 +574,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         msg_round: u32,
         msg_description: &str,
     ) -> bool {
-        let limits = &self.consensus_config.static_config.future_msg_limits;
+        let limits = &self.consensus_config.static_config.future_msg_limit;
         let height_diff = msg_height.saturating_sub(current_height.0);
 
         let should_cache = height_diff <= limits.future_height_limit.into()
