@@ -96,6 +96,8 @@ impl MdbxStorage {
 }
 
 impl Storage for MdbxStorage {
+    type Stats = MdbxStorageStats;
+
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
@@ -142,7 +144,7 @@ impl Storage for MdbxStorage {
         Ok(prev_val)
     }
 
-    fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(MdbxStorageStats(self.db.stat()?))
     }
 }
