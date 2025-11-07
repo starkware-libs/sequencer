@@ -100,6 +100,10 @@ struct StorageArgs {
     /// memory, as there is no locality of related data.
     #[clap(long, short, action=ArgAction::SetFalse)]
     allow_mmap: bool,
+    /// If true, when using CachedStorage, statistics collection from the storage will include
+    /// internal storage statistics (and not just cache stats).
+    #[clap(long, action=ArgAction::SetTrue)]
+    include_inner_stats: bool,
     /// If not none, wraps the storage in the key-shrinking storage of the given size.
     #[clap(long, default_value = None)]
     key_size: Option<ShortKeySizeArg>,
@@ -256,6 +260,7 @@ pub async fn run_committer_cli(
                 ref storage_type,
                 ref cache_size,
                 allow_mmap,
+                include_inner_stats,
                 ..
             } = storage_args;
 
@@ -282,6 +287,7 @@ pub async fn run_committer_cli(
             let cached_storage_config = CachedStorageConfig {
                 cache_size: NonZeroUsize::new(*cache_size).unwrap(),
                 cache_on_write: true,
+                include_inner_stats,
             };
             let rocksdb_options = if allow_mmap {
                 RocksDbOptions::default()

@@ -12,6 +12,7 @@ use crate::storage_trait::{DbKey, DbValue, Storage};
     CachedStorage::new(MapStorage::default(), CachedStorageConfig {
         cache_size: NonZeroUsize::new(2).unwrap(),
         cache_on_write: true,
+        include_inner_stats: false,
     })
 )]
 fn test_storage_impl(#[case] mut storage: impl Storage) {
