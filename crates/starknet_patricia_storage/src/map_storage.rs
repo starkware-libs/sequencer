@@ -224,4 +224,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
             },
         })
     }
+
+    fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
+        self.reads = 0;
+        self.cached_reads = 0;
+        self.writes = 0;
+        self.storage.reset_stats()
+    }
 }
