@@ -15,9 +15,92 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Cleanup function
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}Cleaning up...${NC}"
+    
+    # Kill any running nodes
+    pkill -f apollo_node 2>/dev/null || true
+    
+    # Ask about data cleanup
+    echo ""
+    echo -e "${YELLOW}Test data directories:${NC}"
+    du -sh ./data_with_batching ./data_without_batching 2>/dev/null || true
+    
+    read -p "Delete test data directories? (y/N): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rm -rf ./data_with_batching ./data_without_batching
+        echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    else
+        echo -e "${YELLOW}Test data preserved. Clean up manually with:${NC}"
+        echo "  rm -rf ./data_with_batching ./data_without_batching"
+    fi
+}
+
+# Set trap to cleanup on exit or interrupt
+trap cleanup EXIT INT TERM
+
+# Function to check disk space
+check_disk_space() {
+    local required_gb=$1
+    local available_kb=$(df . | tail -1 | awk '{print $4}')
+    local available_gb=$((available_kb / 1024 / 1024))
+    
+    echo -e "${BLUE}Disk space check:${NC}"
+    echo "  Available: ${available_gb}GB"
+    echo "  Required: ~${required_gb}GB"
+    
+    if [ $available_gb -lt $required_gb ]; then
+        echo -e "${RED}ERROR: Not enough disk space!${NC}"
+        echo -e "${RED}Need at least ${required_gb}GB free, but only ${available_gb}GB available${NC}"
+        echo ""
+        echo "Free up space or use a different location"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✓ Sufficient disk space${NC}"
+}
+
+# Monitor disk space during test
+monitor_disk_space() {
+    while true; do
+        sleep 60
+        local available_kb=$(df . | tail -1 | awk '{print $4}')
+        local available_gb=$((available_kb / 1024 / 1024))
+        
+        if [ $available_gb -lt 5 ]; then
+            echo -e "${RED}WARNING: Low disk space! Only ${available_gb}GB remaining${NC}"
+            echo -e "${RED}Stopping test to prevent disk fill${NC}"
+            kill $NODE_PID 2>/dev/null || true
+            break
+        fi
+    done
+}
+
+# Function to show disk usage
+show_disk_usage() {
+    echo ""
+    echo -e "${BLUE}Current disk usage:${NC}"
+    df -h . | tail -1
+    echo ""
+    if [ -d "./data_with_batching" ]; then
+        echo "  data_with_batching: $(du -sh ./data_with_batching 2>/dev/null | cut -f1)"
+    fi
+    if [ -d "./data_without_batching" ]; then
+        echo "  data_without_batching: $(du -sh ./data_without_batching 2>/dev/null | cut -f1)"
+    fi
+    echo ""
+}
+
 echo "========================================"
 echo "FUTURESORDERED BATCHING TEST"
 echo "========================================"
+echo ""
+
+# Check disk space (need ~30GB for test: 2 x ~10GB databases + logs)
+check_disk_space 30
 echo ""
 
 # Check for SN_MAIN database
@@ -47,10 +130,17 @@ else
 fi
 echo ""
 
-# Build
-echo "Building..."
-cargo build --bin apollo_node --release
-echo -e "${GREEN}✓ Build complete${NC}"
+# Build (skip if binary already exists)
+if command -v apollo_node &> /dev/null; then
+    echo -e "${GREEN}✓ Using pre-built apollo_node binary${NC}"
+    echo "  Location: $(which apollo_node)"
+elif [ -f "./target/release/apollo_node" ]; then
+    echo -e "${GREEN}✓ Using existing apollo_node binary at ./target/release/apollo_node${NC}"
+else
+    echo "Building apollo_node..."
+    cargo build --bin apollo_node --release
+    echo -e "${GREEN}✓ Build complete${NC}"
+fi
 echo ""
 
 # Test function
@@ -95,41 +185,120 @@ EOF
     echo "  Data: $data_dir"
     echo "  Log: $LOG"
     
+    # Determine config path (local vs K8s)
+    if [ -d "/configs" ]; then
+        # Running in K8s - use mounted configs
+        CONFIG_PATH="/configs"
+    else
+        # Running locally - use repo structure
+        CONFIG_PATH="crates/apollo_deployments/resources"
+    fi
+    
     # Use same config as run_mainnet_node.sh
-    cargo run --release --bin apollo_node -- \
-        --config_file crates/apollo_deployments/resources/app_configs/base_layer_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/batcher_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/class_manager_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/consensus_manager_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/revert_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/versioned_constants_overrides_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/validate_resource_bounds_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/gateway_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/http_server_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/l1_endpoint_monitor_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/l1_gas_price_provider_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/l1_gas_price_scraper_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/l1_provider_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/l1_scraper_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/mempool_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/mempool_p2p_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/monitoring_endpoint_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/sierra_compiler_config.json \
-        --config_file crates/apollo_deployments/resources/app_configs/state_sync_config.json \
-        --config_file crates/apollo_deployments/resources/deployments/mainnet/deployment_config_override.json \
-        --config_file crates/apollo_deployments/resources/deployments/mainnet/hybrid_0.json \
-        --config_file crates/apollo_deployments/resources/services/consolidated/node.json \
-        --config_file crates/apollo_deployments/resources/mainnet_secrets.json \
-        --config_file test_config.json \
-        > "$LOG" 2>&1 &
+    # Run with apollo_node if available, otherwise cargo run
+    if command -v apollo_node &> /dev/null; then
+        # Running with pre-built binary (K8s or local with binary)
+        # In K8s, use all available config files; locally use full config
+        if [ -d "/configs" ]; then
+            # K8s: load ALL configs (they're all in /configs)
+            apollo_node \
+                --config_file $CONFIG_PATH/base_layer_config.json \
+                --config_file $CONFIG_PATH/batcher_config.json \
+                --config_file $CONFIG_PATH/class_manager_config.json \
+                --config_file $CONFIG_PATH/consensus_manager_config.json \
+                --config_file $CONFIG_PATH/revert_config.json \
+                --config_file $CONFIG_PATH/versioned_constants_overrides_config.json \
+                --config_file $CONFIG_PATH/validate_resource_bounds_config.json \
+                --config_file $CONFIG_PATH/gateway_config.json \
+                --config_file $CONFIG_PATH/http_server_config.json \
+                --config_file $CONFIG_PATH/l1_endpoint_monitor_config.json \
+                --config_file $CONFIG_PATH/l1_gas_price_provider_config.json \
+                --config_file $CONFIG_PATH/l1_gas_price_scraper_config.json \
+                --config_file $CONFIG_PATH/l1_provider_config.json \
+                --config_file $CONFIG_PATH/l1_scraper_config.json \
+                --config_file $CONFIG_PATH/mempool_config.json \
+                --config_file $CONFIG_PATH/mempool_p2p_config.json \
+                --config_file $CONFIG_PATH/monitoring_endpoint_config.json \
+                --config_file $CONFIG_PATH/sierra_compiler_config.json \
+                --config_file $CONFIG_PATH/state_sync_config.json \
+                --config_file $CONFIG_PATH/mainnet_deployment \
+                --config_file $CONFIG_PATH/mainnet_hybrid \
+                --config_file $CONFIG_PATH/node_config \
+                --config_file $CONFIG_PATH/minimal_node_config.json \
+                --config_file $CONFIG_PATH/mainnet_secrets.json \
+                --config_file test_config.json \
+                > "$LOG" 2>&1 &
+        else
+            # Local with binary: use full config
+            apollo_node \
+                --config_file $CONFIG_PATH/app_configs/base_layer_config.json \
+                --config_file $CONFIG_PATH/app_configs/batcher_config.json \
+                --config_file $CONFIG_PATH/app_configs/class_manager_config.json \
+                --config_file $CONFIG_PATH/app_configs/consensus_manager_config.json \
+                --config_file $CONFIG_PATH/app_configs/revert_config.json \
+                --config_file $CONFIG_PATH/app_configs/versioned_constants_overrides_config.json \
+                --config_file $CONFIG_PATH/app_configs/validate_resource_bounds_config.json \
+                --config_file $CONFIG_PATH/app_configs/gateway_config.json \
+                --config_file $CONFIG_PATH/app_configs/http_server_config.json \
+                --config_file $CONFIG_PATH/app_configs/l1_endpoint_monitor_config.json \
+                --config_file $CONFIG_PATH/app_configs/l1_gas_price_provider_config.json \
+                --config_file $CONFIG_PATH/app_configs/l1_gas_price_scraper_config.json \
+                --config_file $CONFIG_PATH/app_configs/l1_provider_config.json \
+                --config_file $CONFIG_PATH/app_configs/l1_scraper_config.json \
+                --config_file $CONFIG_PATH/app_configs/mempool_config.json \
+                --config_file $CONFIG_PATH/app_configs/mempool_p2p_config.json \
+                --config_file $CONFIG_PATH/app_configs/monitoring_endpoint_config.json \
+                --config_file $CONFIG_PATH/app_configs/sierra_compiler_config.json \
+                --config_file $CONFIG_PATH/app_configs/state_sync_config.json \
+                --config_file $CONFIG_PATH/deployments/mainnet/deployment_config_override.json \
+                --config_file $CONFIG_PATH/deployments/mainnet/hybrid_0.json \
+                --config_file $CONFIG_PATH/services/consolidated/node.json \
+                --config_file $CONFIG_PATH/mainnet_secrets.json \
+                --config_file test_config.json \
+                > "$LOG" 2>&1 &
+        fi
+    else
+        cargo run --release --bin apollo_node -- \
+            --config_file $CONFIG_PATH/app_configs/base_layer_config.json \
+            --config_file $CONFIG_PATH/app_configs/batcher_config.json \
+            --config_file $CONFIG_PATH/app_configs/class_manager_config.json \
+            --config_file $CONFIG_PATH/app_configs/consensus_manager_config.json \
+            --config_file $CONFIG_PATH/app_configs/revert_config.json \
+            --config_file $CONFIG_PATH/app_configs/versioned_constants_overrides_config.json \
+            --config_file $CONFIG_PATH/app_configs/validate_resource_bounds_config.json \
+            --config_file $CONFIG_PATH/app_configs/gateway_config.json \
+            --config_file $CONFIG_PATH/app_configs/http_server_config.json \
+            --config_file $CONFIG_PATH/app_configs/l1_endpoint_monitor_config.json \
+            --config_file $CONFIG_PATH/app_configs/l1_gas_price_provider_config.json \
+            --config_file $CONFIG_PATH/app_configs/l1_gas_price_scraper_config.json \
+            --config_file $CONFIG_PATH/app_configs/l1_provider_config.json \
+            --config_file $CONFIG_PATH/app_configs/l1_scraper_config.json \
+            --config_file $CONFIG_PATH/app_configs/mempool_config.json \
+            --config_file $CONFIG_PATH/app_configs/mempool_p2p_config.json \
+            --config_file $CONFIG_PATH/app_configs/monitoring_endpoint_config.json \
+            --config_file $CONFIG_PATH/app_configs/sierra_compiler_config.json \
+            --config_file $CONFIG_PATH/app_configs/state_sync_config.json \
+            --config_file $CONFIG_PATH/deployments/mainnet/deployment_config_override.json \
+            --config_file $CONFIG_PATH/deployments/mainnet/hybrid_0.json \
+            --config_file $CONFIG_PATH/services/consolidated/node.json \
+            --config_file $CONFIG_PATH/mainnet_secrets.json \
+            --config_file test_config.json \
+            > "$LOG" 2>&1 &
+    fi
     
     PID=$!
+    NODE_PID=$PID
     echo "  PID: $PID"
     sleep 3
+    
+    # Start disk space monitor in background
+    monitor_disk_space &
+    MONITOR_PID=$!
     
     # Monitor
     START=$(date +%s)
     LAST=0
+    DISK_CHECK_COUNTER=0
     
     while kill -0 $PID 2>/dev/null; do
         sleep 2
@@ -152,20 +321,40 @@ EOF
             echo -e "${GREEN}  Progress: $DONE/$BLOCKS_TO_SYNC blocks${NC}"
             LAST=$DONE
             
+            # Show disk usage every 10 progress updates
+            DISK_CHECK_COUNTER=$((DISK_CHECK_COUNTER + 1))
+            if [ $((DISK_CHECK_COUNTER % 10)) -eq 0 ]; then
+                local available_kb=$(df . | tail -1 | awk '{print $4}')
+                local available_gb=$((available_kb / 1024 / 1024))
+                echo -e "${BLUE}  Disk: ${available_gb}GB free, Data dir: $(du -sh $data_dir 2>/dev/null | cut -f1)${NC}"
+            fi
+            
             if [ "$DONE" -ge "$BLOCKS_TO_SYNC" ]; then
                 echo -e "${GREEN}  ✓ Done! Synced $DONE blocks${NC}"
                 kill $PID 2>/dev/null || true
+                kill $MONITOR_PID 2>/dev/null || true
                 break
             fi
         fi
     done
     
+    # Stop disk monitor
+    kill $MONITOR_PID 2>/dev/null || true
     wait $PID 2>/dev/null || true
     END=$(date +%s)
     DURATION=$((END - START))
     
     echo "$DURATION" > "time_$name.txt"
     echo -e "${GREEN}  Completed in: ${DURATION}s${NC}"
+    
+    # If node completed too quickly (< 5s), show the error log
+    if [ "$DURATION" -lt 5 ]; then
+        echo ""
+        echo -e "${RED}⚠ Node completed very quickly - showing log:${NC}"
+        echo "---"
+        tail -100 "$LOG" || echo "Log file not readable"
+        echo "---"
+    fi
 }
 
 # Run tests
@@ -198,6 +387,10 @@ fi
 echo ""
 echo "Logs: test_WITH_BATCHING.log, test_WITHOUT_BATCHING.log"
 echo ""
+
+# Show final disk usage
+show_disk_usage
+
 echo "========================================"
 echo "DONE"
 echo "========================================"

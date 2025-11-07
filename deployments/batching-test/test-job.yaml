@@ -1,0 +1,151 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sequencer-batching-test
+  namespace: default  # Change to your namespace
+  labels:
+    app: sequencer-batching-test
+    test-type: performance
+spec:
+  # Allow retries to debug issues
+  backoffLimit: 3
+  # Clean up completed jobs after 24 hours
+  ttlSecondsAfterFinished: 86400
+  
+  template:
+    metadata:
+      labels:
+        app: sequencer-batching-test
+    spec:
+      restartPolicy: Never
+      
+      # Use a node with good disk performance
+      nodeSelector:
+        # Uncomment and adjust based on your cluster
+        # cloud.google.com/gke-nodepool: high-performance
+        # disk-type: ssd
+      
+      containers:
+      - name: batching-test
+        # Use the sequencer image with your batching code
+        image: ghcr.io/starkware-libs/sequencer/sequencer:latest  # Change to your image tag
+        imagePullPolicy: Always
+        
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            set -e
+            echo "========================================="
+            echo "SEQUENCER BATCHING TEST - K8S"
+            echo "========================================="
+            echo ""
+            echo "Starting batching performance test..."
+            echo "Results will be available in logs and /results/"
+            echo ""
+            
+            # Work directly in /tmp (always writable)
+            cd /tmp
+            
+            # Copy test scripts to /tmp
+            cp /test-scripts/test_batching.sh .
+            cp /test-scripts/analyze_batching_test.sh .
+            
+            # Make scripts executable
+            chmod +x test_batching.sh analyze_batching_test.sh
+            
+            # Run the test (output to /tmp first, copy to /results later)
+            ./test_batching.sh 2>&1 | tee /tmp/test_output.log
+            
+            # Copy all results (try to copy to /results, but don't fail if it doesn't work)
+            mkdir -p /results 2>/dev/null || true
+            cp /tmp/test_output.log /results/ 2>/dev/null || echo "Note: Could not copy to /results (check PVC permissions)"
+            cp test_WITH_BATCHING.log /results/ 2>/dev/null || true
+            cp test_WITHOUT_BATCHING.log /results/ 2>/dev/null || true
+            cp time_*.txt /results/ 2>/dev/null || true
+            
+            # Run analysis if available
+            if [ -f analyze_batching_test.sh ]; then
+              echo ""
+              echo "========================================="
+              echo "ANALYSIS"
+              echo "========================================="
+              ./analyze_batching_test.sh 2>&1 | tee /tmp/analysis.log
+              cp /tmp/analysis.log /results/ 2>/dev/null || true
+            fi
+            
+            echo ""
+            echo "========================================="
+            echo "TEST COMPLETE"
+            echo "========================================="
+            echo "Results are in kubectl logs (and /results/ if writable)"
+            echo ""
+            tail -50 /tmp/test_output.log
+        
+        # Resource requests and limits
+        resources:
+          requests:
+            cpu: "8"           # 8 CPUs for parallel compilation
+            memory: "16Gi"     # 16GB RAM
+            ephemeral-storage: "30Gi"  # Disk for test databases (reduced from 100Gi)
+          limits:
+            cpu: "16"
+            memory: "32Gi"
+            ephemeral-storage: "50Gi"  # Reduced from 150Gi
+        
+        # Environment variables
+        env:
+          - name: RUST_LOG
+            value: "info"
+          - name: BLOCKS_TO_SYNC
+            value: "5000"
+          - name: BATCH_SIZE
+            value: "100"
+          - name: PATH
+            value: "/app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        
+        # Volume mounts
+        volumeMounts:
+          # Test scripts
+          - name: test-scripts
+            mountPath: /test-scripts
+            readOnly: true
+          
+          # Config files
+          - name: sequencer-configs
+            mountPath: /configs
+            readOnly: true
+          
+          # Persistent storage for database (if you have existing SN_MAIN)
+          - name: database-storage
+            mountPath: /data_compare_batching
+            readOnly: false
+          
+          # Results output
+          - name: results-storage
+            mountPath: /results
+        
+        # Working directory (using /tmp - always writable)
+        workingDir: /tmp
+      
+      # Volumes
+      volumes:
+        # ConfigMap with test scripts
+        - name: test-scripts
+          configMap:
+            name: batching-test-scripts
+            defaultMode: 0755
+        
+        # ConfigMap with sequencer configs
+        - name: sequencer-configs
+          configMap:
+            name: sequencer-configs
+        
+        # Persistent volume for database (create this separately)
+        - name: database-storage
+          persistentVolumeClaim:
+            claimName: sequencer-database-pvc
+        
+        # Persistent volume for results
+        - name: results-storage
+          persistentVolumeClaim:
+            claimName: test-results-pvc
