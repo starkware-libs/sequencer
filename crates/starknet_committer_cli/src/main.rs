@@ -98,7 +98,7 @@ struct StorageArgs {
     /// If true, the storage will use memory-mapped files. Only relevant for Rocksdb.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
-    #[clap(long, short, action=ArgAction::SetFalse)]
+    #[clap(long, short, action=ArgAction::SetTrue)]
     allow_mmap: bool,
     /// If true, when using CachedStorage, statistics collection from the storage will include
     /// internal storage statistics (and not just cache stats).
