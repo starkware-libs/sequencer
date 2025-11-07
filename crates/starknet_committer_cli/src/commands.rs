@@ -157,6 +157,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
             let storage_stats = storage.get_stats();
+            storage.reset_stats().unwrap();
             time_measurement.to_csv(
                 &format!("{}.csv", block_number + 1),
                 output_dir,

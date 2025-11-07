@@ -84,6 +84,11 @@ pub trait Storage {
 
     /// If implemented, returns the statistics of the storage.
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;
+
+    /// If implemented, resets the statistics of the storage.
+    fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
