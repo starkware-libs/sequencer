@@ -52,6 +52,7 @@ use starknet_os::io::os_output_types::{
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -86,6 +87,7 @@ pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
 
 #[derive(Default)]
 pub(crate) struct TestParameters {
+    pub(crate) storage_layout: PatriciaStorageLayout,
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
@@ -263,9 +265,10 @@ impl<S: FlowTestState> TestManager<S> {
     /// these contracts will be returned as an array of the same length.
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
+        storage_layout: PatriciaStorageLayout,
     ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, extra_addresses) =
-            create_default_initial_state_data::<S, N>(extra_contracts).await;
+            create_default_initial_state_data::<S, N>(extra_contracts, storage_layout).await;
         (Self::new_with_initial_state_data(default_initial_state_data), extra_addresses)
     }
 
@@ -591,6 +594,7 @@ impl<S: FlowTestState> TestManager<S> {
             entire_state_diff.extend(committer_state_diff.clone());
             let new_commitment = commit_state_diff(
                 &mut map_storage,
+                test_params.storage_layout,
                 previous_commitment.contracts_trie_root_hash,
                 previous_commitment.classes_trie_root_hash,
                 committer_state_diff,
@@ -603,6 +607,7 @@ impl<S: FlowTestState> TestManager<S> {
                     &previous_commitment,
                     &new_commitment,
                     &mut map_storage,
+                    test_params.storage_layout,
                     &extended_state_diff,
                 );
             let tx_execution_infos = execution_outputs

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::generate_trie_config;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -46,6 +47,7 @@ impl OriginalSkeletonContractsTrieConfig {
 /// keys.
 fn fetch_all_patricia_paths(
     storage: &mut impl Storage,
+    storage_layout: PatriciaStorageLayout,
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -72,6 +74,7 @@ fn fetch_all_patricia_paths(
     let leaves = None;
     let classes_trie_proof = fetch_patricia_paths::<CompiledClassHash>(
         storage,
+        storage_layout,
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
@@ -81,6 +84,7 @@ fn fetch_all_patricia_paths(
     let mut leaves = HashMap::new();
     let contracts_proof_nodes = fetch_patricia_paths::<ContractState>(
         storage,
+        storage_layout,
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
@@ -99,6 +103,7 @@ fn fetch_all_patricia_paths(
         let leaves = None;
         let proof = fetch_patricia_paths::<StarknetStorageValue>(
             storage,
+            storage_layout,
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
@@ -145,6 +150,7 @@ fn fetch_all_patricia_paths(
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 pub fn fetch_previous_and_new_patricia_paths(
     storage: &mut impl Storage,
+    storage_layout: PatriciaStorageLayout,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
     class_hashes: &[ClassHash],
@@ -175,6 +181,7 @@ pub fn fetch_previous_and_new_patricia_paths(
 
     let prev_proofs = fetch_all_patricia_paths(
         storage,
+        storage_layout,
         classes_trie_root_hashes.previous_root_hash,
         contracts_trie_root_hashes.previous_root_hash,
         class_sorted_leaf_indices,
@@ -183,6 +190,7 @@ pub fn fetch_previous_and_new_patricia_paths(
     )?;
     let new_proofs = fetch_all_patricia_paths(
         storage,
+        storage_layout,
         classes_trie_root_hashes.new_root_hash,
         contracts_trie_root_hashes.new_root_hash,
         class_sorted_leaf_indices,

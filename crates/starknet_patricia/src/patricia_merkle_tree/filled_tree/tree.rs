@@ -10,6 +10,10 @@ use starknet_patricia_storage::storage_trait::DbHashMap;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node_serde::{
+    FactLayoutFilledNode,
+    PatriciaStorageLayout,
+};
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -42,7 +46,7 @@ pub trait FilledTree<L: Leaf>: Sized + Send {
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
     /// to a storage key and its serialized storage value.
-    fn serialize(&self) -> DbHashMap;
+    fn serialize(&self, layout: PatriciaStorageLayout) -> DbHashMap;
 
     fn get_root_hash(&self) -> HashOutput;
 }
@@ -363,10 +367,18 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         })
     }
 
-    fn serialize(&self) -> DbHashMap {
+    fn serialize(&self, layout: PatriciaStorageLayout) -> DbHashMap {
         // This function iterates over each node in the tree, using the node's `db_key` as the
         // hashmap key and the result of the node's `serialize` method as the value.
-        self.get_all_nodes().values().map(|node| (node.db_key(), node.serialize())).collect()
+        self.get_all_nodes()
+            .values()
+            .map(|node| match layout {
+                PatriciaStorageLayout::Fact => {
+                    let fact_node = FactLayoutFilledNode(node.clone());
+                    (fact_node.db_key(), fact_node.serialize())
+                }
+            })
+            .collect()
     }
 
     fn get_root_hash(&self) -> HashOutput {
