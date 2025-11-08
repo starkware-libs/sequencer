@@ -23,9 +23,9 @@ pub enum CommitterLeafPrefix {
 impl From<CommitterLeafPrefix> for DbKeyPrefix {
     fn from(value: CommitterLeafPrefix) -> Self {
         match value {
-            CommitterLeafPrefix::StorageLeaf => Self::new(b"starknet_storage_leaf"),
-            CommitterLeafPrefix::StateTreeLeaf => Self::new(b"contract_state"),
-            CommitterLeafPrefix::CompiledClassLeaf => Self::new(b"contract_class_leaf"),
+            CommitterLeafPrefix::StorageLeaf => Self::new(b"starknet_storage_leaf".to_vec()),
+            CommitterLeafPrefix::StateTreeLeaf => Self::new(b"contract_state".to_vec()),
+            CommitterLeafPrefix::CompiledClassLeaf => Self::new(b"contract_class_leaf".to_vec()),
         }
     }
 }
