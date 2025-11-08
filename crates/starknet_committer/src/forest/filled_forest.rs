@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia::patricia_storage::PatriciaStorage;
+use starknet_patricia_storage::storage_trait::{PatriciaStorageResult, Storage};
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -37,24 +37,18 @@ impl FilledForest {
     /// objects written to storage.
     pub fn write_to_storage(
         &self,
-        storage: &mut impl Storage,
-        layout: PatriciaStorageLayout,
-    ) -> usize {
-        // Serialize all trees to one hash map.
-        let new_db_objects: DbHashMap = self
-            .storage_tries
-            .values()
-            .flat_map(|tree| tree.serialize(layout).into_iter())
-            .chain(self.contracts_trie.serialize(layout))
-            .chain(self.classes_trie.serialize(layout))
-            .collect();
+        patricia_storage: &mut PatriciaStorage<impl Storage>,
+    ) -> PatriciaStorageResult<usize> {
+        for storage_trie in self.storage_tries.values() {
+            patricia_storage.stage_writes(storage_trie)?;
+        }
+        patricia_storage.stage_writes(&self.contracts_trie)?;
+        patricia_storage.stage_writes(&self.classes_trie)?;
 
-        // Store the new hash map.
-        let n_new_facts = new_db_objects.len();
-        storage
-            .mset(new_db_objects)
-            .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
-        n_new_facts
+        // Commit the changes to storage.
+        let n_staged_writes = patricia_storage.n_staged_writes();
+        patricia_storage.commit()?;
+        Ok(n_staged_writes)
     }
 
     pub fn get_contract_root_hash(&self) -> HashOutput {

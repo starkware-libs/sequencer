@@ -92,7 +92,7 @@ where
 
 pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
     leaf_modifications: LeafModifications<L>,
-    patricia_storage: &mut PatriciaStorage<MapStorage>,
+    mut patricia_storage: PatriciaStorage<MapStorage>,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> String {
@@ -102,9 +102,13 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<L>>();
 
-    let filled_tree =
-        tree_computation_flow::<L, TH>(leaf_modifications, patricia_storage, root_hash, config)
-            .await;
+    let filled_tree = tree_computation_flow::<L, TH>(
+        leaf_modifications,
+        &mut patricia_storage,
+        root_hash,
+        config,
+    )
+    .await;
 
     let hash_result = filled_tree.get_root_hash();
 
@@ -113,7 +117,9 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize(patricia_storage.get_layout()));
+    patricia_storage.stage_writes(&filled_tree).expect("Failed to stage the storage");
+    patricia_storage.commit().expect("Failed to commit the storage");
+    let json_storage = &json!(patricia_storage.close());
     result_map.insert("storage_changes", json_storage);
     serde_json::to_string(&result_map).expect("serialization failed")
 }
