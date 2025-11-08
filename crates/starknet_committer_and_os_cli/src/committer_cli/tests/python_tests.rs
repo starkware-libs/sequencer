@@ -164,7 +164,7 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 // 2. Run the test.
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
-                    &mut PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
+                    PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
                     root_hash,
                     OriginalSkeletonStorageTrieConfig::new(false),
                 )
