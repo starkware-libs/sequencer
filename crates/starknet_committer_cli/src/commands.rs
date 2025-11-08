@@ -166,7 +166,7 @@ pub async fn run_storage_benchmark<S: Storage>(
                     &contracts_trie_root_hash,
                 )
             }
-            if let Some(stats) = patricia_storage.get_storage_mut().get_stats() {
+            if let Some(stats) = patricia_storage.get_storage_stats() {
                 info!("{}", stats);
             }
         }
