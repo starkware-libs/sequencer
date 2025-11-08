@@ -12,6 +12,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
@@ -217,7 +218,7 @@ fn test_simple_input_parsing() {
         },
         contracts_trie_root_hash: expected_contracts_trie_root_hash,
         classes_trie_root_hash: expected_classes_trie_root_hash,
-        config: ConfigImpl::new(true, LevelFilter::DEBUG),
+        config: ConfigImpl::new(true, LevelFilter::DEBUG, PatriciaStorageLayout::Fact),
     };
     assert_eq!(
         parse_input(input).unwrap(),

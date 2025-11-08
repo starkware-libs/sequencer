@@ -50,6 +50,7 @@ impl<'a> OriginalSkeletonForest<'a> {
         let (contracts_trie, original_contracts_trie_leaves) = Self::create_contracts_trie(
             contracts_trie_root_hash,
             storage,
+            config,
             forest_sorted_indices.contracts_trie_sorted_indices,
         )?;
         let storage_tries = Self::create_storage_tries(
@@ -75,10 +76,12 @@ impl<'a> OriginalSkeletonForest<'a> {
     fn create_contracts_trie(
         contracts_trie_root_hash: HashOutput,
         storage: &mut impl Storage,
+        config: &impl Config,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
         Ok(OriginalSkeletonTreeImpl::create_and_get_previous_leaves(
             storage,
+            config.storage_layout(),
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
             &OriginalSkeletonContractsTrieConfig::new(),
@@ -101,14 +104,15 @@ impl<'a> OriginalSkeletonForest<'a> {
             let contract_state = original_contracts_trie_leaves
                 .get(&contract_address_into_node_index(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
-            let config =
+            let skeleton_trie_config =
                 OriginalSkeletonStorageTrieConfig::new(config.warn_on_trivial_modifications());
 
             let original_skeleton = OriginalSkeletonTreeImpl::create(
                 storage,
+                config.storage_layout(),
                 contract_state.storage_root_hash,
                 *sorted_leaf_indices,
-                &config,
+                &skeleton_trie_config,
                 updates,
             )?;
             storage_tries.insert(*address, original_skeleton);
@@ -123,13 +127,15 @@ impl<'a> OriginalSkeletonForest<'a> {
         config: &impl Config,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
-        let config = OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
+        let skeleton_trie_config =
+            OriginalSkeletonClassesTrieConfig::new(config.warn_on_trivial_modifications());
 
         Ok(OriginalSkeletonTreeImpl::create(
             storage,
+            config.storage_layout(),
             classes_trie_root_hash,
             contracts_trie_sorted_indices,
-            &config,
+            &skeleton_trie_config,
             actual_classes_updates,
         )?)
     }

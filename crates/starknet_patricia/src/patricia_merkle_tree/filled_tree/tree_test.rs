@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use rstest::rstest;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{
     MockLeaf,
@@ -257,9 +259,12 @@ async fn test_small_tree_with_unmodified_nodes() {
     assert_eq!(root_hash, expected_root_hash, "Root hash mismatch");
 }
 
+#[rstest]
 #[tokio::test(flavor = "multi_thread")]
 /// Test that deleting a leaf that does not exist in the tree succeeds.
-async fn test_delete_leaf_from_empty_tree() {
+async fn test_delete_leaf_from_empty_tree(
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+) {
     let storage_modifications: HashMap<NodeIndex, MockLeaf> =
         HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);
 
@@ -268,6 +273,7 @@ async fn test_delete_leaf_from_empty_tree() {
     let mut storage = MapStorage::default();
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
         &mut storage,
+        storage_layout,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),

@@ -19,6 +19,7 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_leaf_patricia_key,
     AdditionHash,
 };
+use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::internal_test_utils::{small_tree_index_to_full, MockLeaf};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     to_preimage_map,
@@ -622,6 +623,7 @@ fn test_fetch_patricia_paths_inner(
     #[case] leaf_indices: Vec<u128>,
     #[case] height: SubTreeHeight,
     #[case] expected_nodes: PreimageMap,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let mut storage = storage;
     let expected_fetched_leaves = leaf_indices
@@ -650,6 +652,7 @@ fn test_fetch_patricia_paths_inner(
 
     fetch_patricia_paths_inner::<MockLeaf>(
         &mut storage,
+        storage_layout,
         vec![main_subtree],
         &mut nodes,
         Some(&mut fetched_leaves),
@@ -679,7 +682,10 @@ struct TestPatriciaPathsInput {
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
+fn test_fetch_patricia_paths_inner_from_json(
+    #[case] input_data: &str,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
@@ -725,5 +731,6 @@ fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         leaf_indices,
         SubTreeHeight::new(input.height),
         expected_nodes,
+        storage_layout,
     );
 }

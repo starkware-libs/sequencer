@@ -8,6 +8,7 @@ use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use tempfile::NamedTempFile;
 
 use crate::committer_cli::commands::commit;
@@ -109,6 +110,7 @@ pub async fn test_regression_single_tree() {
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
         &mut storage,
+        PatriciaStorageLayout::Fact,
         root_hash,
         OriginalSkeletonStorageTrieConfig::new(false),
     )

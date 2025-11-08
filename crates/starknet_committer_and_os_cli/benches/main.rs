@@ -18,6 +18,7 @@ use starknet_committer_and_os_cli::committer_cli::parse_input::cast::CommitterIn
 use starknet_committer_and_os_cli::committer_cli::parse_input::read::parse_input;
 use starknet_committer_and_os_cli::committer_cli::tests::parse_from_python::TreeFlowInput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::tree_computation_flow;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 
@@ -47,6 +48,7 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
                     tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
                         leaf_modifications_input,
                         &mut storage,
+                        PatriciaStorageLayout::Fact,
                         root_hash,
                         OriginalSkeletonStorageTrieConfig::new(false),
                     ),
