@@ -188,7 +188,7 @@ async fn declare_deploy_scenario(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
-            storage_layout,
+
             ..Default::default()
         })
         .await;
@@ -256,7 +256,6 @@ async fn trivial_diff_scenario(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
-            storage_layout,
             ..Default::default()
         })
         .await;
@@ -314,7 +313,6 @@ async fn test_reverted_invoke_tx(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
-            storage_layout,
             ..Default::default()
         })
         .await;
@@ -360,7 +358,6 @@ async fn test_encrypted_state_diff(
             use_kzg_da,
             full_output,
             private_keys,
-            storage_layout,
             ..Default::default()
         })
         .await;
@@ -418,12 +415,8 @@ async fn test_reverted_l1_handler_tx(
     .unwrap();
     test_manager.add_l1_handler_tx(tx, Some(revert_reason.to_string()));
 
-    let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
-            storage_layout,
-            ..Default::default()
-        })
-        .await;
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
 
     // Check that the storage was reverted (no change in test contract address).
     assert!(
@@ -815,7 +808,6 @@ async fn test_os_logic(
             messages_to_l1: vec![expected_message_to_l1],
             messages_to_l2: vec![expected_message_to_l2],
             private_keys,
-            storage_layout,
             ..Default::default()
         })
         .await;
@@ -896,12 +888,8 @@ async fn test_v1_bound_accounts_cairo0(
     test_manager.add_invoke_tx_from_args(validate_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Run test and verify the signer was set.
-    let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
-            storage_layout,
-            ..Default::default()
-        })
-        .await;
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
 
     let expected_storage_updates = HashMap::from([(
         v1_bound_account_address,
@@ -986,12 +974,8 @@ async fn test_v1_bound_accounts_cairo1(
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Run the test, and make sure the account storage has the expected changes.
-    let test_output = test_manager
-        .execute_test_with_default_block_contexts(&TestParameters {
-            storage_layout,
-            ..Default::default()
-        })
-        .await;
+    let test_output =
+        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
     let isrc6_id = Felt::from_hex_unchecked(
         "0x2CECCEF7F994940B3962A6C67E0BA4FCD37DF7D131417C604F91E03CAECC1CD",
     );

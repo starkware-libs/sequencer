@@ -33,6 +33,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 };
 use crate::patricia_merkle_tree::traversal::{fetch_patricia_paths_inner, SubTree};
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::patricia_storage::PatriciaStorage;
 
 /// case::single_right_child
 ///     1
@@ -625,7 +626,6 @@ fn test_fetch_patricia_paths_inner(
     #[case] expected_nodes: PreimageMap,
     #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
-    let mut storage = storage;
     let expected_fetched_leaves = leaf_indices
         .iter()
         .map(|&idx| {
@@ -649,10 +649,10 @@ fn test_fetch_patricia_paths_inner(
     };
     let mut nodes = HashMap::new();
     let mut fetched_leaves = HashMap::new();
+    let mut patricia_storage = PatriciaStorage::new(storage, storage_layout);
 
     fetch_patricia_paths_inner::<MockLeaf>(
-        &mut storage,
-        storage_layout,
+        &mut patricia_storage,
         vec![main_subtree],
         &mut nodes,
         Some(&mut fetched_leaves),

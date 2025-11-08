@@ -87,7 +87,6 @@ pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
 
 #[derive(Default)]
 pub(crate) struct TestParameters {
-    pub(crate) storage_layout: PatriciaStorageLayout,
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
@@ -551,7 +550,7 @@ impl<S: FlowTestState> TestManager<S> {
         let mut cached_state_inputs = vec![];
         let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
-        let mut map_storage = self.initial_state.commitment_storage;
+        let mut commitment_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
         // Commitment output is updated after each block.
         let mut previous_commitment = CommitmentOutput {
@@ -593,8 +592,7 @@ impl<S: FlowTestState> TestManager<S> {
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
             let new_commitment = commit_state_diff(
-                &mut map_storage,
-                test_params.storage_layout,
+                &mut commitment_storage,
                 previous_commitment.contracts_trie_root_hash,
                 previous_commitment.classes_trie_root_hash,
                 committer_state_diff,
@@ -606,8 +604,7 @@ impl<S: FlowTestState> TestManager<S> {
                 create_cached_state_input_and_commitment_infos(
                     &previous_commitment,
                     &new_commitment,
-                    &mut map_storage,
-                    test_params.storage_layout,
+                    &mut commitment_storage,
                     &extended_state_diff,
                 );
             let tx_execution_infos = execution_outputs

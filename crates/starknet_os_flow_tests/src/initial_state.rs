@@ -32,6 +32,7 @@ use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -116,7 +117,7 @@ impl ExecutedContracts {
 
 pub(crate) struct InitialState<S: FlowTestState> {
     pub(crate) updatable_state: S,
-    pub(crate) commitment_storage: MapStorage,
+    pub(crate) commitment_storage: PatriciaStorage<MapStorage>,
     // Current patricia roots.
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
@@ -268,20 +269,19 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
     storage_layout: PatriciaStorageLayout,
-) -> (CommitmentOutput, MapStorage) {
-    let mut map_storage = MapStorage::default();
+) -> (CommitmentOutput, PatriciaStorage<MapStorage>) {
+    let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     (
         commit_state_diff(
-            &mut map_storage,
-            storage_layout,
+            &mut patricia_storage,
             contract_trie_root,
             classes_trie_root,
             committer_state_diff,
         )
         .await,
-        map_storage,
+        patricia_storage,
     )
 }
 

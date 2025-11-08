@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::{info, warn};
 
@@ -25,7 +26,7 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 pub async fn commit_block<S: Storage>(
     input: Input<ConfigImpl>,
-    storage: &mut S,
+    patricia_storage: &mut PatriciaStorage<S>,
     mut time_measurement: Option<&mut TimeMeasurement>,
 ) -> BlockCommitmentResult<FilledForest> {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
@@ -45,7 +46,7 @@ pub async fn commit_block<S: Storage>(
         tm.start_measurement(Action::Read);
     }
     let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        storage,
+        patricia_storage,
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &actual_storage_updates,
