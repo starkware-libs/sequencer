@@ -6,6 +6,7 @@ use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{ArgAction, Args, Parser, Subcommand};
 use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
@@ -206,8 +207,7 @@ macro_rules! generate_short_key_benchmark {
                     $flavor,
                     &$output_dir,
                     $checkpoint_dir_arg,
-                    $storage,
-                    $storage_layout,
+                    PatriciaStorage::new($storage, $storage_layout),
                     $checkpoint_interval,
                 )
                 .await
@@ -221,8 +221,7 @@ macro_rules! generate_short_key_benchmark {
                         $flavor,
                         &$output_dir,
                         $checkpoint_dir_arg,
-                        storage,
-                        $storage_layout,
+                        PatriciaStorage::new(storage, $storage_layout),
                         $checkpoint_interval,
                     )
                     .await

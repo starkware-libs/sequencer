@@ -24,6 +24,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+use crate::patricia_storage::PatriciaStorage;
 
 #[allow(clippy::as_conversions)]
 const TREE_HEIGHT: usize = SubTreeHeight::ACTUAL_HEIGHT.0 as usize;
@@ -153,11 +154,10 @@ fn test_updated_empty_tree(
     #[case] modifications: LeafModifications<MockLeaf>,
     #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
-    let mut storage = MapStorage::default();
+    let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
-        &mut storage,
-        storage_layout,
+        &mut patricia_storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),

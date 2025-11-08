@@ -8,6 +8,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{
@@ -36,7 +37,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     pub(crate) fn create(
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
         storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -50,7 +51,6 @@ impl<'a> OriginalSkeletonForest<'a> {
         let (contracts_trie, original_contracts_trie_leaves) = Self::create_contracts_trie(
             contracts_trie_root_hash,
             storage,
-            config,
             forest_sorted_indices.contracts_trie_sorted_indices,
         )?;
         let storage_tries = Self::create_storage_tries(
@@ -75,13 +75,11 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// Also returns the previous contracts state of the modified contracts.
     fn create_contracts_trie(
         contracts_trie_root_hash: HashOutput,
-        storage: &mut impl Storage,
-        config: &impl Config,
+        storage: &mut PatriciaStorage<impl Storage>,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
         Ok(OriginalSkeletonTreeImpl::create_and_get_previous_leaves(
             storage,
-            config.storage_layout(),
             contracts_trie_root_hash,
             contracts_trie_sorted_indices,
             &OriginalSkeletonContractsTrieConfig::new(),
@@ -92,7 +90,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     fn create_storage_tries(
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         config: &impl Config,
         storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
@@ -109,7 +107,6 @@ impl<'a> OriginalSkeletonForest<'a> {
 
             let original_skeleton = OriginalSkeletonTreeImpl::create(
                 storage,
-                config.storage_layout(),
                 contract_state.storage_root_hash,
                 *sorted_leaf_indices,
                 &skeleton_trie_config,
@@ -123,7 +120,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     fn create_classes_trie(
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         config: &impl Config,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
@@ -132,7 +129,6 @@ impl<'a> OriginalSkeletonForest<'a> {
 
         Ok(OriginalSkeletonTreeImpl::create(
             storage,
-            config.storage_layout(),
             classes_trie_root_hash,
             contracts_trie_sorted_indices,
             &skeleton_trie_config,
