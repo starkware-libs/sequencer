@@ -28,7 +28,7 @@ pub struct MockLeaf(pub(crate) Felt);
 
 impl HasStaticPrefix for MockLeaf {
     fn get_static_prefix() -> DbKeyPrefix {
-        DbKeyPrefix::new(&[0])
+        DbKeyPrefix::new(vec![0])
     }
 }
 

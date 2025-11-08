@@ -44,7 +44,7 @@ pub enum PatriciaPrefix {
 impl From<PatriciaPrefix> for DbKeyPrefix {
     fn from(value: PatriciaPrefix) -> Self {
         match value {
-            PatriciaPrefix::InnerNode => Self::new(b"patricia_node"),
+            PatriciaPrefix::InnerNode => Self::new(b"patricia_node".to_vec()),
             PatriciaPrefix::Leaf(prefix) => prefix,
         }
     }
