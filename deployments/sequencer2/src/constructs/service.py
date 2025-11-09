@@ -1,7 +1,6 @@
 import typing
 
 from imports import k8s
-
 from src.constructs.base import BaseConstruct
 
 
@@ -10,7 +9,6 @@ class ServiceConstruct(BaseConstruct):
         self,
         scope,
         id: str,
-        common_config,
         service_config,
         labels,
         monitoring_endpoint_port,
@@ -18,7 +16,6 @@ class ServiceConstruct(BaseConstruct):
         super().__init__(
             scope,
             id,
-            common_config,
             service_config,
             labels,
             monitoring_endpoint_port,

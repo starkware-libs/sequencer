@@ -137,7 +137,6 @@ def _create_service_charts(
             name=sanitize_name(f"sequencer-{service_cfg.name}"),
             namespace=namespace,
             monitoring=monitoring_enabled,
-            common_config=deployment_config.common,
             service_config=service_cfg,
         )
 

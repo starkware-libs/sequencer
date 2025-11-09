@@ -52,7 +52,7 @@ serviceAccount:
   imagePullSecrets: [] # List of image pull secret names
   secrets: [] # List of secrets to attach
 
-terminationGracePeriodSeconds: 300 # Grace period for pod termination (seconds)
+# terminationGracePeriodSeconds: 120 # Grace period for pod termination (seconds)
 
 # Service Configuration
 # See docs/SERVICE_CONFIGURATION.md for all available options

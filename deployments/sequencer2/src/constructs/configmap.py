@@ -1,7 +1,6 @@
 import json
 
 from imports import k8s
-
 from src.config.loaders import NodeConfigLoader
 from src.constructs.base import BaseConstruct
 
@@ -11,7 +10,6 @@ class ConfigMapConstruct(BaseConstruct):
         self,
         scope,
         id: str,
-        common_config,
         service_config,
         labels,
         monitoring_endpoint_port,
@@ -19,7 +17,6 @@ class ConfigMapConstruct(BaseConstruct):
         super().__init__(
             scope,
             id,
-            common_config,
             service_config,
             labels,
             monitoring_endpoint_port,

@@ -1,9 +1,10 @@
 import json
 import os
-import yaml
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import yaml
 
 from src.config.schema import CommonConfig, ServiceConfig
 
@@ -103,7 +104,9 @@ class DeploymentConfigLoader(Config):
         if not self.common_config_path:
             return None
         raw = self._try_load_yaml(str(self.common_config_path))
-        validated = CommonConfig.model_validate(raw).model_dump(exclude_none=True)
+        validated_model = CommonConfig.model_validate(raw)
+        # Use exclude_unset=True to avoid including fields with default_factory that weren't explicitly set
+        validated = validated_model.model_dump(mode="python", exclude_unset=True, exclude_none=True)
         return validated
 
     def load(self) -> dict:
@@ -135,13 +138,14 @@ class NodeConfigLoader(Config):
     def load(self) -> dict:
         # Load the JSON file containing the list of config paths
         config_list_full_path = os.path.join(self.ROOT_DIR, self.config_list_json_path)
-        config_list: List[str] = self._try_load_json(file_path=config_list_full_path)
+        config_data = self._try_load_json(file_path=config_list_full_path)
 
         # Validate that it's a list of strings
-        if not isinstance(config_list, list):
+        if not isinstance(config_data, list):
             raise ValueError(
-                f"Config list JSON file '{self.config_list_json_path}' must contain a JSON array. Got: {type(config_list)}"
+                f"Config list JSON file '{self.config_list_json_path}' must contain a JSON array. Got: {type(config_data)}"
             )
+        config_list: List[str] = config_data
         if not all(isinstance(item, str) for item in config_list):
             raise ValueError(
                 f"Config list JSON file '{self.config_list_json_path}' must contain a JSON array of strings."
@@ -423,6 +427,6 @@ class GrafanaAlertRuleGroupConfigLoader(Config):
         """List all alert rule JSON files."""
         return list(self.alerts_folder_path.glob("*.json"))
 
-    def load(self, alert_file_path: str) -> Dict[str, Any]:
+    def load(self, alert_file_path: str) -> Dict[str, Any]:  # type: ignore[override]
         """Load a single alert rule JSON file."""
         return self._try_load_json(alert_file_path)

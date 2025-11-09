@@ -7,7 +7,9 @@ from src.config.overlay import (
 )
 from src.config.schema import (
     CommonConfig,
-    DeploymentConfig as DeploymentSchema,
+)
+from src.config.schema import DeploymentConfig as DeploymentSchema
+from src.config.schema import (
     ServiceConfig,
 )
 
@@ -37,8 +39,11 @@ def _merge_common_into_service(
     if isinstance(common_config, dict):
         common_dict = common_config
     else:
+        # Use exclude_unset=True to avoid including fields with default_factory that weren't explicitly set
         common_dict = (
-            common_config.model_dump(mode="python", exclude_none=True) if common_config else {}
+            common_config.model_dump(mode="python", exclude_unset=True, exclude_none=True)
+            if common_config
+            else {}
         )
 
     if not common_dict:
@@ -49,11 +54,9 @@ def _merge_common_into_service(
     service_fields = set(ServiceConfig.model_fields.keys())
     mergeable_fields = common_fields & service_fields
 
-    # Exclude fields that shouldn't be merged (common-only fields)
-    # metaLabels is common-only (used for building labels, not merged into service)
-    # image and imagePullSecrets are common-only (used in PodBuilder, not merged into service)
-    # name is service-specific (required for services, optional for common)
-    exclude_fields = {"metaLabels", "image", "imagePullSecrets", "name"}
+    # Exclude fields that shouldn't be merged from common config
+    # name: Service names are service-specific and should never be overridden by common config
+    exclude_fields = {"name"}
     mergeable_fields = mergeable_fields - exclude_fields
 
     # Deep merge function for nested dictionaries
@@ -75,12 +78,8 @@ def _merge_common_into_service(
         if not service_ports:
             return common_ports
 
-        # Build port dict by name for merging
+        # Build port dict by name for merging (only need common_ports_dict for lookup)
         common_ports_dict = {p["name"]: p for p in common_ports if p.get("name")}
-        service_ports_dict = {p["name"]: p for p in service_ports if p.get("name")}
-
-        # Merge: common first, then service (service overrides)
-        merged_ports_dict = {**common_ports_dict, **service_ports_dict}
 
         # Convert back to list, preserving service port order first
         merged_ports = []
@@ -273,6 +272,8 @@ def merge_configs(
 
     # --- Merge common config into each service config ---
     # This ensures constructs only need to check service_config, not both
+    if merged_common is None:
+        raise ValueError("merged_common cannot be None")
     final_services = [
         _merge_common_into_service(merged_common, service) for service in merged_services
     ]

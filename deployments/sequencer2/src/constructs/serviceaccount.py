@@ -1,5 +1,4 @@
 from imports import k8s
-
 from src.constructs.base import BaseConstruct
 
 
@@ -8,7 +7,6 @@ class ServiceAccountConstruct(BaseConstruct):
         self,
         scope,
         id: str,
-        common_config,
         service_config,
         labels,
         monitoring_endpoint_port,
@@ -16,7 +14,6 @@ class ServiceAccountConstruct(BaseConstruct):
         super().__init__(
             scope,
             id,
-            common_config,
             service_config,
             labels,
             monitoring_endpoint_port,

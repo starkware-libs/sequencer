@@ -1,5 +1,4 @@
 from imports import k8s
-
 from src.constructs.base import BaseConstruct
 from src.constructs.helpers.pod_builder import PodBuilder
 
@@ -8,17 +7,13 @@ class StatefulSetConstruct(BaseConstruct):
     def __init__(
         self,
         scope,
-        id: str,
-        common_config,
-        service_config,
+        id: str,service_config,
         labels,
         monitoring_endpoint_port,
     ):
         super().__init__(
             scope,
-            id,
-            common_config,
-            service_config,
+            id,service_config,
             labels,
             monitoring_endpoint_port,
         )
@@ -69,7 +64,6 @@ class StatefulSetConstruct(BaseConstruct):
         )
 
         pod_builder = PodBuilder(
-            self.common_config,
             self.service_config,
             statefulset_labels,
             self.monitoring_endpoint_port,
