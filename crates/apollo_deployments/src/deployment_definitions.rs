@@ -274,7 +274,7 @@ impl ServicePort {
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
+#[derive(Hash, Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum ComponentConfigInService {
     BaseLayer,
     Batcher,
