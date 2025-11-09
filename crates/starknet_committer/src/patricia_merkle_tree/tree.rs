@@ -18,6 +18,7 @@ use crate::block_committer::input::{
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,
+    CommitmentTreePrefix,
     CompiledClassHash,
     ContractsTrieProof,
     RootHashes,
@@ -76,6 +77,7 @@ fn fetch_all_patricia_paths<'a>(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
+        CommitmentTreePrefix::ClassesTrie,
     )?;
 
     // Contracts trie - the leaves are required.
@@ -85,6 +87,7 @@ fn fetch_all_patricia_paths<'a>(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
+        CommitmentTreePrefix::ContractsTrie,
     )?;
 
     // Contracts storage tries.
@@ -98,21 +101,20 @@ fn fetch_all_patricia_paths<'a>(
             .storage_root_hash;
         // No need to fetch the leaves.
         let leaves = None;
+        let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
+            panic!(
+                "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
+                 {idx:?}."
+            )
+        });
         let proof = fetch_patricia_paths::<StarknetStorageValue>(
             storage,
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
+            CommitmentTreePrefix::StorageTrie(contract_address),
         )?;
-        contracts_trie_storage_proofs.insert(
-            try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
-                panic!(
-                    "Converting leaf NodeIndex to ContractAddress should succeed; failed to \
-                     convert {idx:?}."
-                )
-            }),
-            proof,
-        );
+        contracts_trie_storage_proofs.insert(contract_address, proof);
     }
 
     // Convert contract_leaves_data keys from NodeIndex to ContractAddress.

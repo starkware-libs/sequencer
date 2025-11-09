@@ -7,7 +7,10 @@ use serde_json::{Map, Value};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
-use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{
+    single_tree_flow_test,
+    MockTreePrefix,
+};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_storage::PatriciaStorage;
 use tempfile::NamedTempFile;
@@ -111,6 +114,7 @@ pub async fn test_regression_single_tree() {
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
         PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
+        MockTreePrefix,
         root_hash,
         OriginalSkeletonStorageTrieConfig::new(false),
     )

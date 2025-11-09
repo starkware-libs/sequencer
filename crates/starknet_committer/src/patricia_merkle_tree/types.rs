@@ -6,6 +6,8 @@ use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_storage::TreePrefix;
+use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::block_committer::input::StarknetStorageValue;
@@ -28,6 +30,31 @@ pub type StorageTrie = FilledTreeImpl<StarknetStorageValue>;
 pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
+
+#[derive(Clone, Copy)]
+pub enum CommitmentTreePrefix {
+    StorageTrie(ContractAddress),
+    ClassesTrie,
+    ContractsTrie,
+}
+
+impl CommitmentTreePrefix {
+    const STORAGE_TYPE: u8 = 0;
+    const CLASSES_TYPE: u8 = 1;
+    const CONTRACTS_TYPE: u8 = 2;
+}
+
+impl TreePrefix for CommitmentTreePrefix {
+    fn tree_prefix(&self) -> DbKeyPrefix {
+        DbKeyPrefix::new(match self {
+            Self::StorageTrie(address) => {
+                [vec![Self::STORAGE_TYPE], address.to_bytes_be().to_vec()].concat()
+            }
+            Self::ClassesTrie => vec![Self::CLASSES_TYPE],
+            Self::ContractsTrie => vec![Self::CONTRACTS_TYPE],
+        })
+    }
+}
 
 pub struct ContractsTrieProof {
     pub nodes: PreimageMap,

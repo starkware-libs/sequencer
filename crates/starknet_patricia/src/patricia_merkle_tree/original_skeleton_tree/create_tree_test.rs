@@ -18,6 +18,7 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
+    MockTreePrefix,
 };
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::internal_test_utils::{MockLeaf, OriginalSkeletonMockTrieConfig};
@@ -220,6 +221,7 @@ fn test_create_tree(
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        MockTreePrefix,
     )
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton_nodes);

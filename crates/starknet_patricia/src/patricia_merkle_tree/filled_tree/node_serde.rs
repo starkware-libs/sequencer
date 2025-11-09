@@ -15,6 +15,8 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::types::NodeIndex;
+use crate::patricia_storage::TreePrefix;
 
 // Const describe the size of the serialized node.
 pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
@@ -32,6 +34,9 @@ pub enum PatriciaStorageLayout {
     // hash(left, right).
     #[default]
     Fact,
+    // Keys are prefixed by trei type and include the path to the node. Storage tries additionally
+    // include the contract address in their node keys.
+    Indexed,
 }
 
 /// DB prefixes for patricia nodes in fact layout.
@@ -53,6 +58,12 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
 /// Fact layout filled node.
 pub struct FactLayoutFilledNode<L: Leaf>(pub FilledNode<L>);
 
+pub struct IndexedLayoutFilledNode<L: Leaf, P: TreePrefix> {
+    pub node: FilledNode<L>,
+    pub index: NodeIndex,
+    pub tree_prefix: P,
+}
+
 /// Temporary struct to serialize the leaf CompiledClass.
 /// Required to comply to existing storage layout.
 #[derive(Serialize, Deserialize)]
@@ -70,6 +81,16 @@ impl<L: Leaf> FactLayoutFilledNode<L> {
     }
 }
 
+impl<L: Leaf, P: TreePrefix> IndexedLayoutFilledNode<L, P> {
+    pub fn suffix(&self) -> [u8; core::mem::size_of::<ethnum::U256>()] {
+        self.index.0.to_be_bytes()
+    }
+
+    pub fn db_key(&self) -> DbKey {
+        self.get_db_key(&self.suffix())
+    }
+}
+
 impl<L: Leaf> HasDynamicPrefix for FactLayoutFilledNode<L> {
     fn get_prefix(&self) -> DbKeyPrefix {
         match &self.0.data {
@@ -80,41 +101,56 @@ impl<L: Leaf> HasDynamicPrefix for FactLayoutFilledNode<L> {
     }
 }
 
-impl<L: Leaf> DBObject for FactLayoutFilledNode<L> {
-    /// This method serializes the filled node into a byte vector, where:
-    /// - For binary nodes: Concatenates left and right hashes.
-    /// - For edge nodes: Concatenates bottom hash, path, and path length.
-    /// - For leaf nodes: use leaf.serialize() method.
-    fn serialize(&self) -> DbValue {
-        match &self.0.data {
-            NodeData::Binary(BinaryData { left_hash, right_hash }) => {
-                // Serialize left and right hashes to byte arrays.
-                let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
-                let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.to_bytes_be();
-
-                // Concatenate left and right hashes.
-                let serialized = [left, right].concat();
-                DbValue(serialized)
-            }
-
-            NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
-                // Serialize bottom hash, path, and path length to byte arrays.
-                let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
-                let path: [u8; SERIALIZE_HASH_BYTES] =
-                    U256::from(&path_to_bottom.path).to_be_bytes();
-                let length: [u8; 1] = u8::from(path_to_bottom.length).to_be_bytes();
-
-                // Concatenate bottom hash, path, and path length.
-                let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
-                DbValue(serialized)
-            }
-
-            NodeData::Leaf(leaf_data) => leaf_data.serialize(),
-        }
+impl<L: Leaf, P: TreePrefix> HasDynamicPrefix for IndexedLayoutFilledNode<L, P> {
+    fn get_prefix(&self) -> DbKeyPrefix {
+        self.tree_prefix.tree_prefix()
     }
 }
 
-impl<L: Leaf> FactLayoutFilledNode<L> {
+/// This method serializes the filled node into a byte vector, where:
+/// - For binary nodes: Concatenates left and right hashes.
+/// - For edge nodes: Concatenates bottom hash, path, and path length.
+/// - For leaf nodes: use leaf.serialize() method.
+fn serialize_node_value<L: Leaf>(data: &NodeData<L>) -> DbValue {
+    match data {
+        NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+            // Serialize left and right hashes to byte arrays.
+            let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
+            let right: [u8; SERIALIZE_HASH_BYTES] = right_hash.0.to_bytes_be();
+
+            // Concatenate left and right hashes.
+            let serialized = [left, right].concat();
+            DbValue(serialized)
+        }
+
+        NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
+            // Serialize bottom hash, path, and path length to byte arrays.
+            let bottom: [u8; SERIALIZE_HASH_BYTES] = bottom_hash.0.to_bytes_be();
+            let path: [u8; SERIALIZE_HASH_BYTES] = U256::from(&path_to_bottom.path).to_be_bytes();
+            let length: [u8; 1] = u8::from(path_to_bottom.length).to_be_bytes();
+
+            // Concatenate bottom hash, path, and path length.
+            let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
+            DbValue(serialized)
+        }
+
+        NodeData::Leaf(leaf_data) => leaf_data.serialize(),
+    }
+}
+
+impl<L: Leaf> DBObject for FactLayoutFilledNode<L> {
+    fn serialize(&self) -> DbValue {
+        serialize_node_value(&self.0.data)
+    }
+}
+
+impl<L: Leaf, P: TreePrefix> DBObject for IndexedLayoutFilledNode<L, P> {
+    fn serialize(&self) -> DbValue {
+        serialize_node_value(&self.node.data)
+    }
+}
+
+impl<L: Leaf> FilledNode<L> {
     /// Deserializes filled nodes.
     pub fn deserialize(
         node_hash: HashOutput,
@@ -122,14 +158,14 @@ impl<L: Leaf> FactLayoutFilledNode<L> {
         is_leaf: bool,
     ) -> Result<Self, DeserializationError> {
         if is_leaf {
-            return Ok(Self(FilledNode {
+            return Ok(FilledNode {
                 hash: node_hash,
                 data: NodeData::Leaf(L::deserialize(value)?),
-            }));
+            });
         }
 
         if value.0.len() == BINARY_BYTES {
-            Ok(Self(FilledNode {
+            Ok(FilledNode {
                 hash: node_hash,
                 data: NodeData::Binary(BinaryData {
                     left_hash: HashOutput(Felt::from_bytes_be_slice(
@@ -139,7 +175,7 @@ impl<L: Leaf> FactLayoutFilledNode<L> {
                         &value.0[SERIALIZE_HASH_BYTES..],
                     )),
                 }),
-            }))
+            })
         } else {
             assert_eq!(
                 value.0.len(),
@@ -149,7 +185,7 @@ impl<L: Leaf> FactLayoutFilledNode<L> {
                 EDGE_BYTES,
                 BINARY_BYTES
             );
-            Ok(Self(FilledNode {
+            Ok(FilledNode {
                 hash: node_hash,
                 data: NodeData::Edge(EdgeData {
                     bottom_hash: HashOutput(Felt::from_bytes_be_slice(
@@ -167,7 +203,7 @@ impl<L: Leaf> FactLayoutFilledNode<L> {
                     )
                     .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
                 }),
-            }))
+            })
         }
     }
 }

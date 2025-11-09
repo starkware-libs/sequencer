@@ -21,6 +21,7 @@ use crate::hash_function::hash::ForestHashFunction;
 use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
 use crate::patricia_merkle_tree::types::{
     ClassesTrie,
+    CommitmentTreePrefix,
     CompiledClassHash,
     ContractsTrie,
     StorageTrieMap,
@@ -39,11 +40,12 @@ impl FilledForest {
         &self,
         patricia_storage: &mut PatriciaStorage<impl Storage>,
     ) -> PatriciaStorageResult<usize> {
-        for storage_trie in self.storage_tries.values() {
-            patricia_storage.stage_writes(storage_trie)?;
+        for (address, storage_trie) in self.storage_tries.iter() {
+            patricia_storage
+                .stage_writes(storage_trie, CommitmentTreePrefix::StorageTrie(*address))?;
         }
-        patricia_storage.stage_writes(&self.contracts_trie)?;
-        patricia_storage.stage_writes(&self.classes_trie)?;
+        patricia_storage.stage_writes(&self.contracts_trie, CommitmentTreePrefix::ContractsTrie)?;
+        patricia_storage.stage_writes(&self.classes_trie, CommitmentTreePrefix::ClassesTrie)?;
 
         // Commit the changes to storage.
         let n_staged_writes = patricia_storage.n_staged_writes();

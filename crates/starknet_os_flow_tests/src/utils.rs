@@ -47,6 +47,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
+    CommitmentTreePrefix,
     CompiledClassHash,
     RootHashes,
     StarknetForestProofs,
@@ -276,6 +277,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos<'a>(
             commitments,
             previous_commitment.classes_trie_root_hash,
             sorted_class_leaf_indices,
+            CommitmentTreePrefix::ClassesTrie,
         )
         .unwrap();
     let class_hash_to_compiled_class_hash = previous_class_leaves
@@ -303,6 +305,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos<'a>(
                 commitments,
                 address_to_previous_storage_root_hash[&address],
                 sorted_leaf_indices,
+                CommitmentTreePrefix::StorageTrie(address),
             )
             .unwrap();
         let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
@@ -391,6 +394,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<'a, I: Iterator<Item = C
         commitments,
         previous_contract_trie_root,
         sorted_contract_leaf_indices,
+        CommitmentTreePrefix::ContractsTrie,
     )
     .unwrap();
     let new_contract_states: HashMap<NodeIndex, ContractState> =
@@ -398,6 +402,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<'a, I: Iterator<Item = C
             commitments,
             new_contract_trie_root,
             sorted_contract_leaf_indices,
+            CommitmentTreePrefix::ContractsTrie,
         )
         .unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states

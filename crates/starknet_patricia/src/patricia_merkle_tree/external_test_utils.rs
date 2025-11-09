@@ -5,7 +5,7 @@ use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use serde_json::json;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
@@ -22,7 +22,16 @@ use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTre
 use crate::felt::u256_from_felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
-use crate::patricia_storage::PatriciaStorage;
+use crate::patricia_storage::{PatriciaStorage, TreePrefix};
+
+#[derive(Clone, Copy)]
+pub struct MockTreePrefix;
+
+impl TreePrefix for MockTreePrefix {
+    fn tree_prefix(&self) -> DbKeyPrefix {
+        DbKeyPrefix::new(vec![u8::MAX])
+    }
+}
 
 pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
     if *value > u256_from_felt(&Felt::MAX) {
@@ -50,6 +59,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
     patricia_storage: &mut PatriciaStorage<MapStorage>,
+    tree_prefix: impl TreePrefix,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> FilledTreeImpl<L>
@@ -65,6 +75,7 @@ where
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
+        tree_prefix,
     )
     .expect("Failed to create the original skeleton tree");
 
@@ -93,6 +104,7 @@ where
 pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
     leaf_modifications: LeafModifications<L>,
     mut patricia_storage: PatriciaStorage<MapStorage>,
+    tree_prefix: impl TreePrefix,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> String {
@@ -105,6 +117,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     let filled_tree = tree_computation_flow::<L, TH>(
         leaf_modifications,
         &mut patricia_storage,
+        tree_prefix,
         root_hash,
         config,
     )
@@ -117,7 +130,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    patricia_storage.stage_writes(&filled_tree).expect("Failed to stage the storage");
+    patricia_storage.stage_writes(&filled_tree, tree_prefix).expect("Failed to stage the storage");
     patricia_storage.commit().expect("Failed to commit the storage");
     let json_storage = &json!(patricia_storage.close());
     result_map.insert("storage_changes", json_storage);

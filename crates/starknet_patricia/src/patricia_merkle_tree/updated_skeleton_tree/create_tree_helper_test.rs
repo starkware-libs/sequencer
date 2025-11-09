@@ -7,6 +7,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::external_test_utils::MockTreePrefix;
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::internal_test_utils::{
@@ -509,6 +510,7 @@ async fn test_update_non_modified_storage_tree(
         SortedLeafIndices::new(&mut []),
         &config,
         &empty_map,
+        MockTreePrefix,
     )
     .unwrap();
     let updated =
