@@ -31,9 +31,8 @@ pub trait Storage {
     /// for caching).
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
-    /// Sets value in storage. If key already exists, its value is overwritten and the old value is
-    /// returned.
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>>;
+    /// Sets value in storage. If key already exists, its value is overwritten.
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
@@ -42,8 +41,8 @@ pub trait Storage {
     /// Sets values in storage.
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
 
-    /// Deletes value from storage and returns its value if it exists. Returns None if not.
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
+    /// Deletes a value from storage.
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()>;
 
     /// If implemented, returns the statistics of the storage.
     fn get_stats(&self) -> Option<String> {

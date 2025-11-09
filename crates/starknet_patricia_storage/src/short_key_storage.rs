@@ -3,7 +3,14 @@ use std::marker::PhantomData;
 use blake2::Blake2s;
 use digest::Digest;
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageError,
+    PatriciaStorageResult,
+    Storage,
+};
 
 #[macro_export]
 macro_rules! define_short_key_storage {
@@ -43,8 +50,9 @@ macro_rules! define_short_key_storage {
                 self.storage.get(&Self::small_key(key))
             }
 
-            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
-                self.storage.set(Self::small_key(&key), value)
+            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+                self.storage.set(Self::small_key(&key), value)?;
+                Ok(())
             }
 
             fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -64,8 +72,8 @@ macro_rules! define_short_key_storage {
                 )
             }
 
-            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-                self.storage.delete(&Self::small_key(key))
+            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+                self.storage.delete(&Self::small_key(key)).map_err(PatriciaStorageError::from)
             }
         }
     };

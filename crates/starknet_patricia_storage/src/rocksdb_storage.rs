@@ -10,7 +10,14 @@ use rust_rocksdb::{
     DB,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageError,
+    PatriciaStorageResult,
+    Storage,
+};
 
 // General database Options.
 
@@ -106,10 +113,8 @@ impl Storage for RocksDbStorage {
         Ok(self.db.get(&key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
-        let prev_val = self.db.get(&key.0)?;
-        self.db.put_opt(&key.0, &value.0, &self.write_options)?;
-        Ok(prev_val.map(DbValue))
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        self.db.put_opt(&key.0, &value.0, &self.write_options).map_err(PatriciaStorageError::from)
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -128,15 +133,10 @@ impl Storage for RocksDbStorage {
         for key in key_to_value.keys() {
             batch.put(&key.0, &key_to_value[key].0);
         }
-        self.db.write_opt(&batch, &self.write_options)?;
-        Ok(())
+        self.db.write_opt(&batch, &self.write_options).map_err(PatriciaStorageError::from)
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let prev_val = self.db.get(&key.0)?;
-        if prev_val.is_some() {
-            self.db.delete(&key.0)?;
-        }
-        Ok(prev_val.map(DbValue))
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+        self.db.delete(&key.0).map_err(PatriciaStorageError::from)
     }
 }
