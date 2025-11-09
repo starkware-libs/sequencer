@@ -43,7 +43,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::hash_function::hash::CommitmentOutput;
+use starknet_committer::hash_function::hash::StateRoots;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
@@ -143,13 +143,13 @@ pub(crate) async fn commit_state_diff(
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
-) -> CommitmentOutput {
+) -> StateRoots {
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
     filled_forest.write_to_storage(commitments);
-    CommitmentOutput {
+    StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
     }
@@ -218,8 +218,8 @@ pub(crate) struct CommitmentInfos {
 
 /// Creates the commitment infos and the cached state input for the OS.
 pub(crate) fn create_cached_state_input_and_commitment_infos(
-    previous_commitment: &CommitmentOutput,
-    new_commitment: &CommitmentOutput,
+    previous_commitment: &StateRoots,
+    new_commitment: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
 ) -> (CachedStateInput, CommitmentInfos) {

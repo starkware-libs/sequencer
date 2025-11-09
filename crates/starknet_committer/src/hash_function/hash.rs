@@ -101,12 +101,12 @@ impl<T> ForestHashFunction for T where
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct CommitmentOutput {
+pub struct StateRoots {
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
 }
 
-impl CommitmentOutput {
+impl StateRoots {
     pub fn global_root(&self) -> HashOutput {
         if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
             && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
