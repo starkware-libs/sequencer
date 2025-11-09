@@ -43,7 +43,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::hash_function::hash::CommitmentOutput;
+use starknet_committer::hash_function::hash::StateRoots;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
@@ -143,13 +143,13 @@ pub(crate) async fn commit_state_diff(
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
-) -> CommitmentOutput {
+) -> StateRoots {
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
     filled_forest.write_to_storage(commitments);
-    CommitmentOutput {
+    StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
     }
@@ -218,16 +218,16 @@ pub(crate) struct CommitmentInfos {
 
 /// Creates the commitment infos and the cached state input for the OS.
 pub(crate) fn create_cached_state_input_and_commitment_infos(
-    previous_commitment: &CommitmentOutput,
-    new_commitment: &CommitmentOutput,
+    previous_state_roots: &StateRoots,
+    new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
 ) -> (CachedStateInput, CommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         extended_state_diff.get_contract_addresses().into_iter(),
-        previous_commitment.contracts_trie_root_hash,
-        new_commitment.contracts_trie_root_hash,
+        previous_state_roots.contracts_trie_root_hash,
+        new_state_roots.contracts_trie_root_hash,
         commitments,
     );
     let mut address_to_previous_class_hash = HashMap::new();
@@ -252,7 +252,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     let previous_class_leaves: HashMap<NodeIndex, CompiledClassHash> =
         OriginalSkeletonTreeImpl::get_leaves(
             commitments,
-            previous_commitment.classes_trie_root_hash,
+            previous_state_roots.classes_trie_root_hash,
             sorted_class_leaf_indices,
         )
         .unwrap();
@@ -294,23 +294,23 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
         extended_state_diff,
         commitments,
         RootHashes {
-            previous_root_hash: previous_commitment.classes_trie_root_hash,
-            new_root_hash: new_commitment.classes_trie_root_hash,
+            previous_root_hash: previous_state_roots.classes_trie_root_hash,
+            new_root_hash: new_state_roots.classes_trie_root_hash,
         },
         RootHashes {
-            previous_root_hash: previous_commitment.contracts_trie_root_hash,
-            new_root_hash: new_commitment.contracts_trie_root_hash,
+            previous_root_hash: previous_state_roots.contracts_trie_root_hash,
+            new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
     );
     let contracts_trie_commitment_info = CommitmentInfo {
-        previous_root: previous_commitment.contracts_trie_root_hash,
-        updated_root: new_commitment.contracts_trie_root_hash,
+        previous_root: previous_state_roots.contracts_trie_root_hash,
+        updated_root: new_state_roots.contracts_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
     };
     let classes_trie_commitment_info = CommitmentInfo {
-        previous_root: previous_commitment.classes_trie_root_hash,
-        updated_root: new_commitment.classes_trie_root_hash,
+        previous_root: previous_state_roots.classes_trie_root_hash,
+        updated_root: new_state_roots.classes_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
     };

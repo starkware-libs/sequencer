@@ -30,7 +30,7 @@ use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_N
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
-use starknet_committer::hash_function::hash::CommitmentOutput;
+use starknet_committer::hash_function::hash::StateRoots;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
@@ -265,7 +265,7 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
-) -> (CommitmentOutput, MapStorage) {
+) -> (StateRoots, MapStorage) {
     let mut map_storage = MapStorage::default();
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
