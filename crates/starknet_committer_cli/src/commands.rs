@@ -15,7 +15,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 use starknet_types_core::felt::Felt;
 use tracing::info;
@@ -118,10 +118,10 @@ pub async fn run_storage_benchmark<S: Storage>(
     flavor: BenchmarkFlavor,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
-    mut storage: S,
-    storage_layout: PatriciaStorageLayout,
+    mut patricia_storage: PatriciaStorage<S>,
     checkpoint_interval: usize,
 ) {
+    let storage_layout = patricia_storage.get_layout();
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval);
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
@@ -145,11 +145,12 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest = commit_block(input, &mut storage, Some(&mut time_measurement))
+        let filled_forest = commit_block(input, &mut patricia_storage, Some(&mut time_measurement))
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage, storage_layout);
+        let n_new_facts =
+            filled_forest.write_to_storage(patricia_storage.get_storage_mut(), storage_layout);
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 
@@ -165,7 +166,7 @@ pub async fn run_storage_benchmark<S: Storage>(
                     &contracts_trie_root_hash,
                 )
             }
-            if let Some(stats) = storage.get_stats() {
+            if let Some(stats) = patricia_storage.get_storage_mut().get_stats() {
                 info!("{}", stats);
             }
         }

@@ -25,6 +25,7 @@ use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use crate::patricia_storage::PatriciaStorage;
 
 #[rstest]
 // This test uses addition hash for simplicity (i.e hash(a,b) = a + b).
@@ -197,7 +198,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     SubTreeHeight::new(4),
 )]
 fn test_create_tree(
-    #[case] mut storage: MapStorage,
+    #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
@@ -212,9 +213,9 @@ fn test_create_tree(
     let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
+    let mut patricia_storage = PatriciaStorage::new(storage, storage_layout);
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
-        &mut storage,
-        storage_layout,
+        &mut patricia_storage,
         root_hash,
         sorted_leaf_indices,
         &config,

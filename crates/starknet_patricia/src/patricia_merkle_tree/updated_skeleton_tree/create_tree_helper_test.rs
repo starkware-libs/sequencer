@@ -35,6 +35,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+use crate::patricia_storage::PatriciaStorage;
 
 #[fixture]
 fn initial_updated_skeleton(
@@ -500,11 +501,10 @@ async fn test_update_non_modified_storage_tree(
     #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let empty_map = HashMap::new();
-    let mut empty_storage = MapStorage::default();
+    let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let config = OriginalSkeletonMockTrieConfig::new(false);
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl::<MockLeaf>(
-        &mut empty_storage,
-        storage_layout,
+        &mut patricia_storage,
         root_hash,
         SortedLeafIndices::new(&mut []),
         &config,

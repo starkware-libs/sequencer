@@ -30,6 +30,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
@@ -158,13 +159,12 @@ impl PythonTestRunner for CommitterPythonTestRunner {
             }
             Self::ComputeHashSingleTree => {
                 // 1. Get and deserialize input.
-                let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
+                let TreeFlowInput { leaf_modifications, storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
-                    &mut storage,
-                    PatriciaStorageLayout::Fact,
+                    &mut PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
                     root_hash,
                     OriginalSkeletonStorageTrieConfig::new(false),
                 )

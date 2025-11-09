@@ -31,6 +31,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+use crate::patricia_storage::PatriciaStorage;
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single
@@ -270,10 +271,9 @@ async fn test_delete_leaf_from_empty_tree(
 
     let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
-    let mut storage = MapStorage::default();
+    let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_impl(
-        &mut storage,
-        storage_layout,
+        &mut patricia_storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),

@@ -21,6 +21,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::tree_computati
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 
 const CONCURRENCY_MODE: bool = true;
 const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../test_inputs/tree_flow_inputs.json");
@@ -28,8 +29,9 @@ const FLOW_TEST_INPUT: &str = include_str!("../test_inputs/committer_flow_inputs
 const OUTPUT_PATH: &str = "benchmark_output.txt";
 
 pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
-    let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
+    let TreeFlowInput { leaf_modifications, storage, root_hash } =
         serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
+    let mut patricia_storage = PatriciaStorage::new(storage, PatriciaStorageLayout::Fact);
     let runtime = match CONCURRENCY_MODE {
         true => tokio::runtime::Builder::new_multi_thread().build().unwrap(),
         false => tokio::runtime::Builder::new_current_thread().build().unwrap(),
@@ -47,8 +49,7 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
                 runtime.block_on(
                     tree_computation_flow::<StarknetStorageValue, TreeHashFunctionImpl>(
                         leaf_modifications_input,
-                        &mut storage,
-                        PatriciaStorageLayout::Fact,
+                        &mut patricia_storage,
                         root_hash,
                         OriginalSkeletonStorageTrieConfig::new(false),
                     ),
