@@ -1,10 +1,14 @@
 use std::fs::File;
 use std::process::Command;
+use std::sync::Arc;
 
 use alloy::network::TransactionBuilder;
-use alloy::primitives::{address as ethereum_address, U256};
-use alloy::providers::Provider;
+use alloy::node_bindings::NodeError as AnvilError;
+use alloy::primitives::{address as ethereum_address, I256, U256};
+use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionRequest;
+use alloy::sol;
+use alloy::sol_types::SolValue;
 use ethers::utils::{Ganache, GanacheInstance};
 use starknet_api::hash::StarkHash;
 use tar::Archive;
@@ -16,9 +20,32 @@ use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumContractAddress,
+    Starknet,
 };
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
+
+/// Wrapper for Anvil provider that keeps the Anvil instance alive
+/// This allows us to use connect_anvil_with_wallet_and_config while still
+/// being able to return something that provides the endpoint URL
+pub struct AnvilNodeHandle {
+    url: Url,
+    // Hold the provider to keep the Anvil instance alive
+    // Using Arc to share the provider
+    _provider: Arc<dyn std::any::Any + Send + Sync>,
+}
+
+impl AnvilNodeHandle {
+    #[allow(dead_code)]
+    fn new(url: Url, provider: Arc<dyn std::any::Any + Send + Sync>) -> Self {
+        Self { url, _provider: provider }
+    }
+
+    /// Returns the endpoint URL for the Anvil instance
+    pub fn endpoint_url(&self) -> Url {
+        self.url.clone()
+    }
+}
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
 
@@ -40,6 +67,7 @@ pub const ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS: EthereumContractAddress =
 pub const OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS: EthereumContractAddress =
     ethereum_address!("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65");
 
+// TODO(dan): remove this once we fully support anvil
 // ***
 // DEPRECATED: Use the anvil constructor, this constructor is deprecated as it uses ganache.
 // ***
@@ -158,4 +186,185 @@ pub async fn anvil_mine_blocks(
 
     let block_after = provider.get_block_number().await.expect("Failed to get block number");
     debug!("Block number after mining: {}", block_after);
+}
+
+/// Represents a state update to be applied at a specific Ethereum block.
+#[derive(Clone, Debug)]
+pub struct StateUpdateConfig {
+    /// The Ethereum block number at which this state update should be applied.
+    pub ethereum_block: u64,
+    /// The Starknet block number for this state update.
+    pub starknet_block_number: u64,
+    /// The Starknet block hash for this state update.
+    pub starknet_block_hash: u64,
+}
+
+/// Creates an Anvil instance with the specified state updates.
+///
+/// - Deploys the Starknet contract
+/// - Initializes the contract
+/// - Applies state updates at the specified Ethereum blocks
+/// - Mines to the final block
+///
+/// # Arguments
+///
+/// * `state_updates` - A list of state updates to apply, in order. Each update will be applied at
+///   the specified Ethereum block number.
+/// * `final_block` - Final block number to mine to after all state updates are applied.
+///
+/// Returns the Anvil instance and the deployed contract address.
+#[allow(dead_code)]
+pub(crate) async fn get_test_anvil_node(
+    state_updates: &[StateUpdateConfig],
+    final_block: u64,
+) -> (AnvilNodeHandle, EthereumContractAddress) {
+    const DEFAULT_ANVIL_PORT: u16 = 8545;
+    let anvil_client = ProviderBuilder::new()
+        .connect_anvil_with_wallet_and_config(|anvil_config| anvil_config.port(DEFAULT_ANVIL_PORT))
+        .unwrap_or_else(|error| match error {
+            AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
+                panic!(
+                    "\nAnvil binary not found!\nInstall instructions:\n\
+                     cargo install --git https://github.com/foundry-rs/foundry \
+                     anvil --locked --tag=v0.3.0\n"
+                )
+            }
+            _ => panic!("Failed to spawn Anvil: {}", error),
+        });
+
+    let deployed_contract =
+        Starknet::deploy(anvil_client.clone()).await.expect("Failed to deploy Starknet contract");
+    let contract_address = *deployed_contract.address();
+
+    let provider = anvil_client.root().clone();
+    let url: Url = format!("http://127.0.0.1:{}", DEFAULT_ANVIL_PORT).parse().unwrap();
+    let node_handle = AnvilNodeHandle::new(url.clone(), Arc::new(anvil_client.clone().erased()));
+
+    let base_layer_config = EthereumBaseLayerConfig {
+        starknet_contract_address: contract_address,
+        ..Default::default()
+    };
+    let contract = Starknet::new(contract_address, provider.clone());
+    let base_layer =
+        EthereumBaseLayerContract { contract, config: base_layer_config.clone(), url: url.clone() };
+
+    initialize_mocked_starknet_contract(&base_layer).await;
+
+    let mut current_block = provider.get_block_number().await.expect("Failed to get block number");
+    let mut prev_starknet_block_number = 1u64; // After initialization, contract has block 1
+    let mut prev_starknet_block_hash = 0u64;
+
+    // Apply each state update
+    for state_update in state_updates.iter() {
+        // Mine to the block before the target Ethereum block
+        // Note: When we send a transaction, Anvil automatically mines a new block to include it.
+        // So we need to be at (target_block - 1) before sending the transaction.
+        if current_block < state_update.ethereum_block - 1 {
+            let blocks_to_mine = state_update.ethereum_block - 1 - current_block;
+            anvil_mine_blocks(base_layer_config.clone(), blocks_to_mine, &url).await;
+        }
+
+        update_starknet_state(
+            &base_layer,
+            MockedStateUpdate {
+                new_block_number: state_update.starknet_block_number,
+                new_block_hash: state_update.starknet_block_hash,
+                prev_block_number: prev_starknet_block_number,
+                prev_block_hash: prev_starknet_block_hash,
+            },
+        )
+        .await;
+
+        current_block = state_update.ethereum_block;
+        prev_starknet_block_number = state_update.starknet_block_number;
+        prev_starknet_block_hash = state_update.starknet_block_hash;
+    }
+
+    // Mine to the final block
+    if current_block < final_block {
+        let blocks_to_mine = final_block - current_block;
+        anvil_mine_blocks(base_layer_config.clone(), blocks_to_mine, &url).await;
+    }
+
+    (node_handle, contract_address)
+}
+
+#[allow(dead_code)]
+async fn initialize_mocked_starknet_contract(base_layer: &EthereumBaseLayerContract) {
+    let init_data = InitializeData {
+        programHash: U256::from(1),
+        configHash: U256::from(1),
+        initialState: StateUpdate {
+            blockNumber: I256::from_dec_str("1").unwrap(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let encoded_data = init_data.abi_encode();
+    base_layer
+        .contract
+        .initializeMock(encoded_data.into())
+        .send()
+        .await
+        .unwrap()
+        .get_receipt()
+        .await
+        .unwrap();
+}
+
+#[allow(dead_code)]
+async fn update_starknet_state(base_layer: &EthereumBaseLayerContract, update: MockedStateUpdate) {
+    let mut output = vec![U256::from(0); STARKNET_OUTPUT_HEADER_SIZE + 2];
+    output[STARKNET_OUTPUT_PREV_BLOCK_NUMBER_OFFSET] = U256::from(update.prev_block_number);
+    output[STARKNET_OUTPUT_NEW_BLOCK_NUMBER_OFFSET] = U256::from(update.new_block_number);
+    output[STARKNET_OUTPUT_PREV_BLOCK_HASH_OFFSET] = U256::from(update.prev_block_hash);
+    output[STARKNET_OUTPUT_NEW_BLOCK_HASH_OFFSET] = U256::from(update.new_block_hash);
+
+    base_layer
+        .contract
+        .updateState(output, Default::default())
+        .send()
+        .await
+        .unwrap()
+        .get_receipt()
+        .await
+        .unwrap();
+}
+
+#[allow(dead_code)]
+struct MockedStateUpdate {
+    new_block_number: u64,
+    new_block_hash: u64,
+    prev_block_number: u64,
+    prev_block_hash: u64,
+}
+
+#[allow(dead_code)]
+const STARKNET_OUTPUT_PREV_BLOCK_NUMBER_OFFSET: usize = 2;
+#[allow(dead_code)]
+const STARKNET_OUTPUT_NEW_BLOCK_NUMBER_OFFSET: usize = 3;
+#[allow(dead_code)]
+const STARKNET_OUTPUT_PREV_BLOCK_HASH_OFFSET: usize = 4;
+#[allow(dead_code)]
+const STARKNET_OUTPUT_NEW_BLOCK_HASH_OFFSET: usize = 5;
+#[allow(dead_code)]
+const STARKNET_OUTPUT_HEADER_SIZE: usize = 10;
+
+sol! {
+    #[derive(Debug, Default)]
+    struct StateUpdate {
+        uint256 globalRoot;
+        int256 blockNumber;
+        uint256 blockHash;
+    }
+
+    #[derive(Debug, Default)]
+    struct InitializeData {
+        uint256 programHash;
+        uint256 aggregatorProgramHash;
+        address verifier;
+        uint256 configHash;
+        StateUpdate initialState;
+    }
 }
