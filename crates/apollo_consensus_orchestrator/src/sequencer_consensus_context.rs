@@ -52,7 +52,6 @@ use starknet_api::block::{
     GasPrice,
     WEI_PER_ETH,
 };
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -449,8 +448,12 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            self.batcher_decision_reached(proposal_id).await;
+        let DecisionReachedResponse {
+            state_diff,
+            l2_gas_used,
+            central_objects,
+            partial_block_hash_components,
+        } = self.batcher_decision_reached(proposal_id).await;
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -538,14 +541,12 @@ impl ConsensusContext for SequencerConsensusContext {
             })
             .collect::<Vec<TransactionHash>>();
 
-        // TODO(Nimrod): Get the actual partial block hash components from the batcher response.
-        let dummy_partial_block_hash = PartialBlockHashComponents::default();
         let sync_block = SyncBlock {
             state_diff: state_diff.clone(),
             account_transaction_hashes,
             l1_transaction_hashes,
             block_header_without_hash,
-            partial_block_hash_components: dummy_partial_block_hash,
+            partial_block_hash_components,
         };
         self.sync_add_new_block(sync_block).await;
 

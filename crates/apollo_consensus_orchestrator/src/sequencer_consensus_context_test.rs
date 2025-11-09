@@ -35,6 +35,7 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 
@@ -672,6 +673,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
             state_diff: ThinStateDiff::default(),
             l2_gas_used: GasAmount::default(),
             central_objects: CentralObjects::default(),
+            partial_block_hash_components: PartialBlockHashComponents::default(),
         })
     });
 
@@ -829,6 +831,7 @@ async fn override_prices_behavior(
             state_diff: ThinStateDiff::default(),
             l2_gas_used: mock_l2_gas_used,
             central_objects: CentralObjects::default(),
+            partial_block_hash_components: PartialBlockHashComponents::default(),
         })
     });
 

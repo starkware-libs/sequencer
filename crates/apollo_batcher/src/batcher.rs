@@ -662,6 +662,7 @@ impl Batcher {
                 compiled_class_hashes_for_migration: block_execution_artifacts
                     .compiled_class_hashes_for_migration,
             },
+            partial_block_hash_components,
         })
     }
 
