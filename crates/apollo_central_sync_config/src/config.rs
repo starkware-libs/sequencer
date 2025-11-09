@@ -7,10 +7,11 @@ use apollo_config::converters::{
     serialize_optional_map,
 };
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::RetryConfig;
 use itertools::chain;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 use validator::Validate;
 
@@ -18,8 +19,8 @@ use validator::Validate;
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
     pub starknet_url: Url,
-    #[serde(deserialize_with = "deserialize_optional_map")]
-    pub http_headers: Option<HashMap<String, String>>,
+    #[serde(deserialize_with = "deserialize_optional_sensitive_map")]
+    pub http_headers: Option<Sensitive<HashMap<String, String>>>,
     pub max_state_updates_to_download: usize,
     pub max_state_updates_to_store_in_memory: usize,
     pub max_classes_to_download: usize,
@@ -66,7 +67,7 @@ impl SerializeConfig for CentralSourceConfig {
             ),
             ser_param(
                 "http_headers",
-                &serialize_optional_map(&self.http_headers),
+                &serialize_optional_map(&None),
                 "'k1:v1 k2:v2 ...' headers for SN-client.",
                 ParamPrivacyInput::Private,
             ),
@@ -188,4 +189,15 @@ impl Default for SyncConfig {
             store_sierras_and_casms: false,
         }
     }
+}
+
+// Deserializes a sensitive map from "k1:v1 k2:v2" string structure.
+fn deserialize_optional_sensitive_map<'de, D>(
+    de: D,
+) -> Result<Option<Sensitive<HashMap<String, String>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let optional_map = deserialize_optional_map(de)?;
+    Ok(optional_map.map(Sensitive::new))
 }

@@ -8,6 +8,7 @@ mod starknet_feeder_gateway_client_test;
 
 use std::collections::HashMap;
 
+use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::{
     CasmContractClass,
@@ -197,7 +198,7 @@ impl StarknetUrls {
 impl StarknetFeederGatewayClient {
     pub fn new(
         url_str: &str,
-        http_headers: Option<HashMap<String, String>>,
+        http_headers: Option<Sensitive<HashMap<String, String>>>,
         node_version: &'static str,
         retry_config: RetryConfig,
     ) -> Result<Self, ClientCreationError> {
