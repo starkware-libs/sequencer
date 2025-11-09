@@ -5,6 +5,7 @@ use std::path::Path;
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{ArgAction, Args, Parser, Subcommand};
 use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
@@ -32,53 +33,97 @@ pub enum StorageType {
 
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 
-/// Key size, in bytes, for the short key storage.
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
-pub enum ShortKeySizeArg {
-    U16,
-    U17,
-    U18,
-    U19,
-    U20,
-    U21,
-    U22,
-    U23,
-    U24,
-    U25,
-    U26,
-    U27,
-    U28,
-    U29,
-    U30,
-    U31,
-    U32,
-}
+/// Given an enum declaration X with no data in the variants, and another enum Y, add
+/// implementations of `From<X> for Y` and `From<Y> for X`.
+/// Used to enforce a match between the enum X and the arg-enum Y, when we cannot derive ValueEnum
+/// for X directly.
+macro_rules! clone_enum_as_arg_enum {
+    (
+        (
+            $external_enum:ident,
+            $(#[$enum_meta:meta])*
+            $visibility:vis enum $internal_enum_name:ident {
+                $(
+                    $(#[$variant_meta:meta])*
+                    $variant:ident
+                ),+ $(,)?
+            }
+        )
+    ) => {
+        // Define the internal enum.
+        $(#[$enum_meta])*
+        $visibility enum $internal_enum_name {
+            $(
+                $(#[$variant_meta])*
+                $variant
+            ),+
+        }
 
-/// Define this conversion to make sure the arg-enum matches the original enum.
-/// The original enum defines the possible sizes, but we do not want to implement ValueEnum for it.
-impl From<ShortKeySizeArg> for ShortKeySize {
-    fn from(arg: ShortKeySizeArg) -> Self {
-        match arg {
-            ShortKeySizeArg::U16 => Self::U16,
-            ShortKeySizeArg::U17 => Self::U17,
-            ShortKeySizeArg::U18 => Self::U18,
-            ShortKeySizeArg::U19 => Self::U19,
-            ShortKeySizeArg::U20 => Self::U20,
-            ShortKeySizeArg::U21 => Self::U21,
-            ShortKeySizeArg::U22 => Self::U22,
-            ShortKeySizeArg::U23 => Self::U23,
-            ShortKeySizeArg::U24 => Self::U24,
-            ShortKeySizeArg::U25 => Self::U25,
-            ShortKeySizeArg::U26 => Self::U26,
-            ShortKeySizeArg::U27 => Self::U27,
-            ShortKeySizeArg::U28 => Self::U28,
-            ShortKeySizeArg::U29 => Self::U29,
-            ShortKeySizeArg::U30 => Self::U30,
-            ShortKeySizeArg::U31 => Self::U31,
-            ShortKeySizeArg::U32 => Self::U32,
+        // Implement conversions.
+        impl From<$internal_enum_name> for $external_enum {
+            fn from(value: $internal_enum_name) -> Self {
+                match value {
+                    $(
+                        $(#[$variant_meta])*
+                        $internal_enum_name::$variant => $external_enum::$variant,
+                    )+
+                }
+            }
+        }
+
+        impl From<$external_enum> for $internal_enum_name {
+            fn from(value: $external_enum) -> Self {
+                match value {
+                    $(
+                        $(#[$variant_meta])*
+                        $external_enum::$variant => $internal_enum_name::$variant,
+                    )+
+                }
+            }
         }
     }
 }
+
+// Define the ShortKeySizeArg enum and implement conversions to and from ShortKeySize.
+clone_enum_as_arg_enum!(
+    (
+        ShortKeySize,
+        /// Key size, in bytes, for the short key storage.
+        #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+        pub enum ShortKeySizeArg {
+            U16,
+            U17,
+            U18,
+            U19,
+            U20,
+            U21,
+            U22,
+            U23,
+            U24,
+            U25,
+            U26,
+            U27,
+            U28,
+            U29,
+            U30,
+            U31,
+            U32,
+        }
+    )
+);
+
+// Define the patricia storage layout arg enum and implement conversions to and from
+// PatriciaStorageLayout.
+clone_enum_as_arg_enum!(
+    (
+        PatriciaStorageLayout,
+        /// Patricia storage layout to use.
+        #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+        pub enum PatriciaStorageLayoutArg {
+            Fact,
+        }
+    )
+);
 
 #[derive(Debug, Args)]
 struct StorageArgs {
@@ -95,6 +140,9 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// Patricia storage layout to use.
+    #[clap(long, default_value = "fact")]
+    storage_layout: PatriciaStorageLayoutArg,
     /// If true, the storage will use memory-mapped files. Only relevant for Rocksdb.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
@@ -146,6 +194,7 @@ macro_rules! generate_short_key_benchmark {
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
+        $storage_layout:expr,
         $checkpoint_interval:expr,
         $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
@@ -158,6 +207,7 @@ macro_rules! generate_short_key_benchmark {
                     &$output_dir,
                     $checkpoint_dir_arg,
                     $storage,
+                    $storage_layout,
                     $checkpoint_interval,
                 )
                 .await
@@ -172,6 +222,7 @@ macro_rules! generate_short_key_benchmark {
                         &$output_dir,
                         $checkpoint_dir_arg,
                         storage,
+                        $storage_layout,
                         $checkpoint_interval,
                     )
                     .await
@@ -194,6 +245,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         output_dir,
         checkpoint_dir,
         key_size,
+        storage_layout,
         ..
     }: StorageArgs,
     storage: S,
@@ -221,6 +273,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         output_dir,
         checkpoint_dir_arg,
         storage,
+        storage_layout.into(),
         checkpoint_interval,
         (U16, ShortKeyStorage16),
         (U17, ShortKeyStorage17),
