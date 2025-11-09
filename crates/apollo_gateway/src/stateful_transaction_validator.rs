@@ -194,6 +194,8 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
                     "Invalid transaction nonce. Expected: nonce = {account_nonce}, got: \
                      {tx_nonce}."
                 )
+            } else if max_allowed_nonce_gap == -1 {
+                format!("Invalid transaction nonce. Expected: nonce = 0, got: {tx_nonce}.")
             } else {
                 let max_allowed_nonce = Nonce(account_nonce.0 + Felt::from(max_allowed_nonce_gap));
                 format!(
@@ -240,7 +242,7 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
-    ) -> (bool, u32) {
+    ) -> (bool, i32) {
         let incoming_tx_nonce = executable_tx.nonce();
 
         // Declare transactions must have the same nonce as the account nonce.
@@ -250,11 +252,16 @@ impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
             return (incoming_tx_nonce == account_nonce, 0);
         }
 
+        // Deploy account transactions must have nonce 0.
+        if matches!(executable_tx, ExecutableTransaction::DeployAccount(_)) {
+            return (incoming_tx_nonce == Nonce(Felt::ZERO), -1);
+        }
+
         let max_allowed_nonce =
             Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
         (
             account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce,
-            self.config.max_allowed_nonce_gap,
+            self.config.max_allowed_nonce_gap.try_into().unwrap(),
         )
     }
 

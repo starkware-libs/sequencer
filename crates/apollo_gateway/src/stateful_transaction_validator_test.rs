@@ -462,3 +462,45 @@ async fn test_reject_future_declares(
     .map_err(|err| err.code);
     assert_eq!(result, expected_result_code);
 }
+
+#[rstest]
+#[case::deploy_account_tx_nonce_zero(0, Ok(()))]
+#[case::deploy_account_tx_nonce_nonzero(
+    1,
+    Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+)]
+#[tokio::test]
+async fn test_deploy_account(
+    #[case] tx_nonce: u32,
+    #[case] expected_result_code: Result<(), StarknetErrorCode>,
+) {
+    let account_nonce = 0;
+
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator.expect_get_nonce().return_once(move |_| Ok(nonce!(account_nonce)));
+    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
+    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
+
+    let executable_tx = executable_deploy_account_tx(deploy_account_tx_args!(
+        nonce: nonce!(tx_nonce),
+        resource_bounds: ValidResourceBounds::create_for_testing(),
+    ));
+
+    let mut stateful_validator = StatefulTransactionValidator {
+        config: StatefulTransactionValidatorConfig::default(),
+        blockifier_stateful_tx_validator: mock_blockifier_validator,
+    };
+
+    let result = tokio::task::spawn_blocking(move || {
+        stateful_validator.run_transaction_validations(
+            &executable_tx,
+            nonce!(account_nonce),
+            Arc::new(MockMempoolClient::new()),
+            tokio::runtime::Handle::current(),
+        )
+    })
+    .await
+    .unwrap()
+    .map_err(|err| err.code);
+    assert_eq!(result, expected_result_code);
+}

@@ -123,7 +123,8 @@ pub fn deploy_account_tx(
 // function. We don't use it now to avoid tx_hash calculation.
 pub fn executable_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> AccountTransaction {
     let tx_hash = deploy_tx_args.tx_hash;
-    let tx = deploy_account_tx(deploy_tx_args, Nonce(Felt::ZERO));
+    let tx_nonce = deploy_tx_args.nonce;
+    let tx = deploy_account_tx(deploy_tx_args, tx_nonce);
     let contract_address = tx.calculate_contract_address().unwrap();
     let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
 
