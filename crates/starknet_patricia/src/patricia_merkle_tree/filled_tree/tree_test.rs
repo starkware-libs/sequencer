@@ -265,7 +265,8 @@ async fn test_small_tree_with_unmodified_nodes() {
 #[tokio::test(flavor = "multi_thread")]
 /// Test that deleting a leaf that does not exist in the tree succeeds.
 async fn test_delete_leaf_from_empty_tree(
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let storage_modifications: HashMap<NodeIndex, MockLeaf> =
         HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);

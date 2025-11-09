@@ -205,7 +205,8 @@ fn test_create_tree(
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     #[case] subtree_height: SubTreeHeight,
     #[values(true, false)] compare_modified_leaves: bool,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let leaf_modifications: LeafModifications<MockLeaf> = leaf_modifications
         .into_iter()
