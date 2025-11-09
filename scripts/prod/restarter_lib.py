@@ -193,7 +193,8 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
         super().__init__(namespace_and_instruction_args, service, check_function, base_restarter)
 
     def _check_between_each_restart(self, instance_index: int) -> bool:
-        self._wait_for_pod_to_satisfy_condition(instance_index)
+        if not self._wait_for_pod_to_satisfy_condition(instance_index):
+            print_error(f"Failed waiting for condition(s) for Pod {instance_index}.")
         if instance_index == self.namespace_and_instruction_args.size() - 1:
             # Last instance, no need to prompt the user about the next restart.
             return True
@@ -206,7 +207,8 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
 
         # After the last node has been restarted, wait for all pods to satisfy the condition.
         for instance_index in range(self.namespace_and_instruction_args.size()):
-            self._wait_for_pod_to_satisfy_condition(instance_index)
+            if not self._wait_for_pod_to_satisfy_condition(instance_index):
+                print_error(f"Failed waiting for condition(s) for Pod {instance_index}.")
         return True
 
     def _wait_for_pod_to_satisfy_condition(self, instance_index: int) -> bool:
