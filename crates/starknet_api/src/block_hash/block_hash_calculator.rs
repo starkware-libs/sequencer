@@ -227,7 +227,7 @@ pub fn calculate_block_commitments(
 //     transaction_count (64 bits) | event_count (64 bits) | state_diff_length (64 bits)
 //     | L1 data availability mode: 0 for calldata, 1 for blob (1 bit) | 0 ...
 // ].
-fn concat_counts(
+pub(crate) fn concat_counts(
     transaction_count: usize,
     event_count: usize,
     state_diff_length: usize,

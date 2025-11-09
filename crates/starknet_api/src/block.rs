@@ -13,6 +13,7 @@ use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
 use time::OffsetDateTime;
 
+use crate::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use crate::core::{
     ContractAddress,
     EventCommitment,
@@ -208,6 +209,33 @@ pub struct BlockHeader {
     pub n_events: usize,
     #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
+}
+
+impl BlockHeader {
+    /// Returns [BlockHeaderCommitments] constructed from the optional commitments in the header.
+    /// If one of the optional fields is missing, the function returns None.
+    pub fn block_header_commitments(&self) -> Option<BlockHeaderCommitments> {
+        let Self {
+            state_diff_commitment,
+            state_diff_length,
+            transaction_commitment,
+            event_commitment,
+            receipt_commitment,
+            n_transactions,
+            n_events,
+            block_header_without_hash: BlockHeaderWithoutHash { l1_da_mode, .. },
+            ..
+        } = self;
+        let concatenated_counts =
+            concat_counts(*n_transactions, *n_events, *state_diff_length.as_ref()?, *l1_da_mode);
+        Some(BlockHeaderCommitments {
+            state_diff_commitment: *state_diff_commitment.as_ref()?,
+            transaction_commitment: *transaction_commitment.as_ref()?,
+            event_commitment: *event_commitment.as_ref()?,
+            receipt_commitment: *receipt_commitment.as_ref()?,
+            concatenated_counts,
+        })
+    }   
 }
 
 // TODO(Nimrod): Consider deleting this struct or move it to the CLI crate.
