@@ -34,7 +34,7 @@ use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
-use starknet_committer::hash_function::hash::CommitmentOutput;
+use starknet_committer::hash_function::hash::StateRoots;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -551,7 +551,7 @@ impl<S: FlowTestState> TestManager<S> {
         let mut map_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
         // Commitment output is updated after each block.
-        let mut previous_commitment = CommitmentOutput {
+        let mut previous_commitment = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
