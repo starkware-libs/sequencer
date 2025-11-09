@@ -88,9 +88,36 @@ class ServiceConstruct(BaseConstruct):
             )
 
     def _get_service_ports(self, service_spec) -> typing.List[k8s.ServicePort]:
-        """Convert Pydantic ports list into Kubernetes ServicePort objects with sane defaults."""
+        """Convert Pydantic ports list into Kubernetes ServicePort objects with sane defaults.
+
+        Merges common service ports with service-specific ports. Service-specific ports
+        take precedence if there's a name conflict.
+        """
         ports: list[k8s.ServicePort] = []
 
+        # Start with common service ports (if they exist)
+        common_ports_dict = {}
+        if self.common_config.service and self.common_config.service.ports:
+            for p in self.common_config.service.ports:
+                if p.name:
+                    common_ports_dict[p.name] = p
+
+        # Add service-specific ports (override common ports with same name)
+        service_ports_dict = {}
+        for p in service_spec.ports:
+            if p.name:
+                service_ports_dict[p.name] = p
+
+        # Merge: common first, then service-specific (service-specific overrides)
+        merged_ports_dict = {**common_ports_dict, **service_ports_dict}
+
+        # Convert to list, preserving service-specific port order, then adding remaining common ports
+        # This ensures service-specific ports appear first
+        processed_names = set()
+        for p in service_spec.ports:
+            processed_names.add(p.name if p.name else None)
+
+        # Add service-specific ports first (preserve their order)
         for p in service_spec.ports:
             # Validate required "port"
             if p.port is None:
@@ -116,5 +143,28 @@ class ServiceConstruct(BaseConstruct):
                     protocol=(p.protocol or "TCP"),
                 )
             )
+            processed_names.add(p.name if p.name else None)
+
+        # Add remaining common ports that weren't overridden by service-specific ports
+        if self.common_config.service and self.common_config.service.ports:
+            for p in self.common_config.service.ports:
+                if p.name and p.name not in processed_names:
+                    # Default targetPort to port if not provided
+                    target = p.targetPort if getattr(p, "targetPort", None) is not None else p.port
+
+                    # Build IntOrString for targetPort
+                    if isinstance(target, (int, float)):
+                        target_ios = k8s.IntOrString.from_number(int(target))
+                    else:
+                        target_ios = k8s.IntOrString.from_string(str(target))
+
+                    ports.append(
+                        k8s.ServicePort(
+                            name=p.name,
+                            port=int(p.port),
+                            target_port=target_ios,
+                            protocol=(p.protocol or "TCP"),
+                        )
+                    )
 
         return ports

@@ -8,14 +8,11 @@ replicas: 1
 # Config Configuration
 # See docs/CONFIGMAP_CONFIGURATION.md for all available options
 config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_mempool.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig:
-    base_layer_config_starknet_contract_address: "idan-override-this"
-    components_sierra_compiler_port: "idan-override-this"
-    components_sierra_compiler_url: "idan-override-this"
-    consensus_manager_config_context_config_num_validators: "idan-override-this"
+  sequencerConfig: {}
+    
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -222,7 +219,8 @@ externalSecret:
   refreshInterval: "1m" # How often to refresh secrets
   data:
     - secretKey: "my-external-secret-key" # Any key name is fine - will be mounted as /etc/secrets/external-secret.json. Remote secret must contain valid JSON.
-      remoteKey: "secret/password"
+      remoteRef:
+        key: "secret/password"
   deletionPolicy: "Retain" # Deletion policy (Retain, Delete, Merge)
   # targetName: ""  #  Custom target secret name
   # mountPath: "/etc/secrets"  #  Override default mount path (default: "/etc/secrets")

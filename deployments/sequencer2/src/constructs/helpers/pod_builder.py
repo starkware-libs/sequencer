@@ -83,10 +83,13 @@ class PodBuilder:
             mount_path = (
                 self.service_config.config.mountPath
                 if self.service_config.config.mountPath
-                else "/config/sequencer/presets"
+                else "/config/sequencer/presets/"
             )
+            # Ensure mount_path ends with / for proper path joining
+            if not mount_path.endswith("/"):
+                mount_path = mount_path + "/"
             args.append("--config_file")
-            args.append(f"{mount_path}/config")
+            args.append(f"{mount_path}config")
 
         # Add --config_file /etc/secrets/secrets.json (ExternalSecret)
         # Note: node version uses directory mount, so path is /etc/secrets/secrets.json
@@ -184,10 +187,12 @@ class PodBuilder:
 
         # Auto-mount ConfigMap if config exists (as directory, not file)
         if self.service_config.config and self.service_config.config.configList:
-            # Default mountPath is "/config/sequencer/presets"
-            mount_path = "/config/sequencer/presets"
-            if self.service_config.config.mountPath:
-                mount_path = self.service_config.config.mountPath
+            # Default mountPath is "/config/sequencer/presets/" (with trailing slash to match node/)
+            mount_path = (
+                self.service_config.config.mountPath
+                if self.service_config.config.mountPath
+                else "/config/sequencer/presets/"
+            )
 
             # Mount as directory (node version uses directory mount)
             volume_mounts.append(
@@ -495,8 +500,10 @@ class PodBuilder:
             if rule.weight is None:
                 rule.weight = 100  # Default weight if not specified
 
-            # Build label selector from dict
-            label_selector = self._build_label_selector(rule.labelSelector)
+            # Build label selector from dict, defaulting to pod labels if empty
+            label_selector = self._build_label_selector(
+                rule.labelSelector, default_match_labels=self.labels
+            )
 
             preferred.append(
                 k8s.WeightedPodAffinityTerm(
@@ -510,8 +517,10 @@ class PodBuilder:
 
         # Build required rules
         for rule in pod_anti_affinity_config.required:
-            # Build label selector from dict
-            label_selector = self._build_label_selector(rule.labelSelector)
+            # Build label selector from dict, defaulting to pod labels if empty
+            label_selector = self._build_label_selector(
+                rule.labelSelector, default_match_labels=self.labels
+            )
 
             required.append(
                 k8s.PodAffinityTerm(
@@ -525,10 +534,23 @@ class PodBuilder:
             required_during_scheduling_ignored_during_execution=required if required else None,
         )
 
-    def _build_label_selector(self, label_selector_dict: dict) -> k8s.LabelSelector:
-        """Build Kubernetes LabelSelector from dictionary."""
+    def _build_label_selector(
+        self, label_selector_dict: dict, default_match_labels: dict | None = None
+    ) -> k8s.LabelSelector:
+        """Build Kubernetes LabelSelector from dictionary.
+
+        Args:
+            label_selector_dict: Dictionary with matchLabels and/or matchExpressions
+            default_match_labels: Default matchLabels to use if label_selector_dict is empty.
+                                  This ensures labelSelector stays in sync with pod labels.
+        """
         match_labels = label_selector_dict.get("matchLabels", {})
         match_expressions = label_selector_dict.get("matchExpressions", [])
+
+        # If no matchLabels specified and no matchExpressions, use default (pod labels)
+        # This ensures labelSelector automatically matches pod labels, preventing sync issues
+        if not match_labels and not match_expressions and default_match_labels:
+            match_labels = default_match_labels
 
         # Convert matchExpressions to LabelSelectorRequirement if provided
         label_selector_requirements = None

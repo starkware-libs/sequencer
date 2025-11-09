@@ -276,6 +276,7 @@ class CommonConfig(StrictBaseModel):
     imagePullSecrets: List[str] = Field(default_factory=list)
     commonMetaLabels: StrDict = Field(default_factory=dict)
     config: Optional["Config"] = None  # Forward reference - Config is defined later
+    service: Optional[Service] = None
 
 
 class PodMonitoringEndpoint(StrictBaseModel):
@@ -313,7 +314,9 @@ class PodMonitoringTargetLabels(StrictBaseModel):
 
 class PodMonitoringSpec(StrictBaseModel):
     endpoints: List[PodMonitoringEndpoint]  # Required: list of endpoints to scrape
-    selector: PodMonitoringSelector  # Required: pod selector
+    selector: PodMonitoringSelector = Field(
+        default_factory=PodMonitoringSelector
+    )  # Pod selector - if empty/not specified, automatically defaults to pod labels
     filterRunning: Optional[bool] = None  # Filter out Failed/Succeeded pods
     limits: Optional[PodMonitoringLimits] = None  # Scrape limits
     targetLabels: Optional[PodMonitoringTargetLabels] = None  # Labels to add to targets
@@ -326,7 +329,9 @@ class PodAntiAffinityRule(StrictBaseModel):
     topologyKey: str  # Topology key (e.g., "kubernetes.io/hostname", "topology.kubernetes.io/zone")
     labelSelector: AnyDict = Field(
         default_factory=dict
-    )  # Label selector with matchLabels or matchExpressions
+    )  # Label selector with matchLabels or matchExpressions.
+    # If empty/not specified, automatically defaults to pod labels to prevent sync issues.
+    # Can be overridden for advanced use cases (e.g., selecting different pods).
 
 
 class PodAntiAffinity(StrictBaseModel):

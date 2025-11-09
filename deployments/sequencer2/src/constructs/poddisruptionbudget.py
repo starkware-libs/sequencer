@@ -35,19 +35,10 @@ class PodDisruptionBudgetConstruct(BaseConstruct):
         # Merge labels with common labels
         merged_labels = {**self.labels, **pdb_config.labels}
 
-        # Build selector - use provided selector or default to service labels
-        if pdb_config.selector and pdb_config.selector.get("matchLabels"):
-            selector_labels = pdb_config.selector["matchLabels"]
-        else:
-            selector_labels = self.labels
-
-        selector = k8s.LabelSelector(
-            match_labels=selector_labels,
-            match_expressions=(
-                pdb_config.selector.get("matchExpressions", [])
-                if pdb_config.selector and pdb_config.selector.get("matchExpressions")
-                else None
-            ),
+        # Build selector - use provided selector or default to pod labels
+        # This ensures selector stays in sync with pod labels automatically
+        selector = self._build_label_selector(
+            pdb_config.selector or {}, default_match_labels=self.labels
         )
 
         # Build spec

@@ -42,10 +42,10 @@ class SequencerNodeChart(Chart):
         # Base labels from common.yaml (commonMetaLabels)
         labels = dict(common_config.commonMetaLabels) if common_config.commonMetaLabels else {}
         # Add service label (dynamic per service)
-        labels["service"] = service_config.name
+        labels["service"] = f"sequencer-{service_config.name}"
 
         # Determine monitoring port
-        monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config)
+        monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config, common_config)
 
         # Create ConfigMap
         self.config_map = ConfigMapConstruct(
@@ -232,30 +232,40 @@ class SequencerNodeChart(Chart):
             )
 
     @staticmethod
-    def _get_monitoring_endpoint_port(service_config: ServiceConfig) -> int:
-        """Find the 'monitoring' port from the service config."""
-        if not service_config.service:
-            raise ValueError(f"No service defined for service {service_config.name}")
-        ports = service_config.service.ports or []
+    def _get_monitoring_endpoint_port(service_config: ServiceConfig, common_config=None) -> int:
+        """Find the 'monitoring' port from the service config or common config."""
+        # Collect ports from both service-specific and common config
+        all_ports = []
 
-        if not ports:
+        # Add service-specific ports first (they take precedence)
+        if service_config.service and service_config.service.ports:
+            all_ports.extend(service_config.service.ports)
+
+        # Add common ports (if not already present by name)
+        if common_config and common_config.service and common_config.service.ports:
+            service_port_names = {p.name for p in all_ports if p.name}
+            for port in common_config.service.ports:
+                if port.name and port.name not in service_port_names:
+                    all_ports.append(port)
+
+        if not all_ports:
             raise ValueError(
                 f"No ports defined for service {service_config.name}. "
-                f"Please define at least one port in service.ports."
+                f"Please define at least one port in service.ports or common.service.ports."
             )
 
         # First, look for exact "monitoring-endpoint" port (prioritized)
-        for port in ports:
+        for port in all_ports:
             if port.name and port.name.lower() == "monitoring-endpoint":
                 return port.port
 
         # Then, look for any port with "monitoring" in the name (case-insensitive)
-        for port in ports:
+        for port in all_ports:
             if port.name and "monitoring" in port.name.lower():
                 return port.port
 
         # If not found, provide helpful error message with available ports
-        available_names = [p.name for p in ports if p.name]
+        available_names = [p.name for p in all_ports if p.name]
         raise ValueError(
             f"No 'monitoring' port defined for service {service_config.name}. "
             f"Available ports: {available_names}. "
