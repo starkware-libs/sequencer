@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::MockConfigManagerClient;
@@ -14,14 +15,15 @@ use apollo_mempool_types::communication::{
     LocalMempoolClient,
     SharedMempoolClient,
 };
-use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, CommitBlockArgs};
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricCounter, MetricGauge, MetricScope};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use async_trait::async_trait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use indexmap::IndexSet;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -250,15 +252,42 @@ impl BenchTestSetup {
     /// Task that continuously retrieves transactions from the mempool via client.
     /// Simulates concurrent consumers in a real system
     async fn get_txs_task(client: SharedMempoolClient, n_txs: usize, chunk_size: usize) {
-        let mut txs_received = 0;
+        let mut n_txs_received = 0;
+        let mut last_committed_chunk = 0;
+        let mut address_to_nonce = HashMap::<ContractAddress, Nonce>::new();
 
-        while txs_received < n_txs {
+        while n_txs_received < n_txs {
             let retrieved_txs = client
                 .get_txs(chunk_size)
                 .await
                 .unwrap_or_else(|e| panic!("Failed to get txs from mempool: {e:?}"));
 
-            txs_received += retrieved_txs.len();
+            n_txs_received += retrieved_txs.len();
+
+            // Aggregate the highest nonce for each contract address in this chunk.
+            retrieved_txs.iter().for_each(|tx| {
+                let address = tx.contract_address();
+                let nonce = tx.nonce();
+                address_to_nonce
+                    .entry(address)
+                    .and_modify(|max_nonce| *max_nonce = (*max_nonce).max(nonce))
+                    .or_insert(nonce);
+            });
+
+            // Commit a block when we've accumulated enough transactions for a complete chunk.
+            // This simulates the block production cycle where transactions are periodically
+            // committed after being retrieved from the mempool.
+            if last_committed_chunk < n_txs_received / chunk_size {
+                last_committed_chunk += 1;
+
+                client
+                    .commit_block(CommitBlockArgs {
+                        address_to_nonce: std::mem::take(&mut address_to_nonce),
+                        rejected_tx_hashes: IndexSet::new(),
+                    })
+                    .await
+                    .unwrap();
+            }
 
             // If no txs retrieved, wait a bit for add_tx_task to add more
             if retrieved_txs.is_empty() {
