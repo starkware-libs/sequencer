@@ -1,4 +1,5 @@
 from cdk8s import ApiObjectMetadata
+
 from imports.com.google.cloud import (
     BackendConfig,
     BackendConfigSpec,
@@ -7,7 +8,6 @@ from imports.com.google.cloud import (
     BackendConfigSpecHealthCheck,
     BackendConfigSpecSecurityPolicy,
 )
-
 from src.constructs.base import BaseConstruct
 
 
@@ -16,12 +16,11 @@ class BackendConfigConstruct(BaseConstruct):
         self,
         scope,
         id: str,
-        common_config,
         service_config,
         labels,
         monitoring_endpoint_port,
     ):
-        super().__init__(scope, id, common_config, service_config, labels, monitoring_endpoint_port)
+        super().__init__(scope, id, service_config, labels, monitoring_endpoint_port)
 
         self.backend_config = self._get_backend_config()
 

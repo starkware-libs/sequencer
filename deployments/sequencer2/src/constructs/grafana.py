@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 
 from cdk8s import ApiObjectMetadata, Names
 from constructs import Construct
+
 from imports.alerts.co.starkware.grafana import (
     SharedGrafanaAlertRuleGroup,
     SharedGrafanaAlertRuleGroupSpec,
@@ -17,7 +18,6 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboard,
     SharedGrafanaDashboardSpec,
 )
-
 from src.config.loaders import GrafanaAlertRuleGroupConfigLoader, GrafanaDashboardConfigLoader
 from src.utils import generate_random_hash, sanitize_name
 

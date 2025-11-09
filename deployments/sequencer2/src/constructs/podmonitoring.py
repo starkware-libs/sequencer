@@ -1,4 +1,5 @@
 from cdk8s import ApiObjectMetadata
+
 from imports.com.googleapis.monitoring import (
     PodMonitoring,
     PodMonitoringSpec,
@@ -6,7 +7,6 @@ from imports.com.googleapis.monitoring import (
     PodMonitoringSpecEndpointsPort,
     PodMonitoringSpecSelector,
 )
-
 from src.constructs.base import BaseConstruct
 
 
@@ -14,17 +14,13 @@ class PodMonitoringConstruct(BaseConstruct):
     def __init__(
         self,
         scope,
-        id: str,
-        common_config,
-        service_config,
+        id: str,service_config,
         labels,
         monitoring_endpoint_port,
     ):
         super().__init__(
             scope,
-            id,
-            common_config,
-            service_config,
+            id,service_config,
             labels,
             monitoring_endpoint_port,
         )

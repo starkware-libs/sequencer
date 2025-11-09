@@ -3,20 +3,20 @@ import json
 from cdk8s import Chart, Names
 from constructs import Construct
 
-from src.config.schema import CommonConfig, ServiceConfig
+from src.config.schema import ServiceConfig
 from src.constructs.backendconfig import BackendConfigConstruct
 from src.constructs.configmap import ConfigMapConstruct
 from src.constructs.deployment import DeploymentConstruct
+from src.constructs.externalsecret import ExternalSecretConstruct
 from src.constructs.hpa import HpaConstruct
 from src.constructs.ingress import IngressConstruct
-from src.constructs.podmonitoring import PodMonitoringConstruct
-from src.constructs.poddisruptionbudget import PodDisruptionBudgetConstruct
 from src.constructs.networkpolicy import NetworkPolicyConstruct
+from src.constructs.poddisruptionbudget import PodDisruptionBudgetConstruct
+from src.constructs.podmonitoring import PodMonitoringConstruct
 from src.constructs.priorityclass import PriorityClassConstruct
 from src.constructs.rbac import RbacConstruct
-from src.constructs.externalsecret import ExternalSecretConstruct
-from src.constructs.service import ServiceConstruct
 from src.constructs.secret import SecretConstruct
+from src.constructs.service import ServiceConstruct
 from src.constructs.serviceaccount import ServiceAccountConstruct
 from src.constructs.statefulset import StatefulSetConstruct
 from src.constructs.volume import VolumeConstruct
@@ -30,26 +30,24 @@ class SequencerNodeChart(Chart):
         namespace: str,
         monitoring: bool,
         service_config: ServiceConfig,
-        common_config: CommonConfig,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
 
         self.monitoring = monitoring
         self.service_config = service_config
-        self.common_config = common_config
 
-        # Create labels dictionary from common config + service name
-        # Base labels from common.yaml (metaLabels)
-        labels = dict(common_config.metaLabels) if common_config.metaLabels else {}
+        # Create labels dictionary from service config + service name
+        # Base labels from common.yaml (metaLabels) - now merged into service_config
+        labels = dict(service_config.metaLabels) if service_config.metaLabels else {}
         # Add service label (dynamic per service)
         labels["service"] = f"sequencer-{service_config.name}"
 
         # Determine monitoring port
-        monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config, common_config)
+        monitoring_endpoint_port = self._get_monitoring_endpoint_port(service_config)
 
         # Create ConfigMap
         self.config_map = ConfigMapConstruct(
-            self, "configmap", common_config, service_config, labels, monitoring_endpoint_port
+            self, "configmap", service_config, labels, monitoring_endpoint_port
         )
 
         # Create ServiceAccount if enabled
@@ -57,7 +55,6 @@ class SequencerNodeChart(Chart):
             self.service_account = ServiceAccountConstruct(
                 self,
                 "service-account",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -67,7 +64,6 @@ class SequencerNodeChart(Chart):
         self.service = ServiceConstruct(
             self,
             "service",
-            common_config=self.common_config,
             service_config=self.service_config,
             labels=labels,
             monitoring_endpoint_port=monitoring_endpoint_port,
@@ -78,7 +74,6 @@ class SequencerNodeChart(Chart):
             self.controller = StatefulSetConstruct(
                 self,
                 "statefulset",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -87,7 +82,6 @@ class SequencerNodeChart(Chart):
             self.controller = DeploymentConstruct(
                 self,
                 "deployment",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -98,7 +92,6 @@ class SequencerNodeChart(Chart):
             self.backend_config = BackendConfigConstruct(
                 self,
                 "backend-config",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -112,7 +105,6 @@ class SequencerNodeChart(Chart):
             self.ingress = IngressConstruct(
                 self,
                 "ingress",
-                common_config,
                 self.service_config,
                 labels,
                 namespace,
@@ -128,7 +120,6 @@ class SequencerNodeChart(Chart):
             self.pvc = VolumeConstruct(
                 self,
                 "pvc",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -144,7 +135,6 @@ class SequencerNodeChart(Chart):
             self.hpa = HpaConstruct(
                 self,
                 "hpa",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -156,7 +146,6 @@ class SequencerNodeChart(Chart):
             self.secret = SecretConstruct(
                 self,
                 "secret",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -167,7 +156,6 @@ class SequencerNodeChart(Chart):
             self.external_secret = ExternalSecretConstruct(
                 self,
                 "external-secret",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -178,7 +166,6 @@ class SequencerNodeChart(Chart):
         self.pod_monitoring = PodMonitoringConstruct(
             self,
             "pod-monitoring",
-            common_config=self.common_config,
             service_config=self.service_config,
             labels=labels,
             monitoring_endpoint_port=monitoring_endpoint_port,
@@ -192,7 +179,6 @@ class SequencerNodeChart(Chart):
             self.pod_disruption_budget = PodDisruptionBudgetConstruct(
                 self,
                 "pod-disruption-budget",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -203,7 +189,6 @@ class SequencerNodeChart(Chart):
             self.network_policy = NetworkPolicyConstruct(
                 self,
                 "network-policy",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -214,7 +199,6 @@ class SequencerNodeChart(Chart):
             self.priority_class = PriorityClassConstruct(
                 self,
                 "priority-class",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
@@ -225,28 +209,20 @@ class SequencerNodeChart(Chart):
             self.rbac = RbacConstruct(
                 self,
                 "rbac",
-                common_config=self.common_config,
                 service_config=self.service_config,
                 labels=labels,
                 monitoring_endpoint_port=monitoring_endpoint_port,
             )
 
     @staticmethod
-    def _get_monitoring_endpoint_port(service_config: ServiceConfig, common_config=None) -> int:
-        """Find the 'monitoring' port from the service config or common config."""
-        # Collect ports from both service-specific and common config
+    def _get_monitoring_endpoint_port(service_config: ServiceConfig) -> int:
+        """Find the 'monitoring' port from the service config (common ports are merged in)."""
+        # Ports from common config are already merged into service_config.service.ports
         all_ports = []
 
-        # Add service-specific ports first (they take precedence)
+        # Get all ports (common ports are already merged in by the merger)
         if service_config.service and service_config.service.ports:
             all_ports.extend(service_config.service.ports)
-
-        # Add common ports (if not already present by name)
-        if common_config and common_config.service and common_config.service.ports:
-            service_port_names = {p.name for p in all_ports if p.name}
-            for port in common_config.service.ports:
-                if port.name and port.name not in service_port_names:
-                    all_ports.append(port)
 
         if not all_ports:
             raise ValueError(

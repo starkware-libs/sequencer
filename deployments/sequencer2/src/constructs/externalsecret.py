@@ -1,16 +1,24 @@
 from cdk8s import ApiObjectMetadata
-from imports.io.external_secrets import (
-    ExternalSecretV1Beta1 as ExternalSecret,
-    ExternalSecretV1Beta1Spec as ExternalSecretSpec,
-    ExternalSecretV1Beta1SpecData as ExternalSecretSpecData,
-    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
-    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
-    ExternalSecretV1Beta1SpecDataRemoteRefDecodingStrategy as ExternalSecretSpecDataRemoteRefDecodingStrategy,
-    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
-    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
-    ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget,
-)
 
+from imports.io.external_secrets import ExternalSecretV1Beta1 as ExternalSecret
+from imports.io.external_secrets import ExternalSecretV1Beta1Spec as ExternalSecretSpec
+from imports.io.external_secrets import ExternalSecretV1Beta1SpecData as ExternalSecretSpecData
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecDataRemoteRefDecodingStrategy as ExternalSecretSpecDataRemoteRefDecodingStrategy,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
+)
+from imports.io.external_secrets import ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget
 from src.constructs.base import BaseConstruct
 
 
@@ -19,7 +27,6 @@ class ExternalSecretConstruct(BaseConstruct):
         self,
         scope,
         id: str,
-        common_config,
         service_config,
         labels,
         monitoring_endpoint_port,
@@ -27,10 +34,9 @@ class ExternalSecretConstruct(BaseConstruct):
         super().__init__(
             scope,
             id,
-            common_config,
-            service_config,
-            labels,
-            monitoring_endpoint_port,
+            service_config=service_config,
+            labels=labels,
+            monitoring_endpoint_port=monitoring_endpoint_port,
         )
 
         self.external_secret = self._create_external_secret()

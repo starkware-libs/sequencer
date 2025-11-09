@@ -19,7 +19,7 @@ AnyDict = Dict[str, Any]
 _UNKNOWN_SOURCE = "<unknown overlay>"
 
 
-def _get_schema_model_for_path(path: str) -> Optional[Any]:
+def _get_schema_model_for_path(path: str) -> Optional[type[Any]]:
     """Get the Pydantic model class for a given path in the schema.
 
     Traverses the ServiceConfig schema to find the model for nested paths.
@@ -35,7 +35,7 @@ def _get_schema_model_for_path(path: str) -> Optional[Any]:
         Pydantic model class if found, None otherwise
     """
     parts = path.split(".")
-    current_model = ServiceConfig
+    current_model: type[Any] = ServiceConfig
 
     # Traverse the path to find the nested model
     for part in parts:
@@ -44,18 +44,20 @@ def _get_schema_model_for_path(path: str) -> Optional[Any]:
 
         field_info = current_model.model_fields[part]
         # Get the annotation (type) of the field
-        annotation = field_info.annotation
+        annotation: Any = field_info.annotation
 
         # Handle Optional types (e.g., Optional[PersistentVolume])
-        if hasattr(annotation, "__origin__") and annotation.__origin__ is not None:
-            # For Optional[T], get T
-            args = getattr(annotation, "__args__", ())
-            if args:
-                annotation = args[0]
+        if hasattr(annotation, "__origin__"):
+            origin = getattr(annotation, "__origin__", None)
+            if origin is not None:
+                # For Optional[T], get T
+                args = getattr(annotation, "__args__", ())
+                if args:
+                    annotation = args[0]
 
         # Check if it's a Pydantic model
         if hasattr(annotation, "model_fields"):
-            current_model = annotation
+            current_model = annotation  # type: ignore[assignment]
         else:
             # Not a model, return None (primitive type or dict)
             return None
@@ -388,8 +390,13 @@ def apply_services_overlay_strict(
         ValueError: If overlay tries to introduce a new service not in layout.
     """
     merged_services: list[ServiceConfig] = []
-    layout_map = {svc.name: svc for svc in layout_services}
-    overlay_map = {svc.name: svc for svc in overlay_services}
+    # Filter out services without names and create maps
+    layout_map: dict[str, ServiceConfig] = {
+        svc.name: svc for svc in layout_services if svc.name is not None
+    }
+    overlay_map: dict[str, ServiceConfig] = {
+        svc.name: svc for svc in overlay_services if svc.name is not None
+    }
 
     # Validate that overlay doesn't introduce new services
     for svc_name in overlay_map:

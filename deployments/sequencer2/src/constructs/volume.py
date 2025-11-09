@@ -1,5 +1,4 @@
 from imports import k8s
-
 from src.constructs.base import BaseConstruct
 
 
@@ -7,17 +6,13 @@ class VolumeConstruct(BaseConstruct):
     def __init__(
         self,
         scope,
-        id: str,
-        common_config,
-        service_config,
+        id: str,service_config,
         labels,
         monitoring_endpoint_port,
     ):
         super().__init__(
             scope,
-            id,
-            common_config,
-            service_config,
+            id,service_config,
             labels,
             monitoring_endpoint_port,
         )

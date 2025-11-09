@@ -1,6 +1,6 @@
 from imports import k8s
-
-from src.config.schema import CommonConfig, Probe as ProbeConfig, ServiceConfig
+from src.config.schema import Probe as ProbeConfig
+from src.config.schema import ServiceConfig
 
 
 class PodBuilder:
@@ -8,12 +8,10 @@ class PodBuilder:
 
     def __init__(
         self,
-        common_config: CommonConfig,
         service_config: ServiceConfig,
         labels: dict[str, str],
         monitoring_endpoint_port: int,
     ):
-        self.common_config = common_config
         self.service_config = service_config
         self.labels = labels
         self.monitoring_endpoint_port = monitoring_endpoint_port
@@ -55,13 +53,15 @@ class PodBuilder:
 
     def _build_container(self) -> k8s.Container:
         """Build the main application container."""
-        image = f"{self.common_config.image.repository}:{self.common_config.image.tag}"
+        if not self.service_config.image:
+            raise ValueError(f"Image configuration is required for service {self.service_config.name}")
+        image = f"{self.service_config.image.repository}:{self.service_config.image.tag}"
         # Use None for command if empty list (allows image default)
         command = self.service_config.command if self.service_config.command else None
         return k8s.Container(
             name=f"sequencer-{self.service_config.name}",
             image=image,
-            image_pull_policy=self.common_config.image.imagePullPolicy,
+            image_pull_policy=self.service_config.image.imagePullPolicy,
             command=command,
             args=self._build_container_args(),
             env=self._build_container_env(),
@@ -146,7 +146,7 @@ class PodBuilder:
 
     def _build_image_pull_secrets(self) -> list[dict[str, str]]:
         """Build image pull secrets list."""
-        return [{"name": secret} for secret in self.common_config.imagePullSecrets]
+        return [{"name": secret} for secret in self.service_config.imagePullSecrets]
 
     def _build_container_ports(self) -> list[k8s.ContainerPort]:
         """Build container ports from service configuration."""

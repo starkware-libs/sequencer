@@ -1,6 +1,6 @@
 from constructs import Construct
-from imports import k8s
 
+from imports import k8s
 from src.constructs.base import BaseConstruct
 
 
@@ -9,7 +9,6 @@ class IngressConstruct(BaseConstruct):
         self,
         scope: Construct,
         id: str,
-        common_config,
         service_config,
         labels,
         namespace,
@@ -18,7 +17,6 @@ class IngressConstruct(BaseConstruct):
         super().__init__(
             scope,
             id,
-            common_config,
             service_config,
             labels,
             monitoring_endpoint_port,
@@ -61,7 +59,7 @@ class IngressConstruct(BaseConstruct):
                                     path_type=ingress_config.pathType or "Prefix",
                                     backend=k8s.IngressBackend(
                                         service=k8s.IngressServiceBackend(
-                                            name=f"{self.service_config.name}-service",
+                                            name=f"sequencer-{self.service_config.name}-service",
                                             port=k8s.ServiceBackendPort(number=service_port),
                                         )
                                     ),
@@ -75,7 +73,7 @@ class IngressConstruct(BaseConstruct):
                     [
                         k8s.IngressTls(
                             hosts=tls_config["hosts"],
-                            secret_name=tls_config.get("secretName"),
+                            secret_name=tls_config.get("secretName", f"sequencer-{self.service_config.name}-tls"),
                         )
                         for tls_config in ingress_config.tls
                     ]
