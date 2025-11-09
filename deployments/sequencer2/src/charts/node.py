@@ -39,8 +39,8 @@ class SequencerNodeChart(Chart):
         self.common_config = common_config
 
         # Create labels dictionary from common config + service name
-        # Base labels from common.yaml (commonMetaLabels)
-        labels = dict(common_config.commonMetaLabels) if common_config.commonMetaLabels else {}
+        # Base labels from common.yaml (metaLabels)
+        labels = dict(common_config.metaLabels) if common_config.metaLabels else {}
         # Add service label (dynamic per service)
         labels["service"] = f"sequencer-{service_config.name}"
 

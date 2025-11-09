@@ -84,6 +84,12 @@ class DeploymentConfigLoader(Config):
             file_path = self.configs_dir_path / fname
             raw_config = self._try_load_yaml(str(file_path))
             validated_config = ServiceConfig.model_validate(raw_config)
+            # Validate that service configs have a name (required for services, optional for common)
+            if not validated_config.name:
+                raise ValueError(
+                    f"Service config file '{file_path}' is missing required field 'name'. "
+                    f"Service configs must have a name field."
+                )
             validated_config._source = str(file_path)
             validated_configs.append(validated_config)
         return validated_configs

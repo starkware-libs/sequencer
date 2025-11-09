@@ -271,17 +271,6 @@ class Secret(StrictBaseModel):
             # Users should use stringData for JSON content validation
 
 
-class CommonConfig(StrictBaseModel):
-    image: Image = Image(repository="ghcr.io/starkware-libs/sequencer", tag="dev")
-    imagePullSecrets: List[str] = Field(default_factory=list)
-    commonMetaLabels: StrDict = Field(default_factory=dict)
-    config: Optional["Config"] = None  # Forward reference - Config is defined later
-    service: Optional[Service] = None
-    podMonitoring: Optional["PodMonitoring"] = Field(
-        default=None, alias="gcpPodMonitoring"
-    )
-
-
 class PodMonitoringEndpoint(StrictBaseModel):
     port: int | str  # Port name or number (required)
     path: Optional[str] = "/metrics"  # HTTP path to scrape (default: /metrics)
@@ -397,7 +386,12 @@ class Config(StrictBaseModel):
 
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
-    name: str
+    name: Optional[str] = None  # Required for services, optional for common.yaml
+    # Common fields (used in both common.yaml and service.yaml)
+    image: Optional[Image] = Field(default=None)  # Image config (common.yaml)
+    imagePullSecrets: List[str] = Field(default_factory=list)  # Image pull secrets (common.yaml)
+    metaLabels: StrDict = Field(default_factory=dict)  # Base labels for all services (common.yaml)
+    # Service-specific fields
     config: Optional[Config] = None
     replicas: int = 1
     statefulSet: Optional[StatefulSet] = None
@@ -440,6 +434,12 @@ class ServiceConfig(StrictBaseModel):
     priorityClass: Optional[PriorityClass] = None
 
 
+# CommonConfig is now just ServiceConfig - common.yaml and service.yaml use the same schema
+# This allows any field in ServiceConfig to be used in common.yaml
+# Defined here after ServiceConfig to avoid forward reference issues
+CommonConfig = ServiceConfig
+
+
 class DeploymentConfig(StrictBaseModel):
-    common: CommonConfig = Field(default_factory=CommonConfig)
+    common: CommonConfig = Field(default_factory=ServiceConfig)  # Use ServiceConfig as default
     services: List[ServiceConfig] = Field(default_factory=list)
