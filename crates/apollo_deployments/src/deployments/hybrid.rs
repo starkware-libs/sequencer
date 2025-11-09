@@ -877,7 +877,6 @@ fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
                     inputs.eth_fee_token_address,
                     inputs.starknet_gateway_url.clone(),
                     inputs.strk_fee_token_address,
-                    inputs.l1_startup_height_override,
                     inputs.num_validators,
                     inputs.state_sync_type.clone(),
                     consensus_p2p_bootstrap_config.clone(),
