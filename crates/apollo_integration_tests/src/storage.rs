@@ -16,52 +16,40 @@ use crate::state_reader::{
 
 #[derive(Debug)]
 pub struct StorageExecutablePaths {
-    batcher_path: PathBuf,
-    state_sync_path: PathBuf,
-    class_manager_path: PathBuf,
+    path: PathBuf,
 }
 
 impl StorageExecutablePaths {
-    pub fn new(
-        db_base: &Path,
-        node_index: usize,
-        batcher_index: usize,
-        state_sync_index: usize,
-        class_manager_index: usize,
-    ) -> Self {
-        let batcher_node_index = NodeExecutionId::new(node_index, batcher_index);
-        let state_sync_node_index = NodeExecutionId::new(node_index, state_sync_index);
-        let class_manager_node_index = NodeExecutionId::new(node_index, class_manager_index);
+    pub fn new(db_base: &Path, node_index: usize) -> Self {
+        let node_index = NodeExecutionId::new(node_index, 0);
 
-        let batcher_path = batcher_node_index.build_path(db_base);
-        let state_sync_path = state_sync_node_index.build_path(db_base);
-        let class_manager_path = class_manager_node_index.build_path(db_base);
+        let path = node_index.build_path(db_base);
 
-        Self { batcher_path, state_sync_path, class_manager_path }
+        Self { path }
     }
 
     pub fn get_batcher_exec_path(&self) -> &PathBuf {
-        &self.batcher_path
+        &self.path
     }
 
     pub fn get_state_sync_exec_path(&self) -> &PathBuf {
-        &self.state_sync_path
+        &self.path
     }
 
     pub fn get_class_manager_exec_path(&self) -> &PathBuf {
-        &self.class_manager_path
+        &self.path
     }
 
     pub fn get_batcher_path_with_db_suffix(&self) -> PathBuf {
-        self.batcher_path.join(BATCHER_DB_PATH_SUFFIX)
+        self.path.join(BATCHER_DB_PATH_SUFFIX)
     }
 
     pub fn get_state_sync_path_with_db_suffix(&self) -> PathBuf {
-        self.state_sync_path.join(STATE_SYNC_DB_PATH_SUFFIX)
+        self.path.join(STATE_SYNC_DB_PATH_SUFFIX)
     }
 
     pub fn get_class_manager_path_with_db_suffix(&self) -> PathBuf {
-        self.class_manager_path.join(CLASS_MANAGER_DB_PATH_SUFFIX)
+        self.path.join(CLASS_MANAGER_DB_PATH_SUFFIX)
     }
 }
 
@@ -86,7 +74,11 @@ impl CustomPaths {
     }
 
     pub fn get_config_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
-        self.config_base.as_ref().map(|p| node_execution_id.build_path(p))
+        self.config_base.as_ref().map(|p| {
+            node_execution_id
+                .build_path(p)
+                .join(format!("executable_{}", node_execution_id.get_executable_index()))
+        })
     }
 
     pub fn get_data_prefix_path(&self) -> Option<&PathBuf> {
@@ -96,23 +88,12 @@ impl CustomPaths {
 
 pub fn get_integration_test_storage(
     node_index: usize,
-    batcher_index: usize,
-    state_sync_index: usize,
-    class_manager_index: usize,
     custom_paths: Option<CustomPaths>,
     accounts: Vec<AccountTransactionGenerator>,
     chain_info: &ChainInfo,
 ) -> StorageTestSetup {
     let storage_exec_paths = custom_paths.as_ref().and_then(|paths| {
-        paths.get_db_base().map(|db_base| {
-            StorageExecutablePaths::new(
-                db_base,
-                node_index,
-                batcher_index,
-                state_sync_index,
-                class_manager_index,
-            )
-        })
+        paths.get_db_base().map(|db_base| StorageExecutablePaths::new(db_base, node_index))
     });
 
     let StorageTestSetup { mut storage_config, storage_handles } =
@@ -121,13 +102,7 @@ pub fn get_integration_test_storage(
     // Allow overriding the path with a custom prefix for Docker mode in system tests.
     if let Some(paths) = custom_paths {
         if let Some(prefix) = paths.get_data_prefix_path() {
-            let custom_storage_exec_paths = StorageExecutablePaths::new(
-                prefix,
-                node_index,
-                batcher_index,
-                state_sync_index,
-                class_manager_index,
-            );
+            let custom_storage_exec_paths = StorageExecutablePaths::new(prefix, node_index);
             storage_config.batcher_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_batcher_exec_path().join(BATCHER_DB_PATH_SUFFIX);
             storage_config.state_sync_storage_config.db_config.path_prefix =

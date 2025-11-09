@@ -29,22 +29,20 @@ impl NodeExecutionId {
         self.executable_index
     }
 
-    // TODO(victork): remove path dependency on executable index
     pub fn build_path(&self, base: &Path) -> PathBuf {
         base.join(format!("node_{}", self.node_index))
-            .join(format!("executable_{}", self.executable_index))
     }
 }
 
 impl std::fmt::Display for NodeExecutionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Node id {} part {}", self.node_index, self.executable_index)
+        write!(f, "Node id {}", self.node_index)
     }
 }
 
 impl From<NodeExecutionId> for NodeRunner {
     fn from(val: NodeExecutionId) -> Self {
-        NodeRunner::new(val.node_index, val.executable_index)
+        NodeRunner::new(val.node_index)
     }
 }
 
