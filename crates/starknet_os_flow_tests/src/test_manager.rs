@@ -34,6 +34,7 @@ use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
+use starknet_committer::hash_function::hash::CommitmentOutput;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -71,7 +72,6 @@ use crate::utils::{
     divide_vec_into_n_parts,
     execute_transactions,
     maybe_dummy_block_hash_and_number,
-    CommitmentOutput,
     ExecutionOutput,
 };
 
