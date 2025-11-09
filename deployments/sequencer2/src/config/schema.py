@@ -277,6 +277,9 @@ class CommonConfig(StrictBaseModel):
     commonMetaLabels: StrDict = Field(default_factory=dict)
     config: Optional["Config"] = None  # Forward reference - Config is defined later
     service: Optional[Service] = None
+    podMonitoring: Optional["PodMonitoring"] = Field(
+        default=None, alias="gcpPodMonitoring"
+    )
 
 
 class PodMonitoringEndpoint(StrictBaseModel):

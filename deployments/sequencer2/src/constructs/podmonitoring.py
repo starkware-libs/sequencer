@@ -29,14 +29,91 @@ class PodMonitoringConstruct(BaseConstruct):
             monitoring_endpoint_port,
         )
 
-        if not self.service_config.podMonitoring or not self.service_config.podMonitoring.enabled:
+        # Merge common and service podMonitoring configs (service overrides common)
+        pod_monitoring_config = self._get_merged_pod_monitoring_config()
+
+        if not pod_monitoring_config or not pod_monitoring_config.enabled:
             return
 
-        self.podmonitoring = self._create_pod_monitoring()
+        self.podmonitoring = self._create_pod_monitoring(pod_monitoring_config)
 
-    def _create_pod_monitoring(self) -> PodMonitoring:
+    def _get_merged_pod_monitoring_config(self):
+        """Merge common and service podMonitoring configs.
+
+        Service config takes precedence over common config.
+        If service has podMonitoring with enabled=False and no other meaningful config,
+        treat it as unset and use common config instead.
+        Returns None if neither is configured.
+        """
+        common_pm = self.common_config.podMonitoring if self.common_config else None
+        service_pm = self.service_config.podMonitoring
+
+        # Check if service_pm is essentially a default/empty config
+        # (enabled=False, no name, empty annotations/labels, default spec)
+        def is_default_pod_monitoring(pm) -> bool:
+            """Check if podMonitoring is just a default/empty configuration."""
+            if pm is None:
+                return True
+            if pm.enabled is False:
+                # Check if it's essentially empty (no custom name, empty annotations/labels)
+                if (
+                    pm.name is None
+                    and not pm.annotations
+                    and not pm.labels
+                    and pm.spec
+                    and not pm.spec.selector.matchLabels
+                    and not pm.spec.selector.matchExpressions
+                    and pm.spec.filterRunning is None
+                    and pm.spec.limits is None
+                    and pm.spec.targetLabels is None
+                ):
+                    return True
+            return False
+
+        # If service has a meaningful podMonitoring config, use it (may merge with common)
+        if service_pm is not None and not is_default_pod_monitoring(service_pm):
+            # If service has it but common also has it, merge them (service overrides)
+            if common_pm:
+                # Merge: start with common, then overlay service
+                # Use model_dump with mode='python' to get proper dict representation
+                merged_dict = common_pm.model_dump(mode="python", exclude_none=True)
+                service_dict = service_pm.model_dump(
+                    mode="python", exclude_unset=True, exclude_none=True
+                )
+                # Deep merge the dictionaries recursively
+                from copy import deepcopy
+
+                merged = deepcopy(merged_dict)
+
+                def deep_merge(base: dict, overlay: dict) -> dict:
+                    """Recursively merge overlay into base."""
+                    result = deepcopy(base)
+                    for key, value in overlay.items():
+                        if (
+                            key in result
+                            and isinstance(result[key], dict)
+                            and isinstance(value, dict)
+                        ):
+                            result[key] = deep_merge(result[key], value)
+                        else:
+                            result[key] = value
+                    return result
+
+                merged = deep_merge(merged, service_dict)
+                from src.config.schema import PodMonitoring
+
+                return PodMonitoring.model_validate(merged)
+            return service_pm
+
+        # If service doesn't have podMonitoring or has only default/empty config,
+        # use common config if available
+        if common_pm:
+            return common_pm
+
+        return None
+
+    def _create_pod_monitoring(self, pod_monitoring_config) -> PodMonitoring:
         """Create PodMonitoring resource."""
-        pod_monitoring_config = self.service_config.podMonitoring
 
         # Merge labels with common labels
         merged_labels = {**self.labels, **pod_monitoring_config.labels}
