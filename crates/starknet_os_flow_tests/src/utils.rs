@@ -62,6 +62,7 @@ use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
+use tracing::level_filters::LevelFilter;
 
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
@@ -167,7 +168,7 @@ pub(crate) async fn commit_state_diff(
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
 ) -> CommitmentOutput {
-    let config = ConfigImpl::default();
+    let config = ConfigImpl::new(false, LevelFilter::DEBUG, commitments.get_layout());
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");

@@ -625,7 +625,6 @@ fn test_fetch_patricia_paths_inner(
     #[case] leaf_indices: Vec<u128>,
     #[case] height: SubTreeHeight,
     #[case] expected_nodes: PreimageMap,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let expected_fetched_leaves = leaf_indices
         .iter()
@@ -650,7 +649,7 @@ fn test_fetch_patricia_paths_inner(
     };
     let mut nodes = HashMap::new();
     let mut fetched_leaves = HashMap::new();
-    let mut patricia_storage = PatriciaStorage::new(storage, storage_layout);
+    let mut patricia_storage = PatriciaStorage::new(storage, PatriciaStorageLayout::Fact);
 
     fetch_patricia_paths_inner::<MockLeaf>(
         &mut patricia_storage,
@@ -684,10 +683,7 @@ struct TestPatriciaPathsInput {
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-fn test_fetch_patricia_paths_inner_from_json(
-    #[case] input_data: &str,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
-) {
+fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
@@ -733,6 +729,5 @@ fn test_fetch_patricia_paths_inner_from_json(
         leaf_indices,
         SubTreeHeight::new(input.height),
         expected_nodes,
-        storage_layout,
     );
 }

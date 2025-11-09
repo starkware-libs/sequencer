@@ -499,7 +499,8 @@ fn test_update_node_in_nonempty_tree(
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(
     #[case] root_hash: HashOutput,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let empty_map = HashMap::new();
     let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
