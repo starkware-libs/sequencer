@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use apollo_batcher_types::communication::MockBatcherClient;
-use apollo_l1_provider::l1_provider::L1ProviderBuilder;
+use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_l1_provider_types::{MockL1ProviderClient, ProviderState};
 use apollo_state_sync_types::communication::MockStateSyncClient;
@@ -15,17 +14,13 @@ async fn reexecution_flow_historical_blocks_ignored() {
     // Setup: Provider starts at height 5, but catch-up height is 3 (2 blocks _behind_)
     let start_height = BlockNumber(5);
     let catch_up_height = BlockNumber(3);
-    let mut l1_provider = L1ProviderBuilder::new(
+
+    let mut l1_provider = L1Provider::new(
         L1ProviderConfig::default(),
         Arc::new(MockL1ProviderClient::default()),
-        Arc::new(MockBatcherClient::default()),
         Arc::new(MockStateSyncClient::default()),
-    )
-    .startup_height(start_height)
-    .catchup_height(catch_up_height)
-    .clock(Arc::new(FakeClock::new(0)))
-    .build();
-
+        Some(Arc::new(FakeClock::new(0))),
+    );
     // Initialize the provider
     l1_provider.initialize(start_height, vec![]).await.unwrap();
 

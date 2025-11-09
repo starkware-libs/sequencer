@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use alloy::primitives::{Uint, U256};
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
-use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::component_client::LocalComponentClient;
 use apollo_infra::component_definitions::{ComponentStarter, RequestWrapper};
 use apollo_infra::component_server::{
@@ -16,7 +15,7 @@ use apollo_infra::component_server::{
     LocalComponentServer,
     LocalServerConfig,
 };
-use apollo_l1_provider::l1_provider::L1ProviderBuilder;
+use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_provider::{event_identifiers_to_track, L1ProviderConfig};
@@ -55,8 +54,7 @@ pub(crate) const CALL_DATA: &[u8] = &[1_u8, 2_u8];
 pub(crate) const CALL_DATA_2: &[u8] = &[3_u8, 4_u8];
 
 const START_L1_BLOCK: L1BlockReference = L1BlockReference { number: 0, hash: L1BlockHash([0; 32]) };
-pub(crate) const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
-const START_L2_HEIGHT: BlockNumber = BlockNumber(0);
+const START_L1_BLOCK_NUMBER: L1BlockNumber = START_L1_BLOCK.number;
 pub(crate) const TARGET_L2_HEIGHT: BlockNumber = BlockNumber(1);
 
 fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
@@ -108,17 +106,12 @@ pub(crate) async fn setup_scraper_and_provider<
         l1_handler_consumption_timelock_seconds: TIMELOCK_DURATION,
         ..Default::default()
     };
-    let l1_provider = L1ProviderBuilder::new(
+    let l1_provider = L1Provider::new(
         l1_provider_config,
         Arc::new(l1_provider_client.clone()),
-        Arc::new(MockBatcherClient::default()), // Consider saving a copy of this to interact
         Arc::new(state_sync_client),
-    )
-    .startup_height(START_L2_HEIGHT)
-    .catchup_height(TARGET_L2_HEIGHT)
-    .clock(fake_clock.clone())
-    .build();
-
+        Some(fake_clock.clone()),
+    );
     // Create the server.
     let mut l1_provider_server = LocalComponentServer::new(
         l1_provider,

@@ -206,7 +206,6 @@ pub fn create_node_config(
         ..Default::default()
     };
     let l1_provider_config = L1ProviderConfig {
-        provider_startup_height_override: Some(BlockNumber(1)),
         startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(0),

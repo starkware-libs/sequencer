@@ -1,8 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_types::communication::MockBatcherClient;
-use apollo_l1_provider::l1_provider::L1ProviderBuilder;
+use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_l1_provider_types::InvalidValidationStatus::*;
 use apollo_l1_provider_types::ValidationStatus::*;
@@ -52,21 +51,18 @@ async fn timing_flows() {
     let cancellation_timelock = 2;
     let new_message_cooldown = 1;
     let consumption_timelock = 1;
-    let mut l1_provider = L1ProviderBuilder::new(
-        L1ProviderConfig {
-            l1_handler_cancellation_timelock_seconds: Duration::from_secs(cancellation_timelock),
-            l1_handler_consumption_timelock_seconds: Duration::from_secs(consumption_timelock),
-            new_l1_handler_cooldown_seconds: Duration::from_secs(new_message_cooldown),
-            ..Default::default()
-        },
+    let l1_config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(cancellation_timelock),
+        l1_handler_consumption_timelock_seconds: Duration::from_secs(consumption_timelock),
+        new_l1_handler_cooldown_seconds: Duration::from_secs(new_message_cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1Provider::new(
+        l1_config,
         Arc::new(MockL1ProviderClient::default()),
-        Arc::new(MockBatcherClient::default()),
         Arc::new(MockStateSyncClient::default()),
-    )
-    .startup_height(BlockNumber(1))
-    .clock(clock.clone())
-    .build();
-
+        Some(clock.clone()),
+    );
     l1_provider
         .initialize(
             BlockNumber(time_starts_at),
