@@ -5,8 +5,8 @@ use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
