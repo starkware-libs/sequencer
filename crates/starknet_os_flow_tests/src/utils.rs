@@ -44,6 +44,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::hash_function::hash::CommitmentOutput;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
@@ -70,26 +71,6 @@ pub(crate) struct ExecutionOutput<S: FlowTestState> {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
     pub(crate) block_summary: BlockExecutionSummary,
     pub(crate) final_state: CachedState<S>,
-}
-
-pub(crate) struct CommitmentOutput {
-    pub(crate) contracts_trie_root_hash: HashOutput,
-    pub(crate) classes_trie_root_hash: HashOutput,
-}
-
-impl CommitmentOutput {
-    pub(crate) fn global_root(&self) -> HashOutput {
-        if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
-            && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
-        {
-            return HashOutput::ROOT_OF_EMPTY_TREE;
-        }
-        HashOutput(Poseidon::hash_array(&[
-            GLOBAL_STATE_VERSION,
-            self.contracts_trie_root_hash.0,
-            self.classes_trie_root_hash.0,
-        ]))
-    }
 }
 
 /// Executes the given transactions on the given state and block context with default execution

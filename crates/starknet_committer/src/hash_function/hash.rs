@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+use starknet_api::core::GLOBAL_STATE_VERSION;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
@@ -96,4 +98,25 @@ impl<T> ForestHashFunction for T where
         + TreeHashFunction<CompiledClassHash>
         + TreeHashFunction<StarknetStorageValue>
 {
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CommitmentOutput {
+    pub contracts_trie_root_hash: HashOutput,
+    pub classes_trie_root_hash: HashOutput,
+}
+
+impl CommitmentOutput {
+    pub fn global_root(&self) -> HashOutput {
+        if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+            && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
+        {
+            return HashOutput::ROOT_OF_EMPTY_TREE;
+        }
+        HashOutput(Poseidon::hash_array(&[
+            GLOBAL_STATE_VERSION,
+            self.contracts_trie_root_hash.0,
+            self.classes_trie_root_hash.0,
+        ]))
+    }
 }
