@@ -106,10 +106,8 @@ impl Storage for RocksDbStorage {
         Ok(self.db.get(&key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
-        let prev_val = self.db.get(&key.0)?;
-        self.db.put_opt(&key.0, &value.0, &self.write_options)?;
-        Ok(prev_val.map(DbValue))
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        Ok(self.db.put_opt(&key.0, &value.0, &self.write_options)?)
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -128,15 +126,10 @@ impl Storage for RocksDbStorage {
         for key in key_to_value.keys() {
             batch.put(&key.0, &key_to_value[key].0);
         }
-        self.db.write_opt(&batch, &self.write_options)?;
-        Ok(())
+        Ok(self.db.write_opt(&batch, &self.write_options)?)
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let prev_val = self.db.get(&key.0)?;
-        if prev_val.is_some() {
-            self.db.delete(&key.0)?;
-        }
-        Ok(prev_val.map(DbValue))
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+        Ok(self.db.delete(&key.0)?)
     }
 }

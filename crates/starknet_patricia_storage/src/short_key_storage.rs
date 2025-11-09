@@ -43,7 +43,7 @@ macro_rules! define_short_key_storage {
                 self.storage.get(&Self::small_key(key))
             }
 
-            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
                 self.storage.set(Self::small_key(&key), value)
             }
 
@@ -64,7 +64,7 @@ macro_rules! define_short_key_storage {
                 )
             }
 
-            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
                 self.storage.delete(&Self::small_key(key))
             }
         }
