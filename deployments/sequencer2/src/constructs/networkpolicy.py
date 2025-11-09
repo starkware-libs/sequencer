@@ -32,32 +32,10 @@ class NetworkPolicyConstruct(BaseConstruct):
         # Merge labels with common labels
         merged_labels = {**self.labels, **np_config.labels}
 
-        # Build pod selector - use provided selector or default to service labels
-        pod_selector_dict = np_config.podSelector or {}
-
-        # Extract matchLabels and matchExpressions
-        match_labels = pod_selector_dict.get("matchLabels", {})
-        if not match_labels:
-            # Default to service labels if no matchLabels specified
-            match_labels = self.labels
-
-        match_expressions = pod_selector_dict.get("matchExpressions", [])
-
-        # Convert matchExpressions to k8s.LabelSelectorRequirement if provided
-        label_selector_requirements = None
-        if match_expressions:
-            label_selector_requirements = [
-                k8s.LabelSelectorRequirement(
-                    key=expr.get("key"),
-                    operator=expr.get("operator"),
-                    values=expr.get("values", []),
-                )
-                for expr in match_expressions
-            ]
-
-        pod_selector = k8s.LabelSelector(
-            match_labels=match_labels,
-            match_expressions=label_selector_requirements,
+        # Build pod selector - use provided selector or default to pod labels
+        # This ensures selector stays in sync with pod labels automatically
+        pod_selector = self._build_label_selector(
+            np_config.podSelector or {}, default_match_labels=self.labels
         )
 
         # Build spec
@@ -95,24 +73,10 @@ class NetworkPolicyConstruct(BaseConstruct):
                 for peer in ingress_rule["from"]:
                     peer_kwargs = {}
                     if "podSelector" in peer:
-                        peer_pod_selector = peer["podSelector"]
-                        peer_match_labels = peer_pod_selector.get("matchLabels", {})
-                        peer_match_expressions = peer_pod_selector.get("matchExpressions", [])
-
-                        peer_label_requirements = None
-                        if peer_match_expressions:
-                            peer_label_requirements = [
-                                k8s.LabelSelectorRequirement(
-                                    key=expr.get("key"),
-                                    operator=expr.get("operator"),
-                                    values=expr.get("values", []),
-                                )
-                                for expr in peer_match_expressions
-                            ]
-
-                        peer_kwargs["pod_selector"] = k8s.LabelSelector(
-                            match_labels=peer_match_labels,
-                            match_expressions=peer_label_requirements,
+                        # Build pod selector with auto-fallback to pod labels
+                        # This ensures selector stays in sync with pod labels automatically
+                        peer_kwargs["pod_selector"] = self._build_label_selector(
+                            peer["podSelector"], default_match_labels=self.labels
                         )
                     if "namespaceSelector" in peer:
                         ns_selector = peer["namespaceSelector"]
@@ -180,24 +144,10 @@ class NetworkPolicyConstruct(BaseConstruct):
                 for peer in egress_rule["to"]:
                     peer_kwargs = {}
                     if "podSelector" in peer:
-                        peer_pod_selector = peer["podSelector"]
-                        peer_match_labels = peer_pod_selector.get("matchLabels", {})
-                        peer_match_expressions = peer_pod_selector.get("matchExpressions", [])
-
-                        peer_label_requirements = None
-                        if peer_match_expressions:
-                            peer_label_requirements = [
-                                k8s.LabelSelectorRequirement(
-                                    key=expr.get("key"),
-                                    operator=expr.get("operator"),
-                                    values=expr.get("values", []),
-                                )
-                                for expr in peer_match_expressions
-                            ]
-
-                        peer_kwargs["pod_selector"] = k8s.LabelSelector(
-                            match_labels=peer_match_labels,
-                            match_expressions=peer_label_requirements,
+                        # Build pod selector with auto-fallback to pod labels
+                        # This ensures selector stays in sync with pod labels automatically
+                        peer_kwargs["pod_selector"] = self._build_label_selector(
+                            peer["podSelector"], default_match_labels=self.labels
                         )
                     if "namespaceSelector" in peer:
                         ns_selector = peer["namespaceSelector"]

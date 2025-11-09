@@ -41,14 +41,18 @@ class PodMonitoringConstruct(BaseConstruct):
         # Merge labels with common labels
         merged_labels = {**self.labels, **pod_monitoring_config.labels}
 
-        # Build selector
+        # Build selector - use provided selector or default to pod labels
+        # This ensures selector stays in sync with pod labels automatically
+        selector_match_labels = pod_monitoring_config.spec.selector.matchLabels
+        selector_match_expressions = pod_monitoring_config.spec.selector.matchExpressions or []
+
+        # If no matchLabels specified and no matchExpressions, use pod labels
+        if not selector_match_labels and not selector_match_expressions:
+            selector_match_labels = self.labels
+
         selector = PodMonitoringSpecSelector(
-            match_labels=(
-                pod_monitoring_config.spec.selector.matchLabels
-                if pod_monitoring_config.spec.selector.matchLabels
-                else self.labels
-            ),
-            match_expressions=pod_monitoring_config.spec.selector.matchExpressions or None,
+            match_labels=selector_match_labels,
+            match_expressions=selector_match_expressions or None,
         )
 
         # Build endpoints

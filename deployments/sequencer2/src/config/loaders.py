@@ -371,7 +371,7 @@ class NodeConfigLoader(Config):
             for yaml_key, placeholder in unmatched_keys:
                 error_messages.append(
                     f"  - YAML key '{yaml_key}' (maps to placeholder '{placeholder}') "
-                    f"does not match any placeholder in the application config"
+                    f"does not match any placeholder in the '{service_name}' service application config."
                 )
             raise ValueError(
                 f"Invalid sequencerConfig override keys found for service '{service_name}'. "
