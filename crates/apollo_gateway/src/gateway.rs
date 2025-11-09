@@ -130,13 +130,14 @@ impl Gateway {
         self.stateless_tx_validator.validate(&tx)?;
 
         let tx_signature = tx.signature().clone();
-        let internal_tx =
-            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
-                |e| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                    transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
-                },
-            )?;
+        let internal_tx = self
+            .transaction_converter
+            .convert_rpc_tx_to_internal_rpc_tx(tx.clone())
+            .await
+            .map_err(|e| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+            })?;
 
         let executable_tx = self
             .transaction_converter
@@ -152,6 +153,7 @@ impl Gateway {
 
         let blocking_task =
             ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current())
+                .await
                 .map_err(|e| {
                     info!(
                         "Gateway validation failed for tx with signature: {:?} with error: {}",
@@ -245,7 +247,7 @@ struct ProcessTxBlockingTask {
 }
 
 impl ProcessTxBlockingTask {
-    pub fn new(
+    pub async fn new(
         gateway: &Gateway,
         executable_tx: AccountTransaction,
         runtime: tokio::runtime::Handle,
