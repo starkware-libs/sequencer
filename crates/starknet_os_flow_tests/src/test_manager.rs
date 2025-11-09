@@ -27,7 +27,7 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
-use starknet_api::hash::CommitmentOutput;
+use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
@@ -549,13 +549,13 @@ impl<S: FlowTestState> TestManager<S> {
         let mut state = self.initial_state.updatable_state;
         let mut map_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
-        // Commitment output is updated after each block.
-        let mut previous_commitment = CommitmentOutput {
+        // The state roots updated after each block.
+        let mut previous_state_roots = StateRoots {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
         let mut entire_state_diff = StateDiff::default();
-        let expected_previous_global_root = previous_commitment.global_root();
+        let expected_previous_global_root = previous_state_roots.global_root();
         let previous_block_number =
             PreviousBlockNumber(block_contexts.first().unwrap().block_info().block_number.prev());
         let new_block_number = block_contexts.last().unwrap().block_info().block_number;
@@ -588,10 +588,10 @@ impl<S: FlowTestState> TestManager<S> {
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
-            let new_commitment = commit_state_diff(
+            let new_state_roots = commit_state_diff(
                 &mut map_storage,
-                previous_commitment.contracts_trie_root_hash,
-                previous_commitment.classes_trie_root_hash,
+                previous_state_roots.contracts_trie_root_hash,
+                previous_state_roots.classes_trie_root_hash,
                 committer_state_diff,
             )
             .await;
@@ -599,8 +599,8 @@ impl<S: FlowTestState> TestManager<S> {
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
                 create_cached_state_input_and_commitment_infos(
-                    &previous_commitment,
-                    &new_commitment,
+                    &previous_state_roots,
+                    &new_state_roots,
                     &mut map_storage,
                     &extended_state_diff,
                 );
@@ -633,9 +633,9 @@ impl<S: FlowTestState> TestManager<S> {
             };
             os_block_inputs.push(os_block_input);
             cached_state_inputs.push(cached_state_input);
-            previous_commitment = new_commitment;
+            previous_state_roots = new_state_roots;
         }
-        let expected_new_global_root = previous_commitment.global_root();
+        let expected_new_global_root = previous_state_roots.global_root();
         let starknet_os_input = StarknetOsInput {
             os_block_inputs,
             cached_state_inputs,

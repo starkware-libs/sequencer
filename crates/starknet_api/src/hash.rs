@@ -77,12 +77,12 @@ impl HashOutput {
 }
 
 /// Output of committing a state.
-pub struct CommitmentOutput {
+pub struct StateRoots {
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
 }
 
-impl CommitmentOutput {
+impl StateRoots {
     pub fn global_root(&self) -> GlobalRoot {
         if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
             && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
