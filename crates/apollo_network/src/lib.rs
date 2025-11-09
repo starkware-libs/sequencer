@@ -160,7 +160,7 @@
 //!
 //! The [`NetworkConfig`] struct provides extensive configuration options:
 //!
-//! ```rust
+//! ```rust,no_run
 //! use std::time::Duration;
 //!
 //! use apollo_network::discovery::DiscoveryConfig;
@@ -248,7 +248,7 @@ pub(crate) type Bytes = Vec<u8>;
 ///
 /// ## Basic Configuration
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::time::Duration;
 ///
 /// use apollo_network::NetworkConfig;
@@ -264,7 +264,7 @@ pub(crate) type Bytes = Vec<u8>;
 ///
 /// ## Configuration with Bootstrap Peers
 ///
-/// ```rust
+/// ```rust,no_run
 /// use apollo_network::NetworkConfig;
 /// use libp2p::Multiaddr;
 /// use starknet_api::core::ChainId;

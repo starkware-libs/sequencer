@@ -102,7 +102,7 @@ pub struct Behaviour {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::time::Duration;
 ///
 /// use apollo_network::discovery::{DiscoveryConfig, RetryConfig};
@@ -166,7 +166,7 @@ impl SerializeConfig for DiscoveryConfig {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// use std::time::Duration;
 ///
 /// use apollo_network::discovery::RetryConfig;

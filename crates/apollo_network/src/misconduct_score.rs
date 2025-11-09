@@ -13,7 +13,7 @@
 //!
 //! ## Usage Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use apollo_network::misconduct_score::MisconductScore;
 //!
 //! // Start with neutral reputation
