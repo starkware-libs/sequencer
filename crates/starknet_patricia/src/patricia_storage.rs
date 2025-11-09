@@ -42,9 +42,8 @@ impl<S: Storage> PatriciaStorage<S> {
         self.storage_layout
     }
 
-    // TODO(Dori): Remove this function, no storage interation should be direct.
-    pub fn get_storage_mut(&mut self) -> &mut S {
-        &mut self.storage
+    pub fn get_storage_stats(&self) -> Option<String> {
+        self.storage.get_stats()
     }
 
     pub fn n_staged_writes(&self) -> usize {
