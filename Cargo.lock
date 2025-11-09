@@ -820,6 +820,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 
 [[package]]
+name = "apollo_base_layer_tests"
+version = "0.16.0-rc.1"
+dependencies = [
+ "alloy",
+ "async-trait",
+ "colored 3.0.0",
+ "papyrus_base_layer",
+ "starknet_api",
+ "url",
+]
+
+[[package]]
 name = "apollo_batcher"
 version = "0.16.0-rc.1"
 dependencies = [
@@ -1361,6 +1373,7 @@ dependencies = [
  "apollo_monitoring_endpoint_config",
  "apollo_node",
  "apollo_node_config",
+ "apollo_rpc",
  "indexmap 2.11.0",
  "libp2p",
  "serde",
@@ -1563,6 +1576,7 @@ version = "0.16.0-rc.1"
 dependencies = [
  "alloy",
  "anyhow",
+ "apollo_base_layer_tests",
  "apollo_batcher",
  "apollo_batcher_config",
  "apollo_class_manager",
@@ -1605,13 +1619,11 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
- "async-trait",
  "axum",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
  "clap",
- "colored 3.0.0",
  "futures",
  "hex",
  "indexmap 2.11.0",

@@ -2,6 +2,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_class_manager_config::config::{
@@ -79,7 +80,6 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::state_reader::StorageTestConfig;
 
 pub const ACCOUNT_ID_0: AccountId = 0;

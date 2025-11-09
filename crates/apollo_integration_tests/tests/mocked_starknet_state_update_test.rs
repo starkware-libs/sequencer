@@ -2,7 +2,7 @@ use alloy::primitives::{I256, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol_types::SolEventInterface;
-use apollo_integration_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
+use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
 use papyrus_base_layer::BaseLayerContract;
 use pretty_assertions::assert_eq;

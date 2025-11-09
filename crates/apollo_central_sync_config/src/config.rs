@@ -23,7 +23,7 @@ pub struct CentralSourceConfig {
     pub max_state_updates_to_download: usize,
     pub max_state_updates_to_store_in_memory: usize,
     pub max_classes_to_download: usize,
-    // TODO(dan): validate that class_cache_size is a positive integer.
+    #[validate(range(min = 1))]
     pub class_cache_size: usize,
     pub retry_config: RetryConfig,
 }

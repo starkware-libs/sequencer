@@ -19,7 +19,7 @@ use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
-use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
+use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
 
 mod common;
 
@@ -29,13 +29,11 @@ const CUSTOM_INVOKE_TX_COUNT: usize = 16;
 /// Number of threads is 3 = Num of sequencer + 1 for the test thread.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn custom_cairo1_txs() {
-    end_to_end_flow(
+    end_to_end_flow(EndToEndFlowArgs::new(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,
         create_custom_cairo1_txs_scenario(),
         BouncerWeights::default().proving_gas,
-        false,
-        false,
-    )
+    ))
     .await
 }
 
