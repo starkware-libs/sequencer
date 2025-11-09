@@ -7,6 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
+use axum::async_trait;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
     StatefulValidatorTrait as BlockifierStatefulValidatorTrait,
@@ -38,9 +39,10 @@ mod stateful_transaction_validator_test;
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
+#[async_trait]
 #[cfg_attr(test, mockall::automock)]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
-    fn instantiate_validator(
+    async fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
@@ -50,9 +52,10 @@ pub struct StatefulTransactionValidatorFactory {
     pub chain_info: ChainInfo,
 }
 
+#[async_trait]
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
     // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
-    fn instantiate_validator(
+    async fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
