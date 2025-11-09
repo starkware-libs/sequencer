@@ -15,7 +15,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use crate::patricia_storage::PatriciaStorage;
+use crate::patricia_storage::{PatriciaStorage, TreePrefix};
 
 #[cfg(test)]
 #[path = "traversal_test.rs"]
@@ -128,6 +128,7 @@ pub fn fetch_patricia_paths<'a, 'b, L: Leaf>(
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'b>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
+    tree_prefix: impl TreePrefix,
 ) -> TraversalResult<PreimageMap> {
     let mut witnesses = PreimageMap::new();
 
@@ -137,7 +138,13 @@ pub fn fetch_patricia_paths<'a, 'b, L: Leaf>(
 
     let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
 
-    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves)?;
+    fetch_patricia_paths_inner::<L>(
+        storage,
+        vec![main_subtree],
+        tree_prefix,
+        &mut witnesses,
+        leaves,
+    )?;
     Ok(witnesses)
 }
 
@@ -151,6 +158,7 @@ pub fn fetch_patricia_paths<'a, 'b, L: Leaf>(
 fn fetch_patricia_paths_inner<'a, 'b, L: Leaf>(
     storage: &mut PatriciaStorage<impl Storage>,
     subtrees: Vec<SubTree<'b>>,
+    tree_prefix: impl TreePrefix,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
 ) -> TraversalResult<()> {
@@ -158,7 +166,7 @@ fn fetch_patricia_paths_inner<'a, 'b, L: Leaf>(
         return Ok(());
     }
     let mut next_subtrees = Vec::new();
-    let filled_roots = storage.calculate_subtrees_roots::<L>(&subtrees)?;
+    let filled_roots = storage.calculate_subtrees_roots::<L>(&subtrees, tree_prefix)?;
     for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
         // Always insert root.
         // No need to insert an unmodified node (which is not the root), because its parent is
@@ -199,5 +207,5 @@ fn fetch_patricia_paths_inner<'a, 'b, L: Leaf>(
             }
         }
     }
-    fetch_patricia_paths_inner::<L>(storage, next_subtrees, witnesses, leaves)
+    fetch_patricia_paths_inner::<L>(storage, next_subtrees, tree_prefix, witnesses, leaves)
 }
