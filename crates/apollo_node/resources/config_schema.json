@@ -1534,15 +1534,30 @@
     "privacy": "Public",
     "value": 1.0
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout_delta": {
+    "description": "The per-round timeout delta (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 0.5
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout_delta": {
+    "description": "The per-round timeout delta (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 0.5
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout_delta": {
+    "description": "The per-round timeout delta (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 2.0
   },
   "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id": {
     "description": "The validator id of the node.",

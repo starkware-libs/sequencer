@@ -37,8 +37,11 @@ lazy_static! {
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig {
         prevote_timeout: Duration::from_millis(100),
+        prevote_timeout_delta: Duration::from_millis(10),
         precommit_timeout: Duration::from_millis(100),
+        precommit_timeout_delta: Duration::from_millis(10),
         proposal_timeout: Duration::from_millis(100),
+        proposal_timeout_delta: Duration::from_millis(10),
     };
 }
 
