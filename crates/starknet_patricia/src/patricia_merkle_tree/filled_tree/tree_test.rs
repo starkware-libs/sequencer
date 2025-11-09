@@ -5,6 +5,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::external_test_utils::MockTreePrefix;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
@@ -278,6 +279,7 @@ async fn test_delete_leaf_from_empty_tree(
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),
         &storage_modifications,
+        MockTreePrefix,
     )
     .unwrap();
 

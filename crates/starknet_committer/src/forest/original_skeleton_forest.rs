@@ -23,7 +23,7 @@ use crate::patricia_merkle_tree::tree::{
     OriginalSkeletonContractsTrieConfig,
     OriginalSkeletonStorageTrieConfig,
 };
-use crate::patricia_merkle_tree::types::CompiledClassHash;
+use crate::patricia_merkle_tree::types::{CommitmentTreePrefix, CompiledClassHash};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct OriginalSkeletonForest<'a> {
@@ -84,6 +84,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_sorted_indices,
             &OriginalSkeletonContractsTrieConfig::new(),
             &HashMap::new(),
+            CommitmentTreePrefix::ContractsTrie,
         )?)
     }
 
@@ -111,6 +112,7 @@ impl<'a> OriginalSkeletonForest<'a> {
                 *sorted_leaf_indices,
                 &skeleton_trie_config,
                 updates,
+                CommitmentTreePrefix::StorageTrie(*address),
             )?;
             storage_tries.insert(*address, original_skeleton);
         }
@@ -133,6 +135,7 @@ impl<'a> OriginalSkeletonForest<'a> {
             contracts_trie_sorted_indices,
             &skeleton_trie_config,
             actual_classes_updates,
+            CommitmentTreePrefix::ClassesTrie,
         )?)
     }
 }

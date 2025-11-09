@@ -16,7 +16,10 @@ use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{
+    single_tree_flow_test,
+    MockTreePrefix,
+};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
     FactLayoutFilledNode,
@@ -165,6 +168,7 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
                     PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
+                    MockTreePrefix,
                     root_hash,
                     OriginalSkeletonStorageTrieConfig::new(false),
                 )

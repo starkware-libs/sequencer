@@ -5,6 +5,7 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::external_test_utils::MockTreePrefix;
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::internal_test_utils::{
     get_initial_updated_skeleton,
@@ -162,6 +163,7 @@ fn test_updated_empty_tree(
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),
         &modifications,
+        MockTreePrefix,
     )
     .unwrap();
 

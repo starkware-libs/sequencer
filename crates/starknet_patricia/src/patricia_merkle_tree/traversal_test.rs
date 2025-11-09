@@ -18,6 +18,7 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_leaf_entry,
     create_leaf_patricia_key,
     AdditionHash,
+    MockTreePrefix,
 };
 use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::internal_test_utils::{small_tree_index_to_full, MockLeaf};
@@ -654,6 +655,7 @@ fn test_fetch_patricia_paths_inner(
     fetch_patricia_paths_inner::<MockLeaf>(
         &mut patricia_storage,
         vec![main_subtree],
+        MockTreePrefix,
         &mut nodes,
         Some(&mut fetched_leaves),
     )

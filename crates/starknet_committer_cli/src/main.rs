@@ -122,6 +122,7 @@ clone_enum_as_arg_enum!(
         #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
         pub enum PatriciaStorageLayoutArg {
             Fact,
+            Indexed,
         }
     )
 );
