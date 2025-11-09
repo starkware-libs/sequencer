@@ -1,6 +1,7 @@
 use serde::Serialize;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 
 pub struct SerializedForest(pub FilledForest);
@@ -21,12 +22,13 @@ impl SerializedForest {
     /// Converts the filled forest to an output. Assumes storage layout is Fact.
     pub fn forest_to_output(&self) -> Output {
         // Create an empty storage for the new facts.
-        let mut storage = MapStorage::default();
-        self.0.write_to_storage(&mut storage, PatriciaStorageLayout::Fact);
+        let storage = MapStorage::default();
+        let mut patricia_storage = PatriciaStorage::new(storage, PatriciaStorageLayout::Fact);
+        self.0.write_to_storage(&mut patricia_storage).expect("Failed to write to storage");
         let contract_storage_root_hash = self.0.get_contract_root_hash().0;
         let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
         Output {
-            storage,
+            storage: patricia_storage.close(),
             contract_storage_root_hash: contract_storage_root_hash.to_hex_string(),
             compiled_class_root_hash: compiled_class_root_hash.to_hex_string(),
         }

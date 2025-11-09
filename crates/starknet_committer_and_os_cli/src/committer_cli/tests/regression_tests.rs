@@ -110,7 +110,7 @@ pub async fn test_regression_single_tree() {
     // Benchmark the single tree flow test.
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
-        &mut PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
+        PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
         root_hash,
         OriginalSkeletonStorageTrieConfig::new(false),
     )

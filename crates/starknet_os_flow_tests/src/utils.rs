@@ -166,12 +166,11 @@ pub(crate) async fn commit_state_diff(
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
 ) -> CommitmentOutput {
-    let layout = commitments.get_layout();
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
-    filled_forest.write_to_storage(commitments.get_storage_mut(), layout);
+    filled_forest.write_to_storage(commitments).expect("Failed to write to storage");
     CommitmentOutput {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),

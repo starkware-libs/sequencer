@@ -121,7 +121,6 @@ pub async fn run_storage_benchmark<S: Storage>(
     mut patricia_storage: PatriciaStorage<S>,
     checkpoint_interval: usize,
 ) {
-    let storage_layout = patricia_storage.get_layout();
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval);
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
@@ -149,8 +148,9 @@ pub async fn run_storage_benchmark<S: Storage>(
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts =
-            filled_forest.write_to_storage(patricia_storage.get_storage_mut(), storage_layout);
+        let n_new_facts = filled_forest
+            .write_to_storage(&mut patricia_storage)
+            .expect("Failed to write to storage");
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 
