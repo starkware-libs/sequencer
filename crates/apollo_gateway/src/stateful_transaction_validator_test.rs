@@ -426,6 +426,32 @@ async fn test_reject_future_declares(
     run_transaction_validation(executable_tx, nonce!(account_nonce), 0, expected_result_code).await;
 }
 
+#[rstest]
+#[case::all_nonces_zero(0, 0, Ok(()))]
+#[case::tx_nonce_nonzero(
+    0,
+    1,
+    Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+)]
+#[case::account_nonce_nonzero(
+    1,
+    0,
+    Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+)]
+#[tokio::test]
+async fn test_deploy_account_nonce_validation(
+    #[case] account_nonce: u32,
+    #[case] tx_nonce: u32,
+    #[case] expected_result_code: Result<(), StarknetErrorCode>,
+) {
+    let executable_tx = executable_deploy_account_tx(deploy_account_tx_args!(
+        nonce: nonce!(tx_nonce),
+        resource_bounds: ValidResourceBounds::create_for_testing(),
+    ));
+
+    run_transaction_validation(executable_tx, nonce!(account_nonce), 0, expected_result_code).await;
+}
+
 async fn run_transaction_validation(
     executable_tx: AccountTransaction,
     account_nonce: Nonce,
