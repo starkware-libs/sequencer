@@ -8,7 +8,6 @@ use libp2p::Multiaddr;
 use serde::{Serialize, Serializer};
 use serde_json::to_value;
 use serde_with::with_prefix;
-use starknet_api::block::BlockNumber;
 use url::Url;
 
 use crate::deployment_definitions::{StateSyncConfig, StateSyncType};
@@ -142,10 +141,6 @@ pub struct DeploymentConfigOverride {
     eth_fee_token_address: String,
     starknet_url: Url,
     strk_fee_token_address: String,
-    #[serde(rename = "l1_provider_config.provider_startup_height_override")]
-    l1_provider_config_provider_startup_height_override: u64,
-    #[serde(rename = "l1_provider_config.provider_startup_height_override.#is_none")]
-    l1_provider_config_provider_startup_height_override_is_none: bool,
     #[serde(rename = "consensus_manager_config.context_config.num_validators")]
     consensus_manager_config_context_config_num_validators: usize,
     #[serde(rename = "sierra_compiler_config.audited_libfuncs_only")]
@@ -176,7 +171,6 @@ impl DeploymentConfigOverride {
         eth_fee_token_address: impl ToString,
         starknet_url: Url,
         strk_fee_token_address: impl ToString,
-        l1_startup_height_override: Option<BlockNumber>,
         consensus_manager_config_context_config_num_validators: usize,
         state_sync_type: StateSyncType,
         consensus_p2p_bootstrap_config: PeerToPeerBootstrapConfig,
@@ -188,22 +182,12 @@ impl DeploymentConfigOverride {
         mempool_p2p_config_network_config_port: u16,
         consensus_manager_config_network_config_port: u16,
     ) -> Self {
-        let (
-            l1_provider_config_provider_startup_height_override,
-            l1_provider_config_provider_startup_height_override_is_none,
-        ) = match l1_startup_height_override {
-            Some(block_number) => (block_number.0, false),
-            None => (0, true),
-        };
-
         Self {
             starknet_contract_address: starknet_contract_address.to_string(),
             chain_id: chain_id.to_string(),
             eth_fee_token_address: eth_fee_token_address.to_string(),
             starknet_url,
             strk_fee_token_address: strk_fee_token_address.to_string(),
-            l1_provider_config_provider_startup_height_override,
-            l1_provider_config_provider_startup_height_override_is_none,
             consensus_manager_config_context_config_num_validators,
             sierra_compiler_config_audited_libfuncs_only,
             state_sync_config: state_sync_type.get_state_sync_config(),
