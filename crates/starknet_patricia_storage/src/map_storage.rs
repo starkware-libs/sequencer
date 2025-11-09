@@ -14,8 +14,9 @@ pub struct BorrowedStorage<'a, S: Storage> {
 }
 
 impl Storage for MapStorage {
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.0.insert(key, value))
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        self.0.insert(key, value);
+        Ok(())
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
@@ -23,8 +24,9 @@ impl Storage for MapStorage {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.0.remove(key))
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+        self.0.remove(key);
+        Ok(())
     }
 
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
@@ -99,11 +101,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
         Ok(storage_value)
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
-        let prev_value = self.storage.set(key.clone(), value.clone())?;
+        self.storage.set(key.clone(), value.clone())?;
         self.update_cached_value(&key, &value);
-        Ok(prev_value)
+        Ok(())
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -144,7 +146,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.cache.pop(key);
         self.storage.delete(key)
     }

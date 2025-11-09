@@ -69,13 +69,12 @@ impl Storage for MdbxStorage {
         Ok(txn.get(&table, &key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>> {
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
-        let prev_val = txn.get(&table, &key.0)?.map(DbValue);
         txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
         txn.commit()?;
-        Ok(prev_val)
+        Ok(())
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -98,15 +97,12 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
-        let prev_val = txn.get(&table, &key.0)?.map(DbValue);
-        if prev_val.is_some() {
-            txn.del(&table, &key.0, None)?;
-            txn.commit()?;
-        }
-        Ok(prev_val)
+        txn.del(&table, &key.0, None)?;
+        txn.commit()?;
+        Ok(())
     }
 
     fn get_stats(&self) -> Option<String> {
