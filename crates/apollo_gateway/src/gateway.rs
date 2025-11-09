@@ -255,7 +255,8 @@ impl ProcessTxBlockingTask {
     ) -> GatewayResult<Self> {
         let stateful_tx_validator = gateway
             .stateful_tx_validator_factory
-            .instantiate_validator(gateway.state_reader_factory.as_ref())?;
+            .instantiate_validator(gateway.state_reader_factory.as_ref())
+            .await?;
         Ok(Self {
             stateful_tx_validator,
             mempool_client: gateway.mempool_client.clone(),

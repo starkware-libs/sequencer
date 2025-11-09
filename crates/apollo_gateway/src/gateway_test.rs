@@ -98,6 +98,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
     StatefulTransactionValidatorFactoryTrait,
+    StatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
@@ -314,7 +315,7 @@ async fn run_add_tx_and_extract_metrics(
     AddTxResults { result, metric_handle_for_queries, metrics }
 }
 
-fn process_tx_task(
+async fn process_tx_task(
     stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
 ) -> ProcessTxBlockingTask {
     let state_reader_factory = Arc::new(MockStateReaderFactory::new());
@@ -322,6 +323,7 @@ fn process_tx_task(
         &stateful_transaction_validator_factory,
         state_reader_factory.as_ref(),
     )
+    .await
     .expect("instantiate_validator should be mocked in tests");
     ProcessTxBlockingTask {
         stateful_tx_validator,
@@ -567,11 +569,15 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
         .expect_extract_state_nonce_and_run_validations()
         .return_once(|_, _, _| Err(expected_error));
 
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+    mock_stateful_transaction_validator_factory.expect_instantiate_validator().return_once(|_| {
+        Box::pin(async {
+            Ok::<Box<dyn StatefulTransactionValidatorTrait>, _>(Box::new(
+                mock_stateful_transaction_validator,
+            ))
+        })
+    });
 
-    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
+    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory).await;
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
@@ -615,7 +621,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     let expected_error = StarknetError { code: error_code.clone(), message: "placeholder".into() };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|_| Box::pin(async { Err::<_, _>(expected_error) }));
 
     // Build gateway and inject the failing factory.
     let mut gateway = mock_dependencies.gateway();

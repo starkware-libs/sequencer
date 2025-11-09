@@ -157,7 +157,8 @@ async fn test_extract_state_nonce_and_run_validations(
 }
 
 #[rstest]
-fn test_instantiate_validator() {
+#[tokio::test]
+async fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
@@ -173,7 +174,8 @@ fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(|| latest_state_reader);
 
-    let validator = stateful_validator_factory.instantiate_validator(&mock_state_reader_factory);
+    let validator =
+        stateful_validator_factory.instantiate_validator(&mock_state_reader_factory).await;
     assert!(validator.is_ok());
 }
 
