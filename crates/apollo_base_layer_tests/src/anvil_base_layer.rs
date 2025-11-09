@@ -1,4 +1,5 @@
 use std::ops::RangeInclusive;
+use std::process::Command;
 
 use alloy::node_bindings::NodeError as AnvilError;
 use alloy::primitives::{I256, U256};
@@ -59,6 +60,24 @@ impl AnvilBaseLayer {
             );
         }
 
+        let error_message = format!(
+"\n{}\n{}\n",
+"Anvil binary not found!".bold().red(),
+"Install instructions (for local development):\n
+curl -L \
+ https://github.com/foundry-rs/foundry/releases/download/v0.3.0/foundry_v0.3.0_linux_amd64.tar.gz \
+ | tar -xz --wildcards 'anvil'".yellow()
+        );
+
+        // We don't further inspect the output as it is irrelevant to the spawn check.
+        let _output = Command::new("anvil").arg("--version").output().unwrap_or_else(|error| {
+            if error.to_string().contains("No such file or directory") {
+                panic!("{error_message}")
+            } else {
+                panic!("Failed anvil version check: {error:?}")
+            }
+        });
+
         let anvil_client = ProviderBuilder::new()
             .connect_anvil_with_wallet_and_config(|anvil| {
                 let anvil = anvil.port(Self::DEFAULT_ANVIL_PORT);
@@ -68,14 +87,7 @@ impl AnvilBaseLayer {
                 AnvilError::SpawnError(e)
                     if e.to_string().contains("No such file or directory") =>
                 {
-                    panic!(
-                        "\n{}\n{}\n",
-                        "Anvil binary not found!".bold().red(),
-                        "Install instructions (for local development):\n
-                 cargo install \
-                         --git https://github.com/foundry-rs/foundry anvil --locked --tag=v0.3.0"
-                            .yellow()
-                    )
+                    panic!("{error_message}")
                 }
                 _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
             });
