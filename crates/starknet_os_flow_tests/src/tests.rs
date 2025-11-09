@@ -104,7 +104,8 @@ pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
 #[rstest]
 #[tokio::test]
 async fn test_initial_state_creation(
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let _initial_state =
         create_default_initial_state_data::<DictStateReader, 0>([], storage_layout).await;
@@ -133,7 +134,8 @@ async fn declare_deploy_scenario(
     #[values(1, 2)] n_blocks: usize,
     #[values(false, true)] use_kzg_da: bool,
     #[values(false, true)] full_output: bool,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
@@ -227,7 +229,8 @@ async fn trivial_diff_scenario(
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
     )]
     test_contract: FeatureContract,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
@@ -284,7 +287,8 @@ async fn trivial_diff_scenario(
 async fn test_reverted_invoke_tx(
     #[case] test_contract: FeatureContract,
     #[case] revert_reason: &str,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let (use_kzg_da, full_output) = (true, false);
 
@@ -335,7 +339,8 @@ async fn test_encrypted_state_diff(
     #[values(None, Some(vec![]), Some(vec![Felt::THREE, Felt::ONE]))] private_keys: Option<
         Vec<Felt>,
     >,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let (mut test_manager, [test_contract_address]) =
         TestManager::<DictStateReader>::new_with_default_initial_state(
@@ -390,7 +395,8 @@ async fn test_encrypted_state_diff(
 async fn test_reverted_l1_handler_tx(
     #[case] test_contract: FeatureContract,
     #[case] revert_reason: &str,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let (mut test_manager, [test_contract_address]) =
         TestManager::<DictStateReader>::new_with_default_initial_state(
@@ -432,7 +438,8 @@ async fn test_reverted_l1_handler_tx(
 async fn test_os_logic(
     #[values(1, 3)] n_blocks_in_multi_block: usize,
     #[values(None, Some(vec![Felt::ONE, Felt::TWO]))] private_keys: Option<Vec<Felt>>,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let (mut test_manager, _) =
         TestManager::<DictStateReader>::new_with_default_initial_state([], storage_layout).await;
@@ -822,7 +829,8 @@ async fn test_os_logic(
 #[rstest]
 #[tokio::test]
 async fn test_v1_bound_accounts_cairo0(
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let test_contract = &V1_BOUND_CAIRO0_CONTRACT;
     let class_hash = ClassHash(compute_deprecated_class_hash(test_contract).unwrap());
@@ -907,7 +915,8 @@ async fn test_v1_bound_accounts_cairo0(
 #[rstest]
 #[tokio::test]
 async fn test_v1_bound_accounts_cairo1(
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let test_contract_sierra = &V1_BOUND_CAIRO1_CONTRACT_SIERRA;
     let test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;

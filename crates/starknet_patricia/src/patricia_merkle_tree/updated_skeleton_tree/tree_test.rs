@@ -153,7 +153,8 @@ fn test_updated_skeleton_tree_impl_create(
 #[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), MockLeaf::default())]))]
 fn test_updated_empty_tree(
     #[case] modifications: LeafModifications<MockLeaf>,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
 ) {
     let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();

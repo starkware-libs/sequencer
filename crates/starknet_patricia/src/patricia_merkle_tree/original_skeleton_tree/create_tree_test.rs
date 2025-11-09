@@ -205,7 +205,6 @@ fn test_create_tree(
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     #[case] subtree_height: SubTreeHeight,
     #[values(true, false)] compare_modified_leaves: bool,
-    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let leaf_modifications: LeafModifications<MockLeaf> = leaf_modifications
         .into_iter()
@@ -214,7 +213,7 @@ fn test_create_tree(
     let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut patricia_storage = PatriciaStorage::new(storage, storage_layout);
+    let mut patricia_storage = PatriciaStorage::new(storage, PatriciaStorageLayout::Fact);
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
         &mut patricia_storage,
         root_hash,

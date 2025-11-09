@@ -12692,6 +12692,7 @@ dependencies = [
  "starknet_patricia",
  "starknet_patricia_storage",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

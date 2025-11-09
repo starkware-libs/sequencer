@@ -22,6 +22,7 @@ starknet_os = { workspace = true, features = ["include_program_output", "testing
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 tokio.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true
