@@ -93,9 +93,11 @@ const ALLOW_BOOTSTRAP_TXS: bool = false;
 pub struct NodeSetup {
     // TODO(victork): remove indices.
     executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    #[allow(dead_code)]
     batcher_index: usize,
     #[allow(dead_code)]
     http_server_index: usize,
+    #[allow(dead_code)]
     state_sync_index: usize,
     #[allow(dead_code)]
     consensus_manager_index: usize,
@@ -428,10 +430,8 @@ impl IntegrationTestManager {
             let batcher_logger = CustomLogger::new(
                 TraceLevel::Info,
                 Some(format!(
-                    "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
-                     executable {}.",
+                    "Waiting for batcher to reach block {expected_block_number} in sequencer {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.batcher_index,
                 )),
             );
 
@@ -441,9 +441,8 @@ impl IntegrationTestManager {
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
-                     {} executable {}.",
+                     {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.state_sync_index,
                 )),
             );
 
@@ -718,9 +717,7 @@ impl IntegrationTestManager {
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
             await_block(
                 batcher_monitoring_client,
-                node_setup.batcher_index,
                 state_sync_monitoring_client,
-                node_setup.state_sync_index,
                 expected_block_number,
                 sequencer_idx,
             )
@@ -746,14 +743,13 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.batcher_index;
             let expected_height = expected_block_number.unchecked_next();
 
             let logger = CustomLogger::new(
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for sync height metric to reach block {expected_height} in sequencer \
-                     {sequencer_idx} executable {batcher_index}.",
+                     {sequencer_idx}.",
                 )),
             );
             await_sync_block(5000, condition, 50, monitoring_client, logger).await.unwrap();
