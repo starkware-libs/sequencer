@@ -87,6 +87,7 @@ pub trait BatcherClient: Send + Sync {
     derive(IntoStaticStr, EnumIter, EnumVariantNames),
     strum(serialize_all = "snake_case")
 )]
+#[allow(clippy::large_enum_variant)]
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetProposalContent(GetProposalContentInput),

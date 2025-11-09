@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHeaderWithoutHash;
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -19,6 +20,7 @@ pub struct SyncBlock {
     pub account_transaction_hashes: Vec<TransactionHash>,
     pub l1_transaction_hashes: Vec<TransactionHash>,
     pub block_header_without_hash: BlockHeaderWithoutHash,
+    pub partial_block_hash_components: PartialBlockHashComponents,
 }
 
 impl SyncBlock {

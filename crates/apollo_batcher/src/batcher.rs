@@ -561,6 +561,7 @@ impl Batcher {
             account_transaction_hashes,
             l1_transaction_hashes,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+            partial_block_hash_components,
         } = sync_block;
 
         let height = self.get_height_from_storage()?;
@@ -577,16 +578,13 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        // TODO(Nimrod): Check if `SyncBlock` should include the partial block hash, it should be
-        // already computed. If it is, add it here.
-        let dummy_partial_block_hash = PartialBlockHashComponents::default();
         self.commit_proposal_and_block(
             height,
             state_diff,
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
-            &dummy_partial_block_hash,
+            &partial_block_hash_components,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
