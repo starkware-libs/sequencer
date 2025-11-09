@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 from typing import Optional
 
 import urllib.parse
@@ -10,7 +9,6 @@ from common_lib import (
     RestartStrategy,
     Service,
     print_colored,
-    print_error,
 )
 from metrics_lib import MetricConditionGater
 from restarter_lib import ServiceRestarter, WaitOnMetricRestarter
@@ -86,7 +84,7 @@ def enable_revert_mode(
     )
     restarter = WaitOnMetricRestarter(
         namespace_and_instruction_args,
-        Service.Mempool,
+        Service.Core,
         [
             MetricConditionGater.Metric(
                 "apollo_consensus_reverted_batcher_up_to_and_including",
@@ -165,14 +163,16 @@ Examples:
         "--disable-revert-only", action="store_true", help="Disable revert mode"
     )
 
-    args_builder.add_argument(
+    block_revert_args_group = args_builder.parser.add_mutually_exclusive_group(required=True)
+
+    block_revert_args_group.add_argument(
         "-b",
         "--revert-up-to-block",
         type=int,
         help="Block number up to which to revert (inclusive). Must be a positive integer.",
     )
 
-    args_builder.add_argument(
+    block_revert_args_group.add_argument(
         "-f",
         "--feeder-url",
         type=str,
@@ -188,41 +188,24 @@ Examples:
 
     args = args_builder.build()
 
-    should_revert = not args.disable_revert_only
-    if should_revert:
-        if args.feeder_url is None and args.revert_up_to_block is None:
-            print_error(
-                "Error: Either --feeder-url or --revert_up_to_block (-b) are required when reverting is requested."
-            )
-            sys.exit(1)
-        if args.feeder_url is not None and args.revert_up_to_block is not None:
-            print_error("Error: Cannot specify both --feeder-url and --revert_up_to_block (-b).")
-            sys.exit(1)
-
-    if args.disable_revert_only:
-        if args.feeder_url is not None:
-            print_error("Error: --feeder-url cannot be set when using --disable-revert-only")
-            sys.exit(1)
-        if args.revert_up_to_block is not None:
-            print_error("Error: --revert-up-to-block (-b) cannot be set when disabling revert.")
-            sys.exit(1)
-
     namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
     context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
 
+    should_revert = not args.disable_revert_only
     should_disable_revert = not args.revert_only
+    revert_up_to_block = (
+        args.revert_up_to_block
+        if args.revert_up_to_block is not None
+        else get_current_block_number(args.feeder_url)
+    )
     if should_revert:
-        revert_up_to_block = (
-            args.revert_up_to_block
-            if args.revert_up_to_block is not None
-            else get_current_block_number(args.feeder_url)
-        )
         enable_revert_mode(
             namespace_list,
             context_list,
             args.project_name,
             revert_up_to_block,
         )
+
     if should_disable_revert:
         disable_revert_mode(
             namespace_list,
