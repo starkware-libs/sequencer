@@ -173,16 +173,16 @@ class SequencerNodeChart(Chart):
                 monitoring_endpoint_port=monitoring_endpoint_port,
             )
 
-        # Create PodMonitoring if enabled
-        if self.service_config.podMonitoring and self.service_config.podMonitoring.enabled:
-            self.pod_monitoring = PodMonitoringConstruct(
-                self,
-                "pod-monitoring",
-                common_config=self.common_config,
-                service_config=self.service_config,
-                labels=labels,
-                monitoring_endpoint_port=monitoring_endpoint_port,
-            )
+        # Create PodMonitoring if enabled (checks both common and service config)
+        # The construct will merge common and service configs internally
+        self.pod_monitoring = PodMonitoringConstruct(
+            self,
+            "pod-monitoring",
+            common_config=self.common_config,
+            service_config=self.service_config,
+            labels=labels,
+            monitoring_endpoint_port=monitoring_endpoint_port,
+        )
 
         # Create PodDisruptionBudget if enabled
         if (
