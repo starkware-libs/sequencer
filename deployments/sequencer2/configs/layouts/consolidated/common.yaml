@@ -1,7 +1,7 @@
 imagePullSecrets: []
 
 ## Base labels to attach to all resources
-commonMetaLabels:
+metaLabels:
   app: sequencer
 
 image:

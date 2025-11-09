@@ -44,16 +44,10 @@ class ConfigMapConstruct(BaseConstruct):
         )
         node_config = node_config_loader.load()
 
-        # Merge sequencerConfig overrides: common first, then service (service overrides common)
+        # sequencerConfig is now already merged from common into service_config
         merged_sequencer_config = {}
-
-        # Apply common config sequencerConfig if provided
-        if self.common_config.config and self.common_config.config.sequencerConfig:
-            merged_sequencer_config.update(self.common_config.config.sequencerConfig)
-
-        # Apply service config sequencerConfig if provided (overrides common)
-        if self.service_config.config.sequencerConfig:
-            merged_sequencer_config.update(self.service_config.config.sequencerConfig)
+        if self.service_config.config and self.service_config.config.sequencerConfig:
+            merged_sequencer_config = self.service_config.config.sequencerConfig
 
         # Apply merged overrides
         if merged_sequencer_config:
