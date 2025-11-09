@@ -1751,7 +1751,6 @@ version = "0.16.0-rc.1"
 dependencies = [
  "alloy",
  "apollo_base_layer_tests",
- "apollo_batcher_types",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
@@ -1785,7 +1784,6 @@ version = "0.16.0-rc.1"
 dependencies = [
  "apollo_config",
  "serde",
- "starknet_api",
  "validator",
 ]
 

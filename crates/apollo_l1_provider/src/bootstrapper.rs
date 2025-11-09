@@ -39,7 +39,6 @@ impl Bootstrapper {
         l1_provider_client: SharedL1ProviderClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
-        catch_up_height: BlockNumber,
     ) -> Self {
         Self {
             sync_retry_interval,
@@ -48,7 +47,9 @@ impl Bootstrapper {
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
-            catch_up_height,
+            // This is overriden when starting the sync task (e.g., when provider starts
+            // bootstrapping).
+            catch_up_height: BlockNumber(0),
         }
     }
 
