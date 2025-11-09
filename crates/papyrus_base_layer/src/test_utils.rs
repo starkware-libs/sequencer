@@ -36,7 +36,6 @@ pub struct AnvilNodeHandle {
 }
 
 impl AnvilNodeHandle {
-    #[allow(dead_code)]
     fn new(url: Url, provider: Arc<dyn std::any::Any + Send + Sync>) -> Self {
         Self { url, _provider: provider }
     }
@@ -213,7 +212,6 @@ pub struct StateUpdateConfig {
 /// * `final_block` - Final block number to mine to after all state updates are applied.
 ///
 /// Returns the Anvil instance and the deployed contract address.
-#[allow(dead_code)]
 pub(crate) async fn get_test_anvil_node(
     state_updates: &[StateUpdateConfig],
     final_block: u64,
@@ -289,7 +287,6 @@ pub(crate) async fn get_test_anvil_node(
     (node_handle, contract_address)
 }
 
-#[allow(dead_code)]
 async fn initialize_mocked_starknet_contract(base_layer: &EthereumBaseLayerContract) {
     let init_data = InitializeData {
         programHash: U256::from(1),
@@ -313,7 +310,6 @@ async fn initialize_mocked_starknet_contract(base_layer: &EthereumBaseLayerContr
         .unwrap();
 }
 
-#[allow(dead_code)]
 async fn update_starknet_state(base_layer: &EthereumBaseLayerContract, update: MockedStateUpdate) {
     let mut output = vec![U256::from(0); STARKNET_OUTPUT_HEADER_SIZE + 2];
     output[STARKNET_OUTPUT_PREV_BLOCK_NUMBER_OFFSET] = U256::from(update.prev_block_number);
@@ -332,7 +328,6 @@ async fn update_starknet_state(base_layer: &EthereumBaseLayerContract, update: M
         .unwrap();
 }
 
-#[allow(dead_code)]
 struct MockedStateUpdate {
     new_block_number: u64,
     new_block_hash: u64,
@@ -340,15 +335,10 @@ struct MockedStateUpdate {
     prev_block_hash: u64,
 }
 
-#[allow(dead_code)]
 const STARKNET_OUTPUT_PREV_BLOCK_NUMBER_OFFSET: usize = 2;
-#[allow(dead_code)]
 const STARKNET_OUTPUT_NEW_BLOCK_NUMBER_OFFSET: usize = 3;
-#[allow(dead_code)]
 const STARKNET_OUTPUT_PREV_BLOCK_HASH_OFFSET: usize = 4;
-#[allow(dead_code)]
 const STARKNET_OUTPUT_NEW_BLOCK_HASH_OFFSET: usize = 5;
-#[allow(dead_code)]
 const STARKNET_OUTPUT_HEADER_SIZE: usize = 10;
 
 sol! {
