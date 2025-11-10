@@ -73,7 +73,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = get_latest_block_info(&state_reader)?;
+        let latest_block_info = get_latest_block_info(&state_reader).await?;
 
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
@@ -334,10 +334,11 @@ fn skip_stateful_validations(
     Ok(false)
 }
 
-pub fn get_latest_block_info(
+pub async fn get_latest_block_info(
     state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
     state_reader
         .get_block_info()
+        .await
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }
