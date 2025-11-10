@@ -102,9 +102,7 @@ pub async fn await_sync_block(
 
 pub async fn await_block(
     batcher_monitoring_client: &MonitoringClient,
-    batcher_executable_index: usize,
     state_sync_monitoring_client: &MonitoringClient,
-    state_sync_executable_index: usize,
     expected_block_number: BlockNumber,
     node_index: usize,
 ) {
@@ -116,19 +114,15 @@ pub async fn await_block(
         |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
 
     let expected_height = expected_block_number.unchecked_next();
-    let [batcher_logger, sync_logger] =
-        [("Batcher", batcher_executable_index), ("Sync", state_sync_executable_index)].map(
-            |(component_name, executable_index)| {
-                CustomLogger::new(
-                    TraceLevel::Info,
-                    Some(format!(
-                        "Waiting for {component_name} height metric to reach block \
-                         {expected_height} in sequencer {node_index} executable \
-                         {executable_index}.",
-                    )),
-                )
-            },
-        );
+    let [batcher_logger, sync_logger] = ["Batcher", "Sync"].map(|component_name| {
+        CustomLogger::new(
+            TraceLevel::Info,
+            Some(format!(
+                "Waiting for {component_name} height metric to reach block {expected_height} in \
+                 sequencer {node_index}.",
+            )),
+        )
+    });
     // TODO(noamsp): Change this so we get both values with one metrics query.
     try_join!(
         await_batcher_block(5000, condition, 50, batcher_monitoring_client, batcher_logger),
