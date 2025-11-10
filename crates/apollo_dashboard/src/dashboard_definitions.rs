@@ -1,6 +1,7 @@
 use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
 use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
+use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_l1_endpoint_monitor_types::L1_ENDPOINT_MONITOR_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
@@ -77,20 +78,21 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_mempool_p2p_row(),
             get_reverts_row(),
             get_storage_row(),
-            get_tokio_row(),
             get_component_infra_row("Batcher Infra", &BATCHER_INFRA_METRICS),
-            get_component_infra_row("State Sync Infra", &STATE_SYNC_INFRA_METRICS),
-            get_component_infra_row("Gateway Infra", &GATEWAY_INFRA_METRICS),
-            get_component_infra_row("Mempool Infra", &MEMPOOL_INFRA_METRICS),
-            get_component_infra_row("Mempool P2P Infra", &MEMPOOL_P2P_INFRA_METRICS),
-            get_component_infra_row("L1 Provider Infra", &L1_PROVIDER_INFRA_METRICS),
-            get_component_infra_row("L1 Gas Price Infra", &L1_GAS_PRICE_INFRA_METRICS),
             get_component_infra_row("Class Manager Infra", &CLASS_MANAGER_INFRA_METRICS),
-            get_component_infra_row("Sierra Compiler Infra", &SIERRA_COMPILER_INFRA_METRICS),
+            get_component_infra_row("Config Manager Infra", &CONFIG_MANAGER_INFRA_METRICS),
+            get_component_infra_row("Gateway Infra", &GATEWAY_INFRA_METRICS),
             get_component_infra_row(
                 "L1 Endpoint Monitor Infra",
                 &L1_ENDPOINT_MONITOR_INFRA_METRICS,
             ),
+            get_component_infra_row("L1 Gas Price Infra", &L1_GAS_PRICE_INFRA_METRICS),
+            get_component_infra_row("L1 Provider Infra", &L1_PROVIDER_INFRA_METRICS),
+            get_component_infra_row("Mempool Infra", &MEMPOOL_INFRA_METRICS),
+            get_component_infra_row("Mempool P2P Infra", &MEMPOOL_P2P_INFRA_METRICS),
+            get_component_infra_row("Sierra Compiler Infra", &SIERRA_COMPILER_INFRA_METRICS),
+            get_component_infra_row("State Sync Infra", &STATE_SYNC_INFRA_METRICS),
+            get_tokio_row(),
             get_pod_metrics_row(),
         ],
     )
