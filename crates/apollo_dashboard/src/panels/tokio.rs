@@ -11,6 +11,7 @@ use apollo_monitoring_endpoint::tokio_metrics::{
 
 use crate::dashboard::{Panel, PanelType, Row};
 
+// TODO(Matan/Tsabary): Use units for Tokio panels.
 const TOKIO_PANEL_LEGENDS: &[&str] = &["{{pod}}"];
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {

@@ -239,14 +239,9 @@ async fn l1_provider_snapshot() {
     assert_eq!(response.status(), StatusCode::OK);
     let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
 
-    let expected_json = to_value(expected_l1_provider_snapshot()).expect(
-        "Failed to serialize
-L1ProviderSnapshot",
-    );
-    let received_json: Value = from_slice(&body_bytes).expect(
-        "Failed to
-parse JSON string",
-    );
+    let expected_json =
+        to_value(expected_l1_provider_snapshot()).expect("Failed to serialize L1ProviderSnapshot");
+    let received_json: Value = from_slice(&body_bytes).expect("Failed to parse JSON string");
 
     assert_eq!(expected_json, received_json);
 }
