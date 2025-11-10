@@ -1,3 +1,5 @@
+#[cfg(feature = "aerospike_storage")]
+pub mod aerospike_storage;
 pub mod db_object;
 pub mod errors;
 pub mod map_storage;
