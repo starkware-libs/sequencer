@@ -1121,6 +1121,66 @@
       ],
       "collapsed": true
     },
+    "MempoolP2p": {
+      "panels": [
+        {
+          "title": "apollo_mempool_p2p_num_connected_peers",
+          "description": "The number of connected peers to the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_mempool_p2p_num_sent_messages",
+          "description": "The number of messages sent by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_mempool_p2p_num_received_messages",
+          "description": "The number of messages received by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Mempool P2p Broadcasted Transaction Batch Size",
+          "description": "The number of transactions in batches broadcast by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_mempool_p2p_network_events",
+          "description": "Network events counter by event type for mempool p2p",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (event_type) (apollo_mempool_p2p_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "apollo_mempool_p2p_num_dropped_messages",
+          "description": "The number of messages dropped by the mempool p2p component",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
     "Reverts": {
       "panels": [
         {
@@ -1138,38 +1198,6 @@
           "type": "stat",
           "exprs": [
             "apollo_state_sync_reverted_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        }
-      ],
-      "collapsed": true
-    },
-    "StateSyncP2p": {
-      "panels": [
-        {
-          "title": "apollo_p2p_sync_num_connected_peers",
-          "description": "The number of connected peers to the p2p sync component",
-          "type": "stat",
-          "exprs": [
-            "apollo_p2p_sync_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_p2p_sync_num_active_inbound_sessions",
-          "description": "The number of inbound sessions to the p2p sync component",
-          "type": "stat",
-          "exprs": [
-            "apollo_p2p_sync_num_active_inbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_p2p_sync_num_active_outbound_sessions",
-          "description": "The number of outbound sessions to the p2p sync component",
-          "type": "stat",
-          "exprs": [
-            "apollo_p2p_sync_num_active_outbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         }
@@ -1226,66 +1254,6 @@
           "type": "timeseries",
           "exprs": [
             "class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        }
-      ],
-      "collapsed": true
-    },
-    "MempoolP2p": {
-      "panels": [
-        {
-          "title": "apollo_mempool_p2p_num_connected_peers",
-          "description": "The number of connected peers to the mempool p2p component",
-          "type": "timeseries",
-          "exprs": [
-            "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_mempool_p2p_num_sent_messages",
-          "description": "The number of messages sent by the mempool p2p component",
-          "type": "timeseries",
-          "exprs": [
-            "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_mempool_p2p_num_received_messages",
-          "description": "The number of messages received by the mempool p2p component",
-          "type": "timeseries",
-          "exprs": [
-            "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Mempool P2p Broadcasted Transaction Batch Size",
-          "description": "The number of transactions in batches broadcast by the mempool p2p component",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_mempool_p2p_network_events",
-          "description": "Network events counter by event type for mempool p2p",
-          "type": "timeseries",
-          "exprs": [
-            "sum by (event_type) (apollo_mempool_p2p_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "apollo_mempool_p2p_num_dropped_messages",
-          "description": "The number of messages dropped by the mempool p2p component",
-          "type": "timeseries",
-          "exprs": [
-            "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"})"
           ],
           "extra_params": {}
         }
