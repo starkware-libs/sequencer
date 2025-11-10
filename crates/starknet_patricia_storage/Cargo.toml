@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Library for storage traits and serde for Patricia-Merkle tree commitment types."
 
 [features]
+aerospike_storage = ["aerospike"]
 mdbx_storage = ["libmdbx", "page_size"]
 rocksdb_storage = ["rust-rocksdb"]
 short_key_storage = ["blake2", "digest"]
@@ -16,6 +17,7 @@ testing = []
 workspace = true
 
 [dependencies]
+aerospike = { workspace = true, optional = true, features = ["rt-tokio", "sync"] }
 blake2 = { workspace = true, optional = true }
 digest = { workspace = true, optional = true }
 hex.workspace = true
