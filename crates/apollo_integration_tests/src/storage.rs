@@ -21,7 +21,7 @@ pub struct StorageExecutablePaths {
 
 impl StorageExecutablePaths {
     pub fn new(db_base: &Path, node_index: usize) -> Self {
-        let node_index = NodeExecutionId::new(node_index, 0);
+        let node_index = NodeExecutionId::new(node_index);
 
         let path = node_index.build_path(db_base);
 
@@ -74,11 +74,7 @@ impl CustomPaths {
     }
 
     pub fn get_config_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
-        self.config_base.as_ref().map(|p| {
-            node_execution_id
-                .build_path(p)
-                .join(format!("executable_{}", node_execution_id.get_executable_index()))
-        })
+        self.config_base.as_ref().map(|p| node_execution_id.build_path(p))
     }
 
     pub fn get_data_prefix_path(&self) -> Option<&PathBuf> {

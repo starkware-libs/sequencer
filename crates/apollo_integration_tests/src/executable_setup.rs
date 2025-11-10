@@ -15,18 +15,14 @@ const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_change
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
     node_index: usize,
-    executable_index: usize,
 }
 
 impl NodeExecutionId {
-    pub fn new(node_index: usize, executable_index: usize) -> Self {
-        Self { node_index, executable_index }
+    pub fn new(node_index: usize) -> Self {
+        Self { node_index }
     }
     pub fn get_node_index(&self) -> usize {
         self.node_index
-    }
-    pub fn get_executable_index(&self) -> usize {
-        self.executable_index
     }
 
     pub fn build_path(&self, base: &Path) -> PathBuf {
