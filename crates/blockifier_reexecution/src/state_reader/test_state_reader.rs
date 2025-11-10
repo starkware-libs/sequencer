@@ -7,18 +7,29 @@ use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesPara
 use apollo_gateway::rpc_state_reader::RpcStateReader;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
+};
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
+use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
-use serde_json::{json, to_value};
+use serde_json::{json, to_value, Value};
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -29,7 +40,12 @@ use starknet_api::block::{
 };
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{
+    Transaction,
+    TransactionHash,
+    TransactionHasher,
+    TransactionVersion,
+};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -149,6 +165,74 @@ impl StateReader for TestStateReader {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.rpc_state_reader.get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for TestStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class =
+            retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
+
+        match contract_class {
+            StarknetContractClass::Sierra(flattened_sierra) => {
+                // Convert FlattenedSierraClass to cairo_lang ContractClass, then to
+                // SierraContractClass
+                let middle_sierra: crate::state_reader::compile::MiddleSierraContractClass = {
+                    let v = serde_json::to_value(flattened_sierra.clone())
+                        .map_err(serde_err_to_state_err)?;
+                    serde_json::from_value(v).map_err(serde_err_to_state_err)?
+                };
+                let cairo_lang_sierra =
+                    cairo_lang_starknet_classes::contract_class::ContractClass {
+                        sierra_program: middle_sierra.sierra_program,
+                        contract_class_version: middle_sierra.contract_class_version,
+                        entry_points_by_type: middle_sierra.entry_points_by_type,
+                        sierra_program_debug_info: None,
+                        abi: None,
+                    };
+                let sierra_contract_class =
+                    starknet_api::state::SierraContractClass::from(cairo_lang_sierra);
+
+                // Compile to CASM
+                let (casm_contract_class, _sierra_version) =
+                    sierra_to_versioned_contract_class_v1(flattened_sierra)?;
+                let compiled_v1 = match casm_contract_class {
+                    starknet_api::contract_class::ContractClass::V1(versioned_casm) => {
+                        CompiledClassV1::try_from(versioned_casm)?
+                    }
+                    _ => {
+                        return Err(StateError::StateReadError(
+                            "Expected V1 contract class".to_string(),
+                        ));
+                    }
+                };
+
+                Ok(CompiledClasses::V1(compiled_v1, Arc::new(sierra_contract_class)))
+            }
+            StarknetContractClass::Legacy(legacy) => {
+                let contract_class_v0 = legacy_to_contract_class_v0(legacy)?;
+                let compiled_v0 = match contract_class_v0 {
+                    starknet_api::contract_class::ContractClass::V0(deprecated) => {
+                        CompiledClassV0::try_from(deprecated)?
+                    }
+                    _ => {
+                        return Err(StateError::StateReadError(
+                            "Expected V0 contract class".to_string(),
+                        ));
+                    }
+                };
+                Ok(CompiledClasses::V0(compiled_v0))
+            }
+        }
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        match self.get_contract_class(&class_hash) {
+            Ok(StarknetContractClass::Sierra(_)) => Ok(true),
+            Ok(StarknetContractClass::Legacy(_)) => Ok(false), // Legacy classes are not declared
+            Err(StateError::UndeclaredClassHash(_)) => Ok(false),
+            Err(e) => Err(e),
+        }
     }
 }
 
@@ -278,14 +362,23 @@ impl TestStateReader {
         self,
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
         let old_block_number = BlockNumber(
             block_context_next_block.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         );
         let old_block_hash = self.get_old_block_hash(old_block_number)?;
-        Ok(TransactionExecutor::<TestStateReader>::pre_process_and_create(
-            self,
+        let mut config = ContractClassManagerConfig::default();
+        // Ensure run_cairo_native is true when wait_on_native_compilation is true
+        config.cairo_native_run_config.run_cairo_native = false;
+        config.cairo_native_run_config.wait_on_native_compilation = false;
+        let initial_state_reader = StateReaderAndContractManager {
+            state_reader: self,
+            contract_class_manager: ContractClassManager::start(config),
+        };
+        Ok(TransactionExecutor::<StateReaderAndContractManager<TestStateReader>>::pre_process_and_create(
+            initial_state_reader,
             block_context_next_block,
             Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
             transaction_executor_config.unwrap_or_default(),
@@ -451,12 +544,15 @@ impl ConsecutiveTestStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<TestStateReader>>
+    for ConsecutiveTestStateReaders
+{
     #[allow(clippy::result_large_err)]
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<TestStateReader>>>
+    {
         self.last_block_state_reader.get_transaction_executor(
             self.next_block_state_reader.get_block_context()?,
             transaction_executor_config,
@@ -465,9 +561,77 @@ impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStat
 
     #[allow(clippy::result_large_err)]
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
-        self.next_block_state_reader.api_txs_to_blockifier_txs_next_block(
-            self.next_block_state_reader.get_all_txs_in_block()?,
-        )
+        // self.next_block_state_reader.api_txs_to_blockifier_txs_next_block(
+        //     self.next_block_state_reader.get_all_txs_in_block()?,
+        // )
+        let json_data: Value = serde_json::json!({
+            "type": "INVOKE",
+            "version": "0x3",
+            "sender_address": "0x59b1a0c489b635d7c7f43594d187362ddd2dcea6c82db4eef2579fd185b3753",
+            "calldata": [
+                "0x1",
+                "0x759585c5f69cefd47e7e9c1d996060c31341d21bed9d3542644dadc7213a786",
+                "0x9421c72b2b80057019f220774faaaec292d3f9487e832f9b2521871b6c30a6",
+                "0x3",
+                "0x233dcec2c076248704b3dfda04e697ed4bc600be123cefd04283739df495e3f",
+                "0x1",
+                "0x6b36de70"
+            ],
+            "signature": [
+                "0x54ce71470e6359f80f3dfba888eeeccf330a0d7f55d71e58773e749abadfcfd",
+                "0x4d46221ef77a8496e80c3c57bbc43ff0564df2c941856a159e1649aa3e8d92d"
+            ],
+            "nonce": "0x802",
+            "resource_bounds": {
+                "l1_gas": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x236eb4f883d4"
+                },
+                "l1_data_gas": {
+                    "max_amount": "0x1980",
+                    "max_price_per_unit": "0x982e"
+                },
+                "l2_gas": {
+                    "max_amount": "0x3920235",
+                    "max_price_per_unit": "0x10c388d00"
+                }
+            },
+            "tip": "0x5f5e100",
+            "paymaster_data": [],
+            "account_deployment_data": [],
+            "nonce_data_availability_mode": "L1",
+            "fee_data_availability_mode": "L1"
+        });
+
+        let transaction = deserialize_transaction_json_to_starknet_api_tx(json_data)?;
+        let Transaction::Invoke(invoke_tx) = transaction else {
+            return Err(
+                StateError::StateReadError("Expected INVOKE transaction".to_string()).into()
+            );
+        };
+
+        // Calculate transaction hash
+        let chain_id = self.next_block_state_reader.chain_id.clone();
+        let transaction_version = TransactionVersion::THREE;
+        let tx_hash = invoke_tx.calculate_transaction_hash(&chain_id, &transaction_version)?;
+
+        // Create BlockifierTransaction with skip fee charge
+        let execution_flags = ExecutionFlags {
+            only_query: false,
+            charge_fee: false,
+            validate: true,
+            strict_nonce_check: true,
+        };
+        let blockifier_tx = BlockifierTransaction::from_api(
+            Transaction::Invoke(invoke_tx),
+            tx_hash,
+            None,
+            None,
+            None,
+            execution_flags,
+        )?;
+
+        Ok(vec![blockifier_tx])
     }
 
     #[allow(clippy::result_large_err)]

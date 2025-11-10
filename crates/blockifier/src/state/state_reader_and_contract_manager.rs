@@ -105,3 +105,12 @@ impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
         self.state_reader.get_compiled_class_hash(class_hash)
     }
 }
+
+impl<S: FetchCompiledClasses + Clone> Clone for StateReaderAndContractManager<S> {
+    fn clone(&self) -> Self {
+        Self {
+            state_reader: self.state_reader.clone(),
+            contract_class_manager: self.contract_class_manager.clone(),
+        }
+    }
+}
