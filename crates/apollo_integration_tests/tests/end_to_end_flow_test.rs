@@ -64,7 +64,8 @@ fn create_l1_to_l2_message_args(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<L1HandlerTransaction> {
     const N_TXS: usize = 1;
-    create_l1_to_l2_messages_args(tx_generator, N_TXS)
+    const SHOULD_REVERT: bool = false;
+    create_l1_to_l2_messages_args(tx_generator, N_TXS, SHOULD_REVERT)
 }
 
 fn create_multiple_account_txs(
