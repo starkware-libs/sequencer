@@ -54,7 +54,10 @@ impl Serialize for Dashboard {
         let mut map = serializer.serialize_map(Some(1))?;
         let mut row_map = IndexMap::new();
         for row in &self.rows {
-            row_map.insert(row.name, RowValue { panels: &row.panels, collapsed: row.collapsed });
+            row_map.insert(
+                row.name.clone(),
+                RowValue { panels: &row.panels, collapsed: row.collapsed },
+            );
         }
 
         map.serialize_entry(self.name, &row_map)?;
@@ -548,14 +551,14 @@ impl Serialize for Panel {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Row {
-    name: &'static str,
+    name: String,
     panels: Vec<Panel>,
     collapsed: bool,
 }
 
 impl Row {
-    pub(crate) const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
-        Self { name, panels, collapsed: true }
+    pub(crate) fn new(name: impl ToString, panels: Vec<Panel>) -> Self {
+        Self { name: name.to_string(), panels, collapsed: true }
     }
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn expand(mut self) -> Self {
@@ -571,7 +574,7 @@ impl Serialize for Row {
         S: Serializer,
     {
         let mut map = serializer.serialize_map(Some(1))?;
-        map.serialize_entry(self.name, &self.panels)?;
+        map.serialize_entry(&self.name, &self.panels)?;
         map.end()
     }
 }
@@ -623,7 +626,7 @@ fn get_infra_server_panels(
     get_request_type_panels(&labeled_metrics, "server")
 }
 
-pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
+pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMetrics) -> Row {
     let labeled_client_panels = get_infra_client_panels(
         metrics.get_local_client_metrics(),
         metrics.get_remote_client_metrics(),
@@ -641,7 +644,8 @@ pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMet
     panels.extend(labeled_client_panels);
     panels.extend(labeled_server_panels);
 
-    Row::new(row_name, panels)
+    row_name.to_string().push_str(" Infra");
+    Row::new(row_name.to_string(), panels)
 }
 
 /// Returns a PromQL expression that calculates the time since the last increase of the given
