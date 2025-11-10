@@ -82,6 +82,7 @@ pub mod body;
 pub mod class;
 pub mod class_hash;
 pub mod class_manager;
+pub mod commitment_marker;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
@@ -753,6 +754,7 @@ pub(crate) enum MarkerKind {
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
+    BlockHash,
 }
 
 pub(crate) type MarkersTable<'env> =
