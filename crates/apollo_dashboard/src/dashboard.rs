@@ -80,6 +80,7 @@ pub enum Unit {
     // The expected values for PercentUnit are [0,1]
     PercentUnit,
     MB,
+    Microseconds,
 }
 
 impl Unit {
@@ -89,6 +90,7 @@ impl Unit {
             Unit::Seconds => "s",
             Unit::PercentUnit => "percentunit",
             Unit::MB => "decmbytes",
+            Unit::Microseconds => "µs",
         }
     }
 }

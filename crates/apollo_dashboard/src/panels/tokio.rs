@@ -9,7 +9,7 @@ use apollo_monitoring_endpoint::tokio_metrics::{
     TOKIO_WORKERS_COUNT,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 // TODO(Matan/Tsabary): Use units for Tokio panels.
 const TOKIO_PANEL_LEGENDS: &[&str] = &["{{pod}}"];
@@ -17,14 +17,17 @@ const TOKIO_PANEL_LEGENDS: &[&str] = &["{{pod}}"];
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_TOTAL_BUSY_DURATION_MICROS, PanelType::TimeSeries)
         .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+        .with_unit(Unit::Microseconds)
 }
 fn get_panel_tokio_min_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_MIN_BUSY_DURATION_MICROS, PanelType::TimeSeries)
         .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+        .with_unit(Unit::Microseconds)
 }
 fn get_panel_tokio_max_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_MAX_BUSY_DURATION_MICROS, PanelType::TimeSeries)
         .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+        .with_unit(Unit::Microseconds)
 }
 
 fn get_panel_tokio_total_park_count() -> Panel {
