@@ -725,7 +725,7 @@
           "extra_params": {}
         },
         {
-          "title": "Transaction Time Spent in Mempool Until Batched",
+          "title": "Transaction Time Spent In Mempool Until Batched",
           "description": "The time a transaction spends in the mempool until it is batched (5m window)",
           "type": "timeseries",
           "exprs": [
@@ -737,7 +737,7 @@
           }
         },
         {
-          "title": "Transaction Time Spent in Mempool Until Committed",
+          "title": "Transaction Time Spent In Mempool Until Committed",
           "description": "The time a transaction spends in the mempool until it is committed (5m window)",
           "type": "timeseries",
           "exprs": [
@@ -943,7 +943,7 @@
           }
         },
         {
-          "title": "native_compilation_error",
+          "title": "Native Compilation Error",
           "description": "Counter of Native compilation failures in the blockifier",
           "type": "stat",
           "exprs": [
@@ -996,7 +996,7 @@
     "Class Manager": {
       "panels": [
         {
-          "title": "Compile to Casm Compilation Duration",
+          "title": "Compile To Casm Compilation Duration",
           "description": "Server-side compilation of Sierra to Casm duration",
           "type": "timeseries",
           "exprs": [
@@ -1124,7 +1124,7 @@
     "MempoolP2p": {
       "panels": [
         {
-          "title": "apollo_mempool_p2p_num_connected_peers",
+          "title": "Apollo Mempool P2p Num Connected Peers",
           "description": "The number of connected peers to the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1133,7 +1133,7 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_mempool_p2p_num_sent_messages",
+          "title": "Apollo Mempool P2p Num Sent Messages",
           "description": "The number of messages sent by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1142,7 +1142,7 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_mempool_p2p_num_received_messages",
+          "title": "Apollo Mempool P2p Num Received Messages",
           "description": "The number of messages received by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1184,7 +1184,7 @@
     "Reverts": {
       "panels": [
         {
-          "title": "apollo_consensus_reverted_batcher_up_to_and_including",
+          "title": "Apollo Consensus Reverted Batcher Up To And Including",
           "description": "The block number up to which the batcher has reverted",
           "type": "stat",
           "exprs": [
@@ -1193,7 +1193,7 @@
           "extra_params": {}
         },
         {
-          "title": "apollo_state_sync_reverted_up_to_and_including",
+          "title": "Apollo State Sync Reverted Up To And Including",
           "description": "The block number up to which the state sync has reverted",
           "type": "stat",
           "exprs": [
@@ -1231,7 +1231,7 @@
           }
         },
         {
-          "title": "sync_storage_open_read_transactions",
+          "title": "Sync Storage Open Read Transactions",
           "description": "The number of open sync  read transactions",
           "type": "timeseries",
           "exprs": [
@@ -1240,7 +1240,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_storage_open_read_transactions",
+          "title": "Batcher Storage Open Read Transactions",
           "description": "The number of open batcher read transactions",
           "type": "timeseries",
           "exprs": [
@@ -1249,7 +1249,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_storage_open_read_transactions",
+          "title": "Class Manager Storage Open Read Transactions",
           "description": "The number of open class manager read transactions",
           "type": "timeseries",
           "exprs": [
@@ -1263,7 +1263,7 @@
     "Tokio Runtime Metrics": {
       "panels": [
         {
-          "title": "tokio_total_busy_duration",
+          "title": "Tokio Total Busy Duration",
           "description": "The amount of time worker threads were busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -1276,7 +1276,7 @@
           }
         },
         {
-          "title": "tokio_min_busy_duration",
+          "title": "Tokio Min Busy Duration",
           "description": "The minimum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -1289,7 +1289,7 @@
           }
         },
         {
-          "title": "tokio_max_busy_duration",
+          "title": "Tokio Max Busy Duration",
           "description": "The maximum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -1302,7 +1302,7 @@
           }
         },
         {
-          "title": "tokio_total_park_count",
+          "title": "Tokio Total Park Count",
           "description": "The number of times worker threads parked",
           "type": "timeseries",
           "exprs": [
@@ -1315,7 +1315,7 @@
           }
         },
         {
-          "title": "tokio_min_park_count",
+          "title": "Tokio Min Park Count",
           "description": "The minimum number of times any worker thread parked",
           "type": "timeseries",
           "exprs": [
@@ -1328,7 +1328,7 @@
           }
         },
         {
-          "title": "tokio_max_park_count",
+          "title": "Tokio Max Park Count",
           "description": "The maximum number of times any worker thread parked",
           "type": "timeseries",
           "exprs": [
@@ -1341,7 +1341,7 @@
           }
         },
         {
-          "title": "tokio_global_queue_depth",
+          "title": "Tokio Global Queue Depth",
           "description": "The number of tasks currently scheduled in the runtime's global queue",
           "type": "timeseries",
           "exprs": [
@@ -1354,7 +1354,7 @@
           }
         },
         {
-          "title": "tokio_workers_count",
+          "title": "Tokio Workers Count",
           "description": "The number of worker threads used by the runtime",
           "type": "timeseries",
           "exprs": [
@@ -1372,7 +1372,7 @@
     "Batcher Infra": {
       "panels": [
         {
-          "title": "batcher_remote_client_send_attempts",
+          "title": "Batcher Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a batcher remote client",
           "type": "timeseries",
           "exprs": [
@@ -1382,7 +1382,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_local_msgs_received",
+          "title": "Batcher Local Msgs Received",
           "description": "Counter of messages received by batcher local server",
           "type": "timeseries",
           "exprs": [
@@ -1391,7 +1391,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_local_msgs_processed",
+          "title": "Batcher Local Msgs Processed",
           "description": "Counter of messages processed by batcher local server",
           "type": "timeseries",
           "exprs": [
@@ -1410,7 +1410,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_remote_msgs_received",
+          "title": "Batcher Remote Msgs Received",
           "description": "Counter of messages received by batcher remote server",
           "type": "timeseries",
           "exprs": [
@@ -1419,7 +1419,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_remote_valid_msgs_received",
+          "title": "Batcher Remote Valid Msgs Received",
           "description": "Counter of valid messages received by batcher remote server",
           "type": "timeseries",
           "exprs": [
@@ -1428,7 +1428,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_remote_msgs_processed",
+          "title": "Batcher Remote Msgs Processed",
           "description": "Counter of messages processed by batcher remote server",
           "type": "timeseries",
           "exprs": [
@@ -1437,7 +1437,7 @@
           "extra_params": {}
         },
         {
-          "title": "batcher_remote_number_of_connections",
+          "title": "Batcher Remote Number Of Connections",
           "description": "Number of connections to batcher remote server",
           "type": "timeseries",
           "exprs": [
@@ -1685,7 +1685,7 @@
     "State Sync Infra": {
       "panels": [
         {
-          "title": "state_sync_remote_client_send_attempts",
+          "title": "State Sync Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a state_sync remote client",
           "type": "timeseries",
           "exprs": [
@@ -1695,7 +1695,7 @@
           "extra_params": {}
         },
         {
-          "title": "state_sync_local_msgs_received",
+          "title": "State Sync Local Msgs Received",
           "description": "Counter of messages received by state_sync local server",
           "type": "timeseries",
           "exprs": [
@@ -1704,7 +1704,7 @@
           "extra_params": {}
         },
         {
-          "title": "state_sync_local_msgs_processed",
+          "title": "State Sync Local Msgs Processed",
           "description": "Counter of messages processed by state_sync local server",
           "type": "timeseries",
           "exprs": [
@@ -1723,7 +1723,7 @@
           "extra_params": {}
         },
         {
-          "title": "state_sync_remote_msgs_received",
+          "title": "State Sync Remote Msgs Received",
           "description": "Counter of messages received by state_sync remote server",
           "type": "timeseries",
           "exprs": [
@@ -1732,7 +1732,7 @@
           "extra_params": {}
         },
         {
-          "title": "state_sync_remote_valid_msgs_received",
+          "title": "State Sync Remote Valid Msgs Received",
           "description": "Counter of valid messages received by state_sync remote server",
           "type": "timeseries",
           "exprs": [
@@ -1741,7 +1741,7 @@
           "extra_params": {}
         },
         {
-          "title": "state_sync_remote_msgs_processed",
+          "title": "State Sync Remote Msgs Processed",
           "description": "Counter of messages processed by state_sync remote server",
           "type": "timeseries",
           "exprs": [
@@ -1750,7 +1750,7 @@
           "extra_params": {}
         },
         {
-          "title": "state_sync_remote_number_of_connections",
+          "title": "State Sync Remote Number Of Connections",
           "description": "Number of connections to state_sync remote server",
           "type": "timeseries",
           "exprs": [
@@ -1972,7 +1972,7 @@
     "Gateway Infra": {
       "panels": [
         {
-          "title": "gateway_remote_client_send_attempts",
+          "title": "Gateway Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a gateway remote client",
           "type": "timeseries",
           "exprs": [
@@ -1982,7 +1982,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_local_msgs_received",
+          "title": "Gateway Local Msgs Received",
           "description": "Counter of messages received by gateway local server",
           "type": "timeseries",
           "exprs": [
@@ -1991,7 +1991,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_local_msgs_processed",
+          "title": "Gateway Local Msgs Processed",
           "description": "Counter of messages processed by gateway local server",
           "type": "timeseries",
           "exprs": [
@@ -2010,7 +2010,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_remote_msgs_received",
+          "title": "Gateway Remote Msgs Received",
           "description": "Counter of messages received by gateway remote server",
           "type": "timeseries",
           "exprs": [
@@ -2019,7 +2019,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_remote_valid_msgs_received",
+          "title": "Gateway Remote Valid Msgs Received",
           "description": "Counter of valid messages received by gateway remote server",
           "type": "timeseries",
           "exprs": [
@@ -2028,7 +2028,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_remote_msgs_processed",
+          "title": "Gateway Remote Msgs Processed",
           "description": "Counter of messages processed by gateway remote server",
           "type": "timeseries",
           "exprs": [
@@ -2037,7 +2037,7 @@
           "extra_params": {}
         },
         {
-          "title": "gateway_remote_number_of_connections",
+          "title": "Gateway Remote Number Of Connections",
           "description": "Number of connections to gateway remote server",
           "type": "timeseries",
           "exprs": [
@@ -2077,7 +2077,7 @@
     "Mempool Infra": {
       "panels": [
         {
-          "title": "mempool_remote_client_send_attempts",
+          "title": "Mempool Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a mempool remote client",
           "type": "timeseries",
           "exprs": [
@@ -2087,7 +2087,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_local_msgs_received",
+          "title": "Mempool Local Msgs Received",
           "description": "Counter of messages received by mempool local server",
           "type": "timeseries",
           "exprs": [
@@ -2096,7 +2096,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_local_msgs_processed",
+          "title": "Mempool Local Msgs Processed",
           "description": "Counter of messages processed by mempool local server",
           "type": "timeseries",
           "exprs": [
@@ -2115,7 +2115,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_remote_msgs_received",
+          "title": "Mempool Remote Msgs Received",
           "description": "Counter of messages received by mempool remote server",
           "type": "timeseries",
           "exprs": [
@@ -2124,7 +2124,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_remote_valid_msgs_received",
+          "title": "Mempool Remote Valid Msgs Received",
           "description": "Counter of valid messages received by mempool remote server",
           "type": "timeseries",
           "exprs": [
@@ -2133,7 +2133,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_remote_msgs_processed",
+          "title": "Mempool Remote Msgs Processed",
           "description": "Counter of messages processed by mempool remote server",
           "type": "timeseries",
           "exprs": [
@@ -2142,7 +2142,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_remote_number_of_connections",
+          "title": "Mempool Remote Number Of Connections",
           "description": "Number of connections to mempool remote server",
           "type": "timeseries",
           "exprs": [
@@ -2312,7 +2312,7 @@
     "Mempool P2P Infra": {
       "panels": [
         {
-          "title": "mempool_p2p_remote_client_send_attempts",
+          "title": "Mempool P2p Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a mempool_p2p remote client",
           "type": "timeseries",
           "exprs": [
@@ -2322,7 +2322,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_p2p_local_msgs_received",
+          "title": "Mempool P2p Local Msgs Received",
           "description": "Counter of messages received by mempool_p2p local server",
           "type": "timeseries",
           "exprs": [
@@ -2331,7 +2331,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_p2p_local_msgs_processed",
+          "title": "Mempool P2p Local Msgs Processed",
           "description": "Counter of messages processed by mempool_p2p local server",
           "type": "timeseries",
           "exprs": [
@@ -2350,7 +2350,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_p2p_remote_msgs_received",
+          "title": "Mempool P2p Remote Msgs Received",
           "description": "Counter of messages received by mempool_p2p remote server",
           "type": "timeseries",
           "exprs": [
@@ -2359,7 +2359,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_p2p_remote_valid_msgs_received",
+          "title": "Mempool P2p Remote Valid Msgs Received",
           "description": "Counter of valid messages received by mempool_p2p remote server",
           "type": "timeseries",
           "exprs": [
@@ -2368,7 +2368,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_p2p_remote_msgs_processed",
+          "title": "Mempool P2p Remote Msgs Processed",
           "description": "Counter of messages processed by mempool_p2p remote server",
           "type": "timeseries",
           "exprs": [
@@ -2377,7 +2377,7 @@
           "extra_params": {}
         },
         {
-          "title": "mempool_p2p_remote_number_of_connections",
+          "title": "Mempool P2p Remote Number Of Connections",
           "description": "Number of connections to mempool_p2p remote server",
           "type": "timeseries",
           "exprs": [
@@ -2469,7 +2469,7 @@
     "L1 Provider Infra": {
       "panels": [
         {
-          "title": "l1_provider_remote_client_send_attempts",
+          "title": "L1 Provider Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a l1_provider remote client",
           "type": "timeseries",
           "exprs": [
@@ -2479,7 +2479,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_provider_local_msgs_received",
+          "title": "L1 Provider Local Msgs Received",
           "description": "Counter of messages received by l1_provider local server",
           "type": "timeseries",
           "exprs": [
@@ -2488,7 +2488,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_provider_local_msgs_processed",
+          "title": "L1 Provider Local Msgs Processed",
           "description": "Counter of messages processed by l1_provider local server",
           "type": "timeseries",
           "exprs": [
@@ -2507,7 +2507,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_provider_remote_msgs_received",
+          "title": "L1 Provider Remote Msgs Received",
           "description": "Counter of messages received by l1_provider remote server",
           "type": "timeseries",
           "exprs": [
@@ -2516,7 +2516,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_provider_remote_valid_msgs_received",
+          "title": "L1 Provider Remote Valid Msgs Received",
           "description": "Counter of valid messages received by l1_provider remote server",
           "type": "timeseries",
           "exprs": [
@@ -2525,7 +2525,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_provider_remote_msgs_processed",
+          "title": "L1 Provider Remote Msgs Processed",
           "description": "Counter of messages processed by l1_provider remote server",
           "type": "timeseries",
           "exprs": [
@@ -2534,7 +2534,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_provider_remote_number_of_connections",
+          "title": "L1 Provider Remote Number Of Connections",
           "description": "Number of connections to l1_provider remote server",
           "type": "timeseries",
           "exprs": [
@@ -2730,7 +2730,7 @@
     "L1 Gas Price Infra": {
       "panels": [
         {
-          "title": "l1_gas_price_remote_client_send_attempts",
+          "title": "L1 Gas Price Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a l1_gas_price remote client",
           "type": "timeseries",
           "exprs": [
@@ -2740,7 +2740,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_local_msgs_received",
+          "title": "L1 Gas Price Local Msgs Received",
           "description": "Counter of messages received by l1_gas_price local server",
           "type": "timeseries",
           "exprs": [
@@ -2749,7 +2749,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_local_msgs_processed",
+          "title": "L1 Gas Price Local Msgs Processed",
           "description": "Counter of messages processed by l1_gas_price local server",
           "type": "timeseries",
           "exprs": [
@@ -2768,7 +2768,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_remote_msgs_received",
+          "title": "L1 Gas Price Remote Msgs Received",
           "description": "Counter of messages received by l1_gas_price remote server",
           "type": "timeseries",
           "exprs": [
@@ -2777,7 +2777,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_remote_valid_msgs_received",
+          "title": "L1 Gas Price Remote Valid Msgs Received",
           "description": "Counter of valid messages received by l1_gas_price remote server",
           "type": "timeseries",
           "exprs": [
@@ -2786,7 +2786,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_remote_msgs_processed",
+          "title": "L1 Gas Price Remote Msgs Processed",
           "description": "Counter of messages processed by l1_gas_price remote server",
           "type": "timeseries",
           "exprs": [
@@ -2795,7 +2795,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_gas_price_remote_number_of_connections",
+          "title": "L1 Gas Price Remote Number Of Connections",
           "description": "Number of connections to l1_gas_price remote server",
           "type": "timeseries",
           "exprs": [
@@ -2913,7 +2913,7 @@
     "Class Manager Infra": {
       "panels": [
         {
-          "title": "class_manager_remote_client_send_attempts",
+          "title": "Class Manager Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a class_manager remote client",
           "type": "timeseries",
           "exprs": [
@@ -2923,7 +2923,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_local_msgs_received",
+          "title": "Class Manager Local Msgs Received",
           "description": "Counter of messages received by class_manager local server",
           "type": "timeseries",
           "exprs": [
@@ -2932,7 +2932,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_local_msgs_processed",
+          "title": "Class Manager Local Msgs Processed",
           "description": "Counter of messages processed by class_manager local server",
           "type": "timeseries",
           "exprs": [
@@ -2951,7 +2951,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_remote_msgs_received",
+          "title": "Class Manager Remote Msgs Received",
           "description": "Counter of messages received by class_manager remote server",
           "type": "timeseries",
           "exprs": [
@@ -2960,7 +2960,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_remote_valid_msgs_received",
+          "title": "Class Manager Remote Valid Msgs Received",
           "description": "Counter of valid messages received by class_manager remote server",
           "type": "timeseries",
           "exprs": [
@@ -2969,7 +2969,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_remote_msgs_processed",
+          "title": "Class Manager Remote Msgs Processed",
           "description": "Counter of messages processed by class_manager remote server",
           "type": "timeseries",
           "exprs": [
@@ -2978,7 +2978,7 @@
           "extra_params": {}
         },
         {
-          "title": "class_manager_remote_number_of_connections",
+          "title": "Class Manager Remote Number Of Connections",
           "description": "Number of connections to class_manager remote server",
           "type": "timeseries",
           "exprs": [
@@ -3148,7 +3148,7 @@
     "Sierra Compiler Infra": {
       "panels": [
         {
-          "title": "sierra_compiler_remote_client_send_attempts",
+          "title": "Sierra Compiler Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a sierra_compiler remote client",
           "type": "timeseries",
           "exprs": [
@@ -3158,7 +3158,7 @@
           "extra_params": {}
         },
         {
-          "title": "sierra_compiler_local_msgs_received",
+          "title": "Sierra Compiler Local Msgs Received",
           "description": "Counter of messages received by sierra_compiler local server",
           "type": "timeseries",
           "exprs": [
@@ -3167,7 +3167,7 @@
           "extra_params": {}
         },
         {
-          "title": "sierra_compiler_local_msgs_processed",
+          "title": "Sierra Compiler Local Msgs Processed",
           "description": "Counter of messages processed by sierra_compiler local server",
           "type": "timeseries",
           "exprs": [
@@ -3186,7 +3186,7 @@
           "extra_params": {}
         },
         {
-          "title": "sierra_compiler_remote_msgs_received",
+          "title": "Sierra Compiler Remote Msgs Received",
           "description": "Counter of messages received by sierra_compiler remote server",
           "type": "timeseries",
           "exprs": [
@@ -3195,7 +3195,7 @@
           "extra_params": {}
         },
         {
-          "title": "sierra_compiler_remote_valid_msgs_received",
+          "title": "Sierra Compiler Remote Valid Msgs Received",
           "description": "Counter of valid messages received by sierra_compiler remote server",
           "type": "timeseries",
           "exprs": [
@@ -3204,7 +3204,7 @@
           "extra_params": {}
         },
         {
-          "title": "sierra_compiler_remote_msgs_processed",
+          "title": "Sierra Compiler Remote Msgs Processed",
           "description": "Counter of messages processed by sierra_compiler remote server",
           "type": "timeseries",
           "exprs": [
@@ -3213,7 +3213,7 @@
           "extra_params": {}
         },
         {
-          "title": "sierra_compiler_remote_number_of_connections",
+          "title": "Sierra Compiler Remote Number Of Connections",
           "description": "Number of connections to sierra_compiler remote server",
           "type": "timeseries",
           "exprs": [
@@ -3253,7 +3253,7 @@
     "L1 Endpoint Monitor Infra": {
       "panels": [
         {
-          "title": "l1_endpoint_monitor_remote_client_send_attempts",
+          "title": "L1 Endpoint Monitor Remote Client Send Attempts",
           "description": "Required number of remote connection attempts made by a l1_endpoint_monitor remote client",
           "type": "timeseries",
           "exprs": [
@@ -3263,7 +3263,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_endpoint_monitor_local_msgs_received",
+          "title": "L1 Endpoint Monitor Local Msgs Received",
           "description": "Counter of messages received by l1_endpoint_monitor local server",
           "type": "timeseries",
           "exprs": [
@@ -3272,7 +3272,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_endpoint_monitor_local_msgs_processed",
+          "title": "L1 Endpoint Monitor Local Msgs Processed",
           "description": "Counter of messages processed by l1_endpoint_monitor local server",
           "type": "timeseries",
           "exprs": [
@@ -3291,7 +3291,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_endpoint_monitor_remote_msgs_received",
+          "title": "L1 Endpoint Monitor Remote Msgs Received",
           "description": "Counter of messages received by l1_endpoint_monitor remote server",
           "type": "timeseries",
           "exprs": [
@@ -3300,7 +3300,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_endpoint_monitor_remote_valid_msgs_received",
+          "title": "L1 Endpoint Monitor Remote Valid Msgs Received",
           "description": "Counter of valid messages received by l1_endpoint_monitor remote server",
           "type": "timeseries",
           "exprs": [
@@ -3309,7 +3309,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_endpoint_monitor_remote_msgs_processed",
+          "title": "L1 Endpoint Monitor Remote Msgs Processed",
           "description": "Counter of messages processed by l1_endpoint_monitor remote server",
           "type": "timeseries",
           "exprs": [
@@ -3318,7 +3318,7 @@
           "extra_params": {}
         },
         {
-          "title": "l1_endpoint_monitor_remote_number_of_connections",
+          "title": "L1 Endpoint Monitor Remote Number Of Connections",
           "description": "Number of connections to l1_endpoint_monitor remote server",
           "type": "timeseries",
           "exprs": [
