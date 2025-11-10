@@ -66,7 +66,7 @@ macro_rules! felt {
 }
 
 /// Felt wrapper for a result of hash function.
-#[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq, Hash, Serialize)]
 pub struct HashOutput(pub Felt);
 
 impl HashOutput {
@@ -77,6 +77,7 @@ impl HashOutput {
 }
 
 /// Output of committing a state.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, Hash, Eq, PartialEq)]
 pub struct CommitmentOutput {
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,

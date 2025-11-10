@@ -90,7 +90,7 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
-use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::hash::{CommitmentOutput, HashOutput, PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
     EntryPointByType as RpcEntryPointByType,
     EntryPointByType,
@@ -516,6 +516,10 @@ auto_impl_get_test_instance! {
 
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
+    pub struct CommitmentOutput {
+        pub contracts_trie_root_hash: HashOutput,
+        pub classes_trie_root_hash: HashOutput,
+    }
     pub struct CompiledClassHash(pub StarkHash);
     pub struct ContractAddressSalt(pub StarkHash);
     pub enum ConsensusTransaction {
@@ -682,6 +686,7 @@ auto_impl_get_test_instance! {
         pub price_in_wei: GasPrice,
     }
     pub struct GlobalRoot(pub StarkHash);
+    pub struct HashOutput(pub Felt);
     pub enum InvokeTransaction {
         V0(InvokeTransactionV0) = 0,
         V1(InvokeTransactionV1) = 1,
