@@ -927,7 +927,7 @@ async fn get_sequencer_setup_configs(
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
-        let class_manager_index = node_component_config.get_class_manager_index();
+        let _ = node_component_config.get_class_manager_index();
         let consensus_manager_index = node_component_config.get_consensus_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
@@ -945,9 +945,6 @@ async fn get_sequencer_setup_configs(
 
         let storage_setup = get_integration_test_storage(
             node_index,
-            batcher_index,
-            state_sync_index,
-            class_manager_index,
             custom_paths.clone(),
             accounts.to_vec(),
             &chain_info,
