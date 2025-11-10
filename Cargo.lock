@@ -2182,6 +2182,7 @@ dependencies = [
  "papyrus_common",
  "prometheus-parse",
  "rstest",
+ "tokio",
 ]
 
 [[package]]
