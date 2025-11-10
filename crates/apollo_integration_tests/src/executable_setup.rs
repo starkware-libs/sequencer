@@ -12,6 +12,7 @@ use tokio::fs::create_dir_all;
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
+// TODO(victork): consider completely removing this struct and use index directly
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
     node_index: usize,
