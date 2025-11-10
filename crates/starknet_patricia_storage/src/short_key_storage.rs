@@ -3,14 +3,7 @@ use std::marker::PhantomData;
 use blake2::Blake2s;
 use digest::Digest;
 
-use crate::storage_trait::{
-    DbHashMap,
-    DbKey,
-    DbValue,
-    PatriciaStorageResult,
-    Storage,
-    StorageStats,
-};
+use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
 
 #[macro_export]
 macro_rules! define_short_key_storage {
@@ -46,6 +39,8 @@ macro_rules! define_short_key_storage {
         }
 
         impl<S: Storage> Storage for $name<S> {
+            type Stats = S::Stats;
+
             fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get(&Self::small_key(key))
             }
@@ -75,7 +70,7 @@ macro_rules! define_short_key_storage {
                 self.storage.delete(&Self::small_key(key))
             }
 
-            fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
+            fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
                 self.storage.get_stats()
             }
         }

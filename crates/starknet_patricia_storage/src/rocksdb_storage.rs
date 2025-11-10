@@ -10,7 +10,7 @@ use rust_rocksdb::{
     DB,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
 
 // General database Options.
 
@@ -102,6 +102,8 @@ impl RocksDbStorage {
 }
 
 impl Storage for RocksDbStorage {
+    type Stats = NoStats;
+
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.db.get(&key.0)?.map(DbValue))
     }
@@ -131,5 +133,9 @@ impl Storage for RocksDbStorage {
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         Ok(self.db.delete(&key.0)?)
+    }
+
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        Ok(NoStats)
     }
 }

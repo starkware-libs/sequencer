@@ -8,6 +8,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    NoStats,
     PatriciaStorageResult,
     Storage,
     StorageStats,
@@ -22,6 +23,8 @@ pub struct BorrowedStorage<'a, S: Storage> {
 }
 
 impl Storage for MapStorage {
+    type Stats = NoStats;
+
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.0.insert(key, value);
         Ok(())
@@ -43,6 +46,10 @@ impl Storage for MapStorage {
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
+    }
+
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        Ok(NoStats)
     }
 }
 
@@ -138,6 +145,8 @@ impl<S: Storage> CachedStorage<S> {
 }
 
 impl<S: Storage> Storage for CachedStorage<S> {
+    type Stats = CachedStorageStats<S::Stats>;
+
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
@@ -200,7 +209,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.storage.delete(key)
     }
 
-    fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(CachedStorageStats {
             reads: self.reads,
             cached_reads: self.cached_reads,
