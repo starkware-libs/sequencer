@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
@@ -25,6 +26,20 @@ pub enum PatriciaStorageError {
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 
+/// A trait for the statistics of a storage. Used as a trait bound for a storage associated stats
+/// type.
+pub trait StorageStats: Display {}
+
+pub struct NoStats;
+
+impl Display for NoStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NoStats")
+    }
+}
+
+impl StorageStats for NoStats {}
+
 pub trait Storage {
     /// Returns value from storage, if it exists.
     /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
@@ -45,8 +60,8 @@ pub trait Storage {
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()>;
 
     /// If implemented, returns the statistics of the storage.
-    fn get_stats(&self) -> Option<String> {
-        None
+    fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
+        Ok(NoStats)
     }
 }
 

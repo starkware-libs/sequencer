@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::path::Path;
 
 use libmdbx::{
@@ -5,13 +6,21 @@ use libmdbx::{
     DatabaseFlags,
     Geometry,
     PageSize,
+    Stat,
     TableFlags,
     WriteFlags,
     WriteMap,
 };
 use page_size;
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+    StorageStats,
+};
 
 pub struct MdbxStorage {
     db: MdbxDb<WriteMap>,
@@ -31,6 +40,25 @@ fn get_page_size(os_page_size: usize) -> PageSize {
 
     PageSize::Set(page_size)
 }
+
+pub struct MdbxStorageStats(Stat);
+
+impl Display for MdbxStorageStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "MdbxStorageStats: Page size: {} bytes, Tree depth: {}, Branch pages: {}, Leaf pages: \
+             {}, Overflow pages: {}",
+            self.0.page_size(),
+            self.0.depth(),
+            self.0.branch_pages(),
+            self.0.leaf_pages(),
+            self.0.overflow_pages()
+        )
+    }
+}
+
+impl StorageStats for MdbxStorageStats {}
 
 impl MdbxStorage {
     pub fn open(path: &Path) -> PatriciaStorageResult<Self> {
@@ -105,18 +133,7 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
-    fn get_stats(&self) -> Option<String> {
-        match self.db.stat() {
-            Ok(stat) => Some(format!(
-                "MDBX Database Statistics: Page size: {} bytes, Tree depth: {}, Branch pages: {}, \
-                 Leaf pages: {}, Overflow pages: {}",
-                stat.page_size(),
-                stat.depth(),
-                stat.branch_pages(),
-                stat.leaf_pages(),
-                stat.overflow_pages(),
-            )),
-            Err(e) => Some(format!("Failed to retrieve MDBX statistics: {}", e)),
-        }
+    fn get_stats(&self) -> PatriciaStorageResult<impl StorageStats> {
+        Ok(MdbxStorageStats(self.db.stat()?))
     }
 }
