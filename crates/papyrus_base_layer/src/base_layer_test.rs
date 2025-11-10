@@ -3,18 +3,10 @@ use alloy::primitives::B256;
 use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
-use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-use starknet_api::felt;
 use url::Url;
 
-use crate::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    EthereumBaseLayerError,
-    Starknet,
-};
+use crate::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
 use crate::BaseLayerContract;
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
@@ -36,45 +28,6 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
     };
 
     (base_layer, asserter)
-}
-
-#[tokio::test]
-// Note: the test requires ganache-cli installed, otherwise it is ignored.
-async fn latest_proved_block_ethereum() {
-    if !in_ci() {
-        return;
-    }
-    #[allow(deprecated)] // Legacy code, will be removed soon, don't add new instances if this.
-    let (node_handle, starknet_contract_address) = crate::test_utils::get_test_ethereum_node();
-    let contract = EthereumBaseLayerContract::new(
-        EthereumBaseLayerConfig { starknet_contract_address, ..Default::default() },
-        node_handle.0.endpoint().parse().unwrap(),
-    );
-
-    let first_sn_state_update =
-        BlockHashAndNumber { number: BlockNumber(100), hash: BlockHash(felt!("0x100")) };
-    let second_sn_state_update =
-        BlockHashAndNumber { number: BlockNumber(200), hash: BlockHash(felt!("0x200")) };
-    let third_sn_state_update =
-        BlockHashAndNumber { number: BlockNumber(300), hash: BlockHash(felt!("0x300")) };
-
-    type Scenario = (u64, Option<BlockHashAndNumber>);
-    let scenarios: Vec<Scenario> = vec![
-        (0, Some(third_sn_state_update)),
-        (5, Some(third_sn_state_update)),
-        (15, Some(second_sn_state_update)),
-        (25, Some(first_sn_state_update)),
-        (1000, None),
-    ];
-    for (scenario, expected) in scenarios {
-        let latest_block = contract.latest_proved_block(scenario).await;
-        match latest_block {
-            Ok(latest_block) => assert_eq!(latest_block, expected),
-            Err(e) => {
-                assert_matches!(e, EthereumBaseLayerError::LatestBlockNumberReturnedTooLow(_, _))
-            }
-        }
-    }
 }
 
 #[tokio::test]
