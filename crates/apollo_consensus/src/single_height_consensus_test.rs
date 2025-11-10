@@ -38,8 +38,9 @@ const CHANNEL_SIZE: usize = 1;
 
 fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
     let duration = TIMEOUTS
+        .base
         .prevote_timeout
-        .saturating_add(TIMEOUTS.prevote_timeout_delta.saturating_mul(round));
+        .saturating_add(TIMEOUTS.delta.prevote_timeout_delta.saturating_mul(round));
     ShcTask::Prevote(
         duration,
         StateMachineEvent::Prevote(block_felt.map(ProposalCommitment), round),
@@ -48,8 +49,9 @@ fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
 
 fn precommit_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
     let duration = TIMEOUTS
+        .base
         .precommit_timeout
-        .saturating_add(TIMEOUTS.precommit_timeout_delta.saturating_mul(round));
+        .saturating_add(TIMEOUTS.delta.precommit_timeout_delta.saturating_mul(round));
     ShcTask::Precommit(
         duration,
         StateMachineEvent::Precommit(block_felt.map(ProposalCommitment), round),
@@ -58,15 +60,17 @@ fn precommit_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
 
 fn timeout_prevote_task(round: u32) -> ShcTask {
     let duration = TIMEOUTS
+        .base
         .prevote_timeout
-        .saturating_add(TIMEOUTS.prevote_timeout_delta.saturating_mul(round));
+        .saturating_add(TIMEOUTS.delta.prevote_timeout_delta.saturating_mul(round));
     ShcTask::TimeoutPrevote(duration, StateMachineEvent::TimeoutPrevote(round))
 }
 
 fn timeout_precommit_task(round: u32) -> ShcTask {
     let duration = TIMEOUTS
+        .base
         .precommit_timeout
-        .saturating_add(TIMEOUTS.precommit_timeout_delta.saturating_mul(round));
+        .saturating_add(TIMEOUTS.delta.precommit_timeout_delta.saturating_mul(round));
     ShcTask::TimeoutPrecommit(duration, StateMachineEvent::TimeoutPrecommit(round))
 }
 

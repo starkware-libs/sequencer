@@ -151,35 +151,17 @@ impl Default for ConsensusConfig {
 }
 
 /// Configuration for consensus timeouts.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
 pub struct TimeoutsConfig {
-    /// The timeout for a proposal.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub proposal_timeout: Duration,
-    /// The per-round delta added to the proposal timeout.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub proposal_timeout_delta: Duration,
-    /// The maximum timeout (seconds) for proposal timeout.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub proposal_timeout_max: Duration,
-    /// The timeout for a prevote.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub prevote_timeout: Duration,
-    /// The per-round delta added to the prevote timeout.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub prevote_timeout_delta: Duration,
-    /// The maximum timeout (seconds) for prevote timeout.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub prevote_timeout_max: Duration,
-    /// The timeout for a precommit.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub precommit_timeout: Duration,
-    /// The per-round delta added to the precommit timeout.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub precommit_timeout_delta: Duration,
-    /// The maximum timeout (seconds) for precommit timeout.
-    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub precommit_timeout_max: Duration,
+    /// Base timeouts.
+    #[serde(flatten)]
+    pub base: TimeoutsBase,
+    /// Per-round deltas.
+    #[serde(flatten)]
+    pub delta: TimeoutsDelta,
+    /// Maximum caps.
+    #[serde(flatten)]
+    pub max: TimeoutsMax,
 }
 
 impl SerializeConfig for TimeoutsConfig {
@@ -187,55 +169,55 @@ impl SerializeConfig for TimeoutsConfig {
         BTreeMap::from_iter([
             ser_param(
                 "proposal_timeout",
-                &self.proposal_timeout.as_secs_f64(),
+                &self.base.proposal_timeout.as_secs_f64(),
                 "The timeout (seconds) for a proposal.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "proposal_timeout_delta",
-                &self.proposal_timeout_delta.as_secs_f64(),
+                &self.delta.proposal_timeout_delta.as_secs_f64(),
                 "The per-round timeout delta (seconds) for a proposal.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "proposal_timeout_max",
-                &self.proposal_timeout_max.as_secs_f64(),
+                &self.max.proposal_timeout_max.as_secs_f64(),
                 "The maximum timeout (seconds) for a proposal.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "prevote_timeout",
-                &self.prevote_timeout.as_secs_f64(),
+                &self.base.prevote_timeout.as_secs_f64(),
                 "The timeout (seconds) for a prevote.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "prevote_timeout_delta",
-                &self.prevote_timeout_delta.as_secs_f64(),
+                &self.delta.prevote_timeout_delta.as_secs_f64(),
                 "The per-round timeout delta (seconds) for a prevote.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "prevote_timeout_max",
-                &self.prevote_timeout_max.as_secs_f64(),
+                &self.max.prevote_timeout_max.as_secs_f64(),
                 "The maximum timeout (seconds) for a prevote.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "precommit_timeout",
-                &self.precommit_timeout.as_secs_f64(),
+                &self.base.precommit_timeout.as_secs_f64(),
                 "The timeout (seconds) for a precommit.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "precommit_timeout_delta",
-                &self.precommit_timeout_delta.as_secs_f64(),
+                &self.delta.precommit_timeout_delta.as_secs_f64(),
                 "The per-round timeout delta (seconds) for a precommit.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "precommit_timeout_max",
-                &self.precommit_timeout_max.as_secs_f64(),
+                &self.max.precommit_timeout_max.as_secs_f64(),
                 "The maximum timeout (seconds) for a precommit.",
                 ParamPrivacyInput::Public,
             ),
@@ -243,17 +225,73 @@ impl SerializeConfig for TimeoutsConfig {
     }
 }
 
-impl Default for TimeoutsConfig {
+/// Base timeouts for consensus phases.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TimeoutsBase {
+    /// The timeout for a proposal.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub proposal_timeout: Duration,
+    /// The timeout for a prevote.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub prevote_timeout: Duration,
+    /// The timeout for a precommit.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub precommit_timeout: Duration,
+}
+
+impl Default for TimeoutsBase {
     fn default() -> Self {
         Self {
             proposal_timeout: Duration::from_secs_f64(3.0),
-            proposal_timeout_delta: Duration::from_secs_f64(2.0),
-            proposal_timeout_max: Duration::from_secs_f64(30.0),
             prevote_timeout: Duration::from_secs_f64(1.0),
-            prevote_timeout_delta: Duration::from_secs_f64(0.5),
-            prevote_timeout_max: Duration::from_secs_f64(5.0),
             precommit_timeout: Duration::from_secs_f64(1.0),
+        }
+    }
+}
+
+/// Per-round deltas for timeouts.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TimeoutsDelta {
+    /// The per-round delta added to the proposal timeout.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub proposal_timeout_delta: Duration,
+    /// The per-round delta added to the prevote timeout.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub prevote_timeout_delta: Duration,
+    /// The per-round delta added to the precommit timeout.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub precommit_timeout_delta: Duration,
+}
+
+impl Default for TimeoutsDelta {
+    fn default() -> Self {
+        Self {
+            proposal_timeout_delta: Duration::from_secs_f64(2.0),
+            prevote_timeout_delta: Duration::from_secs_f64(0.5),
             precommit_timeout_delta: Duration::from_secs_f64(0.5),
+        }
+    }
+}
+
+/// Maximum caps for timeouts.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct TimeoutsMax {
+    /// The maximum timeout (seconds) for proposal timeout.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub proposal_timeout_max: Duration,
+    /// The maximum timeout (seconds) for prevote timeout.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub prevote_timeout_max: Duration,
+    /// The maximum timeout (seconds) for precommit timeout.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub precommit_timeout_max: Duration,
+}
+
+impl Default for TimeoutsMax {
+    fn default() -> Self {
+        Self {
+            proposal_timeout_max: Duration::from_secs_f64(30.0),
+            prevote_timeout_max: Duration::from_secs_f64(5.0),
             precommit_timeout_max: Duration::from_secs_f64(5.0),
         }
     }

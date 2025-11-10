@@ -252,7 +252,10 @@ impl SingleHeightConsensus {
                 }
                 trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(self.timeouts.prevote_timeout, event)]))
+                Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
+                    self.timeouts.base.prevote_timeout,
+                    event,
+                )]))
             }
             StateMachineEvent::Precommit(_proposal_id, round) => {
                 let Some(last_vote) = &self.last_precommit else {
@@ -267,7 +270,7 @@ impl SingleHeightConsensus {
                 trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
-                    self.timeouts.precommit_timeout,
+                    self.timeouts.base.precommit_timeout,
                     event,
                 )]))
             }
@@ -607,24 +610,27 @@ impl SingleHeightConsensus {
     fn proposal_timeout_for(&self, round: Round) -> Duration {
         let timeout = self
             .timeouts
+            .base
             .proposal_timeout
-            .saturating_add(self.timeouts.proposal_timeout_delta.saturating_mul(round));
-        timeout.min(self.timeouts.proposal_timeout_max)
+            .saturating_add(self.timeouts.delta.proposal_timeout_delta.saturating_mul(round));
+        timeout.min(self.timeouts.max.proposal_timeout_max)
     }
 
     fn prevote_timeout_for(&self, round: Round) -> Duration {
         let timeout = self
             .timeouts
+            .base
             .prevote_timeout
-            .saturating_add(self.timeouts.prevote_timeout_delta.saturating_mul(round));
-        timeout.min(self.timeouts.prevote_timeout_max)
+            .saturating_add(self.timeouts.delta.prevote_timeout_delta.saturating_mul(round));
+        timeout.min(self.timeouts.max.prevote_timeout_max)
     }
 
     fn precommit_timeout_for(&self, round: Round) -> Duration {
         let timeout = self
             .timeouts
+            .base
             .precommit_timeout
-            .saturating_add(self.timeouts.precommit_timeout_delta.saturating_mul(round));
-        timeout.min(self.timeouts.precommit_timeout_max)
+            .saturating_add(self.timeouts.delta.precommit_timeout_delta.saturating_mul(round));
+        timeout.min(self.timeouts.max.precommit_timeout_max)
     }
 }

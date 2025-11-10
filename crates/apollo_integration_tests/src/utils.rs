@@ -341,9 +341,9 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 ) -> Vec<ConsensusManagerConfig> {
     // TODO(Matan, Dan): set reasonable default timeouts.
     let mut timeouts = TimeoutsConfig::default();
-    timeouts.precommit_timeout *= 3;
-    timeouts.prevote_timeout *= 3;
-    timeouts.proposal_timeout *= 3;
+    timeouts.base.precommit_timeout *= 3;
+    timeouts.base.prevote_timeout *= 3;
+    timeouts.base.proposal_timeout *= 3;
 
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
 
