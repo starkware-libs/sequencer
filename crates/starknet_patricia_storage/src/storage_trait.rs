@@ -14,6 +14,11 @@ pub type DbHashMap = HashMap<DbKey, DbValue>;
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
+    #[error(
+        "Failed to stage writes, key {key:?} already exists in staging area with value \
+         {existing_value:?}; attempted to overwrite with value {new_value:?}."
+    )]
+    KeyAlreadyExists { key: DbKey, existing_value: DbValue, new_value: DbValue },
     /// An error that occurred in the database library.
     #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
@@ -51,15 +56,15 @@ pub trait Storage {
 }
 
 #[derive(Debug)]
-pub struct DbKeyPrefix(&'static [u8]);
+pub struct DbKeyPrefix(Vec<u8>);
 
 impl DbKeyPrefix {
-    pub fn new(prefix: &'static [u8]) -> Self {
+    pub fn new(prefix: Vec<u8>) -> Self {
         Self(prefix)
     }
 
-    pub fn to_bytes(&self) -> &'static [u8] {
-        self.0
+    pub fn to_bytes(&self) -> &[u8] {
+        self.0.as_slice()
     }
 }
 

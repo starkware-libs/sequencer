@@ -47,6 +47,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
+    CommitmentTreePrefix,
     CompiledClassHash,
     RootHashes,
     StarknetForestProofs,
@@ -57,6 +58,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
@@ -160,7 +162,7 @@ pub(crate) fn create_committer_state_diff(state_diff: CommitmentStateDiff) -> St
 
 /// Commits the state diff, saves the new commitments and returns the computed roots.
 pub(crate) async fn commit_state_diff(
-    commitments: &mut MapStorage,
+    commitments: &mut PatriciaStorage<MapStorage>,
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
@@ -169,7 +171,7 @@ pub(crate) async fn commit_state_diff(
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
-    filled_forest.write_to_storage(commitments);
+    filled_forest.write_to_storage(commitments).expect("Failed to write to storage");
     CommitmentOutput {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
@@ -238,10 +240,10 @@ pub(crate) struct CommitmentInfos {
 }
 
 /// Creates the commitment infos and the cached state input for the OS.
-pub(crate) fn create_cached_state_input_and_commitment_infos(
+pub(crate) fn create_cached_state_input_and_commitment_infos<'a>(
     previous_commitment: &CommitmentOutput,
     new_commitment: &CommitmentOutput,
-    commitments: &mut MapStorage,
+    commitments: &mut PatriciaStorage<MapStorage>,
     extended_state_diff: &StateMaps,
 ) -> (CachedStateInput, CommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
@@ -275,6 +277,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             commitments,
             previous_commitment.classes_trie_root_hash,
             sorted_class_leaf_indices,
+            CommitmentTreePrefix::ClassesTrie,
         )
         .unwrap();
     let class_hash_to_compiled_class_hash = previous_class_leaves
@@ -302,6 +305,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
                 commitments,
                 address_to_previous_storage_root_hash[&address],
                 sorted_leaf_indices,
+                CommitmentTreePrefix::StorageTrie(address),
             )
             .unwrap();
         let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
@@ -374,11 +378,11 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     )
 }
 
-pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = ContractAddress>>(
+pub(crate) fn get_previous_states_and_new_storage_roots<'a, I: Iterator<Item = ContractAddress>>(
     contract_addresses: I,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
-    commitments: &mut MapStorage,
+    commitments: &mut PatriciaStorage<MapStorage>,
 ) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
     let mut contract_leaf_indices: Vec<NodeIndex> =
         contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();
@@ -390,6 +394,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
         commitments,
         previous_contract_trie_root,
         sorted_contract_leaf_indices,
+        CommitmentTreePrefix::ContractsTrie,
     )
     .unwrap();
     let new_contract_states: HashMap<NodeIndex, ContractState> =
@@ -397,6 +402,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
             commitments,
             new_contract_trie_root,
             sorted_contract_leaf_indices,
+            CommitmentTreePrefix::ContractsTrie,
         )
         .unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
@@ -469,7 +475,7 @@ pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContra
 
 fn fetch_storage_proofs_from_state_maps(
     state_maps: &StateMaps,
-    storage: &mut MapStorage,
+    storage: &mut PatriciaStorage<MapStorage>,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
 ) -> StarknetForestProofs {

@@ -5,6 +5,8 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
+use crate::patricia_merkle_tree::external_test_utils::MockTreePrefix;
+use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::internal_test_utils::{
     get_initial_updated_skeleton,
     MockLeaf,
@@ -23,6 +25,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+use crate::patricia_storage::PatriciaStorage;
 
 #[allow(clippy::as_conversions)]
 const TREE_HEIGHT: usize = SubTreeHeight::ACTUAL_HEIGHT.0 as usize;
@@ -148,15 +151,20 @@ fn test_updated_skeleton_tree_impl_create(
 #[rstest]
 #[case::empty_modifications(HashMap::new())]
 #[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), MockLeaf::default())]))]
-fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
-    let mut storage = MapStorage::default();
+fn test_updated_empty_tree(
+    #[case] modifications: LeafModifications<MockLeaf>,
+    #[values(PatriciaStorageLayout::Fact, PatriciaStorageLayout::Indexed)]
+    storage_layout: PatriciaStorageLayout,
+) {
+    let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
-        &mut storage,
+        &mut patricia_storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
         &OriginalSkeletonMockTrieConfig::new(false),
         &modifications,
+        MockTreePrefix,
     )
     .unwrap();
 

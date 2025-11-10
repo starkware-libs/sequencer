@@ -31,6 +31,8 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidReso
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -115,7 +117,7 @@ impl ExecutedContracts {
 
 pub(crate) struct InitialState<S: FlowTestState> {
     pub(crate) updatable_state: S,
-    pub(crate) commitment_storage: MapStorage,
+    pub(crate) commitment_storage: PatriciaStorage<MapStorage>,
     // Current patricia roots.
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
@@ -129,6 +131,7 @@ pub(crate) struct InitialState<S: FlowTestState> {
 /// Also deploys extra contracts as requested (and declares them if they are not already declared).
 pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N: usize>(
     extra_contracts: [(FeatureContract, Calldata); N],
+    storage_layout: PatriciaStorageLayout,
 ) -> (InitialStateData<S>, [ContractAddress; N]) {
     let (
         InitialTransactionsData {
@@ -172,7 +175,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     // Commit the state diff.
     let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
     let (commitment_output, commitment_storage) =
-        commit_initial_state_diff(committer_state_diff).await;
+        commit_initial_state_diff(committer_state_diff, storage_layout).await;
 
     let initial_state = InitialState {
         updatable_state: final_state.state,
@@ -265,19 +268,20 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
-) -> (CommitmentOutput, MapStorage) {
-    let mut map_storage = MapStorage::default();
+    storage_layout: PatriciaStorageLayout,
+) -> (CommitmentOutput, PatriciaStorage<MapStorage>) {
+    let mut patricia_storage = PatriciaStorage::new(MapStorage::default(), storage_layout);
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     (
         commit_state_diff(
-            &mut map_storage,
+            &mut patricia_storage,
             contract_trie_root,
             classes_trie_root,
             committer_state_diff,
         )
         .await,
-        map_storage,
+        patricia_storage,
     )
 }
 

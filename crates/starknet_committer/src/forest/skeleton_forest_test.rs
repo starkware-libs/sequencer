@@ -16,8 +16,10 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
 };
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
@@ -27,6 +29,7 @@ use tracing::level_filters::LevelFilter;
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
     contract_address_into_node_index,
+    Config,
     ConfigImpl,
     Input,
     StarknetStorageKey,
@@ -143,7 +146,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         },
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
-        config: ConfigImpl::new(true, LevelFilter::DEBUG),
+        config: ConfigImpl::new(true, LevelFilter::DEBUG, PatriciaStorageLayout::Fact),
     },
     MapStorage(DbHashMap::from([
         // Roots.
@@ -293,7 +296,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
-    #[case] mut storage: MapStorage,
+    #[case] storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
@@ -311,14 +314,15 @@ fn test_create_original_skeleton_forest(
         classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
     };
 
+    let mut patricia_storage = PatriciaStorage::new(storage, input.config.storage_layout());
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        &mut storage,
+        &mut patricia_storage,
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &input.state_diff.actual_storage_updates(),
         &input.state_diff.actual_classes_updates(),
         &forest_sorted_indices,
-        &ConfigImpl::new(false, LevelFilter::DEBUG),
+        &ConfigImpl::new(false, LevelFilter::DEBUG, input.config.storage_layout()),
     )
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves

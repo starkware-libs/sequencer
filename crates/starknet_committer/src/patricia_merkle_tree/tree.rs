@@ -6,6 +6,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{
@@ -17,6 +18,7 @@ use crate::block_committer::input::{
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,
+    CommitmentTreePrefix,
     CompiledClassHash,
     ContractsTrieProof,
     RootHashes,
@@ -44,8 +46,8 @@ impl OriginalSkeletonContractsTrieConfig {
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
-fn fetch_all_patricia_paths(
-    storage: &mut impl Storage,
+fn fetch_all_patricia_paths<'a>(
+    storage: &mut PatriciaStorage<impl Storage>,
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -75,6 +77,7 @@ fn fetch_all_patricia_paths(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
+        CommitmentTreePrefix::ClassesTrie,
     )?;
 
     // Contracts trie - the leaves are required.
@@ -84,6 +87,7 @@ fn fetch_all_patricia_paths(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
+        CommitmentTreePrefix::ContractsTrie,
     )?;
 
     // Contracts storage tries.
@@ -97,21 +101,20 @@ fn fetch_all_patricia_paths(
             .storage_root_hash;
         // No need to fetch the leaves.
         let leaves = None;
+        let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
+            panic!(
+                "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
+                 {idx:?}."
+            )
+        });
         let proof = fetch_patricia_paths::<StarknetStorageValue>(
             storage,
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
+            CommitmentTreePrefix::StorageTrie(contract_address),
         )?;
-        contracts_trie_storage_proofs.insert(
-            try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
-                panic!(
-                    "Converting leaf NodeIndex to ContractAddress should succeed; failed to \
-                     convert {idx:?}."
-                )
-            }),
-            proof,
-        );
+        contracts_trie_storage_proofs.insert(contract_address, proof);
     }
 
     // Convert contract_leaves_data keys from NodeIndex to ContractAddress.
@@ -143,8 +146,8 @@ fn fetch_all_patricia_paths(
 /// Fetch the Patricia paths (inner nodes) in the classes trie, contracts trie,
 /// and contracts storage tries for both the previous and new root hashes.
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
-pub fn fetch_previous_and_new_patricia_paths(
-    storage: &mut impl Storage,
+pub fn fetch_previous_and_new_patricia_paths<'a>(
+    storage: &mut PatriciaStorage<impl Storage>,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
     class_hashes: &[ClassHash],

@@ -11,6 +11,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::config::{
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use crate::patricia_storage::{PatriciaStorage, TreePrefix};
 
 pub type OriginalSkeletonNodeMap = HashMap<NodeIndex, OriginalSkeletonNode>;
 pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
@@ -21,11 +22,12 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub trait OriginalSkeletonTree<'a>: Sized {
     fn create<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
+        tree_prefix: impl TreePrefix,
     ) -> OriginalSkeletonTreeResult<Self>;
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap;
@@ -33,11 +35,12 @@ pub trait OriginalSkeletonTree<'a>: Sized {
     fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
 
     fn create_and_get_previous_leaves<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
+        tree_prefix: impl TreePrefix,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)>;
 
     #[allow(dead_code)]
@@ -53,13 +56,21 @@ pub struct OriginalSkeletonTreeImpl<'a> {
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
     fn create<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
+        tree_prefix: impl TreePrefix,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_impl(storage, root_hash, sorted_leaf_indices, config, leaf_modifications)
+        Self::create_impl(
+            storage,
+            root_hash,
+            sorted_leaf_indices,
+            config,
+            leaf_modifications,
+            tree_prefix,
+        )
     }
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
@@ -71,11 +82,12 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
     }
 
     fn create_and_get_previous_leaves<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
+        tree_prefix: impl TreePrefix,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         Self::create_and_get_previous_leaves_impl(
             storage,
@@ -83,6 +95,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
             sorted_leaf_indices,
             leaf_modifications,
             config,
+            tree_prefix,
         )
     }
 
@@ -93,9 +106,10 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
 
 impl<'a> OriginalSkeletonTreeImpl<'a> {
     pub fn get_leaves<L: Leaf>(
-        storage: &mut impl Storage,
+        storage: &mut PatriciaStorage<impl Storage>,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
+        tree_prefix: impl TreePrefix,
     ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
         let config = NoCompareOriginalSkeletonTrieConfig::default();
         let leaf_modifications = LeafModifications::new();
@@ -105,6 +119,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             sorted_leaf_indices,
             &leaf_modifications,
             &config,
+            tree_prefix,
         )?;
         Ok(previous_leaves)
     }

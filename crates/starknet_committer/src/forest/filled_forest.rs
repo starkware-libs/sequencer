@@ -6,7 +6,8 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia::patricia_storage::PatriciaStorage;
+use starknet_patricia_storage::storage_trait::{PatriciaStorageResult, Storage};
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -20,6 +21,7 @@ use crate::hash_function::hash::ForestHashFunction;
 use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
 use crate::patricia_merkle_tree::types::{
     ClassesTrie,
+    CommitmentTreePrefix,
     CompiledClassHash,
     ContractsTrie,
     StorageTrieMap,
@@ -34,22 +36,21 @@ pub struct FilledForest {
 impl FilledForest {
     /// Writes the node serialization of the filled trees to storage. Returns the number of new
     /// objects written to storage.
-    pub fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
-        // Serialize all trees to one hash map.
-        let new_db_objects: DbHashMap = self
-            .storage_tries
-            .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(self.contracts_trie.serialize())
-            .chain(self.classes_trie.serialize())
-            .collect();
+    pub fn write_to_storage(
+        &self,
+        patricia_storage: &mut PatriciaStorage<impl Storage>,
+    ) -> PatriciaStorageResult<usize> {
+        for (address, storage_trie) in self.storage_tries.iter() {
+            patricia_storage
+                .stage_writes(storage_trie, CommitmentTreePrefix::StorageTrie(*address))?;
+        }
+        patricia_storage.stage_writes(&self.contracts_trie, CommitmentTreePrefix::ContractsTrie)?;
+        patricia_storage.stage_writes(&self.classes_trie, CommitmentTreePrefix::ClassesTrie)?;
 
-        // Store the new hash map.
-        let n_new_facts = new_db_objects.len();
-        storage
-            .mset(new_db_objects)
-            .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
-        n_new_facts
+        // Commit the changes to storage.
+        let n_staged_writes = patricia_storage.n_staged_writes();
+        patricia_storage.commit()?;
+        Ok(n_staged_writes)
     }
 
     pub fn get_contract_root_hash(&self) -> HashOutput {

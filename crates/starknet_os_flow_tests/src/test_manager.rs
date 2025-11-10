@@ -52,6 +52,7 @@ use starknet_os::io::os_output_types::{
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -263,9 +264,10 @@ impl<S: FlowTestState> TestManager<S> {
     /// these contracts will be returned as an array of the same length.
     pub(crate) async fn new_with_default_initial_state<const N: usize>(
         extra_contracts: [(FeatureContract, Calldata); N],
+        storage_layout: PatriciaStorageLayout,
     ) -> (Self, [ContractAddress; N]) {
         let (default_initial_state_data, extra_addresses) =
-            create_default_initial_state_data::<S, N>(extra_contracts).await;
+            create_default_initial_state_data::<S, N>(extra_contracts, storage_layout).await;
         (Self::new_with_initial_state_data(default_initial_state_data), extra_addresses)
     }
 
@@ -548,7 +550,7 @@ impl<S: FlowTestState> TestManager<S> {
         let mut cached_state_inputs = vec![];
         let initial_state = self.initial_state.updatable_state.clone();
         let mut state = self.initial_state.updatable_state;
-        let mut map_storage = self.initial_state.commitment_storage;
+        let mut commitment_storage = self.initial_state.commitment_storage;
         assert_eq!(per_block_txs.len(), block_contexts.len());
         // Commitment output is updated after each block.
         let mut previous_commitment = CommitmentOutput {
@@ -590,7 +592,7 @@ impl<S: FlowTestState> TestManager<S> {
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
             let new_commitment = commit_state_diff(
-                &mut map_storage,
+                &mut commitment_storage,
                 previous_commitment.contracts_trie_root_hash,
                 previous_commitment.classes_trie_root_hash,
                 committer_state_diff,
@@ -602,7 +604,7 @@ impl<S: FlowTestState> TestManager<S> {
                 create_cached_state_input_and_commitment_infos(
                     &previous_commitment,
                     &new_commitment,
-                    &mut map_storage,
+                    &mut commitment_storage,
                     &extended_state_diff,
                 );
             let tx_execution_infos = execution_outputs

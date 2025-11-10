@@ -7,7 +7,12 @@ use serde_json::{Map, Value};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
-use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{
+    single_tree_flow_test,
+    MockTreePrefix,
+};
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
+use starknet_patricia::patricia_storage::PatriciaStorage;
 use tempfile::NamedTempFile;
 
 use crate::committer_cli::commands::commit;
@@ -99,7 +104,7 @@ impl<'de> Deserialize<'de> for TreeRegressionInput {
 #[tokio::test(flavor = "multi_thread")]
 pub async fn test_regression_single_tree() {
     let TreeRegressionInput {
-        tree_flow_input: TreeFlowInput { leaf_modifications, mut storage, root_hash },
+        tree_flow_input: TreeFlowInput { leaf_modifications, storage, root_hash },
         expected_hash,
         expected_storage_changes,
     } = serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
@@ -108,7 +113,8 @@ pub async fn test_regression_single_tree() {
     // Benchmark the single tree flow test.
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
-        &mut storage,
+        PatriciaStorage::new(storage, PatriciaStorageLayout::Fact),
+        MockTreePrefix,
         root_hash,
         OriginalSkeletonStorageTrieConfig::new(false),
     )
