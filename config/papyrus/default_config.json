@@ -124,6 +124,11 @@
     "privacy": "Public",
     "value": 1.0
   },
+  "consensus.dynamic_config.timeouts.precommit_timeout_max": {
+    "description": "The maximum timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 5.0
+  },
   "consensus.dynamic_config.timeouts.precommit_timeout_delta": {
     "description": "The per-round timeout delta (seconds) for a precommit.",
     "privacy": "Public",
@@ -134,6 +139,11 @@
     "privacy": "Public",
     "value": 1.0
   },
+  "consensus.dynamic_config.timeouts.prevote_timeout_max": {
+    "description": "The maximum timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 5.0
+  },
   "consensus.dynamic_config.timeouts.prevote_timeout_delta": {
     "description": "The per-round timeout delta (seconds) for a prevote.",
     "privacy": "Public",
@@ -143,6 +153,11 @@
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
+  },
+  "consensus.dynamic_config.timeouts.proposal_timeout_max": {
+    "description": "The maximum timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 30.0
   },
   "consensus.dynamic_config.timeouts.proposal_timeout_delta": {
     "description": "The per-round timeout delta (seconds) for a proposal.",

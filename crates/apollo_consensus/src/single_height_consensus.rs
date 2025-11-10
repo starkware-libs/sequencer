@@ -605,20 +605,26 @@ impl SingleHeightConsensus {
     }
 
     fn proposal_timeout_for(&self, round: Round) -> Duration {
-        self.timeouts
+        let timeout = self
+            .timeouts
             .proposal_timeout
-            .saturating_add(self.timeouts.proposal_timeout_delta.saturating_mul(round))
+            .saturating_add(self.timeouts.proposal_timeout_delta.saturating_mul(round));
+        timeout.min(self.timeouts.proposal_timeout_max)
     }
 
     fn prevote_timeout_for(&self, round: Round) -> Duration {
-        self.timeouts
+        let timeout = self
+            .timeouts
             .prevote_timeout
-            .saturating_add(self.timeouts.prevote_timeout_delta.saturating_mul(round))
+            .saturating_add(self.timeouts.prevote_timeout_delta.saturating_mul(round));
+        timeout.min(self.timeouts.prevote_timeout_max)
     }
 
     fn precommit_timeout_for(&self, round: Round) -> Duration {
-        self.timeouts
+        let timeout = self
+            .timeouts
             .precommit_timeout
-            .saturating_add(self.timeouts.precommit_timeout_delta.saturating_mul(round))
+            .saturating_add(self.timeouts.precommit_timeout_delta.saturating_mul(round));
+        timeout.min(self.timeouts.precommit_timeout_max)
     }
 }

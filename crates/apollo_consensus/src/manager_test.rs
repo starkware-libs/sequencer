@@ -38,10 +38,13 @@ lazy_static! {
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig {
         prevote_timeout: Duration::from_millis(100),
         prevote_timeout_delta: Duration::from_millis(10),
+        prevote_timeout_max: Duration::from_millis(500),
         precommit_timeout: Duration::from_millis(100),
         precommit_timeout_delta: Duration::from_millis(10),
+        precommit_timeout_max: Duration::from_millis(500),
         proposal_timeout: Duration::from_millis(100),
         proposal_timeout_delta: Duration::from_millis(10),
+        proposal_timeout_max: Duration::from_millis(1000),
     };
 }
 
