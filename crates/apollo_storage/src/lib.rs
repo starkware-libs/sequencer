@@ -82,6 +82,7 @@ pub mod body;
 pub mod class;
 pub mod class_hash;
 pub mod class_manager;
+pub mod commitment_output;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
@@ -135,6 +136,7 @@ use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersio
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::hash::CommitmentOutput;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
@@ -219,6 +221,7 @@ fn open_storage_internal(
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
         block_hashes: db_writer.create_simple_table("block_hashes")?,
+        state_roots: db_writer.create_simple_table("state_roots")?,
         partial_block_hashes_components: db_writer
             .create_simple_table("partial_block_hashes_components")?,
 
@@ -617,6 +620,7 @@ struct_field_names! {
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
         block_hashes: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockHash>, SimpleTable>,
+        state_roots: TableIdentifier<BlockNumber, NoVersionValueWrapper<CommitmentOutput>, SimpleTable>,
 
         // Version tables
         starknet_version: TableIdentifier<BlockNumber, VersionZeroWrapper<StarknetVersion>, SimpleTable>,

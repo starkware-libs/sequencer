@@ -69,7 +69,7 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
-use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::hash::{CommitmentOutput, HashOutput, PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{
     EntryPoint,
@@ -199,6 +199,10 @@ auto_storage_serde! {
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct CompiledClassHash(pub StarkHash);
     pub struct ClassHash(pub StarkHash);
+    pub struct CommitmentOutput {
+        pub contracts_trie_root_hash: HashOutput,
+        pub classes_trie_root_hash: HashOutput,
+    }
     pub struct ContractAddressSalt(pub StarkHash);
     pub enum ContractClassAbiEntry {
         Event(EventAbiEntry) = 0,
@@ -311,6 +315,7 @@ auto_storage_serde! {
     }
     pub struct GlobalRoot(pub StarkHash);
     pub struct H160(pub [u8; 20]);
+    pub struct HashOutput(pub Felt);
     pub struct IndexedDeprecatedContractClass {
         pub block_number: BlockNumber,
         pub location_in_file: LocationInFile,
