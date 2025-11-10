@@ -108,66 +108,66 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
+  "consensus.dynamic_config.timeouts.precommit.base": {
+    "description": "The base timeout (seconds).",
     "value": {
       "$serde_json::private::Number": "1.0"
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.precommit_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a precommit.",
+  "consensus.dynamic_config.timeouts.precommit.delta": {
+    "description": "The per-round timeout delta (seconds).",
     "value": {
       "$serde_json::private::Number": "0.5"
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.precommit_timeout_max": {
-    "description": "The maximum timeout (seconds) for a precommit.",
+  "consensus.dynamic_config.timeouts.precommit.max": {
+    "description": "The maximum timeout (seconds).",
     "value": {
       "$serde_json::private::Number": "5.0"
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
+  "consensus.dynamic_config.timeouts.prevote.base": {
+    "description": "The base timeout (seconds).",
+    "value": {
+      "$serde_json::private::Number": "0.3"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.prevote.delta": {
+    "description": "The per-round timeout delta (seconds).",
+    "value": {
+      "$serde_json::private::Number": "0.1"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.timeouts.prevote.max": {
+    "description": "The maximum timeout (seconds).",
     "value": {
       "$serde_json::private::Number": "1.0"
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.prevote_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a prevote.",
+  "consensus.dynamic_config.timeouts.proposal.base": {
+    "description": "The base timeout (seconds).",
     "value": {
-      "$serde_json::private::Number": "0.5"
+      "$serde_json::private::Number": "9.1"
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.prevote_timeout_max": {
-    "description": "The maximum timeout (seconds) for a prevote.",
+  "consensus.dynamic_config.timeouts.proposal.delta": {
+    "description": "The per-round timeout delta (seconds).",
     "value": {
-      "$serde_json::private::Number": "5.0"
+      "$serde_json::private::Number": "1.0"
     },
     "privacy": "Public"
   },
-  "consensus.dynamic_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
+  "consensus.dynamic_config.timeouts.proposal.max": {
+    "description": "The maximum timeout (seconds).",
     "value": {
-      "$serde_json::private::Number": "3.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.dynamic_config.timeouts.proposal_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a proposal.",
-    "value": {
-      "$serde_json::private::Number": "2.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.dynamic_config.timeouts.proposal_timeout_max": {
-    "description": "The maximum timeout (seconds) for a proposal.",
-    "value": {
-      "$serde_json::private::Number": "30.0"
+      "$serde_json::private::Number": "15.0"
     },
     "privacy": "Public"
   },

@@ -13,12 +13,7 @@ use apollo_class_manager_config::config::{
 };
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_consensus_config::config::{
-    ConsensusConfig,
-    ConsensusDynamicConfig,
-    ConsensusStaticConfig,
-    TimeoutsConfig,
-};
+use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig};
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
@@ -339,12 +334,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     n_composed_nodes: usize,
     chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
-    // TODO(Matan, Dan): set reasonable default timeouts.
-    let mut timeouts = TimeoutsConfig::default();
-    timeouts.precommit_timeout *= 3;
-    timeouts.prevote_timeout *= 3;
-    timeouts.proposal_timeout *= 3;
-
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
 
     network_configs
@@ -354,15 +343,11 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             network_config,
             immediate_active_height: BlockNumber(1),
             consensus_manager_config: ConsensusConfig {
-                dynamic_config: ConsensusDynamicConfig {
-                    timeouts: timeouts.clone(),
-                    ..Default::default()
-                },
                 static_config: ConsensusStaticConfig {
                     // TODO(Matan, Dan): Set the right amount
                     startup_delay: Duration::from_secs(15),
                     ..Default::default()
-                },
+                }, ..Default::default()
             },
             context_config: ContextConfig {
                 num_validators,
