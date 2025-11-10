@@ -15,7 +15,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
@@ -120,7 +120,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     mut storage: S,
     checkpoint_interval: usize,
 ) {
-    let mut time_measurement = TimeMeasurement::new(checkpoint_interval);
+    let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
             time_measurement.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
@@ -155,7 +155,12 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
-            time_measurement.to_csv(&format!("{}.csv", block_number + 1), output_dir);
+            let storage_stats = storage.get_stats();
+            time_measurement.to_csv(
+                &format!("{}.csv", block_number + 1),
+                output_dir,
+                storage_stats.as_ref().map(|s| Some(s.column_values())).unwrap_or(None),
+            );
             if let Some(checkpoint_dir) = checkpoint_dir {
                 time_measurement.save_checkpoint(
                     checkpoint_dir,
@@ -165,8 +170,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             }
             info!(
                 "{}",
-                storage
-                    .get_stats()
+                storage_stats
                     .map(|s| format!("{s}"))
                     .unwrap_or_else(|e| format!("Failed to retrieve statistics: {e}"))
             );
@@ -177,7 +181,11 @@ pub async fn run_storage_benchmark<S: Storage>(
 
     // Export to csv in the last iteration.
     if n_iterations % checkpoint_interval != 0 {
-        time_measurement.to_csv(&format!("{n_iterations}.csv"), output_dir);
+        time_measurement.to_csv(
+            &format!("{n_iterations}.csv"),
+            output_dir,
+            storage.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
+        );
     }
 
     time_measurement.pretty_print(50);
