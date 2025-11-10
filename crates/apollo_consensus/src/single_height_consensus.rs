@@ -208,7 +208,7 @@ impl SingleHeightConsensus {
             warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
-        let timeout = self.proposal_timeout_for(init.round);
+        let timeout = self.timeouts.proposal.get_timeout(init.round);
         let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
             warn!("Round {} already has a proposal, ignoring", init.round);
             return Ok(ShcReturn::Tasks(Vec::new()));
@@ -252,7 +252,7 @@ impl SingleHeightConsensus {
                 }
                 trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(self.timeouts.prevote_timeout, event)]))
+                Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(self.timeouts.prevote.base, event)]))
             }
             StateMachineEvent::Precommit(_proposal_id, round) => {
                 let Some(last_vote) = &self.last_precommit else {
@@ -266,10 +266,7 @@ impl SingleHeightConsensus {
                 }
                 trace_every_n_sec!(REBROADCAST_LOG_PERIOD_SECS, "Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
-                    self.timeouts.precommit_timeout,
-                    event,
-                )]))
+                Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(self.timeouts.precommit.base, event)]))
             }
             StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
                 let leader_fn =
@@ -425,14 +422,22 @@ impl SingleHeightConsensus {
                     );
                 }
                 StateMachineEvent::TimeoutPropose(round) => {
-                    ret_val.push(ShcTask::TimeoutPropose(self.proposal_timeout_for(round), event));
+                    ret_val.push(ShcTask::TimeoutPropose(
+                        self.timeouts.proposal.get_timeout(round),
+                        event,
+                    ));
                 }
                 StateMachineEvent::TimeoutPrevote(round) => {
-                    ret_val.push(ShcTask::TimeoutPrevote(self.prevote_timeout_for(round), event));
+                    ret_val.push(ShcTask::TimeoutPrevote(
+                        self.timeouts.prevote.get_timeout(round),
+                        event,
+                    ));
                 }
                 StateMachineEvent::TimeoutPrecommit(round) => {
-                    ret_val
-                        .push(ShcTask::TimeoutPrecommit(self.precommit_timeout_for(round), event));
+                    ret_val.push(ShcTask::TimeoutPrecommit(
+                        self.timeouts.precommit.get_timeout(round),
+                        event,
+                    ));
                 }
             }
         }
@@ -457,7 +462,7 @@ impl SingleHeightConsensus {
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
         CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
-        let timeout = self.proposal_timeout_for(round);
+        let timeout = self.timeouts.proposal.get_timeout(round);
         let fin_receiver = context.build_proposal(init, timeout).await;
         vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
@@ -503,8 +508,8 @@ impl SingleHeightConsensus {
         round: Round,
         vote_type: VoteType,
     ) -> Result<Vec<ShcTask>, ConsensusError> {
-        let prevote_timeout = self.prevote_timeout_for(round);
-        let precommit_timeout = self.precommit_timeout_for(round);
+        let prevote_timeout = self.timeouts.prevote.get_timeout(round);
+        let precommit_timeout = self.timeouts.precommit.get_timeout(round);
         let (votes, last_vote, task) = match vote_type {
             VoteType::Prevote => (
                 &mut self.prevotes,
@@ -602,29 +607,5 @@ impl SingleHeightConsensus {
             return Err(invalid_decision(msg));
         }
         Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
-    }
-
-    fn proposal_timeout_for(&self, round: Round) -> Duration {
-        let timeout = self
-            .timeouts
-            .proposal_timeout
-            .saturating_add(self.timeouts.proposal_timeout_delta.saturating_mul(round));
-        timeout.min(self.timeouts.proposal_timeout_max)
-    }
-
-    fn prevote_timeout_for(&self, round: Round) -> Duration {
-        let timeout = self
-            .timeouts
-            .prevote_timeout
-            .saturating_add(self.timeouts.prevote_timeout_delta.saturating_mul(round));
-        timeout.min(self.timeouts.prevote_timeout_max)
-    }
-
-    fn precommit_timeout_for(&self, round: Round) -> Duration {
-        let timeout = self
-            .timeouts
-            .precommit_timeout
-            .saturating_add(self.timeouts.precommit_timeout_delta.saturating_mul(round));
-        timeout.min(self.timeouts.precommit_timeout_max)
     }
 }

@@ -7,6 +7,7 @@ use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
     ConsensusStaticConfig,
+    Timeout,
     TimeoutsConfig,
 };
 use apollo_network::network_manager::test_utils::{
@@ -36,15 +37,21 @@ lazy_static! {
     static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig {
-        prevote_timeout: Duration::from_millis(100),
-        prevote_timeout_delta: Duration::from_millis(10),
-        prevote_timeout_max: Duration::from_millis(500),
-        precommit_timeout: Duration::from_millis(100),
-        precommit_timeout_delta: Duration::from_millis(10),
-        precommit_timeout_max: Duration::from_millis(500),
-        proposal_timeout: Duration::from_millis(100),
-        proposal_timeout_delta: Duration::from_millis(10),
-        proposal_timeout_max: Duration::from_millis(1000),
+        prevote: Timeout {
+            base: Duration::from_millis(100),
+            delta: Duration::from_millis(10),
+            max: Duration::from_millis(500),
+        },
+        precommit: Timeout {
+            base: Duration::from_millis(100),
+            delta: Duration::from_millis(10),
+            max: Duration::from_millis(500),
+        },
+        proposal: Timeout {
+            base: Duration::from_millis(100),
+            delta: Duration::from_millis(10),
+            max: Duration::from_millis(1000),
+        },
     };
 }
 

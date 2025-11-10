@@ -1524,6 +1524,56 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
+    "description": "The duration (seconds) between sync attempts.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.base": {
+    "description": "The timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.delta": {
+    "description": "The per-round timeout delta (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 0.5
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.max": {
+    "description": "The maximum timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 5.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.base": {
+    "description": "The timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.delta": {
+    "description": "The per-round timeout delta (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 0.5
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.max": {
+    "description": "The maximum timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 5.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base": {
+    "description": "The timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 3.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.delta": {
+    "description": "The per-round timeout delta (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 2.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max": {
+    "description": "The maximum timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 30.0
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
     "pointer_target": "validator_id",
@@ -1548,56 +1598,6 @@
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
-    "description": "The duration (seconds) between sync attempts.",
-    "privacy": "Public",
-    "value": 1.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
-    "privacy": "Public",
-    "value": 1.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout_max": {
-    "description": "The maximum timeout (seconds) for a precommit.",
-    "privacy": "Public",
-    "value": 5.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a precommit.",
-    "privacy": "Public",
-    "value": 0.5
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
-    "privacy": "Public",
-    "value": 1.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout_max": {
-    "description": "The maximum timeout (seconds) for a prevote.",
-    "privacy": "Public",
-    "value": 5.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a prevote.",
-    "privacy": "Public",
-    "value": 0.5
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
-    "privacy": "Public",
-    "value": 3.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout_max": {
-    "description": "The maximum timeout (seconds) for a proposal.",
-    "privacy": "Public",
-    "value": 30.0
-  },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a proposal.",
-    "privacy": "Public",
-    "value": 2.0
   },
   "consensus_manager_config.context_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
