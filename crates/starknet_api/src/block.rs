@@ -596,6 +596,26 @@ impl GasPrices {
             FeeType::Eth => &self.eth_gas_prices,
         }
     }
+    pub fn l1_gas_price_per_token(&self) -> GasPricePerToken {
+        GasPricePerToken {
+            price_in_fri: self.strk_gas_prices.l1_gas_price.get(),
+            price_in_wei: self.eth_gas_prices.l1_gas_price.get(),
+        }
+    }
+
+    pub fn l1_data_gas_price_per_token(&self) -> GasPricePerToken {
+        GasPricePerToken {
+            price_in_fri: self.strk_gas_prices.l1_data_gas_price.get(),
+            price_in_wei: self.eth_gas_prices.l1_data_gas_price.get(),
+        }
+    }
+
+    pub fn l2_gas_price_per_token(&self) -> GasPricePerToken {
+        GasPricePerToken {
+            price_in_fri: self.strk_gas_prices.l2_gas_price.get(),
+            price_in_wei: self.eth_gas_prices.l2_gas_price.get(),
+        }
+    }
 }
 
 // TODO(Arni): replace all relevant instances of `u64` with UnixTimestamp.
