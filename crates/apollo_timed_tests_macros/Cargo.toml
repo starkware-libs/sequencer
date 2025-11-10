@@ -1,0 +1,18 @@
+[package]
+name = "apollo_timed_tests_macros"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Procedural macros for timed tests"
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true

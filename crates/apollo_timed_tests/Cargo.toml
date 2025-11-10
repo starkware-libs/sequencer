@@ -1,0 +1,18 @@
+[package]
+name = "apollo_timed_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Timed test macros for the Apollo sequencer"
+
+[dependencies]
+apollo_timed_tests_macros.workspace = true
+rstest.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "time"] }
+
+[lints]
+workspace = true

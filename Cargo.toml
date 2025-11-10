@@ -84,6 +84,8 @@ members = [
   "crates/apollo_task_executor",
   "crates/apollo_test_utils",
   "crates/apollo_time",
+  "crates/apollo_timed_tests",
+  "crates/apollo_timed_tests_macros",
   "crates/bench_tools",
   "crates/blockifier",
   "crates/blockifier_reexecution",
@@ -200,6 +202,8 @@ apollo_storage.path = "crates/apollo_storage"
 apollo_task_executor.path = "crates/apollo_task_executor"
 apollo_test_utils.path = "crates/apollo_test_utils"
 apollo_time.path = "crates/apollo_time"
+apollo_timed_tests.path = "crates/apollo_timed_tests"
+apollo_timed_tests_macros.path = "crates/apollo_timed_tests_macros"
 ark-bls12-381 = "0.4.0"
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
