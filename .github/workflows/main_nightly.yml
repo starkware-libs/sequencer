@@ -30,7 +30,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: npm install -g ganache@7.4.3
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
@@ -115,10 +114,6 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
-      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
-      # anvil, remove.
-      - run: npm install -g ganache@7.4.3
-
       - name: "Run integration tests pull request"
         run: |
           scripts/run_tests.py --command integration --is_nightly
