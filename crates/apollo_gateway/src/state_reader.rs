@@ -1,4 +1,5 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
+use async_trait::async_trait;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -13,9 +14,10 @@ pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
     fn get_block_info(&self) -> Result<BlockInfo, StateError>;
 }
 
+#[async_trait]
 #[cfg_attr(test, automock)]
 pub trait StateReaderFactory: Send + Sync {
-    fn get_state_reader_from_latest_block(
+    async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>>;
 }

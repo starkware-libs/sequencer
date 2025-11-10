@@ -169,10 +169,10 @@ async fn test_instantiate_validator() {
     let mut mock_state_reader_factory = MockStateReaderFactory::new();
 
     // Make sure stateful_validator uses the latest block in the initial call.
-    let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block();
+    let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block().await;
     mock_state_reader_factory
         .expect_get_state_reader_from_latest_block()
-        .return_once(|| latest_state_reader);
+        .return_once(move || Box::pin(async move { latest_state_reader }));
 
     let validator =
         stateful_validator_factory.instantiate_validator(&mock_state_reader_factory).await;

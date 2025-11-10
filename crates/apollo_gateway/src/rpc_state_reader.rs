@@ -1,6 +1,7 @@
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc::CompiledContractClass;
 use apollo_state_sync_types::communication::StateSyncClientResult;
+use async_trait::async_trait;
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
@@ -185,8 +186,9 @@ pub struct RpcStateReaderFactory {
     pub config: RpcStateReaderConfig,
 }
 
+#[async_trait]
 impl StateReaderFactory for RpcStateReaderFactory {
-    fn get_state_reader_from_latest_block(
+    async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
         Ok(Box::new(RpcStateReader::from_latest(&self.config)))

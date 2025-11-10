@@ -63,6 +63,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         // StatefulTransactionValidator and update it only once a new block is created.
         let state_reader = state_reader_factory
             .get_state_reader_from_latest_block()
+            .await
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
             })
