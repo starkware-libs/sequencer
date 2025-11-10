@@ -91,14 +91,7 @@ pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 const ALLOW_BOOTSTRAP_TXS: bool = false;
 
 pub struct NodeSetup {
-    // TODO(victork): remove indices.
     executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
-    batcher_index: usize,
-    #[allow(dead_code)]
-    http_server_index: usize,
-    state_sync_index: usize,
-    #[allow(dead_code)]
-    consensus_manager_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -110,39 +103,39 @@ pub struct NodeSetup {
     storage_handles: StorageTestHandles,
 }
 
+trait GetItemByComponent<T> {
+    fn get_item_by_component(&self, component: ComponentConfigInService) -> &T;
+}
+
+impl GetItemByComponent<ExecutableSetup>
+    for IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>
+{
+    fn get_item_by_component(&self, component: ComponentConfigInService) -> &ExecutableSetup {
+        self.iter()
+            .find(|(components, _)| components.contains(&component))
+            .map(|(_, executable)| executable)
+            .unwrap_or_else(|| {
+                panic!("Expected at least one executable with component {:?}", component)
+            })
+    }
+}
 impl NodeSetup {
     pub fn new(
         executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
-        batcher_index: usize,
-        http_server_index: usize,
-        state_sync_index: usize,
-        consensus_manager_index: usize,
-        add_tx_http_client: HttpTestClient,
         storage_handles: StorageTestHandles,
     ) -> Self {
-        let len = executables.len();
+        let http_server_config = executables
+            .get_item_by_component(ComponentConfigInService::HttpServer)
+            .base_app_config
+            .get_config()
+            .http_server_config
+            .as_ref()
+            .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
-        fn validate_index(index: usize, len: usize, label: &str) {
-            assert!(
-                index < len,
-                "{label} index {index} is out of range. There are {len} executables."
-            );
-        }
+        let HttpServerConfig { ip, port } = http_server_config;
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
 
-        validate_index(batcher_index, len, "Batcher");
-        validate_index(http_server_index, len, "HTTP server");
-        validate_index(state_sync_index, len, "State sync");
-        validate_index(consensus_manager_index, len, "Consensus manager");
-
-        Self {
-            executables,
-            batcher_index,
-            http_server_index,
-            state_sync_index,
-            consensus_manager_index,
-            add_tx_http_client,
-            storage_handles,
-        }
+        Self { executables, add_tx_http_client, storage_handles }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -190,30 +183,20 @@ impl NodeSetup {
         serialize_to_file(&json_data, path);
     }
 
-    fn get_executable_by_component(&self, component: ComponentConfigInService) -> &ExecutableSetup {
-        self.executables
-            .iter()
-            .find(|(components, _)| components.contains(&component))
-            .map(|(_, executable)| executable)
-            .unwrap_or_else(|| {
-                panic!("Expected at least one executable with component {:?}", component)
-            })
-    }
-
     pub fn get_batcher(&self) -> &ExecutableSetup {
-        self.get_executable_by_component(ComponentConfigInService::Batcher)
+        self.executables.get_item_by_component(ComponentConfigInService::Batcher)
     }
 
     pub fn get_http_server(&self) -> &ExecutableSetup {
-        self.get_executable_by_component(ComponentConfigInService::HttpServer)
+        self.executables.get_item_by_component(ComponentConfigInService::HttpServer)
     }
 
     pub fn get_state_sync(&self) -> &ExecutableSetup {
-        self.get_executable_by_component(ComponentConfigInService::StateSync)
+        self.executables.get_item_by_component(ComponentConfigInService::StateSync)
     }
 
     pub fn get_consensus_manager(&self) -> &ExecutableSetup {
-        self.get_executable_by_component(ComponentConfigInService::Consensus)
+        self.executables.get_item_by_component(ComponentConfigInService::Consensus)
     }
 
     pub fn run(self) -> RunningNode {
@@ -428,10 +411,8 @@ impl IntegrationTestManager {
             let batcher_logger = CustomLogger::new(
                 TraceLevel::Info,
                 Some(format!(
-                    "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
-                     executable {}.",
-                    running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.batcher_index,
+                    "Waiting for batcher to reach block {expected_block_number} in sequencer {}.",
+                    running_node_setup.get_node_index().unwrap()
                 )),
             );
 
@@ -441,9 +422,8 @@ impl IntegrationTestManager {
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
-                     {} executable {}.",
-                    running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.state_sync_index,
+                     {}.",
+                    running_node_setup.get_node_index().unwrap()
                 )),
             );
 
@@ -718,9 +698,7 @@ impl IntegrationTestManager {
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
             await_block(
                 batcher_monitoring_client,
-                node_setup.batcher_index,
                 state_sync_monitoring_client,
-                node_setup.state_sync_index,
                 expected_block_number,
                 sequencer_idx,
             )
@@ -746,14 +724,13 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.batcher_index;
             let expected_height = expected_block_number.unchecked_next();
 
             let logger = CustomLogger::new(
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for sync height metric to reach block {expected_height} in sequencer \
-                     {sequencer_idx} executable {batcher_index}.",
+                     {sequencer_idx}.",
                 )),
             );
             await_sync_block(5000, condition, 50, monitoring_client, logger).await.unwrap();
@@ -924,11 +901,6 @@ async fn get_sequencer_setup_configs(
     // Create nodes.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = IndexMap::new();
-        let batcher_index = node_component_config.get_batcher_index();
-        let http_server_index = node_component_config.get_http_server_index();
-        let state_sync_index = node_component_config.get_state_sync_index();
-        let _ = node_component_config.get_class_manager_index();
-        let consensus_manager_index = node_component_config.get_consensus_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -951,9 +923,7 @@ async fn get_sequencer_setup_configs(
         );
 
         // Per node, create the executables constituting it.
-        for (executable_index, (component_set, executable_component_config)) in
-            node_component_config.into_iter().enumerate()
-        {
+        for (component_set, executable_component_config) in node_component_config.into_iter() {
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
@@ -984,7 +954,7 @@ async fn get_sequencer_setup_configs(
                 CONFIG_NON_POINTERS_WHITELIST.clone(),
             );
 
-            let node_execution_id = NodeExecutionId::new(node_index, executable_index);
+            let node_execution_id = NodeExecutionId::new(node_index);
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
 
@@ -994,24 +964,7 @@ async fn get_sequencer_setup_configs(
             );
         }
 
-        let http_server_config = executables[http_server_index]
-            .base_app_config
-            .get_config()
-            .http_server_config
-            .as_ref()
-            .expect("Http server config should be set for this executable.");
-        let HttpServerConfig { ip, port } = http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
-
-        nodes.push(NodeSetup::new(
-            executables,
-            batcher_index,
-            http_server_index,
-            state_sync_index,
-            consensus_manager_index,
-            add_tx_http_client,
-            storage_setup.storage_handles,
-        ));
+        nodes.push(NodeSetup::new(executables, storage_setup.storage_handles));
     }
 
     (nodes, node_indices)

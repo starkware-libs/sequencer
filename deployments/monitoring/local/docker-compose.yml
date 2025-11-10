@@ -74,7 +74,7 @@ services:
     # TODO(Tsabary): change the setup binary to output the file to a specific path, and use it in the following command.
     # TODO(Tsabary): the config changes need to be more robust, probably managed through a suitable rust binary.
     command: |
-      "cp /config/node_0/executable_0/node_integration_test_config_changes.json ${SEQUENCER_CONFIG_PATH} \
+      "cp /config/node_0/node_integration_test_config_changes.json ${SEQUENCER_CONFIG_PATH} \
       echo 'Injecting config changes...' && \
       jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list\" = \"http://dummy_eth_to_strk_oracle:9000/eth_to_strk_oracle\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \

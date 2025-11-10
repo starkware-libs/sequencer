@@ -345,3 +345,7 @@ impl ComponentConfigInService {
             .collect()
     }
 }
+
+pub trait GetItemByComponent<T> {
+    fn get_item_by_component(&self, component: ComponentConfigInService) -> &T;
+}
