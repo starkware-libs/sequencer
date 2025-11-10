@@ -1,0 +1,56 @@
+[package]
+name = "apollo_quic_datagrams"
+version = "0.13.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition.workspace = true
+description = "TLS based QUIC transport implementation for libp2p"
+repository = "https://github.com/libp2p/rust-libp2p"
+license = "MIT"
+
+[dependencies]
+futures = { workspace = true }
+futures-timer = "3.0.3"
+if-watch = "3.2.0"
+libp2p = { workspace = true, features = [
+    "dns",
+    "gossipsub",
+    "identify",
+    "kad",
+    "macros",
+    "noise",
+    "quic",
+    "serde",
+    "tcp",
+    "tls",
+    "tokio",
+    "yamux",
+] }
+quinn = { version = "0.11.6", default-features = false, features = ["futures-io", "rustls"] }
+rand = { workspace = true }
+rustls = { version = "0.23.9", default-features = false }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["net", "rt", "time"], optional = true }
+tracing = { workspace = true }
+socket2 = { workspace = true }
+ring = "0.17"
+
+[features]
+tokio = ["dep:tokio", "if-watch/tokio", "quinn/runtime-tokio"]
+
+# Passing arguments to the docsrs builder in order to properly document cfg's.
+# More information: https://docs.rs/about/builds#cross-compiling
+[package.metadata.docs.rs]
+all-features = true
+
+[dev-dependencies]
+libp2p = { workspace = true }
+quickcheck = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[[test]]
+name = "stream_compliance"
+required-features = ["tokio"]
+
+[lints]
+workspace = true

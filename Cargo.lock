@@ -2374,6 +2374,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_quic_datagrams"
+version = "0.13.0"
+dependencies = [
+ "futures",
+ "futures-timer",
+ "if-watch",
+ "libp2p",
+ "quickcheck",
+ "quinn",
+ "rand 0.8.5",
+ "ring 0.17.14",
+ "rustls 0.23.31",
+ "socket2 0.5.10",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "apollo_reverts"
 version = "0.0.0"
 dependencies = [
@@ -8194,6 +8214,7 @@ dependencies = [
  "libp2p-quic",
  "libp2p-swarm",
  "libp2p-tcp",
+ "libp2p-tls",
  "libp2p-upnp",
  "libp2p-yamux",
  "multiaddr",

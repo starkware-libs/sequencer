@@ -70,6 +70,7 @@ members = [
   "crates/apollo_proc_macros_tests",
   "crates/apollo_propeller",
   "crates/apollo_protobuf",
+  "crates/apollo_quic_datagrams",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
   "crates/apollo_rpc_execution",
