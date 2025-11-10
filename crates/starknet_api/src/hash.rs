@@ -77,6 +77,7 @@ impl HashOutput {
 }
 
 /// Output of committing a state.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, Hash, Eq, PartialEq)]
 pub struct CommitmentOutput {
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,

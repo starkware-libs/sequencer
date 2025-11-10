@@ -7,6 +7,7 @@ use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
+use apollo_storage::commitment_output::CommitmentOutputStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
@@ -127,6 +128,8 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .revert_partial_block_hash_components(&target_block_marker)
         .unwrap()
         .revert_block_hash(&target_block_marker)
+        .unwrap()
+        .revert_commitment_output(&target_block_marker)
         .unwrap()
         .commit()
         .unwrap();
