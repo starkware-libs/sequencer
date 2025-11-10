@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dummy-200
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dummy-200
+      role: flask
+  template:
+    metadata:
+      labels:
+        app: dummy-200
+        role: flask
+    spec:
+      containers:
+        - name: app
+          image: python:3.11-slim
+          ports: [{containerPort: 80}]
+          env:
+            - { name: PYTHONUNBUFFERED, value: "1" }
+            - { name: BLOCKS_DIR, value: "/data/blocks" }
+          command: ["bash","-lc"]
+          args:
+            - >
+              pip install --no-cache-dir flask gunicorn requests >/dev/null &&
+              echo "[FLASK] starting gunicorn on :80" &&
+              gunicorn -w 1 -b 0.0.0.0:80 app:app --timeout 0 --access-logfile -
+          volumeMounts:
+            - { name: app-src, mountPath: /app }
+            - { name: data-dir, mountPath: /data }
+          workingDir: /app
+      volumes:
+        - name: app-src
+          configMap:
+            name: dummy-200-app
+            items:
+              - { key: app.py, path: app.py }
+              - { key: block_storage.py, path: block_storage.py }
+        - name: data-dir
+          emptyDir: {}
+
+
+
