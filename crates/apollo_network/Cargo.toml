@@ -13,6 +13,7 @@ apollo_config.workspace = true
 apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_propeller.workspace = true
+apollo_quic_datagrams = { path = "../apollo_quic_datagrams", features = ["tokio"] }
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true

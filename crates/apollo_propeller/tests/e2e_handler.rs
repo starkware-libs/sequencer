@@ -188,7 +188,7 @@ fn create_swarm(
 
     let identity = Keypair::generate_ed25519();
 
-    let builder = libp2p::SwarmBuilder::with_existing_identity(identity).with_tokio();
+    let builder = libp2p::SwarmBuilder::with_existing_identity(identity.clone()).with_tokio();
 
     match transport_type {
         TransportType::Memory => builder
@@ -213,16 +213,25 @@ fn create_swarm(
                 c.with_idle_connection_timeout(Duration::from_secs(3600)) // 1 hour
             })
             .build(),
-        TransportType::Quic => builder
-            .with_quic()
-            .with_behaviour(|_| HandlerTestBehaviour::new(max_wire_message_size))
-            .expect("Failed to create behaviour")
-            .with_swarm_config(|c| {
-                // Use a much longer idle connection timeout to prevent disconnections during long
-                // tests
-                c.with_idle_connection_timeout(Duration::from_secs(3600)) // 1 hour
-            })
-            .build(),
+        TransportType::Quic => {
+            // Use custom apollo_quic_datagrams implementation
+            let quic_config = apollo_quic_datagrams::Config::new(&identity);
+            let quic_transport = apollo_quic_datagrams::tokio::Transport::new(quic_config);
+
+            builder
+                .with_other_transport(|_key| quic_transport)
+                .expect("Failed to build QUIC transport")
+                .with_dns()
+                .expect("Failed to build DNS transport")
+                .with_behaviour(|_| HandlerTestBehaviour::new(max_wire_message_size))
+                .expect("Failed to create behaviour")
+                .with_swarm_config(|c| {
+                    // Use a much longer idle connection timeout to prevent disconnections during
+                    // long tests
+                    c.with_idle_connection_timeout(Duration::from_secs(3600)) // 1 hour
+                })
+                .build()
+        }
     }
 }
 

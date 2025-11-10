@@ -190,6 +190,7 @@ apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
 apollo_propeller.path = "crates/apollo_propeller"
 apollo_protobuf.path = "crates/apollo_protobuf"
+apollo_quic_datagrams = { path = "crates/apollo_quic_datagrams", features = ["tokio"] }
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
 apollo_rpc_execution.path = "crates/apollo_rpc_execution"

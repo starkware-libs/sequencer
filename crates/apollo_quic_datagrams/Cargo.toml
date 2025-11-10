@@ -26,6 +26,7 @@ libp2p = { workspace = true, features = [
     "yamux",
 ] }
 quinn = { version = "0.11.6", default-features = false, features = ["futures-io", "rustls"] }
+quinn-proto = "0.11.13"
 rand = { workspace = true }
 rustls = { version = "0.23.9", default-features = false }
 thiserror = { workspace = true }
