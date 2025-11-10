@@ -66,6 +66,7 @@ auto_impl_get_test_instance! {
         BaseLayerBlock = 6,
         ClassManagerBlock = 7,
         CompilerBackwardCompatibility = 8,
+        Commitment = 9,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,
