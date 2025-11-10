@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
@@ -173,7 +174,8 @@ fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(|| latest_state_reader);
 
-    let validator = stateful_validator_factory.instantiate_validator(&mock_state_reader_factory);
+    let validator = stateful_validator_factory
+        .instantiate_validator(&mock_state_reader_factory, RefCell::new(Default::default()));
     assert!(validator.is_ok());
 }
 

@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -14,7 +16,7 @@ use blockifier::blockifier::stateful_validator::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::CachedState;
+use blockifier::state::cached_state::{CachedState, ContractClassMapping};
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
 use num_rational::Ratio;
@@ -43,6 +45,7 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        contract_class_mapping: RefCell<ContractClassMapping>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
@@ -55,6 +58,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        contract_class_mapping: RefCell<ContractClassMapping>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
@@ -71,7 +75,9 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
             })?;
         let latest_block_info = get_latest_block_info(&state_reader)?;
 
-        let state = CachedState::new(state_reader);
+        let state =
+            CachedState::new_with_contract_class_mapping(state_reader, contract_class_mapping);
+
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
         );

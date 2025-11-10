@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs::File;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
@@ -322,6 +322,7 @@ fn process_tx_task(
         mempool_client: Arc::new(MockMempoolClient::new()),
         executable_tx: executable_invoke_tx(invoke_args()),
         runtime: tokio::runtime::Handle::current(),
+        contract_class_mapping: Arc::new(RwLock::new(Default::default())),
     }
 }
 
@@ -563,7 +564,7 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
@@ -606,7 +607,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|_, _| Err(expected_error));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 

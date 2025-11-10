@@ -1,5 +1,6 @@
+use std::cell::RefCell;
 use std::clone::Clone;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
@@ -25,6 +26,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
+use blockifier::state::cached_state::ContractClassMapping;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
@@ -64,6 +66,8 @@ pub struct Gateway {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
+    // A cache used in the stateful transaction validator.
+    pub contract_class_mapping: Arc<RwLock<ContractClassMapping>>,
 }
 
 impl Gateway {
@@ -84,6 +88,7 @@ impl Gateway {
             state_reader_factory,
             mempool_client,
             transaction_converter,
+            contract_class_mapping: Arc::new(RwLock::new(Default::default())),
         }
     }
 
@@ -149,8 +154,12 @@ impl Gateway {
                 transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
             })?;
 
-        let blocking_task =
-            ProcessTxBlockingTask::new(self, executable_tx, tokio::runtime::Handle::current());
+        let blocking_task = ProcessTxBlockingTask::new(
+            self,
+            executable_tx,
+            tokio::runtime::Handle::current(),
+            &self.contract_class_mapping,
+        );
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let handle =
@@ -234,6 +243,7 @@ struct ProcessTxBlockingTask {
     mempool_client: SharedMempoolClient,
     executable_tx: AccountTransaction,
     runtime: tokio::runtime::Handle,
+    contract_class_mapping: Arc<RwLock<ContractClassMapping>>,
 }
 
 impl ProcessTxBlockingTask {
@@ -241,6 +251,7 @@ impl ProcessTxBlockingTask {
         gateway: &Gateway,
         executable_tx: AccountTransaction,
         runtime: tokio::runtime::Handle,
+        contract_class_mapping: &Arc<RwLock<ContractClassMapping>>,
     ) -> Self {
         Self {
             stateful_tx_validator_factory: gateway.stateful_tx_validator_factory.clone(),
@@ -248,13 +259,24 @@ impl ProcessTxBlockingTask {
             mempool_client: gateway.mempool_client.clone(),
             executable_tx,
             runtime,
+            contract_class_mapping: contract_class_mapping.clone(),
         }
     }
 
     fn process_tx(self) -> GatewayResult<Nonce> {
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref())?;
+        // Convert from Arc<RwLock<ContractClassMapping>> to RefCell<ContractClassMapping>
+        // for the validator which expects RefCell
+        let contract_class_mapping_clone = {
+            let guard = self.contract_class_mapping.read().unwrap();
+            guard.clone()
+        };
+        let contract_class_mapping_refcell = RefCell::new(contract_class_mapping_clone);
+
+        let mut stateful_transaction_validator =
+            self.stateful_tx_validator_factory.instantiate_validator(
+                self.state_reader_factory.as_ref(),
+                contract_class_mapping_refcell,
+            )?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,

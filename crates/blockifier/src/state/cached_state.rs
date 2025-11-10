@@ -43,6 +43,17 @@ impl<S: StateReader> CachedState<S> {
         }
     }
 
+    pub fn new_with_contract_class_mapping(
+        state: S,
+        contract_class_mapping: RefCell<ContractClassMapping>,
+    ) -> Self {
+        Self {
+            state,
+            cache: RefCell::new(StateCache::default()),
+            class_hash_to_class: contract_class_mapping,
+        }
+    }
+
     /// Returns the state diff resulting from the performed writes, with respect to the parent
     /// state.
     pub fn to_state_diff(&mut self) -> StateResult<StateChanges> {
