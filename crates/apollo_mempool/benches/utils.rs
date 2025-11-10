@@ -124,21 +124,27 @@ const BENCH_LOCAL_CLIENT_METRICS: LocalClientMetrics =
 
 struct TransactionGenerator {
     multi_tx_generator: MultiAccountTransactionGenerator,
-    sender_address: ContractAddress,
+    sender_address: Vec<ContractAddress>,
 }
 
 impl TransactionGenerator {
-    fn new(cairo_version: CairoVersion) -> Self {
+    fn new(cairo_version: CairoVersion, n_accounts: usize) -> Self {
         let mut multi_tx_generator = MultiAccountTransactionGenerator::new();
         let account_type = FeatureContract::AccountWithoutValidations(cairo_version);
-        multi_tx_generator.register_deployed_account(account_type);
-        let sender_address = multi_tx_generator.account_with_id(0).sender_address();
+        (0..n_accounts).for_each(|_| {
+            multi_tx_generator.register_deployed_account(account_type);
+        });
+        let sender_address = (0..n_accounts)
+            .map(|i| multi_tx_generator.account_with_id(i).sender_address())
+            .collect();
         Self { multi_tx_generator, sender_address }
     }
 
-    fn generate_invoke(&mut self, index: usize) -> AddTransactionArgs {
-        let RpcTransaction::Invoke(invoke_tx) =
-            self.multi_tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx(0)
+    fn generate_invoke(&mut self, account_id: usize, index: usize) -> AddTransactionArgs {
+        let RpcTransaction::Invoke(invoke_tx) = self
+            .multi_tx_generator
+            .account_with_id_mut(account_id)
+            .generate_trivial_rpc_invoke_tx(0)
         else {
             panic!("Expected RpcTransaction::Invoke")
         };
@@ -151,7 +157,10 @@ impl TransactionGenerator {
             // Since generate_invoke_with_tip() creates first transaction with nonce 1 (first
             // invoke after deploy), the AccountState must also have nonce 1 to initialize the
             // mempool nonce management to 1.
-            account_state: AccountState { address: self.sender_address, nonce: nonce!(1) },
+            account_state: AccountState {
+                address: self.sender_address[account_id],
+                nonce: nonce!(1),
+            },
         }
     }
 }
@@ -159,6 +168,7 @@ impl TransactionGenerator {
 #[derive(Clone)]
 pub struct BenchTestSetupConfig {
     pub n_txs: usize,
+    pub n_accounts: usize,
     pub mempool_config: MempoolConfig,
     pub chunk_size: usize, // Number of "add_tx" requests per one "get_tx" request.
 }
@@ -177,9 +187,14 @@ pub struct MempoolServerClientSetup {
 impl BenchTestSetup {
     pub fn new(config: &BenchTestSetupConfig) -> Self {
         let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
-        let mut tx_generator = TransactionGenerator::new(cairo_version);
+        let mut tx_generator = TransactionGenerator::new(cairo_version, config.n_accounts);
 
-        let txs = (0..config.n_txs).map(|i| tx_generator.generate_invoke(i)).collect();
+        let txs = (0..config.n_txs)
+            .map(|index| {
+                let account_id = index % config.n_accounts;
+                tx_generator.generate_invoke(account_id, index)
+            })
+            .collect();
 
         Self { config: config.clone(), txs }
     }
