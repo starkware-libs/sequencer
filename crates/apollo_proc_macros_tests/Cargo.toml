@@ -7,6 +7,7 @@ license-file.workspace = true
 
 [dependencies]
 apollo_proc_macros.workspace = true
+rstest.workspace = true
 
 [dev-dependencies]
 apollo_metrics.workspace = true
@@ -16,6 +17,7 @@ metrics-exporter-prometheus.workspace = true
 papyrus_common.workspace = true
 prometheus-parse.workspace = true
 rstest.workspace = true
+tokio.workspace = true
 
 [lints]
 workspace = true
