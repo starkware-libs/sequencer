@@ -25,6 +25,16 @@ pub(crate) const EDGE_BYTES: usize = SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES + ED
 #[allow(dead_code)]
 pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
 
+/// The layout of the patricia storage.
+#[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
+pub enum PatriciaStorageLayout {
+    // Keys are the hash of the value. For example, binary nodes (left, right) are stored at key
+    // hash(left, right).
+    #[default]
+    Fact,
+}
+
+/// DB prefixes for patricia nodes in fact layout.
 #[derive(Debug)]
 pub enum PatriciaPrefix {
     InnerNode,
@@ -40,6 +50,9 @@ impl From<PatriciaPrefix> for DbKeyPrefix {
     }
 }
 
+/// Fact layout filled node.
+pub struct FactLayoutFilledNode<L: Leaf>(pub FilledNode<L>);
+
 /// Temporary struct to serialize the leaf CompiledClass.
 /// Required to comply to existing storage layout.
 #[derive(Serialize, Deserialize)]
@@ -47,9 +60,9 @@ pub(crate) struct LeafCompiledClassToSerialize {
     pub(crate) compiled_class_hash: Felt,
 }
 
-impl<L: Leaf> FilledNode<L> {
+impl<L: Leaf> FactLayoutFilledNode<L> {
     pub fn suffix(&self) -> [u8; SERIALIZE_HASH_BYTES] {
-        self.hash.0.to_bytes_be()
+        self.0.hash.0.to_bytes_be()
     }
 
     pub fn db_key(&self) -> DbKey {
@@ -57,9 +70,9 @@ impl<L: Leaf> FilledNode<L> {
     }
 }
 
-impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
+impl<L: Leaf> HasDynamicPrefix for FactLayoutFilledNode<L> {
     fn get_prefix(&self) -> DbKeyPrefix {
-        match &self.data {
+        match &self.0.data {
             NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
             NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix()),
         }
@@ -67,13 +80,13 @@ impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
     }
 }
 
-impl<L: Leaf> DBObject for FilledNode<L> {
+impl<L: Leaf> DBObject for FactLayoutFilledNode<L> {
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
     fn serialize(&self) -> DbValue {
-        match &self.data {
+        match &self.0.data {
             NodeData::Binary(BinaryData { left_hash, right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
                 let left: [u8; SERIALIZE_HASH_BYTES] = left_hash.0.to_bytes_be();
@@ -101,7 +114,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
     }
 }
 
-impl<L: Leaf> FilledNode<L> {
+impl<L: Leaf> FactLayoutFilledNode<L> {
     /// Deserializes filled nodes.
     pub fn deserialize(
         node_hash: HashOutput,
@@ -109,11 +122,14 @@ impl<L: Leaf> FilledNode<L> {
         is_leaf: bool,
     ) -> Result<Self, DeserializationError> {
         if is_leaf {
-            return Ok(Self { hash: node_hash, data: NodeData::Leaf(L::deserialize(value)?) });
+            return Ok(Self(FilledNode {
+                hash: node_hash,
+                data: NodeData::Leaf(L::deserialize(value)?),
+            }));
         }
 
         if value.0.len() == BINARY_BYTES {
-            Ok(Self {
+            Ok(Self(FilledNode {
                 hash: node_hash,
                 data: NodeData::Binary(BinaryData {
                     left_hash: HashOutput(Felt::from_bytes_be_slice(
@@ -123,7 +139,7 @@ impl<L: Leaf> FilledNode<L> {
                         &value.0[SERIALIZE_HASH_BYTES..],
                     )),
                 }),
-            })
+            }))
         } else {
             assert_eq!(
                 value.0.len(),
@@ -133,7 +149,7 @@ impl<L: Leaf> FilledNode<L> {
                 EDGE_BYTES,
                 BINARY_BYTES
             );
-            Ok(Self {
+            Ok(Self(FilledNode {
                 hash: node_hash,
                 data: NodeData::Edge(EdgeData {
                     bottom_hash: HashOutput(Felt::from_bytes_be_slice(
@@ -151,7 +167,7 @@ impl<L: Leaf> FilledNode<L> {
                     )
                     .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
                 }),
-            })
+            }))
         }
     }
 }

@@ -19,6 +19,7 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
 };
+use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use crate::patricia_merkle_tree::internal_test_utils::{MockLeaf, OriginalSkeletonMockTrieConfig};
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -202,6 +203,7 @@ fn test_create_tree(
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     #[case] subtree_height: SubTreeHeight,
     #[values(true, false)] compare_modified_leaves: bool,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let leaf_modifications: LeafModifications<MockLeaf> = leaf_modifications
         .into_iter()
@@ -212,6 +214,7 @@ fn test_create_tree(
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
         &mut storage,
+        storage_layout,
         root_hash,
         sorted_leaf_indices,
         &config,

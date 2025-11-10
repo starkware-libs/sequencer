@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -34,14 +35,18 @@ pub struct FilledForest {
 impl FilledForest {
     /// Writes the node serialization of the filled trees to storage. Returns the number of new
     /// objects written to storage.
-    pub fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
+    pub fn write_to_storage(
+        &self,
+        storage: &mut impl Storage,
+        layout: PatriciaStorageLayout,
+    ) -> usize {
         // Serialize all trees to one hash map.
         let new_db_objects: DbHashMap = self
             .storage_tries
             .values()
-            .flat_map(|tree| tree.serialize().into_iter())
-            .chain(self.contracts_trie.serialize())
-            .chain(self.classes_trie.serialize())
+            .flat_map(|tree| tree.serialize(layout).into_iter())
+            .chain(self.contracts_trie.serialize(layout))
+            .chain(self.classes_trie.serialize(layout))
             .collect();
 
         // Store the new hash map.

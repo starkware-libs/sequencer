@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::Deserialize_repr;
 use starknet_committer::block_committer::input::ConfigImpl;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use tracing::level_filters::LevelFilter;
 type RawFelt = [u8; 32];
 
@@ -43,6 +44,7 @@ pub(crate) enum PythonLogLevel {
     Debug = 10,
 }
 
+/// Converts a RawConfigImpl to a ConfigImpl. Assumes storage layout is Fact.
 impl From<RawConfigImpl> for ConfigImpl {
     fn from(raw_config: RawConfigImpl) -> Self {
         let log_level = match raw_config.log_level {
@@ -52,7 +54,11 @@ impl From<RawConfigImpl> for ConfigImpl {
             PythonLogLevel::Warning => LevelFilter::WARN,
             PythonLogLevel::Error | PythonLogLevel::Critical => LevelFilter::ERROR,
         };
-        ConfigImpl::new(raw_config.warn_on_trivial_modifications, log_level)
+        ConfigImpl::new(
+            raw_config.warn_on_trivial_modifications,
+            log_level,
+            PatriciaStorageLayout::Fact,
+        )
     }
 }
 

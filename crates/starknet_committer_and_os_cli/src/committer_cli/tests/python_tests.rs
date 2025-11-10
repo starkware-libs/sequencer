@@ -18,6 +18,10 @@ use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
+    FactLayoutFilledNode,
+    PatriciaStorageLayout,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -160,6 +164,7 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
                     &mut storage,
+                    PatriciaStorageLayout::Fact,
                     root_hash,
                     OriginalSkeletonStorageTrieConfig::new(false),
                 )
@@ -269,8 +274,11 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     };
 
     // Create a filled node (irrelevant leaf type) with binary data and zero hash.
-    let filled_node: FilledNode<StarknetStorageValue> =
-        FilledNode { data: NodeData::Binary(binary_data), hash: HashOutput(Felt::ZERO) };
+    let filled_node: FactLayoutFilledNode<StarknetStorageValue> =
+        FactLayoutFilledNode(FilledNode {
+            data: NodeData::Binary(binary_data),
+            hash: HashOutput(Felt::ZERO),
+        });
 
     // Serialize the binary node and insert it into the map under the key "value".
     let value = filled_node.serialize();
@@ -417,33 +425,36 @@ pub(crate) fn test_node_db_key() -> String {
     // Generate keys for different node types.
     let hash = HashOutput(zero);
 
-    let binary_node: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
-        hash,
-    };
+    let binary_node: FactLayoutFilledNode<StarknetStorageValue> =
+        FactLayoutFilledNode(FilledNode {
+            data: NodeData::Binary(BinaryData { left_hash: hash, right_hash: hash }),
+            hash,
+        });
     let binary_node_key = binary_node.db_key().0;
 
-    let edge_node: FilledNode<StarknetStorageValue> = FilledNode {
+    let edge_node: FactLayoutFilledNode<StarknetStorageValue> = FactLayoutFilledNode(FilledNode {
         data: NodeData::Edge(EdgeData { bottom_hash: hash, path_to_bottom: Default::default() }),
         hash,
-    };
+    });
 
     let edge_node_key = edge_node.db_key().0;
 
-    let storage_leaf = FilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
+    let storage_leaf: FactLayoutFilledNode<StarknetStorageValue> =
+        FactLayoutFilledNode(FilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash });
     let storage_leaf_key = storage_leaf.db_key().0;
 
-    let state_tree_leaf = FilledNode {
+    let state_tree_leaf: FactLayoutFilledNode<ContractState> = FactLayoutFilledNode(FilledNode {
         data: NodeData::Leaf(ContractState {
             class_hash: ClassHash(zero),
             storage_root_hash: HashOutput(zero),
             nonce: Nonce(zero),
         }),
         hash,
-    };
+    });
     let state_tree_leaf_key = state_tree_leaf.db_key().0;
 
-    let compiled_class_leaf = FilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash };
+    let compiled_class_leaf: FactLayoutFilledNode<CompiledClassHash> =
+        FactLayoutFilledNode(FilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash });
     let compiled_class_leaf_key = compiled_class_leaf.db_key().0;
 
     // Store keys in a HashMap.
@@ -509,13 +520,14 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
     let binary_data: HashMap<String, u128> = serde_json::from_str(binary_json)?;
 
     // Create a binary node from the parsed data.
-    let binary_rust: FilledNode<StarknetStorageValue> = FilledNode {
-        data: NodeData::Binary(BinaryData {
-            left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
-            right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
-        }),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
-    };
+    let binary_rust: FactLayoutFilledNode<StarknetStorageValue> =
+        FactLayoutFilledNode(FilledNode {
+            data: NodeData::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
+                right_hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
+            }),
+            hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
+        });
 
     // Store the binary node in the storage.
     rust_fact_storage.set(binary_rust.db_key(), binary_rust.serialize())?;
@@ -525,7 +537,7 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
     let edge_data: HashMap<String, u128> = serde_json::from_str(edge_json)?;
 
     // Create an edge node from the parsed data.
-    let edge_rust: FilledNode<StarknetStorageValue> = FilledNode {
+    let edge_rust: FactLayoutFilledNode<StarknetStorageValue> = FactLayoutFilledNode(FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom::new(
@@ -542,7 +554,7 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
             .expect("Illegal PathToBottom"),
         }),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),
-    };
+    });
 
     // Store the edge node in the storage.
     rust_fact_storage.set(edge_rust.db_key(), edge_rust.serialize())?;
@@ -552,13 +564,14 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
     let storage_leaf_data: HashMap<String, u128> = serde_json::from_str(storage_leaf_json)?;
 
     // Create a storage leaf node from the parsed data.
-    let storage_leaf_rust = FilledNode {
-        data: NodeData::Leaf(StarknetStorageValue(Felt::from(*get_or_key_not_found(
-            &storage_leaf_data,
-            "value",
-        )?))),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(&storage_leaf_data, "hash")?)),
-    };
+    let storage_leaf_rust: FactLayoutFilledNode<StarknetStorageValue> =
+        FactLayoutFilledNode(FilledNode {
+            data: NodeData::Leaf(StarknetStorageValue(Felt::from(*get_or_key_not_found(
+                &storage_leaf_data,
+                "value",
+            )?))),
+            hash: HashOutput(Felt::from(*get_or_key_not_found(&storage_leaf_data, "hash")?)),
+        });
 
     // Store the storage leaf node in the storage.
     rust_fact_storage.set(storage_leaf_rust.db_key(), storage_leaf_rust.serialize())?;
@@ -569,21 +582,25 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
         serde_json::from_str(contract_state_leaf)?;
 
     // Create a contract state leaf node from the parsed data.
-    let contract_state_leaf_rust = FilledNode {
-        data: NodeData::Leaf(ContractState {
-            class_hash: ClassHash(Felt::from(*get_or_key_not_found(
-                &contract_state_leaf_data,
-                "contract_hash",
-            )?)),
-            storage_root_hash: HashOutput(Felt::from(*get_or_key_not_found(
-                &contract_state_leaf_data,
-                "root",
-            )?)),
-            nonce: Nonce(Felt::from(*get_or_key_not_found(&contract_state_leaf_data, "nonce")?)),
-        }),
+    let contract_state_leaf_rust: FactLayoutFilledNode<ContractState> =
+        FactLayoutFilledNode(FilledNode {
+            data: NodeData::Leaf(ContractState {
+                class_hash: ClassHash(Felt::from(*get_or_key_not_found(
+                    &contract_state_leaf_data,
+                    "contract_hash",
+                )?)),
+                storage_root_hash: HashOutput(Felt::from(*get_or_key_not_found(
+                    &contract_state_leaf_data,
+                    "root",
+                )?)),
+                nonce: Nonce(Felt::from(*get_or_key_not_found(
+                    &contract_state_leaf_data,
+                    "nonce",
+                )?)),
+            }),
 
-        hash: HashOutput(Felt::from(*get_or_key_not_found(&contract_state_leaf_data, "hash")?)),
-    };
+            hash: HashOutput(Felt::from(*get_or_key_not_found(&contract_state_leaf_data, "hash")?)),
+        });
 
     // Store the contract state leaf node in the storage.
     rust_fact_storage
@@ -595,13 +612,14 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
         serde_json::from_str(compiled_class_leaf)?;
 
     // Create a compiled class leaf node from the parsed data.
-    let compiled_class_leaf_rust = FilledNode {
-        data: NodeData::Leaf(CompiledClassHash(Felt::from(*get_or_key_not_found(
-            &compiled_class_leaf_data,
-            "compiled_class_hash",
-        )?))),
-        hash: HashOutput(Felt::from(*get_or_key_not_found(&compiled_class_leaf_data, "hash")?)),
-    };
+    let compiled_class_leaf_rust: FactLayoutFilledNode<CompiledClassHash> =
+        FactLayoutFilledNode(FilledNode {
+            data: NodeData::Leaf(CompiledClassHash(Felt::from(*get_or_key_not_found(
+                &compiled_class_leaf_data,
+                "compiled_class_hash",
+            )?))),
+            hash: HashOutput(Felt::from(*get_or_key_not_found(&compiled_class_leaf_data, "hash")?)),
+        });
 
     // Store the compiled class leaf node in the storage.
     rust_fact_storage

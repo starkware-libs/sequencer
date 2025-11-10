@@ -62,6 +62,7 @@ use starknet_core::crypto::ecdsa_sign;
 use starknet_crypto::{get_public_key, Signature};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::io::os_output::MessageToL2;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
@@ -100,9 +101,13 @@ pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
         })
     });
 
+#[rstest]
 #[tokio::test]
-async fn test_initial_state_creation() {
-    let _initial_state = create_default_initial_state_data::<DictStateReader, 0>([]).await;
+async fn test_initial_state_creation(
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+) {
+    let _initial_state =
+        create_default_initial_state_data::<DictStateReader, 0>([], storage_layout).await;
 }
 
 #[rstest]
@@ -128,12 +133,13 @@ async fn declare_deploy_scenario(
     #[values(1, 2)] n_blocks: usize,
     #[values(false, true)] use_kzg_da: bool,
     #[values(false, true)] full_output: bool,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
     let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+        TestManager::<DictStateReader>::new_with_default_initial_state([], storage_layout).await;
 
     // Declare a test contract.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -182,6 +188,7 @@ async fn declare_deploy_scenario(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
+            storage_layout,
             ..Default::default()
         })
         .await;
@@ -220,15 +227,16 @@ async fn trivial_diff_scenario(
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
     )]
     test_contract: FeatureContract,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     // Initialize the test manager with a default initial state and get the nonce manager to help
     // keep track of nonces.
 
     let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ONE, Felt::TWO],
-        )])
+        TestManager::<DictStateReader>::new_with_default_initial_state(
+            [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+            storage_layout,
+        )
         .await;
 
     let key = Felt::from(10u8);
@@ -248,6 +256,7 @@ async fn trivial_diff_scenario(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
+            storage_layout,
             ..Default::default()
         })
         .await;
@@ -276,14 +285,15 @@ async fn trivial_diff_scenario(
 async fn test_reverted_invoke_tx(
     #[case] test_contract: FeatureContract,
     #[case] revert_reason: &str,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let (use_kzg_da, full_output) = (true, false);
 
     let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ONE, Felt::TWO],
-        )])
+        TestManager::<DictStateReader>::new_with_default_initial_state(
+            [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+            storage_layout,
+        )
         .await;
 
     // Call a reverting function that changes the storage.
@@ -304,6 +314,7 @@ async fn test_reverted_invoke_tx(
         .execute_test_with_default_block_contexts(&TestParameters {
             use_kzg_da,
             full_output,
+            storage_layout,
             ..Default::default()
         })
         .await;
@@ -326,12 +337,16 @@ async fn test_encrypted_state_diff(
     #[values(None, Some(vec![]), Some(vec![Felt::THREE, Felt::ONE]))] private_keys: Option<
         Vec<Felt>,
     >,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-            calldata![Felt::ONE, Felt::TWO],
-        )])
+        TestManager::<DictStateReader>::new_with_default_initial_state(
+            [(
+                FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+                calldata![Felt::ONE, Felt::TWO],
+            )],
+            storage_layout,
+        )
         .await;
 
     // Invoke a function on the test contract that changes the storage.
@@ -345,6 +360,7 @@ async fn test_encrypted_state_diff(
             use_kzg_da,
             full_output,
             private_keys,
+            storage_layout,
             ..Default::default()
         })
         .await;
@@ -377,12 +393,13 @@ async fn test_encrypted_state_diff(
 async fn test_reverted_l1_handler_tx(
     #[case] test_contract: FeatureContract,
     #[case] revert_reason: &str,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let (mut test_manager, [test_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([(
-            test_contract,
-            calldata![Felt::ONE, Felt::TWO],
-        )])
+        TestManager::<DictStateReader>::new_with_default_initial_state(
+            [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+            storage_layout,
+        )
         .await;
 
     // Add a reverting L1 handler transaction that changes the storage.
@@ -401,8 +418,12 @@ async fn test_reverted_l1_handler_tx(
     .unwrap();
     test_manager.add_l1_handler_tx(tx, Some(revert_reason.to_string()));
 
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            storage_layout,
+            ..Default::default()
+        })
+        .await;
 
     // Check that the storage was reverted (no change in test contract address).
     assert!(
@@ -418,9 +439,10 @@ async fn test_reverted_l1_handler_tx(
 async fn test_os_logic(
     #[values(1, 3)] n_blocks_in_multi_block: usize,
     #[values(None, Some(vec![Felt::ONE, Felt::TWO]))] private_keys: Option<Vec<Felt>>,
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
 ) {
     let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+        TestManager::<DictStateReader>::new_with_default_initial_state([], storage_layout).await;
     let n_expected_txs = 29;
     let mut expected_storage_updates: HashMap<
         ContractAddress,
@@ -793,6 +815,7 @@ async fn test_os_logic(
             messages_to_l1: vec![expected_message_to_l1],
             messages_to_l2: vec![expected_message_to_l2],
             private_keys,
+            storage_layout,
             ..Default::default()
         })
         .await;
@@ -806,12 +829,14 @@ async fn test_os_logic(
 
 #[rstest]
 #[tokio::test]
-async fn test_v1_bound_accounts_cairo0() {
+async fn test_v1_bound_accounts_cairo0(
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+) {
     let test_contract = &V1_BOUND_CAIRO0_CONTRACT;
     let class_hash = ClassHash(compute_deprecated_class_hash(test_contract).unwrap());
     let vc = VersionedConstants::latest_constants();
     let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+        TestManager::<DictStateReader>::new_with_default_initial_state([], storage_layout).await;
 
     assert!(vc.os_constants.v1_bound_accounts_cairo0.contains(&class_hash));
 
@@ -871,8 +896,12 @@ async fn test_v1_bound_accounts_cairo0() {
     test_manager.add_invoke_tx_from_args(validate_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Run test and verify the signer was set.
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            storage_layout,
+            ..Default::default()
+        })
+        .await;
 
     let expected_storage_updates = HashMap::from([(
         v1_bound_account_address,
@@ -889,7 +918,9 @@ async fn test_v1_bound_accounts_cairo0() {
 
 #[rstest]
 #[tokio::test]
-async fn test_v1_bound_accounts_cairo1() {
+async fn test_v1_bound_accounts_cairo1(
+    #[values(PatriciaStorageLayout::Fact)] storage_layout: PatriciaStorageLayout,
+) {
     let test_contract_sierra = &V1_BOUND_CAIRO1_CONTRACT_SIERRA;
     let test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;
     let class_hash = test_contract_sierra.calculate_class_hash();
@@ -898,7 +929,7 @@ async fn test_v1_bound_accounts_cairo1() {
     let max_tip = vc.os_constants.v1_bound_accounts_max_tip;
     assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
     let (mut test_manager, _) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+        TestManager::<DictStateReader>::new_with_default_initial_state([], storage_layout).await;
 
     // Declare the V1-bound account.
     let declare_args = declare_tx_args! {
@@ -955,8 +986,12 @@ async fn test_v1_bound_accounts_cairo1() {
     test_manager.add_invoke_tx_from_args(invoke_tx_args, &CHAIN_ID_FOR_TESTS, None);
 
     // Run the test, and make sure the account storage has the expected changes.
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let test_output = test_manager
+        .execute_test_with_default_block_contexts(&TestParameters {
+            storage_layout,
+            ..Default::default()
+        })
+        .await;
     let isrc6_id = Felt::from_hex_unchecked(
         "0x2CECCEF7F994940B3962A6C67E0BA4FCD37DF7D131417C604F91E03CAECC1CD",
     );

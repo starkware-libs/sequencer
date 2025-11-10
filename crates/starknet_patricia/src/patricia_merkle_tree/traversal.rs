@@ -11,7 +11,11 @@ use thiserror::Error;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
-use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
+use crate::patricia_merkle_tree::filled_tree::node_serde::{
+    FactLayoutFilledNode,
+    PatriciaPrefix,
+    PatriciaStorageLayout,
+};
 use crate::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
@@ -128,6 +132,7 @@ impl<'a> SubTree<'a> {
 pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
     subtrees: &[SubTree<'a>],
     storage: &mut impl Storage,
+    storage_layout: PatriciaStorageLayout,
 ) -> TraversalResult<Vec<FilledNode<L>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees
@@ -140,7 +145,11 @@ pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
     let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>())?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
+        subtrees_roots.push(match storage_layout {
+            PatriciaStorageLayout::Fact => {
+                FactLayoutFilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?.0
+            }
+        });
     }
     Ok(subtrees_roots)
 }
@@ -151,6 +160,7 @@ pub(crate) fn calculate_subtrees_roots<'a, L: Leaf>(
 /// provided map.
 pub fn fetch_patricia_paths<L: Leaf>(
     storage: &mut impl Storage,
+    storage_layout: PatriciaStorageLayout,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -163,7 +173,13 @@ pub fn fetch_patricia_paths<L: Leaf>(
 
     let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
 
-    fetch_patricia_paths_inner::<L>(storage, vec![main_subtree], &mut witnesses, leaves)?;
+    fetch_patricia_paths_inner::<L>(
+        storage,
+        storage_layout,
+        vec![main_subtree],
+        &mut witnesses,
+        leaves,
+    )?;
     Ok(witnesses)
 }
 
@@ -176,6 +192,7 @@ pub fn fetch_patricia_paths<L: Leaf>(
 /// provided map.
 fn fetch_patricia_paths_inner<'a, L: Leaf>(
     storage: &mut impl Storage,
+    storage_layout: PatriciaStorageLayout,
     subtrees: Vec<SubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -184,7 +201,7 @@ fn fetch_patricia_paths_inner<'a, L: Leaf>(
         return Ok(());
     }
     let mut next_subtrees = Vec::new();
-    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
+    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage, storage_layout)?;
     for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
         // Always insert root.
         // No need to insert an unmodified node (which is not the root), because its parent is
@@ -225,5 +242,5 @@ fn fetch_patricia_paths_inner<'a, L: Leaf>(
             }
         }
     }
-    fetch_patricia_paths_inner::<L>(storage, next_subtrees, witnesses, leaves)
+    fetch_patricia_paths_inner::<L>(storage, storage_layout, next_subtrees, witnesses, leaves)
 }

@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaStorageLayout;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
@@ -72,12 +73,16 @@ pub trait Config: Debug + Eq + PartialEq {
 
     /// Indicates from which log level output should be printed out to console.
     fn logger_level(&self) -> LevelFilter;
+
+    /// Indicates the storage layout the trees should be serialized into and deserialized from.
+    fn storage_layout(&self) -> PatriciaStorageLayout;
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ConfigImpl {
     warn_on_trivial_modifications: bool,
     log_level: LevelFilter,
+    storage_layout: PatriciaStorageLayout,
 }
 
 impl Config for ConfigImpl {
@@ -88,17 +93,29 @@ impl Config for ConfigImpl {
     fn logger_level(&self) -> LevelFilter {
         self.log_level
     }
+
+    fn storage_layout(&self) -> PatriciaStorageLayout {
+        self.storage_layout
+    }
 }
 
 impl ConfigImpl {
-    pub fn new(warn_on_trivial_modifications: bool, log_level: LevelFilter) -> Self {
-        Self { warn_on_trivial_modifications, log_level }
+    pub fn new(
+        warn_on_trivial_modifications: bool,
+        log_level: LevelFilter,
+        storage_layout: PatriciaStorageLayout,
+    ) -> Self {
+        Self { warn_on_trivial_modifications, log_level, storage_layout }
     }
 }
 
 impl Default for ConfigImpl {
     fn default() -> Self {
-        Self { warn_on_trivial_modifications: false, log_level: LevelFilter::INFO }
+        Self {
+            warn_on_trivial_modifications: false,
+            log_level: LevelFilter::INFO,
+            storage_layout: PatriciaStorageLayout::Fact,
+        }
     }
 }
 
