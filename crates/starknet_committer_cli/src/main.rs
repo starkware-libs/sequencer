@@ -5,6 +5,7 @@ use std::path::Path;
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
 use clap::{ArgAction, Args, Parser, Subcommand};
 use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
+use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
@@ -28,6 +29,8 @@ pub enum StorageType {
     CachedMdbx,
     Rocksdb,
     CachedRocksdb,
+    Aerospike,
+    CachedAerospike,
 }
 
 const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
@@ -80,6 +83,8 @@ impl From<ShortKeySizeArg> for ShortKeySize {
     }
 }
 
+// TODO(Dori): About time to split into subcommands by storage type... some args are only relevant
+//   for certain storage types.
 #[derive(Debug, Args)]
 struct StorageArgs {
     /// Seed for the random number generator.
@@ -95,6 +100,15 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// Aerospike aeroset.
+    #[clap(long, default_value = None)]
+    aeroset: Option<String>,
+    /// Aerospike namespace.
+    #[clap(long, default_value = None)]
+    namespace: Option<String>,
+    /// Aerospike hosts.
+    #[clap(long, default_value = None)]
+    hosts: Option<String>,
     /// If true, the storage will use memory-mapped files. Only relevant for Rocksdb.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
@@ -214,7 +228,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         | StorageType::CachedMdbx
         | StorageType::Rocksdb
         | StorageType::CachedRocksdb => Some(checkpoint_dir.as_str()),
-        StorageType::MapStorage => None,
+        StorageType::MapStorage | StorageType::Aerospike | StorageType::CachedAerospike => None,
     };
 
     generate_short_key_benchmark!(
@@ -261,6 +275,9 @@ pub async fn run_committer_cli(
                 ref cache_size,
                 allow_mmap,
                 include_inner_stats,
+                ref aeroset,
+                ref namespace,
+                ref hosts,
                 ..
             } = storage_args;
 
@@ -272,7 +289,8 @@ pub async fn run_committer_cli(
                 .clone()
                 .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
             match storage_type {
-                StorageType::MapStorage => (),
+                StorageType::MapStorage | StorageType::Aerospike | StorageType::CachedAerospike => {
+                }
                 StorageType::Mdbx
                 | StorageType::CachedMdbx
                 | StorageType::Rocksdb
@@ -318,6 +336,25 @@ pub async fn run_committer_cli(
                 StorageType::CachedRocksdb => {
                     let storage =
                         RocksDbStorage::open(Path::new(&storage_path), rocksdb_options).unwrap();
+                    let storage = CachedStorage::new(storage, cached_storage_config);
+                    run_storage_benchmark_wrapper(storage_args, storage).await;
+                }
+                StorageType::Aerospike => {
+                    let aerospike_storage_config = AerospikeStorageConfig::new_default(
+                        aeroset.clone().unwrap(),
+                        namespace.clone().unwrap(),
+                        hosts.clone().unwrap(),
+                    );
+                    let storage = AerospikeStorage::new(aerospike_storage_config).unwrap();
+                    run_storage_benchmark_wrapper(storage_args, storage).await;
+                }
+                StorageType::CachedAerospike => {
+                    let aerospike_storage_config = AerospikeStorageConfig::new_default(
+                        aeroset.clone().unwrap(),
+                        namespace.clone().unwrap(),
+                        hosts.clone().unwrap(),
+                    );
+                    let storage = AerospikeStorage::new(aerospike_storage_config).unwrap();
                     let storage = CachedStorage::new(storage, cached_storage_config);
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
