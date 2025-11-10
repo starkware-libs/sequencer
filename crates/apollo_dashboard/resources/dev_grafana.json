@@ -1314,7 +1314,11 @@
           "exprs": [
             "tokio_min_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_max_busy_duration",
@@ -1323,7 +1327,11 @@
           "exprs": [
             "tokio_max_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_total_park_count",
@@ -1332,7 +1340,11 @@
           "exprs": [
             "tokio_total_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_min_park_count",
@@ -1341,7 +1353,11 @@
           "exprs": [
             "tokio_min_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_max_park_count",
@@ -1350,7 +1366,11 @@
           "exprs": [
             "tokio_max_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_global_queue_depth",
@@ -1359,7 +1379,11 @@
           "exprs": [
             "tokio_global_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "tokio_workers_count",
@@ -1368,7 +1392,11 @@
           "exprs": [
             "tokio_workers_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         }
       ],
       "collapsed": true

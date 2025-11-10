@@ -11,31 +11,40 @@ use apollo_monitoring_endpoint::tokio_metrics::{
 
 use crate::dashboard::{Panel, PanelType, Row};
 
+const TOKIO_PANEL_LEGENDS: &[&str] = &["{{pod}}"];
+
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_TOTAL_BUSY_DURATION_MICROS, PanelType::TimeSeries)
-        .with_legends(vec!["{{pod}}"])
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 fn get_panel_tokio_min_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_MIN_BUSY_DURATION_MICROS, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 fn get_panel_tokio_max_busy_duration_micros() -> Panel {
     Panel::from_counter(&TOKIO_MAX_BUSY_DURATION_MICROS, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 
 fn get_panel_tokio_total_park_count() -> Panel {
     Panel::from_gauge(&TOKIO_TOTAL_PARK_COUNT, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 fn get_panel_tokio_min_park_count() -> Panel {
     Panel::from_gauge(&TOKIO_MIN_PARK_COUNT, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 fn get_panel_tokio_max_park_count() -> Panel {
     Panel::from_gauge(&TOKIO_MAX_PARK_COUNT, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 fn get_panel_tokio_global_queue_depth() -> Panel {
     Panel::from_gauge(&TOKIO_GLOBAL_QUEUE_DEPTH, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 fn get_panel_tokio_workers_count() -> Panel {
     Panel::from_gauge(&TOKIO_WORKERS_COUNT, PanelType::TimeSeries)
+        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
 }
 
 pub(crate) fn get_tokio_row() -> Row {
