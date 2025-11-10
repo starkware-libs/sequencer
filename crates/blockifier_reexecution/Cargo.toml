@@ -12,7 +12,7 @@ blockifier_regression_https_testing = []
 apollo_gateway.workspace = true
 apollo_rpc_execution.workspace = true
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["reexecution"] }
+blockifier = { workspace = true, features = ["reexecution", "cairo_native"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }

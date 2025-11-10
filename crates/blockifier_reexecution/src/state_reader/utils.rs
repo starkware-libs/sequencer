@@ -5,7 +5,6 @@ use std::sync::LazyLock;
 
 use apollo_gateway::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
-use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::StateReader;
@@ -17,7 +16,6 @@ use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress,
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::assert_eq_state_diff;
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
     OfflineConsecutiveStateReaders,
@@ -220,7 +218,7 @@ pub fn reexecute_and_verify_correctness<
 >(
     consecutive_state_readers: T,
 ) -> Option<CachedState<S>> {
-    let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
+    let _expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
 
     let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
 
@@ -230,17 +228,18 @@ pub fn reexecute_and_verify_correctness<
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
     // Verify all transactions executed successfully.
     for res in execution_results.iter() {
-        assert_matches!(res, Ok(_));
+        dbg!(&res);
     }
+    panic!();
 
     // Finalize block and read actual statediff; using non_consuming_finalize to keep the
     // block_state.
-    let actual_state_diff =
-        transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
+    // let actual_state_diff =
+    //     transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
 
-    assert_eq_state_diff!(expected_state_diff, actual_state_diff);
+    // assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
-    transaction_executor.block_state
+    // transaction_executor.block_state
 }
 
 pub fn reexecute_block_for_testing(block_number: u64) {
@@ -278,7 +277,7 @@ pub fn write_block_reexecution_data_to_file(
     let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
+        contract_class_mapping: block_state.state.state_reader.get_contract_class_mapping_dumper().unwrap(),
     };
 
     // Write the reexecution data to a json file.
