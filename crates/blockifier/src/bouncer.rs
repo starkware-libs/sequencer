@@ -946,15 +946,21 @@ pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
 // and number of visited leaves includes reads and writes.
 pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> ExecutionResources {
     const TREE_HEIGHT_UPPER_BOUND: usize = 24;
-    let n_updates = n_visited_storage_entries * TREE_HEIGHT_UPPER_BOUND;
+    // TODO(Yoni, 1/5/2024): re-estimate this.
+    const STEPS_IN_TREE_PER_HEIGHT: usize = 16;
+    const PEDERSENS_PER_HEIGHT: usize = 1;
 
-    ExecutionResources {
-        // TODO(Yoni, 1/5/2024): re-estimate this.
-        n_steps: 32 * n_updates,
-        // For each Patricia update there are two hash calculations.
-        builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 2 * n_updates)]),
+    let resources_per_tree_access = ExecutionResources {
+        n_steps: TREE_HEIGHT_UPPER_BOUND * STEPS_IN_TREE_PER_HEIGHT,
+        builtin_instance_counter: HashMap::from([(
+            BuiltinName::pedersen,
+            TREE_HEIGHT_UPPER_BOUND * PEDERSENS_PER_HEIGHT,
+        )]),
         n_memory_holes: 0,
-    }
+    };
+
+    // Multiply by 2 since each storage entry is accessed in both the old and new tree.
+    &resources_per_tree_access * (n_visited_storage_entries * 2)
 }
 
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
