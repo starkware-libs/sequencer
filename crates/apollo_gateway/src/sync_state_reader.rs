@@ -281,14 +281,16 @@ pub(crate) struct SyncStateReaderFactory {
 }
 
 /// Use any of these factory methods only once per transaction to make sure metrics are accurate.
+#[async_trait]
 impl StateReaderFactory for SyncStateReaderFactory {
-    fn get_state_reader_from_latest_block(
+    async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+        // TODO(guy.f): Do we want to count this as well?
         let latest_block_number = self
-            .runtime
-            // TODO(guy.f): Do we want to count this as well?
-            .block_on(self.shared_state_sync_client.get_latest_block_number())?
+            .shared_state_sync_client
+            .get_latest_block_number()
+            .await?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
         Ok(Box::new(SyncStateReader::from_number(

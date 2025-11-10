@@ -1,4 +1,5 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
+use async_trait::async_trait;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
@@ -58,8 +59,9 @@ pub struct TestStateReaderFactory {
     pub state_reader: TestStateReader,
 }
 
+#[async_trait]
 impl StateReaderFactory for TestStateReaderFactory {
-    fn get_state_reader_from_latest_block(
+    async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
         Ok(Box::new(self.state_reader.clone()))
