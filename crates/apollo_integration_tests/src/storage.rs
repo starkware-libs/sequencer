@@ -14,6 +14,7 @@ use crate::state_reader::{
     STATE_SYNC_DB_PATH_SUFFIX,
 };
 
+// TODO(victork): consider completely removing this struct and use path directly
 #[derive(Debug)]
 pub struct StorageExecutablePaths {
     path: PathBuf,

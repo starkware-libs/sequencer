@@ -91,16 +91,7 @@ pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 const ALLOW_BOOTSTRAP_TXS: bool = false;
 
 pub struct NodeSetup {
-    // TODO(victork): remove indices.
     executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
-    #[allow(dead_code)]
-    batcher_index: usize,
-    #[allow(dead_code)]
-    http_server_index: usize,
-    #[allow(dead_code)]
-    state_sync_index: usize,
-    #[allow(dead_code)]
-    consensus_manager_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -115,36 +106,10 @@ pub struct NodeSetup {
 impl NodeSetup {
     pub fn new(
         executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
-        batcher_index: usize,
-        http_server_index: usize,
-        state_sync_index: usize,
-        consensus_manager_index: usize,
         add_tx_http_client: HttpTestClient,
         storage_handles: StorageTestHandles,
     ) -> Self {
-        let len = executables.len();
-
-        fn validate_index(index: usize, len: usize, label: &str) {
-            assert!(
-                index < len,
-                "{label} index {index} is out of range. There are {len} executables."
-            );
-        }
-
-        validate_index(batcher_index, len, "Batcher");
-        validate_index(http_server_index, len, "HTTP server");
-        validate_index(state_sync_index, len, "State sync");
-        validate_index(consensus_manager_index, len, "Consensus manager");
-
-        Self {
-            executables,
-            batcher_index,
-            http_server_index,
-            state_sync_index,
-            consensus_manager_index,
-            add_tx_http_client,
-            storage_handles,
-        }
+        Self { executables, add_tx_http_client, storage_handles }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -920,11 +885,6 @@ async fn get_sequencer_setup_configs(
     // Create nodes.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = IndexMap::new();
-        let batcher_index = node_component_config.get_batcher_index();
-        let http_server_index = node_component_config.get_http_server_index();
-        let state_sync_index = node_component_config.get_state_sync_index();
-        let _ = node_component_config.get_class_manager_index();
-        let consensus_manager_index = node_component_config.get_consensus_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -988,7 +948,13 @@ async fn get_sequencer_setup_configs(
             );
         }
 
-        let http_server_config = executables[http_server_index]
+        let http_server_config = executables
+            .iter()
+            .find(|(set, _)| set.contains(&ComponentConfigInService::HttpServer))
+            .map(|(_, exec)| exec)
+            .unwrap_or_else(|| {
+                panic!("Http server component executable should be defined for node {}", node_index)
+            })
             .base_app_config
             .get_config()
             .http_server_config
@@ -997,15 +963,7 @@ async fn get_sequencer_setup_configs(
         let HttpServerConfig { ip, port } = http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
 
-        nodes.push(NodeSetup::new(
-            executables,
-            batcher_index,
-            http_server_index,
-            state_sync_index,
-            consensus_manager_index,
-            add_tx_http_client,
-            storage_setup.storage_handles,
-        ));
+        nodes.push(NodeSetup::new(executables, add_tx_http_client, storage_setup.storage_handles));
     }
 
     (nodes, node_indices)
