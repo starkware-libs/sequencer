@@ -947,9 +947,7 @@ async fn get_sequencer_setup_configs(
         );
 
         // Per node, create the executables constituting it.
-        for (executable_index, (component_set, executable_component_config)) in
-            node_component_config.into_iter().enumerate()
-        {
+        for (component_set, executable_component_config) in node_component_config.into_iter() {
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
@@ -980,7 +978,7 @@ async fn get_sequencer_setup_configs(
                 CONFIG_NON_POINTERS_WHITELIST.clone(),
             );
 
-            let node_execution_id = NodeExecutionId::new(node_index, executable_index);
+            let node_execution_id = NodeExecutionId::new(node_index);
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
 
