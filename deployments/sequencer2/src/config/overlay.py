@@ -447,7 +447,8 @@ def merge_common_with_overlay_strict(
     if layout_common is None and overlay_common is None:
         return None
     if layout_common is None:
-        raise ValueError(f"Layout common config is None but overlay exists: {source}")
+        # Overlay can define common config even if layout doesn't have it
+        return deepcopy(overlay_common) if overlay_common else None
     if overlay_common is None:
         return deepcopy(layout_common)
 
