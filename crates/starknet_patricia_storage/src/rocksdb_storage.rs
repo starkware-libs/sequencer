@@ -4,6 +4,8 @@ use rust_rocksdb::{
     BlockBasedIndexType,
     BlockBasedOptions,
     Cache,
+    ColumnFamily,
+    ColumnFamilyDescriptor,
     Options,
     WriteBatch,
     WriteOptions,
@@ -43,6 +45,7 @@ impl Default for RocksDbOptions {
     fn default() -> Self {
         let mut opts = Options::default();
         opts.create_if_missing(true);
+        opts.create_missing_column_families(true);
 
         opts.set_bytes_per_sync(BYTES_PER_SYNC);
         opts.set_write_buffer_size(WRITE_BUFFER_SIZE);
@@ -91,13 +94,40 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: DB,
     write_options: WriteOptions,
+    /// If true, the database is opened with 256 column families, and each key mapped to a column
+    /// family according to its last byte. Otherwise, the database is opened with a single
+    /// column family (default behavior).
+    column_families: bool,
 }
 
 impl RocksDbStorage {
-    pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
-        let db = DB::open(&options.db_options, path)?;
+    pub fn open(
+        path: &Path,
+        options: RocksDbOptions,
+        column_families: bool,
+    ) -> PatriciaStorageResult<Self> {
+        // Default column is required for the database to be opened.
+        let mut cfs = vec![ColumnFamilyDescriptor::new("default", options.db_options.clone())];
 
-        Ok(Self { db, write_options: options.write_options })
+        if column_families {
+            for i in 0..1 << u8::BITS {
+                cfs.push(ColumnFamilyDescriptor::new(format!("{i}"), options.db_options.clone()));
+            }
+        }
+
+        let db = DB::open_cf_descriptors(&options.db_options, path, cfs)?;
+        Ok(Self { db, write_options: options.write_options, column_families })
+    }
+
+    pub fn get_column_family(&self, key: &DbKey) -> &ColumnFamily {
+        if self.column_families {
+            let last_byte = key.0.last().unwrap_or(&0u8);
+            self.db
+                .cf_handle(&format!("{last_byte}"))
+                .unwrap_or_else(|| panic!("Column family not found: {last_byte}"))
+        } else {
+            self.db.cf_handle("default").unwrap()
+        }
     }
 }
 
@@ -105,18 +135,20 @@ impl Storage for RocksDbStorage {
     type Stats = NoStats;
 
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.db.get(&key.0)?.map(DbValue))
+        let cf = self.get_column_family(key);
+        Ok(self.db.get_cf(&cf, &key.0)?.map(DbValue))
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self.db.put_opt(&key.0, &value.0, &self.write_options)?)
+        let cf = self.get_column_family(&key);
+        Ok(self.db.put_cf_opt(&cf, &key.0, &value.0, &self.write_options)?)
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        let raw_keys = keys.iter().map(|k| &k.0);
+        let cfs_and_raw_keys = keys.iter().map(|k| (self.get_column_family(k), k.0.clone()));
         let res = self
             .db
-            .multi_get(raw_keys)
+            .multi_get_cf(cfs_and_raw_keys)
             .into_iter()
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?;
@@ -126,13 +158,15 @@ impl Storage for RocksDbStorage {
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let mut batch = WriteBatch::default();
         for key in key_to_value.keys() {
-            batch.put(&key.0, &key_to_value[key].0);
+            let cf = self.get_column_family(key);
+            batch.put_cf(&cf, &key.0, &key_to_value[key].0);
         }
         Ok(self.db.write_opt(&batch, &self.write_options)?)
     }
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        Ok(self.db.delete(&key.0)?)
+        let cf = self.get_column_family(key);
+        Ok(self.db.delete_cf_opt(&cf, &key.0, &self.write_options)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
