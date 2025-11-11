@@ -1,12 +1,12 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::panic;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
+use apollo_deployments::service::{NodeService, NodeType};
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -26,7 +26,6 @@ use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
     AccountId,
@@ -91,7 +90,8 @@ pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 const ALLOW_BOOTSTRAP_TXS: bool = false;
 
 pub struct NodeSetup {
-    executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    node_type: NodeType,
+    executables: HashMap<NodeService, ExecutableSetup>,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -104,35 +104,44 @@ pub struct NodeSetup {
 }
 
 fn get_executable_by_component(
-    executables: &IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+    node_type: NodeType,
+    executables: &HashMap<NodeService, ExecutableSetup>,
     component: ComponentConfigInService,
 ) -> &ExecutableSetup {
     executables
-        .iter()
-        .find(|(components, _)| components.contains(&component))
-        .map(|(_, executable)| executable)
-        .unwrap_or_else(|| {
-            panic!("Expected at least one executable with component {:?}", component)
-        })
+        .get(
+            &node_type
+                .get_services_of_components(component.clone())
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| {
+                    panic!("Expected at least one executable with component {:?}", component)
+                }),
+        )
+        .unwrap()
 }
 
 impl NodeSetup {
     pub fn new(
-        executables: IndexMap<BTreeSet<ComponentConfigInService>, ExecutableSetup>,
+        node_type: NodeType,
+        executables: HashMap<NodeService, ExecutableSetup>,
         storage_handles: StorageTestHandles,
     ) -> Self {
-        let http_server_config =
-            get_executable_by_component(&executables, ComponentConfigInService::HttpServer)
-                .base_app_config
-                .get_config()
-                .http_server_config
-                .as_ref()
-                .unwrap_or_else(|| panic!("Http server config should be set for this node"));
+        let http_server_config = get_executable_by_component(
+            node_type,
+            &executables,
+            ComponentConfigInService::HttpServer,
+        )
+        .base_app_config
+        .get_config()
+        .http_server_config
+        .as_ref()
+        .unwrap_or_else(|| panic!("Http server config should be set for this node"));
 
         let HttpServerConfig { ip, port } = http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
 
-        Self { executables, add_tx_http_client, storage_handles }
+        Self { node_type, executables, add_tx_http_client, storage_handles }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -159,19 +168,6 @@ impl NodeSetup {
         self.executables.values_mut()
     }
 
-    pub fn set_executable_config_path(
-        &mut self,
-        index: usize,
-        new_path: PathBuf,
-    ) -> Result<(), &'static str> {
-        if let Some(exec) = self.executables.get_index_mut(index) {
-            exec.1.node_config_path = new_path;
-            Ok(())
-        } else {
-            panic!("Invalid executable index")
-        }
-    }
-
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
             HTTP_PORT_ARG: self.get_http_server().get_config().http_server_config.as_ref().expect("Should have http server config").port,
@@ -181,19 +177,35 @@ impl NodeSetup {
     }
 
     pub fn get_batcher(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::Batcher)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::Batcher,
+        )
     }
 
     pub fn get_http_server(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::HttpServer)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::HttpServer,
+        )
     }
 
     pub fn get_state_sync(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::StateSync)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::StateSync,
+        )
     }
 
     pub fn get_consensus_manager(&self) -> &ExecutableSetup {
-        get_executable_by_component(&self.executables, ComponentConfigInService::Consensus)
+        get_executable_by_component(
+            self.node_type,
+            &self.executables,
+            ComponentConfigInService::Consensus,
+        )
     }
 
     pub fn run(self) -> RunningNode {
@@ -824,15 +836,20 @@ async fn get_sequencer_setup_configs(
         num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
     );
     for _ in 0..num_of_consolidated_nodes {
-        node_component_configs.push(create_consolidated_component_configs());
+        node_component_configs
+            .push((create_consolidated_component_configs(), NodeType::Consolidated));
     }
     for _ in 0..num_of_hybrid_nodes {
-        node_component_configs
-            .push(create_hybrid_component_configs(&mut available_ports_generator));
+        node_component_configs.push((
+            create_hybrid_component_configs(&mut available_ports_generator),
+            NodeType::Hybrid,
+        ));
     }
     for _ in 0..num_of_distributed_nodes {
-        node_component_configs
-            .push(create_distributed_component_configs(&mut available_ports_generator));
+        node_component_configs.push((
+            create_distributed_component_configs(&mut available_ports_generator),
+            NodeType::Distributed,
+        ));
     }
 
     info!("Creating node configurations.");
@@ -896,8 +913,10 @@ async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for node configs");
 
     // Create nodes.
-    for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
-        let mut executables = IndexMap::new();
+    for (node_index, (node_component_config, node_type)) in
+        node_component_configs.into_iter().enumerate()
+    {
+        let mut executables = HashMap::new();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -920,9 +939,7 @@ async fn get_sequencer_setup_configs(
         );
 
         // Per node, create the executables constituting it.
-        for (component_set, executable_component_config) in node_component_config.into_iter() {
-            let component_set = component_set.get_components_in_service();
-
+        for (node_service, executable_component_config) in node_component_config.into_iter() {
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
@@ -958,12 +975,12 @@ async fn get_sequencer_setup_configs(
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
 
             executables.insert(
-                component_set,
+                node_service,
                 ExecutableSetup::new(base_app_config, node_execution_id, exec_config_path).await,
             );
         }
 
-        nodes.push(NodeSetup::new(executables, storage_setup.storage_handles));
+        nodes.push(NodeSetup::new(node_type, executables, storage_setup.storage_handles));
     }
 
     (nodes, node_indices)
