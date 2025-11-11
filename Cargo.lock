@@ -12882,6 +12882,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]

@@ -106,9 +106,6 @@ struct StorageArgs {
     /// Aerospike namespace.
     #[clap(long, default_value = None)]
     namespace: Option<String>,
-    /// Aerospike hosts.
-    #[clap(long, default_value = None)]
-    hosts: Option<String>,
     /// If true, the storage will use memory-mapped files. Only relevant for Rocksdb.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
@@ -277,7 +274,6 @@ pub async fn run_committer_cli(
                 include_inner_stats,
                 ref aeroset,
                 ref namespace,
-                ref hosts,
                 ..
             } = storage_args;
 
@@ -343,7 +339,6 @@ pub async fn run_committer_cli(
                     let aerospike_storage_config = AerospikeStorageConfig::new_default(
                         aeroset.clone().unwrap(),
                         namespace.clone().unwrap(),
-                        hosts.clone().unwrap(),
                     );
                     let storage = AerospikeStorage::new(aerospike_storage_config).unwrap();
                     run_storage_benchmark_wrapper(storage_args, storage).await;
@@ -352,7 +347,6 @@ pub async fn run_committer_cli(
                     let aerospike_storage_config = AerospikeStorageConfig::new_default(
                         aeroset.clone().unwrap(),
                         namespace.clone().unwrap(),
-                        hosts.clone().unwrap(),
                     );
                     let storage = AerospikeStorage::new(aerospike_storage_config).unwrap();
                     let storage = CachedStorage::new(storage, cached_storage_config);

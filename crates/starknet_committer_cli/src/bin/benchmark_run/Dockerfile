@@ -34,7 +34,6 @@ CMD ["--n-iterations", "1000000", \
     "--storage-type", "cached-aerospike", \
     "--namespace", "starkware-stress-tests", \
     "--aeroset", "dori-test", \
-    "--hosts", "aerospike", \
     "--cache-size", "10000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \

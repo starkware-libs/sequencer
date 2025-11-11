@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use aerospike::{
     as_bin,
     operations,
@@ -10,6 +12,7 @@ use aerospike::{
     Client,
     ClientPolicy,
     Error as AerospikeError,
+    Host,
     Key,
     ReadPolicy,
     Record,
@@ -18,6 +21,7 @@ use aerospike::{
     Value,
     WritePolicy,
 };
+use tracing::info;
 
 use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
 
@@ -34,7 +38,6 @@ pub enum AerospikeStorageError {
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
-    pub hosts: String,
 
     pub client_policy: ClientPolicy,
     pub read_policy: ReadPolicy,
@@ -48,12 +51,15 @@ pub struct AerospikeStorageConfig {
 }
 
 impl AerospikeStorageConfig {
-    pub fn new_default(aeroset: String, namespace: String, hosts: String) -> Self {
+    pub fn new_default(aeroset: String, namespace: String) -> Self {
         Self {
             aeroset,
             namespace,
-            hosts,
-            client_policy: ClientPolicy::default(),
+            client_policy: ClientPolicy {
+                fail_if_not_connected: true,
+                timeout: Some(Duration::from_secs(5)),
+                ..Default::default()
+            },
             read_policy: ReadPolicy::default(),
             write_policy: WritePolicy::default(),
             batch_policy: BatchPolicy::default(),
@@ -71,7 +77,14 @@ pub struct AerospikeStorage {
 
 impl AerospikeStorage {
     pub fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
-        let client = Client::new(&config.client_policy, &config.hosts)?;
+        let client = Client::new(
+            &config.client_policy,
+            &[1, 2, 3]
+                .into_iter()
+                .map(|i| Host::new(&format!("aerospike-{i}-0.aerospike"), 3000))
+                .collect::<Vec<_>>(),
+        )?;
+        info!("Connected to Aerospike nodes: {:?}.", client.node_names());
         Ok(Self { config, client })
     }
 
