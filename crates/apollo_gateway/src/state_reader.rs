@@ -1,7 +1,12 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockInfo;
@@ -9,7 +14,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
+pub trait MempoolStateReader: FetchCompiledClasses + Send + Sync {
     fn get_block_info(&self) -> Result<BlockInfo, StateError>;
 }
 
@@ -52,5 +57,56 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.as_ref().get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for Box<dyn MempoolStateReader> {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.as_ref().get_compiled_classes(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.as_ref().is_declared(class_hash)
+    }
+}
+
+impl MempoolStateReader for StateReaderAndContractManager<Box<dyn MempoolStateReader>> {
+    fn get_block_info(&self) -> Result<BlockInfo, StateError> {
+        self.state_reader.get_block_info()
+    }
+}
+
+impl BlockifierStateReader for StateReaderAndContractManager<Box<dyn MempoolStateReader>> {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        self.state_reader.get_storage_at(contract_address, key)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.state_reader.get_nonce_at(contract_address)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        self.state_reader.get_class_hash_at(contract_address)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.state_reader.get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.state_reader.get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for StateReaderAndContractManager<Box<dyn MempoolStateReader>> {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.state_reader.get_compiled_classes(class_hash)
+    }
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.state_reader.is_declared(class_hash)
     }
 }

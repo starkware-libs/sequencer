@@ -147,27 +147,30 @@ pub fn rpc_tx_for_testing(
     }
 }
 
-pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
-    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+// pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
+//     let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
 
-    let state_reader_factory = local_test_state_reader_factory(cairo_version, false);
-    let mut mempool_client = MockMempoolClient::new();
-    let class_manager_client = Arc::new(EmptyClassManagerClient);
-    let transaction_converter = TransactionConverter::new(
-        class_manager_client.clone(),
-        gateway_config.chain_info.chain_id.clone(),
-    );
-    let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: gateway_config.stateless_tx_validator_config.clone(),
-    });
-    mempool_client.expect_add_tx().returning(|_| Ok(()));
-    mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+//     let state_reader_factory = local_test_state_reader_factory(cairo_version, false);
+//     let mut mempool_client = MockMempoolClient::new();
+//     let class_manager_client = Arc::new(MockClassManagerClient::new());
+//     let transaction_converter = TransactionConverter::new(
+//         class_manager_client.clone(),
+//         gateway_config.chain_info.chain_id.clone(),
+//     );
+//     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
+//         config: gateway_config.stateless_tx_validator_config.clone(),
+//     });
+//     mempool_client.expect_add_tx().returning(|_| Ok(()));
+//     mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
+//     // class_manager_client.expect_get_sierra().returning(|_| Ok(None));
+//     // class_manager_client.expect_get_executable().returning(|_| Ok(None));
 
-    Gateway::new(
-        gateway_config,
-        Arc::new(state_reader_factory),
-        Arc::new(mempool_client),
-        Arc::new(transaction_converter),
-        stateless_tx_validator,
-    )
-}
+//     Gateway::new(
+//         gateway_config,
+//         Arc::new(state_reader_factory),
+//         Arc::new(mempool_client),
+//         Arc::new(class_manager_client),
+//         Arc::new(transaction_converter),
+//         stateless_tx_validator,
+//     )
+// }

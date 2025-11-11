@@ -7,6 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
     StatefulValidatorTrait as BlockifierStatefulValidatorTrait,
@@ -15,6 +16,8 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
 use num_rational::Ratio;
@@ -48,6 +51,17 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+
+    pub contract_class_manager: ContractClassManager,
+}
+
+impl StatefulTransactionValidatorFactory {
+    pub fn new(config: StatefulTransactionValidatorConfig, chain_info: ChainInfo) -> Self {
+        // TODO(Arni): Use a non-default contract class manager config.
+        let contract_class_manager =
+            ContractClassManager::start(ContractClassManagerConfig::default());
+        Self { config, chain_info, contract_class_manager }
+    }
 }
 
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
@@ -70,6 +84,11 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                 )
             })?;
         let latest_block_info = get_latest_block_info(&state_reader)?;
+
+        let state_reader = StateReaderAndContractManager {
+            state_reader,
+            contract_class_manager: self.contract_class_manager.clone(),
+        };
 
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(

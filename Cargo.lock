@@ -1401,6 +1401,7 @@ dependencies = [
  "apollo_network_types",
  "apollo_proc_macros",
  "apollo_rpc",
+ "apollo_state_reader",
  "apollo_state_sync_types",
  "apollo_test_utils",
  "assert_matches",
