@@ -19,7 +19,14 @@ use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::args::{BenchmarkFlavor, ShortKeySizeArg, StorageArgs, StorageType};
+use crate::args::{
+    BenchmarkFlavor,
+    GlobalArgs,
+    ShortKeySizeArg,
+    StorageBenchmarkCommand,
+    StorageType,
+    DEFAULT_DATA_PATH,
+};
 
 pub type InputImpl = Input<ConfigImpl>;
 
@@ -142,20 +149,25 @@ macro_rules! generate_short_key_benchmark {
 /// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
 /// Different invocations of this function are used with different concrete storage types.
 pub async fn run_storage_benchmark_wrapper<S: Storage>(
-    StorageArgs {
+    storage_benchmark_args: &StorageBenchmarkCommand,
+    storage: S,
+) {
+    let GlobalArgs {
         seed,
         n_iterations,
         flavor,
-        storage_type,
         checkpoint_interval,
-        data_path,
         output_dir,
         checkpoint_dir,
         key_size,
         ..
-    }: StorageArgs,
-    storage: S,
-) {
+    } = storage_benchmark_args.global_args();
+
+    let data_path = storage_benchmark_args
+        .file_storage_args()
+        .map(|file_args| file_args.data_path.clone())
+        .unwrap_or(DEFAULT_DATA_PATH.to_string());
+    let storage_type = storage_benchmark_args.storage_type();
     let output_dir = output_dir
         .clone()
         .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
@@ -175,13 +187,13 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
 
     generate_short_key_benchmark!(
         key_size,
-        seed,
-        n_iterations,
-        flavor,
+        *seed,
+        *n_iterations,
+        flavor.clone(),
         output_dir,
         checkpoint_dir_arg,
         storage,
-        checkpoint_interval,
+        *checkpoint_interval,
         (U16, ShortKeyStorage16),
         (U17, ShortKeyStorage17),
         (U18, ShortKeyStorage18),
