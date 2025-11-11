@@ -1351,6 +1351,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_sync_block (server)",
+          "description": "server infra metrics for request type add_sync_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "decision_reached (client)",
           "description": "client infra metrics for request type decision_reached",
           "type": "timeseries",
@@ -1361,6 +1373,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "decision_reached (server)",
+          "description": "server infra metrics for request type decision_reached",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1379,6 +1403,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_current_height (server)",
+          "description": "server infra metrics for request type get_current_height",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_proposal_content (client)",
           "description": "client infra metrics for request type get_proposal_content",
           "type": "timeseries",
@@ -1389,6 +1425,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_proposal_content (server)",
+          "description": "server infra metrics for request type get_proposal_content",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1407,6 +1455,18 @@
           "extra_params": {}
         },
         {
+          "title": "propose_block (server)",
+          "description": "server infra metrics for request type propose_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "revert_block (client)",
           "description": "client infra metrics for request type revert_block",
           "type": "timeseries",
@@ -1417,6 +1477,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "revert_block (server)",
+          "description": "server infra metrics for request type revert_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1435,6 +1507,18 @@
           "extra_params": {}
         },
         {
+          "title": "send_proposal_content (server)",
+          "description": "server infra metrics for request type send_proposal_content",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "start_height (client)",
           "description": "client infra metrics for request type start_height",
           "type": "timeseries",
@@ -1449,6 +1533,18 @@
           "extra_params": {}
         },
         {
+          "title": "start_height (server)",
+          "description": "server infra metrics for request type start_height",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "validate_block (client)",
           "description": "client infra metrics for request type validate_block",
           "type": "timeseries",
@@ -1459,102 +1555,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate_block\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_sync_block (server)",
-          "description": "server infra metrics for request type add_sync_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_sync_block\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "decision_reached (server)",
-          "description": "server infra metrics for request type decision_reached",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"decision_reached\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_current_height (server)",
-          "description": "server infra metrics for request type get_current_height",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_current_height\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_proposal_content (server)",
-          "description": "server infra metrics for request type get_proposal_content",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "propose_block (server)",
-          "description": "server infra metrics for request type propose_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"propose_block\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "revert_block (server)",
-          "description": "server infra metrics for request type revert_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "send_proposal_content (server)",
-          "description": "server infra metrics for request type send_proposal_content",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"send_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "start_height (server)",
-          "description": "server infra metrics for request type start_height",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_height\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1664,6 +1664,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_class (server)",
+          "description": "server infra metrics for request type add_class",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "add_class_and_executable_unsafe (client)",
           "description": "client infra metrics for request type add_class_and_executable_unsafe",
           "type": "timeseries",
@@ -1674,6 +1686,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.95 class_manager_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.50 class_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.95 class_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "add_class_and_executable_unsafe (server)",
+          "description": "server infra metrics for request type add_class_and_executable_unsafe",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1692,6 +1716,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_deprecated_class (server)",
+          "description": "server infra metrics for request type add_deprecated_class",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_executable (client)",
           "description": "client infra metrics for request type get_executable",
           "type": "timeseries",
@@ -1702,6 +1738,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.50 class_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_executable (server)",
+          "description": "server infra metrics for request type get_executable",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1720,6 +1768,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_executable_class_hash_v2 (server)",
+          "description": "server infra metrics for request type get_executable_class_hash_v2",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_sierra (client)",
           "description": "client infra metrics for request type get_sierra",
           "type": "timeseries",
@@ -1730,66 +1790,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.95 class_manager_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.50 class_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.95 class_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_class (server)",
-          "description": "server infra metrics for request type add_class",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_class_and_executable_unsafe (server)",
-          "description": "server infra metrics for request type add_class_and_executable_unsafe",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_class_and_executable_unsafe\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_deprecated_class (server)",
-          "description": "server infra metrics for request type add_deprecated_class",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_deprecated_class\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_executable (server)",
-          "description": "server infra metrics for request type get_executable",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_executable_class_hash_v2 (server)",
-          "description": "server infra metrics for request type get_executable_class_hash_v2",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_executable_class_hash_v2\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -1899,6 +1899,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_consensus_dynamic_config (server)",
+          "description": "server infra metrics for request type get_consensus_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_mempool_dynamic_config (client)",
           "description": "client infra metrics for request type get_mempool_dynamic_config",
           "type": "timeseries",
@@ -1913,6 +1925,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_mempool_dynamic_config (server)",
+          "description": "server infra metrics for request type get_mempool_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "set_node_dynamic_config (client)",
           "description": "client infra metrics for request type set_node_dynamic_config",
           "type": "timeseries",
@@ -1923,30 +1947,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"set_node_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"set_node_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"set_node_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_consensus_dynamic_config (server)",
-          "description": "server infra metrics for request type get_consensus_dynamic_config",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_consensus_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_mempool_dynamic_config (server)",
-          "description": "server infra metrics for request type get_mempool_dynamic_config",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2266,6 +2266,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_gas_price (server)",
+          "description": "server infra metrics for request type add_gas_price",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_eth_to_fri_rate (client)",
           "description": "client infra metrics for request type get_eth_to_fri_rate",
           "type": "timeseries",
@@ -2276,6 +2288,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.95 l1_gas_price_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.50 l1_gas_price_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.95 l1_gas_price_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_eth_to_fri_rate (server)",
+          "description": "server infra metrics for request type get_eth_to_fri_rate",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.50 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.95 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.50 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.95 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2294,6 +2318,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_gas_price (server)",
+          "description": "server infra metrics for request type get_gas_price",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "initialize (client)",
           "description": "client infra metrics for request type initialize",
           "type": "timeseries",
@@ -2304,42 +2340,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.95 l1_gas_price_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.50 l1_gas_price_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.95 l1_gas_price_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_gas_price (server)",
-          "description": "server infra metrics for request type add_gas_price",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_eth_to_fri_rate (server)",
-          "description": "server infra metrics for request type get_eth_to_fri_rate",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.50 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.95 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.50 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_eth_to_fri_rate\"}[5m])), \"label_name\", \"0.95 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_gas_price (server)",
-          "description": "server infra metrics for request type get_gas_price",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.50 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_gas_price_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_gas_price\"}[5m])), \"label_name\", \"0.95 l1_gas_price_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2449,6 +2449,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_events (server)",
+          "description": "server infra metrics for request type add_events",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "commit_block (client)",
           "description": "client infra metrics for request type commit_block",
           "type": "timeseries",
@@ -2459,6 +2471,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "commit_block (server)",
+          "description": "server infra metrics for request type commit_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2477,6 +2501,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_l1_provider_snapshot (server)",
+          "description": "server infra metrics for request type get_l1_provider_snapshot",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_transactions (client)",
           "description": "client infra metrics for request type get_transactions",
           "type": "timeseries",
@@ -2487,6 +2523,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_transactions (server)",
+          "description": "server infra metrics for request type get_transactions",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2505,6 +2553,18 @@
           "extra_params": {}
         },
         {
+          "title": "initialize (server)",
+          "description": "server infra metrics for request type initialize",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "start_block (client)",
           "description": "client infra metrics for request type start_block",
           "type": "timeseries",
@@ -2519,6 +2579,18 @@
           "extra_params": {}
         },
         {
+          "title": "start_block (server)",
+          "description": "server infra metrics for request type start_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "validate (client)",
           "description": "client infra metrics for request type validate",
           "type": "timeseries",
@@ -2529,78 +2601,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])), \"label_name\", \"0.50 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"validate\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_events (server)",
-          "description": "server infra metrics for request type add_events",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_events\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "commit_block (server)",
-          "description": "server infra metrics for request type commit_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_l1_provider_snapshot (server)",
-          "description": "server infra metrics for request type get_l1_provider_snapshot",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_l1_provider_snapshot\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_transactions (server)",
-          "description": "server infra metrics for request type get_transactions",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "initialize (server)",
-          "description": "server infra metrics for request type initialize",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"initialize\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "start_block (server)",
-          "description": "server infra metrics for request type start_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"start_block\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2710,6 +2710,18 @@
           "extra_params": {}
         },
         {
+          "title": "account_tx_in_pool_or_recent_block (server)",
+          "description": "server infra metrics for request type account_tx_in_pool_or_recent_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "add_transaction (client)",
           "description": "client infra metrics for request type add_transaction",
           "type": "timeseries",
@@ -2720,6 +2732,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "add_transaction (server)",
+          "description": "server infra metrics for request type add_transaction",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2738,6 +2762,18 @@
           "extra_params": {}
         },
         {
+          "title": "commit_block (server)",
+          "description": "server infra metrics for request type commit_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_mempool_snapshot (client)",
           "description": "client infra metrics for request type get_mempool_snapshot",
           "type": "timeseries",
@@ -2748,6 +2784,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.95 mempool_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.50 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.95 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_mempool_snapshot (server)",
+          "description": "server infra metrics for request type get_mempool_snapshot",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2766,6 +2814,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_transactions (server)",
+          "description": "server infra metrics for request type get_transactions",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "update_gas_price (client)",
           "description": "client infra metrics for request type update_gas_price",
           "type": "timeseries",
@@ -2776,66 +2836,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])), \"label_name\", \"0.95 mempool_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])), \"label_name\", \"0.50 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"update_gas_price\"}[5m])), \"label_name\", \"0.95 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "account_tx_in_pool_or_recent_block (server)",
-          "description": "server infra metrics for request type account_tx_in_pool_or_recent_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"account_tx_in_pool_or_recent_block\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_transaction (server)",
-          "description": "server infra metrics for request type add_transaction",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "commit_block (server)",
-          "description": "server infra metrics for request type commit_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_mempool_snapshot (server)",
-          "description": "server infra metrics for request type get_mempool_snapshot",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_mempool_snapshot\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_transactions (server)",
-          "description": "server infra metrics for request type get_transactions",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -2945,6 +2945,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_transaction (server)",
+          "description": "server infra metrics for request type add_transaction",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "broadcast_queued_transactions (client)",
           "description": "client infra metrics for request type broadcast_queued_transactions",
           "type": "timeseries",
@@ -2959,6 +2971,18 @@
           "extra_params": {}
         },
         {
+          "title": "broadcast_queued_transactions (server)",
+          "description": "server infra metrics for request type broadcast_queued_transactions",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.50 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.95 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.50 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.95 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "continue_propagation (client)",
           "description": "client infra metrics for request type continue_propagation",
           "type": "timeseries",
@@ -2969,30 +2993,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])), \"label_name\", \"0.95 mempool_p2p_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])), \"label_name\", \"0.50 mempool_p2p_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"continue_propagation\"}[5m])), \"label_name\", \"0.95 mempool_p2p_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_transaction (server)",
-          "description": "server infra metrics for request type add_transaction",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.50 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_transaction\"}[5m])), \"label_name\", \"0.95 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "broadcast_queued_transactions (server)",
-          "description": "server infra metrics for request type broadcast_queued_transactions",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.50 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.95 mempool_p2p_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.50 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_p2p_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"broadcast_queued_transactions\"}[5m])), \"label_name\", \"0.95 mempool_p2p_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -3207,6 +3207,18 @@
           "extra_params": {}
         },
         {
+          "title": "add_new_block (server)",
+          "description": "server infra metrics for request type add_new_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_block (client)",
           "description": "client infra metrics for request type get_block",
           "type": "timeseries",
@@ -3217,6 +3229,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.95 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.50 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.95 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_block (server)",
+          "description": "server infra metrics for request type get_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -3235,6 +3259,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_block_hash (server)",
+          "description": "server infra metrics for request type get_block_hash",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_class_hash_at (client)",
           "description": "client infra metrics for request type get_class_hash_at",
           "type": "timeseries",
@@ -3245,6 +3281,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.50 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_class_hash_at (server)",
+          "description": "server infra metrics for request type get_class_hash_at",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -3263,6 +3311,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_latest_block_number (server)",
+          "description": "server infra metrics for request type get_latest_block_number",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_nonce_at (client)",
           "description": "client infra metrics for request type get_nonce_at",
           "type": "timeseries",
@@ -3273,6 +3333,18 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.50 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_nonce_at (server)",
+          "description": "server infra metrics for request type get_nonce_at",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -3291,6 +3363,18 @@
           "extra_params": {}
         },
         {
+          "title": "get_storage_at (server)",
+          "description": "server infra metrics for request type get_storage_at",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "is_class_declared_at (client)",
           "description": "client infra metrics for request type is_class_declared_at",
           "type": "timeseries",
@@ -3301,90 +3385,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])), \"label_name\", \"0.50 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "add_new_block (server)",
-          "description": "server infra metrics for request type add_new_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"add_new_block\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_block (server)",
-          "description": "server infra metrics for request type get_block",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_block_hash (server)",
-          "description": "server infra metrics for request type get_block_hash",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_block_hash\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_class_hash_at (server)",
-          "description": "server infra metrics for request type get_class_hash_at",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_class_hash_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_latest_block_number (server)",
-          "description": "server infra metrics for request type get_latest_block_number",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_latest_block_number\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_nonce_at (server)",
-          "description": "server infra metrics for request type get_nonce_at",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_nonce_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_storage_at (server)",
-          "description": "server infra metrics for request type get_storage_at",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_storage_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
