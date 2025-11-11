@@ -36,14 +36,17 @@ class GrafanaBaseConstruct(Construct):
         self.cluster = cluster
         self.namespace = namespace
 
-    def _get_api_object_metadata(self):
+    def _get_api_object_metadata(self, name: Optional[str] = None):
         """Common metadata for Grafana resources."""
-        return ApiObjectMetadata(
-            labels={
-                "app": "sequencer-node",
+        metadata_kwargs = {
+            "labels": {
+                "app": "sequencer",
                 "service": "monitoring",
             },
-        )
+        }
+        if name:
+            metadata_kwargs["name"] = name
+        return ApiObjectMetadata(**metadata_kwargs)
 
 
 class GrafanaDashboardConstruct(GrafanaBaseConstruct):
@@ -61,12 +64,14 @@ class GrafanaDashboardConstruct(GrafanaBaseConstruct):
 
         self.grafana_dashboard = grafana_dashboard.load()["dashboard"]
         self.grafana_dashboard["title"] = f"sequencer-{self.namespace}-dashboard"
+        self.hash_value = generate_random_hash(from_string=f"{self.cluster}-{self.namespace}")
+        self.custom_name = f"{self.namespace}-dash-{self.hash_value}"
         self._get_shared_grafana_dashboard()
 
     def _get_shared_grafana_dashboard_spec(self):
         return SharedGrafanaDashboardSpec(
-            collection_name="shared-grafana-dashboard",
-            dashboard_name=Names.to_dns_label(self, include_hash=False),
+            collection_name=f"shared-grafana-dashboard",
+            dashboard_name=self.custom_name,
             folder_name=self.cluster,
             dashboard_json=json.dumps(self.grafana_dashboard, indent=4),
         )
@@ -75,7 +80,7 @@ class GrafanaDashboardConstruct(GrafanaBaseConstruct):
         return SharedGrafanaDashboard(
             self,
             self.node.id,
-            metadata=self._get_api_object_metadata(),
+            metadata=self._get_api_object_metadata(name=self.custom_name),
             spec=self._get_shared_grafana_dashboard_spec(),
         )
 
@@ -95,6 +100,8 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
 
         self.grafana_alert_group = grafana_alert_rule_group
         self.grafana_alert_files = self.grafana_alert_group.get_alert_files()
+        self.hash_value = generate_random_hash(from_string=f"{self.cluster}-{self.namespace}")
+        self.custom_name = f"{self.namespace}-arg-{self.hash_value}"
         self._get_shared_grafana_alert_rule_group()
 
     def _exec_err_state_enum_selector(self, exec_err_state: str) -> Optional[str]:
@@ -158,11 +165,11 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
         """Build the spec for the alert rule group."""
         rules = []
         for alert_file in self.grafana_alert_files:
-            alert_rule = self.grafana_alert_group.load(alert_file)
+            alert_rule = self.grafana_alert_group.load(str(alert_file))
             rules.append(self._get_shared_grafana_alert_rule_group_rules(alert_rule))
 
         return SharedGrafanaAlertRuleGroupSpec(
-            name=sanitize_name(f"{self.cluster}-{self.namespace}-{self.node.id}"),
+            name=self.custom_name,
             instance_selector=SharedGrafanaAlertRuleGroupSpecInstanceSelector(),
             interval="1m",
             editable=False,
@@ -175,6 +182,6 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
         return SharedGrafanaAlertRuleGroup(
             self,
             self.node.id,
-            metadata=self._get_api_object_metadata(),
+            metadata=self._get_api_object_metadata(name=self.custom_name),
             spec=self._get_shared_grafana_alert_rule_group_spec(),
         )
