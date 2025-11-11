@@ -140,6 +140,10 @@ deployment:
 ### `affinity` (object, optional)
 - **Default**: `{}`
 - **Description**: Affinity rules for pod scheduling
+- **PodAntiAffinity labelSelector**: If `labelSelector` in `podAntiAffinity` rules is empty (no `matchLabels` and no `matchExpressions`), it automatically defaults to pod labels. This ensures:
+  - ✅ Selector always matches the pods for anti-affinity rules
+  - ✅ No manual synchronization needed when pod labels change
+  - ✅ Prevents configuration drift between pod labels and anti-affinity selector
 - **Example**:
   ```yaml
   affinity:
@@ -154,12 +158,17 @@ deployment:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100
           podAffinityTerm:
+            labelSelector: {}  # Empty = auto-defaults to pod labels
+            topologyKey: "kubernetes.io/hostname"
+        # Or explicitly set for advanced use cases:
+        - weight: 50
+          podAffinityTerm:
             labelSelector:
               matchExpressions:
                 - key: "app"
                   operator: "In"
                   values: ["sequencer"]
-            topologyKey: "kubernetes.io/hostname"
+            topologyKey: "topology.kubernetes.io/zone"
   ```
 
 ## Update Strategy Examples

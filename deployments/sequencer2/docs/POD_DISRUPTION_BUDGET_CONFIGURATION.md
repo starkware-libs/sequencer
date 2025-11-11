@@ -54,7 +54,7 @@ podDisruptionBudget:
 
 ### Selector Configuration
 
-The selector determines which pods the PDB applies to:
+The selector determines which pods the PDB applies to. **If the selector is empty or not specified, it automatically defaults to the pod labels**, ensuring the selector stays in sync with pod labels and preventing configuration drift.
 
 ```yaml
 selector:
@@ -67,9 +67,16 @@ selector:
       values: ["production", "staging"]
 ```
 
+**Automatic Default Behavior**: If `selector` is empty (no `matchLabels` and no `matchExpressions`), the system automatically uses the pod labels. This ensures:
+- ✅ Selector always matches the pods it's meant to protect
+- ✅ No manual synchronization needed when pod labels change
+- ✅ Prevents configuration drift between pod labels and PDB selector
+
+**Override for Advanced Use Cases**: You can explicitly set `matchLabels` or `matchExpressions` to select different pods (e.g., selecting pods from multiple services).
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `matchLabels` | `dict` | No | Label selector using exact match (uses service labels if empty) |
+| `matchLabels` | `dict` | No | Label selector using exact match (auto-defaults to pod labels if empty) |
 | `matchExpressions` | `list` | No | Advanced label selector with operators (In, NotIn, Exists, DoesNotExist) |
 
 ### Availability Constraints

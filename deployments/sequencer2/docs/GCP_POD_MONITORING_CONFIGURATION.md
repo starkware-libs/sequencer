@@ -93,7 +93,7 @@ gcpPodMonitoring:
 
 #### Selector
 
-The selector determines which pods are monitored:
+The selector determines which pods are monitored. **If the selector is empty or not specified, it automatically defaults to the pod labels**, ensuring the selector stays in sync with pod labels and preventing configuration drift.
 
 ```yaml
 spec:
@@ -107,9 +107,16 @@ spec:
         values: ["production"]
 ```
 
+**Automatic Default Behavior**: If `selector` is empty (no `matchLabels` and no `matchExpressions`), the system automatically uses the pod labels. This ensures:
+- ✅ Selector always matches the pods being monitored
+- ✅ No manual synchronization needed when pod labels change
+- ✅ Prevents configuration drift between pod labels and PodMonitoring selector
+
+**Override for Advanced Use Cases**: You can explicitly set `matchLabels` or `matchExpressions` to select different pods (e.g., monitoring pods from multiple services).
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `matchLabels` | `dict` | No | Label selector using exact match (uses service labels if empty) |
+| `matchLabels` | `dict` | No | Label selector using exact match (auto-defaults to pod labels if empty) |
 | `matchExpressions` | `list` | No | Advanced label selector with operators (In, NotIn, Exists, DoesNotExist) |
 
 #### Endpoints

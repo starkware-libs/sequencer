@@ -101,9 +101,16 @@ ingress:
 The merge process works as follows:
 
 1. **Load layout configuration** from `configs/layouts/<layout>/`
+   - Load `common.yaml` (if exists)
+   - Load all service configs from `services/` directory
 2. **Load overlay configuration** (if provided) from `configs/overlays/<layout>/<overlay>/`
+   - Load `common.yaml` (if exists) and merge into layout common
+   - Load service overlays and merge into layout services
 3. **Strict merge**: Overlay values are merged into layout values with validation
 4. **Validation**: System ensures overlay doesn't add new keys or services
+5. **Common merge**: Merged common config is merged into each service config
+   - This happens automatically for **any field** in the ServiceConfig schema
+   - No special code needed - just add fields to the schema and they work in `common.yaml`
 
 #### Merge Rules
 
@@ -111,6 +118,8 @@ The merge process works as follows:
 - **Primitive values**: Completely replaced (layout value is overwritten)
 - **Arrays**: Completely replaced (layout array is overwritten)
 - **Missing keys in overlay**: Layout values are preserved
+
+**Note**: After overlay merging, common config is merged into each service config (see [Common Configuration](#common-configuration-commonyaml) section below).
 
 #### Example Merge
 
@@ -281,24 +290,227 @@ service:
 
 ## Common Configuration (`common.yaml`)
 
-Both layouts and overlays can have a `common.yaml` file that applies to all services:
+Both layouts and overlays can have a `common.yaml` file that applies to all services. The common configuration uses the **same schema as service configurations**, meaning **any field available in service configurations can be used in `common.yaml`**.
+
+### Unified Schema
+
+The configuration system uses a **unified schema** where `CommonConfig = ServiceConfig`. This means:
+- ✅ **Any field** in `ServiceConfig` can be used in `common.yaml`
+- ✅ **No special code needed** - just add the field to the schema and it works
+- ✅ **Automatic merging** - common config fields are automatically merged into each service config
 
 ### Layout Common (`configs/layouts/<layout>/common.yaml`)
+
+Common fields that apply to all services:
+
 ```yaml
+# Image configuration (applies to all services)
 image:
   repository: ghcr.io/starkware-libs/sequencer
   tag: "latest"
   imagePullPolicy: IfNotPresent
 
+# Image pull secrets (applies to all services)
 imagePullSecrets: []
-commonMetaLabels: {}
+
+# Base labels for all services (merged with service-specific labels)
+metaLabels:
+  app: sequencer
+  environment: production
+
+# Environment variables (applied to all services)
+env:
+  - name: RUST_LOG
+    value: info
+  - name: NO_COLOR
+    value: "1"
+
+# Health probes (applied to all services)
+startupProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 30
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+readinessProbe:
+  enabled: true
+  path: /monitoring/ready
+  successThreshold: 2
+  failureThreshold: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+livenessProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+# Security context (applied to all services)
+securityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# External secrets (applied to all services)
+externalSecret:
+  enabled: true
+  secretStore:
+    name: "external-secrets-project"
+    kind: "ClusterSecretStore"
+  refreshInterval: "1m"
+  data:
+    - secretKey: "secrets.json"
+      remoteRef:
+        key: "production-secrets"
+
+# Service ports (merged by name with service-specific ports)
+service:
+  ports:
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+
+# Sequencer config (deep merged with service-specific config)
+config:
+  sequencerConfig:
+    chain_id: "SN_MAINNET"
+    monitoring_endpoint_config_port: 8082
 ```
 
 ### Overlay Common (`configs/overlays/<layout>/<overlay>/common.yaml`)
+
+Override common values for specific environments:
+
 ```yaml
+# Override image tag for dev environment
 image:
-  tag: "dev"  # Override tag for dev environment
+  tag: "dev"
+
+# Add environment-specific env vars
+env:
+  - name: RUST_LOG
+    value: debug
+  - name: RUST_BACKTRACE
+    value: full
+
+# Override sequencer config for integration
+config:
+  sequencerConfig:
+    chain_id: "SN_INTEGRATION_SEPOLIA"
 ```
+
+### How Common Config Merges with Service Config
+
+The merge process works as follows:
+
+1. **Layout common** → **Overlay common** (if overlay exists)
+2. **Merged common** → **Each service config** (after overlay merge)
+
+#### Merge Rules for Common Config
+
+- **Deep merge**: Nested objects are merged recursively (common first, service overrides)
+- **List merging**: 
+  - `env`: Common items are appended to service items (if service list is not empty)
+  - `service.ports`: Merged by name - service ports override common ports with the same name
+- **Smart defaults**: Fields with `default_factory` that weren't explicitly set in common.yaml are **not merged** (prevents overriding service-specific values)
+- **Excluded fields**: The `name` field is never merged from common config (service names are always service-specific)
+
+#### Example: Port Merging
+
+**Common (`common.yaml`):**
+```yaml
+service:
+  ports:
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+```
+
+**Service (`services/core.yaml`):**
+```yaml
+service:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: monitoring-endpoint
+      port: 9090  # Overrides common port
+      targetPort: 9090
+```
+
+**Result:**
+```yaml
+service:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: monitoring-endpoint
+      port: 9090  # Service port overrides common
+      targetPort: 9090
+```
+
+#### Example: Environment Variable Merging
+
+**Common (`common.yaml`):**
+```yaml
+env:
+  - name: RUST_LOG
+    value: info
+  - name: NO_COLOR
+    value: "1"
+```
+
+**Service (`services/core.yaml`):**
+```yaml
+env:
+  - name: RUST_BACKTRACE
+    value: full
+```
+
+**Result:**
+```yaml
+env:
+  - name: RUST_LOG
+    value: info  # From common
+  - name: NO_COLOR
+    value: "1"    # From common
+  - name: RUST_BACKTRACE
+    value: full  # From service
+```
+
+#### Example: Smart Default Exclusion
+
+**Common (`common.yaml`):**
+```yaml
+# updateStrategy is NOT set in common.yaml
+image:
+  repository: ghcr.io/starkware-libs/sequencer
+  tag: "latest"
+```
+
+**Service (`services/mempool.yaml`):**
+```yaml
+updateStrategy:
+  type: "Recreate"  # This is preserved, not overridden by common default
+```
+
+**Result:**
+```yaml
+updateStrategy:
+  type: "Recreate"  # Service value preserved (common didn't set it)
+image:
+  repository: ghcr.io/starkware-libs/sequencer
+  tag: "latest"  # From common
+```
+
+This ensures that fields with default values (like `updateStrategy`, `tolerations`, `nodeSelector`) that weren't explicitly set in common.yaml don't override service-specific configurations.
 
 ## Best Practices
 
