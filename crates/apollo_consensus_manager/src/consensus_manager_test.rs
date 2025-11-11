@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
-use apollo_class_manager_types::EmptyClassManagerClient;
+use apollo_class_manager_types::MockClassManagerClient;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
@@ -48,7 +48,7 @@ async fn revert_batcher_blocks() {
         manager_config,
         Arc::new(mock_batcher_client),
         Arc::new(MockStateSyncClient::new()),
-        Arc::new(EmptyClassManagerClient),
+        Arc::new(MockClassManagerClient::new()),
         Arc::new(MockSignatureManagerClient::new()),
         Arc::new(MockConfigManagerClient::new()),
         Arc::new(MockL1GasPriceProviderClient::new()),
@@ -68,7 +68,7 @@ async fn no_reverts_without_config() {
         ConsensusManagerConfig::default(),
         Arc::new(mock_batcher),
         Arc::new(MockStateSyncClient::new()),
-        Arc::new(EmptyClassManagerClient),
+        Arc::new(MockClassManagerClient::new()),
         Arc::new(MockSignatureManagerClient::new()),
         Arc::new(MockConfigManagerClient::new()),
         Arc::new(MockL1GasPriceProviderClient::new()),
