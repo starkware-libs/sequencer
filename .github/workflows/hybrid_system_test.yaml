@@ -19,7 +19,7 @@ env:
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
   path_triggers_exclude: "scripts/prod/**/*"
-  pvc_storage_class_name: "premium-rwo"
+  pvc_storage_class_name: "hyperdisk-balanced"
   anvil_port: "8545"
   dockerfile_base_path: ./deployments/images/sequencer
 

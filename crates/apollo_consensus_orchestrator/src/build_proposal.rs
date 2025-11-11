@@ -144,7 +144,14 @@ pub(crate) async fn build_proposal(
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.deps.clock.unix_now();
+    // Prefer the latest synced block's timestamp; fall back to local clock if unavailable.
+    let timestamp = match args.deps.state_sync_client.get_latest_block_number().await {
+        Ok(Some(latest_bn)) => match args.deps.state_sync_client.get_block(latest_bn).await {
+            Ok(sync_block) => sync_block.block_header_without_hash.timestamp.0,
+            Err(_) => args.deps.clock.unix_now(),
+        },
+        _ => args.deps.clock.unix_now(),
+    };
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
