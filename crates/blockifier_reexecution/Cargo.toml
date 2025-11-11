@@ -9,9 +9,12 @@ license.workspace = true
 blockifier_regression_https_testing = []
 
 [dependencies]
+apollo_compile_to_casm.workspace = true
+apollo_compile_to_casm_types.workspace = true
 apollo_gateway.workspace = true
 apollo_gateway_config.workspace = true
 apollo_rpc_execution.workspace = true
+apollo_sierra_compilation_config.workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["reexecution"] }
 cairo-lang-starknet-classes.workspace = true
