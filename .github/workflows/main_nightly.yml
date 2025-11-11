@@ -5,7 +5,10 @@ on:
   workflow_dispatch:
 
 env:
+  CI: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 jobs:
   define_branches:
@@ -89,33 +92,16 @@ jobs:
       - name: "Run feature combo on all crates."
         run: scripts/run_feature_combos_test.py
 
-  run-integration-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
-    needs: define_branches
-    strategy:
-      matrix:
-        branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ matrix.branch }}
+  integration-tests-main:
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      branch: main
+      is_nightly: true
+    secrets: inherit
 
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Setup pypy and link to the location expected by .cargo/config.toml.
-      - uses: actions/setup-python@v5
-        id: setup-pypy
-        with:
-          python-version: "pypy3.9"
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-      - run: pip install -r scripts/requirements.txt
-      - name: "Run integration tests pull request"
-        run: |
-          scripts/run_tests.py --command integration --is_nightly
-        env:
-          SEED: 0
+  integration-tests-main-v0-14:
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      branch: main-v0.14.0
+      is_nightly: true
+    secrets: inherit

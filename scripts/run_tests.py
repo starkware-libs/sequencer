@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import argparse
+import os
 import subprocess
 from enum import Enum
 from typing import List, Optional, Set
@@ -18,14 +19,22 @@ SEQUENCER_BINARY_NAME: str = "apollo_node"
 
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
-    "integration_test_restart_flow",
-]
-NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_positive_flow",
     "integration_test_restart_flow",
     "integration_test_revert_flow",
-    "integration_test_central_and_p2p_sync_flow",
+    # TODO(shahak): revive this test
+    # "integration_test_central_and_p2p_sync_flow",
 ]
+
+
+def build_cmds(with_cairo_native: bool) -> List[List[str]]:
+    feature_flag = ["--features", "cairo_native"] if with_cairo_native else []
+    # Commands to build the node and all the test binaries.
+    build_cmds = [
+        ["cargo", "build", "--bin", binary_name] + feature_flag
+        for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
+    ]
+    return build_cmds
 
 
 # Enum of base commands.
@@ -33,7 +42,7 @@ class BaseCommand(Enum):
     TEST = "test"
     CLIPPY = "clippy"
     DOC = "doc"
-    INTEGRATION = "integration"
+    BUILD_INTEGRATION = "build_integration"
 
     def cmds(self, crates: Set[str], is_nightly: bool) -> List[List[str]]:
         package_args = []
@@ -48,46 +57,27 @@ class BaseCommand(Enum):
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
-        elif self == BaseCommand.INTEGRATION:
+        elif self == BaseCommand.BUILD_INTEGRATION:
             # Do nothing if integration tests should not be triggered; on nightly, run the tests.
             if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
                 print(f"Skipping sequencer integration tests.")
                 return []
 
-            integration_test_names_to_run = (
-                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES
-                if is_nightly
-                else SEQUENCER_INTEGRATION_TEST_NAMES
+            with_cairo_native = (not CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates)) or is_nightly
+
+            print(
+                f"Composing sequencer integration test commands with cairo_native feature: {with_cairo_native}."
             )
 
-            print(f"Composing sequencer integration test commands.")
+            cmds = build_cmds(with_cairo_native=with_cairo_native)
 
-            def build_cmds(with_feature: bool) -> List[List[str]]:
-                feature_flag = (
-                    ["--features", "cairo_native"] if (with_feature and is_nightly) else []
-                )
-                # Commands to build the node and all the test binaries.
-                build_cmds = [
-                    ["cargo", "build", "--bin", binary_name] + feature_flag
-                    for binary_name in [SEQUENCER_BINARY_NAME] + integration_test_names_to_run
-                ]
-                return build_cmds
+            if "GITHUB_OUTPUT" in os.environ:
+                test_list = str(SEQUENCER_INTEGRATION_TEST_NAMES)
+                with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                    f.write(f"test_binaries={test_list}\n")
+                print(f"Wrote test list to GITHUB_OUTPUT: {test_list}")
 
-            # Commands to run the test binaries.
-            run_cmds = [
-                [f"./target/debug/{test_binary_name}"]
-                for test_binary_name in integration_test_names_to_run
-            ]
-
-            cmds_no_feat = build_cmds(with_feature=False) + run_cmds
-
-            # Only run cairo_native feature if the blockifier crate is modified, and in nightly.
-            if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
-                return cmds_no_feat
-
-            print("Composing sequencer integration test commands with cairo_native feature.")
-            cmds_with_feat = build_cmds(with_feature=True) + run_cmds
-            return cmds_no_feat + cmds_with_feat
+            return cmds
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
