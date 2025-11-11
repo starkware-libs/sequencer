@@ -3647,9 +3647,12 @@ dependencies = [
 name = "blockifier_reexecution"
 version = "0.16.0-rc.1"
 dependencies = [
+ "apollo_compile_to_casm",
+ "apollo_compile_to_casm_types",
  "apollo_gateway",
  "apollo_gateway_config",
  "apollo_rpc_execution",
+ "apollo_sierra_compilation_config",
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
