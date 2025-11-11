@@ -284,9 +284,9 @@ pub async fn run_committer_cli(
                 cache_on_write: true,
             };
             let rocksdb_options = if allow_mmap {
-                RocksDbOptions::default()
+                RocksDbOptions::default_mmap_enabled()
             } else {
-                RocksDbOptions::default_no_mmap()
+                RocksDbOptions::default()
             };
             match storage_type {
                 StorageType::MapStorage => {

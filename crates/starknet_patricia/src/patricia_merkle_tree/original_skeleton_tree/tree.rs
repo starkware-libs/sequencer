@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{KeyContext, Storage};
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
@@ -20,14 +20,14 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 /// This trait represents the structure of the subtree which will be modified in the
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the unmodified
 /// nodes on the Merkle paths from the updated leaves to the root.
-pub trait OriginalSkeletonTree<'a>: Sized {
+pub trait OriginalSkeletonTree<'a, 'ctx>: Sized {
     fn create<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
-        tree_prefix_bytes: Option<Felt>,
+        key_context: &'ctx KeyContext,
     ) -> OriginalSkeletonTreeResult<Self>;
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap;
@@ -40,7 +40,7 @@ pub trait OriginalSkeletonTree<'a>: Sized {
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
-        tree_prefix: Option<Felt>,
+        key_context: &'ctx KeyContext,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)>;
 
     #[allow(dead_code)]
@@ -54,16 +54,23 @@ pub struct OriginalSkeletonTreeImpl<'a> {
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
 }
 
-impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
+impl<'a, 'ctx> OriginalSkeletonTree<'a, 'ctx> for OriginalSkeletonTreeImpl<'a> {
     fn create<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
-        tree_prefix: Option<Felt>,
+        key_context: &'ctx KeyContext,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_impl(storage, root_hash, sorted_leaf_indices, config, leaf_modifications, tree_prefix)
+        Self::create_impl(
+            storage,
+            root_hash,
+            sorted_leaf_indices,
+            config,
+            leaf_modifications,
+            key_context,
+        )
     }
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
@@ -80,7 +87,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         leaf_modifications: &LeafModifications<L>,
-        tree_prefix: Option<Felt>,
+        key_context: &'ctx KeyContext,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         Self::create_and_get_previous_leaves_impl(
             storage,
@@ -88,7 +95,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
             sorted_leaf_indices,
             leaf_modifications,
             config,
-            tree_prefix,
+            key_context,
         )
     }
 
@@ -97,12 +104,12 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
     }
 }
 
-impl<'a> OriginalSkeletonTreeImpl<'a> {
+impl<'a, 'ctx> OriginalSkeletonTreeImpl<'a> {
     pub fn get_leaves<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
-        tree_prefix: Option<Felt>,
+        key_context: &'ctx KeyContext,
     ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
         let config = NoCompareOriginalSkeletonTrieConfig::default();
         let leaf_modifications = LeafModifications::new();
@@ -112,7 +119,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             sorted_leaf_indices,
             &leaf_modifications,
             &config,
-            tree_prefix,
+            key_context,
         )?;
         Ok(previous_leaves)
     }

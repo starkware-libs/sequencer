@@ -1,12 +1,19 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, ascii_as_felt};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia_storage::storage_trait::{
+    BlockNumber,
+    DbHashMap,
+    KeyContext,
+    Storage,
+    TrieType,
+};
+use starknet_types_core::felt::Felt;
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -34,14 +41,30 @@ pub struct FilledForest {
 impl FilledForest {
     /// Writes the node serialization of the filled trees to storage. Returns the number of new
     /// objects written to storage.
-    pub fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
+    pub fn write_to_storage(
+        &self,
+        storage: &mut impl Storage,
+        block_number: Option<BlockNumber>,
+    ) -> usize {
         // Serialize all trees to one hash map.
         let new_db_objects: DbHashMap = self
             .storage_tries
             .iter()
-            .flat_map(|(address,tree)| tree.serialize(Some((*address).into())).into_iter())
-            .chain(self.contracts_trie.serialize(Some(ascii_as_felt("CONTRACTS_TREE_PREFIX").unwrap())))
-            .chain(self.classes_trie.serialize(Some(ascii_as_felt("CLASSES_TREE_PREFIX").unwrap())))
+            .flat_map(|(address, tree)| {
+                tree.serialize(&KeyContext {
+                    trie_type: TrieType::StorageTrie(Into::<Felt>::into(*address)),
+                    block_number,
+                })
+                .into_iter()
+            })
+            .chain(
+                self.contracts_trie
+                    .serialize(&KeyContext { trie_type: TrieType::ContractsTrie, block_number }),
+            )
+            .chain(
+                self.classes_trie
+                    .serialize(&KeyContext { trie_type: TrieType::ClassesTrie, block_number }),
+            )
             .collect();
 
         // Store the new hash map.

@@ -72,8 +72,8 @@ impl UpdatedSkeletonTreeImpl {
     /// Finalize the skeleton bottom layer := the updated skeleton nodes created directly from the
     /// original skeleton and leaf modifications, without being dependant in any descendants
     /// (i.e., modified leaves, and unmodified nodes).
-    pub(crate) fn finalize_bottom_layer<'a>(
-        original_skeleton: &impl OriginalSkeletonTree<'a>,
+    pub(crate) fn finalize_bottom_layer<'a, 'ctx>(
+        original_skeleton: &impl OriginalSkeletonTree<'a, 'ctx>,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonNodeMap {
         leaf_modifications
@@ -90,9 +90,9 @@ impl UpdatedSkeletonTreeImpl {
     }
 
     /// Finalize the tree middle layers (i.e., not the bottom layer defined above).
-    pub(crate) fn finalize_middle_layers<'a>(
+    pub(crate) fn finalize_middle_layers<'a, 'ctx>(
         &mut self,
-        original_skeleton: &mut impl OriginalSkeletonTree<'a>,
+        original_skeleton: &mut impl OriginalSkeletonTree<'a, 'ctx>,
     ) -> TempSkeletonNode {
         let sorted_leaf_indices = original_skeleton.get_sorted_leaf_indices();
         if original_skeleton.get_nodes().is_empty() {
@@ -396,8 +396,8 @@ impl UpdatedSkeletonTreeImpl {
         self.node_from_edge_data(&path_to_new_bottom, &new_bottom_index, &bottom)
     }
 
-    pub(crate) fn create_unmodified<'a>(
-        original_skeleton: &impl OriginalSkeletonTree<'a>,
+    pub(crate) fn create_unmodified<'a, 'ctx>(
+        original_skeleton: &impl OriginalSkeletonTree<'a, 'ctx>,
     ) -> UpdatedSkeletonTreeResult<Self> {
         let original_root_node = original_skeleton
             .get_nodes()

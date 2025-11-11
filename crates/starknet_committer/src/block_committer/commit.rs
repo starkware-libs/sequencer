@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{BlockNumber, Storage};
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -52,6 +52,7 @@ pub async fn commit_block<S: Storage>(
         &actual_classes_updates,
         &forest_sorted_indices,
         &input.config,
+        None,
     )?;
     if let Some(ref mut tm) = time_measurement {
         let n_read_facts =

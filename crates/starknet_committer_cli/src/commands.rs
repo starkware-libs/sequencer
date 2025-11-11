@@ -15,7 +15,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
+use starknet_patricia_storage::storage_trait::{BlockNumber, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
@@ -148,8 +148,19 @@ pub async fn run_storage_benchmark<S: Storage>(
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage);
+
+        // Write to latest trie.
+        let n_new_facts = filled_forest.write_to_storage(&mut storage, None);
+
+        // Write to historical trie.
+        // TODO(Ariel): spawn a new task and delay with write.
+        filled_forest.write_to_storage(
+            &mut storage,
+            Some(BlockNumber(u64::try_from(block_number).unwrap())),
+        );
+
         info!("Written {n_new_facts} new facts to storage");
+
         time_measurement.stop_measurement(None, Action::Write);
 
         time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);
