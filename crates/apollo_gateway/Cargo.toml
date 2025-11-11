@@ -27,6 +27,7 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_proc_macros.workspace = true
 apollo_rpc.workspace = true
+apollo_state_reader.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 axum.workspace = true

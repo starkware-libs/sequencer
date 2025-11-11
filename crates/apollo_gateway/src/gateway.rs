@@ -77,10 +77,10 @@ impl Gateway {
         Self {
             config: Arc::new(config.clone()),
             stateless_tx_validator,
-            stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
-                config: config.stateful_tx_validator_config.clone(),
-                chain_info: config.chain_info.clone(),
-            }),
+            stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory::new(
+                config.stateful_tx_validator_config.clone(),
+                config.chain_info.clone(),
+            )),
             state_reader_factory,
             mempool_client,
             transaction_converter,
@@ -279,7 +279,7 @@ pub fn create_gateway(
         runtime,
     });
     let transaction_converter = Arc::new(TransactionConverter::new(
-        class_manager_client,
+        class_manager_client.clone(),
         config.chain_info.chain_id.clone(),
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
