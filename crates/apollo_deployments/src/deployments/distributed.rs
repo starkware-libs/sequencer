@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use apollo_infra::component_client::DEFAULT_RETRIES;
 use apollo_node_config::component_config::ComponentConfig;
@@ -6,7 +6,6 @@ use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use indexmap::IndexMap;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
@@ -66,7 +65,7 @@ impl From<DistributedNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
+    fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
@@ -107,7 +106,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let state_sync = DistributedNodeServiceName::StateSync
             .component_config_pair(service_ports[&InfraServicePort::StateSync]);
 
-        let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
+        let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
                 DistributedNodeServiceName::Batcher => get_batcher_component_config(
