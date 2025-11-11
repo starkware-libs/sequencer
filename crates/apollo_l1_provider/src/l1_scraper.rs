@@ -63,6 +63,53 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             clock: Arc::new(DefaultClock),
         })
     }
+    
+    #[instrument(skip(self), err)]
+    pub async fn run(&mut self) -> L1ScraperResult<(), BaseLayerType> {
+        // Try to get all the information needed for initialization.
+        self.scrape_from_this_l1_block = Some(
+            self.retry_until_base_layer_success(
+                |_| self.fetch_start_block(),
+                "fetching start block",
+            )
+            .await?,
+        );
+
+        // The last historic L2 height is returned, to be using in initialization.
+        let historic_l2_height = self
+            .retry_until_base_layer_success(
+                |_| self.get_last_historic_l2_height(),
+                "fetching last historic L2 height",
+            )
+            .await?;
+
+        // Initialize fetches events from start block up to latest, sends them to the provider.
+        // Update the L1 block number we need to scrape from.
+        self.scrape_from_this_l1_block = Some(
+            self.retry_until_base_layer_success(
+                |_| self.initialize(historic_l2_height),
+                "initializing",
+            )
+            .await?,
+        );
+
+        // This is the main (steady state) loop.
+        loop {
+            // Sleep at start of loop, as we get here right after successful initialize+break.
+            sleep(self.config.polling_interval_seconds).await;
+
+            match self.send_events_to_l1_provider().await {
+                Err(L1ScraperError::BaseLayerError(e)) => {
+                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                    warn!("BaseLayerError during scraping: {e:?}");
+                }
+                Ok(_) => {
+                    L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
 
     /// Use config.startup_rewind_time_seconds to estimate an L1 block number
     /// that is far enough back to start scraping from.
@@ -299,53 +346,6 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
                 }
                 // Return a non-base layer error or success.
                 e => return e,
-            }
-        }
-    }
-
-    #[instrument(skip(self), err)]
-    pub async fn run(&mut self) -> L1ScraperResult<(), BaseLayerType> {
-        // Try to get all the information needed for initialization.
-        self.scrape_from_this_l1_block = Some(
-            self.retry_until_base_layer_success(
-                |_| self.fetch_start_block(),
-                "fetching start block",
-            )
-            .await?,
-        );
-
-        // The last historic L2 height is returned, to be using in initialization.
-        let historic_l2_height = self
-            .retry_until_base_layer_success(
-                |_| self.get_last_historic_l2_height(),
-                "fetching last historic L2 height",
-            )
-            .await?;
-
-        // Initialize fetches events from start block up to latest, sends them to the provider.
-        // Update the L1 block number we need to scrape from.
-        self.scrape_from_this_l1_block = Some(
-            self.retry_until_base_layer_success(
-                |_| self.initialize(historic_l2_height),
-                "initializing",
-            )
-            .await?,
-        );
-
-        // This is the main (steady state) loop.
-        loop {
-            // Sleep at start of loop, as we get here right after successful initialize+break.
-            sleep(self.config.polling_interval_seconds).await;
-
-            match self.send_events_to_l1_provider().await {
-                Err(L1ScraperError::BaseLayerError(e)) => {
-                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                    warn!("BaseLayerError during scraping: {e:?}");
-                }
-                Ok(_) => {
-                    L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
-                }
-                Err(e) => return Err(e),
             }
         }
     }
