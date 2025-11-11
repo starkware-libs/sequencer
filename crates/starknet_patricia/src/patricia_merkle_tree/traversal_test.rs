@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use serde::Deserialize;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, KeyContext};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
@@ -179,6 +179,7 @@ fn test_get_bottom_subtree(
     #[case] expected_root_index: U256,
 ) {
     // Cast the input to the correct type for subtree.
+
     let root_index = small_tree_index_to_full(U256::ONE, height);
 
     let mut leaf_indices = sorted_leaf_indices
@@ -199,7 +200,12 @@ fn test_get_bottom_subtree(
     );
 
     // Create the input Subtree.
-    let tree = SubTree { sorted_leaf_indices, root_index, root_hash: HashOutput(Felt::ONE) };
+    let tree = SubTree {
+        sorted_leaf_indices,
+        root_index,
+        root_hash: HashOutput(Felt::ONE),
+        key_context: &KeyContext::default(),
+    };
 
     // Get the bottom subtree.
     let (subtree, previously_empty_leaf_indices) =
@@ -212,6 +218,7 @@ fn test_get_bottom_subtree(
         sorted_leaf_indices: expected_sorted_leaf_indices,
         root_index: expected_root_index,
         root_hash: HashOutput(Felt::TWO),
+        key_context: &KeyContext::default(),
     };
     assert_eq!(previously_empty_leaf_indices, expected_previously_empty_leaf_indices);
     assert_eq!(subtree, expected_subtree);
@@ -253,7 +260,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_binary_entry_from_u128::<AdditionHash>(38, 54),
         create_leaf_entry::<MockLeaf>(12),
         create_leaf_entry::<MockLeaf>(13),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(92_u128)),
     vec![13],
     SubTreeHeight::new(3),
@@ -277,7 +284,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_binary_entry_from_u128::<AdditionHash>(38, 54),
         create_leaf_entry::<MockLeaf>(12),
         create_leaf_entry::<MockLeaf>(13),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(92_u128)),
     vec![12, 13],
     SubTreeHeight::new(3),
@@ -303,7 +310,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_leaf_entry::<MockLeaf>(11),
         create_leaf_entry::<MockLeaf>(14),
         create_leaf_entry::<MockLeaf>(15),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(92_u128)),
     vec![11, 14],
     SubTreeHeight::new(3),
@@ -335,7 +342,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_leaf_entry::<MockLeaf>(13),
         create_leaf_entry::<MockLeaf>(14),
         create_leaf_entry::<MockLeaf>(15),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(92_u128)),
     vec![8, 11, 12, 14],
     SubTreeHeight::new(3),
@@ -371,7 +378,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_edge_entry_from_u128::<AdditionHash>(17, 0, 1),
         create_edge_entry_from_u128::<AdditionHash>(13, 1, 1),
         create_leaf_entry::<MockLeaf>(13),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(62_u128)),
     vec![13],
     SubTreeHeight::new(3),
@@ -395,7 +402,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_edge_entry_from_u128::<AdditionHash>(13, 1, 1),
         create_leaf_entry::<MockLeaf>(14),
         create_leaf_entry::<MockLeaf>(15),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(62_u128)),
     vec![14],
     SubTreeHeight::new(3),
@@ -426,7 +433,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_edge_entry_from_u128::<AdditionHash>(8, 0, 2),
         create_edge_entry_from_u128::<AdditionHash>(13, 1, 1),
         create_leaf_entry::<MockLeaf>(8),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(54_u128)),
     vec![8],
     SubTreeHeight::new(3),
@@ -458,7 +465,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_binary_entry_from_u128::<AdditionHash>(18, 20),
         create_leaf_entry::<MockLeaf>(8),
         create_leaf_entry::<MockLeaf>(9),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(38_u128)),
     vec![8],
     SubTreeHeight::new(3),
@@ -499,7 +506,7 @@ fn create_previously_empty_leaf_indices<'a>(
         create_edge_entry_from_u128::<AdditionHash>(21, 1, 2),
         create_leaf_entry::<MockLeaf>(10),
         create_leaf_entry::<MockLeaf>(11),
-    ])),
+    ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(24_u128)),
     vec![8, 9, 12],
     SubTreeHeight::new(3),
@@ -525,7 +532,7 @@ fn create_previously_empty_leaf_indices<'a>(
     create_leaf_entry::<MockLeaf>(1757),
     create_leaf_entry::<MockLeaf>(1853),
     create_leaf_entry::<MockLeaf>(2000),
- ])),
+ ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(9553_u128)),
     vec![1757, 1853],
     SubTreeHeight::new(10),
@@ -555,7 +562,7 @@ fn create_previously_empty_leaf_indices<'a>(
     create_leaf_entry::<MockLeaf>(1106),
     create_leaf_entry::<MockLeaf>(1554),
     create_leaf_entry::<MockLeaf>(2019),
- ])),
+ ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from(8660_u128)),
     vec![
         1554,
@@ -582,7 +589,7 @@ fn create_previously_empty_leaf_indices<'a>(
     create_leaf_entry::<MockLeaf>(15),
     create_leaf_entry::<MockLeaf>(11),
     create_leaf_entry::<MockLeaf>(8),
- ])),
+ ].map(|(k, v)| (k.into(), v)))),
     HashOutput(Felt::from_hex_unchecked("0xdd6634d8228819c6b4aec64cf4e5a39a420c77b75cdf08a85f73ae2f7afcc1")),
     vec![
         11,
@@ -627,7 +634,8 @@ fn test_fetch_patricia_paths_inner(
     let expected_fetched_leaves = leaf_indices
         .iter()
         .map(|&idx| {
-            let leaf = if storage.0.contains_key(&create_leaf_patricia_key::<MockLeaf>(idx)) {
+            let leaf = if storage.0.contains_key(&create_leaf_patricia_key::<MockLeaf>(idx).into())
+            {
                 MockLeaf(Felt::from(idx))
             } else {
                 MockLeaf::default()
@@ -644,6 +652,7 @@ fn test_fetch_patricia_paths_inner(
         sorted_leaf_indices: SortedLeafIndices::new(&mut leaf_indices),
         root_index: small_tree_index_to_full(U256::ONE, height),
         root_hash,
+        key_context: &KeyContext::default(),
     };
     let mut nodes = HashMap::new();
     let mut fetched_leaves = HashMap::new();
@@ -653,6 +662,7 @@ fn test_fetch_patricia_paths_inner(
         vec![main_subtree],
         &mut nodes,
         Some(&mut fetched_leaves),
+        &KeyContext::default(),
     )
     .unwrap();
 
@@ -680,12 +690,14 @@ struct TestPatriciaPathsInput {
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
 fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
+    use starknet_patricia_storage::storage_trait::TrieKey;
+
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
     let first_leaf = 2u128.pow(u32::from(input.height));
 
-    let storage: HashMap<DbKey, DbValue> = input
+    let storage: HashMap<TrieKey, DbValue> = input
         .initial_preimages
         .values()
         .map(|preimage| match preimage.as_slice() {
@@ -697,11 +709,13 @@ fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
             ),
             _ => panic!("Preimage should be of length 2 or 3."),
         })
+        .map(|(k, v)| (TrieKey::from(k), v))
         .chain(
             input
                 .initial_leaves
                 .iter()
-                .map(|&leaf_value| create_leaf_entry::<MockLeaf>(leaf_value + first_leaf)),
+                .map(|&leaf_value| create_leaf_entry::<MockLeaf>(leaf_value + first_leaf))
+                .map(|(k, v)| (TrieKey::from(k), v)),
         )
         .collect();
 

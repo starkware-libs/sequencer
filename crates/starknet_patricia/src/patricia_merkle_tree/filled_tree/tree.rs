@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey};
+use starknet_patricia_storage::storage_trait::{DbHashMap, KeyContext, TrieKey};
 use starknet_types_core::felt::Felt;
 
 use crate::hash::hash_trait::HashOutput;
@@ -28,22 +28,22 @@ pub(crate) type FilledTreeResult<T> = Result<T, FilledTreeError>;
 /// data and hashes.
 pub trait FilledTree<L: Leaf>: Sized + Send {
     /// Computes and returns the filled tree and the leaf output map.
-    fn create<'a, TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: impl UpdatedSkeletonTree<'a> + 'static,
+    fn create<'a, 'ctx, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: impl UpdatedSkeletonTree<'a, 'ctx> + 'static,
         leaf_index_to_leaf_input: HashMap<NodeIndex, L::Input>,
     ) -> impl Future<Output = FilledTreeResult<(Self, HashMap<NodeIndex, L::Output>)>> + Send;
 
     /// Computes and returns the filled tree using the provided leaf modifications. Since the
     /// leaves are not computed, no leaf output will be returned.
-    fn create_with_existing_leaves<'a, TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: impl UpdatedSkeletonTree<'a> + 'static,
+    fn create_with_existing_leaves<'a, 'ctx, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: impl UpdatedSkeletonTree<'a, 'ctx> + 'static,
         leaf_modifications: LeafModifications<L>,
     ) -> impl Future<Output = FilledTreeResult<Self>> + Send;
 
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
     /// to a storage key and its serialized storage value.
-    fn serialize(&self, tree_prefix: Option<Felt>) -> DbHashMap;
+    fn serialize(&self, key_context: &KeyContext) -> DbHashMap;
 
     fn get_root_hash(&self) -> HashOutput;
 }
@@ -55,8 +55,8 @@ pub struct FilledTreeImpl<L: Leaf> {
 }
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
-    fn initialize_filled_tree_output_map_with_placeholders<'a>(
-        updated_skeleton: &impl UpdatedSkeletonTree<'a>,
+    fn initialize_filled_tree_output_map_with_placeholders<'a, 'ctx>(
+        updated_skeleton: &impl UpdatedSkeletonTree<'a, 'ctx>,
     ) -> HashMap<NodeIndex, Mutex<Option<FilledNode<L>>>> {
         let mut filled_tree_output_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
@@ -175,8 +175,8 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     // leaves from the leaf inputs and fill the leaf output map. Otherwise, will retrieve the
     // leaves from the leaf modifications map and ignore the input and output maps.
     #[async_recursion]
-    async fn compute_filled_tree_rec<'a, TH>(
-        updated_skeleton: Arc<impl UpdatedSkeletonTree<'a> + 'async_recursion + 'static>,
+    async fn compute_filled_tree_rec<'a, 'ctx, TH>(
+        updated_skeleton: Arc<impl UpdatedSkeletonTree<'a, 'ctx> + 'async_recursion + 'static>,
         index: NodeIndex,
         leaf_modifications: Option<Arc<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::Input>>>>,
@@ -268,8 +268,8 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         }
     }
 
-    fn create_unmodified<'a>(
-        updated_skeleton: &impl UpdatedSkeletonTree<'a>,
+    fn create_unmodified<'a, 'ctx>(
+        updated_skeleton: &impl UpdatedSkeletonTree<'a, 'ctx>,
     ) -> Result<Self, FilledTreeError> {
         let root_node = updated_skeleton.get_node(NodeIndex::ROOT)?;
         let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
@@ -284,8 +284,8 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 }
 
 impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
-    async fn create<'a, TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: impl UpdatedSkeletonTree<'a> + 'static,
+    async fn create<'a, 'ctx, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: impl UpdatedSkeletonTree<'a, 'ctx> + 'static,
         leaf_index_to_leaf_input: HashMap<NodeIndex, L::Input>,
     ) -> Result<(Self, HashMap<NodeIndex, L::Output>), FilledTreeError> {
         // Handle edge cases of no leaf modifications.
@@ -328,8 +328,8 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         ))
     }
 
-    async fn create_with_existing_leaves<'a, TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: impl UpdatedSkeletonTree<'a> + 'static,
+    async fn create_with_existing_leaves<'a, 'ctx, TH: TreeHashFunction<L> + 'static>(
+        updated_skeleton: impl UpdatedSkeletonTree<'a, 'ctx> + 'static,
         leaf_modifications: LeafModifications<L>,
     ) -> FilledTreeResult<Self> {
         // Handle edge case of no modifications.
@@ -364,13 +364,18 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
         })
     }
 
-    fn serialize(&self, tree_prefix: Option<Felt>) -> DbHashMap {
-        // This function iterates over each node in the tree, using the node's `db_key` as the
-        // hashmap key and the result of the node's `serialize` method as the value.
+    fn serialize(&self, key_context: &KeyContext) -> DbHashMap {
+        // This function iterates over each node in the tree
 
-        // self.get_all_nodes().values().map(|node| (node.db_key(), node.serialize())).collect()
-        self.get_all_nodes().keys().map(|node_index| (
-            DbKey(tree_prefix.map_or(vec![], |prefix| prefix.to_bytes_be().to_vec()).into_iter().chain(node_index.to_bytes()).collect()), self.tree_map.get(node_index).unwrap().serialize())).collect()
+        self.get_all_nodes()
+            .keys()
+            .map(|node_index| {
+                (
+                    TrieKey::from_node_index_and_context(node_index.to_bytes(), key_context),
+                    self.tree_map.get(node_index).unwrap().serialize(),
+                )
+            })
+            .collect()
     }
 
     fn get_root_hash(&self) -> HashOutput {

@@ -5,7 +5,7 @@ use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use serde_json::json;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue, KeyContext};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
@@ -58,13 +58,14 @@ where
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
+    let key_context = KeyContext::default();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
         storage,
         root_hash,
         sorted_leaf_indices,
         &config,
         &leaf_modifications,
-        None
+        &key_context,
     )
     .expect("Failed to create the original skeleton tree");
 
@@ -112,7 +113,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize(None));
+    let json_storage = &json!(filled_tree.serialize(&KeyContext::default()));
     result_map.insert("storage_changes", json_storage);
     serde_json::to_string(&result_map).expect("serialization failed")
 }

@@ -1,51 +1,132 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
 
+use itertools::Itertools;
 use lru::LruCache;
 use serde::Serialize;
 
 use crate::storage_trait::{
+    BlockNumber,
     DbHashMap,
-    DbKey,
     DbValue,
     NoStats,
+    PatriciaStorageError,
     PatriciaStorageResult,
     Storage,
     StorageStats,
+    TrieKey,
 };
 
+#[derive(Debug, PartialEq, Serialize, Eq, Default, Hash)]
+pub enum MapStorageLayer {
+    #[default]
+    LatestTrie,
+    HistoricalTries(BlockNumber),
+}
 #[derive(Debug, Default, PartialEq, Serialize)]
-pub struct MapStorage(pub DbHashMap);
+pub struct MapStorage(pub HashMap<MapStorageLayer, DbHashMap>);
+
+impl MapStorage {
+    pub fn new() -> Self {
+        let mut layers = HashMap::new();
+        layers.insert(MapStorageLayer::LatestTrie, HashMap::new());
+        Self(layers)
+    }
+}
 
 #[derive(Serialize, Debug)]
 pub struct BorrowedStorage<'a, S: Storage> {
     pub storage: &'a mut S,
 }
 
+trait MapStorageKey {
+    fn get_timestamp(&self) -> Option<BlockNumber>;
+}
+
+impl MapStorageKey for TrieKey {
+    fn get_timestamp(&self) -> Option<BlockNumber> {
+        match self {
+            TrieKey::HistoricalTries(_, block_number) => Some(*block_number),
+            TrieKey::LatestTrie(_) => None,
+        }
+    }
+}
+
 impl Storage for MapStorage {
     type Stats = NoStats;
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        self.0.insert(key, value);
+    fn set(&mut self, key: TrieKey, value: DbValue) -> PatriciaStorageResult<()> {
+        if let Some(timestamp) = key.get_timestamp() {
+            let layer = MapStorageLayer::HistoricalTries(timestamp);
+            if let Some(layer) = self.0.get_mut(&layer) {
+                layer.insert(key, value);
+            } else {
+                let mut layer_content = HashMap::new();
+                layer_content.insert(key, value);
+                self.0.insert(layer, layer_content);
+            }
+        } else {
+            self.0.get_mut(&MapStorageLayer::LatestTrie).unwrap().insert(key, value);
+        }
+
         Ok(())
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
-        self.0.extend(key_to_value);
+        let mut timestamps = key_to_value.keys().map(|k| k.get_timestamp());
+        let timestamp =
+            timestamps.all_equal_value().map_err(|_| PatriciaStorageError::MultipleTimestamps)?;
+
+        if let Some(timestamp) = timestamp {
+            let layer = MapStorageLayer::HistoricalTries(timestamp);
+            if let Some(layer) = self.0.get_mut(&layer) {
+                layer.extend(key_to_value);
+            } else {
+                let mut layer_content = HashMap::new();
+                layer_content.extend(key_to_value);
+                self.0.insert(layer, layer_content);
+            }
+        } else {
+            self.0.get_mut(&MapStorageLayer::LatestTrie).unwrap().extend(key_to_value);
+        }
+
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.0.remove(key);
+    fn delete(&mut self, key: &TrieKey) -> PatriciaStorageResult<()> {
+        let timestamp = key.get_timestamp();
+        if timestamp.is_some() {
+            return Err(PatriciaStorageError::AttemptToModifyHistory);
+        }
+        self.0.get_mut(&MapStorageLayer::LatestTrie).unwrap().remove(key);
         Ok(())
     }
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.0.get(key).cloned())
+    fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
+        let timestamp = key.get_timestamp();
+        if let Some(timestamp) = timestamp {
+            for i in (0..(timestamp.0 + 1)).rev() {
+                if let Some(layer) = self.0.get(&MapStorageLayer::HistoricalTries(BlockNumber(i))) {
+                    let value = layer.get(key);
+                    if value.is_some() {
+                        return Ok(value.cloned());
+                    }
+                }
+            }
+            Ok(None)
+        } else {
+            Ok(self.0.get(&MapStorageLayer::LatestTrie).unwrap().get(key).cloned())
+        }
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
+    fn mget(&mut self, keys: &[&TrieKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        let mut timestamps = keys.iter().map(|k| k.get_timestamp());
+        if !timestamps.all_equal() {
+            return Err(PatriciaStorageError::MultipleTimestamps);
+        };
+
+        keys.iter().map(|key| self.get(key)).collect()
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
@@ -57,7 +138,7 @@ impl Storage for MapStorage {
 /// Only getter methods are cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
-    pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache: LruCache<TrieKey, Option<DbValue>>,
     pub cache_on_write: bool,
     reads: u128,
     cached_reads: u128,
@@ -125,7 +206,7 @@ impl<S: Storage> CachedStorage<S> {
         }
     }
 
-    fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
+    fn update_cached_value(&mut self, key: &TrieKey, value: &DbValue) {
         if self.cache_on_write || self.cache.contains(key) {
             self.cache.put(key.clone(), Some(value.clone()));
         }
@@ -147,7 +228,7 @@ impl<S: Storage> CachedStorage<S> {
 impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
             self.cached_reads += 1;
@@ -159,14 +240,14 @@ impl<S: Storage> Storage for CachedStorage<S> {
         Ok(storage_value)
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    fn set(&mut self, key: TrieKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
         self.storage.set(key.clone(), value.clone())?;
         self.update_cached_value(&key, &value);
         Ok(())
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    fn mget(&mut self, keys: &[&TrieKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
@@ -204,7 +285,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    fn delete(&mut self, key: &TrieKey) -> PatriciaStorageResult<()> {
         self.cache.pop(key);
         self.storage.delete(key)
     }

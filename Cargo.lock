@@ -12723,6 +12723,7 @@ dependencies = [
  "blake2",
  "digest 0.10.7",
  "hex",
+ "itertools 0.12.1",
  "libmdbx",
  "lru 0.12.5",
  "page_size",
