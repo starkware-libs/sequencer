@@ -189,11 +189,14 @@ networkPolicy:
 
 ## Default Behavior
 
-- If no `podSelector` is specified, defaults to service labels
-- If `policyTypes` is empty, it's auto-detected based on presence of `ingress` or `egress` rules
-- If no `ingress` rules are specified, all ingress traffic is denied (default deny)
-- If no `egress` rules are specified, all egress traffic is denied (default deny)
-- If empty arrays are provided, all traffic of that type is denied
+- **`podSelector`**: If empty (no `matchLabels` and no `matchExpressions`), automatically defaults to pod labels. This ensures:
+  - ✅ Selector always matches the pods the policy applies to
+  - ✅ No manual synchronization needed when pod labels change
+  - ✅ Prevents configuration drift between pod labels and NetworkPolicy selector
+- **`policyTypes`**: If empty, auto-detected based on presence of `ingress` or `egress` rules
+- **Ingress**: If no `ingress` rules are specified, all ingress traffic is denied (default deny)
+- **Egress**: If no `egress` rules are specified, all egress traffic is denied (default deny)
+- **Empty arrays**: If empty arrays are provided, all traffic of that type is denied
 
 ## Configuration Options
 
@@ -226,10 +229,12 @@ networkPolicy:
   ```
 
 ### `podSelector` (dict)
-- **Default**: Service labels (if empty)
+- **Default**: Pod labels (if empty - auto-defaults to pod labels)
 - **Description**: Selects which pods this policy applies to
+- **Automatic Default Behavior**: If `podSelector` is empty (no `matchLabels` and no `matchExpressions`), the system automatically uses the pod labels. This ensures the selector stays in sync with pod labels and prevents configuration drift.
+- **Override for Advanced Use Cases**: You can explicitly set `matchLabels` or `matchExpressions` to select different pods (e.g., selecting pods from multiple services).
 - **Properties**:
-  - `matchLabels` (dict): Label key-value pairs that must match
+  - `matchLabels` (dict): Label key-value pairs that must match (auto-defaults to pod labels if empty)
   - `matchExpressions` (list): Label selector requirements using operators (In, NotIn, Exists, DoesNotExist)
 - **Example**:
   ```yaml

@@ -44,6 +44,26 @@ Each documentation file provides:
 5. **Best Practices** - Recommended approaches and security considerations
 6. **Generated Kubernetes Resources** - Example of the actual YAML output
 
+## Common Configuration (`common.yaml`)
+
+The configuration system uses a **unified schema** where `CommonConfig = ServiceConfig`. This means **any field** available in service configurations can be used in `common.yaml` to apply to all services.
+
+### Common Fields
+
+Common configuration fields that are typically set in `common.yaml`:
+
+- **`image`**: Image repository, tag, and pull policy (applies to all services)
+- **`imagePullSecrets`**: Image pull secrets (applies to all services)
+- **`metaLabels`**: Base labels for all services (merged with service-specific labels)
+- **`env`**: Environment variables (merged with service-specific env vars)
+- **`startupProbe`**, **`readinessProbe`**, **`livenessProbe`**: Health probes (applied to all services)
+- **`securityContext`**: Security context (applied to all services)
+- **`externalSecret`**: External secret configuration (applied to all services)
+- **`service.ports`**: Common service ports (merged by name with service-specific ports)
+- **`config.sequencerConfig`**: Sequencer configuration (deep merged with service-specific config)
+
+For detailed information on how common config merges with service configs, see [LAYOUT_OVERLAY_CONFIGURATION.md](LAYOUT_OVERLAY_CONFIGURATION.md).
+
 ## Automatic Features
 
 ### Automatic Volume Mounting
