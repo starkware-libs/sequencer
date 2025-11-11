@@ -4,6 +4,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_infra_utils::run_until::run_until;
+use apollo_timed_tests::{timed_rstest_tokio, timed_tokio_test};
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -11,7 +12,6 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
-use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_types_core::felt::Felt;
@@ -171,7 +171,7 @@ where
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
 /// This test also verifies that the number of connections to the remote server metric is updated
 /// correctly.
-#[tokio::test]
+#[timed_tokio_test]
 async fn remote_connection_concurrency() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
@@ -395,7 +395,7 @@ async fn setup_for_tests(
     task::yield_now().await;
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn proper_setup() {
     let setup_value: ValueB = Felt::from(90);
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
@@ -421,7 +421,7 @@ async fn proper_setup() {
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn faulty_client_setup() {
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
@@ -456,7 +456,7 @@ async fn faulty_client_setup() {
     verify_error(faulty_a_client, &expected_error_contained_keywords).await;
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn unconnected_server() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let client = ComponentAClient::new(
@@ -470,7 +470,7 @@ async fn unconnected_server() {
 }
 
 // TODO(Nadin): add DESERIALIZE_REQ_ERROR_MESSAGE to the expected error keywords in the first case.
-#[rstest]
+#[timed_rstest_tokio]
 #[case::request_deserialization_failure(
     create_client_and_faulty_server(
         ServerError::RequestDeserializationFailure(MOCK_SERVER_ERROR.to_string())
@@ -481,7 +481,6 @@ async fn unconnected_server() {
     create_client_and_faulty_server(ARBITRARY_DATA.to_string()).await,
     &[BAD_REQUEST_ERROR_MESSAGE],
 )]
-#[tokio::test]
 async fn faulty_server(
     #[case] client: ComponentAClient,
     #[case] expected_error_contained_keywords: &[&str],
@@ -489,7 +488,7 @@ async fn faulty_server(
     verify_error(client, expected_error_contained_keywords).await;
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn retry_request() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     // Spawn a server that responses with OK every other request.

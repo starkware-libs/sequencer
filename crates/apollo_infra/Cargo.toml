@@ -18,7 +18,6 @@ apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
 hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
-rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet_api.workspace = true
@@ -33,6 +32,7 @@ validator.workspace = true
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
+apollo_timed_tests.workspace = true
 assert_matches.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true

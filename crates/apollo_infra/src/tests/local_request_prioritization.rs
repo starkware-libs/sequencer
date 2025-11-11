@@ -1,3 +1,4 @@
+use apollo_timed_tests::timed_tokio_test;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::EnumVariantNames;
@@ -85,7 +86,7 @@ impl PrioritizedRequest for PriorityTestRequest {
     }
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn request_prioritization() {
     const NUMBER_OF_MESSAGES: usize = 10;
 
