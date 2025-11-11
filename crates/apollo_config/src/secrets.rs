@@ -8,6 +8,7 @@
 //! - Deserialize: transparent, and deserializes exactly like `T`, ignoring the `redactor` field.
 
 use core::fmt;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -17,10 +18,10 @@ mod secrets_test;
 
 const DEFAULT_REDACTION_OUTPUT: &str = "<<redacted>>";
 
-type Redactor<T> = Box<dyn Fn(&T) -> String + Send + Sync + 'static>;
+type Redactor<T> = Arc<dyn Fn(&T) -> String + Send + Sync + 'static>;
 
 /// A wrapper for values that are considered **sensitive** (e.g. secrets, tokens, URLs).
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(transparent, bound(deserialize = "T: Deserialize<'de>"))]
 pub struct Sensitive<T> {
     inner: T,
@@ -39,7 +40,7 @@ impl<T> Sensitive<T> {
     where
         F: Fn(&T) -> String + Send + Sync + 'static,
     {
-        self.redactor = Some(Box::new(redactor));
+        self.redactor = Some(Arc::new(redactor));
         self
     }
 
@@ -55,8 +56,17 @@ impl<T> Sensitive<T> {
             None => DEFAULT_REDACTION_OUTPUT.to_string(),
         }
     }
+
+    /// Mutably operates on the inner value in-place.
+    pub fn modify_in_place<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        f(&mut self.inner)
+    }
 }
 
+// TODO(Tsabary): consider if AsRef and AsMut are needed.
 impl<T> AsRef<T> for Sensitive<T> {
     fn as_ref(&self) -> &T {
         &self.inner

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
@@ -83,7 +85,7 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
-            let pre_confirmed_cende_client = std::sync::Arc::new(PreconfirmedCendeClient::new(
+            let pre_confirmed_cende_client = Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.pre_confirmed_cende_config.clone(),
             ));
             Some(create_batcher(
