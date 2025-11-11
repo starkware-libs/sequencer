@@ -50,3 +50,10 @@ fn test_mut() {
     inner.push_str("123");
     assert_eq!(sensitive.into(), "secret123".to_string());
 }
+
+#[test]
+fn test_modify_in_place() {
+    let mut sensitive = Sensitive::new("secret".to_string());
+    sensitive.modify_in_place(|inner| inner.push_str("123"));
+    assert_eq!(sensitive.into(), "secret123".to_string());
+}
