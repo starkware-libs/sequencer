@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import argparse
+import os
 import subprocess
 from enum import Enum
 from typing import List, Optional, Set
@@ -18,14 +19,13 @@ SEQUENCER_BINARY_NAME: str = "apollo_node"
 
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
-    "integration_test_restart_flow",
-]
-NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_positive_flow",
     "integration_test_restart_flow",
     "integration_test_revert_flow",
     "integration_test_central_and_p2p_sync_flow",
 ]
+# For backwards compatibility, keep the nightly list pointing to the same tests
+NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = SEQUENCER_INTEGRATION_TEST_NAMES
 
 
 # Enum of base commands.
@@ -34,6 +34,7 @@ class BaseCommand(Enum):
     CLIPPY = "clippy"
     DOC = "doc"
     INTEGRATION = "integration"
+    BUILD_INTEGRATION = "build_integration"
 
     def cmds(self, crates: Set[str], is_nightly: bool) -> List[List[str]]:
         package_args = []
@@ -88,6 +89,34 @@ class BaseCommand(Enum):
             print("Composing sequencer integration test commands with cairo_native feature.")
             cmds_with_feat = build_cmds(with_feature=True) + run_cmds
             return cmds_no_feat + cmds_with_feat
+
+        elif self == BaseCommand.BUILD_INTEGRATION:
+            # Do nothing if integration tests should not be triggered
+            if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
+                print(f"Skipping sequencer integration tests.")
+                return []
+
+            integration_test_names_to_run = (
+                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES
+                if is_nightly
+                else SEQUENCER_INTEGRATION_TEST_NAMES
+            )
+
+            print(f"Building sequencer integration test binaries.")
+
+            # Write test list to GITHUB_OUTPUT if in CI environment
+            if "GITHUB_OUTPUT" in os.environ:
+                test_list_json = '["' + '","'.join(integration_test_names_to_run) + '"]'
+                with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                    f.write(f"test_binaries={test_list_json}\n")
+                print(f"Wrote test list to GITHUB_OUTPUT: {test_list_json}")
+
+            # Only build commands, no run commands
+            build_cmds = [
+                ["cargo", "build", "--bin", binary_name]
+                for binary_name in [SEQUENCER_BINARY_NAME] + integration_test_names_to_run
+            ]
+            return build_cmds
 
         raise NotImplementedError(f"Command {self} not implemented.")
 

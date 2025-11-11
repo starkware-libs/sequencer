@@ -144,8 +144,10 @@ jobs:
         env:
           SEED: 0
 
-  run-integration-tests:
+  build-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    outputs:
+      test_binaries: ${{ steps.build-pr.outputs.test_binaries || steps.build-push.outputs.test_binaries }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -167,9 +169,67 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-      - name: "Run integration tests pull request"
+      - name: "Build integration tests pull request"
+        id: build-pr
         if: github.event_name == 'pull_request'
         run: |
-          scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+          scripts/run_tests.py --command build_integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+
+      - name: "Build integration tests on push"
+        id: build-push
+        if: github.event_name == 'push'
+        run: |
+          scripts/run_tests.py --command build_integration
+
+      - name: "Upload integration test binaries"
+        if: steps.build-pr.outputs.test_binaries || steps.build-push.outputs.test_binaries
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: integration-test-binaries
+          path: ./target/debug
+          compression-level: 0
+
+  run-integration-tests:
+    needs: build-integration-tests
+    if: needs.build-integration-tests.outputs.test_binaries
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    strategy:
+      fail-fast: false
+      matrix:
+        test_binary: ${{ fromJson(needs.build-integration-tests.outputs.test_binaries) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: "pip"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      - name: "Download integration test binaries"
+        uses: namespace-actions/download-artifact@v1
+        with:
+          name: integration-test-binaries
+          path: ./target/debug
+
+      - name: "Restore executable permissions"
+        run: |
+          chmod +x ./target/debug/apollo_node
+          chmod +x ./target/debug/${{ matrix.test_binary }}
+
+      - name: "Run ${{ matrix.test_binary }}"
+        run: ./target/debug/${{ matrix.test_binary }}
         env:
           SEED: 0

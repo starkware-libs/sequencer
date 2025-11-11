@@ -1,3 +1,4 @@
+# Trigger CI integration tests
 [package]
 name = "apollo_integration_tests"
 version.workspace = true
