@@ -18,7 +18,7 @@ pub trait FetchCompiledClasses: StateReader {
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
-pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
+pub struct StateReaderAndContractManager<S: StateReader> {
     pub state_reader: S,
     pub contract_class_manager: ContractClassManager,
 }
