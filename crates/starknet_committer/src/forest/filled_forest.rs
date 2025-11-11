@@ -46,9 +46,9 @@ impl FilledForest {
 
         // Store the new hash map.
         let n_new_facts = new_db_objects.len();
-        storage
-            .mset(new_db_objects)
-            .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
+        storage.mset(new_db_objects).unwrap_or_else(|error| {
+            panic!("Write of {n_new_facts} new facts to storage failed: {error:?}")
+        });
         n_new_facts
     }
 
