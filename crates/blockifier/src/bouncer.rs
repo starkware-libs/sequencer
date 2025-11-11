@@ -846,7 +846,11 @@ pub fn get_tx_weights<S: StateReader>(
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
 
     // Patricia update + transaction resources.
-    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
+    let patrticia_update_resources = get_patricia_update_resources(
+        n_visited_storage_entries,
+        // TODO(Yoni): consider counting here the global contract tree and the aliases as well.
+        state_changes_keys.storage_keys.len(),
+    );
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
 
     // Builtin gas costs for stone and for stwo.
@@ -939,12 +943,23 @@ pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
         .collect()
 }
 
-/// Returns the estimated Cairo resources for Patricia tree updates, or hash invocations
-/// (done by the OS), required for accessing (read/write) the given storage entries.
-// For each tree: n_visited_leaves * log(n_initialized_leaves)
-// as the height of a Patricia tree with N uniformly distributed leaves is ~log(N),
-// and number of visited leaves includes reads and writes.
-pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> ExecutionResources {
+/// Returns the estimated Cairo resources for Patricia tree updates given the accessed and
+/// modified storage entries.
+///
+/// Each access (read or write) requires a traversal of the previous tree, and a write access
+/// requires an additional traversal of the new tree.
+///
+/// Note:
+///   1. n_visited_storage_entries includes both read and write accesses, and may overlap with
+///      n_modified_storage_entries (if the first access to a cell was write) and my not (if a
+///      cell was read by a previous transaction and is now modified).
+///   2. In practice, the OS performs a multi-update, which is more efficient than performing
+///      separate updates. However, we use this conservative estimate for simplicity.
+pub fn get_patricia_update_resources(
+    n_visited_storage_entries: usize,
+    n_modified_storage_entries: usize,
+) -> ExecutionResources {
+    // The height of a Patricia tree with N uniformly distributed leaves is ~log(N).
     const TREE_HEIGHT_UPPER_BOUND: usize = 24;
     // TODO(Yoni, 1/5/2024): re-estimate this.
     const STEPS_IN_TREE_PER_HEIGHT: usize = 16;
@@ -959,8 +974,8 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
         n_memory_holes: 0,
     };
 
-    // Multiply by 2 since each storage entry is accessed in both the old and new tree.
-    &resources_per_tree_access * (n_visited_storage_entries * 2)
+    // One traversal per access (read or write), and an additional one per write access.
+    &resources_per_tree_access * (n_visited_storage_entries + n_modified_storage_entries)
 }
 
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(

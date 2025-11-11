@@ -17,7 +17,7 @@ use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
     builtins_to_gas,
-    get_particia_update_resources,
+    get_patricia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
     verify_tx_weights_within_max_capacity,
@@ -448,11 +448,11 @@ fn test_bouncer_try_update_n_txs(
             n_events: 10,
             state_diff_size: 14,
             sierra_gas: GasAmount(
-                542410,
+                406810,
             ),
             n_txs: 20,
             proving_gas: GasAmount(
-                702922,
+                527194,
             ),
         }
     "#
@@ -651,7 +651,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let n_visited_storage_entries = if casm_hash_computation_builtins.is_empty() { 0 } else { 1 };
 
     let mut additional_os_resources =
-        get_particia_update_resources(n_visited_storage_entries).prover_builtins();
+        get_patricia_update_resources(n_visited_storage_entries, 0).prover_builtins();
     add_maps(&mut additional_os_resources, &casm_hash_computation_builtins);
 
     let result = get_tx_weights(
