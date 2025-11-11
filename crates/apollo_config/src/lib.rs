@@ -82,6 +82,7 @@ pub mod converters;
 pub mod dumping;
 pub mod loading;
 pub mod presentation;
+pub mod secrets;
 pub mod validators;
 
 /// The privacy level of a config parameter, that received as input from the configs.
