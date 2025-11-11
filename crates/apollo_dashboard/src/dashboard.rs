@@ -1,4 +1,3 @@
-use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
     MetricCommon,
@@ -272,38 +271,6 @@ impl Panel {
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_percentage_thresholds(self, steps: Vec<(&str, Option<f64>)>) -> Self {
         self.with_thresholds(ThresholdMode::Percentage, steps)
-    }
-
-    // TODO(Tsabary): consider deleting.
-    // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
-    #[allow(dead_code)]
-    pub(crate) fn from_request_type_labeled_hist(
-        metric: &LabeledMetricHistogram,
-        panel_type: PanelType,
-        request_label: &str,
-    ) -> Self {
-        let metric_name_with_filter_and_reason = format!(
-            "{}, {LABEL_NAME_REQUEST_VARIANT}=\"{request_label}\"}}",
-            metric
-                .get_name_with_filter()
-                .strip_suffix("}")
-                .expect("Metric label filter should end with a }")
-        );
-
-        Self::new(
-            format!("{} {request_label}", metric.get_name()),
-            format!("{}: {request_label}", metric.get_description()),
-            HISTOGRAM_QUANTILES
-                .iter()
-                .map(|q| {
-                    format!(
-                        "histogram_quantile({q:.2}, sum by (le) \
-                         (rate({metric_name_with_filter_and_reason}[{HISTOGRAM_TIME_RANGE}])))",
-                    )
-                })
-                .collect::<Vec<_>>(),
-            panel_type,
-        )
     }
 
     pub(crate) fn ratio_time_series(
