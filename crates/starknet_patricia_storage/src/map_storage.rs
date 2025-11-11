@@ -62,6 +62,7 @@ pub struct CachedStorage<S: Storage> {
     reads: u128,
     cached_reads: u128,
     writes: u128,
+    include_inner_stats: bool,
 }
 
 pub struct CachedStorageConfig {
@@ -70,6 +71,9 @@ pub struct CachedStorageConfig {
 
     // If true, the cache is updated on write operations even if the value is not in the cache.
     pub cache_on_write: bool,
+
+    // If true, the inner stats are included when collecting statistics.
+    pub include_inner_stats: bool,
 }
 
 #[derive(Default)]
@@ -77,7 +81,7 @@ pub struct CachedStorageStats<S: StorageStats> {
     pub reads: u128,
     pub cached_reads: u128,
     pub writes: u128,
-    pub inner_stats: S,
+    pub inner_stats: Option<S>,
 }
 
 impl<S: StorageStats> CachedStorageStats<S> {
@@ -107,7 +111,7 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
                 self.writes.to_string(),
                 self.cache_hit_rate().to_string(),
             ],
-            self.inner_stats.column_values(),
+            self.inner_stats.as_ref().map(|s| s.column_values()).unwrap_or_default(),
         ]
         .concat()
     }
@@ -122,6 +126,7 @@ impl<S: Storage> CachedStorage<S> {
             reads: 0,
             cached_reads: 0,
             writes: 0,
+            include_inner_stats: config.include_inner_stats,
         }
     }
 
@@ -214,7 +219,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
             reads: self.reads,
             cached_reads: self.cached_reads,
             writes: self.writes,
-            inner_stats: self.storage.get_stats()?,
+            inner_stats: if self.include_inner_stats {
+                Some(self.storage.get_stats()?)
+            } else {
+                None
+            },
         })
     }
 }
