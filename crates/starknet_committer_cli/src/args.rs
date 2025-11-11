@@ -234,6 +234,11 @@ pub struct RocksdbArgs {
     /// memory, as there is no locality of related data.
     #[clap(long, short, action=ArgAction::SetTrue)]
     pub allow_mmap: bool,
+
+    /// If true, the storage will use column families.
+    /// False by default.
+    #[clap(long, action=ArgAction::SetTrue)]
+    pub use_column_families: bool,
 }
 
 impl StorageFromArgs for RocksdbArgs {
@@ -241,6 +246,7 @@ impl StorageFromArgs for RocksdbArgs {
         RocksDbStorage::open(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
             self.rocksdb_options(),
+            self.use_column_families,
         )
         .unwrap()
     }
