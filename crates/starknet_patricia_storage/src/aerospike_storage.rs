@@ -19,7 +19,15 @@ use aerospike::{
     WritePolicy,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    NoStats,
+    PatriciaStorageResult,
+    Storage,
+    TrieKey,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AerospikeStorageError {
@@ -91,26 +99,32 @@ impl AerospikeStorage {
 impl Storage for AerospikeStorage {
     type Stats = NoStats;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let record =
-            self.client.get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)?;
+    fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
+        let raw_key: &DbKey = key.into();
+
+        let record = self.client.get(
+            &self.config.read_policy,
+            &self.get_key(raw_key.clone())?,
+            Bins::All,
+        )?;
         self.extract_value(&record)
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    fn set(&mut self, key: TrieKey, value: DbValue) -> PatriciaStorageResult<()> {
         Ok(self.client.put(
             &self.config.write_policy,
-            &self.get_key(key)?,
+            &self.get_key(key.into())?,
             &[as_bin!(&self.config.bin_name, value.0)],
         )?)
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    fn mget(&mut self, keys: &[&TrieKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut ops = Vec::new();
         for key in keys.iter() {
+            let raw_key: &DbKey = (*key).into();
             ops.push(BatchOperation::read(
                 &self.config.batch_read_policy,
-                self.get_key((*key).clone())?,
+                self.get_key(raw_key.clone())?,
                 Bins::All,
             ));
         }
@@ -130,15 +144,16 @@ impl Storage for AerospikeStorage {
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
-        let keys_and_bins: Vec<(DbKey, Bin)> = key_to_value
+        let keys_and_bins: Vec<(TrieKey, Bin)> = key_to_value
             .into_iter()
             .map(|(key, value)| (key, as_bin!(&self.config.bin_name, value.0)))
             .collect();
         let mut ops = Vec::new();
         for (key, bin) in keys_and_bins.iter() {
+            let raw_key: &DbKey = key.into();
             ops.push(BatchOperation::write(
                 &self.config.batch_write_policy,
-                self.get_key(key.clone())?,
+                self.get_key(raw_key.clone())?,
                 vec![operations::put(bin)],
             ));
         }
@@ -146,8 +161,10 @@ impl Storage for AerospikeStorage {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?)?;
+    fn delete(&mut self, key: &TrieKey) -> PatriciaStorageResult<()> {
+        let raw_key: &DbKey = key.into();
+
+        self.client.delete(&self.config.write_policy, &self.get_key(raw_key.clone())?)?;
         Ok(())
     }
 

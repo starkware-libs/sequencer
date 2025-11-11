@@ -52,6 +52,7 @@ pub async fn commit_block<S: Storage>(
         &actual_classes_updates,
         &forest_sorted_indices,
         &input.config,
+        None,
     )?;
     if let Some(ref mut tm) = time_measurement {
         let n_read_facts =

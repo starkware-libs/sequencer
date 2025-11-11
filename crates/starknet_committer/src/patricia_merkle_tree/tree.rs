@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::hash::HashOutput;
 use starknet_patricia::generate_trie_config;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{KeyContext, Storage, TrieType};
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -67,6 +68,10 @@ fn fetch_all_patricia_paths(
         contract_storage_sorted_leaf_indices.keys()
     );
 
+    // TODO: (Ariel): we need block number here.
+    let classes_trie_key_context =
+        KeyContext { trie_type: TrieType::ClassesTrie, block_number: None };
+
     // Classes trie - no need to fetch the leaves.
     let leaves = None;
     let classes_trie_proof = fetch_patricia_paths::<CompiledClassHash>(
@@ -74,8 +79,11 @@ fn fetch_all_patricia_paths(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
-        Some(ascii_as_felt("CLASSES_TREE_PREFIX").unwrap()),
+        &classes_trie_key_context,
     )?;
+
+    let contracts_trie_key_context =
+        KeyContext { trie_type: TrieType::ContractsTrie, block_number: None };
 
     // Contracts trie - the leaves are required.
     let mut leaves = HashMap::new();
@@ -84,7 +92,7 @@ fn fetch_all_patricia_paths(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
-        Some(ascii_as_felt("CONTRACTS_TREE_PREFIX").unwrap()),
+        &contracts_trie_key_context,
     )?;
 
     // Contracts storage tries.
@@ -104,12 +112,18 @@ fn fetch_all_patricia_paths(
             .storage_root_hash;
         // No need to fetch the leaves.
         let leaves = None;
+
+        let storage_trie_key_context = KeyContext {
+            trie_type: TrieType::StorageTrie(contract_address.into()),
+            block_number: None,
+        };
+
         let proof = fetch_patricia_paths::<StarknetStorageValue>(
             storage,
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
-            Some(contract_address.into()),
+            &storage_trie_key_context,
         )?;
         contracts_trie_storage_proofs.insert(contract_address, proof);
     }

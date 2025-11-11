@@ -23,6 +23,7 @@ starknet_patricia_storage = { workspace = true, features = [
   "rocksdb_storage",
   "short_key_storage",
 ] }
+starknet_patricia = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true

@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use blake2::Blake2s;
 use digest::Digest;
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage};
+use crate::storage_trait::{DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage, TrieKey};
 
 #[macro_export]
 macro_rules! define_short_key_storage {
@@ -30,31 +30,38 @@ macro_rules! define_short_key_storage {
                 Self { storage, _n_bytes: PhantomData }
             }
 
-            pub fn small_key(key: &DbKey) -> DbKey {
+            fn small_key_raw(key: &DbKey) -> DbKey {
                 let mut hasher = Blake2s::<blake2::digest::consts::$size>::new();
                 hasher.update(key.0.as_slice());
                 let result = hasher.finalize();
                 DbKey(result.as_slice().to_vec())
+            }
+
+            pub fn small_key(key: &TrieKey) -> TrieKey {
+                match key {
+                    TrieKey::LatestTrie(key) => TrieKey::LatestTrie(Self::small_key_raw(key)),
+                    TrieKey::HistoricalTries(key, block_number) => TrieKey::HistoricalTries(Self::small_key_raw(key), block_number.clone()),
+                }
             }
         }
 
         impl<S: Storage> Storage for $name<S> {
             type Stats = S::Stats;
 
-            fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+            fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get(&Self::small_key(key))
             }
 
-            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+            fn set(&mut self, key: TrieKey, value: DbValue) -> PatriciaStorageResult<()> {
                 self.storage.set(Self::small_key(&key), value)
             }
 
-            fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+            fn mget(&mut self, keys: &[&TrieKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
                 let small_keys = keys
                     .iter()
                     .map(|key| Self::small_key(key))
                     .collect::<Vec<_>>();
-                self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice())
+                self.storage.mget(small_keys.iter().collect::<Vec<&TrieKey>>().as_slice())
             }
 
             fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
@@ -66,7 +73,7 @@ macro_rules! define_short_key_storage {
                 )
             }
 
-            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+            fn delete(&mut self, key: &TrieKey) -> PatriciaStorageResult<()> {
                 self.storage.delete(&Self::small_key(key))
             }
 

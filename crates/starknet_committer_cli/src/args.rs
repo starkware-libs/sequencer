@@ -248,7 +248,11 @@ impl StorageFromArgs for RocksdbArgs {
 
 impl RocksdbArgs {
     pub fn rocksdb_options(&self) -> RocksDbOptions {
-        if self.allow_mmap { RocksDbOptions::default() } else { RocksDbOptions::default_no_mmap() }
+        if self.allow_mmap {
+            RocksDbOptions::default_mmap_enabled()
+        } else {
+            RocksDbOptions::default()
+        }
     }
 }
 
