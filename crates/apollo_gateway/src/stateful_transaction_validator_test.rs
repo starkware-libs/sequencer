@@ -7,11 +7,13 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier::stateful_validator::{
     MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
 };
 use blockifier::context::ChainInfo;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
@@ -161,6 +163,7 @@ fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
+        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
