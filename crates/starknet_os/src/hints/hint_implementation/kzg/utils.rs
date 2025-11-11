@@ -288,12 +288,12 @@ pub fn decode_blobs(raw_blobs: Vec<[u8; BYTES_PER_BLOB]>) -> Result<Vec<Felt>, F
     let mut result = Vec::new();
 
     for raw_blob in raw_blobs.iter() {
-        let mut coeffs = deserialize_blob(raw_blob);
+        let mut coeffs: Vec<Fr> = deserialize_blob(raw_blob).into();
 
         bit_reversal(&mut coeffs)?;
         let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
             .ok_or(FftError::EvalDomainCreation)?;
-        domain.ifft_in_place(&mut coeffs.to_vec());
+        domain.ifft_in_place(&mut coeffs);
 
         for fr_elem in coeffs {
             let bytes = fr_elem.into_bigint().to_bytes_be();
