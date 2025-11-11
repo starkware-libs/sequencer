@@ -1,4 +1,5 @@
 {
+  "mempool_p2p_config.max_concurrent_gateway_requests": 10000,
   "mempool_p2p_config.max_transaction_batch_size": 75,
   "mempool_p2p_config.network_buffer_size": 10000,
   "mempool_p2p_config.network_config.broadcasted_message_metadata_buffer_size": 100000,

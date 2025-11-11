@@ -84,6 +84,7 @@ pub fn create_p2p_propagator_and_runner(
         gateway_client,
         mempool_p2p_propagator_client,
         mempool_p2p_config.transaction_batch_rate_millis,
+        mempool_p2p_config.max_concurrent_gateway_requests,
     );
     (mempool_p2p_propagator, mempool_p2p_runner)
 }
