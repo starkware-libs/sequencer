@@ -10,7 +10,8 @@ use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 
-use crate::dashboard::{get_component_infra_row, Dashboard, Row};
+use crate::dashboard::{Dashboard, Row};
+use crate::infra_panels::get_component_infra_row;
 use crate::panels::batcher::{get_batcher_row, get_panel_batched_transactions_rate};
 use crate::panels::blockifier::get_blockifier_row;
 use crate::panels::consensus::{
