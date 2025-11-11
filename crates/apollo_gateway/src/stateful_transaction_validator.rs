@@ -15,6 +15,8 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
 use num_rational::Ratio;
@@ -30,13 +32,17 @@ use tracing::debug;
 
 use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::state_reader::{
+    MempoolStateReader,
+    StateReaderAndContractManagerWrapper,
+    StateReaderFactory,
+};
 
 #[cfg(test)]
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
+type BlockifierStatefulValidator = StatefulValidator<StateReaderAndContractManagerWrapper>;
 
 #[cfg_attr(test, mockall::automock)]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
@@ -48,6 +54,7 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+    pub contract_class_manager: ContractClassManager,
 }
 
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
@@ -71,7 +78,13 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
             })?;
         let latest_block_info = get_latest_block_info(&state_reader)?;
 
-        let state = CachedState::new(state_reader);
+        let wrapped_state_reader =
+            StateReaderAndContractManagerWrapper(StateReaderAndContractManager {
+                state_reader,
+                contract_class_manager: self.contract_class_manager.clone(),
+            });
+
+        let state = CachedState::new(wrapped_state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
         );
