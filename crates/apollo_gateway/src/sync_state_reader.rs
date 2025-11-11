@@ -353,14 +353,18 @@ pub(crate) struct SyncStateReaderFactory {
 }
 
 /// Use any of these factory methods only once per transaction to make sure metrics are accurate.
+#[async_trait]
 impl StateReaderFactory for SyncStateReaderFactory {
-    fn get_state_reader_from_latest_block(
+    // TODO(guy.f): The call to `get_latest_block_number()` is not counted in the storage metrics as
+    // it is done prior to the creation of SharedStateSyncClientMetricWrapper, directly via the
+    // SharedStateSyncClient.
+    async fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
         let latest_block_number = self
-            .runtime
-            // TODO(guy.f): Do we want to count this as well?
-            .block_on(self.shared_state_sync_client.get_latest_block_number())?
+            .shared_state_sync_client
+            .get_latest_block_number()
+            .await?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
         Ok(Box::new(SyncStateReader::from_number(
