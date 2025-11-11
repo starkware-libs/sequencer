@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Display;
 use std::iter::once;
 use std::net::{IpAddr, Ipv4Addr};
@@ -15,7 +15,6 @@ use apollo_node_config::component_execution_config::{
     DEFAULT_URL,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
-use indexmap::IndexMap;
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
@@ -439,7 +438,7 @@ impl NodeType {
     pub fn get_component_configs(
         &self,
         ports: Option<Vec<u16>>,
-    ) -> IndexMap<NodeService, ComponentConfig> {
+    ) -> HashMap<NodeService, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
             Self::Consolidated => ConsolidatedNodeServiceName::get_component_configs(ports),
@@ -500,9 +499,7 @@ impl NodeType {
 }
 
 pub(crate) trait GetComponentConfigs: ServiceNameInner {
-    // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
-    // integration test relies on indices rather than service names.
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig>;
+    fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig>;
 
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.
