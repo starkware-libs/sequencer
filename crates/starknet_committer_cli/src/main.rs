@@ -100,6 +100,9 @@ struct StorageArgs {
     /// memory, as there is no locality of related data.
     #[clap(long, short, action=ArgAction::SetTrue)]
     allow_mmap: bool,
+    /// If true, the storage will use 256 column families. Only relevant for Rocksdb.
+    #[clap(long, action=ArgAction::SetTrue)]
+    use_column_families: bool,
     /// If true, when using CachedStorage, statistics collection from the storage will include
     /// internal storage statistics (and not just cache stats).
     #[clap(long, action=ArgAction::SetTrue)]
@@ -260,6 +263,7 @@ pub async fn run_committer_cli(
                 ref storage_type,
                 ref cache_size,
                 allow_mmap,
+                use_column_families,
                 include_inner_stats,
                 ..
             } = storage_args;
@@ -311,13 +315,21 @@ pub async fn run_committer_cli(
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
                 StorageType::Rocksdb => {
-                    let storage =
-                        RocksDbStorage::open(Path::new(&storage_path), rocksdb_options).unwrap();
+                    let storage = RocksDbStorage::open(
+                        Path::new(&storage_path),
+                        rocksdb_options,
+                        use_column_families,
+                    )
+                    .unwrap();
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
                 StorageType::CachedRocksdb => {
-                    let storage =
-                        RocksDbStorage::open(Path::new(&storage_path), rocksdb_options).unwrap();
+                    let storage = RocksDbStorage::open(
+                        Path::new(&storage_path),
+                        rocksdb_options,
+                        use_column_families,
+                    )
+                    .unwrap();
                     let storage = CachedStorage::new(storage, cached_storage_config);
                     run_storage_benchmark_wrapper(storage_args, storage).await;
                 }
