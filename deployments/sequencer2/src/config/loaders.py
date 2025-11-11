@@ -103,6 +103,9 @@ class DeploymentConfigLoader(Config):
         """Optionally load and validate a common config file."""
         if not self.common_config_path:
             return None
+        # Check if file exists - common.yaml is optional
+        if not self.common_config_path.exists():
+            return None
         raw = self._try_load_yaml(str(self.common_config_path))
         validated_model = CommonConfig.model_validate(raw)
         # Use exclude_unset=True to avoid including fields with default_factory that weren't explicitly set

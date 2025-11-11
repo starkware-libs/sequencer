@@ -57,8 +57,11 @@ def _get_config_paths(
     - 'hybrid.sepolia-integration.node-01' -> configs/overlays/hybrid/sepolia-integration/node-01/
     - 'hybrid.sepolia-integration.node-02' -> configs/overlays/hybrid/sepolia-integration/node-02/
     """
-    layout_common = base_dir / "configs" / "layouts" / layout / "common.yaml"
     layout_services = base_dir / "configs" / "layouts" / layout / "services"
+
+    # common.yaml is optional in layout paths
+    layout_common_path = base_dir / "configs" / "layouts" / layout / "common.yaml"
+    layout_common = layout_common_path if layout_common_path.exists() else None
 
     overlay_common = None
     overlay_services = None

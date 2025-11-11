@@ -15,7 +15,7 @@ from src.config.schema import (
 
 
 def _merge_common_into_service(
-    common_config: CommonConfig | dict, service_config: ServiceConfig
+    common_config: CommonConfig | dict | None, service_config: ServiceConfig
 ) -> ServiceConfig:
     """Merge common config fields into service config.
 
@@ -27,7 +27,7 @@ def _merge_common_into_service(
     - All other fields: Deep merge (common first, then service overrides)
 
     Args:
-        common_config: The merged common configuration (dict or CommonConfig)
+        common_config: The merged common configuration (dict, CommonConfig, or None if no common.yaml exists)
         service_config: The service configuration (after overlay merging)
 
     Returns:
@@ -35,7 +35,11 @@ def _merge_common_into_service(
     """
     # Start with service config as base
     service_dict = service_config.model_dump(mode="python", exclude_unset=True, exclude_none=True)
-    # Handle both dict and CommonConfig types
+
+    # Handle None, dict, and CommonConfig types
+    if common_config is None:
+        return service_config  # No common config to merge
+
     if isinstance(common_config, dict):
         common_dict = common_config
     else:
@@ -61,13 +65,23 @@ def _merge_common_into_service(
 
     # Deep merge function for nested dictionaries
     def deep_merge(base: dict, overlay: dict) -> dict:
-        """Recursively merge overlay into base."""
+        """Recursively merge overlay into base.
+
+        Semantics:
+        - Start with base (service config) to preserve all service-specific fields
+        - Overlay (common config) can add new fields or merge nested dicts
+        - For non-dict values, base (service) takes precedence (overlay doesn't override)
+        """
         result = deepcopy(base)
         for key, value in overlay.items():
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Both are dicts - recursively merge (overlay into base)
                 result[key] = deep_merge(result[key], value)
-            else:
-                result[key] = value
+            elif key not in result:
+                # Key not in base - add it from overlay (common can add fields)
+                result[key] = deepcopy(value)
+            # If key exists in base and at least one is not a dict, base (service) takes precedence
+            # Don't override service values with common values
         return result
 
     # Special merge function for service.ports (list merge by name)
@@ -116,33 +130,45 @@ def _merge_common_into_service(
             service_ports = service_dict["service"].get("ports", [])
             merged_ports = merge_service_ports(common_value["ports"], service_ports)
             # Merge the rest of service config (if any)
+            # Start with service config as base to preserve all service-specific fields
             if service_value:
-                merged_service = deep_merge(common_value, service_value)
+                merged_service = deep_merge(service_value, common_value)
                 merged_service["ports"] = merged_ports
                 service_dict["service"] = merged_service
             else:
                 service_dict["service"] = {**common_value, "ports": merged_ports}
         # Special handling for config.sequencerConfig (nested merge)
-        elif (
-            field_name == "config"
-            and isinstance(common_value, dict)
-            and common_value.get("sequencerConfig")
-        ):
-            if "config" not in service_dict:
-                service_dict["config"] = {}
-            if "sequencerConfig" not in service_dict.get("config", {}):
-                service_dict["config"]["sequencerConfig"] = {}
-            # Merge: common first, then service (service overrides)
-            merged_seq_config = deepcopy(common_value["sequencerConfig"])
-            if service_dict["config"].get("sequencerConfig"):
-                merged_seq_config.update(service_dict["config"]["sequencerConfig"])
-            # Merge the rest of config (if any)
+        elif field_name == "config" and isinstance(common_value, dict):
+            # Start with service config as base to preserve all service-specific fields (like configList)
             if service_value:
-                merged_config = deep_merge(common_value, service_value)
-                merged_config["sequencerConfig"] = merged_seq_config
-                service_dict["config"] = merged_config
+                merged_config = deepcopy(service_value)
             else:
-                service_dict["config"] = {**common_value, "sequencerConfig": merged_seq_config}
+                merged_config = {}
+
+            # Merge common config into service config (common can add or modify fields)
+            # For sequencerConfig, merge nested dicts
+            if common_value.get("sequencerConfig"):
+                if "sequencerConfig" not in merged_config:
+                    merged_config["sequencerConfig"] = {}
+                # Merge: common first, then service (service overrides common)
+                merged_seq_config = deepcopy(common_value["sequencerConfig"])
+                merged_seq_config.update(merged_config["sequencerConfig"])
+                merged_config["sequencerConfig"] = merged_seq_config
+
+            # For all other fields in common config, merge them in
+            for key, value in common_value.items():
+                if key == "sequencerConfig":
+                    # Already handled above
+                    continue
+                if key not in merged_config:
+                    # Field not in service config, add it from common
+                    merged_config[key] = deepcopy(value)
+                elif isinstance(merged_config[key], dict) and isinstance(value, dict):
+                    # Both are dicts, recursively merge (common into service)
+                    merged_config[key] = deep_merge(merged_config[key], value)
+                # If service has a non-dict value, it takes precedence (don't override)
+
+            service_dict["config"] = merged_config
         # Generic deep merge for all other fields
         else:
             if service_value is None:
@@ -217,8 +243,9 @@ def _merge_common_into_service(
                     # Service has essentially a default/empty config, use common instead
                     service_dict[field_name] = common_value
                 else:
-                    # Both are dicts - deep merge (common first, service overrides)
-                    service_dict[field_name] = deep_merge(common_value, service_value)
+                    # Both are dicts - start with service (base) and overlay common (common can add/modify)
+                    # This preserves all service-specific fields
+                    service_dict[field_name] = deep_merge(service_value, common_value)
             else:
                 # Service has a value - it overrides common (for non-dict types)
                 service_dict[field_name] = service_value
@@ -272,15 +299,15 @@ def merge_configs(
 
     # --- Merge common config into each service config ---
     # This ensures constructs only need to check service_config, not both
-    if merged_common is None:
-        raise ValueError("merged_common cannot be None")
+    # merged_common can be None if no common.yaml exists in layout or overlay
     final_services = [
         _merge_common_into_service(merged_common, service) for service in merged_services
     ]
 
     # --- Combine into a validated Deployment schema ---
+    # Use default ServiceConfig() if merged_common is None (common.yaml is optional)
     merged = {
-        "common": merged_common,
+        "common": merged_common if merged_common is not None else ServiceConfig(),
         "services": final_services,
     }
 
