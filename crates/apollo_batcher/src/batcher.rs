@@ -32,6 +32,15 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
+use apollo_storage::commitment_marker::{
+    CommitmentMarkerStorageReader,
+    CommitmentMarkerStorageWriter,
+};
+use apollo_storage::commitment_output::{
+    CommitmentOutputStorageReader,
+    CommitmentOutputStorageWriter,
+};
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -42,10 +51,11 @@ use futures::FutureExt;
 use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::hash::CommitmentOutput;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
@@ -1019,6 +1029,103 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
     ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
+}
+
+#[cfg_attr(test, automock)]
+pub trait CommitmentStorageReaderTrait: Send + Sync {
+    /// Returns the next height that the batcher should store commitment for.
+    fn commitment_height(&self) -> apollo_storage::StorageResult<BlockNumber>;
+
+    /// Returns the block hash at the given height, if it exists.
+    fn get_block_hash_at_height(
+        &self,
+        height: &BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<BlockHash>>;
+
+    /// Returns the state roots at the given height, if they exist.
+    fn get_state_roots_at_height(
+        &self,
+        height: &BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<CommitmentOutput>>;
+
+    // TODO(Nimrod): Add `get_partial_block_hash_components` here.
+}
+
+#[cfg_attr(test, automock)]
+pub trait CommitmentStorageWriterTrait: Send + Sync {
+    /// Sets the block hash at the given height.
+    fn set_block_hash(
+        &mut self,
+        height: BlockNumber,
+        block_hash: BlockHash,
+    ) -> apollo_storage::StorageResult<()>;
+
+    /// Sets state roots and the block hash at the given height.
+    /// Also sets the commitment height to the given height.
+    fn set_state_roots_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        state_roots: CommitmentOutput,
+        block_hash: BlockHash,
+    ) -> apollo_storage::StorageResult<()>;
+
+    // Sets the state roots at the given height.
+    fn set_state_roots(
+        &mut self,
+        height: BlockNumber,
+        state_roots: CommitmentOutput,
+    ) -> apollo_storage::StorageResult<()>;
+}
+
+impl CommitmentStorageReaderTrait for apollo_storage::StorageReader {
+    fn commitment_height(&self) -> apollo_storage::StorageResult<BlockNumber> {
+        self.begin_ro_txn()?.get_commitment_marker()
+    }
+
+    fn get_block_hash_at_height(
+        &self,
+        height: &BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<BlockHash>> {
+        self.begin_ro_txn()?.get_block_hash(height)
+    }
+
+    fn get_state_roots_at_height(
+        &self,
+        height: &BlockNumber,
+    ) -> apollo_storage::StorageResult<Option<CommitmentOutput>> {
+        self.begin_ro_txn()?.get_commitment_output(height)
+    }
+}
+
+impl CommitmentStorageWriterTrait for apollo_storage::StorageWriter {
+    fn set_block_hash(
+        &mut self,
+        height: BlockNumber,
+        block_hash: BlockHash,
+    ) -> apollo_storage::StorageResult<()> {
+        self.begin_rw_txn()?.set_block_hash(&height, block_hash)?.commit()
+    }
+
+    fn set_state_roots_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        state_roots: CommitmentOutput,
+        block_hash: BlockHash,
+    ) -> apollo_storage::StorageResult<()> {
+        self.begin_rw_txn()?
+            .set_commitment_output(&height, state_roots)?
+            .set_block_hash(&height, block_hash)?
+            .set_commitment_marker(height)?
+            .commit()
+    }
+
+    fn set_state_roots(
+        &mut self,
+        height: BlockNumber,
+        state_roots: CommitmentOutput,
+    ) -> apollo_storage::StorageResult<()> {
+        self.begin_rw_txn()?.set_commitment_output(&height, state_roots)?.commit()
+    }
 }
 
 impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
