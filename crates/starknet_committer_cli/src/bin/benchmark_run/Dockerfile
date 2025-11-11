@@ -29,9 +29,9 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 # - use the provided data, storage, output and checkpoint directories (override for a persistent storage dir of
 #   a specific node)
 
-CMD ["--n-iterations", "1000000", \
+CMD ["cached-rocksdb", \
+    "--n-iterations", "1000000", \
     "--flavor", "1k-diff", \
-    "--storage-type", "cached-rocksdb", \
     "--cache-size", "10000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
