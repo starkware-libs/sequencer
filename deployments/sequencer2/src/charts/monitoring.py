@@ -30,7 +30,7 @@ class MonitoringChart(Chart):
         if grafana_dashboard:
             self.dashboard = GrafanaDashboardConstruct(
                 self,
-                sanitize_name(f"dashboard-{self.hash}"),
+                "dashboard",
                 cluster=cluster,
                 namespace=namespace,
                 grafana_dashboard=grafana_dashboard,
@@ -39,7 +39,7 @@ class MonitoringChart(Chart):
         if grafana_alert_rule_group:
             self.alert_rule_group = GrafanaAlertRuleGroupConstruct(
                 self,
-                sanitize_name(f"alert-rule-group-{self.hash}"),
+                "alert-rule-group",
                 cluster=cluster,
                 namespace=namespace,
                 grafana_alert_rule_group=grafana_alert_rule_group,
