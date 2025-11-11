@@ -26,6 +26,7 @@ mod dashboard_test;
 
 pub const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
 pub const HISTOGRAM_TIME_RANGE: &str = "5m";
+const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";
 
 // TODO(Tsabary): split this entire module into sub modules.
 
@@ -628,7 +629,14 @@ fn get_infra_server_panels(
     get_request_type_panels(&labeled_metrics, "server")
 }
 
-pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
+pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMetrics) -> Row {
+    let mut panels: Vec<Panel> = Vec::new();
+    // Add the general infra panels.
+    panels.extend(UnlabeledPanels::from(metrics.get_local_client_metrics()).0);
+    panels.extend(UnlabeledPanels::from(metrics.get_remote_client_metrics()).0);
+    panels.extend(UnlabeledPanels::from(metrics.get_local_server_metrics()).0);
+    panels.extend(UnlabeledPanels::from(metrics.get_remote_server_metrics()).0);
+
     let labeled_client_panels = get_infra_client_panels(
         metrics.get_local_client_metrics(),
         metrics.get_remote_client_metrics(),
@@ -637,16 +645,22 @@ pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMet
         metrics.get_local_server_metrics(),
         metrics.get_remote_server_metrics(),
     );
+    assert!(
+        labeled_client_panels.len() == labeled_server_panels.len(),
+        "Number of labeled client and server panels must be equal, as there's a single panel per \
+         request type."
+    );
+    // Add the client and server panels for each request type, next to each other.
+    for (request_type_client_panel, request_type_server_panel) in
+        labeled_client_panels.into_iter().zip(labeled_server_panels.into_iter())
+    {
+        panels.push(request_type_client_panel);
+        panels.push(request_type_server_panel);
+    }
 
-    let mut panels: Vec<Panel> = Vec::new();
-    panels.extend(UnlabeledPanels::from(metrics.get_local_client_metrics()).0);
-    panels.extend(UnlabeledPanels::from(metrics.get_remote_client_metrics()).0);
-    panels.extend(UnlabeledPanels::from(metrics.get_local_server_metrics()).0);
-    panels.extend(UnlabeledPanels::from(metrics.get_remote_server_metrics()).0);
-    panels.extend(labeled_client_panels);
-    panels.extend(labeled_server_panels);
-
-    Row::new(row_name, panels)
+    // Annotate the row name with infra row the suffix.
+    let modified_row_name = format!("{} {INFRA_ROW_TITLE_SUFFIX}", row_name.to_string());
+    Row::new(modified_row_name, panels)
 }
 
 /// Returns a PromQL expression that calculates the time since the last increase of the given
