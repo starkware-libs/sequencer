@@ -84,7 +84,7 @@ impl TransactionRecord {
         if self.is_committed() {
             warn!(
                 "L1 handler transaction {tx_hash} was not marked for cancellation started on L2 \
-                 as it is already commited."
+                 as it is already committed."
             )
         } else {
             info!("Marking L1 handler transaction {tx_hash} as cancellation started on L2.");
