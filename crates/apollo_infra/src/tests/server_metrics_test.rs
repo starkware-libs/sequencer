@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use apollo_infra_utils::_apollo_proc_macros::timed_tokio_test;
 use async_trait::async_trait;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -268,7 +269,7 @@ fn assert_remote_server_metrics(
     );
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn only_metrics_counters_for_local_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
@@ -293,7 +294,7 @@ async fn only_metrics_counters_for_local_server() {
     }
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn all_metrics_for_local_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
 
@@ -355,7 +356,7 @@ async fn all_metrics_for_local_server() {
     }
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn only_metrics_counters_for_concurrent_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
@@ -392,7 +393,7 @@ async fn only_metrics_counters_for_concurrent_server() {
     );
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn all_metrics_for_concurrent_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
@@ -478,7 +479,7 @@ async fn all_metrics_for_concurrent_server() {
     }
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn metrics_counters_for_remote_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);

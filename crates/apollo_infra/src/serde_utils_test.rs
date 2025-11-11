@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use apollo_infra_utils::_apollo_proc_macros::timed_test;
 use serde::{Deserialize, Serialize};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
@@ -27,13 +28,13 @@ where
     assert_eq!(data, decoded);
 }
 
-#[test]
+#[timed_test]
 fn serde_native_type() {
     let data: u32 = 8;
     test_generic_data_serde(data);
 }
 
-#[test]
+#[timed_test]
 fn serde_struct_type() {
     #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
     struct TestStruct {
@@ -45,13 +46,13 @@ fn serde_struct_type() {
     test_generic_data_serde(data);
 }
 
-#[test]
+#[timed_test]
 fn serde_felt() {
     let data: Felt = Felt::ONE;
     test_generic_data_serde(data);
 }
 
-#[test]
+#[timed_test]
 fn serde_rpc_invoke_tx() {
     let invoke_tx = RpcInvokeTransactionV3 {
         sender_address: Default::default(),
@@ -70,7 +71,7 @@ fn serde_rpc_invoke_tx() {
     test_generic_data_serde(RpcTransaction::Invoke(rpc_invoke_tx));
 }
 
-#[test]
+#[timed_test]
 fn serde_rpc_deploy_account_tx() {
     let deploy_account_tx = RpcDeployAccountTransactionV3 {
         signature: Default::default(),
@@ -89,7 +90,7 @@ fn serde_rpc_deploy_account_tx() {
     test_generic_data_serde(RpcTransaction::DeployAccount(rpc_deploy_account_tx));
 }
 
-#[test]
+#[timed_test]
 fn serde_rpc_declare_tx() {
     let declare_tx = RpcDeclareTransactionV3 {
         sender_address: Default::default(),

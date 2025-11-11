@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_infra_utils::_apollo_proc_macros::timed_tokio_test;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::EnumVariantNames;
@@ -214,14 +215,14 @@ async fn perform_concurrency_test(
     );
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn local_concurrent_server() {
     let client = setup_concurrent_local_test().await;
 
     perform_concurrency_test(Box::new(client.clone()), Box::new(client)).await;
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn remote_server_concurrency() {
     let client = setup_concurrent_remote_test().await;
 

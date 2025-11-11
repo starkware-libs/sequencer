@@ -1,3 +1,4 @@
+use apollo_infra_utils::_apollo_proc_macros::timed_tokio_test;
 use async_trait::async_trait;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
@@ -60,7 +61,7 @@ impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, Component
     }
 }
 
-#[tokio::test]
+#[timed_tokio_test]
 async fn local_client_server() {
     let setup_value: ValueB = Felt::from(30);
     let expected_value: ValueA = setup_value;
