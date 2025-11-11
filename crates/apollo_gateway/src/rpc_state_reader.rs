@@ -7,7 +7,9 @@ use blockifier::execution::contract_class::{
     RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -183,6 +185,16 @@ impl BlockifierStateReader for RpcStateReader {
 
 pub struct RpcStateReaderFactory {
     pub config: RpcStateReaderConfig,
+}
+
+impl FetchCompiledClasses for RpcStateReader {
+    fn get_compiled_classes(&self, _class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        todo!()
+    }
+
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        todo!()
+    }
 }
 
 impl StateReaderFactory for RpcStateReaderFactory {

@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -13,16 +14,23 @@ use apollo_state_sync_types::communication::{
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
+};
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use futures::executor::block_on;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
+use tracing::error;
 
 use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
@@ -52,6 +60,24 @@ impl SyncStateReader {
             class_manager_client,
             runtime,
         }
+    }
+
+    fn read_executable(&self, class_hash: ClassHash) -> StateResult<Option<ContractClass>> {
+        let casm = self
+            .runtime
+            .block_on(self.class_manager_client.get_executable(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+
+        Ok(casm)
+    }
+
+    fn read_sierra(&self, class_hash: ClassHash) -> StateResult<Option<SierraContractClass>> {
+        let sierra = self
+            .runtime
+            .block_on(self.class_manager_client.get_sierra(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+
+        Ok(sierra)
     }
 }
 
@@ -84,6 +110,52 @@ impl MempoolStateReader for SyncStateReader {
         };
 
         Ok(block_info)
+    }
+}
+
+impl FetchCompiledClasses for SyncStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let compiled_class =
+            self.read_executable(class_hash)?.ok_or(StateError::UndeclaredClassHash(class_hash))?;
+        match compiled_class {
+            ContractClass::V1((casm, _sierra_version)) => {
+                let sierra = self.read_sierra(class_hash)?.ok_or_else(|| {
+                    error!(
+                        "Class hash {class_hash:?} is declared in CASM but not in Sierra. Even \
+                         though it should be coupled."
+                    );
+                    StateError::UndeclaredClassHash(class_hash)
+                })?;
+                let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+                assert_eq!(sierra_version, _sierra_version);
+                Ok(CompiledClasses::V1(
+                    CompiledClassV1::try_from((casm, sierra_version))?,
+                    Arc::new(sierra),
+                ))
+            }
+            ContractClass::V0(deprecated_contract_class) => {
+                Ok(CompiledClasses::V0(CompiledClassV0::try_from(deprecated_contract_class)?))
+            }
+        }
+    }
+
+    /// Returns whether the given Cairo1 class is declared.
+    fn is_declared(&self, _class_hash: ClassHash) -> StateResult<bool> {
+        unimplemented!();
+
+        // let compiled_class = match self.read_executable(_class_hash)? {
+        //     Some(compiled_class) => compiled_class,
+        //     None => return Ok(false),
+        // };
+
+        // match compiled_class {
+        //     ContractClass::V1(_) => {
+        //         return Ok(true);
+        //     }
+        //     ContractClass::V0(_) => {
+        //         return Ok(false);
+        //     }
+        // }
     }
 }
 
