@@ -10,66 +10,16 @@ use indexmap::IndexMap;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
-    // TODO(victork): remove indices.
     component_configs: IndexMap<BTreeSet<ComponentConfigInService>, ComponentConfig>,
-    batcher_index: usize,
-    http_server_index: usize,
-    state_sync_index: usize,
-    class_manager_index: usize,
-    consensus_manager_index: usize,
 }
 
 impl NodeComponentConfigs {
-    // TODO(victork): only pass node_type and ports, and create the map inside.
-    fn new(component_configs: IndexMap<NodeService, ComponentConfig>, node_type: NodeType) -> Self {
-        fn get_component_index(
-            component_configs: &IndexMap<NodeService, ComponentConfig>,
-            node_type: NodeType,
-            component_in_service: ComponentConfigInService,
-        ) -> usize {
-            component_configs
-                .get_index_of::<NodeService>(
-                    node_type
-                        .get_services_of_components(component_in_service)
-                        .iter()
-                        .next()
-                        .as_ref()
-                        .unwrap(),
-                )
-                .unwrap()
-        }
-
-        let batcher_index =
-            get_component_index(&component_configs, node_type, ComponentConfigInService::Batcher);
-
-        let http_server_index = get_component_index(
-            &component_configs,
-            node_type,
-            ComponentConfigInService::HttpServer,
-        );
-
-        let state_sync_index =
-            get_component_index(&component_configs, node_type, ComponentConfigInService::StateSync);
-
-        let class_manager_index = get_component_index(
-            &component_configs,
-            node_type,
-            ComponentConfigInService::ClassManager,
-        );
-
-        let consensus_manager_index =
-            get_component_index(&component_configs, node_type, ComponentConfigInService::Consensus);
-
+    fn new(component_configs: IndexMap<NodeService, ComponentConfig>) -> Self {
         Self {
             component_configs: component_configs
                 .into_iter()
                 .map(|(service, config)| (service.get_components_in_service(), config))
                 .collect(),
-            batcher_index,
-            http_server_index,
-            state_sync_index,
-            class_manager_index,
-            consensus_manager_index,
         }
     }
 
@@ -79,26 +29,6 @@ impl NodeComponentConfigs {
 
     pub fn is_empty(&self) -> bool {
         self.component_configs.is_empty()
-    }
-
-    pub fn get_batcher_index(&self) -> usize {
-        self.batcher_index
-    }
-
-    pub fn get_http_server_index(&self) -> usize {
-        self.http_server_index
-    }
-
-    pub fn get_state_sync_index(&self) -> usize {
-        self.state_sync_index
-    }
-
-    pub fn get_class_manager_index(&self) -> usize {
-        self.class_manager_index
-    }
-
-    pub fn get_consensus_manager_index(&self) -> usize {
-        self.consensus_manager_index
     }
 }
 
@@ -112,11 +42,7 @@ impl IntoIterator for NodeComponentConfigs {
 }
 
 pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
-    // All components are in executable index 0.
-    NodeComponentConfigs::new(
-        NodeType::Consolidated.get_component_configs(None),
-        NodeType::Consolidated,
-    )
+    NodeComponentConfigs::new(NodeType::Consolidated.get_component_configs(None))
 }
 
 pub fn create_distributed_component_configs(
@@ -131,7 +57,7 @@ pub fn create_distributed_component_configs(
 
     set_urls_to_localhost(services_component_config.values_mut());
 
-    NodeComponentConfigs::new(services_component_config, NodeType::Distributed)
+    NodeComponentConfigs::new(services_component_config)
 }
 
 pub fn create_hybrid_component_configs(
@@ -146,5 +72,5 @@ pub fn create_hybrid_component_configs(
 
     set_urls_to_localhost(services_component_config.values_mut());
 
-    NodeComponentConfigs::new(services_component_config, NodeType::Hybrid)
+    NodeComponentConfigs::new(services_component_config)
 }
