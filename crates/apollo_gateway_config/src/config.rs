@@ -11,6 +11,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -22,14 +23,31 @@ use crate::compiler_version::VersionId;
 
 const JSON_RPC_VERSION: &str = "2.0";
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    pub contract_class_manager_config: ContractClassManagerConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
+}
+
+impl Default for GatewayConfig {
+    fn default() -> Self {
+        Self {
+            stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
+            stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
+            contract_class_manager_config: ContractClassManagerConfig {
+                contract_cache_size: 300,
+                ..Default::default()
+            },
+            chain_info: ChainInfo::default(),
+            block_declare: false,
+            authorized_declarer_accounts: None,
+        }
+    }
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -47,6 +65,10 @@ impl SerializeConfig for GatewayConfig {
         dump.extend(prepend_sub_config_name(
             self.stateful_tx_validator_config.dump(),
             "stateful_tx_validator_config",
+        ));
+        dump.extend(prepend_sub_config_name(
+            self.contract_class_manager_config.dump(),
+            "contract_class_manager_config",
         ));
         dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
         dump.extend(ser_optional_param(
