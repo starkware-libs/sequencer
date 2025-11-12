@@ -9,6 +9,7 @@ use apollo_l1_provider_types::{
     L1ProviderClient,
     L1ProviderClientResult,
     L1ProviderSnapshot,
+    ProviderState,
     SessionState,
     ValidationStatus,
 };
@@ -32,7 +33,7 @@ use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
-use crate::{L1ProviderConfig, ProviderState};
+use crate::L1ProviderConfig;
 
 macro_rules! make_bootstrapper {
     (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
@@ -626,6 +627,10 @@ impl L1ProviderClient for FakeL1ProviderClient {
     }
 
     async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
+        todo!()
+    }
+
+    async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState> {
         todo!()
     }
 }
