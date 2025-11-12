@@ -3,6 +3,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
+    insert_value_into_ap,
 };
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
@@ -122,6 +123,15 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     // No need to insert the preimage map into the scope, as we extract it directly
     // from the execution helper.
     Ok(())
+}
+
+pub(crate) fn should_use_read_optimized_patricia_update<S: StateReader>(
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    // TODO(Yoni): this hint is a placeholder for future optimizations without changing the program
+    // hash.
+    Ok(insert_value_into_ap(vm, Felt::ONE)?)
 }
 
 pub(crate) fn guess_state_ptr<S: StateReader>(

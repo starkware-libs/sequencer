@@ -198,6 +198,7 @@ use crate::hints::hint_implementation::state::{
     set_preimage_for_class_commitments,
     set_preimage_for_current_commitment_info,
     set_preimage_for_state_commitments,
+    should_use_read_optimized_patricia_update,
     update_classes_ptr,
     update_state_ptr,
 };
@@ -1750,6 +1751,11 @@ preimage = {
 }
 assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         }
+    ),
+    (
+        ShouldUseReadOptimizedPatriciaUpdate,
+        should_use_read_optimized_patricia_update,
+        "memory[ap] = to_felt_or_relocatable(ShouldUseReadOptimizedPatriciaUpdate)"
     ),
     (
         LoadEdge,

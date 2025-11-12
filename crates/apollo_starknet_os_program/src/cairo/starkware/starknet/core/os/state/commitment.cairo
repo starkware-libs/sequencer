@@ -3,7 +3,10 @@ from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash, pose
 from starkware.cairo.common.cairo_builtins import HashBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.hash import hash2
-from starkware.cairo.common.patricia import patricia_update_using_update_constants
+from starkware.cairo.common.patricia import (
+    patricia_update_using_update_constants,
+    patricia_update_read_optimized,
+)
 from starkware.cairo.common.patricia_utils import PatriciaUpdateConstants
 from starkware.cairo.common.patricia_with_poseidon import (
     patricia_update_using_update_constants as patricia_update_using_update_constants_with_poseidon,
@@ -179,14 +182,26 @@ func hash_contract_state_changes{hash_ptr: HashBuiltin*, range_check_ptr}(
     local n_updates = (state_dict_end - state_dict_start) / DictAccess.SIZE;
     // Call patricia_update_using_update_constants() instead of patricia_update()
     // in order not to repeat globals_pow2 calculation.
-    patricia_update_using_update_constants(
-        patricia_update_constants=patricia_update_constants,
-        update_ptr=state_dict_start,
-        n_updates=n_updates,
-        height=MERKLE_HEIGHT,
-        prev_root=initial_contract_state_root,
-        new_root=final_contract_state_root,
-    );
+    if (nondet %{ ShouldUseReadOptimizedPatriciaUpdate %} != 0) {
+        patricia_update_read_optimized(
+            patricia_update_constants=patricia_update_constants,
+            update_ptr=state_dict_start,
+            n_updates=n_updates,
+            height=MERKLE_HEIGHT,
+            prev_root=initial_contract_state_root,
+            new_root=final_contract_state_root,
+        );
+    } else {
+        patricia_update_using_update_constants(
+            patricia_update_constants=patricia_update_constants,
+            update_ptr=state_dict_start,
+            n_updates=n_updates,
+            height=MERKLE_HEIGHT,
+            prev_root=initial_contract_state_root,
+            new_root=final_contract_state_root,
+        );
+    }
+    tempvar range_check_ptr = range_check_ptr;
 
     let (prev_value) = get_contract_state_hash(
         class_hash=prev_state.class_hash,
