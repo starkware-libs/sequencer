@@ -148,7 +148,7 @@ macro_rules! generate_short_key_benchmark {
 
 /// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
 /// Different invocations of this function are used with different concrete storage types.
-pub async fn run_storage_benchmark_wrapper<S: Storage>(
+pub async fn run_storage_benchmark_wrapper<S: Storage + Send + Sync>(
     storage_benchmark_args: &StorageBenchmarkCommand,
     storage: S,
 ) {
@@ -217,7 +217,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-pub async fn run_storage_benchmark<S: Storage>(
+pub async fn run_storage_benchmark<S: Storage + Send + Sync>(
     seed: u64,
     n_iterations: usize,
     flavor: BenchmarkFlavor,
@@ -253,7 +253,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage);
+        let n_new_facts = filled_forest.write_to_storage(&mut storage).await;
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 

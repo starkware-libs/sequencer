@@ -50,7 +50,7 @@ pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
+    config: (impl OriginalSkeletonTreeConfig<L> + Sync),
 ) -> FilledTreeImpl<L>
 where
     TH: TreeHashFunction<L> + 'static,
@@ -65,6 +65,7 @@ where
         &config,
         &leaf_modifications,
     )
+    .await
     .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
@@ -93,7 +94,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
-    config: impl OriginalSkeletonTreeConfig<L>,
+    config: (impl OriginalSkeletonTreeConfig<L> + Sync),
 ) -> String {
     // Move from leaf number to actual index.
     let leaf_modifications = leaf_modifications

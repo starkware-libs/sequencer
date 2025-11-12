@@ -44,7 +44,7 @@ pub enum StorageType {
 pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 
 pub trait StorageFromArgs: Args {
-    fn storage(&self) -> impl Storage;
+    fn storage(&self) -> impl Storage + Send + Sync;
 }
 
 /// Key size, in bytes, for the short key storage.
