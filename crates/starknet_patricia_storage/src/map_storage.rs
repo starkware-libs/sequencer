@@ -25,26 +25,26 @@ pub struct BorrowedStorage<'a, S: Storage> {
 impl Storage for MapStorage {
     type Stats = NoStats;
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.0.insert(key, value);
         Ok(())
     }
 
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         self.0.extend(key_to_value);
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.0.remove(key);
         Ok(())
     }
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
     }
 
@@ -152,26 +152,26 @@ impl<S: Storage> CachedStorage<S> {
 impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
             self.cached_reads += 1;
             return Ok(cached_value.clone());
         }
 
-        let storage_value = self.storage.get(key)?;
+        let storage_value = self.storage.get(key).await?;
         self.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
-        self.storage.set(key.clone(), value.clone())?;
+        self.storage.set(key.clone(), value.clone()).await?;
         self.update_cached_value(&key, &value);
         Ok(())
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
@@ -189,7 +189,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.cached_reads +=
             u128::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u128");
 
-        let fetched_values = self.storage.mget(keys_to_fetch.as_slice())?;
+        let fetched_values = self.storage.mget(keys_to_fetch.as_slice()).await?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
                 self.cache.put((*key).clone(), value.clone());
@@ -200,18 +200,18 @@ impl<S: Storage> Storage for CachedStorage<S> {
         Ok(values)
     }
 
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
-        self.storage.mset(key_to_value.clone())?;
+        self.storage.mset(key_to_value.clone()).await?;
         key_to_value.iter().for_each(|(key, value)| {
             self.update_cached_value(key, value);
         });
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.cache.pop(key);
-        self.storage.delete(key)
+        self.storage.delete(key).await
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {

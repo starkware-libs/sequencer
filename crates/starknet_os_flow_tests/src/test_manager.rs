@@ -631,7 +631,8 @@ impl<S: FlowTestState> TestManager<S> {
                     &new_state_roots,
                     &mut map_storage,
                     &extended_state_diff,
-                );
+                )
+                .await;
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())
