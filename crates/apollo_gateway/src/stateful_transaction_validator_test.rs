@@ -156,7 +156,7 @@ async fn test_extract_state_nonce_and_run_validations(
 }
 
 #[rstest]
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
@@ -174,11 +174,8 @@ async fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(move || latest_state_reader);
 
-    // TODO(Itamar): Remove using runtime when instantiate_validator is async.
-    let validator = tokio::task::block_in_place(|| {
-        stateful_validator_factory
-            .instantiate_validator(&mock_state_reader_factory, tokio::runtime::Handle::current())
-    });
+    let validator =
+        stateful_validator_factory.instantiate_validator(Arc::new(mock_state_reader_factory)).await;
     assert!(validator.is_ok());
 }
 
