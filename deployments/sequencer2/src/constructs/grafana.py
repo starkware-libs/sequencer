@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional
 
-from cdk8s import ApiObjectMetadata, Names
+from cdk8s import ApiObjectMetadata
 from constructs import Construct
 
 from imports.alerts.co.starkware.grafana import (
@@ -19,7 +19,7 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboardSpec,
 )
 from src.config.loaders import GrafanaAlertRuleGroupConfigLoader, GrafanaDashboardConfigLoader
-from src.utils import generate_random_hash, sanitize_name
+from src.utils import generate_random_hash
 
 
 class GrafanaBaseConstruct(Construct):

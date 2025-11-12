@@ -11,12 +11,30 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_core.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    components_batcher_port: 55000
+    components_batcher_url: "sequencer-core-service"
+    components_class_manager_port: 55001
+    components_class_manager_url: "sequencer-core-service"
+    components_l1_endpoint_monitor_port: 55005
+    components_l1_endpoint_monitor_url: "sequencer-l1-service"
+    components_l1_gas_price_provider_port: 55003
+    components_l1_gas_price_provider_url: "sequencer-l1-service"
+    components_l1_provider_port: 55004
+    components_l1_provider_url: "sequencer-l1-service"
+    components_mempool_port: 55006
+    components_mempool_url: "sequencer-mempool-service"
+    components_sierra_compiler_port: 55007
+    components_sierra_compiler_url: "sequencer-sierracompiler-service"
+    components_signature_manager_port: 55008
+    components_signature_manager_url: "sequencer-core-service"
+    components_state_sync_port: 55009
+    components_state_sync_url: "sequencer-core-service"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
 statefulSet:
-  enabled: false # Whether to create a StatefulSet
+  enabled: true # Whether to create a StatefulSet
   annotations: {} # Resource annotations
   labels: {} # Additional labels merged with base labels
   # podManagementPolicy: "OrderedReady"  # Pod management policy (OrderedReady, Parallel)
@@ -59,17 +77,25 @@ service:
   enabled: true #  Enable/disable service
   type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
   ports: # List of service ports
-    - name: http-server
-      port: 8080
-      targetPort: 8080
+    - name: batcher
+      port: 55000
+      targetPort: 55000
+      protocol: TCP
+    - name: class-manager
+      port: 55001
+      targetPort: 55001
+      protocol: TCP
+    - name: signature-manager
+      port: 55008
+      targetPort: 55008
+      protocol: TCP
+    - name: state-sync
+      port: 55009
+      targetPort: 55009
       protocol: TCP
     - name: consensus-p2p
-      port: 9000
-      targetPort: 8080
-      protocol: TCP
-    - name: monitoring
-      port: 8082
-      targetPort: 8082
+      port: 53080
+      targetPort: 53080
       protocol: TCP
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels
