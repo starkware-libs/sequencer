@@ -11,6 +11,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,7 @@ const JSON_RPC_VERSION: &str = "2.0";
 pub struct GatewayConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    pub contract_class_manager_config: ContractClassManagerConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
@@ -47,6 +49,10 @@ impl SerializeConfig for GatewayConfig {
         dump.extend(prepend_sub_config_name(
             self.stateful_tx_validator_config.dump(),
             "stateful_tx_validator_config",
+        ));
+        dump.extend(prepend_sub_config_name(
+            self.contract_class_manager_config.dump(),
+            "contract_class_manager_config",
         ));
         dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
         dump.extend(ser_optional_param(
