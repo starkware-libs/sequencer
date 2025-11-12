@@ -1413,7 +1413,6 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "clap",
  "criterion",
- "futures",
  "lazy_static",
  "mempool_test_utils",
  "metrics 0.24.2",

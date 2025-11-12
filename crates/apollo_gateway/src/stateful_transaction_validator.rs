@@ -333,7 +333,7 @@ fn skip_stateful_validations(
 pub fn get_latest_block_info(
     state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    state_reader
-        .get_block_info()
+    tokio::runtime::Handle::current()
+        .block_on(state_reader.get_block_info())
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }

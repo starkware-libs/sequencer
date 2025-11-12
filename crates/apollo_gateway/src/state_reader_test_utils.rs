@@ -23,8 +23,9 @@ pub struct TestStateReader {
     pub blockifier_state_reader: DictStateReader,
 }
 
+#[async_trait]
 impl MempoolStateReader for TestStateReader {
-    fn get_block_info(&self) -> Result<BlockInfo, StateError> {
+    async fn get_block_info(&self) -> Result<BlockInfo, StateError> {
         Ok(self.block_info.clone())
     }
 }
