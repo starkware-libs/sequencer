@@ -1,6 +1,6 @@
 //! Propeller network behaviour implementation.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
@@ -308,7 +308,7 @@ pub struct Behaviour {
     channel_manager: ChannelManager,
 
     /// Currently connected peers.
-    connected_peers: HashSet<PeerId>,
+    connected_peers: HashMap<PeerId, Vec<ConnectionId>>,
 
     /// Message authenticity configuration for signing/verification.
     message_authenticity: MessageAuthenticity,
@@ -362,7 +362,7 @@ impl Behaviour {
             channel_manager: ChannelManager::new(local_peer_id, config.finalized_message_ttl()),
             config,
             events: VecDeque::new(),
-            connected_peers: HashSet::new(),
+            connected_peers: HashMap::new(),
             message_authenticity,
             local_peer_id,
             processor_results_rx,
@@ -1117,7 +1117,7 @@ impl Behaviour {
     }
 
     fn emit_handler_event(&mut self, peer_id: PeerId, event: HandlerIn) {
-        if !self.connected_peers.contains(&peer_id) {
+        if !self.connected_peers.contains_key(&peer_id) {
             if let Some(metrics) = &self.metrics {
                 metrics.increment_send_failure(
                     crate::metrics::ShardSendFailureReason::NotConnectedToPeer,
@@ -1131,9 +1131,11 @@ impl Behaviour {
             return;
         }
 
+        let connections = self.connected_peers.get(&peer_id).unwrap();
+        let random_connection = connections.choose(&mut rand::thread_rng()).unwrap();
         self.events.push_back(ToSwarm::NotifyHandler {
             peer_id,
-            handler: NotifyHandler::Any,
+            handler: NotifyHandler::One(*random_connection),
             event,
         });
         self.update_collection_metrics();
@@ -1178,12 +1180,12 @@ impl NetworkBehaviour for Behaviour {
         match event {
             FromSwarm::ConnectionEstablished(ConnectionEstablished {
                 peer_id,
-                connection_id: _,
+                connection_id,
                 endpoint: _,
                 failed_addresses: _,
                 other_established: _,
             }) => {
-                self.connected_peers.insert(peer_id);
+                self.connected_peers.entry(peer_id).or_default().push(connection_id);
 
                 // Update connected peers metric
                 if let Some(metrics) = &self.metrics {
@@ -1195,11 +1197,16 @@ impl NetworkBehaviour for Behaviour {
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
-                connection_id: _,
+                connection_id,
                 endpoint: _,
                 remaining_established,
                 cause: _,
             }) => {
+                // Remove the connection ID from tracking
+                if let Some(connections) = self.connected_peers.get_mut(&peer_id) {
+                    connections.retain(|&id| id != connection_id);
+                }
+
                 if remaining_established == 0 {
                     self.connected_peers.remove(&peer_id);
 
