@@ -8,7 +8,7 @@ autoflake==2.3.1
 bitarray==3.5.2
 black==23.1a1
 cachetools==6.1.0
-cairo-lang==0.14.0.1
+cairo-lang==0.14.1a0
 certifi==2025.7.14
 charset-normalizer==3.4.2
 ckzg==2.1.1
