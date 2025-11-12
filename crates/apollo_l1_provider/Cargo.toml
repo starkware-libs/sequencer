@@ -9,6 +9,7 @@ license.workspace = true
 testing = [
   "apollo_batcher_types/testing",
   "apollo_l1_provider_types/testing",
+  "apollo_state_sync_types/testing",
   "apollo_time/testing",
   "pretty_assertions",
   "starknet_api/testing",
