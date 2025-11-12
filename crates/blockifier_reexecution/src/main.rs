@@ -5,6 +5,7 @@ use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
+    execute_single_transaction_from_json,
     get_block_numbers_for_reexecution,
     guess_chain_id_from_node_url,
     reexecute_and_verify_correctness,
@@ -82,6 +83,22 @@ enum Command {
         /// Block number.
         #[clap(long, short = 'b')]
         block_number: u64,
+    },
+
+    /// Reexecutes a single transaction from a JSON file using RPC to fetch block context.
+    ReExecuteSingleTx {
+        #[clap(flatten)]
+        rpc_args: RpcArgs,
+
+        /// Block number.
+        #[clap(long, short = 'b')]
+        block_number: u64,
+
+        // TODO(Yonatank): make this field optional and add an option to provide a transaction hash
+        // instead (and use it to get the transaction from the RPC).
+        /// Path to the JSON file containing the transaction.
+        #[clap(long, short = 't')]
+        transaction_path: String,
     },
 
     /// Writes the RPC queries of all (selected) blocks to json files.
@@ -201,6 +218,33 @@ async fn main() {
             println!("RPC test passed successfully.");
         }
 
+        Command::ReExecuteSingleTx { block_number, rpc_args, transaction_path } => {
+            println!(
+                "Executing single transaction from {} for block number {block_number} using node \
+                 url {}.",
+                transaction_path, rpc_args.node_url
+            );
+
+            let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+
+            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
+            // for details), so should be executed in a blocking thread.
+            // TODO(Aner): make only the RPC calls blocking, not the whole function.
+            tokio::task::spawn_blocking(move || {
+                execute_single_transaction_from_json(
+                    BlockNumber(block_number),
+                    node_url,
+                    chain_id,
+                    transaction_path,
+                )
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+            println!("Single transaction execution completed.");
+        }
+
         Command::WriteToFile { block_numbers, directory_path, rpc_args } => {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
@@ -211,9 +255,9 @@ async fn main() {
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
-                // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
+                // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
-                // TODO(Aner): make only the RPC calls blocking, not the entire function.
+                // TODO(Aner): make only the RPC calls blocking, not the whole function.
                 task_set.spawn(async move {
                     println!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {

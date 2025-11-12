@@ -12,6 +12,7 @@ use blockifier::state::state_api::StateReader;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -24,7 +25,11 @@ use crate::state_reader::offline_state_reader::{
     SerializableDataPrevBlock,
     SerializableOfflineReexecutionData,
 };
-use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use crate::state_reader::reexecution_state_reader::{
+    ConsecutiveReexecutionStateReaders,
+    ReexecutionStateReader,
+};
+use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 
 pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
@@ -295,6 +300,58 @@ pub fn write_block_reexecution_data_to_file(
     .unwrap();
 
     println!("RPC replies required for reexecuting block {block_number} written to json file.");
+}
+
+/// Executes a single transaction from a JSON file using RPC to fetch block context.
+/// Does not assert correctness, only prints the execution result.
+pub fn execute_single_transaction_from_json(
+    block_number: BlockNumber,
+    node_url: String,
+    chain_id: ChainId,
+    transaction_json_path: String,
+) -> ReexecutionResult<()> {
+    // Load transaction from a JSON file.
+    let json_content = read_to_string(&transaction_json_path)
+        .expect("Failed to read transaction JSON file {transaction_json_path}.");
+
+    let json_value: Value = serde_json::from_str(&json_content)?;
+
+    // Deserialize transaction.
+    let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
+
+    // Compute transaction hash.
+    let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
+
+    // Create RPC config.
+    let config = RpcStateReaderConfig::from_url(node_url);
+
+    // Create ConsecutiveTestStateReaders similar to RPC test (block_number - 1 for last block).
+    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
+        block_number.prev().expect("Should not run with block 0"),
+        Some(config),
+        chain_id,
+        false, // dump_mode = false
+    );
+
+    // Convert transaction to BlockifierTransaction using api_txs_to_blockifier_txs_next_block.
+    let blockifier_tx = consecutive_state_readers
+        .next_block_state_reader
+        .api_txs_to_blockifier_txs_next_block(vec![(transaction, transaction_hash)])?;
+
+    // Create transaction executor.
+    let mut transaction_executor =
+        consecutive_state_readers.pre_process_and_create_executor(None)?;
+
+    // Execute transaction (should be single element).
+    let execution_results = transaction_executor.execute_txs(&blockifier_tx, None);
+
+    // We expect exactly one execution result since we executed a single transaction.
+    let res =
+        execution_results.first().expect("Expected exactly one execution result, but got none");
+
+    println!("Execution result: {:?}", res);
+
+    Ok(())
 }
 
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
