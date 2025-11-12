@@ -175,7 +175,7 @@ async fn test_instantiate_validator() {
         .return_once(move || latest_state_reader);
 
     let validator =
-        stateful_validator_factory.instantiate_validator(Arc::new(mock_state_reader_factory)).await;
+        stateful_validator_factory.instantiate_validator(&mock_state_reader_factory).await;
     assert!(validator.is_ok());
 }
 

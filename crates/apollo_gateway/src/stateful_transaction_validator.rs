@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -46,7 +44,17 @@ type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
     async fn instantiate_validator(
         &self,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
+        state_reader_factory: &dyn StateReaderFactory,
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
+
+    async fn get_state_reader_for_validation(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+    ) -> StatefulTransactionValidatorResult<Box<dyn MempoolStateReader>>;
+
+    async fn create_validator_from_state_reader(
+        &self,
+        state_reader: Box<dyn MempoolStateReader>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
@@ -59,11 +67,18 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
     async fn instantiate_validator(
         &self,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
+        state_reader_factory: &dyn StateReaderFactory,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
-        // TODO(yael 6/5/2024): consider storing the block_info as part of the
-        // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
+        // Compose the split API to preserve original behavior.
+        let state_reader = self.get_state_reader_for_validation(state_reader_factory).await?;
+        self.create_validator_from_state_reader(state_reader).await
+    }
+
+    async fn get_state_reader_for_validation(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+    ) -> StatefulTransactionValidatorResult<Box<dyn MempoolStateReader>> {
+        state_reader_factory
             .get_state_reader_from_latest_block()
             .await
             .map_err(|err| GatewaySpecError::UnexpectedError {
@@ -74,8 +89,16 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     "Failed to get state reader from latest block",
                     e,
                 )
-            })?;
-        let latest_block_info = get_latest_block_info(&state_reader).await?;
+            })
+    }
+
+    async fn create_validator_from_state_reader(
+        &self,
+        state_reader: Box<dyn MempoolStateReader>,
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
+        // TODO(yael 6/5/2024): consider storing the block_info as part of the
+        // StatefulTransactionValidator and update it only once a new block is created.
+        let latest_block_info = get_latest_block_info(state_reader.as_ref()).await?;
 
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
