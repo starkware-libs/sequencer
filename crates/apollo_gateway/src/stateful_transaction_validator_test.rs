@@ -165,8 +165,7 @@ async fn test_instantiate_validator() {
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
 
-    let validator =
-        stateful_validator_factory.instantiate_validator(Arc::new(state_reader_factory)).await;
+    let validator = stateful_validator_factory.instantiate_validator(&state_reader_factory).await;
 
     assert!(validator.is_ok());
 }
