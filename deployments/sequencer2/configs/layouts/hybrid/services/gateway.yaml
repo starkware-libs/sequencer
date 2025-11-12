@@ -11,7 +11,15 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_gateway.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    components_class_manager_port: 55001
+    components_class_manager_url: "sequencer-core-service"
+    components_mempool_port: 55006
+    components_mempool_url: "sequencer-mempool-service"
+    components_gateway_port: 55002
+    components_gateway_url: "sequencer-gateway-service"
+    components_state_sync_port: 55009
+    components_state_sync_url: "sequencer-core-service"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -59,17 +67,9 @@ service:
   enabled: true #  Enable/disable service
   type: "ClusterIP" # Service type (ClusterIP, NodePort, LoadBalancer)
   ports: # List of service ports
-    - name: http-server
-      port: 8080
+    - name: gateway
+      port: 55002
       targetPort: 8080
-      protocol: TCP
-    - name: consensus-p2p
-      port: 9000
-      targetPort: 8080
-      protocol: TCP
-    - name: monitoring
-      port: 8082
-      targetPort: 8082
       protocol: TCP
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels

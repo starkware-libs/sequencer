@@ -7,9 +7,7 @@ from src.config.overlay import (
 )
 from src.config.schema import (
     CommonConfig,
-)
-from src.config.schema import DeploymentConfig as DeploymentSchema
-from src.config.schema import (
+    DeploymentConfig as DeploymentSchema,
     ServiceConfig,
 )
 
