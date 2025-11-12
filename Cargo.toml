@@ -118,7 +118,7 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-alloy = "1.0.38"
+alloy = "1.1.0"
 anyhow = "1.0.44"
 apollo_base_layer_tests.path = "crates/apollo_base_layer_tests"
 apollo_batcher.path = "crates/apollo_batcher"
