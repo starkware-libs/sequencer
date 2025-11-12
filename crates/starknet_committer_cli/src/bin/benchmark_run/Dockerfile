@@ -31,11 +31,11 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
 CMD ["cached-rocksdb", \
     "--n-iterations", "1000000", \
-    "--flavor", "1k-diff", \
+    "--flavor", "4k-diff", \
     "--cache-size", "10000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
-    "--allow-mmap", \
+    "--use-column-families", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \
