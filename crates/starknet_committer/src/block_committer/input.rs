@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
+use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -39,7 +40,7 @@ pub fn contract_address_into_node_index(address: &ContractAddress) -> NodeIndex 
     NodeIndex::from_leaf_felt(&address.0)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash, Serialize)]
 // TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when
 // available.
 pub struct StarknetStorageKey(pub StorageKey);
@@ -50,11 +51,10 @@ impl From<&StarknetStorageKey> for NodeIndex {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StarknetStorageValue(pub Felt);
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
