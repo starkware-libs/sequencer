@@ -58,7 +58,8 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = tokio::runtime::Handle::current()
+        let current_runtime = tokio::runtime::Handle::current();
+        let state_reader = current_runtime
             .block_on(state_reader_factory.get_state_reader_from_latest_block())
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
@@ -69,7 +70,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = get_latest_block_info(&state_reader)?;
+        let latest_block_info = current_runtime.block_on(get_latest_block_info(&state_reader))?;
 
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
@@ -330,10 +331,11 @@ fn skip_stateful_validations(
     Ok(false)
 }
 
-pub fn get_latest_block_info(
+pub async fn get_latest_block_info(
     state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    tokio::runtime::Handle::current()
-        .block_on(state_reader.get_block_info())
+    state_reader
+        .get_block_info()
+        .await
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }
