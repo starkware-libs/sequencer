@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use aerospike::{
     as_bin,
     operations,
@@ -10,6 +12,7 @@ use aerospike::{
     Client,
     ClientPolicy,
     Error as AerospikeError,
+    Host,
     Key,
     ReadPolicy,
     Record,
@@ -21,6 +24,8 @@ use aerospike::{
 
 use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
 
+pub type Port = u16;
+
 #[derive(thiserror::Error, Debug)]
 pub enum AerospikeStorageError {
     #[error(transparent)]
@@ -31,10 +36,14 @@ pub enum AerospikeStorageError {
     ExpectedBlob(Value),
 }
 
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+const DEFAULT_FAIL_IF_NOT_CONNECTED: bool = true;
+pub const DEFAULT_PORT: Port = 3000;
+
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
-    pub hosts: String,
+    pub hosts: Vec<Host>,
 
     pub client_policy: ClientPolicy,
     pub read_policy: ReadPolicy,
@@ -48,12 +57,16 @@ pub struct AerospikeStorageConfig {
 }
 
 impl AerospikeStorageConfig {
-    pub fn new_default(aeroset: String, namespace: String, hosts: String) -> Self {
+    pub fn new_default(aeroset: String, namespace: String, hosts: Vec<(String, Port)>) -> Self {
         Self {
             aeroset,
             namespace,
-            hosts,
-            client_policy: ClientPolicy::default(),
+            hosts: hosts.into_iter().map(|(host, port)| Host::new(&host, port)).collect(),
+            client_policy: ClientPolicy {
+                fail_if_not_connected: DEFAULT_FAIL_IF_NOT_CONNECTED,
+                timeout: Some(DEFAULT_TIMEOUT),
+                ..Default::default()
+            },
             read_policy: ReadPolicy::default(),
             write_policy: WritePolicy::default(),
             batch_policy: BatchPolicy::default(),

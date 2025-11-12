@@ -29,13 +29,15 @@ ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 # - use the provided data, storage, output and checkpoint directories (override for a persistent storage dir of
 #   a specific node)
 
-CMD ["cached-rocksdb", \
+CMD ["cached-aerospike", \
     "--n-iterations", "1000000", \
     "--flavor", "1k-diff", \
     "--cache-size", "10000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
-    "--allow-mmap", \
+    "--aeroset", "fact_storage", \
+    "--namespace", "starkware", \
+    "--hosts", "\"aerospike-1-0.aerospike aerospike-2-0.aerospike aerospike-3-0.aerospike\"", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
     "--output-dir", "/mnt/data/csvs", \

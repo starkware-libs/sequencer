@@ -1,9 +1,14 @@
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use clap::{ArgAction, Args, Subcommand};
-use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
+use starknet_patricia_storage::aerospike_storage::{
+    AerospikeStorage,
+    AerospikeStorageConfig,
+    DEFAULT_PORT,
+};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
@@ -42,6 +47,7 @@ pub enum StorageType {
 }
 
 pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
+pub static DEFAULT_PORT_STRING: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
 
 pub trait StorageFromArgs: Args {
     fn storage(&self) -> impl Storage;
@@ -263,13 +269,18 @@ pub struct AerospikeArgs {
     #[clap(long)]
     pub aeroset: String,
 
+    /// Aerospike port to use for hosts that do not specify a port.
+    #[clap(long, default_value = &*DEFAULT_PORT_STRING)]
+    pub port: u16,
+
     /// Aerospike namespace.
     #[clap(long)]
     pub namespace: String,
 
-    /// Aerospike hosts.
+    /// Aerospike hosts. A host string is of the form "host" or "host:port"; if no port is provided
+    /// the default is used.
     #[clap(long)]
-    pub hosts: String,
+    pub hosts: Vec<String>,
 }
 
 impl StorageFromArgs for AerospikeArgs {
@@ -280,11 +291,19 @@ impl StorageFromArgs for AerospikeArgs {
 
 impl AerospikeArgs {
     pub fn aerospike_storage_config(&self) -> AerospikeStorageConfig {
-        AerospikeStorageConfig::new_default(
-            self.aeroset.clone(),
-            self.namespace.clone(),
-            self.hosts.clone(),
-        )
+        let hosts = self
+            .hosts
+            .iter()
+            .map(|host| {
+                if host.contains(':') {
+                    let (host, port) = host.split_once(':').unwrap();
+                    (host.to_string(), port.parse().unwrap())
+                } else {
+                    (host.to_string(), self.port)
+                }
+            })
+            .collect();
+        AerospikeStorageConfig::new_default(self.aeroset.clone(), self.namespace.clone(), hosts)
     }
 }
 
