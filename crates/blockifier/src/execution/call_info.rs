@@ -11,7 +11,12 @@ use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::{Event, EventContent, L2ToL1Payload};
+use starknet_api::transaction::{
+    Event,
+    EventContent,
+    L2ToL1Payload,
+    MessageToL1 as StarknetAPIMessageToL1,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -355,6 +360,34 @@ impl CallInfo {
             })
             .sorted_by_key(|(order, _)| *order)
             .map(|(_, event)| event)
+            .collect()
+    }
+
+    /// Returns a vector of Starknet MessageToL1 objects collected during the execution,
+    /// sorted by the order in which they were sent.
+    pub fn get_sorted_l2_to_l1_messages(&self) -> Vec<StarknetAPIMessageToL1> {
+        self.iter()
+            .flat_map(|call_info| {
+                call_info.execution.l2_to_l1_messages.iter().map(
+                    |OrderedL2ToL1Message {
+                         order,
+                         message: MessageToL1 { to_address, payload },
+                     }| {
+                        (
+                            *order,
+                            StarknetAPIMessageToL1 {
+                                from_address: call_info.call.storage_address,
+                                to_address: (*to_address)
+                                    .try_into()
+                                    .expect("Failed to convert L1Address to EthAddress"),
+                                payload: payload.clone(),
+                            },
+                        )
+                    },
+                )
+            })
+            .sorted_by_key(|(order, _)| *order)
+            .map(|(_, message)| message)
             .collect()
     }
 }
