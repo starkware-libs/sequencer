@@ -9,6 +9,7 @@ use apollo_l1_provider_types::{
     Event,
     L1ProviderResult,
     L1ProviderSnapshot,
+    ProviderState,
     SessionState,
     SharedL1ProviderClient,
     ValidationStatus,
@@ -23,7 +24,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManager;
-use crate::{L1ProviderConfig, ProviderState};
+use crate::L1ProviderConfig;
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
@@ -439,6 +440,10 @@ impl L1Provider {
             current_height: self.current_height,
             number_of_txs_in_records: self.tx_manager.records.len(),
         })
+    }
+
+    pub fn get_provider_state(&self) -> L1ProviderResult<ProviderState> {
+        Ok(self.state.clone())
     }
 }
 

@@ -9,7 +9,7 @@ use apollo_l1_provider_types::SessionState::{
     Propose as ProposeSession,
     Validate as ValidateSession,
 };
-use apollo_l1_provider_types::{Event, InvalidValidationStatus, ValidationStatus};
+use apollo_l1_provider_types::{Event, InvalidValidationStatus, ProviderState, ValidationStatus};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;
 use assert_matches::assert_matches;
@@ -30,7 +30,7 @@ use crate::test_utils::{
     FakeL1ProviderClient,
     L1ProviderContentBuilder,
 };
-use crate::{L1ProviderConfig, ProviderState};
+use crate::L1ProviderConfig;
 
 fn commit_block_no_rejected(
     l1_provider: &mut L1Provider,

@@ -89,6 +89,26 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus.dynamic_config.sync_retry_interval": {
+    "description": "The duration (seconds) between sync attempts.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.dynamic_config.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.dynamic_config.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus.dynamic_config.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 3.0
+  },
   "consensus.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
@@ -113,26 +133,6 @@
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
-  },
-  "consensus.dynamic_config.sync_retry_interval": {
-    "description": "The duration (seconds) between sync attempts.",
-    "privacy": "Public",
-    "value": 1.0
-  },
-  "consensus.dynamic_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
-    "privacy": "Public",
-    "value": 1.0
-  },
-  "consensus.dynamic_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
-    "privacy": "Public",
-    "value": 1.0
-  },
-  "consensus.dynamic_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
-    "privacy": "Public",
-    "value": 3.0
   },
   "context.#is_none": {
     "description": "Flag for an optional field.",
