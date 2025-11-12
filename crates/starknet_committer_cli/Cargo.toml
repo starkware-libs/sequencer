@@ -18,6 +18,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = [
+  "aerospike_storage",
   "mdbx_storage",
   "rocksdb_storage",
   "short_key_storage",

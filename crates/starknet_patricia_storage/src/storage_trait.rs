@@ -16,6 +16,12 @@ pub type DbHashMap = HashMap<DbKey, DbValue>;
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
     /// An error that occurred in the database library.
+    #[cfg(feature = "aerospike_storage")]
+    #[error(transparent)]
+    Aerospike(#[from] aerospike::Error),
+    #[cfg(feature = "aerospike_storage")]
+    #[error(transparent)]
+    AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
     #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
