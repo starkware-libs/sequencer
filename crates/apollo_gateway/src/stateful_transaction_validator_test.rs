@@ -40,7 +40,6 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
-use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
@@ -156,7 +155,7 @@ async fn test_extract_state_nonce_and_run_validations(
 }
 
 #[rstest]
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_instantiate_validator() {
     let stateful_validator_factory = StatefulTransactionValidatorFactory {
         config: StatefulTransactionValidatorConfig::default(),
@@ -166,19 +165,9 @@ async fn test_instantiate_validator() {
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
 
-    let mut mock_state_reader_factory = MockStateReaderFactory::new();
+    let validator =
+        stateful_validator_factory.instantiate_validator(Arc::new(state_reader_factory)).await;
 
-    // Make sure stateful_validator uses the latest block in the initial call.
-    let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block().await;
-    mock_state_reader_factory
-        .expect_get_state_reader_from_latest_block()
-        .return_once(move || latest_state_reader);
-
-    // TODO(Itamar): Remove using runtime when instantiate_validator is async.
-    let validator = tokio::task::block_in_place(|| {
-        stateful_validator_factory
-            .instantiate_validator(&mock_state_reader_factory, tokio::runtime::Handle::current())
-    });
     assert!(validator.is_ok());
 }
 
