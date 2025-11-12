@@ -258,6 +258,7 @@ define_string_enum! {
         (SenderAddress),
         (Sha256Ptr, "sha256_ptr"),
         (Sha256PtrEnd, "sha256_ptr_end"),
+        (ShouldUseReadOptimized),
         (Siblings),
         (SignatureLen),
         (SignatureStart),

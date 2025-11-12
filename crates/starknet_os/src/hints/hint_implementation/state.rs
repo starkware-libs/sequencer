@@ -124,6 +124,21 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     Ok(())
 }
 
+pub(crate) fn should_use_read_optimized_patricia_update<S: StateReader>(
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    // TODO(Yoni): this hint is a placeholder for future optimizations without changing the program
+    // hash.
+    Ok(insert_value_from_var_name(
+        Ids::ShouldUseReadOptimized.into(),
+        Felt::ONE,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
+}
+
 pub(crate) fn guess_state_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
