@@ -174,9 +174,8 @@ async fn test_instantiate_validator() {
         .expect_get_state_reader_from_latest_block()
         .return_once(move || latest_state_reader);
 
-    let validator = tokio::task::block_in_place(|| {
-        stateful_validator_factory.instantiate_validator(&mock_state_reader_factory)
-    });
+    let validator =
+        stateful_validator_factory.instantiate_validator(Arc::new(mock_state_reader_factory)).await;
     assert!(validator.is_ok());
 }
 

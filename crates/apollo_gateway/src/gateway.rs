@@ -252,9 +252,10 @@ impl ProcessTxBlockingTask {
     }
 
     fn process_tx(self) -> GatewayResult<Nonce> {
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.state_reader_factory.as_ref())?;
+        let mut stateful_transaction_validator = self.runtime.block_on(
+            self.stateful_tx_validator_factory
+                .instantiate_validator(self.state_reader_factory.clone()),
+        )?;
 
         let nonce = stateful_transaction_validator.extract_state_nonce_and_run_validations(
             &self.executable_tx,

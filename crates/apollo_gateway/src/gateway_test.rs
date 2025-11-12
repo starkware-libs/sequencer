@@ -97,6 +97,7 @@ use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateR
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
+    StatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
@@ -561,9 +562,13 @@ async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_f
         .expect_extract_state_nonce_and_run_validations()
         .return_once(|_, _, _| Err(expected_error));
 
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
+    mock_stateful_transaction_validator_factory.expect_instantiate_validator().return_once(|_| {
+        Box::pin(async {
+            Ok::<Box<dyn StatefulTransactionValidatorTrait>, _>(Box::new(
+                mock_stateful_transaction_validator,
+            ))
+        })
+    });
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
@@ -606,7 +611,7 @@ async fn process_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
+        .return_once(|_| Box::pin(async { Err::<_, _>(expected_error) }));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 

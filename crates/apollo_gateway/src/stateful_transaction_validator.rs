@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -7,6 +9,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
+use async_trait::async_trait;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
     StatefulValidatorTrait as BlockifierStatefulValidatorTrait,
@@ -38,11 +41,12 @@ mod stateful_transaction_validator_test;
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
+#[async_trait]
 #[cfg_attr(test, mockall::automock)]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
-    fn instantiate_validator(
+    async fn instantiate_validator(
         &self,
-        state_reader_factory: &dyn StateReaderFactory,
+        state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
@@ -50,17 +54,18 @@ pub struct StatefulTransactionValidatorFactory {
     pub chain_info: ChainInfo,
 }
 
+#[async_trait]
 impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
     // TODO(Ayelet): Move state_reader_factory and chain_info to the struct.
-    fn instantiate_validator(
+    async fn instantiate_validator(
         &self,
-        state_reader_factory: &dyn StateReaderFactory,
+        state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
-        let current_runtime = tokio::runtime::Handle::current();
-        let state_reader = current_runtime
-            .block_on(state_reader_factory.get_state_reader_from_latest_block())
+        let state_reader = state_reader_factory
+            .get_state_reader_from_latest_block()
+            .await
             .map_err(|err| GatewaySpecError::UnexpectedError {
                 data: format!("Internal server error: {err}"),
             })
@@ -70,7 +75,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = current_runtime.block_on(get_latest_block_info(&state_reader))?;
+        let latest_block_info = get_latest_block_info(&state_reader).await?;
 
         let state = CachedState::new(state_reader);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(
