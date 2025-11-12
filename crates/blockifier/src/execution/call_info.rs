@@ -4,13 +4,14 @@ use std::ops::{Add, AddAssign};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use itertools::Itertools;
 use serde::Serialize;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::{EventContent, L2ToL1Payload};
+use starknet_api::transaction::{Event, EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -335,6 +336,26 @@ impl CallInfo {
             acc += &inner_call.resources;
             acc
         })
+    }
+
+    /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
+    /// order in which they were emitted.
+    pub fn get_sorted_events(&self) -> Vec<Event> {
+        self.iter()
+            .flat_map(|call_info| {
+                call_info.execution.events.iter().map(|OrderedEvent { order, event }| {
+                    (
+                        *order,
+                        Event {
+                            from_address: call_info.call.storage_address,
+                            content: event.clone(),
+                        },
+                    )
+                })
+            })
+            .sorted_by_key(|(order, _)| *order)
+            .map(|(_, event)| event)
+            .collect()
     }
 }
 
