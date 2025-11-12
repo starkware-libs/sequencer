@@ -26,6 +26,9 @@ mod dashboard_test;
 
 pub const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
 pub const HISTOGRAM_TIME_RANGE: &str = "5m";
+const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";
+
+// TODO(Tsabary): split this entire module into sub modules.
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dashboard {
@@ -54,7 +57,10 @@ impl Serialize for Dashboard {
         let mut map = serializer.serialize_map(Some(1))?;
         let mut row_map = IndexMap::new();
         for row in &self.rows {
-            row_map.insert(row.name, RowValue { panels: &row.panels, collapsed: row.collapsed });
+            row_map.insert(
+                row.name.clone(),
+                RowValue { panels: &row.panels, collapsed: row.collapsed },
+            );
         }
 
         map.serialize_entry(self.name, &row_map)?;
@@ -548,14 +554,14 @@ impl Serialize for Panel {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Row {
-    name: &'static str,
+    name: String,
     panels: Vec<Panel>,
     collapsed: bool,
 }
 
 impl Row {
-    pub(crate) const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
-        Self { name, panels, collapsed: true }
+    pub(crate) fn new(name: impl ToString, panels: Vec<Panel>) -> Self {
+        Self { name: name.to_string(), panels, collapsed: true }
     }
     #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn expand(mut self) -> Self {
@@ -571,7 +577,7 @@ impl Serialize for Row {
         S: Serializer,
     {
         let mut map = serializer.serialize_map(Some(1))?;
-        map.serialize_entry(self.name, &self.panels)?;
+        map.serialize_entry(&self.name, &self.panels)?;
         map.end()
     }
 }
@@ -641,7 +647,8 @@ pub(crate) fn get_component_infra_row(row_name: &'static str, metrics: &InfraMet
     panels.extend(labeled_client_panels);
     panels.extend(labeled_server_panels);
 
-    Row::new(row_name, panels)
+    let modified_row_name = format!("{} {INFRA_ROW_TITLE_SUFFIX}", row_name);
+    Row::new(modified_row_name, panels)
 }
 
 /// Returns a PromQL expression that calculates the time since the last increase of the given
