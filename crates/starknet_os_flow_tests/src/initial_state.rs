@@ -22,7 +22,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     Transaction as StarknetAPITransaction,
 };
-use starknet_api::hash::{CommitmentOutput, HashOutput};
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
@@ -264,7 +264,7 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
-) -> (CommitmentOutput, MapStorage) {
+) -> (StateRoots, MapStorage) {
     let mut map_storage = MapStorage::default();
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
