@@ -180,50 +180,52 @@ fn fetch_patricia_paths_inner<'a, L: Leaf>(
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
 ) -> TraversalResult<()> {
-    if subtrees.is_empty() {
-        return Ok(());
-    }
+    let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
-    let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
-    for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
-        // Always insert root.
-        // No need to insert an unmodified node (which is not the root), because its parent is
-        // inserted, and contains the preimage.
-        if subtree.is_unmodified() {
-            continue;
-        }
-        match filled_root.data {
-            // Binary node.
-            NodeData::Binary(binary_data) => {
-                witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
-                let (left_subtree, right_subtree) =
-                    subtree.get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
-                next_subtrees.push(left_subtree);
-                next_subtrees.push(right_subtree);
+    while !current_subtrees.is_empty() {
+        let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage)?;
+        for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
+            // Always insert root.
+            // No need to insert an unmodified node (which is not the root), because its parent is
+            // inserted, and contains the preimage.
+            if subtree.is_unmodified() {
+                continue;
             }
-            // Edge node.
-            NodeData::Edge(edge_data) => {
-                witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
-                // Parse bottom.
-                let (bottom_subtree, empty_leaves_indices) =
-                    subtree.get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_hash);
-                if let Some(ref mut leaves_map) = leaves {
-                    // Insert empty leaves descendent of the current subtree, that are not
-                    // descendents of the bottom node.
-                    for index in empty_leaves_indices {
-                        leaves_map.insert(*index, L::default());
+            match filled_root.data {
+                // Binary node.
+                NodeData::Binary(binary_data) => {
+                    witnesses.insert(subtree.root_hash, Preimage::Binary(binary_data.clone()));
+                    let (left_subtree, right_subtree) = subtree
+                        .get_children_subtrees(binary_data.left_hash, binary_data.right_hash);
+                    next_subtrees.push(left_subtree);
+                    next_subtrees.push(right_subtree);
+                }
+                // Edge node.
+                NodeData::Edge(edge_data) => {
+                    witnesses.insert(subtree.root_hash, Preimage::Edge(edge_data));
+                    // Parse bottom.
+                    let (bottom_subtree, empty_leaves_indices) = subtree
+                        .get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_hash);
+                    if let Some(ref mut leaves_map) = leaves {
+                        // Insert empty leaves descendent of the current subtree, that are not
+                        // descendents of the bottom node.
+                        for index in empty_leaves_indices {
+                            leaves_map.insert(*index, L::default());
+                        }
+                    }
+                    next_subtrees.push(bottom_subtree);
+                }
+                // Leaf node.
+                NodeData::Leaf(leaf_data) => {
+                    // Fetch the leaf if it's modified and should be fetched.
+                    if let Some(ref mut leaves_map) = leaves {
+                        leaves_map.insert(subtree.root_index, leaf_data);
                     }
                 }
-                next_subtrees.push(bottom_subtree);
-            }
-            // Leaf node.
-            NodeData::Leaf(leaf_data) => {
-                // Fetch the leaf if it's modified and should be fetched.
-                if let Some(ref mut leaves_map) = leaves {
-                    leaves_map.insert(subtree.root_index, leaf_data);
-                }
             }
         }
+        current_subtrees = next_subtrees;
+        next_subtrees = Vec::new();
     }
-    fetch_patricia_paths_inner::<L>(storage, next_subtrees, witnesses, leaves)
+    Ok(())
 }
