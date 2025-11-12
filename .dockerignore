@@ -1,5 +1,5 @@
 /data
 /deployments
 /logs
-**/target/
+# **/target/
 .git

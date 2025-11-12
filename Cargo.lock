@@ -31,8 +31,6 @@ dependencies = [
 [[package]]
 name = "aerospike"
 version = "2.0.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0babb5e5c33f936c31300c01c9d66be84271130dc7042e3cfb44bde8b7c18e95"
 dependencies = [
  "aerospike-core",
  "aerospike-macro",
@@ -41,8 +39,6 @@ dependencies = [
 [[package]]
 name = "aerospike-core"
 version = "2.0.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb4e545287dbf492b93b8db4f08cac2c680df0380fa7687db3407d838f9c50a9"
 dependencies = [
  "aerospike-rt",
  "async-trait",
@@ -63,8 +59,6 @@ dependencies = [
 [[package]]
 name = "aerospike-macro"
 version = "2.0.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad5d5dd641fee7b969b9debbd62c5384296b289e9925e4e23e601d7b35d658f7"
 dependencies = [
  "aerospike-rt",
  "proc-macro2",
@@ -75,8 +69,6 @@ dependencies = [
 [[package]]
 name = "aerospike-rt"
 version = "2.0.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5181a45c1309fb837bcec4d73017d6839cfcf43c2f53684a89c9e9c73606905"
 dependencies = [
  "tokio",
 ]
@@ -12486,6 +12478,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

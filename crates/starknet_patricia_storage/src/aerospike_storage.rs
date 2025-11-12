@@ -22,6 +22,7 @@ use aerospike::{
     Value,
     WritePolicy,
 };
+use tracing::info;
 
 use crate::storage_trait::{
     AsyncStorage,
@@ -95,6 +96,7 @@ pub struct AerospikeStorage {
 
 impl AerospikeStorage {
     pub async fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
+        info!("AerospikeStorage::new: hosts: {:?}", config.hosts);
         let client = Arc::new(Client::new(&config.client_policy, &config.hosts).await?);
         Ok(Self { config, client })
     }

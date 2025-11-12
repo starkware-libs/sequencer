@@ -116,7 +116,7 @@ pub struct GlobalArgs {
     pub n_iterations: usize,
 
     /// Benchmark flavor determines the size and structure of the generated state diffs.
-    #[clap(long, default_value = "1k-diff")]
+    #[clap(long, default_value = "constant")]
     pub flavor: BenchmarkFlavor,
 
     /// Number of updates per iteration, where applicable. Different flavors treat this value
@@ -307,7 +307,7 @@ pub struct AerospikeArgs {
     pub interference_args: InterferenceArgs,
 
     /// Aerospike aeroset.
-    #[clap(long)]
+    #[clap(long, default_value = "fact_storage")]
     pub aeroset: String,
 
     /// Aerospike port to use for hosts that do not specify a port.
@@ -315,7 +315,7 @@ pub struct AerospikeArgs {
     pub port: u16,
 
     /// Aerospike namespace.
-    #[clap(long)]
+    #[clap(long, default_value = "starkware")]
     pub namespace: String,
 
     /// Aerospike hosts. A host string is of the form "host" or "host:port"; if no port is provided
