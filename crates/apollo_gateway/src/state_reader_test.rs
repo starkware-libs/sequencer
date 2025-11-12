@@ -103,7 +103,7 @@ async fn test_get_block_info() {
         block_number,
         tokio::runtime::Handle::current(),
     );
-    let result = state_reader_and_contract_manager.get_block_info().unwrap();
+    let result = state_reader_and_contract_manager.get_block_info().await.unwrap();
 
     assert_eq!(
         result,
