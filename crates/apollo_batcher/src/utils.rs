@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{BatcherResult, ProposalStatus};
 use apollo_batcher_types::errors::BatcherError;
+use apollo_config::secrets::Sensitive;
 use blockifier::abi::constants;
 use chrono::Utc;
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use tracing::info;
+use url::Url;
 
 use crate::block_builder::BlockBuilderError;
 
@@ -79,4 +81,10 @@ pub(crate) fn proposal_status_from(
             Err(BatcherError::InternalError)
         }
     }
+}
+
+// Appends a route to a sensitive url.
+pub(crate) fn append_route_to_sensitive_url(sensitive_url: &mut Sensitive<Url>, suffix: &str) {
+    sensitive_url
+        .modify_in_place(|url: &mut Url| *url = url.join(suffix).expect("Failed to construct URL"));
 }
