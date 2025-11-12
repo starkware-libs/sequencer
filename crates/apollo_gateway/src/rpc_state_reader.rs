@@ -100,15 +100,20 @@ impl RpcStateReader {
     }
 }
 
+#[async_trait]
 impl MempoolStateReader for RpcStateReader {
-    fn get_block_info(&self) -> StateResult<BlockInfo> {
+    async fn get_block_info(&self) -> StateResult<BlockInfo> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.block_id };
+        let reader = self.clone();
 
-        // The response from the rpc is a full block but we only deserialize the header.
-        let block_header: BlockHeader = serde_json::from_value(
-            self.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?,
-        )
-        .map_err(serde_err_to_state_err)?;
+        let get_block_with_tx_hashes_result = tokio::task::spawn_blocking(move || {
+            reader.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)
+        })
+        .await
+        .map_err(|e| StateError::StateReadError(format!("JoinError: {e}")))??;
+
+        let block_header: BlockHeader =
+            serde_json::from_value(get_block_with_tx_hashes_result).map_err(serde_err_to_state_err)?;
         let block_info = block_header.try_into()?;
         Ok(block_info)
     }
