@@ -80,7 +80,7 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     e,
                 )
             })?;
-        let latest_block_info = get_latest_block_info(&state_reader)?;
+        let latest_block_info = runtime.block_on(get_latest_block_info(&state_reader))?;
 
         let state_reader_and_contract_manager = StateReaderAndContractManager {
             state_reader,
@@ -349,10 +349,11 @@ fn skip_stateful_validations(
     Ok(false)
 }
 
-pub fn get_latest_block_info(
+pub async fn get_latest_block_info(
     state_reader: &dyn MempoolStateReader,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    tokio::runtime::Handle::current()
-        .block_on(state_reader.get_block_info())
+    state_reader
+        .get_block_info()
+        .await
         .map_err(|e| StarknetError::internal_with_logging("Failed to get latest block info", e))
 }
