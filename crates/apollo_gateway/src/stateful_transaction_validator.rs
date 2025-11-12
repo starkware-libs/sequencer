@@ -56,6 +56,16 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
         &self,
         state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
+
+    async fn get_state_reader_for_validation(
+        &self,
+        state_reader_factory: Arc<dyn StateReaderFactory>,
+    ) -> StatefulTransactionValidatorResult<Box<dyn GatewayStateReaderWithCompiledClasses>>;
+
+    async fn create_validator_from_state_reader(
+        &self,
+        state_reader: Box<dyn GatewayStateReaderWithCompiledClasses>,
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
 }
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
@@ -70,9 +80,16 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         &self,
         state_reader_factory: Arc<dyn StateReaderFactory>,
     ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
-        // TODO(yael 6/5/2024): consider storing the block_info as part of the
-        // StatefulTransactionValidator and update it only once a new block is created.
-        let state_reader = state_reader_factory
+        // Compose the split API to preserve original behavior.
+        let state_reader = self.get_state_reader_for_validation(state_reader_factory).await?;
+        self.create_validator_from_state_reader(state_reader).await
+    }
+
+    async fn get_state_reader_for_validation(
+        &self,
+        state_reader_factory: Arc<dyn StateReaderFactory>,
+    ) -> StatefulTransactionValidatorResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
+        state_reader_factory
             .get_state_reader_from_latest_block()
             .await
             .map_err(|err| GatewaySpecError::UnexpectedError {
@@ -83,8 +100,16 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
                     "Failed to get state reader from latest block",
                     e,
                 )
-            })?;
-        let latest_block_info = get_latest_block_info(&state_reader).await?;
+            })
+    }
+
+    async fn create_validator_from_state_reader(
+        &self,
+        state_reader: Box<dyn GatewayStateReaderWithCompiledClasses>,
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
+        // TODO(yael 6/5/2024): consider storing the block_info as part of the
+        // StatefulTransactionValidator and update it only once a new block is created.
+        let latest_block_info = get_latest_block_info(state_reader.as_ref()).await?;
 
         let state_reader_and_contract_manager = StateReaderAndContractManager {
             state_reader,
@@ -335,6 +360,8 @@ fn skip_stateful_validations(
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
+            // TODO(Itamar): Avoid blocking here by moving this mempool existence check to the async
+            // path prior to spawning the blocking task, and pass the result into validation.
             return runtime
                 .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
                 .map_err(|err| mempool_client_err_to_deprecated_gw_err(&tx.signature(), err))
