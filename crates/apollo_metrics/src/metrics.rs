@@ -19,7 +19,7 @@ use num_traits::Num;
 #[cfg(any(feature = "testing", test))]
 use regex::{escape, Regex};
 
-use crate::metric_label_filter;
+use crate::metric_definitions::METRIC_LABEL_FILTER;
 
 #[cfg(test)]
 #[path = "metrics_test.rs"]
@@ -76,7 +76,7 @@ impl MetricCommon for Metric {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.name, metric_label_filter!())
+        format!("{}{METRIC_LABEL_FILTER}", self.name)
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -136,7 +136,7 @@ impl MetricCommon for MetricCounter {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.metric.get_name(), metric_label_filter!())
+        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -204,7 +204,7 @@ impl MetricCommon for LabeledMetricCounter {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.metric.get_name(), metric_label_filter!())
+        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -270,7 +270,7 @@ impl MetricCommon for MetricGauge {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.metric.get_name(), metric_label_filter!())
+        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -368,7 +368,7 @@ impl MetricCommon for LabeledMetricGauge {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}{}", self.metric.get_name(), metric_label_filter!())
+        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -404,11 +404,11 @@ impl MetricHistogram {
     }
 
     pub fn get_name_sum_with_filter(&self) -> String {
-        format!("{}_sum{}", self.get_name(), metric_label_filter!())
+        format!("{}_sum{METRIC_LABEL_FILTER}", self.get_name())
     }
 
     pub fn get_name_count_with_filter(&self) -> String {
-        format!("{}_count{}", self.get_name(), metric_label_filter!())
+        format!("{}_count{METRIC_LABEL_FILTER}", self.get_name())
     }
 
     pub fn register(&self) {
@@ -447,7 +447,7 @@ impl MetricCommon for MetricHistogram {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}_bucket{}", self.metric.get_name(), metric_label_filter!())
+        format!("{}_bucket{METRIC_LABEL_FILTER}", self.metric.get_name())
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -540,7 +540,7 @@ impl MetricCommon for LabeledMetricHistogram {
     }
 
     fn get_name_with_filter(&self) -> String {
-        format!("{}_bucket{}", self.metric.get_name(), metric_label_filter!())
+        format!("{}_bucket{METRIC_LABEL_FILTER}", self.metric.get_name())
     }
 
     fn get_scope(&self) -> MetricScope {
