@@ -98,13 +98,13 @@ impl MdbxStorage {
 impl Storage for MdbxStorage {
     type Stats = MdbxStorageStats;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         Ok(txn.get(&table, &key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
         txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
@@ -112,7 +112,7 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         let mut res = Vec::with_capacity(keys.len());
@@ -122,7 +122,7 @@ impl Storage for MdbxStorage {
         Ok(res)
     }
 
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
         for (key, value) in key_to_value {
@@ -132,7 +132,7 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
         txn.del(&table, &key.0, None)?;

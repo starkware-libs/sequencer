@@ -23,7 +23,7 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block<S: Storage>(
+pub async fn commit_block<S: Storage + Send + Sync>(
     input: Input<ConfigImpl>,
     storage: &mut S,
     mut time_measurement: Option<&mut TimeMeasurement>,
@@ -52,7 +52,8 @@ pub async fn commit_block<S: Storage>(
         &actual_classes_updates,
         &forest_sorted_indices,
         &input.config,
-    )?;
+    )
+    .await?;
     if let Some(ref mut tm) = time_measurement {
         let n_read_facts =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();

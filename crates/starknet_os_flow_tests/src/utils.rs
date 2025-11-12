@@ -149,7 +149,7 @@ pub(crate) async fn commit_state_diff(
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
-    filled_forest.write_to_storage(commitments);
+    filled_forest.write_to_storage(commitments).await;
     StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
@@ -218,7 +218,7 @@ pub(crate) struct CommitmentInfos {
 }
 
 /// Creates the commitment infos and the cached state input for the OS.
-pub(crate) fn create_cached_state_input_and_commitment_infos(
+pub(crate) async fn create_cached_state_input_and_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
@@ -230,7 +230,8 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
         previous_state_roots.contracts_trie_root_hash,
         new_state_roots.contracts_trie_root_hash,
         commitments,
-    );
+    )
+    .await;
     let mut address_to_previous_class_hash = HashMap::new();
     let mut address_to_previous_nonce = HashMap::new();
     let mut address_to_previous_storage_root_hash = HashMap::new();
@@ -256,6 +257,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             previous_state_roots.classes_trie_root_hash,
             sorted_class_leaf_indices,
         )
+        .await
         .unwrap();
     let class_hash_to_compiled_class_hash = previous_class_leaves
         .into_iter()
@@ -283,6 +285,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
                 address_to_previous_storage_root_hash[&address],
                 sorted_leaf_indices,
             )
+            .await
             .unwrap();
         let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
             .into_iter()
@@ -302,7 +305,8 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
             previous_root_hash: previous_state_roots.contracts_trie_root_hash,
             new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
-    );
+    )
+    .await;
     let contracts_trie_commitment_info = CommitmentInfo {
         previous_root: previous_state_roots.contracts_trie_root_hash,
         updated_root: new_state_roots.contracts_trie_root_hash,
@@ -354,7 +358,9 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     )
 }
 
-pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = ContractAddress>>(
+pub(crate) async fn get_previous_states_and_new_storage_roots<
+    I: Iterator<Item = ContractAddress>,
+>(
     contract_addresses: I,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
@@ -371,6 +377,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
         previous_contract_trie_root,
         sorted_contract_leaf_indices,
     )
+    .await
     .unwrap();
     let new_contract_states: HashMap<NodeIndex, ContractState> =
         OriginalSkeletonTreeImpl::get_leaves(
@@ -378,6 +385,7 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
             new_contract_trie_root,
             sorted_contract_leaf_indices,
         )
+        .await
         .unwrap();
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
         .into_iter()
@@ -447,7 +455,7 @@ pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContra
     }
 }
 
-fn fetch_storage_proofs_from_state_maps(
+async fn fetch_storage_proofs_from_state_maps(
     state_maps: &StateMaps,
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
@@ -477,6 +485,7 @@ fn fetch_storage_proofs_from_state_maps(
         contract_addresses,
         &contract_storage_keys,
     )
+    .await
     .unwrap()
 }
 

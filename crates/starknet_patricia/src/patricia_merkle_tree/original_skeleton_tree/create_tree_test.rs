@@ -195,7 +195,8 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     ),
     SubTreeHeight::new(4),
 )]
-fn test_create_tree(
+#[tokio::test]
+async fn test_create_tree(
     #[case] mut storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
@@ -217,6 +218,7 @@ fn test_create_tree(
         &config,
         &leaf_modifications,
     )
+    .await
     .unwrap();
     assert_eq!(&skeleton_tree.nodes, &expected_skeleton_nodes);
 }

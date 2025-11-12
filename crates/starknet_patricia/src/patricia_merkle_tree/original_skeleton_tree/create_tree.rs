@@ -33,7 +33,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
     /// unmodified nodes. If `compare_modified_leaves` is set, function logs out a warning when
     /// encountering a trivial modification. Fills the previous leaf values if it is not none.
-    fn fetch_nodes<L: Leaf>(
+    async fn fetch_nodes<L: Leaf>(
         &mut self,
         subtrees: Vec<SubTree<'a>>,
         storage: &mut impl Storage,
@@ -46,7 +46,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         while !current_subtrees.is_empty() {
             let should_fetch_modified_leaves =
                 config.compare_modified_leaves() || previous_leaves.is_some();
-            let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage)?;
+            let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage).await?;
             for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
                 match filled_root.data {
                     // Binary node.
@@ -136,7 +136,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         Ok(())
     }
 
-    pub(crate) fn create_impl<L: Leaf>(
+    pub(crate) async fn create_impl<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -156,17 +156,13 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         }
         let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
         let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
-        skeleton_tree.fetch_nodes::<L>(
-            vec![main_subtree],
-            storage,
-            leaf_modifications,
-            config,
-            None,
-        )?;
+        skeleton_tree
+            .fetch_nodes::<L>(vec![main_subtree], storage, leaf_modifications, config, None)
+            .await?;
         Ok(skeleton_tree)
     }
 
-    pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
+    pub(crate) async fn create_and_get_previous_leaves_impl<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -186,13 +182,15 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
         let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
         let mut leaves = HashMap::new();
-        skeleton_tree.fetch_nodes::<L>(
-            vec![main_subtree],
-            storage,
-            leaf_modifications,
-            config,
-            Some(&mut leaves),
-        )?;
+        skeleton_tree
+            .fetch_nodes::<L>(
+                vec![main_subtree],
+                storage,
+                leaf_modifications,
+                config,
+                Some(&mut leaves),
+            )
+            .await?;
         Ok((skeleton_tree, leaves))
     }
 

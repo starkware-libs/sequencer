@@ -91,13 +91,13 @@ impl AerospikeStorage {
 impl Storage for AerospikeStorage {
     type Stats = NoStats;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record =
             self.client.get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)?;
         self.extract_value(&record)
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         Ok(self.client.put(
             &self.config.write_policy,
             &self.get_key(key)?,
@@ -105,7 +105,7 @@ impl Storage for AerospikeStorage {
         )?)
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut ops = Vec::new();
         for key in keys.iter() {
             ops.push(BatchOperation::read(
@@ -129,7 +129,7 @@ impl Storage for AerospikeStorage {
             .collect::<Result<_, _>>()
     }
 
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let keys_and_bins: Vec<(DbKey, Bin)> = key_to_value
             .into_iter()
             .map(|(key, value)| (key, as_bin!(&self.config.bin_name, value.0)))
@@ -146,7 +146,7 @@ impl Storage for AerospikeStorage {
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?)?;
         Ok(())
     }
