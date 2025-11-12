@@ -15,7 +15,7 @@ use starknet_types_core::felt::{Felt, NonZeroFelt};
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 
 use crate::crypto::utils::PublicKey;
-use crate::hash::{PoseidonHash, StarkHash};
+use crate::hash::{HashOutput, PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError};
@@ -335,6 +335,10 @@ pub struct EntryPointSelector(pub StarkHash);
     derive_more::Display,
 )]
 pub struct GlobalRoot(pub StarkHash);
+
+impl GlobalRoot {
+    pub const ROOT_OF_EMPTY_STATE: GlobalRoot = GlobalRoot(HashOutput::ROOT_OF_EMPTY_TREE.0);
+}
 
 // Hex of 'STARKNET_STATE_V0'.
 pub const GLOBAL_STATE_VERSION: Felt =
