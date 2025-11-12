@@ -77,7 +77,7 @@ jobs:
         run: scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run python code style pull request"
         if: github.event_name == 'pull_request'
-        run: scripts/py_code_style.py
+        run: scripts/py_code_style.py --commit_id ${{ github.event.pull_request.base.sha }}
 
       # Run code style on push.
       - name: "Run rustfmt"
