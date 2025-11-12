@@ -1518,22 +1518,16 @@ async fn test_new_class_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_multi
 
     // Validate poseidon usage.
     // TODO(Meshi): Add blake opcode validations.
-    let poseidons = test_output
-        .runner_output
-        .metrics
-        .execution_resources
-        .builtin_instance_counter
-        .get(&BuiltinName::poseidon)
-        .unwrap();
+    let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
             679
         "#]]
-        .assert_debug_eq(poseidons);
+        .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
             562
         "#]]
-        .assert_debug_eq(poseidons);
+        .assert_debug_eq(&poseidons);
     }
 }
