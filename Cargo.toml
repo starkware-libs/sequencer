@@ -119,7 +119,7 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-aerospike = "2.0.0-alpha.6"
+aerospike = { path = "../aerospike-client-rust" }
 alloy = "0.12"
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"

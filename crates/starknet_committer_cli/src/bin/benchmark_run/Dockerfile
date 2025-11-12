@@ -19,14 +19,13 @@ RUN chown -R committer_benchmark:committer_benchmark /usr/local/bin/starknet_com
 USER committer_benchmark
 
 # Run the storage benchmark command.
-ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
+ENTRYPOINT [ "starknet_committer_cli", "aerospike-test" ]
 
-CMD ["cached-aerospike", \
-    "--n-iterations", "1000000", \
+CMD ["--n-iterations", "1000000", \
     "--flavor", "constant", \
     "--n-updates", "1000", \
     "--checkpoint-interval", "1000", \
-    "--log-level", "info", \
+    "--log-level", "debug", \
     "--aeroset", "fact_storage", \
     "--namespace", "starkware", \
     "--host", "aerospike", \
