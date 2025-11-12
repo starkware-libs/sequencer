@@ -38,6 +38,8 @@ on:
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "200000000"
+  TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS: "1000000000"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -123,4 +125,10 @@ jobs:
           clean: false
 
       # Benchmark the current branch and compare to the previous run.
-      - run: cargo run -p bench_tools -- run-and-compare --package blockifier --out /tmp/new_results --regression-limit 8.0
+      - run: |
+          cargo run -p bench_tools -- run-and-compare \
+            --package blockifier \
+            --out /tmp/new_results \
+            --regression-limit 8.0 \
+            --set-absolute-time-ns-limit transfers_benchmark_cairo_native ${TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS} \
+            --set-absolute-time-ns-limit transfers_benchmark_vm ${TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS}
