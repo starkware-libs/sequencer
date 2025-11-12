@@ -328,7 +328,7 @@ impl Panel {
 
     pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
-            metric.get_name(),
+            metric_name_to_panel_title(metric.get_name()),
             metric.get_description(),
             metric.get_name_with_filter().to_string(),
             panel_type,
@@ -337,7 +337,7 @@ impl Panel {
 
     pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
-            metric.get_name(),
+            metric_name_to_panel_title(metric.get_name()),
             metric.get_description(),
             metric.get_name_with_filter().to_string(),
             panel_type,
@@ -351,7 +351,7 @@ impl Panel {
         sum_by: impl AsRef<str>,
     ) -> Self {
         Self::new(
-            name.to_string(),
+            metric_name_to_panel_title(name.to_string()),
             description.to_string(),
             HISTOGRAM_QUANTILES
                 .iter()
@@ -395,6 +395,23 @@ impl Panel {
                 .collect(),
         )
     }
+}
+
+// Creates a panel title from a metric name by formatting it in Title Case.
+fn metric_name_to_panel_title(metric_name: impl ToString) -> String {
+    fn title_case(s: String) -> String {
+        s.split_whitespace()
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(c) => c.to_uppercase().chain(chars).collect::<String>(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+    title_case(metric_name.to_string().replace("_", " "))
 }
 
 #[allow(dead_code)] // TODO(Ron): use in panels
