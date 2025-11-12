@@ -2379,6 +2379,7 @@ dependencies = [
  "apollo_infra_utils",
  "blockifier",
  "cairo-vm",
+ "expect-test",
  "serde",
  "serde_json",
  "starknet-types-core",
