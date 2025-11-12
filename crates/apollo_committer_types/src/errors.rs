@@ -13,7 +13,7 @@ pub type CommitterResult<T> = Result<T, CommitterError>;
 #[derive(Clone, Debug, Error)]
 pub enum CommitterClientError {
     #[error(transparent)]
-    Client(#[from] ClientError),
+    ClientError(#[from] ClientError),
     #[error(transparent)]
     Committer(#[from] CommitterError),
 }
