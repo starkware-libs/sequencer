@@ -52,6 +52,11 @@ class ConfigMapConstruct(BaseConstruct):
                 node_config, merged_sequencer_config, service_name=self.service_config.name
             )
 
+        # Validate no remaining placeholders after all overrides are applied
+        NodeConfigLoader.validate_no_remaining_placeholders(
+            node_config, service_name=self.service_config.name
+        )
+
         config_data = json.dumps(node_config, indent=2)
 
         return k8s.KubeConfigMap(

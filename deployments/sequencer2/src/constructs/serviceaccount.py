@@ -29,9 +29,9 @@ class ServiceAccountConstruct(BaseConstruct):
 
         # Add automount service account token if specified
         if self.service_config.serviceAccount.automountServiceAccountToken is not None:
-            spec["automount_service_account_token"] = (
-                self.service_config.serviceAccount.automountServiceAccountToken
-            )
+            spec[
+                "automount_service_account_token"
+            ] = self.service_config.serviceAccount.automountServiceAccountToken
 
         # Add image pull secrets if specified
         if self.service_config.serviceAccount.imagePullSecrets:

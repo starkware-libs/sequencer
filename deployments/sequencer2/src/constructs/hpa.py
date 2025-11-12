@@ -6,14 +6,16 @@ class HpaConstruct(BaseConstruct):
     def __init__(
         self,
         scope,
-        id: str,service_config,
+        id: str,
+        service_config,
         labels,
         monitoring_endpoint_port,
         controller,
     ):
         super().__init__(
             scope,
-            id,service_config,
+            id,
+            service_config,
             labels,
             monitoring_endpoint_port,
         )

@@ -11,7 +11,9 @@ config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_http_server.json
   # mountPath: "/config/sequencer/presets"  # Override default mount path
 
-  sequencerConfig: {}
+  sequencerConfig:
+    components_gateway_port: 55002
+    components_gateway_url: "sequencer-gateway-service"
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
@@ -62,14 +64,6 @@ service:
     - name: http-server
       port: 8080
       targetPort: 8080
-      protocol: TCP
-    - name: consensus-p2p
-      port: 9000
-      targetPort: 8080
-      protocol: TCP
-    - name: monitoring
-      port: 8082
-      targetPort: 8082
       protocol: TCP
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels

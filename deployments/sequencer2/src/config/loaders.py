@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-
 from src.config.schema import CommonConfig, ServiceConfig
 
 
@@ -404,6 +403,56 @@ class NodeConfigLoader(Config):
 
         # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))
+
+    @staticmethod
+    def _find_all_placeholders(obj: Any) -> set[str]:
+        """Recursively find all placeholder values ($$$_..._$$$) in the config object.
+
+        Args:
+            obj: The object to search (dict, list, or primitive)
+
+        Returns:
+            Set of all placeholder values found (e.g., {'$$$_CHAIN_ID_$$$', '$$$_STARKNET_URL_$$$'})
+        """
+        placeholders: set[str] = set()
+
+        if isinstance(obj, dict):
+            for value in obj.values():
+                placeholders.update(NodeConfigLoader._find_all_placeholders(value))
+        elif isinstance(obj, list):
+            for item in obj:
+                placeholders.update(NodeConfigLoader._find_all_placeholders(item))
+        elif isinstance(obj, str) and obj.startswith("$$$_") and obj.endswith("_$$$"):
+            placeholders.add(obj)
+        elif isinstance(obj, (int, float)):
+            str_repr = str(obj)
+            if str_repr.startswith("$$$_") and str_repr.endswith("_$$$"):
+                placeholders.add(str_repr)
+
+        return placeholders
+
+    @staticmethod
+    def validate_no_remaining_placeholders(config: dict, service_name: str = "unknown") -> None:
+        """Validate that no placeholder values remain in the final config.
+
+        Args:
+            config: The final config dictionary after all overrides are applied
+            service_name: Name of the service being validated (for error messages)
+
+        Raises:
+            ValueError: If any placeholder values ($$$_..._$$$) are found in the config
+        """
+        remaining_placeholders = NodeConfigLoader._find_all_placeholders(config)
+
+        if remaining_placeholders:
+            sorted_placeholders = sorted(remaining_placeholders)
+            error_message = f"Unhandled config placeholders found in service '{service_name}':\n"
+            for placeholder in sorted_placeholders:
+                error_message += f"  - {placeholder}\n"
+            error_message += (
+                "Please add these placeholders to sequencerConfig in your YAML configuration."
+            )
+            raise ValueError(error_message)
 
 
 class GrafanaDashboardConfigLoader(Config):

@@ -6,9 +6,9 @@ it's not present in the layout. This makes overlays flexible while still validat
 against the schema to prevent invalid keys.
 """
 
-from copy import deepcopy
 from typing import Any, Dict, Optional, Union, get_origin
 
+from copy import deepcopy
 from src.config.schema import ServiceConfig
 
 # Type aliases for dictionary fields that allow arbitrary keys
@@ -401,9 +401,7 @@ def apply_services_overlay_strict(
     # Validate that overlay doesn't introduce new services
     for svc_name in overlay_map:
         if svc_name not in layout_map:
-            raise ValueError(
-                f"❌ Overlay tried to introduce new service '{svc_name}' not in layout"
-            )
+            raise ValueError(f"❌ Overlay tried to introduce new service '{svc_name}' not in layout")
 
     # Merge services
     for svc_name, svc in layout_map.items():

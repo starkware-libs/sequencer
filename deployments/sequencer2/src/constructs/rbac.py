@@ -6,13 +6,15 @@ class RbacConstruct(BaseConstruct):
     def __init__(
         self,
         scope,
-        id: str,service_config,
+        id: str,
+        service_config,
         labels,
         monitoring_endpoint_port,
     ):
         super().__init__(
             scope,
-            id,service_config,
+            id,
+            service_config,
             labels,
             monitoring_endpoint_port,
         )
@@ -217,7 +219,6 @@ class RbacConstruct(BaseConstruct):
                 if self.service_config.serviceAccount and self.service_config.serviceAccount.name
                 else f"sequencer-{self.service_config.name}-sa"
             )
-            from cdk8s import Chart
 
             chart = self._find_chart_parent()
             namespace = chart.namespace if chart and hasattr(chart, "namespace") else None
@@ -264,8 +265,6 @@ class RbacConstruct(BaseConstruct):
             elif subject.get("kind") == "ServiceAccount" or "kind" not in subject:
                 # Default to chart namespace for ServiceAccount
                 # Get namespace from the Chart scope
-                from cdk8s import Chart
-
                 chart = self._find_chart_parent()
                 if chart and hasattr(chart, "namespace"):
                     subject_kwargs["namespace"] = chart.namespace

@@ -7,13 +7,15 @@ class StatefulSetConstruct(BaseConstruct):
     def __init__(
         self,
         scope,
-        id: str,service_config,
+        id: str,
+        service_config,
         labels,
         monitoring_endpoint_port,
     ):
         super().__init__(
             scope,
-            id,service_config,
+            id,
+            service_config,
             labels,
             monitoring_endpoint_port,
         )
@@ -31,7 +33,6 @@ class StatefulSetConstruct(BaseConstruct):
         strategy_type = update_strategy_config.type if update_strategy_config else "RollingUpdate"
 
         # Build rollingUpdate object if provided
-        rolling_update = None
         if (
             strategy_type == "RollingUpdate"
             and update_strategy_config
@@ -51,7 +52,6 @@ class StatefulSetConstruct(BaseConstruct):
             # If we have rolling update params, we need to construct it
             # For now, skip rolling update if cdk8s doesn't support it directly
             # The type will still be RollingUpdate which is the main requirement
-            pass
 
         return k8s.StatefulSetUpdateStrategy(type=strategy_type)
 

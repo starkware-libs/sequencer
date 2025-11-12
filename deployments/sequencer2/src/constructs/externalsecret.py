@@ -1,5 +1,4 @@
 from cdk8s import ApiObjectMetadata
-
 from imports.io.external_secrets import ExternalSecretV1Beta1 as ExternalSecret
 from imports.io.external_secrets import ExternalSecretV1Beta1Spec as ExternalSecretSpec
 from imports.io.external_secrets import ExternalSecretV1Beta1SpecData as ExternalSecretSpecData

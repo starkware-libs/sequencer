@@ -1,5 +1,4 @@
 from cdk8s import ApiObjectMetadata
-
 from imports.com.google.cloud import (
     BackendConfig,
     BackendConfigSpec,

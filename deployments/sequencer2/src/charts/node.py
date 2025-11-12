@@ -2,7 +2,6 @@ import json
 
 from cdk8s import Chart, Names
 from constructs import Construct
-
 from src.config.schema import ServiceConfig
 from src.constructs.backendconfig import BackendConfigConstruct
 from src.constructs.configmap import ConfigMapConstruct
