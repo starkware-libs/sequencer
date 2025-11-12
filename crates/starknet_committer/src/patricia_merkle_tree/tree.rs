@@ -44,8 +44,8 @@ impl OriginalSkeletonContractsTrieConfig {
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
-fn fetch_all_patricia_paths(
-    storage: &mut impl Storage,
+async fn fetch_all_patricia_paths(
+    storage: &mut (impl Storage + Send + Sync),
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -75,7 +75,8 @@ fn fetch_all_patricia_paths(
         classes_trie_root_hash,
         class_sorted_leaf_indices,
         leaves,
-    )?;
+    )
+    .await?;
 
     // Contracts trie - the leaves are required.
     let mut leaves = HashMap::new();
@@ -84,7 +85,8 @@ fn fetch_all_patricia_paths(
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
         Some(&mut leaves),
-    )?;
+    )
+    .await?;
 
     // Contracts storage tries.
     let mut contracts_trie_storage_proofs =
@@ -102,7 +104,8 @@ fn fetch_all_patricia_paths(
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
-        )?;
+        )
+        .await?;
         contracts_trie_storage_proofs.insert(
             try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
                 panic!(
@@ -143,8 +146,8 @@ fn fetch_all_patricia_paths(
 /// Fetch the Patricia paths (inner nodes) in the classes trie, contracts trie,
 /// and contracts storage tries for both the previous and new root hashes.
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
-pub fn fetch_previous_and_new_patricia_paths(
-    storage: &mut impl Storage,
+pub async fn fetch_previous_and_new_patricia_paths(
+    storage: &mut (impl Storage + Send + Sync),
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
     class_hashes: &[ClassHash],
@@ -180,7 +183,8 @@ pub fn fetch_previous_and_new_patricia_paths(
         class_sorted_leaf_indices,
         contract_sorted_leaf_indices,
         contract_storage_sorted_leaf_indices,
-    )?;
+    )
+    .await?;
     let new_proofs = fetch_all_patricia_paths(
         storage,
         classes_trie_root_hashes.new_root_hash,
@@ -188,7 +192,8 @@ pub fn fetch_previous_and_new_patricia_paths(
         class_sorted_leaf_indices,
         contract_sorted_leaf_indices,
         contract_storage_sorted_leaf_indices,
-    )?;
+    )
+    .await?;
 
     let mut proofs = prev_proofs;
     proofs.extend(new_proofs);

@@ -112,7 +112,7 @@ impl BenchmarkFlavor {
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-pub async fn run_storage_benchmark<S: Storage>(
+pub async fn run_storage_benchmark<S: Storage + Send + Sync>(
     seed: u64,
     n_iterations: usize,
     flavor: BenchmarkFlavor,
@@ -148,7 +148,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage);
+        let n_new_facts = filled_forest.write_to_storage(&mut storage).await;
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 

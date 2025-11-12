@@ -187,7 +187,7 @@ macro_rules! generate_short_key_benchmark {
 
 /// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
 /// Different invocations of this function are used with different concrete storage types.
-async fn run_storage_benchmark_wrapper<S: Storage>(
+async fn run_storage_benchmark_wrapper<S: Storage + Send + Sync>(
     StorageArgs {
         seed,
         n_iterations,

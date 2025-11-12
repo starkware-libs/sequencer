@@ -38,36 +38,36 @@ macro_rules! define_short_key_storage {
             }
         }
 
-        impl<S: Storage> Storage for $name<S> {
+        impl<S: Storage + Send> Storage for $name<S> {
             type Stats = S::Stats;
 
-            fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-                self.storage.get(&Self::small_key(key))
+            async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+                self.storage.get(&Self::small_key(key)).await
             }
 
-            fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-                self.storage.set(Self::small_key(&key), value)
+            async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+                self.storage.set(Self::small_key(&key), value).await
             }
 
-            fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+            async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
                 let small_keys = keys
                     .iter()
                     .map(|key| Self::small_key(key))
                     .collect::<Vec<_>>();
-                self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice())
+                self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
             }
 
-            fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+            async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
                 self.storage.mset(
                     key_to_value
                         .into_iter()
                         .map(|(key, value)| (Self::small_key(&key), value))
                         .collect()
-                )
+                ).await
             }
 
-            fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-                self.storage.delete(&Self::small_key(key))
+            async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+                self.storage.delete(&Self::small_key(key)).await
             }
 
             fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
