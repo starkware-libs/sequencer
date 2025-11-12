@@ -142,17 +142,17 @@ impl RocksDbStorage {
 impl Storage for RocksDbStorage {
     type Stats = NoStats;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let cf = self.get_column_family(key);
         Ok(self.db.get_cf(&cf, &key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         let cf = self.get_column_family(&key);
         Ok(self.db.put_cf_opt(&cf, &key.0, &value.0, &self.write_options)?)
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let cfs_and_raw_keys = keys.iter().map(|k| (self.get_column_family(k), k.0.clone()));
         let res = self
             .db
@@ -163,7 +163,7 @@ impl Storage for RocksDbStorage {
         Ok(res)
     }
 
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let mut batch = WriteBatch::default();
         for key in key_to_value.keys() {
             let cf = self.get_column_family(key);
@@ -172,7 +172,7 @@ impl Storage for RocksDbStorage {
         Ok(self.db.write_opt(&batch, &self.write_options)?)
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         let cf = self.get_column_family(key);
         Ok(self.db.delete_cf_opt(&cf, &key.0, &self.write_options)?)
     }
