@@ -83,8 +83,7 @@ impl Gateway {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
                 contract_class_manager: ContractClassManager::start(
-                    // TODO(Arni): add this config to the GatewayConfig and use it here.
-                    ContractClassManagerConfig::default(),
+                    config.contract_class_manager_config.clone(),
                 ),
             }),
             state_reader_factory,
