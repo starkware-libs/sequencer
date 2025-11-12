@@ -49,6 +49,7 @@ fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
         .collect()
 }
 
+#[tokio::test]
 #[rstest]
 // Some cases uses addition hash and others (generated in python) use pedersen hash.
 // For convenience, the leaves values are their NodeIndices.
@@ -441,7 +442,7 @@ fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
         })),
     ]),
 )]
-fn test_fetch_patricia_paths_inner(
+async fn test_fetch_patricia_paths_inner(
     #[case] storage: MapStorage,
     #[case] root_hash: HashOutput,
     #[case] leaf_indices: Vec<u128>,
@@ -479,6 +480,7 @@ fn test_fetch_patricia_paths_inner(
         &mut nodes,
         Some(&mut fetched_leaves),
     )
+    .await
     .unwrap();
 
     assert_eq!(nodes, expected_nodes);
@@ -495,6 +497,7 @@ struct TestPatriciaPathsInput {
     expected_nodes: HashMap<Felt, Vec<Felt>>,
 }
 
+#[tokio::test]
 #[rstest]
 /// Test cases generated using Python `PatriciaTree.update()`.
 /// The files names indicate the tree height, number of initial leaves and number of modified
@@ -504,7 +507,7 @@ struct TestPatriciaPathsInput {
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
+async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
@@ -550,5 +553,6 @@ fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         leaf_indices,
         SubTreeHeight::new(input.height),
         expected_nodes,
-    );
+    )
+    .await;
 }
