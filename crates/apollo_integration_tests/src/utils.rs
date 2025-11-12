@@ -59,9 +59,9 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use blockifier::blockifier::config::WorkerPoolConfig;
 #[cfg(feature = "cairo_native")]
-use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use blockifier::blockifier::config::CairoNativeRunConfig;
+use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -635,10 +635,12 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         ..Default::default()
     };
+    let contract_class_manager_config = ContractClassManagerConfig::default();
 
     GatewayConfig {
         stateless_tx_validator_config,
         stateful_tx_validator_config,
+        contract_class_manager_config,
         chain_info,
         block_declare: false,
         authorized_declarer_accounts: None,

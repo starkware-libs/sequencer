@@ -1924,6 +1924,81 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "privacy": "Public",
+    "value": "All"
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.contract_cache_size": {
+    "description": "The size of the global contract cache.",
+    "privacy": "Public",
+    "value": 300
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 600
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size": {
+    "description": "Limitation of compiled Cairo Native file size (bytes).",
+    "privacy": "Public",
+    "value": 52428800
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 16106127360
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "gateway_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
