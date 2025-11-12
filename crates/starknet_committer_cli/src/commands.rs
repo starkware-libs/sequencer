@@ -19,26 +19,9 @@ use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-pub type InputImpl = Input<ConfigImpl>;
+use crate::args::{BenchmarkFlavor, ShortKeySizeArg, StorageArgs, StorageType};
 
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
-pub enum BenchmarkFlavor {
-    /// Constant 1000 state diffs per iteration.
-    #[value(alias("1k-diff"))]
-    Constant1KDiff,
-    /// Constant 4000 state diffs per iteration.
-    #[value(alias("4k-diff"))]
-    Constant4KDiff,
-    /// Periodic peaks of 1000 state diffs per iteration, with 200 diffs on non-peak iterations.
-    /// Peaks are 10 iterations every 500 iterations.
-    #[value(alias("peaks"))]
-    PeriodicPeaks,
-    /// Constant number of state diffs per iteration, with 20% new leaves per iteration. The other
-    /// 80% leaf updates are sampled randomly from recent leaf updates.
-    /// For the first blocks, behaves just like [Self::Constant1KDiff] ("warmup" phase).
-    #[value(alias("overlap-1k-diff"))]
-    Overlap1KDiff,
-}
+pub type InputImpl = Input<ConfigImpl>;
 
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
@@ -107,6 +90,116 @@ impl BenchmarkFlavor {
         };
         generate_random_state_diff(rng, n_updates, keys_override)
     }
+}
+
+/// Multiplexer to avoid dynamic dispatch.
+/// If the key_size is not None, wraps the storage in a key-shrinking storage before running the
+/// benchmark.
+macro_rules! generate_short_key_benchmark {
+    (
+        $key_size:expr,
+        $seed:expr,
+        $n_iterations:expr,
+        $flavor:expr,
+        $output_dir:expr,
+        $checkpoint_dir_arg:expr,
+        $storage:expr,
+        $checkpoint_interval:expr,
+        $( ($size:ident, $name:ident) ),+ $(,)?
+    ) => {
+        match $key_size {
+            None => {
+                run_storage_benchmark(
+                    $seed,
+                    $n_iterations,
+                    $flavor,
+                    &$output_dir,
+                    $checkpoint_dir_arg,
+                    $storage,
+                    $checkpoint_interval,
+                )
+                .await
+            }
+            $(
+                Some(ShortKeySizeArg::$size) => {
+                    let storage = starknet_patricia_storage::short_key_storage::$name::new($storage);
+                    run_storage_benchmark(
+                        $seed,
+                        $n_iterations,
+                        $flavor,
+                        &$output_dir,
+                        $checkpoint_dir_arg,
+                        storage,
+                        $checkpoint_interval,
+                    )
+                    .await
+                }
+            )+
+        }
+    }
+}
+
+/// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
+/// Different invocations of this function are used with different concrete storage types.
+pub async fn run_storage_benchmark_wrapper<S: Storage>(
+    StorageArgs {
+        seed,
+        n_iterations,
+        flavor,
+        storage_type,
+        checkpoint_interval,
+        data_path,
+        output_dir,
+        checkpoint_dir,
+        key_size,
+        ..
+    }: StorageArgs,
+    storage: S,
+) {
+    let output_dir = output_dir
+        .clone()
+        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
+    let checkpoint_dir = checkpoint_dir
+        .clone()
+        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}"));
+
+    let checkpoint_dir_arg = match storage_type {
+        StorageType::Mdbx
+        | StorageType::CachedMdbx
+        | StorageType::Rocksdb
+        | StorageType::CachedRocksdb
+        | StorageType::Aerospike
+        | StorageType::CachedAerospike => Some(checkpoint_dir.as_str()),
+        StorageType::MapStorage => None,
+    };
+
+    generate_short_key_benchmark!(
+        key_size,
+        seed,
+        n_iterations,
+        flavor,
+        output_dir,
+        checkpoint_dir_arg,
+        storage,
+        checkpoint_interval,
+        (U16, ShortKeyStorage16),
+        (U17, ShortKeyStorage17),
+        (U18, ShortKeyStorage18),
+        (U19, ShortKeyStorage19),
+        (U20, ShortKeyStorage20),
+        (U21, ShortKeyStorage21),
+        (U22, ShortKeyStorage22),
+        (U23, ShortKeyStorage23),
+        (U24, ShortKeyStorage24),
+        (U25, ShortKeyStorage25),
+        (U26, ShortKeyStorage26),
+        (U27, ShortKeyStorage27),
+        (U28, ShortKeyStorage28),
+        (U29, ShortKeyStorage29),
+        (U30, ShortKeyStorage30),
+        (U31, ShortKeyStorage31),
+        (U32, ShortKeyStorage32)
+    );
 }
 
 /// Runs the committer on n_iterations random generated blocks.
