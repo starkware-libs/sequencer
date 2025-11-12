@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use ethnum::U256;
 use serde::{Deserialize, Deserializer};
+use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::StarknetStorageValue;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::map_storage::MapStorage;

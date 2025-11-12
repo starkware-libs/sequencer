@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use ethnum::U256;
+use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::errors::{
     EdgePathError,
     PathToBottomError,

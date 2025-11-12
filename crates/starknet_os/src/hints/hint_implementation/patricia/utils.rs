@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use num_bigint::BigUint;
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     EdgeData,
     EdgePath,

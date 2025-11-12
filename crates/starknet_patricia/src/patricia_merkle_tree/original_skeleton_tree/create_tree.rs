@@ -2,10 +2,10 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::warn;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;

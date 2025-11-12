@@ -29,6 +29,7 @@ use starknet_api::core::{
 use starknet_api::declare_tx_args;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
+use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
@@ -53,7 +54,6 @@ use starknet_committer::patricia_merkle_tree::types::{
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};

@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use ethnum::U256;
 use serde_json::json;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
@@ -15,7 +16,6 @@ use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{

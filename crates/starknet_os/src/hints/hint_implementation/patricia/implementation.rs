@@ -13,7 +13,7 @@ use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     EdgeData,
     EdgePathLength,

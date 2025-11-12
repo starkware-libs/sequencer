@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::ContractAddress;
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTree,
