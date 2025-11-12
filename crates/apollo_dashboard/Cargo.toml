@@ -48,7 +48,7 @@ apollo_class_manager = { workspace = true, features = ["testing"] }
 apollo_compile_to_casm = { workspace = true, features = ["testing"] }
 apollo_consensus = { workspace = true, features = ["testing"] }
 apollo_consensus_manager = { workspace = true, features = ["testing"] }
-apollo_consensus_orchestrator = { workspace = true, features = ["testing"] }
+apollo_consensus_orchestrator.workspace = true
 apollo_gateway = { workspace = true, features = ["testing"] }
 apollo_http_server = { workspace = true, features = ["testing"] }
 apollo_infra = { workspace = true, features = ["testing"] }
