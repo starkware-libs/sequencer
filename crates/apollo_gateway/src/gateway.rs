@@ -250,9 +250,14 @@ pub fn create_gateway(
     class_manager_client: SharedClassManagerClient,
     runtime: tokio::runtime::Handle,
 ) -> Gateway {
+    // TODO(dan): Make this configurable.
+    const DEFAULT_CLASS_CACHE_SIZE: usize = 50;
+    let class_cache = starknet_api::class_cache::GlobalContractCache::new(DEFAULT_CLASS_CACHE_SIZE);
+
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
         shared_state_sync_client,
         class_manager_client: class_manager_client.clone(),
+        class_cache,
         runtime,
     });
     let transaction_converter =
