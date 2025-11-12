@@ -27,6 +27,7 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
     Transaction as StarknetApiTransaction,
 };
+use starknet_api::hash::HashOutput;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
@@ -51,7 +52,6 @@ use starknet_os::io::os_output_types::{
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
