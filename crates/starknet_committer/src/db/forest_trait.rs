@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
@@ -24,7 +25,9 @@ pub trait ForestReader<'a> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         // TODO(Yoav): Change to 'impl Config' or delete this trait
         config: ConfigImpl,
-    ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
+    ) -> impl Future<
+        Output = ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>,
+    > + Send;
 }
 
 pub struct FactsDb<S: Storage> {
@@ -44,7 +47,7 @@ impl<S: Storage> FactsDb<S> {
 }
 
 impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
-    fn read(
+    async fn read(
         &mut self,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
@@ -64,5 +67,6 @@ impl<'a, S: Storage> ForestReader<'a> for FactsDb<S> {
             forest_sorted_indices,
             &config,
         )
+        .await
     }
 }

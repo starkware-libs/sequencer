@@ -505,6 +505,7 @@ async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
         &config,
         &empty_map,
     )
+    .await
     .unwrap();
     let updated =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
