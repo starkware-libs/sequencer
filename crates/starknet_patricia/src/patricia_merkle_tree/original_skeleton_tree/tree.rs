@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::storage_trait::Storage;
@@ -20,25 +21,31 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 /// update. It also contains the hashes (for edge siblings - also the edge data) of the unmodified
 /// nodes on the Merkle paths from the updated leaves to the root.
 pub trait OriginalSkeletonTree<'a>: Sized {
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
     fn create<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
-        config: &impl OriginalSkeletonTreeConfig<L>,
+        config: &(impl OriginalSkeletonTreeConfig<L> + Sync),
         leaf_modifications: &LeafModifications<L>,
-    ) -> OriginalSkeletonTreeResult<Self>;
+    ) -> impl Future<Output = OriginalSkeletonTreeResult<Self>> + Send;
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap;
 
     fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
 
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
     fn create_and_get_previous_leaves<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
-        config: &impl OriginalSkeletonTreeConfig<L>,
+        config: &(impl OriginalSkeletonTreeConfig<L> + Sync),
         leaf_modifications: &LeafModifications<L>,
-    ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)>;
+    ) -> impl Future<Output = OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)>> + Send;
 
     #[allow(dead_code)]
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a>;
@@ -52,14 +59,14 @@ pub struct OriginalSkeletonTreeImpl<'a> {
 }
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
-    fn create<L: Leaf>(
+    async fn create<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
-        config: &impl OriginalSkeletonTreeConfig<L>,
+        config: &(impl OriginalSkeletonTreeConfig<L> + Sync),
         leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
-        Self::create_impl(storage, root_hash, sorted_leaf_indices, config, leaf_modifications)
+        Self::create_impl(storage, root_hash, sorted_leaf_indices, config, leaf_modifications).await
     }
 
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
@@ -70,11 +77,11 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
         &mut self.nodes
     }
 
-    fn create_and_get_previous_leaves<L: Leaf>(
+    async fn create_and_get_previous_leaves<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
-        config: &impl OriginalSkeletonTreeConfig<L>,
+        config: &(impl OriginalSkeletonTreeConfig<L> + Sync),
         leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         Self::create_and_get_previous_leaves_impl(
@@ -84,6 +91,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
             leaf_modifications,
             config,
         )
+        .await
     }
 
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a> {
@@ -92,7 +100,7 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
 }
 
 impl<'a> OriginalSkeletonTreeImpl<'a> {
-    pub fn get_leaves<L: Leaf>(
+    pub async fn get_leaves<L: Leaf>(
         storage: &mut impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
@@ -105,7 +113,8 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             sorted_leaf_indices,
             &leaf_modifications,
             &config,
-        )?;
+        )
+        .await?;
         Ok(previous_leaves)
     }
 }

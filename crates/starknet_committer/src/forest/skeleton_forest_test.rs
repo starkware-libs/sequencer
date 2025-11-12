@@ -291,7 +291,8 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         vec![6, 7, 0],
         vec![7, 6, 0],
 )]
-fn test_create_original_skeleton_forest(
+#[tokio::test]
+async fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
     #[case] mut storage: MapStorage,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
@@ -320,6 +321,7 @@ fn test_create_original_skeleton_forest(
         &forest_sorted_indices,
         &ConfigImpl::new(false, LevelFilter::DEBUG),
     )
+    .await
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()

@@ -616,7 +616,8 @@ fn create_previously_empty_leaf_indices<'a>(
         })),
     ]),
 )]
-fn test_fetch_patricia_paths_inner(
+#[tokio::test]
+async fn test_fetch_patricia_paths_inner(
     #[case] storage: MapStorage,
     #[case] root_hash: HashOutput,
     #[case] leaf_indices: Vec<u128>,
@@ -654,6 +655,7 @@ fn test_fetch_patricia_paths_inner(
         &mut nodes,
         Some(&mut fetched_leaves),
     )
+    .await
     .unwrap();
 
     assert_eq!(nodes, expected_nodes);
@@ -679,7 +681,8 @@ struct TestPatriciaPathsInput {
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
 #[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
+#[tokio::test]
+async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
@@ -725,5 +728,6 @@ fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         leaf_indices,
         SubTreeHeight::new(input.height),
         expected_nodes,
-    );
+    )
+    .await;
 }

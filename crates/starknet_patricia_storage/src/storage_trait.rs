@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::future::Future;
 
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
@@ -67,26 +68,54 @@ impl Display for NoStats {
     }
 }
 
-pub trait Storage {
+pub trait Storage: Send + Sync {
     type Stats: StorageStats;
 
     /// Returns value from storage, if it exists.
     /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
     /// for caching).
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn get(
+        &mut self,
+        key: &DbKey,
+    ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
 
     /// Sets value in storage. If key already exists, its value is overwritten.
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()>;
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn set(
+        &mut self,
+        key: DbKey,
+        value: DbValue,
+    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn mget(
+        &mut self,
+        keys: &[&DbKey],
+    ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn mset(
+        &mut self,
+        key_to_value: DbHashMap,
+    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
     /// Deletes a value from storage.
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()>;
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn delete(&mut self, key: &DbKey) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
     /// If implemented, returns the statistics of the storage.
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;

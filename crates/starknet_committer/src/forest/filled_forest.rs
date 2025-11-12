@@ -34,7 +34,7 @@ pub struct FilledForest {
 impl FilledForest {
     /// Writes the node serialization of the filled trees to storage. Returns the number of new
     /// objects written to storage.
-    pub fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
+    pub async fn write_to_storage(&self, storage: &mut impl Storage) -> usize {
         // Serialize all trees to one hash map.
         let new_db_objects: DbHashMap = self
             .storage_tries
@@ -48,6 +48,7 @@ impl FilledForest {
         let n_new_facts = new_db_objects.len();
         storage
             .mset(new_db_objects)
+            .await
             .unwrap_or_else(|_| panic!("Write of {n_new_facts} new facts to storage failed"));
         n_new_facts
     }

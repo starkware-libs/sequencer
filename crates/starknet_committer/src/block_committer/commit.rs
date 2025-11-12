@@ -52,7 +52,8 @@ pub async fn commit_block<S: Storage>(
         &actual_classes_updates,
         &forest_sorted_indices,
         &input.config,
-    )?;
+    )
+    .await?;
     if let Some(ref mut tm) = time_measurement {
         let n_read_facts =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
