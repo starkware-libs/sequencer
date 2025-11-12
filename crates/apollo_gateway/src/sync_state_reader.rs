@@ -23,7 +23,6 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
-use futures::executor::block_on;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -98,9 +97,13 @@ impl SyncStateReader {
     }
 }
 
+#[async_trait]
 impl MempoolStateReader for SyncStateReader {
-    fn get_block_info(&self) -> StateResult<BlockInfo> {
-        let block = block_on(self.state_sync_client.get_block(self.block_number))
+    async fn get_block_info(&self) -> StateResult<BlockInfo> {
+        let block = self
+            .state_sync_client
+            .get_block(self.block_number)
+            .await
             .map_err(|e| StateError::StateReadError(e.to_string()))?;
 
         let block_header = block.block_header_without_hash;
