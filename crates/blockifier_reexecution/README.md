@@ -17,6 +17,19 @@ Reexecution test where the data required for reexecuting the block, as well as t
 cargo run --bin blockifier_reexecution rpc-test -n <node_url> -b <block_number>
 ```
 
+- **Single transaction execution:**
+Executes a single transaction from a JSON file using RPC calls to fetch block context and state. The transaction data is read from a JSON file located in the `sample_transactions` directory (under `resources/sample_transactions/`). Unlike the RPC test, this command does not assert correctness - it only prints the execution result. This is useful for testing individual transactions without running a full block reexecution.
+
+To use this command, first add a JSON file containing the transaction data to the `resources/sample_transactions/` directory. Then specify only the filename (not the full path) when running the command:
+```
+cargo run --bin blockifier_reexecution execute-single-tx -n <node_url> -b <block_number> -t <transaction_filename>
+```
+
+For example, if you have a file `resources/sample_transactions/my_transaction.json`, you would run:
+```
+cargo run --bin blockifier_reexecution execute-single-tx -n <node_url> -b <block_number> -t my_transaction.json
+```
+
 - **RPC test with preparation for offline reexecution:**
 Same as the RPC test; can be executed on multiple blocks. If the block reexecution succeeds, the data required for offline reexecution is saved to a JSON file.
 ```
