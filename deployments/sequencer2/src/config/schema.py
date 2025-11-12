@@ -360,28 +360,28 @@ class NetworkPolicy(StrictBaseModel):
 
 class PriorityClass(StrictBaseModel):
     enabled: bool = False
-    existingPriorityClass: Optional[str] = (
-        None  # Use existing PriorityClass by name (skip creation)
-    )
+    existingPriorityClass: Optional[
+        str
+    ] = None  # Use existing PriorityClass by name (skip creation)
     name: Optional[str] = None
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
-    value: Optional[int] = (
-        None  # Priority value (higher = more important) - required when creating new PriorityClass
-    )
+    value: Optional[
+        int
+    ] = None  # Priority value (higher = more important) - required when creating new PriorityClass
     globalDefault: bool = False  # Whether this is the default PriorityClass
     description: Optional[str] = None  # Description of the PriorityClass
     preemptionPolicy: Optional[str] = None  # "Never" or "PreemptLowerPriority"
 
 
 class Config(StrictBaseModel):
-    configList: Optional[str] = (
-        None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
-    )
+    configList: Optional[
+        str
+    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
-    sequencerConfig: Optional[AnyDict] = (
-        None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
-    )
+    sequencerConfig: Optional[
+        AnyDict
+    ] = None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
 
 
 class ServiceConfig(StrictBaseModel):

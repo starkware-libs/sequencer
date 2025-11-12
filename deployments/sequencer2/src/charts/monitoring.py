@@ -2,7 +2,6 @@ from typing import Optional
 
 from cdk8s import Chart
 from constructs import Construct
-
 from src.config.loaders import (
     GrafanaAlertRuleGroupConfigLoader,
     GrafanaDashboardConfigLoader,
@@ -11,7 +10,7 @@ from src.constructs.grafana import (
     GrafanaAlertRuleGroupConstruct,
     GrafanaDashboardConstruct,
 )
-from src.utils import generate_random_hash, sanitize_name
+from src.utils import generate_random_hash
 
 
 class MonitoringChart(Chart):

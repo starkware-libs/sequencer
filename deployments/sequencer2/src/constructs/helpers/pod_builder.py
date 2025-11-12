@@ -54,7 +54,9 @@ class PodBuilder:
     def _build_container(self) -> k8s.Container:
         """Build the main application container."""
         if not self.service_config.image:
-            raise ValueError(f"Image configuration is required for service {self.service_config.name}")
+            raise ValueError(
+                f"Image configuration is required for service {self.service_config.name}"
+            )
         image = f"{self.service_config.image.repository}:{self.service_config.image.tag}"
         # Use None for command if empty list (allows image default)
         command = self.service_config.command if self.service_config.command else None
@@ -159,6 +161,8 @@ class PodBuilder:
                         container_port=port_config.port,
                     )
                 )
+        # Sort ports by container_port to ensure consistent ordering
+        ports.sort(key=lambda p: p.container_port)
         return ports
 
     def _build_http_probe(self, probe_config: ProbeConfig) -> k8s.Probe | None:

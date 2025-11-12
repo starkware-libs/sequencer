@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from cdk8s import App, YamlOutputType
-
 from src.charts.monitoring import MonitoringChart
 from src.charts.node import SequencerNodeChart
 from src.cli import argument_parser

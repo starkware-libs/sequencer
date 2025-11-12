@@ -1,5 +1,4 @@
 from constructs import Construct
-
 from imports import k8s
 from src.constructs.base import BaseConstruct
 
@@ -73,7 +72,9 @@ class IngressConstruct(BaseConstruct):
                     [
                         k8s.IngressTls(
                             hosts=tls_config["hosts"],
-                            secret_name=tls_config.get("secretName", f"sequencer-{self.service_config.name}-tls"),
+                            secret_name=tls_config.get(
+                                "secretName", f"sequencer-{self.service_config.name}-tls"
+                            ),
                         )
                         for tls_config in ingress_config.tls
                     ]
