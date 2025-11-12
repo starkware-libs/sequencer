@@ -273,6 +273,7 @@ async fn test_delete_leaf_from_empty_tree() {
         &OriginalSkeletonMockTrieConfig::new(false),
         &storage_modifications,
     )
+    .await
     .unwrap();
 
     // Create an updated skeleton tree with a single leaf that is deleted.

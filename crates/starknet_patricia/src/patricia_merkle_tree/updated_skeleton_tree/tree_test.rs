@@ -148,7 +148,8 @@ fn test_updated_skeleton_tree_impl_create(
 #[rstest]
 #[case::empty_modifications(HashMap::new())]
 #[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), MockLeaf::default())]))]
-fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
+#[tokio::test]
+async fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     let mut storage = MapStorage::default();
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = OriginalSkeletonTreeImpl::create(
@@ -158,6 +159,7 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
         &OriginalSkeletonMockTrieConfig::new(false),
         &modifications,
     )
+    .await
     .unwrap();
 
     let skeleton_modifications =
