@@ -1375,7 +1375,6 @@ dependencies = [
  "apollo_node",
  "apollo_node_config",
  "apollo_rpc",
- "indexmap 2.11.0",
  "libp2p",
  "serde",
  "serde_json",

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use apollo_infra::component_client::DEFAULT_RETRIES;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -8,7 +8,6 @@ use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use indexmap::IndexMap;
 use libp2p::Multiaddr;
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
@@ -77,8 +76,8 @@ impl From<HybridNodeServiceName> for NodeService {
 }
 
 impl GetComponentConfigs for HybridNodeServiceName {
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
-        let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
+    fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
+        let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
 
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {

@@ -921,6 +921,8 @@ async fn get_sequencer_setup_configs(
 
         // Per node, create the executables constituting it.
         for (component_set, executable_component_config) in node_component_config.into_iter() {
+            let component_set = component_set.get_components_in_service();
+
             // Set a monitoring endpoint for each executable.
             let monitoring_endpoint_config = MonitoringEndpointConfig {
                 port: config_available_ports.get_next_port(),
