@@ -108,10 +108,22 @@ use crate::utils::{
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
+/// Placeholder message type for computation task input.
+#[derive(Debug, Clone)]
+pub struct ComputationTaskInput {
+    // TODO: Add fields as needed for computation tasks
+}
+
+/// Placeholder message type for write task input.
+#[derive(Debug, Clone)]
+pub struct WriteTaskInput {
+    // TODO: Add fields as needed for write tasks
+}
+
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-    pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
+    pub storage_writer: Arc<Mutex<Box<dyn BatcherStorageWriterTrait>>>,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
@@ -148,6 +160,10 @@ pub struct Batcher {
 
     /// Number of proposals made since coming online.
     proposals_counter: u64,
+
+    /// Sender for the computation task channel.
+    /// The batcher uses this to send computation tasks to the background computation task.
+    computation_task_tx: tokio::sync::mpsc::UnboundedSender<ComputationTaskInput>,
 }
 
 impl Batcher {
@@ -155,12 +171,13 @@ impl Batcher {
     pub(crate) fn new(
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-        storage_writer: Box<dyn BatcherStorageWriterTrait>,
+        storage_writer: Arc<Mutex<Box<dyn BatcherStorageWriterTrait>>>,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
+        computation_task_tx: tokio::sync::mpsc::UnboundedSender<ComputationTaskInput>,
     ) -> Self {
         Self {
             config,
@@ -179,6 +196,7 @@ impl Batcher {
             validate_tx_streams: HashMap::new(),
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
+            computation_task_tx,
         }
     }
 
@@ -694,6 +712,8 @@ impl Batcher {
 
         // Commit the proposal to the storage.
         self.storage_writer
+            .lock()
+            .await
             .commit_proposal(height, state_diff, partial_block_hash_components)
             .map_err(|err| {
                 error!("Failed to commit proposal to storage: {}", err);
@@ -926,7 +946,7 @@ impl Batcher {
             self.abort_active_height().await;
         }
 
-        self.storage_writer.revert_block(height);
+        self.storage_writer.lock().await.revert_block(height);
         STORAGE_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
         Ok(())
@@ -962,6 +982,54 @@ fn log_txs_execution_result(
     }
 }
 
+/// Background task that performs computation tasks.
+/// Receives computation tasks from the batcher, performs placeholder computation,
+/// and sends results to the writes task.
+async fn run_computation_task(
+    mut computation_rx: tokio::sync::mpsc::UnboundedReceiver<ComputationTaskInput>,
+    _storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+    writes_tx: tokio::sync::mpsc::UnboundedSender<WriteTaskInput>,
+) {
+    info!("Starting computation task");
+    while let Some(computation_input) = computation_rx.recv().await {
+        trace!("Received computation task: {:?}", computation_input);
+
+        // TODO: Implement actual computation logic here
+        // Placeholder: perform computation using _storage_reader
+
+        // Send result to writes task
+        let write_input = WriteTaskInput {
+            // TODO: Add actual computation results
+        };
+
+        if let Err(e) = writes_tx.send(write_input) {
+            error!("Failed to send write task input: {:?}", e);
+            break;
+        }
+    }
+    info!("Computation task ended");
+}
+
+/// Background task that performs write operations to storage.
+/// Receives write tasks from the computation task and writes to storage.
+async fn run_writes_task(
+    mut writes_rx: tokio::sync::mpsc::UnboundedReceiver<WriteTaskInput>,
+    storage_writer: Arc<Mutex<Box<dyn BatcherStorageWriterTrait>>>,
+) {
+    info!("Starting writes task");
+    while let Some(write_input) = writes_rx.recv().await {
+        trace!("Received write task: {:?}", write_input);
+
+        // TODO: Implement actual write logic here
+        // Placeholder: write to storage using storage_writer
+        let _writer = storage_writer.lock().await;
+
+        // TODO: Perform actual storage writes with the _writer
+        drop(_writer); // Release lock
+    }
+    info!("Writes task ended");
+}
+
 pub fn create_batcher(
     config: BatcherConfig,
     mempool_client: SharedMempoolClient,
@@ -991,9 +1059,26 @@ pub fn create_batcher(
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
-    let storage_writer = Box::new(storage_writer);
+    let storage_writer: Arc<Mutex<Box<dyn BatcherStorageWriterTrait>>> =
+        Arc::new(Mutex::new(Box::new(storage_writer)));
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
+
+    // Create channels for background tasks
+    let (computation_tx, computation_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (writes_tx, writes_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    // Spawn computation task
+    let computation_storage_reader = storage_reader.clone();
+    tokio::spawn(async move {
+        run_computation_task(computation_rx, computation_storage_reader, writes_tx).await;
+    });
+
+    // Spawn writes task
+    let writes_storage_writer = storage_writer.clone();
+    tokio::spawn(async move {
+        run_writes_task(writes_rx, writes_storage_writer).await;
+    });
 
     Batcher::new(
         config,
@@ -1004,6 +1089,7 @@ pub fn create_batcher(
         transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
+        computation_tx,
     )
 }
 
