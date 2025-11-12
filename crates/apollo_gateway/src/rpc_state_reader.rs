@@ -112,8 +112,8 @@ impl MempoolStateReader for RpcStateReader {
         .await
         .map_err(|e| StateError::StateReadError(format!("JoinError: {e}")))??;
 
-        let block_header: BlockHeader =
-            serde_json::from_value(get_block_with_tx_hashes_result).map_err(serde_err_to_state_err)?;
+        let block_header: BlockHeader = serde_json::from_value(get_block_with_tx_hashes_result)
+            .map_err(serde_err_to_state_err)?;
         let block_info = block_header.try_into()?;
         Ok(block_info)
     }
