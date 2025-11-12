@@ -1270,6 +1270,7 @@
             "tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {
+            "unit": "µs",
             "legends": [
               "{{pod}}"
             ]
@@ -1283,6 +1284,7 @@
             "tokio_min_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {
+            "unit": "µs",
             "legends": [
               "{{pod}}"
             ]
@@ -1296,6 +1298,7 @@
             "tokio_max_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {
+            "unit": "µs",
             "legends": [
               "{{pod}}"
             ]
