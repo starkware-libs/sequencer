@@ -402,7 +402,7 @@ impl CasmV2HashResourceEstimate {
         }
 
         // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-        let base_steps = if encoded_u32_len % Self::U32_WORDS_PER_MESSAGE == 0 {
+        let base_steps = if encoded_u32_len.is_multiple_of(Self::U32_WORDS_PER_MESSAGE) {
             BASE_STEPS_FULL_MSG
         } else {
             // This computation is based on running blake2s with different inputs.

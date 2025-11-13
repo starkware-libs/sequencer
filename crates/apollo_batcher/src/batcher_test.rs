@@ -730,7 +730,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
             .content;
         let txs = assert_matches!(content, GetProposalContent::Txs(txs) => txs);
 
-        if (i + 1) % PROPOSALS_L1_MODULATOR == 0 {
+        if (i + 1).is_multiple_of(PROPOSALS_L1_MODULATOR) {
             assert_eq!(txs, expected_streamed_txs);
         } else {
             assert_eq!(txs, test_txs(0..1));
