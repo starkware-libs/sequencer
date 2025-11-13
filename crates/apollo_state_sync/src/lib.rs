@@ -241,6 +241,8 @@ impl StateSync {
         Ok(latest_block_number)
     }
 
+    // TODO(Arni): Define is_cairo_1_class_declared_at. Update the communications and get in the
+    // gateway's impl FetchCompiledClasses for SyncStateReader.
     async fn is_class_declared_at(
         &self,
         block_number: BlockNumber,
