@@ -7,6 +7,7 @@ license.workspace = true
 
 [features]
 blockifier_regression_https_testing = []
+cairo_native = ["blockifier/cairo_native"]
 
 [dependencies]
 apollo_compile_to_casm.workspace = true
