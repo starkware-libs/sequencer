@@ -12,6 +12,7 @@ workspace = true
 testing = [
   "apollo_gateway_config/testing",
   "apollo_mempool_types/testing",
+  "apollo_class_manager_types/testing",
   "blockifier/testing",
   "blockifier_test_utils",
 ]
