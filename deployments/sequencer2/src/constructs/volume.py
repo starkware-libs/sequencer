@@ -26,6 +26,15 @@ class VolumeConstruct(BaseConstruct):
             self.pvc = None
 
     def _create_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
+        # Only set storage_class_name if storageClass is provided and not empty
+        # When None or empty, omit the field to use default StorageClass
+        storage_class_name = None
+        if (
+            self.service_config.persistentVolume.storageClass
+            and self.service_config.persistentVolume.storageClass.strip()
+        ):
+            storage_class_name = self.service_config.persistentVolume.storageClass
+
         return k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
@@ -33,7 +42,7 @@ class VolumeConstruct(BaseConstruct):
                 name=f"sequencer-{self.service_config.name}-data", labels=self.labels
             ),
             spec=k8s.PersistentVolumeClaimSpec(
-                storage_class_name=self.service_config.persistentVolume.storageClass,
+                storage_class_name=storage_class_name,  # None will omit the field
                 access_modes=self.service_config.persistentVolume.accessModes,
                 volume_mode=self.service_config.persistentVolume.volumeMode,
                 resources=k8s.ResourceRequirements(

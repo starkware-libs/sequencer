@@ -9,7 +9,7 @@ on:
         default: 10
         type: number
 
-  pull_request:
+  # pull_request:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

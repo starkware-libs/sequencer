@@ -97,38 +97,9 @@ jobs:
           push: true
           tags: ${{ env.NSC_CONTAINER_REGISTRY }}/${{ matrix.svc }}:${{ github.sha }}
 
-  build_rust_tools:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
-    needs: check-system-test-trigger
-    if: needs.check-system-test-trigger.outputs.should_run == 'true'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Rust cache
-        uses: namespacelabs/nscloud-cache-action@v1
-        continue-on-error: true
-        with:
-          cache: rust
-
-      # Install rust components.
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build binaries
-        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
-
-      - name: Upload Archive
-        uses: namespace-actions/upload-artifact@v1
-        with:
-          name: rust-target
-          path: ./target/debug
-          compression-level: 0
-
   system_test_hybrid:
     needs:
       - build_docker_images
-      - build_rust_tools
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - name: Checkout repository
@@ -147,6 +118,20 @@ jobs:
                 username: token
                 password: $(cat $NSC_TOKEN_FILE | jq -r .bearer_token)
           EOF
+
+      - name: Set up Rust cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        continue-on-error: true
+        with:
+          cache: rust
+
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build binaries
+        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
       - name: Create k3d cluster (Local k8s)
         uses: AbsaOSS/k3d-action@v2.4.0
@@ -172,26 +157,22 @@ jobs:
         run: |
           echo "🔧 Installing local-path-provisioner..."
           kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
-
+      
           echo "⏳ Waiting for local-path-provisioner pod to be ready..."
           kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n local-path-storage --timeout=60s
-
+      
           echo "✅ local-path-provisioner is ready."
-
-          echo "📦 Verifying default StorageClass is set..."
+      
+          echo "📦 Setting default StorageClass and volumeBindingMode..."
+          # First, set as default StorageClass
           kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-
-          echo "📦 Creating alias StorageClass ${pvc_storage_class_name} for compatibility with PVCs..."
-          cat <<EOF | envsubst | kubectl apply -f -
-          apiVersion: storage.k8s.io/v1
-          kind: StorageClass
-          metadata:
-            name: ${pvc_storage_class_name}
-          provisioner: rancher.io/local-path
-          volumeBindingMode: WaitForFirstConsumer
-          reclaimPolicy: Delete
-          EOF
-
+          
+          # Then, patch the volumeBindingMode in spec
+          kubectl patch storageclass local-path --type='merge' -p '{"volumeBindingMode":"WaitForFirstConsumer"}'
+      
+          echo "📦 Verifying StorageClass configuration..."
+          kubectl get storageclass local-path -o yaml
+      
           echo "🎉 StorageClasses available:"
           kubectl get storageclass
 
@@ -289,12 +270,6 @@ jobs:
         with:
           version: v0.3.0
 
-      - name: Download Rust target artifacts
-        uses: namespace-actions/download-artifact@v1
-        with:
-          name: rust-target
-          path: ./target/debug
-
       - name: Restore executable permissions
         run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
 
@@ -323,7 +298,7 @@ jobs:
           pipenv install
           cdk8s import
           echo "Generating Kubernetes manifests using hybrid layout"
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l hybrid"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l hybrid --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
 
       - name: Deploy Sequencer
         working-directory: deployments/sequencer2
@@ -355,9 +330,10 @@ jobs:
           check_interval_sec: 2
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
-          # TODO(Nadin): Calculate config_dir dynamically in liveness_check.py based on deployment_config_path
-          pipenv run python ./scripts/system_tests/liveness_check.py \
-            --deployment-config-path ${{ env.deployment_config_path }} \
+          # TODO(Nadin): Calculate config_dir dynamically in liveness_check2.py based on deployment_config_path
+          pipenv run python ./scripts/system_tests/liveness_check2.py \
+            --namespace ${{ env.namespace }} \
+            --layout hybrid \
             --config-dir ${{ env.config_dir }} \
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
@@ -378,25 +354,64 @@ jobs:
           sleep 2
 
       - name: Send transactions test
-        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: Get container logs
         if: always()
         run: |
           echo "📥 Getting pod logs and descriptions from namespace: $namespace"
+          echo ""
 
-          # List all pods in the namespace
-          kubectl get pods -n "$namespace"
+          # ============================================
+          # STEP 1: List all pods in the namespace
+          # ============================================
+          echo "## 📋 Pods in namespace: $namespace"
+          echo ""
+          kubectl get pods -n "$namespace" || echo "⚠️ Failed to list pods"
+          echo ""
+          echo "---"
+          echo ""
 
-          # For each pod, get logs and description
-          for pod in $(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}'); do
-            echo "----------------------------------------------"
-            echo "Logs for pod: $pod"
-            kubectl logs -n "$namespace" "$pod" || echo "⚠️ Failed to get logs for $pod"
+          # Get list of pods
+          pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
 
-            # echo ""
-            # echo "Description for pod: $pod"
-            # kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
-            # echo "---------------------------------------------"
-            # echo ""
+          if [ -z "$pods" ]; then
+            echo "⚠️ No pods found in namespace: $namespace"
+            exit 0
+          fi
+
+          # ============================================
+          # STEP 2: Describe each pod
+          # ============================================
+          echo "## 🔍 Pod Descriptions"
+          echo ""
+
+          for pod in $pods; do
+            echo "### Pod: \`$pod\`"
+            echo ""
+            echo '```'
+            kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
           done
+
+          # ============================================
+          # STEP 3: Get logs for each pod
+          # ============================================
+          echo "## 📜 Pod Logs"
+          echo ""
+
+          for pod in $pods; do
+            echo "### Logs for pod: \`$pod\`"
+            echo ""
+            echo '```'
+            kubectl logs -n "$namespace" "$pod" --tail=1000 || echo "⚠️ Failed to get logs for $pod"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+          done
+
+          echo "✅ Finished collecting pod information"

@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 import time
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,6 +10,7 @@ import numbers
 import requests
 import socket
 import yaml
+from copy import deepcopy
 from multiprocessing import Process, Queue
 
 

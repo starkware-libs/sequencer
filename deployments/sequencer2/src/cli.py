@@ -31,5 +31,11 @@ def argument_parser():
         type=str,
         help="Path to Grafana alerts folder.",
     )
+    parser.add_argument(
+        "--image",
+        required=False,
+        type=str,
+        help="Override image for all services. Format: 'repository:tag' or 'repository' (defaults to 'latest' tag).",
+    )
 
     return parser.parse_args()
