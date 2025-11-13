@@ -577,16 +577,13 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        // TODO(Nimrod): Check if `SyncBlock` should include the partial block hash, it should be
-        // already computed. If it is, add it here.
-        let dummy_partial_block_hash = PartialBlockHashComponents::default();
         self.commit_proposal_and_block(
             height,
             state_diff,
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
-            &dummy_partial_block_hash,
+            None,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -634,7 +631,7 @@ impl Batcher {
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
-            &partial_block_hash_components,
+            Some(partial_block_hash_components),
         )
         .await?;
         let execution_infos = block_execution_artifacts
@@ -667,6 +664,8 @@ impl Batcher {
         })
     }
 
+    // The `partial_block_hash_components` is optional as it's not needed for blocks coming from
+    // sync as they contain the full block hash.
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
@@ -674,7 +673,7 @@ impl Batcher {
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
-        partial_block_hash_components: &PartialBlockHashComponents,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -1015,7 +1014,7 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-        partial_block_hash_components: &PartialBlockHashComponents,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1026,13 +1025,14 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-        partial_block_hash_components: &PartialBlockHashComponents,
+        partial_block_hash_components: Option<PartialBlockHashComponents>,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?
-            .append_state_diff(height, state_diff)?
-            .set_partial_block_hash_components(&height, partial_block_hash_components)?
-            .commit()
+        let mut txn = self.begin_rw_txn()?.append_state_diff(height, state_diff)?;
+        if let Some(ref components) = partial_block_hash_components {
+            txn = txn.set_partial_block_hash_components(&height, components)?;
+        }
+        txn.commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.
