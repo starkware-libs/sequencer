@@ -16,7 +16,10 @@ use utils::{BenchTestSetup, BenchTestSetupConfig};
 
 fn run_invoke_benchmark(criterion: &mut Criterion, config: &BenchTestSetupConfig) {
     let test_setup = BenchTestSetup::new(config);
-    let id_param = format!("{} txs with chunk size {}", config.n_txs, config.chunk_size);
+    let id_param = format!(
+        "{} txs, {} accounts, with chunk size {}",
+        config.n_txs, config.n_accounts, config.chunk_size
+    );
     criterion.bench_with_input(
         BenchmarkId::new("invoke", id_param),
         &test_setup,
@@ -31,6 +34,7 @@ fn run_invoke_benchmark(criterion: &mut Criterion, config: &BenchTestSetupConfig
 fn invoke_benchmarks(criterion: &mut Criterion) {
     let configs = [BenchTestSetupConfig {
         n_txs: 10000,
+        n_accounts: 150,
         chunk_size: 100,
         mempool_config: MempoolConfig::default(),
     }];
