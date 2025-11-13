@@ -14,7 +14,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-pub trait MempoolStateReader: FetchCompiledClasses + Send + Sync {
+pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
     fn get_block_info(&self) -> Result<BlockInfo, StateError>;
 }
 
@@ -22,7 +22,7 @@ pub trait MempoolStateReader: FetchCompiledClasses + Send + Sync {
 pub trait StateReaderFactory: Send + Sync {
     fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>>;
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithClassesCache>>;
 }
 
 // By default, a Box<dyn Trait> does not implement the trait of the object it contains.
@@ -60,7 +60,35 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
     }
 }
 
-impl FetchCompiledClasses for Box<dyn MempoolStateReader> {
+pub trait GatewayStateReaderWithClassesCache: MempoolStateReader + FetchCompiledClasses {}
+
+impl BlockifierStateReader for Box<dyn GatewayStateReaderWithClassesCache> {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        self.as_ref().get_storage_at(contract_address, key)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.as_ref().get_nonce_at(contract_address)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        self.as_ref().get_class_hash_at(contract_address)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.as_ref().get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.as_ref().get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for Box<dyn GatewayStateReaderWithClassesCache> {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         self.as_ref().get_compiled_classes(class_hash)
     }
@@ -70,9 +98,17 @@ impl FetchCompiledClasses for Box<dyn MempoolStateReader> {
     }
 }
 
+impl MempoolStateReader for Box<dyn GatewayStateReaderWithClassesCache> {
+    fn get_block_info(&self) -> StateResult<BlockInfo> {
+        self.as_ref().get_block_info()
+    }
+}
+
+impl GatewayStateReaderWithClassesCache for Box<dyn GatewayStateReaderWithClassesCache> {}
+
 // TODO(Arni): move to a file dedicated to this struct similar to `sync_state_reader.rs`.
 pub struct StateReaderAndContractManagerWrapper(
-    pub StateReaderAndContractManager<Box<dyn MempoolStateReader>>,
+    pub StateReaderAndContractManager<Box<dyn GatewayStateReaderWithClassesCache>>,
 );
 
 impl MempoolStateReader for StateReaderAndContractManagerWrapper {
@@ -104,16 +140,5 @@ impl BlockifierStateReader for StateReaderAndContractManagerWrapper {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.0.get_compiled_class_hash(class_hash)
-    }
-}
-
-// TODO(Arni): Remove this. Refactor the chain of trait dependencies so that this trait is not
-// needed.
-impl FetchCompiledClasses for StateReaderAndContractManagerWrapper {
-    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        self.0.state_reader.get_compiled_classes(class_hash)
-    }
-    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
-        self.0.state_reader.is_declared(class_hash)
     }
 }

@@ -34,7 +34,11 @@ use crate::rpc_objects::{
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
     RPC_ERROR_INVALID_PARAMS,
 };
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::state_reader::{
+    GatewayStateReaderWithClassesCache,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 
 #[derive(Clone)]
 pub struct RpcStateReader {
@@ -197,10 +201,12 @@ impl FetchCompiledClasses for RpcStateReader {
     }
 }
 
+impl GatewayStateReaderWithClassesCache for RpcStateReader {}
+
 impl StateReaderFactory for RpcStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithClassesCache>> {
         Ok(Box::new(RpcStateReader::from_latest(&self.config)))
     }
 }
