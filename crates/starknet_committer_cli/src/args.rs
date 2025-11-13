@@ -10,6 +10,8 @@ use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage}
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
 
+use crate::commands::run_storage_benchmark_wrapper;
+
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum BenchmarkFlavor {
     /// Constant 1000 state diffs per iteration.
@@ -288,16 +290,52 @@ impl AerospikeArgs {
     }
 }
 
-#[derive(Debug, Subcommand)]
-pub enum StorageBenchmarkCommand {
-    Memory(MemoryArgs),
-    CachedMemory(CachedStorageArgs<MemoryArgs>),
-    Mdbx(MdbxArgs),
-    CachedMdbx(CachedStorageArgs<MdbxArgs>),
-    Rocksdb(RocksdbArgs),
-    CachedRocksdb(CachedStorageArgs<RocksdbArgs>),
-    Aerospike(AerospikeArgs),
-    CachedAerospike(CachedStorageArgs<AerospikeArgs>),
+/// Utility macro to define a storage benchmark command enum and implement the
+/// [StorageBenchmarkCommand::run_benchmark] method. The method itself uses a `match` with identical
+/// arm implementations for each variant; explicit arm implementations are required to avoid dynamic
+/// dispatch of the [Storage] type.
+macro_rules! define_storage_benchmark_command {
+    (
+        $(#[$enum_meta:meta])*
+        $visibility:vis enum $enum_name:ident {
+            $( $variant:ident($args_type:ty) ),+ $(,)?
+        }
+    ) => {
+        $(#[$enum_meta])*
+        $visibility enum $enum_name {
+            $( $variant($args_type), )+
+        }
+
+        impl $enum_name {
+            /// Run the storage benchmark.
+            pub async fn run_benchmark(&self) {
+                // Explicitly create a different concrete storage type in each match arm to avoid
+                // dynamic dispatch.
+                match self {
+                    $(
+                        $enum_name::$variant(args) => {
+                            let storage = args.storage();
+                            run_storage_benchmark_wrapper(self, storage).await;
+                        }
+                    )+
+                }
+            }
+        }
+    };
+}
+
+define_storage_benchmark_command! {
+    #[derive(Debug, Subcommand)]
+    pub enum StorageBenchmarkCommand {
+        Memory(MemoryArgs),
+        CachedMemory(CachedStorageArgs<MemoryArgs>),
+        Mdbx(MdbxArgs),
+        CachedMdbx(CachedStorageArgs<MdbxArgs>),
+        Rocksdb(RocksdbArgs),
+        CachedRocksdb(CachedStorageArgs<RocksdbArgs>),
+        Aerospike(AerospikeArgs),
+        CachedAerospike(CachedStorageArgs<AerospikeArgs>),
+    }
 }
 
 impl StorageBenchmarkCommand {
