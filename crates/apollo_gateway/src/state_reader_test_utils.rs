@@ -2,7 +2,9 @@ use apollo_state_sync_types::communication::StateSyncClientResult;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
 use blockifier_test_utils::cairo_versions::CairoVersion;
@@ -14,7 +16,11 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::state_reader::{
+    GatewayStateReaderWithCompiledClasses,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 
 #[derive(Clone)]
 pub struct TestStateReader {
@@ -27,6 +33,18 @@ impl MempoolStateReader for TestStateReader {
         Ok(self.block_info.clone())
     }
 }
+
+impl FetchCompiledClasses for TestStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.blockifier_state_reader.get_compiled_classes(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.blockifier_state_reader.is_declared(class_hash)
+    }
+}
+
+impl GatewayStateReaderWithCompiledClasses for TestStateReader {}
 
 impl BlockifierStateReader for TestStateReader {
     fn get_storage_at(
@@ -61,7 +79,7 @@ pub struct TestStateReaderFactory {
 impl StateReaderFactory for TestStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
         Ok(Box::new(self.state_reader.clone()))
     }
 }
