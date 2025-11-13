@@ -94,8 +94,8 @@ pub struct AerospikeStorage {
 }
 
 impl AerospikeStorage {
-    pub fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
-        let client = Arc::new(Client::new(&config.client_policy, &config.hosts)?);
+    pub async fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
+        let client = Arc::new(Client::new(&config.client_policy, &config.hosts).await?);
         Ok(Self { config, client })
     }
 
@@ -116,17 +116,22 @@ impl Storage for AerospikeStorage {
     type Stats = NoStats;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let record =
-            self.client.get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)?;
+        let record = self
+            .client
+            .get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)
+            .await?;
         self.extract_value(&record)
     }
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self.client.put(
-            &self.config.write_policy,
-            &self.get_key(key)?,
-            &[as_bin!(&self.config.bin_name, value.0)],
-        )?)
+        Ok(self
+            .client
+            .put(
+                &self.config.write_policy,
+                &self.get_key(key)?,
+                &[as_bin!(&self.config.bin_name, value.0)],
+            )
+            .await?)
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -138,7 +143,7 @@ impl Storage for AerospikeStorage {
                 Bins::All,
             ));
         }
-        let batch_records = self.client.batch(&self.config.batch_policy, &ops)?;
+        let batch_records = self.client.batch(&self.config.batch_policy, &ops).await?;
         batch_records
             .iter()
             .map(|batch_record| match batch_record.record {
@@ -166,12 +171,12 @@ impl Storage for AerospikeStorage {
                 vec![operations::put(bin)],
             ));
         }
-        self.client.batch(&self.config.batch_policy, &ops)?;
+        self.client.batch(&self.config.batch_policy, &ops).await?;
         Ok(())
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?)?;
+        self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?).await?;
         Ok(())
     }
 

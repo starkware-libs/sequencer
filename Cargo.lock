@@ -45,7 +45,6 @@ checksum = "0babb5e5c33f936c31300c01c9d66be84271130dc7042e3cfb44bde8b7c18e95"
 dependencies = [
  "aerospike-core",
  "aerospike-macro",
- "aerospike-sync",
 ]
 
 [[package]]
@@ -66,6 +65,7 @@ dependencies = [
  "rand 0.8.5",
  "rhexdump",
  "ripemd",
+ "serde",
  "thiserror 1.0.69",
 ]
 
@@ -88,16 +88,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5181a45c1309fb837bcec4d73017d6839cfcf43c2f53684a89c9e9c73606905"
 dependencies = [
  "tokio",
-]
-
-[[package]]
-name = "aerospike-sync"
-version = "2.0.0-alpha.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcfb9085714c0d373b0656fce8f2f3214fed3eac68c825d0ef0301c4068661f1"
-dependencies = [
- "aerospike-core",
- "futures",
 ]
 
 [[package]]
