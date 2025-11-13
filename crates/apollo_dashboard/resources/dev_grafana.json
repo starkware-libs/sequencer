@@ -943,8 +943,8 @@
           }
         },
         {
-          "title": "Native Compilation Error",
-          "description": "Counter of Native compilation failures in the blockifier",
+          "title": "Native compilation error count",
+          "description": "Count of the number of times there was a native compilation error",
           "type": "stat",
           "exprs": [
             "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -1133,20 +1133,20 @@
           "extra_params": {}
         },
         {
-          "title": "Apollo Mempool P2p Num Sent Messages",
-          "description": "The number of messages sent by the mempool p2p component",
+          "title": "Number of sent messages",
+          "description": "Count of the sent p2p messages",
           "type": "timeseries",
           "exprs": [
-            "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Apollo Mempool P2p Num Received Messages",
-          "description": "The number of messages received by the mempool p2p component",
+          "title": "Number of received messages",
+          "description": "Count of the received p2p messages",
           "type": "timeseries",
           "exprs": [
-            "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
           ],
           "extra_params": {}
         },
@@ -3406,7 +3406,7 @@
     "Tokio Runtime Metrics": {
       "panels": [
         {
-          "title": "Tokio Total Busy Duration",
+          "title": "Tokio total busy duration",
           "description": "The amount of time worker threads were busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -3420,7 +3420,7 @@
           }
         },
         {
-          "title": "Tokio Min Busy Duration",
+          "title": "Tokio minimal busy duration",
           "description": "The minimum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -3434,7 +3434,7 @@
           }
         },
         {
-          "title": "Tokio Max Busy Duration",
+          "title": "Tokio maximal busy duration",
           "description": "The maximum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
