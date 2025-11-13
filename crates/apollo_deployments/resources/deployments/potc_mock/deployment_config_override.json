@@ -13,7 +13,7 @@
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
   "mempool_p2p_config.network_config.port": 53200,
   "monitoring_endpoint_config.port": 8082,
-  "sierra_compiler_config.audited_libfuncs_only": true,
+  "sierra_compiler_config.audited_libfuncs_only": false,
   "starknet_url": "https://feeder.potc-testnet-mock-sepolia.starknet.io/",
   "state_sync_config.central_sync_client_config.#is_none": false,
   "state_sync_config.network_config.#is_none": true,
