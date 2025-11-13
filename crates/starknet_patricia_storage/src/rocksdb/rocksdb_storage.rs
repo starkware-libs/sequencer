@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use itertools::Itertools;
+use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
     BlockBasedIndexType,
     BlockBasedOptions,
@@ -15,11 +16,11 @@ use rust_rocksdb::{
     DB,
 };
 
+use super::RocksdbStorageStats;
 use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
-    NoStats,
     PatriciaStorageError,
     PatriciaStorageResult,
     Storage,
@@ -51,14 +52,20 @@ const NUM_THREADS: i32 = 8;
 const MAX_BACKGROUND_JOBS: i32 = 8;
 
 // Column familiy descriptors.
-const LATEST_TRIE_CF: &str = "latest_trie";
-const HISTORICAL_TRIES_CF: &str = "historical_tries";
+pub const LATEST_TRIE_CF: &str = "latest_trie";
+pub const HISTORICAL_TRIES_CF: &str = "historical_tries";
 const TIMESTAMP_BYTE_SIZE: usize = 8;
+
+pub struct CfOptions {
+    pub options: Options,
+    // Used for stats
+    pub cache_handle: Cache,
+}
 
 pub struct RocksDbOptions {
     pub general_db_options: Options,
-    pub latest_cf_options: Options,
-    pub historical_cf_options: Options,
+    pub latest_cf_options: CfOptions,
+    pub historical_cf_options: CfOptions,
     pub write_options: WriteOptions,
 }
 
@@ -76,10 +83,26 @@ impl Default for RocksDbOptions {
 
         opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(KEY_PREFIX_BYTES_LENGTH));
 
+        opts.enable_statistics();
+        opts.set_statistics_level(StatsLevel::ExceptTimers);
+
         let mut latest_cf_options = opts.clone();
-        latest_cf_options.set_block_based_table_factory(&get_latest_cf_block_options());
+        let (latest_block_options, latest_cache_handle) = get_latest_cf_block_options();
+        latest_cf_options.set_block_based_table_factory(&latest_block_options);
         let mut historical_cf_options = opts.clone();
-        historical_cf_options.set_block_based_table_factory(&get_historical_cf_block_options());
+        let (historical_block_options, historical_cache_handle) = get_historical_cf_block_options();
+        historical_cf_options.set_block_based_table_factory(&historical_block_options);
+        historical_cf_options.set_comparator_with_ts(
+            "bytewise+u64ts",
+            TIMESTAMP_BYTE_SIZE,
+            Box::new(|a, b| a.cmp(b)),
+            Box::new(|tsa, tsb| be_u64(tsa).cmp(&be_u64(tsb))),
+            Box::new(|a, a_has_ts, b, b_has_ts| {
+                let a_key = if a_has_ts { &a[..a.len() - TIMESTAMP_BYTE_SIZE] } else { a };
+                let b_key = if b_has_ts { &b[..b.len() - TIMESTAMP_BYTE_SIZE] } else { b };
+                a_key.cmp(b_key)
+            }),
+        );
 
         // Set write options.
         let mut write_options = WriteOptions::default();
@@ -91,14 +114,20 @@ impl Default for RocksDbOptions {
 
         RocksDbOptions {
             general_db_options: opts,
-            latest_cf_options,
-            historical_cf_options,
+            latest_cf_options: CfOptions {
+                options: latest_cf_options,
+                cache_handle: latest_cache_handle,
+            },
+            historical_cf_options: CfOptions {
+                options: historical_cf_options,
+                cache_handle: historical_cache_handle,
+            },
             write_options,
         }
     }
 }
 
-fn get_latest_cf_block_options() -> BlockBasedOptions {
+fn get_latest_cf_block_options() -> (BlockBasedOptions, Cache) {
     let mut block = BlockBasedOptions::default();
     let cache = Cache::new_lru_cache(DB_CACHE_SIZE);
     block.set_block_cache(&cache);
@@ -114,10 +143,10 @@ fn get_latest_cf_block_options() -> BlockBasedOptions {
 
     block.set_bloom_filter(BLOOM_FILTER_NUM_BITS, false);
 
-    block
+    (block, cache)
 }
 
-fn get_historical_cf_block_options() -> BlockBasedOptions {
+fn get_historical_cf_block_options() -> (BlockBasedOptions, Cache) {
     let mut block = BlockBasedOptions::default();
     let cache = Cache::new_lru_cache(DB_CACHE_SIZE / 4);
     block.set_block_cache(&cache);
@@ -131,14 +160,14 @@ fn get_historical_cf_block_options() -> BlockBasedOptions {
     // Make sure filter blocks are cached.
     block.set_pin_l0_filter_and_index_blocks_in_cache(false);
 
-    block
+    (block, cache)
 }
 
 impl RocksDbOptions {
     pub fn default_mmap_enabled() -> Self {
         let mut opts = Self::default();
-        opts.historical_cf_options.set_allow_mmap_reads(true);
-        opts.latest_cf_options.set_allow_mmap_writes(true);
+        opts.historical_cf_options.options.set_allow_mmap_reads(true);
+        opts.latest_cf_options.options.set_allow_mmap_writes(true);
         opts
     }
 }
@@ -146,6 +175,10 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: DB,
     write_options: WriteOptions,
+    // Following fields are used for stats.
+    db_options: Options,
+    latest_cf_cache_handle: Cache,
+    historical_cf_cache_handle: Cache,
 }
 
 fn be_u64(bytes: &[u8]) -> u64 {
@@ -155,27 +188,25 @@ fn be_u64(bytes: &[u8]) -> u64 {
 }
 
 impl RocksDbStorage {
+    pub fn get_db_options(&self) -> &Options {
+        &self.db_options
+    }
+
     pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
-        let mut hist_cf_opts = options.historical_cf_options;
-        hist_cf_opts.set_comparator_with_ts(
-            "bytewise+u64ts",
-            TIMESTAMP_BYTE_SIZE,
-            Box::new(|a, b| a.cmp(b)),
-            Box::new(|tsa, tsb| be_u64(tsa).cmp(&be_u64(tsb))),
-            Box::new(|a, a_has_ts, b, b_has_ts| {
-                let a_key = if a_has_ts { &a[..a.len() - TIMESTAMP_BYTE_SIZE] } else { a };
-                let b_key = if b_has_ts { &b[..b.len() - TIMESTAMP_BYTE_SIZE] } else { b };
-                a_key.cmp(b_key)
-            }),
-        );
         let cf_descriptors = vec![
-            ColumnFamilyDescriptor::new(LATEST_TRIE_CF, options.latest_cf_options),
-            ColumnFamilyDescriptor::new(HISTORICAL_TRIES_CF, hist_cf_opts),
+            ColumnFamilyDescriptor::new(LATEST_TRIE_CF, options.latest_cf_options.options),
+            ColumnFamilyDescriptor::new(HISTORICAL_TRIES_CF, options.historical_cf_options.options),
         ];
 
         let db = DB::open_cf_descriptors(&options.general_db_options, path, cf_descriptors)?;
 
-        Ok(Self { db, write_options: options.write_options })
+        Ok(Self {
+            db,
+            write_options: options.write_options,
+            db_options: options.general_db_options,
+            latest_cf_cache_handle: options.latest_cf_options.cache_handle,
+            historical_cf_cache_handle: options.historical_cf_options.cache_handle,
+        })
     }
 }
 
@@ -201,7 +232,7 @@ impl<'a> RocksDbKey<'a> for TrieKey {
 }
 
 impl Storage for RocksDbStorage {
-    type Stats = NoStats;
+    type Stats = RocksdbStorageStats;
 
     fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
         let cf_handle = key.get_cf_handle(self);
@@ -308,6 +339,11 @@ impl Storage for RocksDbStorage {
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
-        Ok(NoStats)
+        Ok(RocksdbStorageStats::collect(
+            &self.db,
+            Some(self.get_db_options()),
+            &self.latest_cf_cache_handle,
+            &self.historical_cf_cache_handle,
+        ))
     }
 }
