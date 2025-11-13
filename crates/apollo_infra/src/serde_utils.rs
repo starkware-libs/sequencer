@@ -7,6 +7,10 @@ use serde_json::{from_slice, to_vec};
 #[path = "serde_utils_test.rs"]
 pub mod serde_utils_test;
 
+#[cfg(test)]
+#[path = "trace_util_tests.rs"]
+pub mod trace_util_tests;
+
 // A generic wrapper struct for binary serialization and deserialization, used for remote component
 // communication.
 #[derive(Serialize, Deserialize, Debug)]
