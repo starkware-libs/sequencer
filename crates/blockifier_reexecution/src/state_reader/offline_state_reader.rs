@@ -1,20 +1,29 @@
 use std::fs;
 
 use blockifier::abi::constants;
-use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    RunnableCompiledClass,
+};
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
@@ -29,7 +38,11 @@ use crate::state_reader::reexecution_state_reader::{
     ReexecutionStateReader,
 };
 use crate::state_reader::test_state_reader::StarknetContractClassMapping;
-use crate::state_reader::utils::{get_chain_info, ReexecutionStateMaps};
+use crate::state_reader::utils::{
+    get_chain_info,
+    get_compiled_classes_from_contract_class,
+    ReexecutionStateMaps,
+};
 
 pub struct OfflineReexecutionData {
     offline_state_reader_prev_block: OfflineStateReader,
@@ -191,19 +204,43 @@ impl ReexecutionStateReader for OfflineStateReader {
     }
 }
 
+impl FetchCompiledClasses for OfflineStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class = self.get_contract_class(&class_hash)?;
+        get_compiled_classes_from_contract_class(&contract_class)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        match self.get_contract_class(&class_hash) {
+            Err(StateError::UndeclaredClassHash(_)) => Ok(false),
+            Err(e) => Err(e),
+            Ok(contract_class) => {
+                // Cairo0 (Legacy) classes are not declared, Cairo1 (Sierra) classes are declared
+                Ok(matches!(contract_class, StarknetContractClass::Sierra(_)))
+            }
+        }
+    }
+}
+
 impl OfflineStateReader {
     pub fn get_transaction_executor(
         self,
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
+    {
         let old_block_number = BlockNumber(
             block_context_next_block.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         );
         let hash = self.old_block_hash;
-        Ok(TransactionExecutor::<OfflineStateReader>::pre_process_and_create(
-            self,
+        let config = ContractClassManagerConfig::default();
+        let state_reader = StateReaderAndContractManager {
+            state_reader: self,
+            contract_class_manager: ContractClassManager::start(config),
+        };
+        Ok(TransactionExecutor::<StateReaderAndContractManager<OfflineStateReader>>::pre_process_and_create(
+            state_reader,
             block_context_next_block,
             Some(BlockHashAndNumber { number: old_block_number, hash }),
             transaction_executor_config.unwrap_or_default(),
@@ -242,11 +279,14 @@ impl OfflineConsecutiveStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<OfflineStateReader> for OfflineConsecutiveStateReaders {
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<OfflineStateReader>>
+    for OfflineConsecutiveStateReaders
+{
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
+    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
+    {
         self.offline_state_reader_prev_block
             .get_transaction_executor(self.block_context_next_block, transaction_executor_config)
     }
