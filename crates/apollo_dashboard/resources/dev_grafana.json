@@ -467,6 +467,17 @@
           "extra_params": {
             "unit": "s"
           }
+        },
+        {
+          "title": "Sync ETA",
+          "description": "Estimated time until sync finishes.",
+          "type": "stat",
+          "exprs": [
+            "((max_over_time((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)[1m:]) == 1) * 0) or ((-rate((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})[5m]) > 0) * (apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} / clamp_min(-rate((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})[5m]), 0.0001)))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
         }
       ],
       "collapsed": true
