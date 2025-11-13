@@ -35,6 +35,7 @@ pub struct BootstrapPeerEventStream {
     sleeper: Option<Pin<Box<Sleep>>>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum DialMode {
     Dialing,
     Connected,
@@ -54,6 +55,10 @@ impl BootstrapPeerEventStream {
             FromSwarm::DialFailure(DialFailure { peer_id: Some(peer_id), .. })
                 if peer_id == self.peer_id =>
             {
+                if self.dial_mode != DialMode::Dialing {
+                    // not my dial
+                    return;
+                }
                 self.dial_mode = DialMode::Disconnected;
                 // For the case that the reason for failure is consistent (e.g the bootstrap peer
                 // is down), we sleep before redialing
