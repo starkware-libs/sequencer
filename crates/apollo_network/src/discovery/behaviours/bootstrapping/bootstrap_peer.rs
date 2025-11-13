@@ -116,6 +116,7 @@ impl BootstrapPeerEventStream {
     fn switch_to_dialing_mode<T, W>(&mut self) -> ToSwarm<T, W> {
         self.sleeper = None;
         self.dial_mode = DialMode::Dialing;
+        info!(?self.peer_id, ?self.peer_address, "Performing bootstrap dial");
         ToSwarm::Dial {
             opts: DialOpts::peer_id(self.peer_id)
                     .addresses(vec![self.peer_address.clone()])
@@ -168,14 +169,7 @@ impl Stream for BootstrapPeerEventStream {
                     .expect("Sleeper cannot be None after being created above.");
 
                 match sleeper.as_mut().poll(cx) {
-                    Poll::Ready(()) => {
-                        info!(
-                            "Sleeper completed sleep in the time between checking it's not time \
-                             to dial yet, and polling the sleeper. This should be extremely \
-                             rare/non existent"
-                        );
-                        Poll::Ready(Some(self.switch_to_dialing_mode()))
-                    }
+                    Poll::Ready(()) => Poll::Ready(Some(self.switch_to_dialing_mode())),
                     Poll::Pending => Poll::Pending,
                 }
             }
