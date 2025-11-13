@@ -36,7 +36,11 @@ use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::state_reader::{
+    GatewayStateReaderWithCompiledClasses,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
@@ -242,6 +246,8 @@ impl BlockifierStateReader for SyncStateReader {
     }
 }
 
+impl GatewayStateReaderWithCompiledClasses for SyncStateReader {}
+
 struct SharedStateSyncClientMetricWrapper {
     state_sync_client: SharedStateSyncClient,
     num_storage_operations: AtomicU64,
@@ -356,7 +362,7 @@ pub(crate) struct SyncStateReaderFactory {
 impl StateReaderFactory for SyncStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
         let latest_block_number = self
             .runtime
             // TODO(guy.f): Do we want to count this as well?
