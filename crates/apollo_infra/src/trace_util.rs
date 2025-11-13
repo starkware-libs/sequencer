@@ -1,6 +1,10 @@
+use std::str::FromStr;
+
 use time::macros::format_description;
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
+use tracing::warn;
+use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, reload, EnvFilter};
@@ -24,7 +28,7 @@ const QUIET_LIBS: &[&str] = &[
 ];
 
 const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
-type ReloadHandle = reload::Handle<EnvFilter, tracing_subscriber::Registry>;
+pub(crate) type ReloadHandle = reload::Handle<EnvFilter, tracing_subscriber::Registry>;
 
 // Define a OnceCell to ensure the configuration is initialized only once
 static TRACING_INITIALIZED: OnceCell<ReloadHandle> = OnceCell::const_new();
@@ -110,4 +114,18 @@ macro_rules! infra_error {
     ($($arg:tt)*) => {{
         tracing::error!(PID = *$crate::trace_util::PID, $($arg)*);
     }};
+}
+
+pub fn set_log_level(handle: &ReloadHandle, crate_name: &str, level: LevelFilter) {
+    if let Ok(directive) = Directive::from_str(&format!("{crate_name}={level}")) {
+        let _ = handle.modify(|filter| {
+            *filter = std::mem::take(filter).add_directive(directive);
+        });
+    } else {
+        warn!("{crate_name}: ignored invalid log-level directive");
+    }
+}
+
+pub fn get_log_directives(handle: &ReloadHandle) -> String {
+    handle.with_current(|f| f.to_string()).expect("handle should be valid")
 }
