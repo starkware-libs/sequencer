@@ -1,7 +1,12 @@
 use apollo_state_sync_types::communication::StateSyncClientResult;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::{
+    FetchCompiledClasses,
+    StateReaderAndContractManager,
+};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockInfo;
@@ -17,7 +22,7 @@ pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
 pub trait StateReaderFactory: Send + Sync {
     fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>>;
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>>;
 }
 
 // By default, a Box<dyn Trait> does not implement the trait of the object it contains.
@@ -52,5 +57,92 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.as_ref().get_compiled_class_hash(class_hash)
+    }
+}
+
+pub trait GatewayStateReaderWithCompiledClasses: MempoolStateReader + FetchCompiledClasses {}
+
+impl BlockifierStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        self.as_ref().get_storage_at(contract_address, key)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.as_ref().get_nonce_at(contract_address)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        self.as_ref().get_class_hash_at(contract_address)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.as_ref().get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.as_ref().get_compiled_class_hash(class_hash)
+    }
+}
+
+impl FetchCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.as_ref().get_compiled_classes(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.as_ref().is_declared(class_hash)
+    }
+}
+
+impl MempoolStateReader for Box<dyn GatewayStateReaderWithCompiledClasses> {
+    fn get_block_info(&self) -> StateResult<BlockInfo> {
+        self.as_ref().get_block_info()
+    }
+}
+
+impl GatewayStateReaderWithCompiledClasses for Box<dyn GatewayStateReaderWithCompiledClasses> {}
+
+// TODO(Arni): move to a file dedicated to this struct similar to `sync_state_reader.rs`.
+pub struct StateReaderAndContractManagerWrapper<S: GatewayStateReaderWithCompiledClasses>(
+    pub StateReaderAndContractManager<S>,
+);
+
+impl<S: GatewayStateReaderWithCompiledClasses> MempoolStateReader
+    for StateReaderAndContractManagerWrapper<S>
+{
+    fn get_block_info(&self) -> Result<BlockInfo, StateError> {
+        self.0.state_reader.get_block_info()
+    }
+}
+
+impl<S: GatewayStateReaderWithCompiledClasses> BlockifierStateReader
+    for StateReaderAndContractManagerWrapper<S>
+{
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        self.0.get_storage_at(contract_address, key)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.0.get_nonce_at(contract_address)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        self.0.get_class_hash_at(contract_address)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.0.get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.0.get_compiled_class_hash(class_hash)
     }
 }

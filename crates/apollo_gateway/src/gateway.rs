@@ -25,6 +25,8 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
+use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
@@ -80,6 +82,9 @@ impl Gateway {
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
                 config: config.stateful_tx_validator_config.clone(),
                 chain_info: config.chain_info.clone(),
+                contract_class_manager: ContractClassManager::start(
+                    ContractClassManagerConfig::default(),
+                ),
             }),
             state_reader_factory,
             mempool_client,
