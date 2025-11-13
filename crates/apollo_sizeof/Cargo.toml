@@ -14,5 +14,4 @@ starknet-types-core.workspace = true
 workspace = true
 
 [dev-dependencies]
-size-of = "0.1.5"
 trybuild = "1.0.105"
