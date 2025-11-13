@@ -95,6 +95,10 @@ struct StorageArgs {
     /// checkpointing is ignored.
     #[clap(long, default_value = "cached-mdbx")]
     storage_type: StorageType,
+    /// Maintain historical tries. Only relevant for rocksdb at the moment, as other DBs currently
+    /// store all history. Defaulted to false.
+    #[clap(long, default_value = "false")]
+    keep_history: bool,
     /// If true, the storage will use memory-mapped files. Only relevant for Rocksdb.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
@@ -146,6 +150,7 @@ macro_rules! generate_short_key_benchmark {
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
+        $keep_history:expr,
         $checkpoint_interval:expr,
         $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
@@ -158,6 +163,7 @@ macro_rules! generate_short_key_benchmark {
                     &$output_dir,
                     $checkpoint_dir_arg,
                     $storage,
+                    $keep_history,
                     $checkpoint_interval,
                 )
                 .await
@@ -172,6 +178,7 @@ macro_rules! generate_short_key_benchmark {
                         &$output_dir,
                         $checkpoint_dir_arg,
                         storage,
+                        $keep_history,
                         $checkpoint_interval,
                     )
                     .await
@@ -194,6 +201,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         output_dir,
         checkpoint_dir,
         key_size,
+        keep_history,
         ..
     }: StorageArgs,
     storage: S,
@@ -221,6 +229,7 @@ async fn run_storage_benchmark_wrapper<S: Storage>(
         output_dir,
         checkpoint_dir_arg,
         storage,
+        keep_history,
         checkpoint_interval,
         (U16, ShortKeyStorage16),
         (U17, ShortKeyStorage17),
