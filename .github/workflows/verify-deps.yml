@@ -5,7 +5,7 @@ on:
     - cron: "0 0 * * *" # Runs at 00:00 UTC every day
 
 env:
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   latest_deps:

@@ -7,8 +7,8 @@ on:
 
 env:
   CI: 1
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
-  RUSTDOCFLAGS: -D warnings -C link-arg=-fuse-ld=lld
+  RUSTFLAGS: "-D warnings"
+  RUSTDOCFLAGS: -D warnings
   EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 jobs:
