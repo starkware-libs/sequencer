@@ -1273,25 +1273,25 @@
           "extra_params": {}
         },
         {
-          "title": "Batcher Local Msgs Received",
-          "description": "Counter of messages received by batcher local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "batcher_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(batcher_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Batcher Local Msgs Processed",
-          "description": "Counter of messages processed by batcher local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "batcher_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(batcher_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -1301,35 +1301,35 @@
           "extra_params": {}
         },
         {
-          "title": "Batcher Remote Msgs Received",
-          "description": "Counter of messages received by batcher remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "batcher_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(batcher_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Batcher Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by batcher remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "batcher_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(batcher_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Batcher Remote Msgs Processed",
-          "description": "Counter of messages processed by batcher remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "batcher_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(batcher_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Batcher Remote Number Of Connections",
-          "description": "Number of connections to batcher remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "batcher_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -1586,25 +1586,25 @@
           "extra_params": {}
         },
         {
-          "title": "Class Manager Local Msgs Received",
-          "description": "Counter of messages received by class_manager local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "class_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(class_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Class Manager Local Msgs Processed",
-          "description": "Counter of messages processed by class_manager local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "class_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(class_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -1614,35 +1614,35 @@
           "extra_params": {}
         },
         {
-          "title": "Class Manager Remote Msgs Received",
-          "description": "Counter of messages received by class_manager remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "class_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(class_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Class Manager Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by class_manager remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "class_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(class_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Class Manager Remote Msgs Processed",
-          "description": "Counter of messages processed by class_manager remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "class_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(class_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Class Manager Remote Number Of Connections",
-          "description": "Number of connections to class_manager remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "class_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -1821,25 +1821,25 @@
           "extra_params": {}
         },
         {
-          "title": "Config Manager Local Msgs Received",
-          "description": "Counter of messages received by config_manager local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "config_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(config_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Config Manager Local Msgs Processed",
-          "description": "Counter of messages processed by config_manager local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "config_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(config_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -1849,35 +1849,35 @@
           "extra_params": {}
         },
         {
-          "title": "Config Manager Remote Msgs Received",
-          "description": "Counter of messages received by config_manager remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "config_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(config_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Config Manager Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by config_manager remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "config_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(config_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Config Manager Remote Msgs Processed",
-          "description": "Counter of messages processed by config_manager remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "config_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(config_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Config Manager Remote Number Of Connections",
-          "description": "Number of connections to config_manager remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "config_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -1978,25 +1978,25 @@
           "extra_params": {}
         },
         {
-          "title": "Gateway Local Msgs Received",
-          "description": "Counter of messages received by gateway local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "gateway_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(gateway_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Gateway Local Msgs Processed",
-          "description": "Counter of messages processed by gateway local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "gateway_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(gateway_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -2006,35 +2006,35 @@
           "extra_params": {}
         },
         {
-          "title": "Gateway Remote Msgs Received",
-          "description": "Counter of messages received by gateway remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "gateway_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(gateway_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Gateway Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by gateway remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "gateway_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(gateway_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Gateway Remote Msgs Processed",
-          "description": "Counter of messages processed by gateway remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "gateway_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(gateway_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Gateway Remote Number Of Connections",
-          "description": "Number of connections to gateway remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "gateway_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -2083,25 +2083,25 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Endpoint Monitor Local Msgs Received",
-          "description": "Counter of messages received by l1_endpoint_monitor local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_endpoint_monitor_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_endpoint_monitor_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Endpoint Monitor Local Msgs Processed",
-          "description": "Counter of messages processed by l1_endpoint_monitor local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_endpoint_monitor_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_endpoint_monitor_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -2111,35 +2111,35 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Endpoint Monitor Remote Msgs Received",
-          "description": "Counter of messages received by l1_endpoint_monitor remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_endpoint_monitor_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_endpoint_monitor_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Endpoint Monitor Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by l1_endpoint_monitor remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_endpoint_monitor_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_endpoint_monitor_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Endpoint Monitor Remote Msgs Processed",
-          "description": "Counter of messages processed by l1_endpoint_monitor remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_endpoint_monitor_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_endpoint_monitor_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Endpoint Monitor Remote Number Of Connections",
-          "description": "Number of connections to l1_endpoint_monitor remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "l1_endpoint_monitor_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -2188,25 +2188,25 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Local Msgs Received",
-          "description": "Counter of messages received by l1_gas_price local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_gas_price_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_gas_price_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Local Msgs Processed",
-          "description": "Counter of messages processed by l1_gas_price local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_gas_price_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_gas_price_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -2216,35 +2216,35 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Remote Msgs Received",
-          "description": "Counter of messages received by l1_gas_price remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_gas_price_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_gas_price_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by l1_gas_price remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_gas_price_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_gas_price_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Remote Msgs Processed",
-          "description": "Counter of messages processed by l1_gas_price remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_gas_price_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_gas_price_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Remote Number Of Connections",
-          "description": "Number of connections to l1_gas_price remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "l1_gas_price_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -2371,25 +2371,25 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Provider Local Msgs Received",
-          "description": "Counter of messages received by l1_provider local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Provider Local Msgs Processed",
-          "description": "Counter of messages processed by l1_provider local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -2399,35 +2399,35 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Provider Remote Msgs Received",
-          "description": "Counter of messages received by l1_provider remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Provider Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by l1_provider remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Provider Remote Msgs Processed",
-          "description": "Counter of messages processed by l1_provider remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Provider Remote Number Of Connections",
-          "description": "Number of connections to l1_provider remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "l1_provider_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -2632,25 +2632,25 @@
           "extra_params": {}
         },
         {
-          "title": "Mempool Local Msgs Received",
-          "description": "Counter of messages received by mempool local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool Local Msgs Processed",
-          "description": "Counter of messages processed by mempool local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -2660,35 +2660,35 @@
           "extra_params": {}
         },
         {
-          "title": "Mempool Remote Msgs Received",
-          "description": "Counter of messages received by mempool remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by mempool remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool Remote Msgs Processed",
-          "description": "Counter of messages processed by mempool remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool Remote Number Of Connections",
-          "description": "Number of connections to mempool remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "mempool_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -2867,25 +2867,25 @@
           "extra_params": {}
         },
         {
-          "title": "Mempool P2p Local Msgs Received",
-          "description": "Counter of messages received by mempool_p2p local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_p2p_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_p2p_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool P2p Local Msgs Processed",
-          "description": "Counter of messages processed by mempool_p2p local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_p2p_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_p2p_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -2895,35 +2895,35 @@
           "extra_params": {}
         },
         {
-          "title": "Mempool P2p Remote Msgs Received",
-          "description": "Counter of messages received by mempool_p2p remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_p2p_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_p2p_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool P2p Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by mempool_p2p remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_p2p_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_p2p_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool P2p Remote Msgs Processed",
-          "description": "Counter of messages processed by mempool_p2p remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "mempool_p2p_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(mempool_p2p_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Mempool P2p Remote Number Of Connections",
-          "description": "Number of connections to mempool_p2p remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "mempool_p2p_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -3024,25 +3024,25 @@
           "extra_params": {}
         },
         {
-          "title": "Sierra Compiler Local Msgs Received",
-          "description": "Counter of messages received by sierra_compiler local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sierra_compiler_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(sierra_compiler_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Sierra Compiler Local Msgs Processed",
-          "description": "Counter of messages processed by sierra_compiler local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sierra_compiler_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(sierra_compiler_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -3052,35 +3052,35 @@
           "extra_params": {}
         },
         {
-          "title": "Sierra Compiler Remote Msgs Received",
-          "description": "Counter of messages received by sierra_compiler remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sierra_compiler_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(sierra_compiler_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Sierra Compiler Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by sierra_compiler remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sierra_compiler_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(sierra_compiler_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Sierra Compiler Remote Msgs Processed",
-          "description": "Counter of messages processed by sierra_compiler remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "sierra_compiler_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(sierra_compiler_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Sierra Compiler Remote Number Of Connections",
-          "description": "Number of connections to sierra_compiler remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "sierra_compiler_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
@@ -3129,25 +3129,25 @@
           "extra_params": {}
         },
         {
-          "title": "State Sync Local Msgs Received",
-          "description": "Counter of messages received by state_sync local server",
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "state_sync_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(state_sync_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "State Sync Local Msgs Processed",
-          "description": "Counter of messages processed by state_sync local server",
+          "title": "Request processing rate",
+          "description": "Increase of processed requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "state_sync_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(state_sync_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "local_queue_depth",
+          "title": "Processing queue depths",
           "description": "The depth of the local priority queues",
           "type": "timeseries",
           "exprs": [
@@ -3157,35 +3157,35 @@
           "extra_params": {}
         },
         {
-          "title": "State Sync Remote Msgs Received",
-          "description": "Counter of messages received by state_sync remote server",
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "state_sync_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(state_sync_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "State Sync Remote Valid Msgs Received",
-          "description": "Counter of valid messages received by state_sync remote server",
+          "title": "Valid remote request receiving rate",
+          "description": "Increase of valid received remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "state_sync_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(state_sync_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "State Sync Remote Msgs Processed",
-          "description": "Counter of messages processed by state_sync remote server",
+          "title": "Remote request processing rate",
+          "description": "Increase of processed remote requests (1m window)",
           "type": "timeseries",
           "exprs": [
-            "state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "State Sync Remote Number Of Connections",
-          "description": "Number of connections to state_sync remote server",
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
           "type": "timeseries",
           "exprs": [
             "state_sync_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
