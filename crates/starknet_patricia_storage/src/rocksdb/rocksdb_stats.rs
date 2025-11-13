@@ -3,7 +3,7 @@ use std::fmt::Display;
 use rust_rocksdb::statistics::Ticker;
 use rust_rocksdb::{properties as rprops, Cache, ColumnFamily, Options, DB};
 
-use crate::rocksdb::{rocksdb_storage, HISTORICAL_TRIES_CF, LATEST_TRIE_CF};
+use crate::rocksdb::{HISTORICAL_TRIES_CF, LATEST_TRIE_CF};
 use crate::storage_trait::StorageStats;
 
 #[derive(Default, Debug, Clone)]
@@ -91,7 +91,7 @@ impl Display for RocksdbStorageStats {
 
 impl StorageStats for RocksdbStorageStats {
     fn column_titles() -> Vec<&'static str> {
-        let mut titles = vec![
+        let titles = vec![
             "latest||L0 files",
             "latest||level stats",
             "latest||SST size (MB)",

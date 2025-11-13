@@ -15,6 +15,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
+use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::storage_trait::{BlockNumber, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
@@ -111,6 +112,7 @@ macro_rules! generate_short_key_benchmark {
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
+        $keep_history:expr,
         $checkpoint_interval:expr,
         $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
@@ -123,6 +125,7 @@ macro_rules! generate_short_key_benchmark {
                     &$output_dir,
                     $checkpoint_dir_arg,
                     $storage,
+                    $keep_history,
                     $checkpoint_interval,
                 )
                 .await
@@ -137,6 +140,7 @@ macro_rules! generate_short_key_benchmark {
                         &$output_dir,
                         $checkpoint_dir_arg,
                         storage,
+                        $keep_history,
                         $checkpoint_interval,
                     )
                     .await
@@ -168,6 +172,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         .map(|file_args| file_args.data_path.clone())
         .unwrap_or(DEFAULT_DATA_PATH.to_string());
     let storage_type = storage_benchmark_args.storage_type();
+    let keep_history = storage_benchmark_args.keep_history();
     let output_dir = output_dir
         .clone()
         .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
@@ -193,6 +198,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         output_dir,
         checkpoint_dir_arg,
         storage,
+        keep_history,
         *checkpoint_interval,
         (U16, ShortKeyStorage16),
         (U17, ShortKeyStorage17),
@@ -224,6 +230,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
+    keep_history: bool,
     checkpoint_interval: usize,
 ) {
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
@@ -257,12 +264,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         // Write to latest trie.
         let n_new_facts = filled_forest.write_to_storage(&mut storage, None);
 
-        // Write to historical trie.
-        // TODO(Ariel): spawn a new task and delay with write.
-        filled_forest.write_to_storage(
-            &mut storage,
-            Some(BlockNumber(u64::try_from(block_number).unwrap())),
-        );
+        if keep_history {
+            write_to_histroy(&filled_forest, block_number, &mut storage);
+        }
 
         info!("Written {n_new_facts} new facts to storage");
 
@@ -307,4 +311,14 @@ pub async fn run_storage_benchmark<S: Storage>(
     }
 
     time_measurement.pretty_print(50);
+}
+
+// TODO(Ariel): spawn a new task and delay this write (see history_processor.rs).
+pub fn write_to_histroy(
+    filled_forest: &FilledForest,
+    block_number: usize,
+    storage: &mut impl Storage,
+) {
+    filled_forest
+        .write_to_storage(storage, Some(BlockNumber(u64::try_from(block_number).unwrap())));
 }

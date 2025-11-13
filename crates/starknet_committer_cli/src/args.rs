@@ -6,7 +6,7 @@ use clap::{ArgAction, Args, Subcommand};
 use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
-use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
+use starknet_patricia_storage::rocksdb::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
 
@@ -228,7 +228,9 @@ pub struct RocksdbArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
-
+    /// If true, the storage will keep history.
+    #[clap(long, short, default_value = "false")]
+    pub keep_history: bool,
     /// If true, the storage will use memory-mapped files.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
@@ -340,6 +342,14 @@ impl StorageBenchmarkCommand {
             Self::CachedRocksdb(_) => StorageType::CachedRocksdb,
             Self::Aerospike(_) => StorageType::Aerospike,
             Self::CachedAerospike(_) => StorageType::CachedAerospike,
+        }
+    }
+
+    pub fn keep_history(&self) -> bool {
+        match self {
+            Self::Rocksdb(args) => args.keep_history,
+            Self::CachedRocksdb(args) => args.storage_args.keep_history,
+            _ => false,
         }
     }
 }
