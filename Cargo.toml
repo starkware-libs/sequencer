@@ -347,7 +347,7 @@ sizeof_macro = { path = "crates/sizeof/sizeof_macro", version = "0.16.0-rc.1" }
 socket2 = "0.5.8"
 starknet-core = "0.16.0"
 starknet-crypto = "0.8.1"
-starknet-types-core = "=0.2.3"
+starknet-types-core = "0.2.4"
 starknet_api = { path = "crates/starknet_api", version = "0.16.0-rc.1" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
