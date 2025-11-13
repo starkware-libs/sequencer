@@ -11,8 +11,10 @@ use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricCommon};
 
 use crate::dashboard::{Panel, PanelType, Row, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::query_builder::increase;
 
 const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";
+const INFRA_INCREASE_DURATION: &str = "1m";
 
 pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMetrics) -> Row {
     let mut panels: Vec<Panel> = Vec::new();
@@ -74,12 +76,20 @@ impl From<&RemoteClientMetrics> for UnlabeledPanels {
 
 impl From<&LocalServerMetrics> for UnlabeledPanels {
     fn from(metrics: &LocalServerMetrics) -> Self {
-        let received_msgs_panel =
-            Panel::from_counter(metrics.get_received_metric(), PanelType::TimeSeries);
-        let processed_msgs_panel =
-            Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
+        let received_msgs_panel = Panel::new(
+            "Local request receiving rate",
+            format!("Increase of received local requests [{INFRA_INCREASE_DURATION}]"),
+            increase(metrics.get_received_metric(), INFRA_INCREASE_DURATION),
+            PanelType::TimeSeries,
+        );
+        let processed_msgs_panel = Panel::new(
+            "Request processing rate",
+            format!("Increase of processed requests [{INFRA_INCREASE_DURATION}]"),
+            increase(metrics.get_processed_metric(), INFRA_INCREASE_DURATION),
+            PanelType::TimeSeries,
+        );
         let queue_depth_panel = Panel::new(
-            "local_queue_depth",
+            "Processing queue depths",
             "The depth of the local priority queues",
             vec![
                 metrics.get_high_priority_queue_depth_metric().get_name_with_filter().to_string(),
@@ -87,21 +97,36 @@ impl From<&LocalServerMetrics> for UnlabeledPanels {
             ],
             PanelType::TimeSeries,
         );
-
         Self(vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel])
     }
 }
 
 impl From<&RemoteServerMetrics> for UnlabeledPanels {
     fn from(metrics: &RemoteServerMetrics) -> Self {
-        let total_received_msgs_panel =
-            Panel::from_counter(metrics.get_total_received_metric(), PanelType::TimeSeries);
-        let valid_received_msgs_panel =
-            Panel::from_counter(metrics.get_valid_received_metric(), PanelType::TimeSeries);
-        let processed_msgs_panel =
-            Panel::from_counter(metrics.get_processed_metric(), PanelType::TimeSeries);
-        let number_of_connections_panel =
-            Panel::from_gauge(metrics.get_number_of_connections_metric(), PanelType::TimeSeries);
+        let total_received_msgs_panel = Panel::new(
+            "Remote request receiving rate",
+            format!("Increase of received remote requests [{INFRA_INCREASE_DURATION}]"),
+            increase(metrics.get_total_received_metric(), INFRA_INCREASE_DURATION),
+            PanelType::TimeSeries,
+        );
+        let valid_received_msgs_panel = Panel::new(
+            "Valid remote request receiving rate",
+            format!("Increase of valid received remote requests [{INFRA_INCREASE_DURATION}]"),
+            increase(metrics.get_valid_received_metric(), INFRA_INCREASE_DURATION),
+            PanelType::TimeSeries,
+        );
+        let processed_msgs_panel = Panel::new(
+            "Remote request processing rate",
+            format!("Increase of processed remote requests [{INFRA_INCREASE_DURATION}]"),
+            increase(metrics.get_processed_metric(), INFRA_INCREASE_DURATION),
+            PanelType::TimeSeries,
+        );
+        let number_of_connections_panel = Panel::new(
+            "Number of remote connections",
+            "Number of currently-open remote connections",
+            metrics.get_number_of_connections_metric().get_name_with_filter().to_string(),
+            PanelType::TimeSeries,
+        );
 
         Self(vec![
             total_received_msgs_panel,
