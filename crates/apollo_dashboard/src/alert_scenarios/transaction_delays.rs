@@ -1,7 +1,7 @@
 use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,

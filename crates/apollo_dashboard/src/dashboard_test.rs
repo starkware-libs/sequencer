@@ -1,5 +1,5 @@
 use apollo_infra_utils::test_utils::assert_json_eq;
-use apollo_metrics::metrics::{MetricCommon, MetricCounter, MetricScope};
+use apollo_metrics::metrics::{MetricCounter, MetricQueryName, MetricScope};
 
 use crate::alerts::{
     Alert,

@@ -5,7 +5,7 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_TOTAL,
 };
 use apollo_mempool::metrics::{MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED};
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,

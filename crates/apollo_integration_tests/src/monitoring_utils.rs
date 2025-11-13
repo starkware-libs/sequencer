@@ -2,7 +2,7 @@ use apollo_batcher::metrics::{REVERTED_TRANSACTIONS, STORAGE_HEIGHT};
 use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_metrics::metrics::MetricCommon;
+use apollo_metrics::metrics::MetricDetails;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_BODY_MARKER,
