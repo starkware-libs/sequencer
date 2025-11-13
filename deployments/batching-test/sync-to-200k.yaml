@@ -1,0 +1,198 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sync-to-200k
+  namespace: batching-test
+  labels:
+    app: sequencer-sync
+    job-type: data-sync
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: sequencer-sync
+    spec:
+      restartPolicy: Never
+      
+      # Use c4d node pool for hyperdisk support
+      nodeSelector:
+        role: "apollo-core-service-c4d-standard-8"
+      
+      tolerations:
+        - key: key
+          operator: "Equal"
+          value: "apollo-core-service-c4d-standard-8"
+          effect: "NoSchedule"
+      
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /data_compare_batching/workspace && chmod -R 777 /data_compare_batching/workspace']
+        volumeMounts:
+        - name: database-storage
+          mountPath: /data_compare_batching
+      
+      containers:
+      - name: sync
+        image: ghcr.io/starkware-libs/sequencer/sequencer:dean-k8s_batching_test-fd3d4f1
+        imagePullPolicy: Always
+        workingDir: /data_compare_batching/workspace
+        
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -e
+          
+          echo "========================================="
+          echo "SYNCING NODE TO 200K BLOCKS"
+          echo "========================================="
+          echo ""
+          echo "Target: Block 200,000"
+          echo "Storage: PVC (100GB Premium SSD)"
+          echo ""
+          
+          # Set PATH to include apollo_node
+          export PATH="/app/target/release:$PATH"
+          export RUST_LOG=info
+          
+          # Check existing data
+          if [ -d "/data_compare_batching/workspace/SN_MAIN" ]; then
+            echo "✓ Found existing blockchain data"
+            echo "  Will continue from last synced block"
+            du -sh /data_compare_batching/workspace/SN_MAIN
+          else
+            echo "⚠ No existing data - starting from block 0"
+          fi
+          echo ""
+          
+          # Create test config (sets storage path, avoids P2P config errors)
+          cat > test_config.json << 'TESTCONFIG'
+          {
+            "state_sync_config.central_sync_client_config.sync_config.enable_block_batching": true,
+            "state_sync_config.central_sync_client_config.sync_config.block_batch_size": 100,
+            "state_sync_config.storage_config.db_config.path_prefix": "."
+          }
+          TESTCONFIG
+          
+          # Build apollo_node command with same configs as test script
+          echo "Loading configuration files (same as test_batching.sh)..."
+          
+          # EXACTLY match the test script's config loading order
+          CONFIG_ARGS="--config_file /configs/base_layer_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/batcher_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/class_manager_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/consensus_manager_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/revert_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/versioned_constants_overrides_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/validate_resource_bounds_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/gateway_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/http_server_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_endpoint_monitor_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_gas_price_provider_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_gas_price_scraper_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_provider_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/l1_scraper_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mempool_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mempool_p2p_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/monitoring_endpoint_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/sierra_compiler_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/state_sync_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mainnet_deployment"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mainnet_hybrid"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/node_config"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/minimal_node_config.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file /configs/mainnet_secrets.json"
+          CONFIG_ARGS="$CONFIG_ARGS --config_file test_config.json"
+          
+          echo "✓ Configuration loaded"
+          echo ""
+          echo "Starting node..."
+          echo "========================================="
+          echo ""
+          
+          # Start the node
+          apollo_node $CONFIG_ARGS 2>&1 | tee sync.log &
+          NODE_PID=$!
+          
+          echo "Node PID: $NODE_PID"
+          echo ""
+          echo "Monitoring progress..."
+          echo "(This will take 1-2 hours to reach 200k blocks)"
+          echo ""
+          
+          # Monitor the node
+          LAST_CHECK=0
+          CHECK_INTERVAL=30
+          TARGET_BLOCK=200000
+          
+          while kill -0 $NODE_PID 2>/dev/null; do
+            CURRENT_TIME=$(date +%s)
+            
+            if [ $((CURRENT_TIME - LAST_CHECK)) -ge $CHECK_INTERVAL ]; then
+              echo "[$(date '+%H:%M:%S')] Status:"
+              
+              # Show recent progress from logs
+              tail -100 sync.log | grep -i "progress\|block.*synced\|height" | tail -3 || echo "  Syncing..."
+              
+              # Show disk usage
+              echo "  Database size: $(du -sh /data_compare_batching/workspace/SN_MAIN 2>/dev/null | cut -f1 || echo 'N/A')"
+              echo ""
+              
+              LAST_CHECK=$CURRENT_TIME
+            fi
+            
+            sleep 5
+          done
+          
+          # Node stopped
+          wait $NODE_PID
+          EXIT_CODE=$?
+          
+          echo ""
+          echo "========================================="
+          echo "Node stopped (exit code: $EXIT_CODE)"
+          echo "========================================="
+          echo ""
+          
+          # Show final size
+          if [ -d "/data_compare_batching/workspace/SN_MAIN" ]; then
+            echo "Final database size:"
+            du -sh /data_compare_batching/workspace/SN_MAIN
+            echo ""
+            echo "✓ Data saved to PVC for future use!"
+          fi
+          
+          exit $EXIT_CODE
+        
+        resources:
+          requests:
+            cpu: "7"  # 7 CPUs (leave room for system pods on c4d-standard-8)
+            memory: "16Gi"
+            ephemeral-storage: "10Gi"
+          limits:
+            cpu: "16"
+            memory: "32Gi"
+            ephemeral-storage: "20Gi"
+        
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: PATH
+          value: "/app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        
+        volumeMounts:
+        - name: database-storage
+          mountPath: /data_compare_batching
+        - name: sequencer-configs
+          mountPath: /configs
+          readOnly: true
+      
+      volumes:
+      - name: database-storage
+        persistentVolumeClaim:
+          claimName: sequencer-database-hyperdisk
+      - name: sequencer-configs
+        configMap:
+          name: sequencer-configs
+

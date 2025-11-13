@@ -28,15 +28,11 @@ spec:
         - name: database-storage
           mountPath: /data_compare_batching
       
-      # Use c4d node pool for hyperdisk support
+      # Use a node with good disk performance
       nodeSelector:
-        role: "apollo-core-service-c4d-standard-8"
-      
-      tolerations:
-        - key: key
-          operator: "Equal"
-          value: "apollo-core-service-c4d-standard-8"
-          effect: "NoSchedule"
+        # Uncomment and adjust based on your cluster
+        # cloud.google.com/gke-nodepool: high-performance
+        # disk-type: ssd
       
       containers:
       - name: batching-test
@@ -99,7 +95,7 @@ spec:
         # Resource requests and limits
         resources:
           requests:
-            cpu: "7"           # 7 CPUs (leave room for system pods on c4d-standard-8)
+            cpu: "8"           # 8 CPUs for parallel compilation
             memory: "16Gi"     # 16GB RAM
             ephemeral-storage: "30Gi"  # Disk for test databases (reduced from 100Gi)
           limits:
@@ -112,7 +108,7 @@ spec:
           - name: RUST_LOG
             value: "info"
           - name: BLOCKS_TO_SYNC
-            value: "5000"
+            value: "200000"
           - name: BATCH_SIZE
             value: "100"
           - name: PATH
@@ -155,12 +151,12 @@ spec:
           configMap:
             name: sequencer-configs
         
-        # Persistent volume for database (hyperdisk for better performance)
+        # Persistent volume for database (create this separately)
         - name: database-storage
           persistentVolumeClaim:
-            claimName: sequencer-database-hyperdisk
+            claimName: sequencer-database-pvc
         
-        # Persistent volume for results (hyperdisk for c4d compatibility)
+        # Persistent volume for results
         - name: results-storage
           persistentVolumeClaim:
-            claimName: test-results-hyperdisk
+            claimName: test-results-pvc
