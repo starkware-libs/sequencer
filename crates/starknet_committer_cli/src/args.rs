@@ -1,4 +1,5 @@
 use std::fs;
+use std::future::Future;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -53,7 +54,7 @@ pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 pub static DEFAULT_PORT_STRING: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
 
 pub trait StorageFromArgs: Args {
-    fn storage(&self) -> impl Storage;
+    fn storage(&self) -> impl Future<Output = impl Storage> + Send;
 }
 
 /// Key size, in bytes, for the short key storage.
@@ -207,9 +208,9 @@ pub struct CachedStorageArgs<A: StorageFromArgs> {
     pub cache_size: usize,
 }
 
-impl<A: StorageFromArgs> StorageFromArgs for CachedStorageArgs<A> {
-    fn storage(&self) -> impl Storage {
-        CachedStorage::new(self.storage_args.storage(), self.cached_storage_config())
+impl<A: StorageFromArgs + Sync> StorageFromArgs for CachedStorageArgs<A> {
+    async fn storage(&self) -> impl Storage {
+        CachedStorage::new(self.storage_args.storage().await, self.cached_storage_config())
     }
 }
 
@@ -234,7 +235,7 @@ pub struct MemoryArgs {
 }
 
 impl StorageFromArgs for MemoryArgs {
-    fn storage(&self) -> impl Storage {
+    async fn storage(&self) -> impl Storage {
         MapStorage::default()
     }
 }
@@ -250,7 +251,7 @@ pub struct MdbxArgs {
 }
 
 impl StorageFromArgs for MdbxArgs {
-    fn storage(&self) -> impl Storage {
+    async fn storage(&self) -> impl Storage {
         MdbxStorage::open(Path::new(
             &self.file_storage_args.initialize_storage_path(StorageType::Mdbx),
         ))
@@ -280,7 +281,7 @@ pub struct RocksdbArgs {
 }
 
 impl StorageFromArgs for RocksdbArgs {
-    fn storage(&self) -> impl Storage {
+    async fn storage(&self) -> impl Storage {
         RocksDbStorage::open(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
             self.rocksdb_options(),
@@ -324,8 +325,8 @@ pub struct AerospikeArgs {
 }
 
 impl StorageFromArgs for AerospikeArgs {
-    fn storage(&self) -> impl Storage {
-        AerospikeStorage::new(self.aerospike_storage_config()).unwrap()
+    async fn storage(&self) -> impl Storage {
+        AerospikeStorage::new(self.aerospike_storage_config()).await.unwrap()
     }
 }
 
@@ -371,7 +372,7 @@ macro_rules! define_storage_benchmark_command {
                 match self {
                     $(
                         Self::$variant(args) => {
-                            let storage = args.storage();
+                            let storage = args.storage().await;
                             run_storage_benchmark_wrapper(self, storage).await;
                         }
                     )+
