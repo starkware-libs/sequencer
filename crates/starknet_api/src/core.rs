@@ -6,11 +6,11 @@ use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
+use apollo_sizeof::SizeOf;
 use num_traits::ToPrimitive;
 use primitive_types::H160;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sizeof::SizeOf;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 

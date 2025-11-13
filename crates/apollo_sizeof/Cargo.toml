@@ -1,5 +1,5 @@
 [package]
-name = "sizeof"
+name = "apollo_sizeof"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
@@ -7,8 +7,8 @@ license-file.workspace = true
 description = "compute size of types in memory"
 
 [dependencies]
-sizeof_internal.workspace = true
-sizeof_macro.workspace = true
+apollo_sizeof_internal.workspace = true
+apollo_sizeof_macros.workspace = true
 
 [lints]
 workspace = true
