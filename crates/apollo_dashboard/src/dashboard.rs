@@ -294,15 +294,6 @@ impl Panel {
         Self::new(name, description, expr, PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
 
-    pub(crate) fn from_counter(metric: &MetricCounter, panel_type: PanelType) -> Self {
-        Self::new(
-            metric_name_to_panel_title(metric.get_name()),
-            metric.get_description(),
-            metric.get_name_with_filter().to_string(),
-            panel_type,
-        )
-    }
-
     pub(crate) fn from_gauge(metric: &MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric_name_to_panel_title(metric.get_name()),
