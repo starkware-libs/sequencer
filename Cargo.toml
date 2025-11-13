@@ -73,7 +73,6 @@ members = [
   "crates/apollo_signature_manager",
   "crates/apollo_signature_manager_types",
   "crates/apollo_sizeof",
-  "crates/apollo_sizeof/apollo_sizeof_internal",
   "crates/apollo_sizeof/apollo_sizeof_macros",
   "crates/apollo_staking",
   "crates/apollo_starknet_client",
@@ -189,7 +188,6 @@ apollo_sierra_compilation_config.path = "crates/apollo_sierra_compilation_config
 apollo_signature_manager.path = "crates/apollo_signature_manager"
 apollo_signature_manager_types.path = "crates/apollo_signature_manager_types"
 apollo_sizeof = { path = "crates/apollo_sizeof", version = "0.16.0-rc.1" }
-apollo_sizeof_internal = { path = "crates/apollo_sizeof/apollo_sizeof_internal", version = "0.16.0-rc.1" }
 apollo_sizeof_macros = { path = "crates/apollo_sizeof/apollo_sizeof_macros", version = "0.16.0-rc.1" }
 apollo_staking.path = "crates/apollo_staking"
 apollo_starknet_client.path = "crates/apollo_starknet_client"

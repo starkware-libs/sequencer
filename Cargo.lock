@@ -2360,17 +2360,10 @@ dependencies = [
 name = "apollo_sizeof"
 version = "0.16.0-rc.1"
 dependencies = [
- "apollo_sizeof_internal",
  "apollo_sizeof_macros",
  "size-of",
- "trybuild",
-]
-
-[[package]]
-name = "apollo_sizeof_internal"
-version = "0.16.0-rc.1"
-dependencies = [
  "starknet-types-core",
+ "trybuild",
 ]
 
 [[package]]
