@@ -248,7 +248,8 @@ impl Batcher {
                 BATCHER_L1_PROVIDER_ERRORS.increment(1);
             });
 
-        let start_phase = if self.proposals_counter % self.config.propose_l1_txs_every == 0 {
+        let start_phase = if self.proposals_counter.is_multiple_of(self.config.propose_l1_txs_every)
+        {
             TxProviderPhase::L1
         } else {
             TxProviderPhase::Mempool

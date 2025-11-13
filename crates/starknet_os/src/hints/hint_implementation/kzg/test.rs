@@ -94,7 +94,8 @@ fn test_split_commitment_function(
 #[rstest]
 #[case::zero(vec![Fr::zero()], &vec![0u8; BYTES_PER_BLOB])]
 #[case::one(
-    vec![Fr::one()], &(0..BYTES_PER_BLOB).map(|i| if (i + 1) % 32 == 0 { 1 } else { 0 }).collect()
+    vec![Fr::one()],
+    &(0..BYTES_PER_BLOB).map(|i| if (i + 1).is_multiple_of(32) { 1 } else { 0 }).collect()
 )]
 #[case::degree_one(
     vec![Fr::zero(), Fr::from(10_u8)],

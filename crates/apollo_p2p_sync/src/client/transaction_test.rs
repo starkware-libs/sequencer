@@ -82,7 +82,7 @@ async fn transaction_basic_flow() {
     {
         let i = u64::try_from(i).unwrap();
         // If this block starts a new transaction query, receive the new query.
-        if i % TRANSACTION_QUERY_LENGTH == 0 {
+        if i.is_multiple_of(TRANSACTION_QUERY_LENGTH) {
             let limit = min(TRANSACTION_QUERY_LENGTH, NUM_BLOCKS - i);
             actions.push(Action::ReceiveQuery(
                 Box::new(move |query| {
@@ -151,7 +151,7 @@ async fn transaction_basic_flow() {
             .boxed()
         })));
 
-        if (i + 1) % TRANSACTION_QUERY_LENGTH == 0 || i + 1 == NUM_BLOCKS {
+        if (i + 1).is_multiple_of(TRANSACTION_QUERY_LENGTH) || i + 1 == NUM_BLOCKS {
             actions.push(Action::SendTransaction(DataOrFin(None)));
         }
     }
