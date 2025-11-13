@@ -7,8 +7,11 @@ license.workspace = true
 
 [features]
 blockifier_regression_https_testing = []
+cairo_native = ["blockifier/cairo_native"]
 
 [dependencies]
+apollo_compile_to_native.workspace = true
+apollo_compile_to_native_types.workspace = true
 apollo_gateway.workspace = true
 apollo_gateway_config.workspace = true
 apollo_rpc_execution.workspace = true

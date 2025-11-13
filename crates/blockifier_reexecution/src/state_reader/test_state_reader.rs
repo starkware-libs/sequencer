@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use apollo_compile_to_native::compiler::SierraToNativeCompiler;
+use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
 use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
 use apollo_gateway::rpc_state_reader::RpcStateReader;
@@ -12,7 +14,9 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
+#[cfg(feature = "cairo_native")]
+use blockifier::execution::native::contract_class::NativeCompiledClassV1;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -138,8 +142,60 @@ impl StateReader for TestStateReader {
 
         match contract_class {
             StarknetContractClass::Sierra(sierra) => {
-                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
-                Ok(RunnableCompiledClass::try_from(casm).unwrap())
+                // Get the casm from sierra_to_versioned_contract_class_v1 first
+                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra.clone()).unwrap();
+
+                #[cfg(feature = "cairo_native")]
+                {
+                    // Convert FlattenedSierraClass to
+                    // cairo_lang_starknet_classes::contract_class::ContractClass
+                    // (reusing logic from compile.rs)
+                    let middle_sierra: crate::state_reader::compile::MiddleSierraContractClass = {
+                        let v = serde_json::to_value(sierra).map_err(serde_err_to_state_err)?;
+                        serde_json::from_value(v).map_err(serde_err_to_state_err)?
+                    };
+                    let cairo_lang_contract_class =
+                        cairo_lang_starknet_classes::contract_class::ContractClass {
+                            sierra_program: middle_sierra.sierra_program,
+                            contract_class_version: middle_sierra.contract_class_version,
+                            entry_points_by_type: middle_sierra.entry_points_by_type,
+                            sierra_program_debug_info: None,
+                            abi: None,
+                        };
+
+                    // Compile to native using SierraToNativeCompiler
+                    let compiler = SierraToNativeCompiler::new(SierraCompilationConfig::default());
+                    let executor = compiler.compile(cairo_lang_contract_class).map_err(|e| {
+                        StateError::StateReadError(format!("Failed to compile to native: {}", e))
+                    })?;
+
+                    // Extract CompiledClassV1 from casm
+                    let compiled_class_v1 = match casm {
+                        starknet_api::contract_class::ContractClass::V1(versioned_casm) => {
+                            CompiledClassV1::try_from(versioned_casm).map_err(|e| {
+                                StateError::StateReadError(format!(
+                                    "Failed to convert to CompiledClassV1: {}",
+                                    e
+                                ))
+                            })?
+                        }
+                        _ => {
+                            return Err(StateError::StateReadError(
+                                "Expected V1 contract class".to_string(),
+                            ));
+                        }
+                    };
+
+                    // Create NativeCompiledClassV1 with executor and casm
+                    let native_compiled_class =
+                        NativeCompiledClassV1::new(executor, compiled_class_v1);
+                    Ok(RunnableCompiledClass::V1Native(native_compiled_class))
+                }
+                #[cfg(not(feature = "cairo_native"))]
+                {
+                    // Fallback to V1 if cairo_native feature is not enabled
+                    Ok(RunnableCompiledClass::try_from(casm).unwrap())
+                }
             }
             StarknetContractClass::Legacy(legacy) => {
                 Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())
