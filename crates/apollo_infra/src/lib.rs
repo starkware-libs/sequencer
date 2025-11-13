@@ -7,3 +7,5 @@ pub mod serde_utils;
 #[cfg(test)]
 pub mod tests;
 pub mod trace_util;
+#[cfg(test)]
+pub mod trace_util_tests;
