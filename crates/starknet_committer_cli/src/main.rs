@@ -7,7 +7,7 @@ use clap::{ArgAction, Args, Parser, Subcommand};
 use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
-use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
+use starknet_patricia_storage::rocksdb::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
 use tracing::info;
