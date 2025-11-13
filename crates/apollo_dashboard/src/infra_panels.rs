@@ -19,11 +19,10 @@ const INFRA_INCREASE_DURATION: &str = "1m";
 pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMetrics) -> Row {
     let mut panels: Vec<Panel> = Vec::new();
     // Add the general infra panels.
-    // TODO(Tsabary): remove the ".0" syntax, consider using `Derive::Deref` instead.
-    panels.extend(UnlabeledPanels::from(metrics.get_local_client_metrics()).0);
-    panels.extend(UnlabeledPanels::from(metrics.get_remote_client_metrics()).0);
-    panels.extend(UnlabeledPanels::from(metrics.get_local_server_metrics()).0);
-    panels.extend(UnlabeledPanels::from(metrics.get_remote_server_metrics()).0);
+    panels.extend(InfraPanelBundle::from(metrics.get_local_client_metrics()));
+    panels.extend(InfraPanelBundle::from(metrics.get_remote_client_metrics()));
+    panels.extend(InfraPanelBundle::from(metrics.get_local_server_metrics()));
+    panels.extend(InfraPanelBundle::from(metrics.get_remote_server_metrics()));
 
     let labeled_client_panels = get_infra_client_panels(
         metrics.get_local_client_metrics(),
@@ -51,20 +50,25 @@ pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMe
     Row::new(modified_row_name, panels)
 }
 
-// TODO(Tsabary): rename this struct and remove the `unlabeled` notation from this module.
-// There is no equivalent for LabeledPanels because they are less straightforward than
-// UnlabeledPanels and require an aggregation of metrics more often, for example the panels created
-// using [`get_multi_metric_panel`].
-/// A struct that contains all unlabeled panels for a given metrics struct.
-struct UnlabeledPanels(Vec<Panel>);
+/// A wrapper struct for creating a bundle of infra panels from a bundle of infra metrics.
+struct InfraPanelBundle(Vec<Panel>);
 
-impl From<&LocalClientMetrics> for UnlabeledPanels {
+impl IntoIterator for InfraPanelBundle {
+    type Item = Panel;
+    type IntoIter = std::vec::IntoIter<Panel>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl From<&LocalClientMetrics> for InfraPanelBundle {
     fn from(_metrics: &LocalClientMetrics) -> Self {
         Self(vec![])
     }
 }
 
-impl From<&RemoteClientMetrics> for UnlabeledPanels {
+impl From<&RemoteClientMetrics> for InfraPanelBundle {
     fn from(metrics: &RemoteClientMetrics) -> Self {
         Self(vec![Panel::from_hist(
             metrics.get_attempts_metric(),
@@ -74,7 +78,7 @@ impl From<&RemoteClientMetrics> for UnlabeledPanels {
     }
 }
 
-impl From<&LocalServerMetrics> for UnlabeledPanels {
+impl From<&LocalServerMetrics> for InfraPanelBundle {
     fn from(metrics: &LocalServerMetrics) -> Self {
         let received_msgs_panel = Panel::new(
             "Local request receiving rate",
@@ -101,7 +105,7 @@ impl From<&LocalServerMetrics> for UnlabeledPanels {
     }
 }
 
-impl From<&RemoteServerMetrics> for UnlabeledPanels {
+impl From<&RemoteServerMetrics> for InfraPanelBundle {
     fn from(metrics: &RemoteServerMetrics) -> Self {
         let total_received_msgs_panel = Panel::new(
             "Remote request receiving rate",
