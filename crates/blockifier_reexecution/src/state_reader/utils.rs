@@ -1,24 +1,33 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::fs::read_to_string;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::execution::contract_class::{CompiledClassV0, CompiledClassV1};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
-use blockifier::state::state_api::StateReader;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::global_cache::CompiledClasses;
+use blockifier::state::state_api::{StateReader, StateResult};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;
+use crate::state_reader::compile::{
+    legacy_to_contract_class_v0,
+    sierra_to_versioned_contract_class_v1,
+};
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
     OfflineConsecutiveStateReaders,
@@ -38,6 +47,13 @@ pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
+
+pub fn create_contract_class_manager() -> ContractClassManager {
+    let mut contract_class_manager_config = ContractClassManagerConfig::default();
+    contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
+    contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
+    ContractClassManager::start(contract_class_manager_config)
+}
 
 pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
     match (
@@ -223,19 +239,22 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync + Clone + 'static,
+    S: StateReader + Send + Sync + 'static,
     T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
+    contract_class_manager: &ContractClassManager,
 ) -> Option<CachedState<S>> {
     let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
 
     let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
 
-    let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
+    let mut transaction_executor = consecutive_state_readers
+        .pre_process_and_create_executor(None, contract_class_manager)
+        .unwrap();
 
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
+
     // Verify all transactions executed successfully.
     for res in execution_results.iter() {
         assert_matches!(res, Ok(_));
@@ -255,8 +274,11 @@ pub fn reexecute_block_for_testing(block_number: u64) {
     // In tests we are already in the blockifier_reexecution directory.
     let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
 
+    let contract_class_manager = create_contract_class_manager();
+
     reexecute_and_verify_correctness(
         OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+        &contract_class_manager,
     );
 
     println!("Reexecution test for block {block_number} passed successfully.");
@@ -267,6 +289,7 @@ pub fn write_block_reexecution_data_to_file(
     full_file_path: String,
     node_url: String,
     chain_id: ChainId,
+    contract_class_manager: &ContractClassManager,
 ) {
     let config = RpcStateReaderConfig::from_url(node_url);
 
@@ -283,10 +306,16 @@ pub fn write_block_reexecution_data_to_file(
     let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
 
     // Run the reexecution test and get the state maps and contract class mapping.
-    let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
+    let block_state =
+        reexecute_and_verify_correctness(consecutive_state_readers, contract_class_manager)
+            .unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
+        contract_class_mapping: block_state
+            .state
+            .state_reader
+            .get_contract_class_mapping_dumper()
+            .unwrap(),
     };
 
     // Write the reexecution data to a json file.
@@ -309,6 +338,7 @@ pub fn execute_single_transaction_from_json(
     node_url: String,
     chain_id: ChainId,
     transaction_json_path: String,
+    contract_class_manager: &ContractClassManager,
 ) -> ReexecutionResult<()> {
     // Load transaction from a JSON file.
     let json_content = read_to_string(&transaction_json_path).unwrap_or_else(|_| {
@@ -341,7 +371,7 @@ pub fn execute_single_transaction_from_json(
 
     // Create transaction executor.
     let mut transaction_executor =
-        consecutive_state_readers.pre_process_and_create_executor(None)?;
+        consecutive_state_readers.pre_process_and_create_executor(None, contract_class_manager)?;
 
     // Execute transaction (should be single element).
     let execution_results = transaction_executor.execute_txs(&blockifier_tx, None);
@@ -379,4 +409,67 @@ pub fn get_block_numbers_for_reexecution(relative_path: Option<String>) -> Vec<B
         ))
         .expect("Failed to deserialize block header");
     block_numbers_examples.values().cloned().map(BlockNumber).collect()
+}
+
+/// Extracts the compiled class from the contract classs, and returns it as a CompiledClasses
+/// object.
+pub fn get_compiled_classes_from_contract_class(
+    contract_class: &StarknetContractClass,
+) -> StateResult<CompiledClasses> {
+    match contract_class {
+        StarknetContractClass::Sierra(sierra) => {
+            // Convert FlattenedSierraClass to SierraContractClass using serde_json.
+            let serde_value = serde_json::to_value(sierra)
+                .unwrap_or_else(|err| panic!("Failed to serialize flattened Sierra: {err}"));
+            let sierra_contract_class: SierraContractClass = serde_json::from_value(serde_value)
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "Failed to deserialize SierraContractClass: {err} for flattened_sierra: \
+                         {sierra:?}"
+                    );
+                });
+
+            // Compile Sierra to CASM
+            let (casm, _) = sierra_to_versioned_contract_class_v1(sierra.clone())?;
+
+            // Extract CompiledClassV1 from CASM.
+            let compiled_class_v1 = match casm {
+                starknet_api::contract_class::ContractClass::V1(versioned_casm) => {
+                    CompiledClassV1::try_from(versioned_casm.clone()).unwrap_or_else(|err| {
+                        panic!(
+                            "Failed to convert to CompiledClassV1: {err} for versioned_casm: \
+                             {versioned_casm:?}"
+                        );
+                    })
+                }
+                _ => {
+                    panic!("Expected V1 contract class, got {casm:?}");
+                }
+            };
+
+            Ok(CompiledClasses::V1(compiled_class_v1, Arc::new(sierra_contract_class)))
+        }
+        StarknetContractClass::Legacy(legacy) => {
+            // Convert Legacy to ContractClass::V0
+            let contract_class_v0 =
+                legacy_to_contract_class_v0(legacy.clone()).unwrap_or_else(|err| {
+                    panic!("Failed to convert Legacy to V0: {err} for legacy: {legacy:?}");
+                });
+
+            // Extract CompiledClassV0 from ContractClass::V0.
+            let compiled_class_v0 = match contract_class_v0 {
+                starknet_api::contract_class::ContractClass::V0(deprecated_class) => {
+                    CompiledClassV0::try_from(deprecated_class.clone()).unwrap_or_else(|err| {
+                        panic!(
+                            "Failed to convert to CompiledClassV0: {err} for deprecated_class: \
+                             {deprecated_class:?}"
+                        );
+                    })
+                }
+                _ => panic!("Expected V0 contract class, got {contract_class_v0:?}"),
+            };
+
+            Ok(CompiledClasses::V0(compiled_class_v0))
+        }
+    }
 }
