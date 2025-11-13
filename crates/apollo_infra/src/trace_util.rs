@@ -1,6 +1,7 @@
 use time::macros::format_description;
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
+use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, reload, EnvFilter};
@@ -110,4 +111,32 @@ macro_rules! infra_error {
     ($($arg:tt)*) => {{
         tracing::error!(PID = *$crate::trace_util::PID, $($arg)*);
     }};
+}
+
+pub async fn set_log_level(crate_name: &str, level: LevelFilter) {
+    let handle = configure_tracing().await;
+
+    if let Ok(directive) = format!("{crate_name}={level}").parse::<Directive>() {
+        let _ = handle.modify(|filter| {
+            *filter = std::mem::take(filter).add_directive(directive);
+        });
+    } else {
+        tracing::warn!(%crate_name, "ignored invalid log-level directive");
+    }
+}
+
+#[tokio::test]
+async fn log_level_directive_updates() {
+    let reload_handle = configure_tracing().await;
+
+    set_log_level("a", LevelFilter::DEBUG).await;
+    set_log_level("b", LevelFilter::DEBUG).await;
+    let directives = reload_handle.with_current(|f| f.to_string()).expect("handle should be valid");
+
+    assert!(directives.contains("a=debug"));
+    assert!(directives.contains("b=debug"));
+
+    set_log_level("a", LevelFilter::INFO).await;
+    let directives = reload_handle.with_current(|f| f.to_string()).expect("handle should be valid");
+    assert!(directives.contains("a=info"));
 }
