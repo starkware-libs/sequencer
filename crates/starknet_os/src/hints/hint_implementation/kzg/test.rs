@@ -109,7 +109,7 @@ fn test_split_commitment_function(
 #[case::one(
     vec![Fr::one()],
     &(0..BYTES_PER_BLOB)
-        .map(|i| if (i + 1) % 32 == 0 { 1 } else { 0 })
+        .map(|i| if (i + 1).is_multiple_of(32) { 1 } else { 0 })
         .collect::<Vec<u8>>()
         .try_into()
         .unwrap()

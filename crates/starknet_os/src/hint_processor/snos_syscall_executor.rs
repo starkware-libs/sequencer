@@ -411,7 +411,8 @@ fn allocate_or_return_execution_info_segment<IG: IdentifierGetter>(
         // Verify all resource bounds are present.
         assert!(resource_bounds_size != 0);
         assert!(
-            (resource_bounds_end.offset - resource_bounds_start.offset) % resource_bounds_size == 0,
+            (resource_bounds_end.offset - resource_bounds_start.offset)
+                .is_multiple_of(resource_bounds_size),
             "Resource bounds segment length is not a multiple of resource bounds size."
         );
         if (resource_bounds_end.offset - resource_bounds_start.offset) / resource_bounds_size != 3 {
