@@ -63,20 +63,66 @@ impl Metric {
     }
 }
 
-pub trait MetricCommon {
+pub trait MetricDetails {
     fn get_name(&self) -> &'static str;
-    fn get_name_with_filter(&self) -> String;
     fn get_scope(&self) -> MetricScope;
     fn get_description(&self) -> &'static str;
 }
 
-impl MetricCommon for Metric {
+pub trait MetricQueryName: MetricDetails {
+    fn get_name_with_filter(&self) -> String;
+}
+
+#[derive(Copy, Clone)]
+enum MetricFilterKind {
+    CounterOrGauge,
+    Histogram,
+}
+
+trait HasMetricFilterKind: MetricDetails {
+    const FILTER_KIND: MetricFilterKind;
+}
+
+impl<T: HasMetricFilterKind> MetricQueryName for T {
+    fn get_name_with_filter(&self) -> String {
+        match T::FILTER_KIND {
+            MetricFilterKind::CounterOrGauge => {
+                format!("{}{METRIC_LABEL_FILTER}", self.get_name())
+            }
+            MetricFilterKind::Histogram => {
+                format!("{}_bucket{METRIC_LABEL_FILTER}", self.get_name())
+            }
+        }
+    }
+}
+
+impl HasMetricFilterKind for MetricCounter {
+    const FILTER_KIND: MetricFilterKind = MetricFilterKind::CounterOrGauge;
+}
+
+impl HasMetricFilterKind for LabeledMetricCounter {
+    const FILTER_KIND: MetricFilterKind = MetricFilterKind::CounterOrGauge;
+}
+
+impl HasMetricFilterKind for MetricGauge {
+    const FILTER_KIND: MetricFilterKind = MetricFilterKind::CounterOrGauge;
+}
+
+impl HasMetricFilterKind for LabeledMetricGauge {
+    const FILTER_KIND: MetricFilterKind = MetricFilterKind::CounterOrGauge;
+}
+
+impl HasMetricFilterKind for MetricHistogram {
+    const FILTER_KIND: MetricFilterKind = MetricFilterKind::Histogram;
+}
+
+impl HasMetricFilterKind for LabeledMetricHistogram {
+    const FILTER_KIND: MetricFilterKind = MetricFilterKind::Histogram;
+}
+
+impl MetricDetails for Metric {
     fn get_name(&self) -> &'static str {
         self.name
-    }
-
-    fn get_name_with_filter(&self) -> String {
-        format!("{}{METRIC_LABEL_FILTER}", self.name)
     }
 
     fn get_scope(&self) -> MetricScope {
@@ -85,6 +131,28 @@ impl MetricCommon for Metric {
 
     fn get_description(&self) -> &'static str {
         self.description
+    }
+}
+
+trait HasMetricDetails {
+    type InnerMetricDetails: MetricDetails;
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails;
+}
+
+impl<T> MetricDetails for T
+where
+    T: HasMetricDetails,
+{
+    fn get_name(&self) -> &'static str {
+        self.get_metric_description().get_name()
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.get_metric_description().get_scope()
+    }
+
+    fn get_description(&self) -> &'static str {
+        self.get_metric_description().get_description()
     }
 }
 
@@ -130,21 +198,11 @@ impl MetricCounter {
     }
 }
 
-impl MetricCommon for MetricCounter {
-    fn get_name(&self) -> &'static str {
-        self.metric.get_name()
-    }
+impl HasMetricDetails for MetricCounter {
+    type InnerMetricDetails = Metric;
 
-    fn get_name_with_filter(&self) -> String {
-        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.metric.get_scope()
-    }
-
-    fn get_description(&self) -> &'static str {
-        self.metric.get_description()
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails {
+        &self.metric
     }
 }
 
@@ -198,21 +256,11 @@ impl LabeledMetricCounter {
     }
 }
 
-impl MetricCommon for LabeledMetricCounter {
-    fn get_name(&self) -> &'static str {
-        self.metric.get_name()
-    }
+impl HasMetricDetails for LabeledMetricCounter {
+    type InnerMetricDetails = Metric;
 
-    fn get_name_with_filter(&self) -> String {
-        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.metric.get_scope()
-    }
-
-    fn get_description(&self) -> &'static str {
-        self.metric.get_description()
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails {
+        &self.metric
     }
 }
 
@@ -264,23 +312,14 @@ impl MetricGauge {
     }
 }
 
-impl MetricCommon for MetricGauge {
-    fn get_name(&self) -> &'static str {
-        self.metric.get_name()
-    }
+impl HasMetricDetails for MetricGauge {
+    type InnerMetricDetails = Metric;
 
-    fn get_name_with_filter(&self) -> String {
-        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.metric.get_scope()
-    }
-
-    fn get_description(&self) -> &'static str {
-        self.metric.get_description()
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails {
+        &self.metric
     }
 }
+
 /// An object which can be lossy converted into a `f64` representation.
 pub trait LossyIntoF64 {
     fn into_f64(self) -> f64;
@@ -362,21 +401,11 @@ impl LabeledMetricGauge {
     }
 }
 
-impl MetricCommon for LabeledMetricGauge {
-    fn get_name(&self) -> &'static str {
-        self.metric.get_name()
-    }
+impl HasMetricDetails for LabeledMetricGauge {
+    type InnerMetricDetails = Metric;
 
-    fn get_name_with_filter(&self) -> String {
-        format!("{}{METRIC_LABEL_FILTER}", self.metric.get_name())
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.metric.get_scope()
-    }
-
-    fn get_description(&self) -> &'static str {
-        self.metric.get_description()
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails {
+        &self.metric
     }
 }
 
@@ -441,21 +470,11 @@ impl MetricHistogram {
     }
 }
 
-impl MetricCommon for MetricHistogram {
-    fn get_name(&self) -> &'static str {
-        self.metric.get_name()
-    }
+impl HasMetricDetails for MetricHistogram {
+    type InnerMetricDetails = Metric;
 
-    fn get_name_with_filter(&self) -> String {
-        format!("{}_bucket{METRIC_LABEL_FILTER}", self.metric.get_name())
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.metric.get_scope()
-    }
-
-    fn get_description(&self) -> &'static str {
-        self.metric.get_description()
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails {
+        &self.metric
     }
 }
 
@@ -534,21 +553,11 @@ impl LabeledMetricHistogram {
     }
 }
 
-impl MetricCommon for LabeledMetricHistogram {
-    fn get_name(&self) -> &'static str {
-        self.metric.get_name()
-    }
+impl HasMetricDetails for LabeledMetricHistogram {
+    type InnerMetricDetails = Metric;
 
-    fn get_name_with_filter(&self) -> String {
-        format!("{}_bucket{METRIC_LABEL_FILTER}", self.metric.get_name())
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.metric.get_scope()
-    }
-
-    fn get_description(&self) -> &'static str {
-        self.metric.get_description()
+    fn get_metric_description(&self) -> &Self::InnerMetricDetails {
+        &self.metric
     }
 }
 

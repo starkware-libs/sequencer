@@ -1,4 +1,4 @@
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_BODY_MARKER,

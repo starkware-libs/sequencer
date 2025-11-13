@@ -8,7 +8,7 @@ use apollo_infra::metrics::{
     RemoteServerMetrics,
 };
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
-use apollo_metrics::metrics::{LabeledMetricHistogram, MetricCommon};
+use apollo_metrics::metrics::{LabeledMetricHistogram, MetricDetails, MetricQueryName};
 
 use crate::dashboard::{Panel, PanelType, Row, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
 

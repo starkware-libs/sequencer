@@ -1,5 +1,4 @@
-use apollo_metrics::metrics::MetricCommon;
-
+use apollo_metrics::metrics::MetricQueryName;
 #[cfg(test)]
 #[path = "query_builder_test.rs"]
 pub mod query_builder_test;
@@ -20,7 +19,7 @@ pub(crate) enum DisplayMethod<'a> {
 /// - `duration`: range window, e.g. `"5m"`, `"1h"`.
 ///
 /// Example: `increase(m, "5m")` → `increase(http_requests_total{...}[5m])`
-pub(crate) fn increase(metric: &dyn MetricCommon, duration: &str) -> String {
+pub(crate) fn increase(metric: &dyn MetricQueryName, duration: &str) -> String {
     format!("increase({}[{}])", metric.get_name_with_filter(), duration)
 }
 
@@ -36,7 +35,7 @@ pub(crate) fn increase(metric: &dyn MetricCommon, duration: &str) -> String {
 /// `sum_by_label(&m, "something", DisplayMethod::Increase("5m"), true)`
 /// → `sum by (something) (increase(<metric>[5m])) > 0`
 pub(crate) fn sum_by_label(
-    metric: &dyn MetricCommon,
+    metric: &dyn MetricQueryName,
     label: &str,
     display: DisplayMethod<'_>,
     filter_zeros: bool,

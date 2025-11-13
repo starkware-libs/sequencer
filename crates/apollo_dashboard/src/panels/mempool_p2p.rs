@@ -6,7 +6,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricDetails;
 use apollo_network::network_manager::metrics::{
     LABEL_NAME_BROADCAST_DROP_REASON,
     LABEL_NAME_EVENT_TYPE,
@@ -15,6 +15,7 @@ use apollo_network::network_manager::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 use crate::query_builder::{sum_by_label, DisplayMethod};
 
+// TODO(shahak): Properly name and describe these panels.
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
     Panel::from_gauge(&MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
 }
@@ -27,6 +28,7 @@ fn get_panel_mempool_p2p_num_received_messages() -> Panel {
     Panel::from_counter(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
 }
 
+// TODO(shahak): add units.
 fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
     Panel::from_hist(
         &MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
@@ -35,6 +37,7 @@ fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
     )
 }
 
+// TODO(shahak): Properly name and describe these panels.
 fn get_panel_mempool_p2p_network_events_by_type() -> Panel {
     Panel::new(
         MEMPOOL_P2P_NETWORK_EVENTS.get_name(),

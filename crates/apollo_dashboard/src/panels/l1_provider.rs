@@ -3,7 +3,7 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
-use apollo_metrics::MetricCommon;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
 use crate::query_builder::{increase, DEFAULT_DURATION};

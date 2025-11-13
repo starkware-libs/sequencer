@@ -1,9 +1,10 @@
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
-    MetricCommon,
     MetricCounter,
+    MetricDetails,
     MetricGauge,
     MetricHistogram,
+    MetricQueryName,
 };
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
@@ -276,8 +277,8 @@ impl Panel {
     pub(crate) fn ratio_time_series(
         name: &'static str,
         description: &'static str,
-        numerator: &MetricCounter,
-        denominator_parts: &[&MetricCounter],
+        numerator: &dyn MetricQueryName,
+        denominator_parts: &[&dyn MetricQueryName],
         duration: &str,
     ) -> Self {
         let numerator_expr = query_builder::increase(numerator, duration);
