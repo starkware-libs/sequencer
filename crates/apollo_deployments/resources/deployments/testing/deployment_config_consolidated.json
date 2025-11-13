@@ -33,16 +33,16 @@
       "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": 1,
-      "toleration": null,
+      "storage": 2000,
+      "toleration": "apollo-core-service-c4d-standard-8",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 4,
+          "memory": 16
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 7,
+          "memory": 30
         }
       },
       "external_secret": null,
