@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
 
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -13,22 +14,33 @@ use apollo_state_sync_types::communication::{
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
+};
 use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use futures::executor::block_on;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
+use tracing::error;
 
 use crate::metrics::{
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
-use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::state_reader::{
+    GatewayStateReaderWithCompiledClasses,
+    MempoolStateReader,
+    StateReaderFactory,
+};
 
 /// A transaction should use a single instance of this struct rather than creating multiple ones to
 /// make sure metrics are accurate.
@@ -52,6 +64,37 @@ impl SyncStateReader {
             class_manager_client,
             runtime,
         }
+    }
+
+    fn read_sierra(&self, class_hash: ClassHash) -> StateResult<Option<SierraContractClass>> {
+        let sierra = self
+            .runtime
+            .block_on(self.class_manager_client.get_sierra(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+
+        Ok(sierra)
+    }
+
+    fn get_compiled_class_from_client(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+        let is_class_declared = self
+            .runtime
+            .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
+            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        if !is_class_declared {
+            return Err(StateError::UndeclaredClassHash(class_hash));
+        }
+
+        let contract_class = self
+            .runtime
+            .block_on(self.class_manager_client.get_executable(class_hash))
+            .map_err(|e| StateError::StateReadError(e.to_string()))?
+            .expect(
+                "Class with hash {class_hash:?} doesn't appear in class manager even though it \
+                 was declared",
+            );
+
+        Ok(contract_class)
     }
 }
 
@@ -84,6 +127,39 @@ impl MempoolStateReader for SyncStateReader {
         };
 
         Ok(block_info)
+    }
+}
+
+impl FetchCompiledClasses for SyncStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        let contract_class = self.get_compiled_class_from_client(class_hash)?;
+        match contract_class {
+            ContractClass::V1(casm_contract_class) => {
+                let sierra = self.read_sierra(class_hash)?.ok_or_else(|| {
+                    error!(
+                        "Class hash {class_hash:?} is declared in CASM but not in Sierra. Even \
+                         though it should be coupled."
+                    );
+                    StateError::UndeclaredClassHash(class_hash)
+                })?;
+                Ok(CompiledClasses::V1(
+                    CompiledClassV1::try_from(casm_contract_class)?,
+                    Arc::new(sierra),
+                ))
+            }
+            ContractClass::V0(deprecated_contract_class) => {
+                Ok(CompiledClasses::V0(CompiledClassV0::try_from(deprecated_contract_class)?))
+            }
+        }
+    }
+
+    /// Returns whether the given Cairo1 class is declared.
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.runtime
+            .block_on(
+                self.state_sync_client.is_cairo_1_class_declared_at(self.block_number, class_hash),
+            )
+            .map_err(|e| StateError::StateReadError(e.to_string()))
     }
 }
 
@@ -123,23 +199,7 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let is_class_declared = self
-            .runtime
-            .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
-            .map_err(|e| StateError::StateReadError(e.to_string()))?;
-
-        if !is_class_declared {
-            return Err(StateError::UndeclaredClassHash(class_hash));
-        }
-
-        let contract_class = self
-            .runtime
-            .block_on(self.class_manager_client.get_executable(class_hash))
-            .map_err(|e| StateError::StateReadError(e.to_string()))?
-            .expect(
-                "Class with hash {class_hash:?} doesn't appear in class manager even though it \
-                 was declared",
-            );
+        let contract_class = self.get_compiled_class_from_client(class_hash)?;
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
@@ -169,6 +229,8 @@ impl BlockifierStateReader for SyncStateReader {
         todo!()
     }
 }
+
+impl GatewayStateReaderWithCompiledClasses for SyncStateReader {}
 
 struct SharedStateSyncClientMetricWrapper {
     state_sync_client: SharedStateSyncClient,
@@ -294,7 +356,7 @@ pub(crate) struct SyncStateReaderFactory {
 impl StateReaderFactory for SyncStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
-    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+    ) -> StateSyncClientResult<Box<dyn GatewayStateReaderWithCompiledClasses>> {
         let latest_block_number = self
             .runtime
             // TODO(guy.f): Do we want to count this as well?
