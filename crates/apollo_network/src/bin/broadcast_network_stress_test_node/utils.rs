@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
 use std::net::Ipv4Addr;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -8,7 +7,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::utils::make_multiaddr;
 use apollo_network::NetworkConfig;
 use libp2p::identity::Keypair;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 pub const BOOTSTRAP_CONFIG_FILE_PATH: &str =
     "crates/apollo_network/src/bin/network_stress_test/bootstrap_test_config.json";
@@ -104,28 +103,4 @@ impl TestConfig {
         }
         .dump_to_file(&vec![], &HashSet::new(), DEFAULT_CONFIG_FILE_PATH);
     }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Record {
-    pub peer_id: String,
-    pub id: u32,
-    #[serde(serialize_with = "serialize_system_time_as_u128_millis")]
-    pub start_time: SystemTime,
-    #[serde(serialize_with = "serialize_system_time_as_u128_millis")]
-    pub end_time: SystemTime,
-    pub duration: i128,
-}
-
-pub fn serialize_system_time_as_u128_millis<S>(
-    time: &SystemTime,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let duration_since_epoch =
-        time.duration_since(UNIX_EPOCH).map_err(serde::ser::Error::custom)?;
-    let millis = duration_since_epoch.as_millis();
-    serializer.serialize_u128(millis)
 }
