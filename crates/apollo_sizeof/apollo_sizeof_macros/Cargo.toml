@@ -1,5 +1,5 @@
 [package]
-name = "sizeof_macro"
+name = "apollo_sizeof_macros"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

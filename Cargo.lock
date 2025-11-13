@@ -1271,6 +1271,7 @@ dependencies = [
  "apollo_network",
  "apollo_proc_macros",
  "apollo_protobuf",
+ "apollo_sizeof",
  "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",
@@ -1302,7 +1303,6 @@ dependencies = [
  "serde",
  "serde_json",
  "shared_execution_objects",
- "sizeof",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -2353,6 +2353,32 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_sizeof"
+version = "0.16.0-rc.1"
+dependencies = [
+ "apollo_sizeof_internal",
+ "apollo_sizeof_macros",
+ "size-of",
+ "trybuild",
+]
+
+[[package]]
+name = "apollo_sizeof_internal"
+version = "0.16.0-rc.1"
+dependencies = [
+ "starknet-types-core",
+]
+
+[[package]]
+name = "apollo_sizeof_macros"
+version = "0.16.0-rc.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]
@@ -12284,32 +12310,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sizeof"
-version = "0.16.0-rc.1"
-dependencies = [
- "size-of",
- "sizeof_internal",
- "sizeof_macro",
- "trybuild",
-]
-
-[[package]]
-name = "sizeof_internal"
-version = "0.16.0-rc.1"
-dependencies = [
- "starknet-types-core",
-]
-
-[[package]]
-name = "sizeof_macro"
-version = "0.16.0-rc.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
-]
-
-[[package]]
 name = "sketches-ddsketch"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12546,6 +12546,7 @@ name = "starknet_api"
 version = "0.16.0-rc.1"
 dependencies = [
  "apollo_infra_utils",
+ "apollo_sizeof",
  "assert_matches",
  "base64 0.13.1",
  "bitvec",
@@ -12568,7 +12569,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "sizeof",
  "starknet-crypto",
  "starknet-types-core",
  "strum 0.25.0",

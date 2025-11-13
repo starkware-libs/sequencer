@@ -16,7 +16,7 @@ error[E0599]: the method `dynamic_size` exists for struct `Vec<NotSizeOf>`, but 
           `NotSizeOf: SizeOf`
           which is required by `Vec<NotSizeOf>: SizeOf`
 note: the trait `SizeOf` must be implemented
- --> sizeof_internal/src/lib.rs
+ --> apollo_sizeof_internal/src/lib.rs
   |
   | pub trait SizeOf {
   | ^^^^^^^^^^^^^^^^
