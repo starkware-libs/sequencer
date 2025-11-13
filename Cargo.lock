@@ -1048,7 +1048,11 @@ name = "apollo_committer_types"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra",
+ "async-trait",
+ "mockall",
  "serde",
+ "starknet_api",
+ "starknet_committer",
  "thiserror 1.0.69",
 ]
 
