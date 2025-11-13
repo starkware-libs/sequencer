@@ -6,7 +6,6 @@ use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input,
-    parse_quote,
     Data,
     DataEnum,
     DataStruct,
@@ -14,6 +13,8 @@ use syn::{
     Fields,
     GenericParam,
     Generics,
+    Path,
+    PathSegment,
 };
 
 /// This macro derives the `SizeOf` trait for structs and enums, allowing them to calculate
@@ -202,7 +203,29 @@ fn derive_macro_for_enum(data_enum: DataEnum) -> TokenStream2 {
 fn add_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
-            type_param.bounds.push(parse_quote!(apollo_sizeof::SizeOf));
+            // Manually construct the path to avoid circular dependency
+            // The path will be resolved when the generated code is compiled
+            let path = Path {
+                leading_colon: None,
+                segments: vec![
+                    PathSegment {
+                        ident: syn::Ident::new("apollo_sizeof", proc_macro2::Span::call_site()),
+                        arguments: syn::PathArguments::None,
+                    },
+                    PathSegment {
+                        ident: syn::Ident::new("SizeOf", proc_macro2::Span::call_site()),
+                        arguments: syn::PathArguments::None,
+                    },
+                ]
+                .into_iter()
+                .collect(),
+            };
+            type_param.bounds.push(syn::TypeParamBound::Trait(syn::TraitBound {
+                paren_token: None,
+                modifier: syn::TraitBoundModifier::None,
+                lifetimes: None,
+                path,
+            }));
         }
     }
     generics
