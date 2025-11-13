@@ -41,93 +41,99 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     ) -> OriginalSkeletonTreeResult<()> {
-        if subtrees.is_empty() {
-            return Ok(());
-        }
-        let should_fetch_modified_leaves =
-            config.compare_modified_leaves() || previous_leaves.is_some();
+        let mut current_subtrees = subtrees;
         let mut next_subtrees = Vec::new();
-        let filled_roots = calculate_subtrees_roots::<L>(&subtrees, storage)?;
-        for (filled_root, subtree) in filled_roots.into_iter().zip(subtrees.iter()) {
-            match filled_root.data {
-                // Binary node.
-                NodeData::Binary(BinaryData { left_hash, right_hash }) => {
-                    if subtree.is_unmodified() {
-                        self.nodes.insert(
-                            subtree.root_index,
-                            OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
-                        );
-                        continue;
-                    }
-                    self.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
-                    let (left_subtree, right_subtree) =
-                        subtree.get_children_subtrees(left_hash, right_hash);
-
-                    self.handle_subtree(
-                        &mut next_subtrees,
-                        left_subtree,
-                        should_fetch_modified_leaves,
-                    );
-                    self.handle_subtree(
-                        &mut next_subtrees,
-                        right_subtree,
-                        should_fetch_modified_leaves,
-                    )
-                }
-                // Edge node.
-                NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
-                    self.nodes
-                        .insert(subtree.root_index, OriginalSkeletonNode::Edge(path_to_bottom));
-                    if subtree.is_unmodified() {
-                        self.nodes.insert(
-                            path_to_bottom.bottom_index(subtree.root_index),
-                            OriginalSkeletonNode::UnmodifiedSubTree(bottom_hash),
-                        );
-                        continue;
-                    }
-                    // Parse bottom.
-                    let (bottom_subtree, previously_empty_leaves_indices) =
-                        subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
-                    if let Some(ref mut leaves) = previous_leaves {
-                        leaves.extend(
-                            previously_empty_leaves_indices
-                                .iter()
-                                .map(|idx| (**idx, L::default()))
-                                .collect::<HashMap<NodeIndex, L>>(),
-                        );
-                    }
-                    OriginalSkeletonTreeImpl::log_warning_for_empty_leaves(
-                        &previously_empty_leaves_indices,
-                        leaf_modifications,
-                        config,
-                    )?;
-
-                    self.handle_subtree(
-                        &mut next_subtrees,
-                        bottom_subtree,
-                        should_fetch_modified_leaves,
-                    );
-                }
-                // Leaf node.
-                NodeData::Leaf(previous_leaf) => {
-                    if subtree.is_unmodified() {
-                        warn!("Unexpectedly deserialized leaf sibling.")
-                    } else {
-                        // Modified leaf.
-                        if config.compare_modified_leaves()
-                            && L::compare(leaf_modifications, &subtree.root_index, &previous_leaf)?
-                        {
-                            log_trivial_modification!(subtree.root_index, previous_leaf);
+        while !current_subtrees.is_empty() {
+            let should_fetch_modified_leaves =
+                config.compare_modified_leaves() || previous_leaves.is_some();
+            let filled_roots = calculate_subtrees_roots::<L>(&current_subtrees, storage)?;
+            for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
+                match filled_root.data {
+                    // Binary node.
+                    NodeData::Binary(BinaryData { left_hash, right_hash }) => {
+                        if subtree.is_unmodified() {
+                            self.nodes.insert(
+                                subtree.root_index,
+                                OriginalSkeletonNode::UnmodifiedSubTree(filled_root.hash),
+                            );
+                            continue;
                         }
-                        // If previous values of modified leaves are requested, add this leaf.
+                        self.nodes.insert(subtree.root_index, OriginalSkeletonNode::Binary);
+                        let (left_subtree, right_subtree) =
+                            subtree.get_children_subtrees(left_hash, right_hash);
+
+                        self.handle_subtree(
+                            &mut next_subtrees,
+                            left_subtree,
+                            should_fetch_modified_leaves,
+                        );
+                        self.handle_subtree(
+                            &mut next_subtrees,
+                            right_subtree,
+                            should_fetch_modified_leaves,
+                        )
+                    }
+                    // Edge node.
+                    NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
+                        self.nodes
+                            .insert(subtree.root_index, OriginalSkeletonNode::Edge(path_to_bottom));
+                        if subtree.is_unmodified() {
+                            self.nodes.insert(
+                                path_to_bottom.bottom_index(subtree.root_index),
+                                OriginalSkeletonNode::UnmodifiedSubTree(bottom_hash),
+                            );
+                            continue;
+                        }
+                        // Parse bottom.
+                        let (bottom_subtree, previously_empty_leaves_indices) =
+                            subtree.get_bottom_subtree(&path_to_bottom, bottom_hash);
                         if let Some(ref mut leaves) = previous_leaves {
-                            leaves.insert(subtree.root_index, previous_leaf);
+                            leaves.extend(
+                                previously_empty_leaves_indices
+                                    .iter()
+                                    .map(|idx| (**idx, L::default()))
+                                    .collect::<HashMap<NodeIndex, L>>(),
+                            );
+                        }
+                        OriginalSkeletonTreeImpl::log_warning_for_empty_leaves(
+                            &previously_empty_leaves_indices,
+                            leaf_modifications,
+                            config,
+                        )?;
+
+                        self.handle_subtree(
+                            &mut next_subtrees,
+                            bottom_subtree,
+                            should_fetch_modified_leaves,
+                        );
+                    }
+                    // Leaf node.
+                    NodeData::Leaf(previous_leaf) => {
+                        if subtree.is_unmodified() {
+                            warn!("Unexpectedly deserialized leaf sibling.")
+                        } else {
+                            // Modified leaf.
+                            if config.compare_modified_leaves()
+                                && L::compare(
+                                    leaf_modifications,
+                                    &subtree.root_index,
+                                    &previous_leaf,
+                                )?
+                            {
+                                log_trivial_modification!(subtree.root_index, previous_leaf);
+                            }
+                            // If previous values of modified leaves are requested, add this leaf.
+                            if let Some(ref mut leaves) = previous_leaves {
+                                leaves.insert(subtree.root_index, previous_leaf);
+                            }
                         }
                     }
                 }
             }
+            current_subtrees = next_subtrees;
+            next_subtrees = Vec::new();
         }
-        self.fetch_nodes::<L>(next_subtrees, storage, leaf_modifications, config, previous_leaves)
+        Ok(())
     }
 
     pub(crate) fn create_impl<L: Leaf>(
