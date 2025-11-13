@@ -95,48 +95,39 @@ mod tests {
     use std::rc::Rc;
     use std::sync::Arc;
 
-    use size_of::SizeOf as OldSizeOf;
     use starknet_types_core::felt::Felt;
 
     use super::SizeOf;
 
     #[test]
-    fn test_equality_with_old_size_of() {
-        // Ensure that the SizeOf trait from this crate is equivalent to the one from the old crate.
-        // TODO(victorkstarkware): Remove this test once the old crate is no longer used.
-        assert_eq!(17_u8.size_of().total_bytes(), 17_u8.size_bytes());
-        assert_eq!(
-            String::from("Hello").size_of().total_bytes(),
-            String::from("Hello").size_bytes()
-        );
-        assert_eq!(
-            vec![1_u8, 2_u8, 3_u8].size_of().total_bytes(),
-            vec![1_u8, 2_u8, 3_u8].size_bytes()
-        );
+    fn regression_test_size_of() {
+        assert_eq!(17_u8.size_bytes(), 1);
 
-        // Test struct
-        #[derive(OldSizeOf, SizeOf)]
+        assert_eq!(String::from("Hello").size_bytes(), 29);
+
+        assert_eq!(vec![1_u8, 2_u8, 3_u8].size_bytes(), 27);
+
+        #[derive(SizeOf)]
         struct MyStruct {
             a: u32,
             b: String,
             c: Vec<u8>,
         }
         let strct = MyStruct { a: 42, b: String::from("Hello"), c: vec![1, 2, 3, 4, 5] };
-        assert_eq!(strct.size_of().total_bytes(), strct.size_bytes());
+        assert_eq!(strct.size_bytes(), 66);
 
-        // Test enum
-        #[derive(OldSizeOf, SizeOf)]
+        #[derive(SizeOf)]
         enum MyEnum {
             VariantA(u32),
             VariantB { x: u64, y: String },
         }
         let my_enum_a = MyEnum::VariantA(42);
-        let my_enum_b = MyEnum::VariantB { x: 100, y: String::from("World") };
-        assert_eq!(my_enum_a.size_of().total_bytes(), my_enum_a.size_bytes());
-        assert_eq!(my_enum_b.size_of().total_bytes(), my_enum_b.size_bytes());
+        assert_eq!(my_enum_a.size_bytes(), 32);
 
-        // Test complicated enum
-        #[derive(OldSizeOf, SizeOf)]
+        let my_enum_b = MyEnum::VariantB { x: 100, y: String::from("World") };
+        assert_eq!(my_enum_b.size_bytes(), 37);
+
+        #[derive(SizeOf)]
         enum MyComplicatedEnum {
             VariantA(MyStruct),
             VariantB(Vec<MyEnum>),
@@ -146,19 +137,14 @@ mod tests {
             b: String::from("Hello"),
             c: vec![1, 2, 3],
         });
+        assert_eq!(my_complicated_enum_a.size_bytes(), 64);
+
         let my_complicated_enum_b = MyComplicatedEnum::VariantB(vec![
             MyEnum::VariantA(42),
             MyEnum::VariantB { x: 100, y: String::from("World") },
             MyEnum::VariantB { x: 66, y: String::from("Starknet") },
         ]);
-        assert_eq!(
-            my_complicated_enum_a.size_of().total_bytes(),
-            my_complicated_enum_a.size_bytes()
-        );
-        assert_eq!(
-            my_complicated_enum_b.size_of().total_bytes(),
-            my_complicated_enum_b.size_bytes()
-        );
+        assert_eq!(my_complicated_enum_b.size_bytes(), 165);
     }
 
     #[test]
