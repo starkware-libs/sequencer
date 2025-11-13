@@ -271,6 +271,10 @@ impl std::fmt::Display for BouncerWeights {
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub gas_without_casm_hash_computation: GasAmount,
+    /// Total number of times each class was executed.
+    /// Used for identifying frequently executed classes (e.g., for native compilation
+    /// whitelisting)
+    pub class_hash_to_execution_count: HashMap<ClassHash, usize>,
 }
 
 impl CasmHashComputationData {
@@ -283,11 +287,32 @@ impl CasmHashComputationData {
             .extend(other.class_hash_to_casm_hash_computation_gas);
         self.gas_without_casm_hash_computation = self
             .gas_without_casm_hash_computation
-            .checked_add_panic_on_overflow(other.gas_without_casm_hash_computation)
+            .checked_add_panic_on_overflow(other.gas_without_casm_hash_computation);
+        for (&class_hash, &count) in &other.class_hash_to_execution_count {
+            *self.class_hash_to_execution_count.entry(class_hash).or_insert(0) += count;
+        }
     }
 
-    /// Creates CasmHashComputationData by mapping resources to gas using a provided function.
-    /// This method encapsulates the pattern used for both Sierra gas and proving gas computation.
+    /// Sets the execution counts for a `CasmHashComputationData` representing a single
+    /// transaction. Should be called with the full set of class hashes executed by that
+    /// transaction.
+    ///
+    /// In a single transaction each executed class appears exactly once, so each class
+    /// receives a count of 1. Block-level aggregation (`extend()`) sums these per-transaction
+    /// counts.
+    pub fn record_tx_execution_counts(&mut self, executed_classes_in_tx: &HashSet<ClassHash>) {
+        self.class_hash_to_execution_count =
+            executed_classes_in_tx.iter().map(|class_hash| (*class_hash, 1)).collect();
+    }
+
+    /// Creates a `CasmHashComputationData` from a map of per-class execution resources,
+    /// converting resources to gas using the provided function.
+    /// Used for both Sierra gas and proving gas flows.
+    ///
+    /// Note:
+    ///   - This function receives only *marginal* resources for the transaction.
+    ///   - Therefore the transaction's execution counts cannot be determined here and must be set
+    ///     later via `record_tx_execution_counts()`.
     pub fn from_resources<F>(
         class_hash_to_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
         gas_without_casm_hash_computation: GasAmount,
@@ -305,6 +330,9 @@ impl CasmHashComputationData {
                 })
                 .collect(),
             gas_without_casm_hash_computation,
+            // Execution counts for the transaction are set later by calling
+            // `record_tx_execution_counts()`.
+            class_hash_to_execution_count: HashMap::new(),
         }
     }
 
@@ -584,7 +612,7 @@ impl Bouncer {
             .visited_storage_entries
             .difference(&self.visited_storage_entries)
             .count();
-        let tx_weights = get_tx_weights(
+        let mut tx_weights = get_tx_weights(
             state_reader,
             &marginal_executed_class_hashes,
             n_marginal_visited_storage_entries,
@@ -594,6 +622,13 @@ impl Bouncer {
             tx_builtin_counters,
             &self.bouncer_config,
         )?;
+
+        // Record the set of classes executed in this transaction.
+        // Execution counts are tracked only in the Sierra gas flow (and not in the proving flow).
+        // This is an arbitrary design choice.
+        tx_weights
+            .casm_hash_computation_data_sierra_gas
+            .record_tx_execution_counts(&tx_execution_summary.executed_class_hashes);
 
         let tx_bouncer_weights = tx_weights.bouncer_weights;
 
