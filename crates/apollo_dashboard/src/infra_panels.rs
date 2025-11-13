@@ -1,3 +1,5 @@
+use std::fmt;
+
 use apollo_infra::metrics::{
     InfraMetrics,
     LocalClientMetrics,
@@ -15,6 +17,7 @@ const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";
 pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMetrics) -> Row {
     let mut panels: Vec<Panel> = Vec::new();
     // Add the general infra panels.
+    // TODO(Tsabary): remove the ".0" syntax, consider using `Derive::Deref` instead.
     panels.extend(UnlabeledPanels::from(metrics.get_local_client_metrics()).0);
     panels.extend(UnlabeledPanels::from(metrics.get_remote_client_metrics()).0);
     panels.extend(UnlabeledPanels::from(metrics.get_local_server_metrics()).0);
@@ -46,6 +49,7 @@ pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMe
     Row::new(modified_row_name, panels)
 }
 
+// TODO(Tsabary): rename this struct and remove the `unlabeled` notation from this module.
 // There is no equivalent for LabeledPanels because they are less straightforward than
 // UnlabeledPanels and require an aggregation of metrics more often, for example the panels created
 // using [`get_multi_metric_panel`].
@@ -111,61 +115,80 @@ impl From<&RemoteServerMetrics> for UnlabeledPanels {
 // For a given request label and vector of labeled histogram metrics, create a panel with multiple
 // expressions.
 fn get_multi_metric_panel(
-    panel_name: &str,
-    panel_description: &str,
+    panel_name: String,
+    panel_description: String,
     request_label: &str,
     metrics: &Vec<&LabeledMetricHistogram>,
     panel_type: PanelType,
 ) -> Panel {
-    let mut exprs: Vec<String> = vec![];
-    for metric in metrics {
-        // TODO(alonl): func this (duplicate with from_request_type_labeled_hist)
-        let metric_name_with_filter_and_reason = format!(
-            "{}, {LABEL_NAME_REQUEST_VARIANT}=\"{request_label}\"}}",
-            metric
-                .get_name_with_filter()
-                .strip_suffix("}")
-                .expect("Metric label filter should end with a }")
-        );
-        exprs.extend(HISTOGRAM_QUANTILES.iter().map(|q| {
-            format!(
-                "histogram_quantile({q:.2},label_replace(sum by (le) \
-                 (rate({metric_name_with_filter_and_reason}[{HISTOGRAM_TIME_RANGE}])), \
-                 \"label_name\", \"{q:.2} {}\", \"le\", \".*\"))",
-                metric.get_name()
-            )
-        }))
-    }
+    let exprs: Vec<String> = metrics
+        .iter()
+        .flat_map(|metric| {
+            let name_with_filter = metric.get_name_with_filter();
+            assert!(name_with_filter.ends_with('}'), "Metric label filter should end with a `}}`");
+
+            let trimmed = name_with_filter.strip_suffix('}').unwrap_or(&name_with_filter);
+
+            let with_variant =
+                format!("{trimmed}, {LABEL_NAME_REQUEST_VARIANT}=\"{request_label}\"}}");
+
+            HISTOGRAM_QUANTILES.iter().map(move |q| {
+                format!(
+                    "histogram_quantile({q:.2},label_replace(sum by (le) \
+                     (rate({with_variant}[{HISTOGRAM_TIME_RANGE}])), \"label_name\", \"{q:.2} \
+                     {}\", \"le\", \".*\"))",
+                    metric.get_name()
+                )
+            })
+        })
+        .collect();
     Panel::new(panel_name, panel_description, exprs, panel_type)
+}
+
+enum PanelClassName {
+    Client,
+    Server,
+}
+
+impl fmt::Display for PanelClassName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Client => write!(f, "client-side"),
+            Self::Server => write!(f, "server-side"),
+        }
+    }
 }
 
 // This function assumes that all metrics share the same labels.
 fn get_request_type_panels(
     labeled_metrics: &Vec<&LabeledMetricHistogram>,
-    panel_class_name: &str,
+    panel_class_name: PanelClassName,
 ) -> Vec<Panel> {
-    let Some(first_metric) = labeled_metrics.first() else {
+    if labeled_metrics.is_empty() {
         return vec![];
-    };
-    let request_labels = first_metric.get_flat_label_values();
-
-    let mut panels = vec![];
-    for request_label in request_labels {
-        let panel_name = format!("{} ({panel_class_name})", request_label);
-        let panel_description =
-            format!("{} infra metrics for request type {}", panel_class_name, request_label);
-        let panel = get_multi_metric_panel(
-            &panel_name,
-            &panel_description,
-            request_label,
-            labeled_metrics,
-            PanelType::TimeSeries,
-        );
-        panels.push(panel);
     }
-    panels
+
+    let request_labels = labeled_metrics.first().unwrap().get_flat_label_values();
+
+    request_labels
+        .iter()
+        .map(|request_label| {
+            let panel_name = format!("{request_label} ({panel_class_name})");
+            let panel_description =
+                format!("{panel_class_name} infra metrics for request type {request_label}");
+            get_multi_metric_panel(
+                panel_name,
+                panel_description,
+                request_label,
+                labeled_metrics,
+                PanelType::TimeSeries,
+            )
+        })
+        .collect::<Vec<_>>()
 }
 
+// TODO(Tsabary): define a trait that includes the `get_all_labeled_metrics` fn, and then unify
+// these two functions.
 fn get_infra_client_panels(
     local_client_metrics: &LocalClientMetrics,
     remote_client_metrics: &RemoteClientMetrics,
@@ -173,7 +196,7 @@ fn get_infra_client_panels(
     let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
         local_client_metrics.get_all_labeled_metrics();
     labeled_metrics.extend(remote_client_metrics.get_all_labeled_metrics());
-    get_request_type_panels(&labeled_metrics, "client")
+    get_request_type_panels(&labeled_metrics, PanelClassName::Client)
 }
 
 fn get_infra_server_panels(
@@ -183,5 +206,5 @@ fn get_infra_server_panels(
     let mut labeled_metrics: Vec<&LabeledMetricHistogram> =
         local_server_metrics.get_all_labeled_metrics();
     labeled_metrics.extend(remote_server_metrics.get_all_labeled_metrics());
-    get_request_type_panels(&labeled_metrics, "server")
+    get_request_type_panels(&labeled_metrics, PanelClassName::Server)
 }
