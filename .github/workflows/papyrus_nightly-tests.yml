@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Uses ubuntu runner.
 
 env:
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   GW-integration-test-ubuntu:

@@ -37,7 +37,7 @@ on:
       - "scripts/sequencer-ci.Dockerfile"
 
 env:
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
   TRANSFERS_BENCHMARK_CAIRO_NATIVE_TIME_LIMIT_NS: "200000000"
   TRANSFERS_BENCHMARK_VM_TIME_LIMIT_NS: "1000000000"
 

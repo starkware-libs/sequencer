@@ -18,7 +18,7 @@ on:
       - "scripts/dependencies.sh"
 
 env:
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
   FULL_COMMITTER_FLOW_TIME_LIMIT_NS: "25000000"
   TREE_COMPUTATION_FLOW_TIME_LIMIT_NS: "20000000"
 

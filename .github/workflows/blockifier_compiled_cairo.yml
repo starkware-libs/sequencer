@@ -14,7 +14,7 @@ on:
       - "scripts/dependencies.sh"
 
 env:
-  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTFLAGS: "-D warnings"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
