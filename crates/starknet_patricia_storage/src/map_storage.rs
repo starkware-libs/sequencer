@@ -16,7 +16,7 @@ use crate::storage_trait::{
 };
 
 #[derive(Debug, Default, PartialEq, Serialize)]
-pub struct MapStorage(pub DbHashMap);
+pub struct MapStorage(DbHashMap);
 
 impl MapStorage {
     pub fn new(initial_map: DbHashMap) -> Self {
@@ -39,6 +39,18 @@ impl MapStorage {
         }
         self.0.insert(key, value);
         Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn cloned_map(&self) -> DbHashMap {
+        self.0.clone()
     }
 }
 
