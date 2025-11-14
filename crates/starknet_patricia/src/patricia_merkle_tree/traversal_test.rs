@@ -6,7 +6,7 @@ use rstest::rstest;
 use serde::Deserialize;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
@@ -627,7 +627,8 @@ fn test_fetch_patricia_paths_inner(
     let expected_fetched_leaves = leaf_indices
         .iter()
         .map(|&idx| {
-            let leaf = if storage.0.contains_key(&create_leaf_patricia_key::<MockLeaf>(idx)) {
+            let leaf = if storage.get(&create_leaf_patricia_key::<MockLeaf>(idx)).unwrap().is_some()
+            {
                 MockLeaf(Felt::from(idx))
             } else {
                 MockLeaf::default()
