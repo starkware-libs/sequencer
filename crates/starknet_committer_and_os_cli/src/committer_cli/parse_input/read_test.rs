@@ -221,7 +221,7 @@ fn test_simple_input_parsing() {
     };
     assert_eq!(
         parse_input(input).unwrap(),
-        CommitterInputImpl { input: expected_input, storage: MapStorage(expected_storage) }
+        CommitterInputImpl { input: expected_input, storage: MapStorage::new(expected_storage) }
     );
 }
 

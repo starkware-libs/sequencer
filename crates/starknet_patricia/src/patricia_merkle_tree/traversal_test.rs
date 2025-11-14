@@ -243,7 +243,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[92, 54, 25]`
 /// Siblings hashes (in preimage of nodes): `[38, 29, 12]`
 #[case::binary_tree_one_leaf(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_binary_entry_from_u128::<AdditionHash>(10, 11),
         create_binary_entry_from_u128::<AdditionHash>(12, 13),
@@ -267,7 +267,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[92, 54, 25]`
 /// Siblings hashes (in preimage of nodes): `[38, 29]`
 #[case::binary_tree_two_siblings(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_binary_entry_from_u128::<AdditionHash>(10, 11),
         create_binary_entry_from_u128::<AdditionHash>(12, 13),
@@ -291,7 +291,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[92, 38, 54, 21, 29]`
 /// Siblings hashes (in preimage of nodes): `[17, 25, 10, 15]`
 #[case::binary_tree_two_leaves(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_binary_entry_from_u128::<AdditionHash>(10, 11),
         create_binary_entry_from_u128::<AdditionHash>(12, 13),
@@ -319,7 +319,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[92, 38, 54, 17, 21, 25, 29]`
 /// Siblings hashes (in preimage of nodes): `[9, 10, 13, 15]`
 #[case::binary_many_leaves(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_binary_entry_from_u128::<AdditionHash>(10, 11),
         create_binary_entry_from_u128::<AdditionHash>(12, 13),
@@ -363,7 +363,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[62, 44, 15]`
 /// Siblings hashes (in preimage of nodes): `[18, 29]`
 #[case::edge_one_leaf_edge(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_binary_entry_from_u128::<AdditionHash>(14, 15),
         create_binary_entry_from_u128::<AdditionHash>(15, 29),
@@ -386,7 +386,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[62, 44, 29]`
 /// Siblings hashes (in preimage of nodes): `[18, 15 (inner node), 15 (leaf)]`
 #[case::edge_one_leaf_binary(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_binary_entry_from_u128::<AdditionHash>(14, 15),
         create_binary_entry_from_u128::<AdditionHash>(15, 29),
@@ -419,7 +419,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[54, 10]`
 /// Siblings hashes (in preimage of nodes): `[44]`
 #[case::long_edge_one_leaf_edge(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(14, 15),
         create_binary_entry_from_u128::<AdditionHash>(15, 29),
         create_binary_entry_from_u128::<AdditionHash>(10, 44),
@@ -451,7 +451,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[38, 18, 17]`
 /// Siblings hashes (in preimage of nodes): `[20, 9]`
 #[case::edge_and_binary(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_edge_entry_from_u128::<AdditionHash>(17, 0, 1),
         create_edge_entry_from_u128::<AdditionHash>(15, 3, 2),
@@ -494,7 +494,7 @@ fn create_previously_empty_leaf_indices<'a>(
 /// Expected nodes hashes: `[24]`
 /// Siblings hashes (in preimage of nodes): `[21]`
 #[case::should_return_empty_leaves(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_binary_entry_from_u128::<AdditionHash>(10, 11),
         create_edge_entry_from_u128::<AdditionHash>(21, 1, 2),
         create_leaf_entry::<MockLeaf>(10),
@@ -510,7 +510,7 @@ fn create_previously_empty_leaf_indices<'a>(
 )]
 /// Python generated cases.
 #[case::python_sparse_tree_1(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
     create_edge_entry_from_u128::<AdditionHash>(1471, 447, 9),
     create_edge_entry_from_u128::<AdditionHash>(1645, 109, 7),
     create_edge_entry_from_u128::<AdditionHash>(1757, 93, 7),
@@ -540,7 +540,7 @@ fn create_previously_empty_leaf_indices<'a>(
     ])),
 )]
 #[case::python_sparse_tree_2(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
     create_edge_entry_from_u128::<AdditionHash>(1106, 82, 9),
     create_edge_entry_from_u128::<AdditionHash>(1554, 18, 8),
     create_edge_entry_from_u128::<AdditionHash>(2019, 99, 7),
@@ -571,7 +571,7 @@ fn create_previously_empty_leaf_indices<'a>(
     ])),
 )]
 #[case::python_pedersen(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
     create_edge_entry::<Pedersen>(Felt::from_hex_unchecked("0x8"), 0, 1),
     create_edge_entry::<Pedersen>(Felt::from_hex_unchecked("0xb"), 1, 1),
     create_binary_entry::<Pedersen>(Felt::from_hex_unchecked("0xe"), Felt::from_hex_unchecked("0xf")),
@@ -720,7 +720,7 @@ fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         .collect();
 
     test_fetch_patricia_paths_inner(
-        MapStorage(DbHashMap::from(storage)),
+        MapStorage::new(DbHashMap::from(storage)),
         HashOutput(input.root_hash),
         leaf_indices,
         SubTreeHeight::new(input.height),

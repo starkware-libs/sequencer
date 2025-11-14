@@ -19,6 +19,10 @@ use crate::storage_trait::{
 pub struct MapStorage(pub DbHashMap);
 
 impl MapStorage {
+    pub fn new(initial_map: DbHashMap) -> Self {
+        Self(initial_map)
+    }
+
     pub fn setnx(
         &mut self,
         db_name: &str,

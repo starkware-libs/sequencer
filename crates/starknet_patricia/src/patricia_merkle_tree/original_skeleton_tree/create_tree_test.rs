@@ -50,7 +50,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 ///                      NZ  9  11    15
 
 #[case::simple_tree_of_height_3(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_root_edge_entry(50, SubTreeHeight::new(3)),
         create_binary_entry_from_u128::<AdditionHash>(8, 9),
         create_edge_entry_from_u128::<AdditionHash>(11, 1, 1),
@@ -102,7 +102,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 ///                     NZ   2     NZ    NZ
 
 #[case::another_simple_tree_of_height_3(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_root_edge_entry(29, SubTreeHeight::new(3)),
         create_binary_entry_from_u128::<AdditionHash>(10, 2),
         create_edge_entry_from_u128::<AdditionHash>(3, 1, 1),
@@ -158,7 +158,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
 ///                                 \  /     \
 ///                                 20 5     40
 #[case::tree_of_height_4_with_long_edge(
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         create_root_edge_entry(116, SubTreeHeight::new(4)),
         create_binary_entry_from_u128::<AdditionHash>(11, 13),
         create_edge_entry_from_u128::<AdditionHash>(5, 0, 1),

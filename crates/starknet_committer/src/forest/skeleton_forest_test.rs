@@ -145,7 +145,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     },
-    MapStorage(DbHashMap::from([
+    MapStorage::new(DbHashMap::from([
         // Roots.
         create_root_edge_entry(29, SubTreeHeight::new(3)),
         create_root_edge_entry(55, SubTreeHeight::new(3)),
