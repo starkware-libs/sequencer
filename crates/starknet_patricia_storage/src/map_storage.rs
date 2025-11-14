@@ -15,7 +15,7 @@ use crate::storage_trait::{
     StorageStats,
 };
 
-#[derive(Debug, Default, PartialEq, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct MapStorage(DbHashMap);
 
 impl MapStorage {

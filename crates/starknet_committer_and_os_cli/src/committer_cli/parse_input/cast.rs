@@ -19,7 +19,7 @@ use crate::committer_cli::parse_input::raw_input::RawInput;
 
 pub type InputImpl = Input<ConfigImpl>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct CommitterInputImpl {
     pub input: InputImpl,
     pub storage: MapStorage,

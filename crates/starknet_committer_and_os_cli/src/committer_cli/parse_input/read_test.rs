@@ -13,13 +13,11 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 
 #[test]
 fn test_simple_input_parsing() {
@@ -219,10 +217,9 @@ fn test_simple_input_parsing() {
         classes_trie_root_hash: expected_classes_trie_root_hash,
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     };
-    assert_eq!(
-        parse_input(input).unwrap(),
-        CommitterInputImpl { input: expected_input, storage: MapStorage::new(expected_storage) }
-    );
+    let parsed = parse_input(input).unwrap();
+    assert_eq!(parsed.input, expected_input);
+    assert_eq!(parsed.storage.cloned_map(), expected_storage);
 }
 
 #[test]
