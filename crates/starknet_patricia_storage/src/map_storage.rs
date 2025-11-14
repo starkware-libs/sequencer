@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::num::NonZeroUsize;
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use lru::LruCache;
 use serde::Serialize;
@@ -16,11 +17,19 @@ use crate::storage_trait::{
 };
 
 #[derive(Debug, Default, Serialize)]
-pub struct MapStorage(DbHashMap);
+pub struct MapStorage(RwLock<DbHashMap>);
 
 impl MapStorage {
     pub fn new(initial_map: DbHashMap) -> Self {
-        Self(initial_map)
+        Self(RwLock::new(initial_map))
+    }
+
+    fn read_lock<'a>(&'a self) -> PatriciaStorageResult<RwLockReadGuard<'a, DbHashMap>> {
+        self.0.read().map_err(|e| PatriciaStorageError::PoisonedLock(e.to_string()))
+    }
+
+    fn write_lock<'a>(&'a self) -> PatriciaStorageResult<RwLockWriteGuard<'a, DbHashMap>> {
+        self.0.write().map_err(|e| PatriciaStorageError::PoisonedLock(e.to_string()))
     }
 
     pub fn setnx(
@@ -29,28 +38,29 @@ impl MapStorage {
         key: DbKey,
         value: DbValue,
     ) -> PatriciaStorageResult<()> {
-        if let Some(old_value) = self.get(&key)? {
+        let mut write_locked = self.write_lock()?;
+        if let Some(old_value) = write_locked.get(&key) {
             return Err(PatriciaStorageError::KeyAlreadySet {
                 db_name: db_name.to_string(),
                 key,
-                old_value,
+                old_value: old_value.clone(),
                 new_value: value,
             });
         }
-        self.0.insert(key, value);
+        write_locked.insert(key, value);
         Ok(())
     }
 
-    pub fn len(&self) -> usize {
-        self.0.len()
+    pub fn len(&self) -> PatriciaStorageResult<usize> {
+        Ok(self.read_lock()?.len())
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+    pub fn is_empty(&self) -> PatriciaStorageResult<bool> {
+        Ok(self.read_lock()?.is_empty())
     }
 
-    pub fn cloned_map(&self) -> DbHashMap {
-        self.0.clone()
+    pub fn cloned_map(&self) -> PatriciaStorageResult<DbHashMap> {
+        Ok(self.read_lock()?.clone())
     }
 }
 
@@ -63,26 +73,27 @@ impl Storage for MapStorage {
     type Stats = NoStats;
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        self.0.insert(key, value);
+        self.write_lock()?.insert(key, value);
         Ok(())
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
-        self.0.extend(key_to_value);
+        self.write_lock()?.extend(key_to_value);
         Ok(())
     }
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.0.remove(key);
+        self.write_lock()?.remove(key);
         Ok(())
     }
 
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.0.get(key).cloned())
+        Ok(self.read_lock()?.get(key).cloned())
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
+        let read_locked = self.read_lock()?;
+        Ok(keys.iter().map(|key| read_locked.get(key).cloned()).collect())
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {

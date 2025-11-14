@@ -307,7 +307,7 @@ fn create_output_to_python(
         "state_diff_keys_hash": {:?},
         "state_diff_values_hash": {:?}
         }}"#,
-        storage.len(),
+        storage.len().unwrap(),
         actual_input.state_diff.address_to_class_hash.len(),
         actual_input.state_diff.address_to_nonce.len(),
         actual_input.state_diff.class_hash_to_compiled_class_hash.len(),
@@ -391,7 +391,7 @@ generate_storage_map_xor_hasher!(hash_address_to_nonce, ContractAddress, Nonce);
 fn hash_storage(storage: &MapStorage) -> (Vec<u8>, Vec<u8>) {
     let mut keys_hash = vec![0; 32];
     let mut values_hash = vec![0; 32];
-    for (key, value) in &storage.cloned_map() {
+    for (key, value) in &storage.cloned_map().unwrap() {
         keys_hash = xor_hash(&keys_hash, &key.0);
         values_hash = xor_hash(&values_hash, &value.0);
     }

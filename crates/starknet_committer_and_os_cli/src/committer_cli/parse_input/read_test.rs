@@ -219,7 +219,7 @@ fn test_simple_input_parsing() {
     };
     let parsed = parse_input(input).unwrap();
     assert_eq!(parsed.input, expected_input);
-    assert_eq!(parsed.storage.cloned_map(), expected_storage);
+    assert_eq!(parsed.storage.cloned_map().unwrap(), expected_storage);
 }
 
 #[test]
