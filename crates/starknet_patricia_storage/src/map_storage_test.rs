@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::num::NonZeroUsize;
 
 use rstest::rstest;
+use tokio::task::JoinSet;
 
 use crate::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use crate::storage_trait::{DbKey, DbValue, Storage};
@@ -43,4 +44,42 @@ fn test_storage_impl(#[case] mut storage: impl Storage) {
     storage.delete(&key_2).unwrap();
     // storage = {1:1, 3:3}
     assert!(storage.get(&key_2.clone()).unwrap().is_none());
+}
+
+/// Tests the concurrent access to the storage. Explicitly uses 11 worker threads to get actual
+/// parallelism (one thread for main test, 10 worker threads for concurrent operations).
+#[tokio::test(flavor = "multi_thread", worker_threads = 11)]
+async fn test_map_storage_concurrent_access() {
+    let mut storage = MapStorage::default();
+
+    // Parallel writes to the storage.
+    let mut tasks = JoinSet::new();
+
+    for i in 0..10u8 {
+        let mut cloned_storage = storage.clone();
+        tasks.spawn(async move {
+            cloned_storage.set(DbKey(vec![i]), DbValue(vec![i])).unwrap();
+        });
+    }
+
+    tasks.join_all().await;
+
+    let expected_storage = (0..10u8).map(|i| (DbKey(vec![i]), DbValue(vec![i]))).collect();
+    assert_eq!(storage.cloned_map(), expected_storage);
+
+    // Parallel reads from the storage while some writes are happening.
+    let mut tasks = JoinSet::new();
+    for i in 0..10u8 {
+        let mut cloned_storage = storage.clone();
+        tasks.spawn(async move {
+            let result = cloned_storage.get(&DbKey(vec![i])).unwrap().unwrap().0[0];
+            // The result is either the original value or the new value.
+            assert!(result == i || result == i + 10);
+        });
+    }
+    for i in 0..10u8 {
+        storage.set(DbKey(vec![i]), DbValue(vec![i + 10])).unwrap();
+    }
+
+    tasks.join_all().await;
 }
