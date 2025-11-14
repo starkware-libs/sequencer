@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::num::NonZeroUsize;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use lru::LruCache;
 use serde::Serialize;
@@ -16,12 +16,12 @@ use crate::storage_trait::{
     StorageStats,
 };
 
-#[derive(Debug, Default, Serialize)]
-pub struct MapStorage(RwLock<DbHashMap>);
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct MapStorage(Arc<RwLock<DbHashMap>>);
 
 impl MapStorage {
     pub fn new(initial_map: DbHashMap) -> Self {
-        Self(RwLock::new(initial_map))
+        Self(Arc::new(RwLock::new(initial_map)))
     }
 
     fn read_lock<'a>(&'a self) -> PatriciaStorageResult<RwLockReadGuard<'a, DbHashMap>> {
