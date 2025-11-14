@@ -22,6 +22,11 @@ pub enum PatriciaStorageError {
     #[cfg(feature = "aerospike_storage")]
     #[error(transparent)]
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
+    #[error(
+        "Key {key:?} already set in DB {db_name} with value {old_value:?}, attempted to set \
+         {new_value:?}."
+    )]
+    KeyAlreadySet { db_name: String, key: DbKey, old_value: DbValue, new_value: DbValue },
     #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),

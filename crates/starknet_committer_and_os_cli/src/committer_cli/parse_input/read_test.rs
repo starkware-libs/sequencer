@@ -251,11 +251,9 @@ fn test_input_parsing_with_storage_key_duplicate() {
 ]
 
 "#;
-    let expected_error = "storage: DbKey([14, 6, 78, 90])";
-    assert!(matches!(
-        parse_input(input).unwrap_err(),
-        DeserializationError::KeyDuplicate(key) if key == expected_error
-    ));
+    let expected_error = "Key DbKey([14, 6, 78, 90]) already set in DB storage with value \
+                          DbValue([245, 90, 0, 0, 1]), attempted to set DbValue([9, 0, 0, 0, 1]).";
+    assert_eq!(parse_input(input).unwrap_err().to_string(), expected_error);
 }
 
 #[test]

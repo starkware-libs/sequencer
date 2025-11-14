@@ -3,7 +3,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
-use crate::storage_trait::DbKey;
+use crate::storage_trait::{DbKey, PatriciaStorageError};
 
 #[derive(Debug, Error)]
 pub enum StorageError {
@@ -25,6 +25,8 @@ pub enum DeserializationError {
     NonExistingKey(String),
     #[error(transparent)]
     ParsingError(#[from] serde_json::Error),
+    #[error(transparent)]
+    PatriciaStorage(#[from] PatriciaStorageError),
     #[error("Unexpected prefix ({0:?}) variant when deserializing a leaf.")]
     // TODO(Aviv, 17/07/2024): Define a trait `T` for storage prefix and return `impl T` here.
     LeafPrefixError(Vec<u8>),

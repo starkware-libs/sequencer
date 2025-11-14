@@ -4,12 +4,12 @@ use std::num::NonZeroUsize;
 use lru::LruCache;
 use serde::Serialize;
 
-use crate::errors::DeserializationError;
 use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
     NoStats,
+    PatriciaStorageError,
     PatriciaStorageResult,
     Storage,
     StorageStats,
@@ -19,15 +19,19 @@ use crate::storage_trait::{
 pub struct MapStorage(pub DbHashMap);
 
 impl MapStorage {
-    // TODO(Dori): Change result type.
     pub fn setnx(
         &mut self,
         db_name: &str,
         key: DbKey,
         value: DbValue,
-    ) -> Result<(), DeserializationError> {
-        if self.0.contains_key(&key) {
-            return Err(DeserializationError::KeyDuplicate(format!("{db_name}: {key:?}")));
+    ) -> PatriciaStorageResult<()> {
+        if let Some(old_value) = self.get(&key)? {
+            return Err(PatriciaStorageError::KeyAlreadySet {
+                db_name: db_name.to_string(),
+                key,
+                old_value,
+                new_value: value,
+            });
         }
         self.0.insert(key, value);
         Ok(())
