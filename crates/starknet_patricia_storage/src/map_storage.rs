@@ -4,6 +4,7 @@ use std::num::NonZeroUsize;
 use lru::LruCache;
 use serde::Serialize;
 
+use crate::errors::DeserializationError;
 use crate::storage_trait::{
     DbHashMap,
     DbKey,
@@ -16,6 +17,22 @@ use crate::storage_trait::{
 
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
+
+impl MapStorage {
+    // TODO(Dori): Change result type.
+    pub fn setnx(
+        &mut self,
+        db_name: &str,
+        key: DbKey,
+        value: DbValue,
+    ) -> Result<(), DeserializationError> {
+        if self.0.contains_key(&key) {
+            return Err(DeserializationError::KeyDuplicate(format!("{db_name}: {key:?}")));
+        }
+        self.0.insert(key, value);
+        Ok(())
+    }
+}
 
 #[derive(Serialize, Debug)]
 pub struct BorrowedStorage<'a, S: Storage> {

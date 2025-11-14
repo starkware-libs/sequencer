@@ -10,7 +10,6 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
-use crate::committer_cli::parse_input::cast::add_unique;
 use crate::committer_cli::parse_input::raw_input::RawStorageEntry;
 
 pub struct TreeFlowInput {
@@ -53,7 +52,7 @@ pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>
 
     let mut storage = MapStorage::default();
     for entry in raw_storage {
-        add_unique(&mut storage.0, "storage", DbKey(entry.key), DbValue(entry.value)).unwrap();
+        storage.setnx("storage", DbKey(entry.key), DbValue(entry.value)).unwrap();
     }
 
     // Fetch root_hash.

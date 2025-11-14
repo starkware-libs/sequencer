@@ -30,7 +30,7 @@ impl TryFrom<RawInput> for CommitterInputImpl {
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = MapStorage::default();
         for entry in raw_input.storage {
-            add_unique(&mut storage.0, "storage", DbKey(entry.key), DbValue(entry.value))?;
+            storage.setnx("storage", DbKey(entry.key), DbValue(entry.value))?;
         }
 
         let mut address_to_class_hash = HashMap::new();
