@@ -102,7 +102,7 @@ impl Storage for MapStorage {
 }
 
 /// A storage wrapper that adds an LRU cache to an underlying storage.
-/// Only getter methods are cached.
+/// Only getter methods are cached, unless `cache_on_write` is true.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
