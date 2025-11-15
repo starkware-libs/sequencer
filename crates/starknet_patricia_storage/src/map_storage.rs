@@ -120,10 +120,12 @@ impl<S: Storage> StorageAndCache<S> {
 /// A storage wrapper that adds an LRU cache to an underlying storage.
 /// Only getter methods are cached, unless `cache_on_write` is true.
 ///
-/// As the cache is updated on both write and read operations, concurrent read access is not
-/// possible while using CachedStorage.
+/// As the cache is updated on both write and read operations, truly concurrent read access is not
+/// possible while using CachedStorage. That being said, this storage can be safely cloned and
+/// shared between threads.
+#[derive(Clone)]
 pub struct CachedStorage<S: Storage> {
-    storage_and_cache: RwLock<StorageAndCache<S>>,
+    storage_and_cache: Arc<RwLock<StorageAndCache<S>>>,
     cache_on_write: bool,
     include_inner_stats: bool,
 }
@@ -183,13 +185,13 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig) -> Self {
         Self {
-            storage_and_cache: RwLock::new(StorageAndCache {
+            storage_and_cache: Arc::new(RwLock::new(StorageAndCache {
                 storage,
                 cache: LruCache::new(config.cache_size),
                 reads: 0,
                 cached_reads: 0,
                 writes: 0,
-            }),
+            })),
             cache_on_write: config.cache_on_write,
             include_inner_stats: config.include_inner_stats,
         }
