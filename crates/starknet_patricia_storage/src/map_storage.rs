@@ -101,15 +101,27 @@ impl Storage for MapStorage {
     }
 }
 
-/// A storage wrapper that adds an LRU cache to an underlying storage.
-/// Only getter methods are cached, unless `cache_on_write` is true.
-pub struct CachedStorage<S: Storage> {
-    pub storage: S,
-    pub cache: LruCache<DbKey, Option<DbValue>>,
-    pub cache_on_write: bool,
+struct StorageAndCache<S: Storage> {
+    storage: S,
+    cache: LruCache<DbKey, Option<DbValue>>,
     reads: u128,
     cached_reads: u128,
     writes: u128,
+}
+
+impl<S: Storage> StorageAndCache<S> {
+    fn update_cached_value(&mut self, cache_on_write: bool, key: &DbKey, value: &DbValue) {
+        if cache_on_write || self.cache.contains(key) {
+            self.cache.put(key.clone(), Some(value.clone()));
+        }
+    }
+}
+
+/// A storage wrapper that adds an LRU cache to an underlying storage.
+/// Only getter methods are cached, unless `cache_on_write` is true.
+pub struct CachedStorage<S: Storage> {
+    storage_and_cache: StorageAndCache<S>,
+    cache_on_write: bool,
     include_inner_stats: bool,
 }
 
@@ -168,32 +180,28 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig) -> Self {
         Self {
-            storage,
-            cache: LruCache::new(config.cache_size),
+            storage_and_cache: StorageAndCache {
+                storage,
+                cache: LruCache::new(config.cache_size),
+                reads: 0,
+                cached_reads: 0,
+                writes: 0,
+            },
             cache_on_write: config.cache_on_write,
-            reads: 0,
-            cached_reads: 0,
-            writes: 0,
             include_inner_stats: config.include_inner_stats,
         }
     }
 
-    fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache_on_write || self.cache.contains(key) {
-            self.cache.put(key.clone(), Some(value.clone()));
-        }
-    }
-
     pub fn total_reads(&self) -> u128 {
-        self.reads
+        self.storage_and_cache.reads
     }
 
     pub fn total_cached_reads(&self) -> u128 {
-        self.cached_reads
+        self.storage_and_cache.cached_reads
     }
 
     pub fn total_writes(&self) -> u128 {
-        self.writes
+        self.storage_and_cache.writes
     }
 }
 
@@ -201,31 +209,34 @@ impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
 
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        self.reads += 1;
-        if let Some(cached_value) = self.cache.get(key) {
-            self.cached_reads += 1;
+        let storage_and_cache = &mut self.storage_and_cache;
+        storage_and_cache.reads += 1;
+        if let Some(cached_value) = storage_and_cache.cache.get(key) {
+            storage_and_cache.cached_reads += 1;
             return Ok(cached_value.clone());
         }
 
-        let storage_value = self.storage.get(key)?;
-        self.cache.put(key.clone(), storage_value.clone());
+        let storage_value = storage_and_cache.storage.get(key)?;
+        storage_and_cache.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        self.writes += 1;
-        self.storage.set(key.clone(), value.clone())?;
-        self.update_cached_value(&key, &value);
+        let storage_and_cache = &mut self.storage_and_cache;
+        storage_and_cache.writes += 1;
+        storage_and_cache.storage.set(key.clone(), value.clone())?;
+        storage_and_cache.update_cached_value(self.cache_on_write, &key, &value);
         Ok(())
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        let storage_and_cache = &mut self.storage_and_cache;
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
 
         for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.get(key) {
+            if let Some(cached_value) = storage_and_cache.cache.get(key) {
                 values[index] = cached_value.clone();
             } else {
                 keys_to_fetch.push(*key);
@@ -233,14 +244,14 @@ impl<S: Storage> Storage for CachedStorage<S> {
             }
         }
 
-        self.reads += u128::try_from(keys.len()).expect("usize should fit in u128");
-        self.cached_reads +=
+        storage_and_cache.reads += u128::try_from(keys.len()).expect("usize should fit in u128");
+        storage_and_cache.cached_reads +=
             u128::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u128");
 
-        let fetched_values = self.storage.mget(keys_to_fetch.as_slice())?;
+        let fetched_values = storage_and_cache.storage.mget(keys_to_fetch.as_slice())?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
-                self.cache.put((*key).clone(), value.clone());
+                storage_and_cache.cache.put((*key).clone(), value.clone());
                 values[*index] = value;
             },
         );
@@ -249,26 +260,30 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
-        self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
-        self.storage.mset(key_to_value.clone())?;
+        let storage_and_cache = &mut self.storage_and_cache;
+        storage_and_cache.writes +=
+            u128::try_from(key_to_value.len()).expect("usize should fit in u128");
+        storage_and_cache.storage.mset(key_to_value.clone())?;
         key_to_value.iter().for_each(|(key, value)| {
-            self.update_cached_value(key, value);
+            storage_and_cache.update_cached_value(self.cache_on_write, key, value);
         });
         Ok(())
     }
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.cache.pop(key);
-        self.storage.delete(key)
+        let storage_and_cache = &mut self.storage_and_cache;
+        storage_and_cache.cache.pop(key);
+        storage_and_cache.storage.delete(key)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        let storage_and_cache = &self.storage_and_cache;
         Ok(CachedStorageStats {
-            reads: self.reads,
-            cached_reads: self.cached_reads,
-            writes: self.writes,
+            reads: storage_and_cache.reads,
+            cached_reads: storage_and_cache.cached_reads,
+            writes: storage_and_cache.writes,
             inner_stats: if self.include_inner_stats {
-                Some(self.storage.get_stats()?)
+                Some(storage_and_cache.storage.get_stats()?)
             } else {
                 None
             },
@@ -276,9 +291,10 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
-        self.reads = 0;
-        self.cached_reads = 0;
-        self.writes = 0;
-        self.storage.reset_stats()
+        let storage_and_cache = &mut self.storage_and_cache;
+        storage_and_cache.reads = 0;
+        storage_and_cache.cached_reads = 0;
+        storage_and_cache.writes = 0;
+        storage_and_cache.storage.reset_stats()
     }
 }
