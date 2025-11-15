@@ -20,6 +20,7 @@ macro_rules! define_short_key_storage {
 
     ($size:ident, $name:ident) => {
         /// A storage that hashes (using blake) each key to a $size - byte key.
+        #[derive(Clone)]
         pub struct $name<S: Storage> {
             storage: S,
             _n_bytes: PhantomData<blake2::digest::consts::$size>,

@@ -74,7 +74,7 @@ impl Display for NoStats {
     }
 }
 
-pub trait Storage {
+pub trait Storage: Clone {
     type Stats: StorageStats;
 
     /// Returns value from storage, if it exists.

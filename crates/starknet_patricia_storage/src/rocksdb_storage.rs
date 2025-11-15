@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use rust_rocksdb::{
     BlockBasedIndexType,
@@ -88,16 +89,17 @@ impl RocksDbOptions {
     }
 }
 
+#[derive(Clone)]
 pub struct RocksDbStorage {
-    db: DB,
-    write_options: WriteOptions,
+    db: Arc<DB>,
+    write_options: Arc<WriteOptions>,
 }
 
 impl RocksDbStorage {
     pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
-        let db = DB::open(&options.db_options, path)?;
+        let db = Arc::new(DB::open(&options.db_options, path)?);
 
-        Ok(Self { db, write_options: options.write_options })
+        Ok(Self { db, write_options: Arc::new(options.write_options) })
     }
 }
 
