@@ -3,12 +3,18 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 
 use clap::{ArgAction, Args, Subcommand};
+use rand::distributions::Uniform;
+use rand::rngs::SmallRng;
+use rand::Rng;
 use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{DbKey, Storage};
+use tokio::task::JoinSet;
+
+use crate::commands::{leaf_preimages_to_storage_keys, INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS};
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum BenchmarkFlavor {
@@ -42,6 +48,49 @@ pub enum StorageType {
 }
 
 pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
+
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+pub enum InterferenceFlavor {
+    /// No interference.
+    None,
+    /// Read 1000 random keys every block.
+    /// Note: it is not recommended to use this flavor with [CachedStorage], as this storage type
+    /// does not support concurrent reads.
+    Read1KEveryBlock,
+}
+
+impl InterferenceFlavor {
+    pub fn spawn_interference_task(
+        &self,
+        benchmark_flavor: &BenchmarkFlavor,
+        block_number: usize,
+        task_set: &mut JoinSet<()>,
+        storage: &mut impl Storage,
+        rng: &mut SmallRng,
+    ) {
+        match self {
+            Self::None => {}
+            Self::Read1KEveryBlock => {
+                let total_leaves = benchmark_flavor.total_nonzero_leaves_up_to(block_number + 1);
+                // Avoid creating an iterator over the entire range - select random leaves, with
+                // possible repetition. Probability of repitition will decrease as the number of
+                // leaves increases.
+                let dist = Uniform::new(0, total_leaves);
+                let preimages = (0..INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS)
+                    .map(|_| rng.sample(dist))
+                    .collect::<Vec<_>>();
+                let mut cloned_storage = storage.clone();
+                task_set.spawn(async move {
+                    let keys = leaf_preimages_to_storage_keys(preimages)
+                        .iter()
+                        .map(|k| DbKey((**k.0).to_bytes_be().to_vec()))
+                        .collect::<Vec<_>>();
+                    cloned_storage.mget(&keys.iter().collect::<Vec<&DbKey>>()).unwrap();
+                });
+            }
+        }
+    }
+}
 
 pub trait StorageFromArgs: Args {
     fn storage(&self) -> impl Storage;
@@ -132,6 +181,10 @@ pub struct GlobalArgs {
     /// will have different checkpoints)
     #[clap(long, default_value = None)]
     pub checkpoint_dir: Option<String>,
+
+    /// Interference flavor determines the type of interference to apply to the benchmark.
+    #[clap(long, default_value = "none")]
+    pub interference_flavor: InterferenceFlavor,
 }
 
 #[derive(Debug, Args)]
