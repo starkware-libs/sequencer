@@ -16,10 +16,10 @@ pub type DbHashMap = HashMap<DbKey, DbValue>;
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
     /// An error that occurred in the database library.
-    #[cfg(feature = "aerospike_storage")]
+    #[cfg(any(test, feature = "aerospike_storage"))]
     #[error(transparent)]
     Aerospike(#[from] aerospike::Error),
-    #[cfg(feature = "aerospike_storage")]
+    #[cfg(any(test, feature = "aerospike_storage"))]
     #[error(transparent)]
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
     #[error(
@@ -27,12 +27,12 @@ pub enum PatriciaStorageError {
          {new_value:?}."
     )]
     KeyAlreadySet { db_name: String, key: DbKey, old_value: DbValue, new_value: DbValue },
-    #[cfg(feature = "mdbx_storage")]
+    #[cfg(any(test, feature = "mdbx_storage"))]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
     #[error("Poisoned lock: {0}.")]
     PoisonedLock(String),
-    #[cfg(feature = "rocksdb_storage")]
+    #[cfg(any(test, feature = "rocksdb_storage"))]
     #[error(transparent)]
     Rocksdb(#[from] rust_rocksdb::Error),
 }
@@ -74,7 +74,7 @@ impl Display for NoStats {
     }
 }
 
-pub trait Storage: Clone {
+pub trait Storage: Clone + Send + Sync + 'static {
     type Stats: StorageStats;
 
     /// Returns value from storage, if it exists.
