@@ -32,5 +32,11 @@ starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+aerospike = { workspace = true, features = ["rt-tokio", "sync"] }
+blake2.workspace = true
+digest.workspace = true
+libmdbx.workspace = true
+page_size.workspace = true
 rstest.workspace = true
+rust-rocksdb.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
