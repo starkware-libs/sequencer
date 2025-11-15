@@ -43,6 +43,16 @@ pub enum StorageType {
 
 pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+pub enum InterferenceFlavor {
+    /// No interference.
+    None,
+    /// Read 1000 random keys every block.
+    /// Note: it is not recommended to use this flavor with [CachedStorage], as this storage type
+    /// does not support concurrent reads.
+    Read1KEveryBlock,
+}
+
 pub trait StorageFromArgs: Args {
     fn storage(&self) -> impl Storage;
 }
@@ -132,6 +142,10 @@ pub struct GlobalArgs {
     /// will have different checkpoints)
     #[clap(long, default_value = None)]
     pub checkpoint_dir: Option<String>,
+
+    /// Interference flavor determines the type of interference to apply to the benchmark.
+    #[clap(long, default_value = "none")]
+    pub interference_flavor: InterferenceFlavor,
 }
 
 #[derive(Debug, Args)]
