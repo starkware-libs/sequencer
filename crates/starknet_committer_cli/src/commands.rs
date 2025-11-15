@@ -15,13 +15,15 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
+use starknet_patricia_storage::storage_trait::{DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinSet;
 use tracing::info;
 
 use crate::args::{
     BenchmarkFlavor,
     GlobalArgs,
+    InterferenceFlavor,
     ShortKeySizeArg,
     StorageBenchmarkCommand,
     StorageType,
@@ -41,6 +43,8 @@ const FLAVOR_PERIOD_PERIOD: usize = 500;
 const FLAVOR_OVERLAP_N_UPDATES: usize = 1000;
 const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
 const FLAVOR_OVERLAP_NEW_LEAVES_AFTER_WARMUP: usize = FLAVOR_OVERLAP_N_UPDATES / 5;
+
+const INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS: usize = 1000;
 
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
@@ -163,6 +167,7 @@ macro_rules! generate_short_key_benchmark {
         $seed:expr,
         $n_iterations:expr,
         $flavor:expr,
+        $interference_flavor:expr,
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
@@ -175,6 +180,7 @@ macro_rules! generate_short_key_benchmark {
                     $seed,
                     $n_iterations,
                     $flavor,
+                    $interference_flavor,
                     &$output_dir,
                     $checkpoint_dir_arg,
                     $storage,
@@ -189,6 +195,7 @@ macro_rules! generate_short_key_benchmark {
                         $seed,
                         $n_iterations,
                         $flavor,
+                        $interference_flavor,
                         &$output_dir,
                         $checkpoint_dir_arg,
                         storage,
@@ -215,6 +222,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         output_dir,
         checkpoint_dir,
         key_size,
+        interference_flavor,
         ..
     } = storage_benchmark_args.global_args();
 
@@ -245,6 +253,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         *seed,
         *n_iterations,
         flavor.clone(),
+        interference_flavor.clone(),
         output_dir,
         checkpoint_dir_arg,
         storage,
@@ -272,15 +281,19 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
+// TODO(Dori): Remove the allow(clippy::too_many_arguments).
+#[allow(clippy::too_many_arguments)]
 pub async fn run_storage_benchmark<S: Storage>(
     seed: u64,
     n_iterations: usize,
     flavor: BenchmarkFlavor,
+    interference_flavor: InterferenceFlavor,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
     checkpoint_interval: usize,
 ) {
+    let mut interference_tasks = JoinSet::new();
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
@@ -339,6 +352,25 @@ pub async fn run_storage_benchmark<S: Storage>(
         }
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
+
+        // Add interference tasks if needed.
+        match interference_flavor {
+            InterferenceFlavor::None => {}
+            InterferenceFlavor::Read1KEveryBlock => {
+                let total_leaves = flavor.total_nonzero_leaves_up_to(block_number + 1);
+                let mut cloned_storage = storage.clone();
+                interference_tasks.spawn(async move {
+                    let keys = leaf_preimages_to_storage_keys(
+                        (0..total_leaves)
+                            .choose_multiple(&mut rng, INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS),
+                    )
+                    .iter()
+                    .map(|k| DbKey((**k.0).to_bytes_be().to_vec()))
+                    .collect::<Vec<_>>();
+                    cloned_storage.mget(&keys.iter().collect::<Vec<&DbKey>>()).unwrap();
+                });
+            }
+        }
     }
 
     // Export to csv in the last iteration.
@@ -351,4 +383,8 @@ pub async fn run_storage_benchmark<S: Storage>(
     }
 
     time_measurement.pretty_print(50);
+
+    info!("Joining {} interference tasks...", interference_tasks.len());
+    interference_tasks.join_all().await;
+    info!("Interference tasks joined.");
 }
