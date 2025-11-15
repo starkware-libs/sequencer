@@ -119,8 +119,11 @@ impl<S: Storage> StorageAndCache<S> {
 
 /// A storage wrapper that adds an LRU cache to an underlying storage.
 /// Only getter methods are cached, unless `cache_on_write` is true.
+///
+/// As the cache is updated on both write and read operations, concurrent read access is not
+/// possible while using CachedStorage.
 pub struct CachedStorage<S: Storage> {
-    storage_and_cache: StorageAndCache<S>,
+    storage_and_cache: RwLock<StorageAndCache<S>>,
     cache_on_write: bool,
     include_inner_stats: bool,
 }
@@ -180,16 +183,26 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig) -> Self {
         Self {
-            storage_and_cache: StorageAndCache {
+            storage_and_cache: RwLock::new(StorageAndCache {
                 storage,
                 cache: LruCache::new(config.cache_size),
                 reads: 0,
                 cached_reads: 0,
                 writes: 0,
-            },
+            }),
             cache_on_write: config.cache_on_write,
             include_inner_stats: config.include_inner_stats,
         }
+    }
+
+    fn read_lock<'a>(&'a self) -> PatriciaStorageResult<RwLockReadGuard<'a, StorageAndCache<S>>> {
+        self.storage_and_cache.read().map_err(|e| PatriciaStorageError::PoisonedLock(e.to_string()))
+    }
+
+    fn write_lock<'a>(&'a self) -> PatriciaStorageResult<RwLockWriteGuard<'a, StorageAndCache<S>>> {
+        self.storage_and_cache
+            .write()
+            .map_err(|e| PatriciaStorageError::PoisonedLock(e.to_string()))
     }
 }
 
@@ -197,11 +210,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
 
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let storage_and_cache = &mut self.storage_and_cache;
+        let mut storage_and_cache = self.write_lock()?;
         storage_and_cache.reads += 1;
-        if let Some(cached_value) = storage_and_cache.cache.get(key) {
+        if let Some(cached_value) = storage_and_cache.cache.get(key).cloned() {
             storage_and_cache.cached_reads += 1;
-            return Ok(cached_value.clone());
+            return Ok(cached_value);
         }
 
         let storage_value = storage_and_cache.storage.get(key)?;
@@ -210,7 +223,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        let storage_and_cache = &mut self.storage_and_cache;
+        let mut storage_and_cache = self.write_lock()?;
         storage_and_cache.writes += 1;
         storage_and_cache.storage.set(key.clone(), value.clone())?;
         storage_and_cache.update_cached_value(self.cache_on_write, &key, &value);
@@ -218,7 +231,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        let storage_and_cache = &mut self.storage_and_cache;
+        let mut storage_and_cache = self.write_lock()?;
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
@@ -248,7 +261,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
-        let storage_and_cache = &mut self.storage_and_cache;
+        let mut storage_and_cache = self.write_lock()?;
         storage_and_cache.writes +=
             u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         storage_and_cache.storage.mset(key_to_value.clone())?;
@@ -259,13 +272,13 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        let storage_and_cache = &mut self.storage_and_cache;
+        let mut storage_and_cache = self.write_lock()?;
         storage_and_cache.cache.pop(key);
         storage_and_cache.storage.delete(key)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
-        let storage_and_cache = &self.storage_and_cache;
+        let storage_and_cache = self.read_lock()?;
         Ok(CachedStorageStats {
             reads: storage_and_cache.reads,
             cached_reads: storage_and_cache.cached_reads,
@@ -279,7 +292,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
-        let storage_and_cache = &mut self.storage_and_cache;
+        let mut storage_and_cache = self.write_lock()?;
         storage_and_cache.reads = 0;
         storage_and_cache.cached_reads = 0;
         storage_and_cache.writes = 0;
