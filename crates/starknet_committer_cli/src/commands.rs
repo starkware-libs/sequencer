@@ -23,7 +23,6 @@ use tracing::info;
 use crate::args::{
     BenchmarkFlavor,
     GlobalArgs,
-    InterferenceFlavor,
     ShortKeySizeArg,
     StorageBenchmarkCommand,
     StorageType,
@@ -163,45 +162,22 @@ impl BenchmarkFlavor {
 /// benchmark.
 macro_rules! generate_short_key_benchmark {
     (
-        $key_size:expr,
-        $seed:expr,
-        $n_iterations:expr,
-        $flavor:expr,
-        $interference_flavor:expr,
+        $global_args:expr,
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
-        $checkpoint_interval:expr,
         $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
-        match $key_size {
+        match $global_args.key_size {
             None => {
-                run_storage_benchmark(
-                    $seed,
-                    $n_iterations,
-                    $flavor,
-                    $interference_flavor,
-                    &$output_dir,
-                    $checkpoint_dir_arg,
-                    $storage,
-                    $checkpoint_interval,
-                )
-                .await
+                run_storage_benchmark($global_args, &$output_dir, $checkpoint_dir_arg, $storage)
+                    .await
             }
             $(
                 Some(ShortKeySizeArg::$size) => {
                     let storage = starknet_patricia_storage::short_key_storage::$name::new($storage);
-                    run_storage_benchmark(
-                        $seed,
-                        $n_iterations,
-                        $flavor,
-                        $interference_flavor,
-                        &$output_dir,
-                        $checkpoint_dir_arg,
-                        storage,
-                        $checkpoint_interval,
-                    )
-                    .await
+                    run_storage_benchmark($global_args, &$output_dir, $checkpoint_dir_arg, storage)
+                        .await
                 }
             )+
         }
@@ -214,17 +190,8 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
     storage_benchmark_args: &StorageBenchmarkCommand,
     storage: S,
 ) {
-    let GlobalArgs {
-        seed,
-        n_iterations,
-        flavor,
-        checkpoint_interval,
-        output_dir,
-        checkpoint_dir,
-        key_size,
-        interference_flavor,
-        ..
-    } = storage_benchmark_args.global_args();
+    let GlobalArgs { n_iterations, output_dir, checkpoint_dir, .. } =
+        storage_benchmark_args.global_args();
 
     let data_path = storage_benchmark_args
         .file_storage_args()
@@ -249,15 +216,10 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
     };
 
     generate_short_key_benchmark!(
-        key_size,
-        *seed,
-        *n_iterations,
-        flavor.clone(),
-        interference_flavor.clone(),
+        storage_benchmark_args.global_args(),
         output_dir,
         checkpoint_dir_arg,
         storage,
-        *checkpoint_interval,
         (U16, ShortKeyStorage16),
         (U17, ShortKeyStorage17),
         (U18, ShortKeyStorage18),
@@ -281,20 +243,22 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
-// TODO(Dori): Remove the allow(clippy::too_many_arguments).
-#[allow(clippy::too_many_arguments)]
 pub async fn run_storage_benchmark<S: Storage>(
-    seed: u64,
-    n_iterations: usize,
-    flavor: BenchmarkFlavor,
-    interference_flavor: InterferenceFlavor,
+    GlobalArgs {
+        seed,
+        n_iterations,
+        flavor,
+        interference_flavor,
+        checkpoint_interval,
+        ..
+    }: &GlobalArgs,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
-    checkpoint_interval: usize,
 ) {
     let mut interference_tasks = JoinSet::new();
-    let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
+    let mut time_measurement =
+        TimeMeasurement::new(*checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
             time_measurement.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
@@ -305,7 +269,7 @@ pub async fn run_storage_benchmark<S: Storage>(
 
     let mut classes_trie_root_hash = HashOutput::default();
 
-    for block_number in curr_block_number..n_iterations {
+    for block_number in curr_block_number..*n_iterations {
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
