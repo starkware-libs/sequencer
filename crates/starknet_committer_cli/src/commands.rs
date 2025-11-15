@@ -30,6 +30,17 @@ use crate::args::{
 
 pub type InputImpl = Input<ConfigImpl>;
 
+const FLAVOR_1K_N_UPDATES: usize = 1000;
+const FLAVOR_4K_N_UPDATES: usize = 4000;
+
+const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
+const FLAVOR_PERIOD_MANY_UPDATES: usize = 1000;
+const FLAVOR_PERIOD_FEW_UPDATES: usize = 200;
+const FLAVOR_PERIOD_PERIOD: usize = 500;
+
+const FLAVOR_OVERLAP_N_UPDATES: usize = 1000;
+const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
+
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
     indices: impl IntoIterator<Item = usize>,
@@ -49,13 +60,13 @@ fn leaf_preimages_to_storage_keys(
 impl BenchmarkFlavor {
     fn n_updates(&self, iteration: usize) -> usize {
         match self {
-            Self::Constant1KDiff | Self::Overlap1KDiff => 1000,
-            Self::Constant4KDiff => 4000,
+            Self::Constant1KDiff | Self::Overlap1KDiff => FLAVOR_1K_N_UPDATES,
+            Self::Constant4KDiff => FLAVOR_4K_N_UPDATES,
             Self::PeriodicPeaks => {
-                if iteration % 500 < 10 {
-                    1000
+                if iteration % FLAVOR_PERIOD_PERIOD < FLAVOR_PERIOD_MANY_WINDOW {
+                    FLAVOR_PERIOD_MANY_UPDATES
                 } else {
-                    200
+                    FLAVOR_PERIOD_FEW_UPDATES
                 }
             }
         }
@@ -66,11 +77,11 @@ impl BenchmarkFlavor {
         let keys_override = match self {
             Self::Constant1KDiff | Self::Constant4KDiff | Self::PeriodicPeaks => None,
             Self::Overlap1KDiff => {
+                assert_eq!(n_updates, FLAVOR_OVERLAP_N_UPDATES);
                 // Invariant: if there are a total of L leaves in the DB, then the nonzero keys are
                 // [hash(i) for i in 0..L].
                 // Warmup phase: all leaves should be new, until 100M nonzero leaves exist.
-                let overlap_warmup_blocks = 100_000;
-                if block_number < overlap_warmup_blocks {
+                if block_number < FLAVOR_OVERLAP_WARMUP_BLOCKS {
                     // Warmup phase: all leaves should be new.
                     let total_leaves = block_number * n_updates;
                     Some(leaf_preimages_to_storage_keys(total_leaves..total_leaves + n_updates))
@@ -79,12 +90,12 @@ impl BenchmarkFlavor {
                     // The total number of updates remains constant in this flavor.
                     let new_leaves = n_updates / 5;
                     // After warmup, each iteration (block) adds only 20% new leaves.
-                    let total_leaves = overlap_warmup_blocks * n_updates
-                        + (block_number - overlap_warmup_blocks) * new_leaves;
+                    let total_leaves = FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates
+                        + (block_number - FLAVOR_OVERLAP_WARMUP_BLOCKS) * new_leaves;
                     // Sample (n_updates-new_leaves) old indices uniformly at random, from the
                     // previous leaves. Choose leaves from the (overlap_warmup_blocks * n_updates)
                     // most recent leaves.
-                    let start_index = total_leaves - (overlap_warmup_blocks * n_updates);
+                    let start_index = total_leaves - (FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates);
                     let n_overlap_leaves = n_updates - new_leaves;
                     let updated_keys = leaf_preimages_to_storage_keys(
                         (start_index..total_leaves).choose_multiple(rng, n_overlap_leaves),
