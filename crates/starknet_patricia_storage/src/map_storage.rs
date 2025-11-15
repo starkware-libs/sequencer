@@ -191,18 +191,6 @@ impl<S: Storage> CachedStorage<S> {
             include_inner_stats: config.include_inner_stats,
         }
     }
-
-    pub fn total_reads(&self) -> u128 {
-        self.storage_and_cache.reads
-    }
-
-    pub fn total_cached_reads(&self) -> u128 {
-        self.storage_and_cache.cached_reads
-    }
-
-    pub fn total_writes(&self) -> u128 {
-        self.storage_and_cache.writes
-    }
 }
 
 impl<S: Storage> Storage for CachedStorage<S> {
