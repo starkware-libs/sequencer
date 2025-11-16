@@ -1,8 +1,9 @@
 use blake2::digest::consts::U31;
 use blake2::{Blake2s, Digest};
+use rand::distributions::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use starknet_api::core::PatriciaKey;
 use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
@@ -15,8 +16,9 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_patricia_storage::storage_trait::{AsyncStorage, Storage, StorageStats};
+use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinSet;
 use tracing::info;
 
 use crate::args::{
@@ -42,6 +44,8 @@ const FLAVOR_PERIOD_PERIOD: usize = 500;
 const FLAVOR_OVERLAP_N_UPDATES: usize = 1000;
 const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
 const FLAVOR_OVERLAP_NEW_LEAVES_AFTER_WARMUP: usize = FLAVOR_OVERLAP_N_UPDATES / 5;
+
+const INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS: usize = 1000;
 
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
@@ -248,7 +252,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         key_size,
         *seed,
         *n_iterations,
-        flavor.clone(),
+        *flavor,
         storage_benchmark_args.interference_type(),
         output_dir,
         checkpoint_dir_arg,
@@ -274,12 +278,35 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
     );
 }
 
-async fn apply_interference<S: AsyncStorage>(
-    _interference_type: InterferenceType,
-    _storage: &mut S,
-    _rng: &mut SmallRng,
+fn apply_interference<S: AsyncStorage>(
+    interference_type: InterferenceType,
+    benchmark_flavor: BenchmarkFlavor,
+    block_number: usize,
+    task_set: &mut JoinSet<()>,
+    storage: &mut S,
+    rng: &mut SmallRng,
 ) {
-    // TODO(Dori): Implement interference.
+    match interference_type {
+        InterferenceType::None => {}
+        InterferenceType::Read1KEveryBlock => {
+            let total_leaves = benchmark_flavor.total_nonzero_leaves_up_to(block_number + 1);
+            // Avoid creating an iterator over the entire range - select random leaves, with
+            // possible repetition. Probability of repitition will decrease as the number of
+            // leaves increases.
+            let dist = Uniform::new(0, total_leaves);
+            let preimages = (0..INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS)
+                .map(|_| rng.sample(dist))
+                .collect::<Vec<_>>();
+            let mut cloned_storage = storage.clone();
+            task_set.spawn(async move {
+                let keys = leaf_preimages_to_storage_keys(preimages)
+                    .iter()
+                    .map(|k| DbKey((**k.0).to_bytes_be().to_vec()))
+                    .collect::<Vec<_>>();
+                cloned_storage.mget(&keys.iter().collect::<Vec<&DbKey>>()).unwrap();
+            });
+        }
+    }
 }
 
 /// Runs the committer on n_iterations random generated blocks.
@@ -296,6 +323,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     mut storage: S,
     checkpoint_interval: usize,
 ) {
+    let mut interference_task_set = JoinSet::new();
     let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
@@ -357,7 +385,14 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         // If the storage supports interference (is async), apply interference.
         if let Some(mut async_storage) = storage.get_async_self() {
-            apply_interference(interference_type, &mut async_storage, &mut rng).await;
+            apply_interference(
+                interference_type,
+                flavor,
+                block_number,
+                &mut interference_task_set,
+                &mut async_storage,
+                &mut rng,
+            );
         }
     }
 
