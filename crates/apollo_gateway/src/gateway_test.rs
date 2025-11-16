@@ -92,6 +92,7 @@ fn config() -> GatewayConfig {
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
         authorized_declarer_accounts: None,
+        class_cache_size: 1,
     }
 }
 

@@ -19,7 +19,7 @@ use crate::compiler_version::VersionId;
 
 const JSON_RPC_VERSION: &str = "2.0";
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
@@ -27,16 +27,38 @@ pub struct GatewayConfig {
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_optional_contract_addresses")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
+    pub class_cache_size: usize,
+}
+
+impl Default for GatewayConfig {
+    fn default() -> Self {
+        Self {
+            stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
+            stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
+            chain_info: ChainInfo::default(),
+            block_declare: false,
+            authorized_declarer_accounts: None,
+            class_cache_size: 50,
+        }
+    }
 }
 
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([ser_param(
-            "block_declare",
-            &self.block_declare,
-            "If true, the gateway will block declare transactions.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from_iter([
+            ser_param(
+                "block_declare",
+                &self.block_declare,
+                "If true, the gateway will block declare transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "class_cache_size",
+                &self.class_cache_size,
+                "Maximum number of compiled contract classes to cache in memory.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump.extend(prepend_sub_config_name(
             self.stateless_tx_validator_config.dump(),
             "stateless_tx_validator_config",
