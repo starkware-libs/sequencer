@@ -126,6 +126,6 @@ pub fn set_log_level(handle: &ReloadHandle, crate_name: &str, level: LevelFilter
     }
 }
 
-pub fn get_log_directives(handle: &ReloadHandle) -> String {
-    handle.with_current(|f| f.to_string()).expect("handle should be valid")
+pub fn get_log_directives(handle: &ReloadHandle) -> Result<String, reload::Error> {
+    handle.with_current(|f| f.to_string())
 }
