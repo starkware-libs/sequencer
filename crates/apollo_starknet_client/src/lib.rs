@@ -19,6 +19,7 @@ pub mod writer;
 
 use std::collections::HashMap;
 
+use apollo_config::secrets::Sensitive;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, RequestBuilder, StatusCode};
 use tracing::warn;
@@ -90,12 +91,14 @@ enum RequestWithRetryError {
 impl StarknetClient {
     /// Creates a new client for a starknet gateway at `url_str` with retry_config [`RetryConfig`].
     pub fn new(
-        http_headers: Option<HashMap<String, String>>,
+        http_headers: Option<Sensitive<HashMap<String, String>>>,
         node_version: &'static str,
         retry_config: RetryConfig,
     ) -> Result<Self, ClientCreationError> {
         let header_map = match http_headers {
-            Some(inner) => (&inner).try_into().map_err(|_| ClientCreationError::HttpHeaderError)?,
+            Some(inner) => {
+                (&inner.into()).try_into().map_err(|_| ClientCreationError::HttpHeaderError)?
+            }
             None => HeaderMap::new(),
         };
         let info = os_info::get();
