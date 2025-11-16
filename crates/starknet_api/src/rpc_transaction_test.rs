@@ -1,5 +1,5 @@
+use apollo_sizeof::SizeOf;
 use rstest::rstest;
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 
 use crate::block::GasPrice;

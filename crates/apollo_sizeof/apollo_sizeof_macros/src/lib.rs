@@ -202,7 +202,7 @@ fn derive_macro_for_enum(data_enum: DataEnum) -> TokenStream2 {
 fn add_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
-            type_param.bounds.push(parse_quote!(sizeof::SizeOf));
+            type_param.bounds.push(parse_quote!(apollo_sizeof::SizeOf));
         }
     }
     generics

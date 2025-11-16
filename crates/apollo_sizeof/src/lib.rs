@@ -1,5 +1,5 @@
-pub use sizeof_internal::SizeOf;
-pub use sizeof_macro::SizeOf;
+pub use apollo_sizeof_internal::SizeOf;
+pub use apollo_sizeof_macros::SizeOf;
 
 #[cfg(test)]
 mod tests {

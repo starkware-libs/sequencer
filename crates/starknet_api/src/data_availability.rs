@@ -1,5 +1,5 @@
+use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Serialize};
-use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 
 use crate::StarknetApiError;

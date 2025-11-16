@@ -1,4 +1,4 @@
-use sizeof::SizeOf;
+use apollo_sizeof::SizeOf;
 struct NotSizeOf {
     a: u32,
     b: String,
