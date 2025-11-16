@@ -37,9 +37,10 @@ use crate::monitoring_endpoint::{
     MEMPOOL_SNAPSHOT,
     METRICS,
     READY,
+    SET_LOG_LEVEL,
     VERSION,
 };
-use crate::test_utils::build_request;
+use crate::test_utils::{build_post_request, build_request};
 use crate::tokio_metrics::{
     TOKIO_GLOBAL_QUEUE_DEPTH,
     TOKIO_MAX_BUSY_DURATION_MICROS,
@@ -71,6 +72,10 @@ async fn request_app(app: Router, method: &str) -> Response {
     app.oneshot(build_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
 }
 
+async fn request_post_app(app: Router, method: &str) -> Response {
+    app.oneshot(build_post_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
+}
+
 #[tokio::test]
 async fn node_version() {
     let response = request_app(setup_monitoring_endpoint(None).app(), VERSION).await;
@@ -90,6 +95,26 @@ async fn alive_endpoint() {
 async fn ready_endpoint() {
     let response = request_app(setup_monitoring_endpoint(None).app(), READY).await;
     assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn set_log_level_valid() {
+    let app = setup_monitoring_endpoint(None).app();
+    let crate_name = "apollo_monitoring_endpoint";
+    let level = "debug";
+    let method = format!("{SET_LOG_LEVEL}/{crate_name}/{level}");
+    let response = request_post_app(app, &method).await;
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn set_log_level_invalid_level() {
+    let app = setup_monitoring_endpoint(None).app();
+    let crate_name = "apollo_monitoring_endpoint";
+    let invalid_level = "foobar";
+    let method = format!("{SET_LOG_LEVEL}/{crate_name}/{invalid_level}");
+    let response = request_post_app(app, &method).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
