@@ -10,6 +10,7 @@ use apollo_class_manager_config::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
+use apollo_committer_config::config::CommitterConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig, TimeoutsConfig};
@@ -281,6 +282,7 @@ pub fn create_node_config(
     let config_manager_config = ConfigManagerConfig::disabled();
     let config_manager_config =
         wrap_if_component_config_expected!(config_manager, config_manager_config);
+    let committer_config = Some(CommitterConfig::default());
     let consensus_manager_config =
         wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
     let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
@@ -306,6 +308,7 @@ pub fn create_node_config(
         base_layer_config,
         batcher_config,
         class_manager_config,
+        committer_config,
         components,
         config_manager_config,
         consensus_manager_config,
