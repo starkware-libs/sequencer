@@ -12,7 +12,7 @@ use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::commands::run_storage_benchmark_wrapper;
 
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
 pub enum BenchmarkFlavor {
     /// Constant 1000 state diffs per iteration.
     #[value(alias("1k-diff"))]
@@ -164,7 +164,8 @@ impl FileStorageArgs {
 pub enum InterferenceType {
     /// No interference.
     None,
-    // TODO(Dori): Add more interference types.
+    /// Read 1000 random keys every block.
+    Read1KEveryBlock,
 }
 
 #[derive(Debug, Args)]
