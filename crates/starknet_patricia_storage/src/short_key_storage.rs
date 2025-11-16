@@ -80,6 +80,10 @@ macro_rules! define_short_key_storage {
             fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
                 self.storage.get_stats()
             }
+
+            fn get_async_self(&self) -> Option<impl AsyncStorage> {
+                Some($name::new(self.storage.get_async_self()?))
+            }
         }
 
         impl<S: AsyncStorage> Clone for $name<S> {

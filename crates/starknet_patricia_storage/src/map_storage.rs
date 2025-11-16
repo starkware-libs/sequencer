@@ -5,10 +5,12 @@ use lru::LruCache;
 use serde::Serialize;
 
 use crate::storage_trait::{
+    AsyncStorage,
     DbHashMap,
     DbKey,
     DbValue,
     NoStats,
+    NullStorage,
     PatriciaStorageResult,
     Storage,
     StorageStats,
@@ -50,6 +52,11 @@ impl Storage for MapStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        // Need a concrete Option type.
+        None::<NullStorage>
     }
 }
 
@@ -232,5 +239,10 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.cached_reads = 0;
         self.writes = 0;
         self.storage.reset_stats()
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        // Need a concrete Option type.
+        None::<NullStorage>
     }
 }

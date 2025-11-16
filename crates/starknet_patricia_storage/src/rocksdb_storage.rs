@@ -13,7 +13,15 @@ use rust_rocksdb::{
     DB,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    AsyncStorage,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    NoStats,
+    PatriciaStorageResult,
+    Storage,
+};
 
 // General database Options.
 
@@ -171,5 +179,9 @@ impl Storage for RocksDbStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }
