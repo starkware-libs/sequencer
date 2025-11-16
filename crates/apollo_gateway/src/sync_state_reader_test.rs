@@ -16,6 +16,7 @@ use lazy_static::lazy_static;
 use mockall::predicate;
 use rstest::rstest;
 use starknet_api::block::{
+    BlockHeader,
     BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
@@ -51,14 +52,17 @@ async fn test_get_block_info() {
                 state_diff: Default::default(),
                 account_transaction_hashes: Default::default(),
                 l1_transaction_hashes: Default::default(),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    block_number,
-                    l1_gas_price,
-                    l1_data_gas_price,
-                    l2_gas_price,
-                    sequencer: SequencerContractAddress(sequencer_address),
-                    timestamp: block_timestamp,
-                    l1_da_mode,
+                block_header: BlockHeader {
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number,
+                        l1_gas_price,
+                        l1_data_gas_price,
+                        l2_gas_price,
+                        sequencer: SequencerContractAddress(sequencer_address),
+                        timestamp: block_timestamp,
+                        l1_da_mode,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
             })

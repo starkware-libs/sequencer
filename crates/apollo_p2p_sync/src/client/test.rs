@@ -11,7 +11,7 @@ use futures::FutureExt;
 use indexmap::IndexMap;
 use rand::Rng;
 use rand_chacha::ChaCha8Rng;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -36,7 +36,7 @@ async fn receive_block_internally() {
         l1_transaction_hashes_len,
         get_rng(),
     );
-    let block_header_without_hash = sync_block.block_header_without_hash.clone();
+    let block_header_without_hash = sync_block.block_header.block_header_without_hash.clone();
     let transaction_hashes = sync_block.get_all_transaction_hashes();
     let state_diff = sync_block.state_diff.clone();
 
@@ -111,7 +111,7 @@ async fn receive_blocks_out_of_order() {
         l1_transaction_hashes_len_0,
         rng.clone(),
     );
-    let block_header_without_hash_0 = sync_block_0.block_header_without_hash.clone();
+    let block_header_without_hash_0 = sync_block_0.block_header.block_header_without_hash.clone();
     let transaction_hashes_0 = sync_block_0.get_all_transaction_hashes();
     let state_diff_0 = sync_block_0.state_diff.clone();
 
@@ -125,7 +125,7 @@ async fn receive_blocks_out_of_order() {
         l1_transaction_hashes_len_1,
         rng,
     );
-    let block_header_without_hash_1 = sync_block_1.block_header_without_hash.clone();
+    let block_header_without_hash_1 = sync_block_1.block_header.block_header_without_hash.clone();
     let transaction_hashes_1 = sync_block_1.get_all_transaction_hashes();
     let state_diff_1 = sync_block_1.state_diff.clone();
 
@@ -315,6 +315,6 @@ fn create_random_sync_block(
         state_diff,
         account_transaction_hashes,
         l1_transaction_hashes,
-        block_header_without_hash,
+        block_header: BlockHeader { block_header_without_hash, ..Default::default() },
     }
 }

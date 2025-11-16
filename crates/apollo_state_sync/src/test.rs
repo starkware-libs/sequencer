@@ -58,7 +58,7 @@ async fn test_get_block() {
         panic!("Expected StateSyncResponse::GetBlock::Ok(Box(_)), but got {response:?}");
     };
 
-    assert_eq!(block.block_header_without_hash, expected_header.block_header_without_hash);
+    assert_eq!(block.block_header, expected_header);
     assert_eq!(block.state_diff, expected_state_diff);
     assert_eq!(block.account_transaction_hashes.len() + block.l1_transaction_hashes.len(), 1);
     if !block.account_transaction_hashes.is_empty() {

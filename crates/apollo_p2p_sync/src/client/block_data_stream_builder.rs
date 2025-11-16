@@ -82,7 +82,7 @@ where
             let internal_block_receiver =
                 internal_block_receiver.as_mut().expect("Internal block receiver not set");
             while let Some(sync_block) = internal_block_receiver.next().await {
-                let block_number = sync_block.block_header_without_hash.block_number;
+                let block_number = sync_block.block_header.block_header_without_hash.block_number;
                 if block_number >= current_block_number {
                     let block_data =
                         Self::convert_sync_block_to_block_data(block_number, sync_block);

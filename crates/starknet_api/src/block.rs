@@ -194,19 +194,12 @@ pub struct BlockHeader {
     // Currently they are not included in any RPC spec, so we skip their serialization.
     // TODO(Yair): Once all environments support these fields, remove the Option (make sure to
     // update/resync any storage is missing the data).
-    #[serde(skip_serializing)]
     pub state_diff_commitment: Option<StateDiffCommitment>,
-    #[serde(skip_serializing)]
     pub state_diff_length: Option<usize>,
-    #[serde(skip_serializing)]
     pub transaction_commitment: Option<TransactionCommitment>,
-    #[serde(skip_serializing)]
     pub event_commitment: Option<EventCommitment>,
-    #[serde(skip_serializing)]
     pub n_transactions: usize,
-    #[serde(skip_serializing)]
     pub n_events: usize,
-    #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
 }
 

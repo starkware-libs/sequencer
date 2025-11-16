@@ -145,7 +145,7 @@ impl StateSync {
 
             Ok(SyncBlock {
                 state_diff: thin_state_diff,
-                block_header_without_hash: block_header.block_header_without_hash,
+                block_header,
                 account_transaction_hashes,
                 l1_transaction_hashes,
             })
@@ -156,7 +156,7 @@ impl StateSync {
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
         // Getting the next block because the Sync block only contains parent hash.
         match (self.get_block(block_number).await, self.starknet_client.as_ref()) {
-            (Ok(block), _) => Ok(block.block_header_without_hash.parent_hash),
+            (Ok(block), _) => Ok(block.block_header.block_header_without_hash.parent_hash),
             (Err(StateSyncError::BlockNotFound(_)), Some(starknet_client)) => {
                 // As a fallback, try to get the block hash through the feeder directly. This
                 // method is faster than get_block which the sync runner uses.

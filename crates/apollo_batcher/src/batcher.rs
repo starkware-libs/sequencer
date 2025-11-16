@@ -42,7 +42,7 @@ use futures::FutureExt;
 use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -560,7 +560,11 @@ impl Batcher {
             state_diff,
             account_transaction_hashes,
             l1_transaction_hashes,
-            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+            block_header:
+                BlockHeader {
+                    block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+                    ..
+                },
         } = sync_block;
 
         let height = self.get_height_from_storage()?;
