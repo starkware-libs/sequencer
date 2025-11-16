@@ -13,7 +13,6 @@ on:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_hybrid.json
   namespace: sequencer-hybrid-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
@@ -276,22 +275,6 @@ jobs:
       - name: Create storage files
         run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-hybrid 0 --n-distributed 0
 
-      - name: Export application config dir
-        run: |
-          set -euo pipefail
-
-          # Get the config directory
-          app_config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
-
-          # Export to environment for the next step
-          echo "app_config_dir=$app_config_dir" >> $GITHUB_ENV
-          echo "app_config_dir is: $app_config_dir"
-
-      # TODO(Nadin): move the config definition out of the GitHub Actions secret section, since it no longer contains sensitive values.
-      - name: Inject Config Secrets
-        run: |
-          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }}
-
       - name: Generate k8s manifests
         working-directory: deployments/sequencer2
         run: |
@@ -313,33 +296,20 @@ jobs:
       - name: Run readiness check
         run: pipenv run python ./scripts/system_tests/readiness_check2.py --layout hybrid --namespace ${{ env.namespace }}
 
-      - name: Get Config Dir
-        run: |
-          set -euo pipefail
-
-          # Get the config directory
-          config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
-
-          echo "config_dir is: $config_dir"
-          # Export to environment for the next step.
-          echo "config_dir=$config_dir" >> $GITHUB_ENV
-
       - name: Test sequencer is alive
         env:
           initial_delay_sec: 10
           check_interval_sec: 2
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
-          # TODO(Nadin): Calculate config_dir dynamically in liveness_check2.py based on deployment_config_path
           pipenv run python ./scripts/system_tests/liveness_check2.py \
             --namespace ${{ env.namespace }} \
             --layout hybrid \
-            --config-dir ${{ env.config_dir }} \
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0"
+        run: pipenv run python ./scripts/system_tests/copy_state_and_restart2.py --layout hybrid --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
 
       - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
         run: |
@@ -352,8 +322,20 @@ jobs:
           kubectl port-forward -n anvil "$ANVIL_POD" ${{ env.anvil_port }}:${{ env.anvil_port }} &
           echo "⏳ Waiting a few seconds to ensure port-forward is established..."
           sleep 2
+      
+      - name: Print Second ConfigMap on the list
+        run: |
+          CONFIGMAP_NAME=$(kubectl get configmap -n "${{ env.namespace }}" -o jsonpath='{.items[1].metadata.name}')
+          echo "ConfigMap: $CONFIGMAP_NAME"
+          kubectl get configmap "$CONFIGMAP_NAME" -n "${{ env.namespace }}" -o yaml
+
+      - name: debug
+        run: sleep 1000000
 
       - name: Send transactions test
+        env:
+          RUST_LOG: debug
+          RUST_BACKTRACE: full
         run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: Get container logs

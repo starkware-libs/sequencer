@@ -236,6 +236,7 @@ class Secret(StrictBaseModel):
     enabled: bool = False
     name: Optional[str] = None
     type: str = "Opaque"
+    file: Optional[str] = None  # Path to JSON file to load as secret (relative to project root)
     data: StrDict = Field(default_factory=dict)
     stringData: StrDict = Field(default_factory=dict)
     annotations: StrDict = Field(default_factory=dict)
@@ -248,14 +249,19 @@ class Secret(StrictBaseModel):
         import json
 
         if self.enabled:
+            # Check if we have file, data, or stringData
+            has_file = bool(self.file)
             all_keys = set()
             if self.stringData:
                 all_keys.update(self.stringData.keys())
             if self.data:
                 all_keys.update(self.data.keys())
 
-            if not all_keys:
-                raise ValueError("Secret must contain at least one key when enabled")
+            if not has_file and not all_keys:
+                raise ValueError(
+                    "Secret must contain at least one key when enabled. "
+                    "Provide 'file', 'data', or 'stringData'."
+                )
 
             # Validate that all stringData values are valid JSON
             if self.stringData:
@@ -269,6 +275,7 @@ class Secret(StrictBaseModel):
 
             # Note: data is already base64 encoded, we can't validate JSON here without decoding
             # Users should use stringData for JSON content validation
+            # File validation happens at runtime in SecretConstruct
 
 
 class PodMonitoringEndpoint(StrictBaseModel):
@@ -360,28 +367,28 @@ class NetworkPolicy(StrictBaseModel):
 
 class PriorityClass(StrictBaseModel):
     enabled: bool = False
-    existingPriorityClass: Optional[
-        str
-    ] = None  # Use existing PriorityClass by name (skip creation)
+    existingPriorityClass: Optional[str] = (
+        None  # Use existing PriorityClass by name (skip creation)
+    )
     name: Optional[str] = None
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
-    value: Optional[
-        int
-    ] = None  # Priority value (higher = more important) - required when creating new PriorityClass
+    value: Optional[int] = (
+        None  # Priority value (higher = more important) - required when creating new PriorityClass
+    )
     globalDefault: bool = False  # Whether this is the default PriorityClass
     description: Optional[str] = None  # Description of the PriorityClass
     preemptionPolicy: Optional[str] = None  # "Never" or "PreemptLowerPriority"
 
 
 class Config(StrictBaseModel):
-    configList: Optional[
-        str
-    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
+    configList: Optional[str] = (
+        None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
+    )
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
-    sequencerConfig: Optional[
-        AnyDict
-    ] = None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
+    sequencerConfig: Optional[AnyDict] = (
+        None  # Override values for sequencer config. Keys are simplified YAML keys (e.g., 'chain_id'), values are the replacement. Automatically converted to placeholder format for matching.
+    )
 
 
 class ServiceConfig(StrictBaseModel):

@@ -45,6 +45,11 @@ service:
       targetPort: 8082
       protocol: TCP
 
+secret:
+  enabled: true
+  type: "Opaque"
+  file: "crates/apollo_deployments/resources/testing_secrets.json"
+
 env:
   - name: RUST_LOG
     value: debug

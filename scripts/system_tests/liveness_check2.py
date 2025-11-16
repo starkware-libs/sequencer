@@ -210,14 +210,12 @@ def run_service_check(
 
 def main(
     services: List[Dict[str, Any]],
-    config_dir: str,
     timeout: int,
     interval: int,
     initial_delay: int,
     namespace: str,
 ):
     print(f"Running liveness checks on {len(services)} services")
-    print(f"Config dir: {config_dir}")
     print(f"Timeout: {timeout}s")
     print(f"Interval: {interval}s")
     print(f"Initial Delay: {initial_delay}s")
@@ -341,12 +339,6 @@ if __name__ == "__main__":
         help="Kubernetes namespace",
     )
     parser.add_argument(
-        "--config-dir",
-        type=str,
-        required=True,
-        help="Base directory for service config files (where configList paths are relative to)",
-    )
-    parser.add_argument(
         "--timeout",
         type=int,
         required=True,
@@ -385,7 +377,6 @@ if __name__ == "__main__":
 
     main(
         services=merged_services,
-        config_dir=args.config_dir,
         timeout=args.timeout,
         interval=args.interval,
         initial_delay=args.initial_delay,
