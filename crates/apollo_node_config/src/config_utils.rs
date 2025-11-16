@@ -219,24 +219,33 @@ impl DeploymentBaseAppConfig {
     }
 }
 
-pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
+pub fn load_and_validate_config(
+    args: Vec<String>,
+    verbose: bool,
+) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
     let loaded_config =
         config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
-    info!("Finished loading configuration.");
+    if verbose {
+        info!("Finished loading configuration.");
+    }
 
     if let Err(error) = loaded_config.validate_node_config() {
         panic!("Config validation failed: {error}");
     }
-    info!("Finished validating configuration.");
+    if verbose {
+        info!("Finished validating configuration.");
+    }
 
-    info!("Config map:");
-    info!(
-        "{:#?}",
-        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
-            .expect("Should be able to get representation.")
-    );
-    info!("Finished dumping configuration.");
+    if verbose {
+        info!("Config map:");
+        info!(
+            "{:#?}",
+            get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
+                .expect("Should be able to get representation.")
+        );
+        info!("Finished dumping configuration.");
+    }
 
     Ok(loaded_config)
 }
