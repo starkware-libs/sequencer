@@ -1,0 +1,6 @@
+{
+  "versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+  "versioned_constants_overrides.max_n_events": 1000,
+  "versioned_constants_overrides.max_recursion_depth": 50,
+  "versioned_constants_overrides.validate_max_n_steps": 1000000
+}
