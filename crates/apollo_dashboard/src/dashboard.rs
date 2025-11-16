@@ -415,7 +415,6 @@ impl Row {
     pub(crate) fn new(name: impl ToString, panels: Vec<Panel>) -> Self {
         Self { name: name.to_string(), panels, collapsed: true }
     }
-    #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn expand(mut self) -> Self {
         self.collapsed = false;
         self
