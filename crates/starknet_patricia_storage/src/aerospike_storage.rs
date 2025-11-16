@@ -21,7 +21,15 @@ use aerospike::{
     WritePolicy,
 };
 
-use crate::storage_trait::{DbHashMap, DbKey, DbValue, NoStats, PatriciaStorageResult, Storage};
+use crate::storage_trait::{
+    AsyncStorage,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    NoStats,
+    PatriciaStorageResult,
+    Storage,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AerospikeStorageError {
@@ -157,5 +165,9 @@ impl Storage for AerospikeStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(NoStats)
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }
