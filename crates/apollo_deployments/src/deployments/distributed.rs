@@ -85,6 +85,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             }
         };
 
+        // TODO(Yoav): Add committer when it is ready.
         let batcher =
             Self::Batcher.component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager = Self::ClassManager
