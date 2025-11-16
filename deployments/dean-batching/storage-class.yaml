@@ -1,0 +1,15 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hyperdisk-balanced-500gb
+parameters:
+  type: hyperdisk-balanced
+  # For 500GB disk: provision high IOPS and throughput
+  # Max for 500GB: up to 50,000 IOPS
+  provisioned-iops-on-create: "50000"     # 50k IOPS (100 IOPS per GB)
+  provisioned-throughput-on-create: "700Mi"  # 700 MiB/s throughput
+provisioner: pd.csi.storage.gke.io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+
