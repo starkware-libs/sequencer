@@ -16,7 +16,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 use utils::{setup_scraper_and_provider, COOLDOWN_DURATION, TARGET_L2_HEIGHT, TIMELOCK_DURATION};
 
-use crate::utils::{CALL_DATA, L1_CONTRACT_ADDRESS, L2_ENTRY_POINT};
+use crate::utils::{CALL_DATA, L1_CONTRACT_ADDRESS, L2_ENTRY_POINT, WAIT_FOR_L1_DURATION};
 
 fn block_from_number(number: L1BlockNumber) -> L1BlockReference {
     L1BlockReference { number, hash: L1BlockHash::default() }
@@ -78,6 +78,17 @@ async fn l1_handler_tx_consumed_txs() {
     });
 
     let l1_provider_client = setup_scraper_and_provider(base_layer).await;
+
+    // Wait until the transaction is sent to the Provider.
+    for _i in 0..100 {
+        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        if !snapshot.uncommitted_transactions.is_empty() {
+            break;
+        }
+        tokio::time::sleep(WAIT_FOR_L1_DURATION).await;
+    }
+
+    // Check the snapshot again to make sure the loop ended in the correct condition.
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
     assert!(!snapshot.uncommitted_transactions.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 1);
@@ -98,6 +109,16 @@ async fn l1_handler_tx_consumed_txs() {
     // consumed.
     tokio::time::sleep(COOLDOWN_DURATION + Duration::from_secs(1)).await;
 
+    // Wait until the transaction is sent to the Provider.
+    for _i in 0..100 {
+        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        if !snapshot.consumed.is_empty() {
+            break;
+        }
+        tokio::time::sleep(WAIT_FOR_L1_DURATION).await;
+    }
+
+    // Check the snapshot again to make sure the loop ended in the correct condition.
     let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
     // The transaction is consumed, but still in the records.
     assert!(!snapshot.consumed.is_empty());
