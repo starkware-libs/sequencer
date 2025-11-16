@@ -20,6 +20,7 @@ use crate::storage_trait::{
     PatriciaStorageResult,
     Storage,
     StorageStats,
+    TrieKey,
 };
 
 pub struct MdbxStorage {
@@ -98,26 +99,29 @@ impl MdbxStorage {
 impl Storage for MdbxStorage {
     type Stats = MdbxStorageStats;
 
-    fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
-        Ok(txn.get(&table, &key.0)?.map(DbValue))
+        let raw_key: &DbKey = key.into();
+        Ok(txn.get(&table, &raw_key.0)?.map(DbValue))
     }
 
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+    fn set(&mut self, key: TrieKey, value: DbValue) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
-        txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
+        let raw_key: DbKey = key.into();
+        txn.put(&table, raw_key.0, value.0, WriteFlags::UPSERT)?;
         txn.commit()?;
         Ok(())
     }
 
-    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    fn mget(&mut self, keys: &[&TrieKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         let mut res = Vec::with_capacity(keys.len());
         for key in keys {
-            res.push(txn.get(&table, &key.0)?.map(DbValue));
+            let raw_key: &DbKey = (*key).into();
+            res.push(txn.get(&table, &raw_key.0)?.map(DbValue));
         }
         Ok(res)
     }
@@ -126,16 +130,17 @@ impl Storage for MdbxStorage {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
         for (key, value) in key_to_value {
-            txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
+            txn.put(&table, Into::<DbKey>::into(key).0, value.0, WriteFlags::UPSERT)?;
         }
         txn.commit()?;
         Ok(())
     }
 
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
+    fn delete(&mut self, key: &TrieKey) -> PatriciaStorageResult<()> {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
-        txn.del(&table, &key.0, None)?;
+        let raw_key: &DbKey = key.into();
+        txn.del(&table, &raw_key.0, None)?;
         txn.commit()?;
         Ok(())
     }

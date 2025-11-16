@@ -141,6 +141,13 @@ impl NodeIndex {
     pub(crate) fn from_felt_value(felt: &Felt) -> Self {
         Self(u256_from_felt(felt))
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let (high, low) = self.0.into_words();
+        let mut key_bytes = high.to_be_bytes().to_vec();
+        key_bytes.append(&mut low.to_be_bytes().to_vec());
+        key_bytes
+    }
 }
 
 impl std::ops::Add for NodeIndex {
