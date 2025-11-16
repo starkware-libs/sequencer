@@ -35,13 +35,38 @@ spec:
           set -e
           
           echo "========================================="
-          echo "DEAN'S BATCHING TEST: 0 → 50K"
+          echo "DEAN'S BATCHING TEST: 0 → 250K"
           echo "========================================="
+          echo ""
+          
+          # CLEAN THE DISK FIRST (remove any old data)
+          echo "Cleaning disk of any previous test data..."
+          echo "Contents before cleanup:"
+          ls -la /data/
+          echo ""
+          
+          # Delete everything except lost+found
+          cd /data
+          find . -mindepth 1 -maxdepth 1 ! -name 'lost+found' -exec rm -rf {} + 2>/dev/null || true
+          
+          echo "Contents after cleanup:"
+          ls -la /data/
+          echo ""
+          
+          # Verify it's clean
+          if [ "$(find /data -name 'SN_MAIN' -o -name 'batcher' -o -name 'class_manager' 2>/dev/null)" ]; then
+            echo "❌ ERROR: Failed to clean disk! Old databases still exist!"
+            find /data -name 'SN_MAIN' -o -name 'batcher' -o -name 'class_manager'
+            exit 1
+          fi
+          
+          echo "✓ Disk cleaned successfully"
+          echo ""
           
           export PATH="/app/target/release:$PATH"
           export RUST_LOG=info
           
-          TARGET=50000
+          TARGET=250000
           
           # Test WITHOUT batching
           echo ""
