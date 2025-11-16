@@ -48,6 +48,9 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
             L1ProviderRequest::GetL1ProviderSnapshot => {
                 L1ProviderResponse::GetL1ProviderSnapshot(self.get_l1_provider_snapshot())
             }
+            L1ProviderRequest::GetProviderState => {
+                L1ProviderResponse::GetProviderState(self.get_provider_state())
+            }
         }
     }
 }

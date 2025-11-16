@@ -2513,6 +2513,32 @@
           "extra_params": {}
         },
         {
+          "title": "get_provider_state (client-side)",
+          "description": "client-side infra metrics for request type get_provider_state",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.50 l1_provider_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.95 l1_provider_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.50 l1_provider_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.50 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.95 l1_provider_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_provider_state (server-side)",
+          "description": "server-side infra metrics for request type get_provider_state",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.50 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.95 l1_provider_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.50 l1_provider_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"get_provider_state\"}[5m])), \"label_name\", \"0.95 l1_provider_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_transactions (client-side)",
           "description": "client-side infra metrics for request type get_transactions",
           "type": "timeseries",
