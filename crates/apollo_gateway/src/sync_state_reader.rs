@@ -28,6 +28,8 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::metrics::{
+    GATEWAY_CLASS_CACHE_HITS,
+    GATEWAY_CLASS_CACHE_MISSES,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
@@ -136,8 +138,11 @@ impl BlockifierStateReader for SyncStateReader {
         // directly from async code. Cache operations are very fast (hash map lookups),
         // so the blocking time is minimal (microseconds).
         if let Some(cached_class) = self.class_cache.get(&class_hash) {
+            GATEWAY_CLASS_CACHE_HITS.increment(1);
             return Ok(cached_class);
         }
+
+        GATEWAY_CLASS_CACHE_MISSES.increment(1);
 
         let mut is_class_declared = self
             .runtime
