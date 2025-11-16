@@ -106,6 +106,11 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetLatestBlockNumber() => {
                 StateSyncResponse::GetLatestBlockNumber(self.get_latest_block_number().await)
             }
+            StateSyncRequest::IsCairo1ClassDeclaredAt(block_number, class_hash) => {
+                StateSyncResponse::IsCairo1ClassDeclaredAt(
+                    self.is_cairo_1_class_declared_at(block_number, class_hash).await,
+                )
+            }
             // TODO(shahak): Add tests for is_class_declared_at.
             StateSyncRequest::IsClassDeclaredAt(block_number, class_hash) => {
                 StateSyncResponse::IsClassDeclaredAt(

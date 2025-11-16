@@ -81,6 +81,14 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
 
+    /// Returns whether the given class is a cairo1 class and was declared at the given block or
+    /// before it.
+    async fn is_cairo_1_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<bool>;
+
     /// Returns whether the given class was declared at the given block or before it.
     async fn is_class_declared_at(
         &self,
@@ -119,6 +127,7 @@ pub enum StateSyncRequest {
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
     GetLatestBlockNumber(),
+    IsCairo1ClassDeclaredAt(BlockNumber, ClassHash),
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncRequest);
@@ -134,6 +143,7 @@ impl PrioritizedRequest for StateSyncRequest {
             | StateSyncRequest::GetClassHashAt(_, _)
             | StateSyncRequest::AddNewBlock(_)
             | StateSyncRequest::GetLatestBlockNumber()
+            | StateSyncRequest::IsCairo1ClassDeclaredAt(_, _)
             | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
         }
     }
@@ -148,6 +158,7 @@ pub enum StateSyncResponse {
     GetNonceAt(StateSyncResult<Nonce>),
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
+    IsCairo1ClassDeclaredAt(StateSyncResult<bool>),
     IsClassDeclaredAt(StateSyncResult<bool>),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncResponse);
@@ -241,6 +252,21 @@ where
         handle_all_response_variants!(
             StateSyncResponse,
             GetLatestBlockNumber,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn is_cairo_1_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<bool> {
+        let request = StateSyncRequest::IsCairo1ClassDeclaredAt(block_number, class_hash);
+        handle_all_response_variants!(
+            StateSyncResponse,
+            IsCairo1ClassDeclaredAt,
             StateSyncClientError,
             StateSyncError,
             Direct
