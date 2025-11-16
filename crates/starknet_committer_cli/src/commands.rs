@@ -15,13 +15,14 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
+use starknet_patricia_storage::storage_trait::{AsyncStorage, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
 use crate::args::{
     BenchmarkFlavor,
     GlobalArgs,
+    InterferenceType,
     ShortKeySizeArg,
     StorageBenchmarkCommand,
     StorageType,
@@ -163,6 +164,7 @@ macro_rules! generate_short_key_benchmark {
         $seed:expr,
         $n_iterations:expr,
         $flavor:expr,
+        $interference_type:expr,
         $output_dir:expr,
         $checkpoint_dir_arg:expr,
         $storage:expr,
@@ -175,6 +177,7 @@ macro_rules! generate_short_key_benchmark {
                     $seed,
                     $n_iterations,
                     $flavor,
+                    $interference_type,
                     &$output_dir,
                     $checkpoint_dir_arg,
                     $storage,
@@ -189,6 +192,7 @@ macro_rules! generate_short_key_benchmark {
                         $seed,
                         $n_iterations,
                         $flavor,
+                        $interference_type,
                         &$output_dir,
                         $checkpoint_dir_arg,
                         storage,
@@ -245,6 +249,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         *seed,
         *n_iterations,
         flavor.clone(),
+        storage_benchmark_args.interference_type(),
         output_dir,
         checkpoint_dir_arg,
         storage,
@@ -269,13 +274,23 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
     );
 }
 
+async fn apply_interference<S: AsyncStorage>(
+    _interference_type: InterferenceType,
+    _storage: &mut S,
+    _rng: &mut SmallRng,
+) {
+    // TODO(Dori): Implement interference.
+}
+
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
+#[allow(clippy::too_many_arguments)]
 pub async fn run_storage_benchmark<S: Storage>(
     seed: u64,
     n_iterations: usize,
     flavor: BenchmarkFlavor,
+    interference_type: InterferenceType,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
@@ -339,6 +354,11 @@ pub async fn run_storage_benchmark<S: Storage>(
         }
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
+
+        // If the storage supports interference (is async), apply interference.
+        if let Some(mut async_storage) = storage.get_async_self() {
+            apply_interference(interference_type, &mut async_storage, &mut rng).await;
+        }
     }
 
     // Export to csv in the last iteration.
