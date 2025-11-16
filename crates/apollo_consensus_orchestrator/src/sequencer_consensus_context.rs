@@ -46,6 +46,7 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
@@ -541,7 +542,7 @@ impl ConsensusContext for SequencerConsensusContext {
             state_diff: state_diff.clone(),
             account_transaction_hashes,
             l1_transaction_hashes,
-            block_header_without_hash,
+            block_header: BlockHeader { block_header_without_hash, ..Default::default() },
         };
         self.sync_add_new_block(sync_block).await;
 
@@ -589,12 +590,12 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         // May be default for blocks older than 0.14.0, ensure min gas price is met.
         self.l2_gas_price = max(
-            sync_block.block_header_without_hash.next_l2_gas_price,
+            sync_block.block_header.block_header_without_hash.next_l2_gas_price,
             VersionedConstants::latest_constants().min_gas_price,
         );
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
-        let block_number = sync_block.block_header_without_hash.block_number;
-        let timestamp = sync_block.block_header_without_hash.timestamp;
+        let block_number = sync_block.block_header.block_header_without_hash.block_number;
+        let timestamp = sync_block.block_header.block_header_without_hash.timestamp;
         let last_block_timestamp =
             self.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
         let now: u64 = self.deps.clock.unix_now();
@@ -617,11 +618,20 @@ impl ConsensusContext for SequencerConsensusContext {
         self.previous_block_info = Some(ConsensusBlockInfo {
             height,
             timestamp: timestamp.0,
-            builder: sync_block.block_header_without_hash.sequencer.0,
-            l1_da_mode: sync_block.block_header_without_hash.l1_da_mode,
-            l2_gas_price_fri: sync_block.block_header_without_hash.l2_gas_price.price_in_fri,
-            l1_gas_price_wei: sync_block.block_header_without_hash.l1_gas_price.price_in_wei,
+            builder: sync_block.block_header.block_header_without_hash.sequencer.0,
+            l1_da_mode: sync_block.block_header.block_header_without_hash.l1_da_mode,
+            l2_gas_price_fri: sync_block
+                .block_header
+                .block_header_without_hash
+                .l2_gas_price
+                .price_in_fri,
+            l1_gas_price_wei: sync_block
+                .block_header
+                .block_header_without_hash
+                .l1_gas_price
+                .price_in_wei,
             l1_data_gas_price_wei: sync_block
+                .block_header
                 .block_header_without_hash
                 .l1_data_gas_price
                 .price_in_wei,
@@ -759,13 +769,13 @@ impl SequencerConsensusContext {
     async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
         info!(
             "Adding sync block to Batcher for height {}",
-            sync_block.block_header_without_hash.block_number,
+            sync_block.block_header.block_header_without_hash.block_number,
         );
         // TODO(Dafna): Properly handle errors. Not all errors should be propagated as panics. We
         // should have a way to report an error and continue to the next height.
         self.deps
             .batcher
-            .add_sync_block(sync_block.clone())
+            .add_sync_block(sync_block.into())
             .await
             .expect("Failed to add sync block due to batcher error: {e:?}");
     }
@@ -776,7 +786,7 @@ impl SequencerConsensusContext {
         // should have a way to report an error and continue to the next height.
         self.deps
             .state_sync_client
-            .add_new_block(sync_block.clone())
+            .add_new_block(sync_block)
             .await
             .expect("Failed to add new block due to sync error: {e:?}");
     }
@@ -804,8 +814,9 @@ async fn validate_and_send(
 }
 
 fn get_eth_to_fri_rate(sync_block: &SyncBlock) -> u128 {
-    let price_in_fri = sync_block.block_header_without_hash.l1_gas_price.price_in_fri;
-    let price_in_wei = sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0;
+    let price_in_fri = sync_block.block_header.block_header_without_hash.l1_gas_price.price_in_fri;
+    let price_in_wei =
+        sync_block.block_header.block_header_without_hash.l1_gas_price.price_in_wei.0;
     price_in_fri
         .checked_mul_u128(WEI_PER_ETH)
         .map(|x| x.0)

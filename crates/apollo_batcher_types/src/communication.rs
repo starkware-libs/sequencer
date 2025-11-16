@@ -70,7 +70,7 @@ pub trait BatcherClient: Send + Sync {
     async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()>;
     /// Adds a block from the state sync. Updates the batcher's state and commits the
     /// transactions to the mempool.
-    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
+    async fn add_sync_block(&self, sync_block: Box<SyncBlock>) -> BatcherClientResult<()>;
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
     async fn decision_reached(
@@ -95,7 +95,7 @@ pub enum BatcherRequest {
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
-    AddSyncBlock(SyncBlock),
+    AddSyncBlock(Box<SyncBlock>),
     RevertBlock(RevertBlockInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
@@ -220,7 +220,7 @@ where
         )
     }
 
-    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
+    async fn add_sync_block(&self, sync_block: Box<SyncBlock>) -> BatcherClientResult<()> {
         let request = BatcherRequest::AddSyncBlock(sync_block);
         handle_all_response_variants!(
             BatcherResponse,

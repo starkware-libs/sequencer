@@ -551,7 +551,10 @@ async fn decision_reached_sends_correct_values() {
     // This is the actual part of the test that checks the values are correct.
     // TODO(guy.f): Add expectations and validations for all the other values being written.
     deps.state_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
-        assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
+        assert_eq!(
+            block_info.block_header.block_header_without_hash.timestamp.0,
+            BLOCK_TIME_STAMP_SECONDS
+        );
         Ok(())
     });
 

@@ -36,7 +36,7 @@ use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -956,8 +956,11 @@ async fn add_sync_block() {
     let n_synced_transactions = l1_transaction_hashes.len();
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: INITIAL_HEIGHT,
+        block_header: BlockHeader {
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: INITIAL_HEIGHT,
+                ..Default::default()
+            },
             ..Default::default()
         },
         state_diff: test_state_diff(),
@@ -987,8 +990,11 @@ async fn add_sync_block_mismatch_block_number() {
     let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: INITIAL_HEIGHT.unchecked_next(),
+        block_header: BlockHeader {
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: INITIAL_HEIGHT.unchecked_next(),
+                ..Default::default()
+            },
             ..Default::default()
         },
         ..Default::default()
