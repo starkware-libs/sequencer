@@ -2,6 +2,46 @@
   "application_config_subdir": "crates/apollo_deployments/resources/",
   "services": [
     {
+      "name": "Committer",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "app_configs/committer_config.json",
+        "app_configs/config_manager_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/upgrade_test/deployment_config_override.json",
+        "deployments/upgrade_test/hybrid_10.json",
+        "services/hybrid/committer.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": "apollo-general-service",
+      "resources": {
+        "requests": {
+          "cpu": 2,
+          "memory": 4
+        },
+        "limits": {
+          "cpu": 7,
+          "memory": 14
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-mainnet-test-10"
+      },
+      "anti_affinity": true,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Committer": 55010,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
       "name": "Core",
       "controller": "StatefulSet",
       "config_paths": [
