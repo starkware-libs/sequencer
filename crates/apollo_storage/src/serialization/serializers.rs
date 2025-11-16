@@ -28,6 +28,10 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::block_hash::block_hash_calculator::{
+    BlockHeaderCommitments,
+    PartialBlockHashComponents,
+};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -176,6 +180,13 @@ auto_storage_serde! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+    }
+    pub struct BlockHeaderCommitments {
+        pub transaction_commitment: TransactionCommitment,
+        pub event_commitment: EventCommitment,
+        pub receipt_commitment: ReceiptCommitment,
+        pub state_diff_commitment: StateDiffCommitment,
+        pub concatenated_counts: Felt,
     }
     pub struct BlockSignature(pub Signature);
     pub enum BlockStatus {
@@ -351,6 +362,16 @@ auto_storage_serde! {
         DeprecatedContractClass = 3,
         TransactionOutput = 4,
         Transaction = 5,
+    }
+    pub struct PartialBlockHashComponents {
+        pub header_commitments: BlockHeaderCommitments,
+        pub block_number: BlockNumber,
+        pub l1_gas_price: GasPricePerToken,
+        pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
+        pub sequencer: SequencerContractAddress,
+        pub timestamp: BlockTimestamp,
+        pub starknet_version: StarknetVersion,
     }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);

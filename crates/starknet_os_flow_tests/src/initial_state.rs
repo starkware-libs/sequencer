@@ -22,6 +22,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     Transaction as StarknetAPITransaction,
 };
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
@@ -30,13 +31,13 @@ use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_N
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::state_trait::FlowTestState;
 use crate::test_manager::{
     block_context_for_flow_tests,
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS,
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
 };
@@ -48,7 +49,6 @@ use crate::utils::{
     create_declare_tx,
     execute_transactions,
     get_class_hash_of_feature_contract,
-    CommitmentOutput,
     ExecutionOutput,
 };
 
@@ -265,7 +265,7 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
-) -> (CommitmentOutput, MapStorage) {
+) -> (StateRoots, MapStorage) {
     let mut map_storage = MapStorage::default();
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
@@ -303,8 +303,9 @@ pub(crate) fn get_deploy_contract_tx_and_address(
         ctor_calldata,
         nonce,
         resource_bounds,
-        // Default salt.
-        ContractAddressSalt(Felt::ONE),
+        // Use the nonce as the salt so it's easy to deploy the same contract (with the same
+        // constructor calldata) multiple times.
+        ContractAddressSalt(nonce.0),
     );
     (
         Transaction::new_for_sequencing(StarknetAPITransaction::Account(
@@ -369,10 +370,12 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
         10.into()                        // upgrade delay
     ];
-    get_deploy_contract_tx_and_address(
+    let (tx, address) = get_deploy_contract_tx_and_address(
         class_hash,
         constructor_calldata,
         nonce,
         ValidResourceBounds::create_for_testing_no_fee_enforcement(),
-    )
+    );
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_debug_eq(&**address);
+    (tx, address)
 }

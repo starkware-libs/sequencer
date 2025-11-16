@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -23,6 +25,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ResourceBounds,
     Tip,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{TransactionVersion, QUERY_VERSION_BASE};
@@ -352,7 +355,9 @@ fn test_get_execution_info(
         + if high_tip { 1 } else { 0 });
     let expected_tip = if version == TransactionVersion::THREE { tip } else { Tip(0) };
 
-    let expected_unsupported_fields = match test_contract {
+    let tx_hash = tx_hash!(1991);
+
+    let (expected_unsupported_fields, expected_signature) = match test_contract {
         FeatureContract::LegacyTestContract => {
             // Read and parse file content.
             let raw_contract: serde_json::Value =
@@ -363,20 +368,21 @@ fn test_get_execution_info(
             } else {
                 panic!("'compiler_version' not found or not a valid string in JSON.");
             };
-            vec![]
+            (vec![], vec![])
         }
         #[cfg(feature = "cairo_native")]
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => {
-            vec![]
-        }
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => (vec![], vec![]),
         _ => {
-            vec![
-                expected_tip.into(), // Tip.
-                Felt::ZERO,          // Paymaster data.
-                Felt::ZERO,          // Nonce DA.
-                Felt::ZERO,          // Fee DA.
-                Felt::ZERO,          // Account data.
-            ]
+            (
+                vec![
+                    expected_tip.into(), // Tip.
+                    Felt::ZERO,          // Paymaster data.
+                    Felt::ZERO,          // Nonce DA.
+                    Felt::ZERO,          // Fee DA.
+                    Felt::ZERO,          // Account data.
+                ],
+                vec![tx_hash.0],
+            )
         }
     };
 
@@ -388,10 +394,10 @@ fn test_get_execution_info(
         expected_version += simulate_version_base;
     }
 
-    let tx_hash = tx_hash!(1991);
     let max_fee = Fee(42);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
+    let signature = TransactionSignature(Arc::new(expected_signature));
 
     let resource_bounds =
         ResourceBounds { max_amount: GasAmount(13), max_price_per_unit: GasPrice(61) };
@@ -438,10 +444,10 @@ fn test_get_execution_info(
             common_fields: CommonAccountFields {
                 transaction_hash: tx_hash,
                 version: TransactionVersion::ONE,
+                signature,
                 nonce,
                 sender_address,
                 only_query,
-                ..Default::default()
             },
             max_fee,
         });
@@ -460,10 +466,10 @@ fn test_get_execution_info(
             common_fields: CommonAccountFields {
                 transaction_hash: tx_hash,
                 version: TransactionVersion::THREE,
+                signature,
                 nonce,
                 sender_address,
                 only_query,
-                ..Default::default()
             },
             resource_bounds: all_resource_bounds,
             tip,

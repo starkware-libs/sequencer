@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
@@ -15,21 +16,67 @@ pub type DbHashMap = HashMap<DbKey, DbValue>;
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
     /// An error that occurred in the database library.
+    #[cfg(feature = "aerospike_storage")]
+    #[error(transparent)]
+    Aerospike(#[from] aerospike::Error),
+    #[cfg(feature = "aerospike_storage")]
+    #[error(transparent)]
+    AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
+    #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
+    #[cfg(feature = "rocksdb_storage")]
+    #[error(transparent)]
+    Rocksdb(#[from] rust_rocksdb::Error),
 }
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
 
+/// A trait for the statistics of a storage. Used as a trait bound for a storage associated stats
+/// type.
+pub trait StorageStats: Display {
+    fn column_titles() -> Vec<&'static str>;
+
+    fn column_values(&self) -> Vec<String>;
+
+    fn stat_string(&self) -> String {
+        Self::column_titles()
+            .iter()
+            .zip(self.column_values().iter())
+            .map(|(title, value)| format!("{title}: {value}"))
+            .collect::<Vec<String>>()
+            .join(",")
+    }
+}
+
+pub struct NoStats;
+
+impl StorageStats for NoStats {
+    fn column_titles() -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![]
+    }
+}
+
+impl Display for NoStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "NoStats")
+    }
+}
+
 pub trait Storage {
+    type Stats: StorageStats;
+
     /// Returns value from storage, if it exists.
     /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
     /// for caching).
     fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
-    /// Sets value in storage. If key already exists, its value is overwritten and the old value is
-    /// returned.
-    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<Option<DbValue>>;
+    /// Sets value in storage. If key already exists, its value is overwritten.
+    fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
@@ -38,12 +85,15 @@ pub trait Storage {
     /// Sets values in storage.
     fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
 
-    /// Deletes value from storage and returns its value if it exists. Returns None if not.
-    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
+    /// Deletes a value from storage.
+    fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()>;
 
     /// If implemented, returns the statistics of the storage.
-    fn get_stats(&self) -> Option<String> {
-        None
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;
+
+    /// If implemented, resets the statistics of the storage.
+    fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
+        Ok(())
     }
 }
 

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::hash::HashOutput;
 use starknet_patricia::generate_trie_config;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::{fetch_patricia_paths, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};

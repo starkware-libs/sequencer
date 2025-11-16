@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
     create_binary_entry_from_u128,

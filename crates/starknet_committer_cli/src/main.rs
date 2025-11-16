@@ -1,14 +1,7 @@
-use std::fs;
-use std::num::NonZeroUsize;
-use std::path::Path;
-
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
-use clap::{Args, Parser, Subcommand};
-use starknet_committer_cli::commands::{run_storage_benchmark, BenchmarkFlavor};
-use starknet_patricia_storage::map_storage::{CachedStorage, MapStorage};
-use starknet_patricia_storage::mdbx_storage::MdbxStorage;
-use starknet_patricia_storage::short_key_storage::ShortKeySize;
-use starknet_patricia_storage::storage_trait::Storage;
+use clap::{Parser, Subcommand};
+use starknet_committer_cli::args::{GlobalArgs, StorageBenchmarkCommand, StorageFromArgs};
+use starknet_committer_cli::commands::run_storage_benchmark_wrapper;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -20,215 +13,10 @@ pub struct CommitterCliCommand {
     command: Command,
 }
 
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
-pub enum StorageType {
-    MapStorage,
-    Mdbx,
-    CachedMdbx,
-}
-
-const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
-
-/// Key size, in bytes, for the short key storage.
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
-pub enum ShortKeySizeArg {
-    U16,
-    U17,
-    U18,
-    U19,
-    U20,
-    U21,
-    U22,
-    U23,
-    U24,
-    U25,
-    U26,
-    U27,
-    U28,
-    U29,
-    U30,
-    U31,
-    U32,
-}
-
-/// Define this conversion to make sure the arg-enum matches the original enum.
-/// The original enum defines the possible sizes, but we do not want to implement ValueEnum for it.
-impl From<ShortKeySizeArg> for ShortKeySize {
-    fn from(arg: ShortKeySizeArg) -> Self {
-        match arg {
-            ShortKeySizeArg::U16 => Self::U16,
-            ShortKeySizeArg::U17 => Self::U17,
-            ShortKeySizeArg::U18 => Self::U18,
-            ShortKeySizeArg::U19 => Self::U19,
-            ShortKeySizeArg::U20 => Self::U20,
-            ShortKeySizeArg::U21 => Self::U21,
-            ShortKeySizeArg::U22 => Self::U22,
-            ShortKeySizeArg::U23 => Self::U23,
-            ShortKeySizeArg::U24 => Self::U24,
-            ShortKeySizeArg::U25 => Self::U25,
-            ShortKeySizeArg::U26 => Self::U26,
-            ShortKeySizeArg::U27 => Self::U27,
-            ShortKeySizeArg::U28 => Self::U28,
-            ShortKeySizeArg::U29 => Self::U29,
-            ShortKeySizeArg::U30 => Self::U30,
-            ShortKeySizeArg::U31 => Self::U31,
-            ShortKeySizeArg::U32 => Self::U32,
-        }
-    }
-}
-
-#[derive(Debug, Args)]
-struct StorageArgs {
-    /// Seed for the random number generator.
-    #[clap(short = 's', long, default_value = "42")]
-    seed: u64,
-    /// Number of iterations to run the benchmark.
-    #[clap(long, default_value = "1000")]
-    n_iterations: usize,
-    /// Benchmark flavor determines the size and structure of the generated state diffs.
-    #[clap(long, default_value = "1k-diff")]
-    flavor: BenchmarkFlavor,
-    /// Storage impl to use. Note that MapStorage isn't persisted in the file system, so
-    /// checkpointing is ignored.
-    #[clap(long, default_value = "cached-mdbx")]
-    storage_type: StorageType,
-    /// If not none, wraps the storage in the key-shrinking storage of the given size.
-    #[clap(long, default_value = None)]
-    key_size: Option<ShortKeySizeArg>,
-    /// If using cached storage, the size of the cache.
-    #[clap(long, default_value = "1000000")]
-    cache_size: usize,
-    #[clap(long, default_value = "1000")]
-    checkpoint_interval: usize,
-    #[clap(long, default_value = "warn")]
-    log_level: String,
-    /// A path to a directory to store the DB, output and checkpoints unless they are
-    /// explicitly provided. Defaults to "/tmp/committer_storage_benchmark/".
-    #[clap(short = 'd', long, default_value = DEFAULT_DATA_PATH)]
-    data_path: String,
-    /// A path to a directory to store the DB if needed.
-    #[clap(long, default_value = None)]
-    storage_path: Option<String>,
-    /// A path to a directory to store the csv outputs. If not given, creates a dir according to
-    /// the  n_iterations (i.e., rwo runs with different n_iterations will have different csv
-    /// outputs)
-    #[clap(long, default_value = None)]
-    output_dir: Option<String>,
-    /// A path to a directory to store the checkpoints to allow benchmark recovery. If not given,
-    /// creates a dir according to the n_iterations (i.e., two runs with different n_iterations
-    /// will have different checkpoints)
-    #[clap(long, default_value = None)]
-    checkpoint_dir: Option<String>,
-}
-
 #[derive(Debug, Subcommand)]
 enum Command {
-    StorageBenchmark(StorageArgs),
-}
-
-/// Multiplexer to avoid dynamic dispatch.
-/// If the key_size is not None, wraps the storage in a key-shrinking storage before running the
-/// benchmark.
-macro_rules! generate_short_key_benchmark {
-    (
-        $key_size:expr,
-        $seed:expr,
-        $n_iterations:expr,
-        $flavor:expr,
-        $output_dir:expr,
-        $checkpoint_dir_arg:expr,
-        $storage:expr,
-        $checkpoint_interval:expr,
-        $( ($size:ident, $name:ident) ),+ $(,)?
-    ) => {
-        match $key_size {
-            None => {
-                run_storage_benchmark(
-                    $seed,
-                    $n_iterations,
-                    $flavor,
-                    &$output_dir,
-                    $checkpoint_dir_arg,
-                    $storage,
-                    $checkpoint_interval,
-                )
-                .await
-            }
-            $(
-                Some(ShortKeySizeArg::$size) => {
-                    let storage = starknet_patricia_storage::short_key_storage::$name::new($storage);
-                    run_storage_benchmark(
-                        $seed,
-                        $n_iterations,
-                        $flavor,
-                        &$output_dir,
-                        $checkpoint_dir_arg,
-                        storage,
-                        $checkpoint_interval,
-                    )
-                    .await
-                }
-            )+
-        }
-    }
-}
-
-/// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
-/// Different invocations of this function are used with different concrete storage types.
-async fn run_storage_benchmark_wrapper<S: Storage>(
-    StorageArgs {
-        seed,
-        n_iterations,
-        flavor,
-        storage_type,
-        checkpoint_interval,
-        data_path,
-        output_dir,
-        checkpoint_dir,
-        key_size,
-        ..
-    }: StorageArgs,
-    storage: S,
-) {
-    let output_dir = output_dir
-        .clone()
-        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
-    let checkpoint_dir = checkpoint_dir
-        .clone()
-        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}"));
-
-    let checkpoint_dir_arg = match storage_type {
-        StorageType::Mdbx | StorageType::CachedMdbx => Some(checkpoint_dir.as_str()),
-        StorageType::MapStorage => None,
-    };
-
-    generate_short_key_benchmark!(
-        key_size,
-        seed,
-        n_iterations,
-        flavor,
-        output_dir,
-        checkpoint_dir_arg,
-        storage,
-        checkpoint_interval,
-        (U16, ShortKeyStorage16),
-        (U17, ShortKeyStorage17),
-        (U18, ShortKeyStorage18),
-        (U19, ShortKeyStorage19),
-        (U20, ShortKeyStorage20),
-        (U21, ShortKeyStorage21),
-        (U22, ShortKeyStorage22),
-        (U23, ShortKeyStorage23),
-        (U24, ShortKeyStorage24),
-        (U25, ShortKeyStorage25),
-        (U26, ShortKeyStorage26),
-        (U27, ShortKeyStorage27),
-        (U28, ShortKeyStorage28),
-        (U29, ShortKeyStorage29),
-        (U30, ShortKeyStorage30),
-        (U31, ShortKeyStorage31),
-        (U32, ShortKeyStorage32)
-    );
+    #[clap(subcommand)]
+    StorageBenchmark(StorageBenchmarkCommand),
 }
 
 pub async fn run_committer_cli(
@@ -237,48 +25,45 @@ pub async fn run_committer_cli(
 ) {
     info!("Starting committer-cli with command: \n{:?}", committer_command);
     match committer_command.command {
-        Command::StorageBenchmark(storage_args) => {
-            let StorageArgs {
-                ref log_level,
-                ref storage_path,
-                ref data_path,
-                ref storage_type,
-                ref cache_size,
-                ..
-            } = storage_args;
-
+        Command::StorageBenchmark(storage_benchmark_args) => {
+            let GlobalArgs { ref log_level, .. } = storage_benchmark_args.global_args();
             modify_log_level(log_level.clone(), log_filter_handle);
-
-            // Construct the storage path.
-            // Create the path on filesystem only if we are using filesystem-based storage.
-            let storage_path = storage_path
-                .clone()
-                .unwrap_or_else(|| format!("{data_path}/storage/{storage_type:?}"));
-            match storage_type {
-                StorageType::MapStorage => (),
-                StorageType::Mdbx | StorageType::CachedMdbx => {
-                    fs::create_dir_all(&storage_path).expect("Failed to create storage directory.")
-                }
-            };
 
             // Run the storage benchmark.
             // Explicitly create a different concrete storage type in each match arm to avoid
             // dynamic dispatch.
-            match storage_type {
-                StorageType::MapStorage => {
-                    let storage = MapStorage::default();
-                    run_storage_benchmark_wrapper(storage_args, storage).await;
+            match storage_benchmark_args {
+                StorageBenchmarkCommand::Memory(ref memory_args) => {
+                    let storage = memory_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
                 }
-                StorageType::Mdbx => {
-                    let storage = MdbxStorage::open(Path::new(&storage_path)).unwrap();
-                    run_storage_benchmark_wrapper(storage_args, storage).await;
+                StorageBenchmarkCommand::CachedMemory(ref cached_memory_args) => {
+                    let storage = cached_memory_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
                 }
-                StorageType::CachedMdbx => {
-                    let storage = CachedStorage::new(
-                        MdbxStorage::open(Path::new(&storage_path)).unwrap(),
-                        NonZeroUsize::new(*cache_size).unwrap(),
-                    );
-                    run_storage_benchmark_wrapper(storage_args, storage).await;
+                StorageBenchmarkCommand::Mdbx(ref mdbx_args) => {
+                    let storage = mdbx_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
+                }
+                StorageBenchmarkCommand::CachedMdbx(ref cached_mdbx_args) => {
+                    let storage = cached_mdbx_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
+                }
+                StorageBenchmarkCommand::Rocksdb(ref rocksdb_args) => {
+                    let storage = rocksdb_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
+                }
+                StorageBenchmarkCommand::CachedRocksdb(ref cached_rocksdb_args) => {
+                    let storage = cached_rocksdb_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
+                }
+                StorageBenchmarkCommand::Aerospike(ref aerospike_args) => {
+                    let storage = aerospike_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
+                }
+                StorageBenchmarkCommand::CachedAerospike(ref cached_aerospike_args) => {
+                    let storage = cached_aerospike_args.storage();
+                    run_storage_benchmark_wrapper(&storage_benchmark_args, storage).await;
                 }
             }
         }

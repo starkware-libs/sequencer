@@ -216,6 +216,7 @@ impl InternalRpcTransaction {
     implement_internal_getters_for_internal_rpc!(
         (nonce, Nonce),
         (resource_bounds, AllResourceBounds),
+        (signature, TransactionSignature),
         (tip, Tip),
     );
 

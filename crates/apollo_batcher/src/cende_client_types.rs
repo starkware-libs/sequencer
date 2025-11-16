@@ -632,10 +632,7 @@ pub struct CendeBlockMetadata {
 
 impl CendeBlockMetadata {
     pub fn new(block_info: BlockInfo) -> Self {
-        let l1_da_mode = match block_info.use_kzg_da {
-            true => L1DataAvailabilityMode::Blob,
-            false => L1DataAvailabilityMode::Calldata,
-        };
+        let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
 
         let (l1_gas_price, l1_data_gas_price, l2_gas_price) =
             get_gas_prices(&block_info.gas_prices);

@@ -34,6 +34,7 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
+use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -43,6 +44,7 @@ use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -586,12 +588,16 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        // TODO(Nimrod): Check if `SyncBlock` should include the partial block hash, it should be
+        // already computed. If it is, add it here.
+        let dummy_partial_block_hash = PartialBlockHashComponents::default();
         self.commit_proposal_and_block(
             height,
             state_diff,
             address_to_nonce,
             l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
+            &dummy_partial_block_hash,
         )
         .await?;
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
@@ -625,21 +631,29 @@ impl Batcher {
         let n_reverted_count = u64::try_from(
             block_execution_artifacts
                 .execution_data
-                .execution_infos
+                .execution_infos_and_signatures
                 .values()
-                .filter(|info| info.revert_error.is_some())
+                .filter(|(info, _)| info.revert_error.is_some())
                 .count(),
         )
         .expect("Number of reverted transactions should fit in u64");
+        let partial_block_hash_components =
+            block_execution_artifacts.partial_block_hash_components();
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
             block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
+            &partial_block_hash_components,
         )
         .await?;
-        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
+        let execution_infos = block_execution_artifacts
+            .execution_data
+            .execution_infos_and_signatures
+            .into_iter()
+            .map(|(tx_hash, (info, _))| (tx_hash, info))
+            .collect();
 
         LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
@@ -674,6 +688,7 @@ impl Batcher {
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
+        partial_block_hash_components: &PartialBlockHashComponents,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -682,10 +697,12 @@ impl Batcher {
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
         // Commit the proposal to the storage.
-        self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
-            error!("Failed to commit proposal to storage: {}", err);
-            BatcherError::InternalError
-        })?;
+        self.storage_writer
+            .commit_proposal(height, state_diff, partial_block_hash_components)
+            .map_err(|err| {
+                error!("Failed to commit proposal to storage: {}", err);
+                BatcherError::InternalError
+            })?;
         info!("Successfully committed proposal for block {} to storage.", height);
 
         // Notify the L1 provider of the new block.
@@ -942,6 +959,7 @@ fn log_txs_execution_result(
             &mut log_msg,
             "Finished generating proposal {} with {} transactions",
             proposal_id,
+<<<<<<< HEAD
             execution_infos.len(),
         );
 
@@ -955,6 +973,24 @@ fn log_txs_execution_result(
         }
 
         info!("{}", log_msg);
+=======
+            block_artifacts.execution_data.execution_infos_and_signatures.len(),
+        );
+        block_artifacts.execution_data.execution_infos_and_signatures.iter().for_each(
+            |(tx_hash, (info, _))| {
+                log_msg.push_str(&format!(", {tx_hash}:"));
+                if info.revert_error.is_some() {
+                    log_msg.push_str(" Reverted");
+                } else {
+                    log_msg.push_str(" Successful");
+                }
+            },
+        );
+        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
+            log_msg.push_str(&format!(", {tx_hash}: Rejected"));
+        });
+        info!(log_msg);
+>>>>>>> origin/main-v0.14.1-committer
     }
 }
 
@@ -1021,6 +1057,7 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
+        partial_block_hash_components: &PartialBlockHashComponents,
     ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
@@ -1031,9 +1068,13 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
+        partial_block_hash_components: &PartialBlockHashComponents,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        self.begin_rw_txn()?
+            .append_state_diff(height, state_diff)?
+            .set_partial_block_hash_components(&height, partial_block_hash_components)?
+            .commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.
