@@ -170,7 +170,7 @@ type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct MultiHeightManager<ContextT: ConsensusContext> {
     consensus_config: ConsensusConfig,
     future_votes: BTreeMap<u64, Vec<Vote>>,
