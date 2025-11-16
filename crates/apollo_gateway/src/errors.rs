@@ -309,6 +309,8 @@ pub enum RPCStateReaderError {
     ReqwestError(#[from] reqwest::Error),
     #[error("Unexpected error code: {0}")]
     UnexpectedErrorCode(RpcErrorCode),
+    #[error(transparent)]
+    StarknetAPI(#[from] StarknetApiError),
 }
 
 pub type RPCStateReaderResult<T> = Result<T, RPCStateReaderError>;
