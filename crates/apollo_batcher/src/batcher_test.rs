@@ -1193,7 +1193,7 @@ async fn mempool_not_ready() {
     let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     let result = batcher.propose_block(propose_block_input(PROPOSAL_ID)).await;
-    assert_eq!(result, Err(BatcherError::InternalError));
+    assert_matches!(result, Err(BatcherError::InternalError(_)));
 }
 
 #[test]

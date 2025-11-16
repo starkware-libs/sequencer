@@ -231,8 +231,9 @@ impl Batcher {
             )
             .await
             .map_err(|err| {
-                error!("Failed to update gas price in mempool: {}", err);
-                BatcherError::InternalError
+                let error_message = format!("Failed to update gas price in mempool: {}", err);
+                error!("{}", error_message);
+                BatcherError::InternalError(error_message)
             })?;
         // Ignore errors. If start_block fails, then subsequent calls to l1 provider will fail on
         // out of session and l1 provider will restart and bootstrap again.
@@ -294,8 +295,9 @@ impl Batcher {
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
-                error!("Failed to get block builder: {}", err);
-                BatcherError::InternalError
+                let error_message = format!("Failed to get block builder: {}", err);
+                error!("{}", error_message);
+                BatcherError::InternalError(error_message)
             })?;
 
         self.spawn_proposal(
@@ -381,8 +383,9 @@ impl Batcher {
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
-                error!("Failed to get block builder: {}", err);
-                BatcherError::InternalError
+                let error_message = format!("Failed to get block builder: {}", err);
+                error!("{}", error_message);
+                BatcherError::InternalError(error_message)
             })?;
 
         self.spawn_proposal(
@@ -449,8 +452,10 @@ impl Batcher {
                 .expect("Expecting tx_provider_sender to exist during batching.");
             for tx in txs {
                 tx_provider_sender.send(tx).await.map_err(|err| {
-                    error!("Failed to send transaction to the tx provider: {}", err);
-                    BatcherError::InternalError
+                    let error_message =
+                        format!("Failed to send transaction to the tx provider: {}", err);
+                    error!("{}", error_message);
+                    BatcherError::InternalError(error_message)
                 })?;
             }
             return Ok(SendProposalContentResponse { response: ProposalStatus::Processing });
@@ -509,8 +514,9 @@ impl Batcher {
 
     fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
         self.storage_reader.height().map_err(|err| {
-            error!("Failed to get height from storage: {}", err);
-            BatcherError::InternalError
+            let error_message = format!("Failed to get height from storage: {}", err);
+            error!("{}", error_message);
+            BatcherError::InternalError(error_message)
         })
     }
 
@@ -549,8 +555,9 @@ impl Batcher {
             .await
             .expect("Proposal should exist.")
             .map_err(|err| {
-                error!("Failed to get commitment: {}", err);
-                BatcherError::InternalError
+                let error_message = format!("Failed to get commitment: {}", err);
+                error!("{}", error_message);
+                BatcherError::InternalError(error_message)
             })?;
         info!(
             "BATCHER_FIN_PROPOSER: Finished building proposal {proposal_id} with \
@@ -613,8 +620,9 @@ impl Batcher {
         let block_execution_artifacts = proposal_result
             .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
             .map_err(|err| {
-                error!("Failed to get block execution artifacts: {}", err);
-                BatcherError::InternalError
+                let error_message = format!("Failed to get block execution artifacts: {}", err);
+                error!("{}", error_message);
+                BatcherError::InternalError(error_message)
             })?;
         let state_diff = block_execution_artifacts.thin_state_diff();
         let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
@@ -683,8 +691,9 @@ impl Batcher {
 
         // Commit the proposal to the storage.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
-            error!("Failed to commit proposal to storage: {}", err);
-            BatcherError::InternalError
+            let error_message = format!("Failed to commit proposal to storage: {}", err);
+            error!("{}", error_message);
+            BatcherError::InternalError(error_message)
         })?;
         info!("Successfully committed proposal for block {} to storage.", height);
 
@@ -872,12 +881,13 @@ impl Batcher {
         {
             if let Some(final_n_executed_txs_sender) = final_n_executed_txs_sender {
                 final_n_executed_txs_sender.send(final_n_executed_txs).map_err(|err| {
-                    error!(
+                    let error_message = format!(
                         "Failed to send final_n_executed_txs ({final_n_executed_txs}) to the tx \
                          provider: {}",
                         err
                     );
-                    BatcherError::InternalError
+                    error!("{}", error_message);
+                    BatcherError::InternalError(error_message)
                 })?;
             }
 
