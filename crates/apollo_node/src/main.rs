@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
 
     let cli_args: Vec<String> = args().collect();
     let config =
-        load_and_validate_config(cli_args.clone()).expect("Failed to load and validate config");
+        load_and_validate_config(cli_args.clone(), true).expect("Failed to load and validate config");
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config, cli_args).await;
