@@ -37,9 +37,10 @@ pub async fn run_block_hash_cli(block_hash_cli_command: BlockHashCliCommand) {
         Command::BlockHash { io_args: IoArgs { input_path, output_path } } => {
             let block_hash_input: BlockHashInput = load_input(input_path);
             info!("Successfully loaded block hash input.");
-            let block_hash =
-                calculate_block_hash(block_hash_input.header, block_hash_input.block_commitments)
-                    .unwrap_or_else(|error| panic!("Failed to calculate block hash: {error}"));
+            let (partial_block_hash, state_root, parent_hash) =
+                block_hash_input.to_final_block_hash_components();
+            let block_hash = calculate_block_hash(&partial_block_hash, state_root, parent_hash)
+                .unwrap_or_else(|error| panic!("Failed to calculate block hash: {error}"));
             write_to_file(&output_path, &block_hash);
             info!("Successfully computed block hash {:?}.", block_hash);
         }

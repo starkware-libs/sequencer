@@ -92,3 +92,19 @@ pub enum L1DataAvailabilityMode {
     Calldata,
     Blob,
 }
+
+impl L1DataAvailabilityMode {
+    pub fn from_use_kzg_da(use_kzg_da: bool) -> Self {
+        match use_kzg_da {
+            true => Self::Blob,
+            false => Self::Calldata,
+        }
+    }
+
+    pub fn is_use_kzg_da(&self) -> bool {
+        match self {
+            Self::Blob => true,
+            Self::Calldata => false,
+        }
+    }
+}

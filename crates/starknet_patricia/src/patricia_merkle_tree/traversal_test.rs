@@ -4,12 +4,12 @@ use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use serde::Deserialize;
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::{
     create_binary_entry,
     create_binary_entry_from_u128,

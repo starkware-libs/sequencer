@@ -31,10 +31,11 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::block::BlockInfo;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -79,15 +80,18 @@ fn output_channel()
 }
 
 fn block_execution_artifacts(
-    execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+    execution_infos_and_signatures: IndexMap<
+        TransactionHash,
+        (TransactionExecutionInfo, Option<TransactionSignature>),
+    >,
     rejected_tx_hashes: IndexSet<TransactionHash>,
     consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
     final_n_executed_txs: usize,
 ) -> BlockExecutionArtifacts {
-    let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
+    let l2_gas_used = GasAmount(execution_infos_and_signatures.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_data: BlockTransactionExecutionData {
-            execution_infos,
+            execution_infos_and_signatures,
             rejected_tx_hashes,
             consumed_l1_handler_tx_hashes,
         },
@@ -100,6 +104,7 @@ fn block_execution_artifacts(
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
         compiled_class_hashes_for_migration: vec![],
         final_n_executed_txs,
+        block_info: BlockInfo::create_for_testing(),
     }
 }
 
@@ -410,8 +415,10 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     }
     helper.deadline_expectations();
 
-    let execution_infos_mapping =
-        expected_txs_output.iter().map(|tx| (tx.tx_hash(), execution_info())).collect();
+    let execution_infos_mapping = expected_txs_output
+        .iter()
+        .map(|tx| (tx.tx_hash(), (execution_info(), tx.tx_signature_for_commitment())))
+        .collect();
 
     let expected_block_artifacts = block_execution_artifacts(
         execution_infos_mapping,
@@ -431,6 +438,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: expected_block_artifacts_copy
                 .compiled_class_hashes_for_migration,
+            block_info: expected_block_artifacts_copy.block_info,
         })
     });
 
@@ -499,8 +507,9 @@ fn block_builder_expected_output(
     final_n_executed_txs: usize,
 ) -> BlockExecutionArtifacts {
     let execution_info_len_u8 = u8::try_from(execution_info_len).unwrap();
-    let execution_infos_mapping =
-        (0..execution_info_len_u8).map(|i| (tx_hash!(i), execution_info())).collect();
+    let execution_infos_mapping = (0..execution_info_len_u8)
+        .map(|i| (tx_hash!(i), (execution_info(), Some(TransactionSignature::default()))))
+        .collect();
     block_execution_artifacts(
         execution_infos_mapping,
         Default::default(),
@@ -526,6 +535,7 @@ fn set_close_block_expectations(
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: output_block_artifacts
                 .compiled_class_hashes_for_migration,
+            block_info: output_block_artifacts.block_info,
         })
     });
     output_block_artifacts_copy
@@ -1023,11 +1033,14 @@ async fn test_execution_info_order() {
     .unwrap();
 
     // Verify that the execution_infos are ordered in the same order as the input_txs.
-    result_block_artifacts.execution_data.execution_infos.iter().zip(&input_txs).for_each(
-        |((tx_hash, _execution_info), tx)| {
+    result_block_artifacts
+        .execution_data
+        .execution_infos_and_signatures
+        .iter()
+        .zip(&input_txs)
+        .for_each(|((tx_hash, _execution_info), tx)| {
             assert_eq!(tx_hash, &tx.tx_hash());
-        },
-    );
+        });
 }
 
 #[rstest]
@@ -1055,6 +1068,7 @@ async fn failed_l1_handler_transaction_consumed() {
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
             compiled_class_hashes_for_migration: vec![],
+            block_info: BlockInfo::create_for_testing(),
         })
     });
 
@@ -1083,8 +1097,10 @@ async fn partial_chunk_execution_proposer() {
     let input_txs = test_txs(0..3); // Assume 3 TXs were sent.
     let executed_txs = input_txs[..2].to_vec(); // Only 2 should be processed. Simulating a partial chunk execution.
 
-    let expected_execution_infos: IndexMap<_, _> =
-        executed_txs.iter().map(|tx| (tx.tx_hash(), execution_info())).collect();
+    let expected_execution_infos_and_signatures: IndexMap<_, _> = executed_txs
+        .iter()
+        .map(|tx| (tx.tx_hash(), (execution_info(), tx.tx_signature_for_commitment())))
+        .collect();
 
     let mut helper = ExpectationHelper::new();
 
@@ -1097,7 +1113,7 @@ async fn partial_chunk_execution_proposer() {
     helper.expect_successful_get_new_results(0);
 
     let expected_block_artifacts = block_execution_artifacts(
-        expected_execution_infos,
+        expected_execution_infos_and_signatures,
         Default::default(),
         Default::default(),
         executed_txs.len(),
@@ -1115,6 +1131,7 @@ async fn partial_chunk_execution_proposer() {
                 .casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration: expected_block_artifacts
                 .compiled_class_hashes_for_migration,
+            block_info: expected_block_artifacts.block_info,
         })
     });
 

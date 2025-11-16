@@ -234,6 +234,7 @@ impl PyBlockExecutor {
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
+            ..
         } = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);

@@ -24,11 +24,12 @@ use starknet_api::core::{
     CompiledClassHash as StarknetAPICompiledClassHash,
     ContractAddress,
     Nonce,
-    GLOBAL_STATE_VERSION,
+    PatriciaKey,
 };
 use starknet_api::declare_tx_args;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
@@ -52,14 +53,13 @@ use starknet_committer::patricia_merkle_tree::types::{
     StarknetForestProofs,
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
+use starknet_os::hints::vars::Const;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
@@ -70,26 +70,6 @@ pub(crate) struct ExecutionOutput<S: FlowTestState> {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
     pub(crate) block_summary: BlockExecutionSummary,
     pub(crate) final_state: CachedState<S>,
-}
-
-pub(crate) struct CommitmentOutput {
-    pub(crate) contracts_trie_root_hash: HashOutput,
-    pub(crate) classes_trie_root_hash: HashOutput,
-}
-
-impl CommitmentOutput {
-    pub(crate) fn global_root(&self) -> HashOutput {
-        if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
-            && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
-        {
-            return HashOutput::ROOT_OF_EMPTY_TREE;
-        }
-        HashOutput(Poseidon::hash_array(&[
-            GLOBAL_STATE_VERSION,
-            self.contracts_trie_root_hash.0,
-            self.classes_trie_root_hash.0,
-        ]))
-    }
 }
 
 /// Executes the given transactions on the given state and block context with default execution
@@ -121,7 +101,7 @@ pub(crate) fn execute_transactions<S: FlowTestState>(
         match result {
             Ok(output) => execution_outputs.push(output),
             Err(error) => {
-                panic!("Unexpected error during execution of tx at index {tx_index}: {error:?}.");
+                panic!("Unexpected error during execution of tx at index {tx_index}: {error}.");
             }
         }
     }
@@ -164,13 +144,13 @@ pub(crate) async fn commit_state_diff(
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
-) -> CommitmentOutput {
+) -> StateRoots {
     let config = ConfigImpl::default();
     let input = Input { state_diff, contracts_trie_root_hash, classes_trie_root_hash, config };
     let filled_forest =
         commit_block(input, commitments, None).await.expect("Failed to commit the given block.");
     filled_forest.write_to_storage(commitments);
-    CommitmentOutput {
+    StateRoots {
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
     }
@@ -239,16 +219,16 @@ pub(crate) struct CommitmentInfos {
 
 /// Creates the commitment infos and the cached state input for the OS.
 pub(crate) fn create_cached_state_input_and_commitment_infos(
-    previous_commitment: &CommitmentOutput,
-    new_commitment: &CommitmentOutput,
+    previous_state_roots: &StateRoots,
+    new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     extended_state_diff: &StateMaps,
 ) -> (CachedStateInput, CommitmentInfos) {
     // TODO(Nimrod): Gather the keys from the state selector similarly to python.
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         extended_state_diff.get_contract_addresses().into_iter(),
-        previous_commitment.contracts_trie_root_hash,
-        new_commitment.contracts_trie_root_hash,
+        previous_state_roots.contracts_trie_root_hash,
+        new_state_roots.contracts_trie_root_hash,
         commitments,
     );
     let mut address_to_previous_class_hash = HashMap::new();
@@ -273,7 +253,7 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
     let previous_class_leaves: HashMap<NodeIndex, CompiledClassHash> =
         OriginalSkeletonTreeImpl::get_leaves(
             commitments,
-            previous_commitment.classes_trie_root_hash,
+            previous_state_roots.classes_trie_root_hash,
             sorted_class_leaf_indices,
         )
         .unwrap();
@@ -315,23 +295,23 @@ pub(crate) fn create_cached_state_input_and_commitment_infos(
         extended_state_diff,
         commitments,
         RootHashes {
-            previous_root_hash: previous_commitment.classes_trie_root_hash,
-            new_root_hash: new_commitment.classes_trie_root_hash,
+            previous_root_hash: previous_state_roots.classes_trie_root_hash,
+            new_root_hash: new_state_roots.classes_trie_root_hash,
         },
         RootHashes {
-            previous_root_hash: previous_commitment.contracts_trie_root_hash,
-            new_root_hash: new_commitment.contracts_trie_root_hash,
+            previous_root_hash: previous_state_roots.contracts_trie_root_hash,
+            new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
     );
     let contracts_trie_commitment_info = CommitmentInfo {
-        previous_root: previous_commitment.contracts_trie_root_hash,
-        updated_root: new_commitment.contracts_trie_root_hash,
+        previous_root: previous_state_roots.contracts_trie_root_hash,
+        updated_root: new_state_roots.contracts_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.contracts_trie_proof.nodes),
     };
     let classes_trie_commitment_info = CommitmentInfo {
-        previous_root: previous_commitment.classes_trie_root_hash,
-        updated_root: new_commitment.classes_trie_root_hash,
+        previous_root: previous_state_roots.classes_trie_root_hash,
+        updated_root: new_state_roots.classes_trie_root_hash,
         tree_height: SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
     };
@@ -498,4 +478,61 @@ fn fetch_storage_proofs_from_state_maps(
         &contract_storage_keys,
     )
     .unwrap()
+}
+
+/// Utility method to update a map of expected storage updates.
+pub(crate) fn update_expected_storage(
+    expected_storage_updates: &mut HashMap<
+        ContractAddress,
+        HashMap<StarknetStorageKey, StarknetStorageValue>,
+    >,
+    address: ContractAddress,
+    key: Felt,
+    value: Felt,
+) {
+    let key = StarknetStorageKey(StorageKey(key.try_into().unwrap()));
+    let value = StarknetStorageValue(value);
+    expected_storage_updates
+        .entry(address)
+        .and_modify(|map| {
+            map.insert(key, value);
+        })
+        .or_insert_with(|| HashMap::from([(key, value)]));
+}
+
+/// Given the first block number in the multiblock and the number of blocks in the multiblock,
+/// update the expected storage updates for the block hash contract.
+pub(crate) fn update_expected_storage_updates_for_block_hash_contract(
+    expected_storage_updates: &mut HashMap<
+        ContractAddress,
+        HashMap<StarknetStorageKey, StarknetStorageValue>,
+    >,
+    first_block_number: BlockNumber,
+    n_blocks_in_multi_block: usize,
+) {
+    // The OS is expected to write the (number -> hash) mapping of this block. Make sure the current
+    // block number is greater than STORED_BLOCK_HASH_BUFFER.
+    let old_block_number = first_block_number.0 - STORED_BLOCK_HASH_BUFFER;
+    assert!(
+        old_block_number > 0,
+        "Block number must be big enough to test a non-trivial block hash mapping update."
+    );
+
+    // Add old block hashes to expected storage updates.
+    let block_hash_contract_address = ContractAddress(
+        PatriciaKey::try_from(Const::BlockHashContractAddress.fetch_from_os_program().unwrap())
+            .unwrap(),
+    );
+    for block_number in first_block_number.0
+        ..(first_block_number.0 + u64::try_from(n_blocks_in_multi_block).unwrap())
+    {
+        let (old_block_number, old_block_hash) =
+            maybe_dummy_block_hash_and_number(BlockNumber(block_number)).unwrap();
+        update_expected_storage(
+            expected_storage_updates,
+            block_hash_contract_address,
+            Felt::from(old_block_number.0),
+            old_block_hash.0,
+        );
+    }
 }

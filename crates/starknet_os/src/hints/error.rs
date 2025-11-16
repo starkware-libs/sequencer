@@ -14,9 +14,9 @@ use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::TransactionType;
+use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
 use starknet_api::StarknetApiError;
-use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{
     EdgePathError,
     PathToBottomError,

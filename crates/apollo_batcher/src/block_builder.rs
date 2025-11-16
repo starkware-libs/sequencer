@@ -37,12 +37,19 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_commitments,
+    PartialBlockHashComponents,
+    TransactionHashingData,
+};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce, SequencerContractAddress};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
@@ -116,6 +123,7 @@ pub struct BlockExecutionArtifacts {
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
+    pub block_info: BlockInfo,
 }
 
 impl BlockExecutionArtifacts {
@@ -129,7 +137,7 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn tx_hashes(&self) -> HashSet<TransactionHash> {
-        HashSet::from_iter(self.execution_data.execution_infos.keys().copied())
+        HashSet::from_iter(self.execution_data.execution_infos_and_signatures.keys().copied())
     }
 
     pub fn thin_state_diff(&self) -> ThinStateDiff {
@@ -151,6 +159,48 @@ impl BlockExecutionArtifacts {
             state_diff_commitment: calculate_state_diff_hash(&self.thin_state_diff()),
         }
     }
+
+    // TODO(Nimrod): Consider caching this method.
+    /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
+    pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
+        let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(self.block_info.use_kzg_da);
+        // TODO(Nimrod): Use the version from the block info when available.
+        let starknet_version = StarknetVersion::LATEST;
+        let transactions_data =
+            prepare_txs_hashing_data(&self.execution_data.execution_infos_and_signatures);
+        let header_commitments = calculate_block_commitments(
+            &transactions_data,
+            &self.thin_state_diff(),
+            l1_da_mode,
+            &starknet_version,
+        );
+        PartialBlockHashComponents {
+            header_commitments,
+            block_number: self.block_info.block_number,
+            l1_gas_price: self.block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: self.block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: self.block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(self.block_info.sequencer_address),
+            timestamp: self.block_info.block_timestamp,
+            starknet_version,
+        }
+    }
+}
+
+fn prepare_txs_hashing_data(
+    transactions: &IndexMap<
+        TransactionHash,
+        (TransactionExecutionInfo, Option<TransactionSignature>),
+    >,
+) -> Vec<TransactionHashingData> {
+    transactions
+        .iter()
+        .map(|(hash, (info, optional_signature))| TransactionHashingData {
+            transaction_hash: *hash,
+            transaction_output: info.output_for_hashing(),
+            transaction_signature: optional_signature.clone().unwrap_or_default(),
+        })
+        .collect()
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
@@ -362,6 +412,7 @@ impl BlockBuilder {
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
+            block_info,
         } = block_summary;
 
         let mut execution_data = std::mem::take(&mut self.execution_data);
@@ -384,6 +435,7 @@ impl BlockBuilder {
             casm_hash_computation_data_proving_gas,
             final_n_executed_txs: final_n_executed_txs_nonopt,
             compiled_class_hashes_for_migration,
+            block_info,
         })
     }
 
@@ -606,7 +658,10 @@ async fn collect_execution_results_and_stream_txs(
                     );
                 }
                 let (tx_index, duplicate_tx_hash) =
-                    execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
+                    execution_data.execution_infos_and_signatures.insert_full(
+                        tx_hash,
+                        (tx_execution_info, input_tx.tx_signature_for_commitment()),
+                    );
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
@@ -618,7 +673,7 @@ async fn collect_execution_results_and_stream_txs(
                         TransactionOffsetInBlock(tx_index),
                         // TODO(noamsp): Consider using tx_execution_info and moving the line that
                         // consumes it below this (if it doesn't change functionality).
-                        &execution_data.execution_infos[&tx_hash],
+                        &execution_data.execution_infos_and_signatures[&tx_hash].0,
                         optional_l1_handler_tx,
                     ));
 
@@ -781,7 +836,11 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct BlockTransactionExecutionData {
-    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+    // The transaction signatures are needed for block hash calculation; it is optional as
+    // l1-handler transactions do not have signatures.
+    // TODO(Nimrod): Consider refactoring it to a struct.
+    pub execution_infos_and_signatures:
+        IndexMap<TransactionHash, (TransactionExecutionInfo, Option<TransactionSignature>)>,
     pub rejected_tx_hashes: IndexSet<TransactionHash>,
     pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 }
@@ -790,7 +849,7 @@ impl BlockTransactionExecutionData {
     /// Removes the last txs with the given hashes from the execution data.
     fn remove_last_txs(&mut self, tx_hashes: &[TransactionHash]) {
         for tx_hash in tx_hashes.iter().rev() {
-            remove_last_map(&mut self.execution_infos, tx_hash);
+            remove_last_map(&mut self.execution_infos_and_signatures, tx_hash);
             remove_last_set(&mut self.rejected_tx_hashes, tx_hash);
             remove_last_set(&mut self.consumed_l1_handler_tx_hashes, tx_hash);
         }
@@ -798,7 +857,7 @@ impl BlockTransactionExecutionData {
 
     fn l2_gas_used(&self) -> GasAmount {
         let mut res = GasAmount::ZERO;
-        for execution_info in self.execution_infos.values() {
+        for (execution_info, _) in self.execution_infos_and_signatures.values() {
             res =
                 res.checked_add(execution_info.receipt.gas.l2_gas).expect("Total L2 gas overflow.");
         }

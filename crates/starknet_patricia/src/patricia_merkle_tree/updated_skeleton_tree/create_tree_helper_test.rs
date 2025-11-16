@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
-use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::internal_test_utils::{
     as_fully_indexed,
@@ -254,7 +254,7 @@ fn test_node_from_binary_data(
     &PathToBottom::from("101"),
     &NodeIndex::from(5),
     &TempSkeletonNode::Original(OriginalSkeletonNode::UnmodifiedSubTree(
-        HashOutput::ZERO
+        HashOutput::ROOT_OF_EMPTY_TREE
     )),
    &[],
     TempSkeletonNode::Original(OriginalSkeletonNode::Edge(PathToBottom::from("101"))),

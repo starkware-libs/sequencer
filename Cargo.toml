@@ -12,6 +12,8 @@ members = [
   "crates/apollo_class_manager",
   "crates/apollo_class_manager_config",
   "crates/apollo_class_manager_types",
+  "crates/apollo_committer",
+  "crates/apollo_committer_types",
   "crates/apollo_compilation_utils",
   "crates/apollo_compile_to_casm",
   "crates/apollo_compile_to_casm_types",
@@ -118,7 +120,14 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
+<<<<<<< HEAD
 alloy = "1.0.38"
+||||||| cd0ff4ffa
+alloy = "0.12"
+=======
+aerospike = { version = "2.0.0-alpha.6", default-features = false }
+alloy = "0.12"
+>>>>>>> origin/main-v0.14.1-committer
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_config.path = "crates/apollo_batcher_config"
@@ -128,6 +137,8 @@ apollo_central_sync_config.path = "crates/apollo_central_sync_config"
 apollo_class_manager.path = "crates/apollo_class_manager"
 apollo_class_manager_config.path = "crates/apollo_class_manager_config"
 apollo_class_manager_types.path = "crates/apollo_class_manager_types"
+apollo_committer.path = "crates/apollo_committer"
+apollo_committer_types.path = "crates/apollo_committer_types"
 apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.17.0-rc.0" }
 apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
@@ -330,6 +341,7 @@ retry = "2.0.0"
 rlimit = "0.10.2"
 rstest = "0.17.0"
 rstest_reuse = "0.7.0"
+rust-rocksdb = "0.44.1"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
 semver = "1.0.23"

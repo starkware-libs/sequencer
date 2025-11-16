@@ -1,5 +1,5 @@
 use starknet_api::core::{ClassHash, Nonce};
-use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
