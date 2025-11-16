@@ -60,6 +60,7 @@ const TEST_CORE_STORAGE: usize = 1;
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
+    Committer,
     Core, // Comprises the batcher, class manager, consensus manager, and state sync.
     HttpServer,
     Gateway,
@@ -98,11 +99,12 @@ impl GetComponentConfigs for HybridNodeServiceName {
             }
         };
 
-        // TODO(Yoav): Add committer when it is ready.
         let batcher = HybridNodeServiceName::Core
             .component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager = HybridNodeServiceName::Core
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let committer = HybridNodeServiceName::Committer
+            .component_config_pair(service_ports[&InfraServicePort::Committer]);
         let gateway = HybridNodeServiceName::Gateway
             .component_config_pair(service_ports[&InfraServicePort::Gateway]);
         let l1_gas_price_provider = HybridNodeServiceName::L1
@@ -122,9 +124,14 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
+                HybridNodeServiceName::Committer => get_committer_component_config(
+                    committer.local(),
+                    batcher.remote(),
+                ),
                 HybridNodeServiceName::Core => get_core_component_config(
                     batcher.local(),
                     class_manager.local(),
+                    committer.remote(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
                     l1_endpoint_monitor.remote(),
@@ -168,6 +175,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
 impl ServiceNameInner for HybridNodeServiceName {
     fn get_controller(&self) -> Controller {
         match self {
+            HybridNodeServiceName::Committer => Controller::StatefulSet,
             HybridNodeServiceName::Core => Controller::StatefulSet,
             HybridNodeServiceName::HttpServer => Controller::Deployment,
             HybridNodeServiceName::Gateway => Controller::Deployment,
@@ -179,7 +187,8 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_scale_policy(&self) -> ScalePolicy {
         match self {
-            HybridNodeServiceName::Core
+            HybridNodeServiceName::Committer
+            | HybridNodeServiceName::Core
             | HybridNodeServiceName::HttpServer
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool => ScalePolicy::StaticallyScaled,
@@ -192,7 +201,8 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_retries(&self) -> usize {
         match self {
-            Self::Core
+            Self::Committer
+            | Self::Core
             | Self::HttpServer
             | Self::Mempool
             | Self::Gateway
@@ -213,7 +223,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     | CloudK8sEnvironment::StressTest => Some(Toleration::ApolloCoreServiceC2D56),
                     CloudK8sEnvironment::PotcMock => Some(Toleration::Batcher864),
                 },
-                HybridNodeServiceName::HttpServer
+                // TODO(Yoav): Consider defining toleration for the committer.
+                HybridNodeServiceName::Committer
+                | HybridNodeServiceName::HttpServer
                 | HybridNodeServiceName::Gateway
                 | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
@@ -229,7 +241,8 @@ impl ServiceNameInner for HybridNodeServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         match self {
-            HybridNodeServiceName::Core
+            HybridNodeServiceName::Committer
+            | HybridNodeServiceName::Core
             | HybridNodeServiceName::Gateway
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool
@@ -246,7 +259,8 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn has_p2p_interface(&self) -> bool {
         match self {
             HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => true,
-            HybridNodeServiceName::HttpServer
+            HybridNodeServiceName::Committer
+            | HybridNodeServiceName::HttpServer
             | HybridNodeServiceName::Gateway
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::SierraCompiler => false,
@@ -257,7 +271,9 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::CloudK8s(_) => match self {
                 HybridNodeServiceName::Core => Some(CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
+                // TODO(Yoav): Define storage for the committer.
+                HybridNodeServiceName::Committer
+                | HybridNodeServiceName::HttpServer
                 | HybridNodeServiceName::Gateway
                 | HybridNodeServiceName::L1
                 | HybridNodeServiceName::Mempool
@@ -265,7 +281,9 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::LocalK8s => match self {
                 HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
+                // TODO(Yoav): Define storage for the committer.
+                HybridNodeServiceName::Committer
+                | HybridNodeServiceName::HttpServer
                 | HybridNodeServiceName::Gateway
                 | HybridNodeServiceName::L1
                 | HybridNodeServiceName::Mempool
@@ -280,6 +298,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                 CloudK8sEnvironment::PotcMock
                 | CloudK8sEnvironment::SepoliaIntegration
                 | CloudK8sEnvironment::UpgradeTest => match self {
+                    // TODO(Yoav): Set optimal resources for the committer.
+                    HybridNodeServiceName::Committer => {
+                        Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                    }
                     HybridNodeServiceName::Core => {
                         Resources::new(Resource::new(2, 4), Resource::new(7, 14))
                     }
@@ -302,6 +324,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                 CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
+                    // TODO(Yoav): Set optimal resources for the committer.
+                    HybridNodeServiceName::Committer => {
+                        Resources::new(Resource::new(20, 256), Resource::new(20, 256))
+                    }
                     HybridNodeServiceName::Core => {
                         Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                     }
@@ -329,6 +355,7 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_replicas(&self, environment: &Environment) -> usize {
         match environment {
             Environment::CloudK8s(_) => match self {
+                HybridNodeServiceName::Committer => 1,
                 HybridNodeServiceName::Core => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
@@ -343,6 +370,7 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
             Environment::CloudK8s(_) => match self {
+                HybridNodeServiceName::Committer => true,
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
@@ -358,6 +386,35 @@ impl ServiceNameInner for HybridNodeServiceName {
         let mut service_ports = BTreeSet::new();
 
         match self {
+            HybridNodeServiceName::Committer => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::BusinessLogic(bl_port) => match bl_port {
+                            BusinessLogicServicePort::MonitoringEndpoint => {
+                                service_ports.insert(service_port);
+                            }
+                            BusinessLogicServicePort::ConsensusP2p
+                            | BusinessLogicServicePort::HttpServer
+                            | BusinessLogicServicePort::MempoolP2p => {}
+                        },
+                        ServicePort::Infra(infra_port) => match infra_port {
+                            InfraServicePort::Committer => {
+                                service_ports.insert(service_port);
+                            }
+                            InfraServicePort::Batcher
+                            | InfraServicePort::ClassManager
+                            | InfraServicePort::Gateway
+                            | InfraServicePort::L1EndpointMonitor
+                            | InfraServicePort::L1GasPriceProvider
+                            | InfraServicePort::L1Provider
+                            | InfraServicePort::Mempool
+                            | InfraServicePort::SierraCompiler
+                            | InfraServicePort::SignatureManager
+                            | InfraServicePort::StateSync => {},
+                        },
+                    }
+                }
+            }
             HybridNodeServiceName::Core => {
                 for service_port in ServicePort::iter() {
                     match service_port {
@@ -376,7 +433,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
                             }
-                            InfraServicePort::Gateway
+                            InfraServicePort::Committer
+                            | InfraServicePort::Gateway
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -400,6 +458,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -429,6 +488,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -459,6 +519,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -485,6 +546,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -513,6 +575,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -531,6 +594,34 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         let mut components = BTreeSet::new();
         match self {
+            HybridNodeServiceName::Committer => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        | ComponentConfigInService::Committer
+                        | ComponentConfigInService::ConfigManager
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::Batcher
+                        | ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::SignatureManager
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
             HybridNodeServiceName::Core => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
@@ -545,6 +636,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             components.insert(component_config_in_service);
                         }
                         ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -570,6 +662,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1EndpointMonitor
@@ -597,6 +690,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -628,6 +722,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         }
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -652,6 +747,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -678,6 +774,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -699,6 +796,7 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
+            HybridNodeServiceName::Committer => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::Core => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
@@ -709,10 +807,23 @@ impl ServiceNameInner for HybridNodeServiceName {
     }
 }
 
+fn get_committer_component_config(
+    committer_local_config: ReactiveComponentExecutionConfig,
+    batcher_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.committer = committer_local_config;
+    config.batcher = batcher_remote_config;
+    config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
 #[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_local_config: ReactiveComponentExecutionConfig,
+    committer_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_endpoint_monitor_remote_config: ReactiveComponentExecutionConfig,
@@ -724,6 +835,7 @@ fn get_core_component_config(
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_local_config;
+    config.committer = committer_local_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
