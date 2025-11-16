@@ -120,3 +120,11 @@ pub(crate) fn build_request(ip: &IpAddr, port: u16, method: &str) -> Request<Bod
         .body(Body::empty())
         .unwrap()
 }
+
+pub fn build_post_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())
+        .body(Body::empty())
+        .unwrap()
+}
