@@ -20,7 +20,6 @@ use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
-use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -133,7 +132,6 @@ impl ShcTask {
 ///
 /// SHC is not a top level task, it is called directly and returns values (doesn't directly run sub
 /// tasks). SHC does have side effects, such as sending messages to the network via the context.
-#[derive(Serialize, Deserialize)]
 pub(crate) struct SingleHeightConsensus {
     height: BlockNumber,
     validators: Vec<ValidatorId>,
