@@ -77,8 +77,9 @@ pub(crate) fn proposal_status_from(
         BlockBuilderError::FailOnError(err) => Ok(ProposalStatus::InvalidProposal(err.to_string())),
         BlockBuilderError::Aborted => Err(BatcherError::ProposalAborted),
         _ => {
-            tracing::error!("Unexpected error: {}", block_builder_error);
-            Err(BatcherError::InternalError)
+            let error_message = format!("Unexpected block builder error: {}", block_builder_error);
+            tracing::error!("{}", error_message);
+            Err(BatcherError::InternalError(error_message))
         }
     }
 }
