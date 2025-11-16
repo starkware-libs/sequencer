@@ -60,7 +60,7 @@ const TEST_CORE_STORAGE: usize = 1;
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
-    Core, // Comprises the batcher, class manager, consensus manager, and state sync.
+    Core, // Comprises the batcher, committer, class manager, consensus manager, and state sync.
     HttpServer,
     Gateway,
     L1, // Comprises the various l1 components.
@@ -103,6 +103,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
             .component_config_pair(service_ports[&InfraServicePort::Batcher]);
         let class_manager = HybridNodeServiceName::Core
             .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let committer = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&InfraServicePort::Committer]);
         let gateway = HybridNodeServiceName::Gateway
             .component_config_pair(service_ports[&InfraServicePort::Gateway]);
         let l1_gas_price_provider = HybridNodeServiceName::L1
@@ -125,6 +127,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
                 HybridNodeServiceName::Core => get_core_component_config(
                     batcher.local(),
                     class_manager.local(),
+                    // TODO(Yoav): Move the committer to a separate node when it is ready.
+                    committer.local(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
                     l1_endpoint_monitor.remote(),
@@ -372,6 +376,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::StateSync
                             | InfraServicePort::SignatureManager => {
                                 service_ports.insert(service_port);
@@ -400,6 +405,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::Infra(infra_port) => match infra_port {
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -429,6 +435,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -459,6 +466,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::StateSync
                             | InfraServicePort::Mempool
                             | InfraServicePort::Gateway
@@ -485,6 +493,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -513,6 +522,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             }
                             InfraServicePort::Batcher
                             | InfraServicePort::ClassManager
+                            | InfraServicePort::Committer
                             | InfraServicePort::L1EndpointMonitor
                             | InfraServicePort::L1GasPriceProvider
                             | InfraServicePort::L1Provider
@@ -536,6 +546,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     match component_config_in_service {
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::ConfigManager
                         | ComponentConfigInService::General
@@ -570,6 +581,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1EndpointMonitor
@@ -597,6 +609,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
@@ -628,6 +641,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         }
                         ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -652,6 +666,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -678,6 +693,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Committer
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
@@ -713,6 +729,7 @@ impl ServiceNameInner for HybridNodeServiceName {
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_local_config: ReactiveComponentExecutionConfig,
+    committer_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_endpoint_monitor_remote_config: ReactiveComponentExecutionConfig,
@@ -724,6 +741,7 @@ fn get_core_component_config(
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_local_config;
+    config.committer = committer_local_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;

@@ -7,6 +7,7 @@
       "config_paths": [
         "app_configs/batcher_config.json",
         "app_configs/class_manager_config.json",
+        "app_configs/committer_config.json",
         "app_configs/config_manager_config.json",
         "app_configs/consensus_manager_config.json",
         "app_configs/revert_config.json",
@@ -46,6 +47,7 @@
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
+        "Committer": 55010,
         "SignatureManager": 55008,
         "StateSync": 55009,
         "ConsensusP2p": 53080,
