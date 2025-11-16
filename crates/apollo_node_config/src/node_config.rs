@@ -5,6 +5,7 @@ use std::vec::Vec;
 
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
+use apollo_committer_config::config::CommitterConfig;
 use apollo_config::dumping::{
     generate_struct_pointer,
     prepend_sub_config_name,
@@ -196,6 +197,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub class_manager_config: Option<FsClassManagerConfig>,
     #[validate]
+    pub committer_config: Option<CommitterConfig>,
+    #[validate]
     pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate]
     pub gateway_config: Option<GatewayConfig>,
@@ -234,6 +237,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
             ser_optional_sub_config(&self.batcher_config, "batcher_config"),
             ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
+            ser_optional_sub_config(&self.committer_config, "committer_config"),
             ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
             ser_optional_sub_config(&self.gateway_config, "gateway_config"),
             ser_optional_sub_config(&self.http_server_config, "http_server_config"),
@@ -270,6 +274,7 @@ impl Default for SequencerNodeConfig {
             base_layer_config: Some(EthereumBaseLayerConfig::default()),
             batcher_config: Some(BatcherConfig::default()),
             class_manager_config: Some(FsClassManagerConfig::default()),
+            committer_config: Some(CommitterConfig::default()),
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
@@ -364,6 +369,7 @@ impl SequencerNodeConfig {
             class_manager,
             class_manager_config
         );
+        validate_component_config_is_set_iff_running_locally!(self, committer, committer_config);
         validate_component_config_is_set_iff_running_locally!(
             self,
             config_manager,
