@@ -714,6 +714,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.committer.remote_client_config.connection_timeout_ms": {
+    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
+    "privacy": "Public",
+    "value": 500
+  },
   "components.committer.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -738,6 +743,11 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
+  },
+  "components.committer.remote_client_config.set_tcp_nodelay": {
+    "description": "Whether to set TCP_NODELAY on the client requests.",
+    "privacy": "Public",
+    "value": true
   },
   "components.committer.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
