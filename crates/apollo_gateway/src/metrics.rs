@@ -245,6 +245,8 @@ impl Drop for GatewayMetricHandle {
     }
 }
 
+pub const GATEWAY_METRIC_RATE_DURATION: &str = "5m";
+
 pub(crate) fn register_metrics() {
     GATEWAY_TRANSACTIONS_RECEIVED.register();
     GATEWAY_TRANSACTIONS_FAILED.register();
