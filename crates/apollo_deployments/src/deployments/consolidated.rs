@@ -169,7 +169,7 @@ fn get_consolidated_config() -> ComponentConfig {
     ComponentConfig {
         batcher: base.clone(),
         class_manager: base.clone(),
-        committer: base.clone(),
+        committer: ReactiveComponentExecutionConfig::disabled(),
         config_manager: base.clone(),
         consensus_manager: ActiveComponentExecutionConfig::enabled(),
         gateway: base.clone(),
