@@ -1134,7 +1134,7 @@
         },
         {
           "title": "Number of sent messages",
-          "description": "Count of the sent p2p messages",
+          "description": "Count of the sent p2p messages (10m window)",
           "type": "timeseries",
           "exprs": [
             "increase(apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -1143,7 +1143,7 @@
         },
         {
           "title": "Number of received messages",
-          "description": "Count of the received p2p messages",
+          "description": "Count of the received p2p messages (10m window)",
           "type": "timeseries",
           "exprs": [
             "increase(apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
@@ -3432,11 +3432,11 @@
     "Tokio Runtime Metrics": {
       "panels": [
         {
-          "title": "Tokio total busy duration",
+          "title": "Increase of Tokio total busy duration (1m window)",
           "description": "The amount of time worker threads were busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
-            "tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "increase(tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {
             "unit": "µs",
