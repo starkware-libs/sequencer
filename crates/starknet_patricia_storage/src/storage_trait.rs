@@ -67,6 +67,7 @@ impl Display for NoStats {
     }
 }
 
+/// A trait for the storage. Does not assume concurrent access is possible - see [AsyncStorage].
 pub trait Storage {
     type Stats: StorageStats;
 
@@ -96,6 +97,11 @@ pub trait Storage {
         Ok(())
     }
 }
+
+/// A trait wrapper for [Storage] that supports concurrency.
+/// Any [Storage] implementation that implements `Clone + Send + Sync` is an [AsyncStorage] as well.
+pub trait AsyncStorage: Storage + Clone + Send + Sync + 'static {}
+impl<S: Storage + Clone + Send + Sync + 'static> AsyncStorage for S {}
 
 #[derive(Debug)]
 pub struct DbKeyPrefix(&'static [u8]);

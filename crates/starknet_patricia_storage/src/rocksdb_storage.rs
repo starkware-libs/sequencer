@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use rust_rocksdb::{
     BlockBasedIndexType,
@@ -90,10 +91,10 @@ impl RocksDbOptions {
     }
 }
 
+#[derive(Clone)]
 pub struct RocksDbStorage {
-    db: DB,
-    write_options: WriteOptions,
-    /// If true, the database is opened with 256 column families, and each key mapped to a column
+    db: Arc<DB>,
+    write_options: Arc<WriteOptions>,
     /// family according to its last byte. Otherwise, the database is opened with a single
     /// column family (default behavior).
     column_families: bool,
@@ -113,8 +114,9 @@ impl RocksDbStorage {
             vec![ColumnFamilyDescriptor::new("default", Options::default())]
         };
 
-        let db = DB::open_cf_descriptors(&options.db_options, path, cfs)?;
-        Ok(Self { db, write_options: options.write_options, column_families })
+        let db = Arc::new(DB::open_cf_descriptors(&options.db_options, path, cfs)?);
+        let write_options = Arc::new(options.write_options);
+        Ok(Self { db, write_options, column_families })
     }
 
     pub fn get_column_family(&self, key: &DbKey) -> &ColumnFamily {
