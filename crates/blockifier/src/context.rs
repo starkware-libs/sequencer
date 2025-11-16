@@ -175,6 +175,7 @@ impl BlockContext {
             // TODO(Yoni): consider setting here trivial prices if and when this field is exposed.
             gas_prices: self.block_info.gas_prices.clone(),
             use_kzg_da: self.block_info.use_kzg_da,
+            starknet_version: self.block_info.starknet_version,
         }
     }
 
