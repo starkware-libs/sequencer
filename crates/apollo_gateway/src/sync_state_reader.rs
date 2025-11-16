@@ -20,14 +20,6 @@ use futures::executor::block_on;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, GasPriceVector, GasPrices};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-<<<<<<< HEAD
-use starknet_api::data_availability::L1DataAvailabilityMode;
-||||||| cd0ff4ffa
-use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::felt;
-=======
-use starknet_api::felt;
->>>>>>> origin/main-v0.14.1-committer
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 

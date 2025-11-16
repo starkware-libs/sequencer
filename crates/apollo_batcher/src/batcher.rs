@@ -943,7 +943,11 @@ fn log_txs_execution_result(
     result: &Result<BlockExecutionArtifacts, Arc<BlockBuilderError>>,
 ) {
     if let Ok(block_artifacts) = result {
-        let execution_infos = &block_artifacts.execution_data.execution_infos;
+        let execution_infos = block_artifacts
+            .execution_data
+            .execution_infos_and_signatures
+            .iter()
+            .map(|(tx_hash, (info, _sig))| (tx_hash, info));
         let rejected_hashes = &block_artifacts.execution_data.rejected_tx_hashes;
 
         // Estimate capacity: base message + (hash + status) per transaction
@@ -959,25 +963,8 @@ fn log_txs_execution_result(
             &mut log_msg,
             "Finished generating proposal {} with {} transactions",
             proposal_id,
-<<<<<<< HEAD
             execution_infos.len(),
-||||||| cd0ff4ffa
-            block_artifacts.execution_data.execution_infos.len(),
-=======
-            block_artifacts.execution_data.execution_infos_and_signatures.len(),
         );
-        block_artifacts.execution_data.execution_infos_and_signatures.iter().for_each(
-            |(tx_hash, (info, _))| {
-                log_msg.push_str(&format!(", {tx_hash}:"));
-                if info.revert_error.is_some() {
-                    log_msg.push_str(" Reverted");
-                } else {
-                    log_msg.push_str(" Successful");
-                }
-            },
->>>>>>> origin/main-v0.14.1-committer
-        );
-<<<<<<< HEAD
 
         for (tx_hash, info) in execution_infos {
             let status = if info.revert_error.is_some() { "Reverted" } else { "Successful" };
@@ -989,25 +976,6 @@ fn log_txs_execution_result(
         }
 
         info!("{}", log_msg);
-||||||| cd0ff4ffa
-        block_artifacts.execution_data.execution_infos.iter().for_each(|(tx_hash, info)| {
-            log_msg.push_str(&format!(", {tx_hash}:"));
-            if info.revert_error.is_some() {
-                log_msg.push_str(" Reverted");
-            } else {
-                log_msg.push_str(" Successful");
-            }
-        });
-        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
-            log_msg.push_str(&format!(", {tx_hash}: Rejected"));
-        });
-        info!(log_msg);
-=======
-        block_artifacts.execution_data.rejected_tx_hashes.iter().for_each(|tx_hash| {
-            log_msg.push_str(&format!(", {tx_hash}: Rejected"));
-        });
-        info!(log_msg);
->>>>>>> origin/main-v0.14.1-committer
     }
 }
 

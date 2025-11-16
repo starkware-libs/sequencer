@@ -120,14 +120,8 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-<<<<<<< HEAD
-alloy = "1.0.38"
-||||||| cd0ff4ffa
-alloy = "0.12"
-=======
 aerospike = { version = "2.0.0-alpha.6", default-features = false }
-alloy = "0.12"
->>>>>>> origin/main-v0.14.1-committer
+alloy = "1.0.38"
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_config.path = "crates/apollo_batcher_config"

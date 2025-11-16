@@ -334,15 +334,9 @@ dependencies = [
  "derive_more 2.0.1",
  "either",
  "serde",
-<<<<<<< HEAD
  "serde_with",
- "sha2",
- "thiserror 2.0.16",
-||||||| cd0ff4ffa
- "sha2",
-=======
  "sha2 0.10.9",
->>>>>>> origin/main-v0.14.1-committer
+ "thiserror 2.0.16",
 ]
 
 [[package]]
@@ -12965,14 +12959,8 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
-<<<<<<< HEAD
  "serde_with",
- "sha2",
-||||||| cd0ff4ffa
- "sha2",
-=======
  "sha2 0.10.9",
->>>>>>> origin/main-v0.14.1-committer
  "sha3",
  "shared_execution_objects",
  "starknet-types-core",
