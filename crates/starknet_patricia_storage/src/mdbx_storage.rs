@@ -15,6 +15,7 @@ use libmdbx::{
 use page_size;
 
 use crate::storage_trait::{
+    AsyncStorage,
     DbHashMap,
     DbKey,
     DbValue,
@@ -144,5 +145,9 @@ impl Storage for MdbxStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(MdbxStorageStats(self.db.stat()?))
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
     }
 }

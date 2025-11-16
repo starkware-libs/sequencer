@@ -96,12 +96,51 @@ pub trait Storage {
     fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
         Ok(())
     }
+
+    /// If the storage is async, returns an instance of the async storage.
+    fn get_async_self(&self) -> Option<impl AsyncStorage>;
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.
 /// Any [Storage] implementation that implements `Clone + Send + Sync` is an [AsyncStorage] as well.
 pub trait AsyncStorage: Storage + Clone + Send + Sync + 'static {}
 impl<S: Storage + Clone + Send + Sync + 'static> AsyncStorage for S {}
+
+/// Dummy storage that does nothing.
+#[derive(Clone)]
+pub struct NullStorage;
+
+impl Storage for NullStorage {
+    type Stats = NoStats;
+
+    fn get(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        Ok(None)
+    }
+
+    fn set(&mut self, _key: DbKey, _value: DbValue) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
+
+    fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        Ok(vec![None; keys.len()])
+    }
+
+    fn mset(&mut self, _key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
+
+    fn delete(&mut self, _key: &DbKey) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
+
+    fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        Ok(NoStats)
+    }
+
+    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+        Some(self.clone())
+    }
+}
 
 #[derive(Debug)]
 pub struct DbKeyPrefix(&'static [u8]);
