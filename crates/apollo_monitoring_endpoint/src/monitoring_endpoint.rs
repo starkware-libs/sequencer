@@ -1,18 +1,22 @@
 use std::net::SocketAddr;
+use std::str::FromStr;
 
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::trace_util::{configure_tracing, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
+use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{async_trait, Json, Router, Server};
 use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use tracing::level_filters::LevelFilter;
 use tracing::{error, info, instrument};
 
 use crate::tokio_metrics::setup_tokio_metrics;
@@ -28,6 +32,7 @@ pub(crate) const VERSION: &str = "nodeVersion";
 pub(crate) const METRICS: &str = "metrics";
 pub(crate) const MEMPOOL_SNAPSHOT: &str = "mempoolSnapshot";
 pub(crate) const L1_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
+pub(crate) const SET_LOG_LEVEL: &str = "setLogLevel";
 
 const HISTOGRAM_BUCKETS: &[f64] =
     &[0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0];
@@ -122,6 +127,10 @@ impl MonitoringEndpoint {
                 format!("/{MONITORING_PREFIX}/{L1_PROVIDER_SNAPSHOT}").as_str(),
                 get(move || get_l1_provider_snapshot(l1_provider_client)),
             )
+            .route(
+                format!("/{MONITORING_PREFIX}/{SET_LOG_LEVEL}/:crate/:level").as_str(),
+                post(set_log_level_endpoint),
+            )
     }
 }
 
@@ -210,4 +219,13 @@ async fn get_l1_provider_snapshot(
         }
         None => Err(StatusCode::METHOD_NOT_ALLOWED),
     }
+}
+
+async fn set_log_level_endpoint(
+    Path((crate_name, level)): Path<(String, String)>,
+) -> Result<StatusCode, StatusCode> {
+    let level_filter = level.parse::<LevelFilter>().map_err(|_| StatusCode::BAD_REQUEST)?;
+    let handle = configure_tracing().await;
+    set_log_level(&handle, &crate_name, level_filter);
+    Ok(StatusCode::OK)
 }
