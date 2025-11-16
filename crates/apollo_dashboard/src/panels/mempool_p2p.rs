@@ -13,7 +13,7 @@ use apollo_network::network_manager::metrics::{
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
-use crate::query_builder::{sum_by_label, DisplayMethod};
+use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 // TODO(shahak): Properly name and describe these panels.
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
@@ -21,11 +21,21 @@ fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
 }
 
 fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
-    Panel::from_counter(&MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::TimeSeries)
+    Panel::new(
+        "Number of sent messages",
+        "Count of the sent p2p messages",
+        increase(&MEMPOOL_P2P_NUM_SENT_MESSAGES, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_mempool_p2p_num_received_messages() -> Panel {
-    Panel::from_counter(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
+    Panel::new(
+        "Number of received messages",
+        "Count of the received p2p messages",
+        increase(&MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
 }
 
 // TODO(shahak): add units.
