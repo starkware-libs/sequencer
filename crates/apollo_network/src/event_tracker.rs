@@ -11,6 +11,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use tracing::debug;
 
 use crate::network_manager::metrics::{EventMetrics, EventType};
 
@@ -70,8 +71,13 @@ impl EventMetricsTracker {
             FromSwarm::NewExternalAddrOfPeer(_) => {
                 self.metrics.increment_event(EventType::NewExternalAddrOfPeer);
             }
-            _ => {}
+            _ => {
+                // ignore other events
+                return;
+            }
         }
+        // log the event
+        debug!(?event, "Swarm event");
     }
 }
 
@@ -81,23 +87,32 @@ impl NetworkBehaviour for EventMetricsTracker {
 
     fn handle_established_inbound_connection(
         &mut self,
-        _connection_id: ConnectionId,
-        _peer: PeerId,
-        _local_addr: &Multiaddr,
-        _remote_addr: &Multiaddr,
+        connection_id: ConnectionId,
+        peer: PeerId,
+        local_addr: &Multiaddr,
+        remote_addr: &Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(?connection_id, ?peer, ?local_addr, ?remote_addr, "Inbound connection established");
         self.metrics.increment_event(EventType::InboundConnectionsHandled);
         Ok(libp2p::swarm::dummy::ConnectionHandler)
     }
 
     fn handle_established_outbound_connection(
         &mut self,
-        _connection_id: ConnectionId,
-        _peer: PeerId,
-        _addr: &Multiaddr,
-        _role_override: libp2p::core::Endpoint,
-        _port_use: libp2p::core::transport::PortUse,
+        connection_id: ConnectionId,
+        peer: PeerId,
+        addr: &Multiaddr,
+        role_override: libp2p::core::Endpoint,
+        port_use: libp2p::core::transport::PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
+        debug!(
+            ?connection_id,
+            ?peer,
+            ?addr,
+            ?role_override,
+            ?port_use,
+            "Outbound connection established"
+        );
         self.metrics.increment_event(EventType::OutboundConnectionsHandled);
         Ok(libp2p::swarm::dummy::ConnectionHandler)
     }
