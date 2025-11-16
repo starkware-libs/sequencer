@@ -65,6 +65,7 @@ pub trait MetricDetails {
 // Access specific metric PromQL filtering query, differing between the various metric types.
 pub trait MetricQueryName: MetricDetails {
     fn get_name_with_filter(&self) -> String;
+    fn get_name_with_filer_and_additional_fields(&self, additional_query_fields: &str) -> String;
 }
 
 // An enum to distinguish between the various metric types, used to set the appropriate query.
@@ -88,6 +89,15 @@ impl<T: HasMetricFilterKind> MetricQueryName for T {
                 format!("{}_bucket{METRIC_LABEL_FILTER}", self.get_name())
             }
         }
+    }
+
+    fn get_name_with_filer_and_additional_fields(&self, additional_query_fields: &str) -> String {
+        format!(
+            "{}, {additional_query_fields}}}",
+            self.get_name_with_filter()
+                .strip_suffix("}")
+                .expect("Metric label filter should end with a }")
+        )
     }
 }
 
