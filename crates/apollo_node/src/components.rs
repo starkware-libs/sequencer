@@ -2,6 +2,7 @@ use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
+use apollo_committer::committer::Committer;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
@@ -41,6 +42,7 @@ use crate::clients::SequencerNodeClients;
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
+    pub committer: Option<Committer>,
     pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
@@ -123,6 +125,13 @@ pub async fn create_node_components(
             Some(create_signature_manager())
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
+    let committer = match config.components.committer.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+        | ReactiveComponentExecutionMode::Remote => Some(Committer {}),
+        ReactiveComponentExecutionMode::Disabled => None,
     };
 
     let (config_manager, config_manager_runner) = match config
@@ -571,6 +580,7 @@ pub async fn create_node_components(
     SequencerNodeComponents {
         batcher,
         class_manager,
+        committer,
         config_manager,
         config_manager_runner,
         consensus_manager,
