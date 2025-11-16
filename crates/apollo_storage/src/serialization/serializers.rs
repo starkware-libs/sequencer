@@ -135,6 +135,7 @@ use crate::compression_utils::{
     serialize_and_compress,
     IsCompressed,
 };
+use crate::consensus::LastVotedMarker;
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::NoValue;
 use crate::header::StorageBlockHeader;
@@ -319,6 +320,9 @@ auto_storage_serde! {
     }
     pub struct L1ToL2Payload(pub Vec<Felt>);
     pub struct L2ToL1Payload(pub Vec<Felt>);
+    pub struct LastVotedMarker {
+        pub height: BlockNumber,
+    }
     enum MarkerKind {
         Header = 0,
         Body = 1,

@@ -82,6 +82,7 @@ pub mod class;
 pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
+pub mod consensus;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
 #[allow(missing_docs)]
@@ -143,6 +144,7 @@ use validator::Validate;
 use version::{StorageVersionError, Version};
 
 use crate::body::TransactionIndex;
+use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
     open_env,
@@ -212,6 +214,7 @@ fn open_storage_internal(
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
         headers: db_writer.create_simple_table("headers")?,
+        last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
         nonces: db_writer.create_common_prefix_table("nonces")?,
         file_offsets: db_writer.create_simple_table("file_offsets")?,
@@ -590,6 +593,7 @@ pub fn table_names() -> &'static [&'static str] {
 }
 
 struct_field_names! {
+    // When adding a new table you need to update the MAX_DBS.
     struct Tables {
         block_hash_to_number: TableIdentifier<BlockHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>,
         block_signatures: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockSignature>, SimpleTable>,
@@ -605,6 +609,7 @@ struct_field_names! {
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
+        last_voted_marker: TableIdentifier<(), NoVersionValueWrapper<LastVotedMarker>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
@@ -625,6 +630,8 @@ struct_field_names! {
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
+        // TODO(guy.f): Remove this in the follow up PR which uses last_voted_marker table.
+        #[allow(dead_code)]
         pub(crate) struct $name {
             $($fname : $ftype),*
         }
