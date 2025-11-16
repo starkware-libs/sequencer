@@ -18,6 +18,7 @@ use crate::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
+    StarknetVersion,
 };
 use crate::contract_address;
 use crate::contract_class::{ContractClass, SierraVersion};
@@ -181,6 +182,7 @@ impl BlockInfo {
             gas_prices: DEFAULT_GAS_PRICES,
             // TODO(Yoni): change to true.
             use_kzg_da: false,
+            starknet_version: StarknetVersion::LATEST,
         }
     }
 

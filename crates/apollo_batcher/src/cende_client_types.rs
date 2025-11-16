@@ -637,12 +637,9 @@ impl CendeBlockMetadata {
         let (l1_gas_price, l1_data_gas_price, l2_gas_price) =
             get_gas_prices(&block_info.gas_prices);
 
-        // TODO(noamsp): use correct version.
-        let starknet_version = StarknetVersion::default();
-
         Self {
             status: PRE_CONFIRMED_STATUS,
-            starknet_version,
+            starknet_version: block_info.starknet_version,
             l1_da_mode,
             l1_gas_price,
             l1_data_gas_price,

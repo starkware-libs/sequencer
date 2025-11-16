@@ -97,6 +97,7 @@ impl TryInto<BlockInfo> for BlockHeader {
                 parse_gas_price(self.l2_gas_price.price_in_fri)?,
             ),
             use_kzg_da: self.l1_da_mode.is_use_kzg_da(),
+            starknet_version: self.starknet_version.try_into()?,
         })
     }
 }
