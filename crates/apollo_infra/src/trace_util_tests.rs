@@ -10,9 +10,9 @@ fn log_level_directive_updates() {
 
     set_log_level(&reload_handle, "a", LevelFilter::DEBUG);
     set_log_level(&reload_handle, "b", LevelFilter::DEBUG);
-    let directives = get_log_directives(&reload_handle);
+    let directives = get_log_directives(&reload_handle).unwrap();
     assert_eq!(directives, "b=debug,a=debug,info");
     set_log_level(&reload_handle, "a", LevelFilter::INFO);
-    let directives = get_log_directives(&reload_handle);
+    let directives = get_log_directives(&reload_handle).unwrap();
     assert_eq!(directives, "b=debug,a=info,info");
 }
