@@ -33,6 +33,7 @@ pub(crate) const METRICS: &str = "metrics";
 pub(crate) const MEMPOOL_SNAPSHOT: &str = "mempoolSnapshot";
 pub(crate) const L1_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
 pub(crate) const SET_LOG_LEVEL: &str = "setLogLevel";
+pub(crate) const LOG_DIRECTIVES: &str = "logDirectives";
 
 const HISTOGRAM_BUCKETS: &[f64] =
     &[0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0];
@@ -131,6 +132,10 @@ impl MonitoringEndpoint {
                 format!("/{MONITORING_PREFIX}/{SET_LOG_LEVEL}/:crate/:level").as_str(),
                 post(set_log_level_endpoint),
             )
+            .route(
+                format!("/{MONITORING_PREFIX}/{LOG_DIRECTIVES}").as_str(),
+                get(get_log_directives_endpoint),
+            )
     }
 }
 
@@ -228,4 +233,13 @@ async fn set_log_level_endpoint(
     let handle = configure_tracing().await;
     set_log_level(&handle, &crate_name, level_filter);
     Ok(StatusCode::OK)
+}
+
+#[instrument(level = "debug")]
+async fn get_log_directives_endpoint() -> Result<String, StatusCode> {
+    let handle = configure_tracing().await;
+    match handle.with_current(|f| f.to_string()) {
+        Ok(directives) => Ok(directives),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
