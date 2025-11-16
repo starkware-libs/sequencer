@@ -11,13 +11,14 @@ use apollo_monitoring_endpoint::tokio_metrics::{
 };
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::query_builder::increase;
 const TOKIO_PANEL_LEGENDS: &[&str] = &["{{pod}}"];
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
     Panel::new(
-        "Tokio total busy duration",
+        "Increase of Tokio total busy duration (1m window)",
         TOKIO_TOTAL_BUSY_DURATION_MICROS.get_description(),
-        TOKIO_TOTAL_BUSY_DURATION_MICROS.get_name_with_filter().to_string(),
+        increase(&TOKIO_TOTAL_BUSY_DURATION_MICROS, "1m"),
         PanelType::TimeSeries,
     )
     .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
