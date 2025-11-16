@@ -160,7 +160,7 @@ impl FileStorageArgs {
     }
 }
 
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
 pub enum InterferenceType {
     /// No interference.
     None,
@@ -400,6 +400,19 @@ impl StorageBenchmarkCommand {
             Self::CachedRocksdb(_) => StorageType::CachedRocksdb,
             Self::Aerospike(_) => StorageType::Aerospike,
             Self::CachedAerospike(_) => StorageType::CachedAerospike,
+        }
+    }
+
+    pub fn interference_type(&self) -> InterferenceType {
+        match self {
+            Self::Memory(_)
+            | Self::CachedMemory(_)
+            | Self::CachedMdbx(_)
+            | Self::CachedRocksdb(_)
+            | Self::CachedAerospike(_) => InterferenceType::None,
+            Self::Mdbx(args) => args.interference_args.interference_type,
+            Self::Rocksdb(args) => args.interference_args.interference_type,
+            Self::Aerospike(args) => args.interference_args.interference_type,
         }
     }
 }
