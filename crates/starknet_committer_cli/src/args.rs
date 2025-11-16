@@ -160,6 +160,20 @@ impl FileStorageArgs {
     }
 }
 
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+pub enum InterferenceType {
+    /// No interference.
+    None,
+    // TODO(Dori): Add more interference types.
+}
+
+#[derive(Debug, Args)]
+pub struct InterferenceArgs {
+    /// The type of interference to apply.
+    #[clap(long, default_value = "none")]
+    pub interference_type: InterferenceType,
+}
+
 #[derive(Debug, Args)]
 pub struct CachedStorageArgs<A: StorageFromArgs> {
     #[clap(flatten)]
@@ -213,6 +227,8 @@ pub struct MdbxArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
+    #[clap(flatten)]
+    pub interference_args: InterferenceArgs,
 }
 
 impl StorageFromArgs for MdbxArgs {
@@ -230,6 +246,8 @@ pub struct RocksdbArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
+    #[clap(flatten)]
+    pub interference_args: InterferenceArgs,
 
     /// If true, the storage will use memory-mapped files.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
@@ -266,6 +284,8 @@ pub struct AerospikeArgs {
     pub global_args: GlobalArgs,
     #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
+    #[clap(flatten)]
+    pub interference_args: InterferenceArgs,
 
     /// Aerospike aeroset.
     #[clap(long)]
