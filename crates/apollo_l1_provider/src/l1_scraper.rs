@@ -1,4 +1,5 @@
 use std::any::type_name;
+use std::future::Future;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
@@ -126,7 +127,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     /// block. The provider will return an error if it was already initialized (e.g., if the scraper
     /// was restarted).
     #[instrument(skip(self), err)]
-    async fn initialize(&mut self, last_historic_l2_height: BlockNumber) -> L1ScraperResult<(), B> {
+    async fn initialize(
+        &self,
+        historic_l2_height: BlockNumber,
+    ) -> L1ScraperResult<L1BlockReference, B> {
         let (latest_l1_block, events) = self.fetch_events().await?;
 
         debug!("Latest L1 block for initialize: {latest_l1_block:?}");
@@ -134,13 +138,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         // If this gets too high, send in batches.
         let initialize_result =
-            self.l1_provider_client.initialize(last_historic_l2_height, events).await;
+            self.l1_provider_client.initialize(historic_l2_height, events).await;
         handle_client_error(initialize_result)?;
 
-        // Successfully scraped events up to latest l1 block.
-        self.scrape_from_this_l1_block = Some(latest_l1_block);
-
-        Ok(())
+        Ok(latest_l1_block)
     }
 
     /// Scrape recent events and send them to the L1 provider.
@@ -263,65 +264,61 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok((latest_l1_block, events))
     }
 
-    async fn sleep_for_base_layer_error(
+    /// Retry the given function if it gets base layer errors. Returns the result of the function in
+    /// case of success or the error in case of failure.
+    async fn retry_until_base_layer_success<T, F, Fut>(
         &self,
+        func: F,
         description: &str,
-        e: L1ScraperError<B>,
-    ) -> L1ScraperResult<(), B> {
-        match &e {
-            L1ScraperError::BaseLayerError(_) => {
-                warn!("Error while {description}: {e}");
-                L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                // TODO(guyn): do we want a different interval here? Maybe doesn't really matter.
-                sleep(self.config.polling_interval_seconds).await;
-                Ok(())
+    ) -> L1ScraperResult<T, B>
+    where
+        F: Fn(&Self) -> Fut,
+        Fut: Future<Output = L1ScraperResult<T, B>>,
+    {
+        loop {
+            match func(self).await {
+                Err(L1ScraperError::BaseLayerError(e)) => {
+                    warn!("Error while {description}: {e}");
+                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                    // TODO(guyn): consider using a different interval here? Maybe doesn't really
+                    // matter.
+                    sleep(self.config.polling_interval_seconds).await;
+                    continue;
+                }
+                // Return a non-base layer error or success.
+                e => return e,
             }
-            _ => Err(e),
         }
     }
 
     #[instrument(skip(self), err)]
     pub async fn run(&mut self) -> L1ScraperResult<(), B> {
-        // This is the startup loop, getting start blocks (on L1 and L2) and sending the first batch
-        // of scraped events to the provider.
-        loop {
-            match self.fetch_start_block().await {
-                Ok(start_block) => {
-                    // We didn't scrape anything up to this block, but it is far enough in the past
-                    // that we can ignore events up to this block (inclusive).
-                    self.scrape_from_this_l1_block = Some(start_block);
-                    debug!("Start block on L1 is: {start_block:?}");
-                }
-                Err(e) => {
-                    self.sleep_for_base_layer_error("fetching start block", e).await?;
-                    continue;
-                }
-            }
+        // Try to get all the information needed for initialization.
+        self.scrape_from_this_l1_block = Some(
+            self.retry_until_base_layer_success(
+                |_| self.fetch_start_block(),
+                "fetching start block",
+            )
+            .await?,
+        );
 
-            // TODO(guyn): add an override in case the chain does not have any proved blocks yet.
-            let last_historic_l2_height = match self.get_last_historic_l2_height().await {
-                Ok(height) => {
-                    debug!("Last historic L2 height is: {height}");
-                    height
-                }
-                Err(e) => {
-                    self.sleep_for_base_layer_error("fetching last historic L2 height", e).await?;
-                    continue;
-                }
-            };
+        // The last historic L2 height is returned, to be using in initialization.
+        let historic_l2_height = self
+            .retry_until_base_layer_success(
+                |_| self.get_last_historic_l2_height(),
+                "fetching last historic L2 height",
+            )
+            .await?;
 
-            // Initialize fetches events from start block up to latest, sends them to the provider.
-            // TODO(guyn): the next comment will be implemented in one of the next PRs:
-            // It also sends the provider the start l1 block number, to allow it to find the l2
-            // block height to start sync from.
-            match self.initialize(last_historic_l2_height).await {
-                Err(e) => {
-                    self.sleep_for_base_layer_error("initializing", e).await?;
-                    continue;
-                }
-                Ok(_) => break,
-            };
-        }
+        // Initialize fetches events from start block up to latest, sends them to the provider.
+        // Update the L1 block number we need to scrape from.
+        self.scrape_from_this_l1_block = Some(
+            self.retry_until_base_layer_success(
+                |_| self.initialize(historic_l2_height),
+                "initializing",
+            )
+            .await?,
+        );
 
         // This is the main (steady state) loop.
         loop {
