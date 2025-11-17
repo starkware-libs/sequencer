@@ -1248,7 +1248,6 @@ dependencies = [
  "apollo_network",
  "apollo_reverts",
  "serde",
- "starknet_api",
  "validator",
 ]
 
