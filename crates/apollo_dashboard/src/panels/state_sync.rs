@@ -3,6 +3,7 @@ use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
+    STATE_SYNC_COMPILED_CLASS_MARKER,
     STATE_SYNC_HEADER_LATENCY_SEC,
 };
 
@@ -11,7 +12,7 @@ use crate::dashboard::{Panel, PanelType, Row, Unit};
 fn get_panel_central_sync_central_block_marker() -> Panel {
     Panel::new(
         "Central Block Marker",
-        "The first block that Central Starknet hasn't seen yet",
+        "The first block number that doesn't exist yet",
         CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
@@ -21,6 +22,23 @@ fn get_panel_state_sync_body_marker() -> Panel {
         "State Sync Body Marker",
         "The first block number for which the state sync component does not have a body",
         STATE_SYNC_BODY_MARKER.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+}
+fn get_panel_state_sync_class_manager_marker() -> Panel {
+    Panel::new(
+        "State Sync Class Manager Marker",
+        "The first block number for which the state sync component does not have a class",
+        STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+}
+fn get_panel_state_sync_compiled_class_marker() -> Panel {
+    Panel::new(
+        "State Sync Compiled Class Marker",
+        "The first block number for which the state sync component does not have all of the \
+         corresponding compiled classes",
+        STATE_SYNC_COMPILED_CLASS_MARKER.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
 }
@@ -51,9 +69,11 @@ pub(crate) fn get_state_sync_row() -> Row {
         "State Sync",
         vec![
             get_panel_central_sync_central_block_marker(),
-            get_panel_state_sync_body_marker(),
             get_panel_state_sync_diff_from_central(),
             get_panel_state_sync_new_header_maturity(),
+            get_panel_state_sync_body_marker(),
+            get_panel_state_sync_class_manager_marker(),
+            get_panel_state_sync_compiled_class_marker(),
         ],
     )
 }
