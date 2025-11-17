@@ -294,6 +294,17 @@ pub(crate) fn finalize_block<S: StateReader>(
             .collect::<std::collections::HashSet<_>>()
     );
 
+    assert_eq!(
+        casm_hash_computation_data_sierra_gas
+            .class_hash_to_casm_hash_computation_gas
+            .keys()
+            .collect::<std::collections::HashSet<_>>(),
+        casm_hash_computation_data_sierra_gas
+            .class_hash_to_execution_count
+            .keys()
+            .collect::<std::collections::HashSet<_>>()
+    );
+
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
         compressed_state_diff,

@@ -403,14 +403,20 @@ fn sierra_contract_class() -> SierraContractClass {
     }
 }
 
-fn central_casm_hash_computation_data() -> CentralCasmHashComputationData {
+fn central_casm_hash_computation_data(
+    with_execution_count: bool,
+) -> CentralCasmHashComputationData {
     CentralCasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: HashMap::from([(
             declare_class_hash(),
             GasAmount(1),
         )]),
         gas_without_casm_hash_computation: GasAmount(3),
-        class_hash_to_execution_count: HashMap::new(),
+        class_hash_to_execution_count: if with_execution_count {
+            HashMap::from([(declare_class_hash(), 1)])
+        } else {
+            HashMap::new()
+        },
     }
 }
 
@@ -665,8 +671,8 @@ fn central_blob() -> AerospikeBlob {
         bouncer_weights: central_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
         execution_infos: vec![transaction_execution_info()],
-        casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
-        casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
+        casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(true),
+        casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(false),
         compiled_class_hashes_for_migration: central_compiled_class_hashes_for_migration(),
     };
 
@@ -971,7 +977,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
     CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH
 )]
 #[case::casm_hash_computation_data_sierra_gas(
-    central_casm_hash_computation_data(),
+    central_casm_hash_computation_data(true),
     CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH
 )]
 #[case::central_blob(central_blob(), CENTRAL_BLOB_JSON_PATH)]
