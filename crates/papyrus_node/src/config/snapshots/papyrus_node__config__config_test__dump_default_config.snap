@@ -435,6 +435,20 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "network.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "value": {
+      "$serde_json::private::Number": "15"
+    },
+    "privacy": "Public"
+  },
+  "network.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "value": {
+      "$serde_json::private::Number": "20"
+    },
+    "privacy": "Public"
+  },
   "network.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
     "value": {
