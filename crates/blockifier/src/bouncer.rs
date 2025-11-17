@@ -271,6 +271,12 @@ impl std::fmt::Display for BouncerWeights {
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub gas_without_casm_hash_computation: GasAmount,
+    /// Total number of times each class was executed.
+    /// Used for identifying frequently executed classes (e.g., for native compilation
+    /// whitelisting)
+    // TODO(AvivG): Make this field usable.
+    pub class_hash_to_execution_count: HashMap<ClassHash, usize>,
+
 }
 
 impl CasmHashComputationData {
@@ -283,8 +289,10 @@ impl CasmHashComputationData {
             .extend(other.class_hash_to_casm_hash_computation_gas);
         self.gas_without_casm_hash_computation = self
             .gas_without_casm_hash_computation
-            .checked_add_panic_on_overflow(other.gas_without_casm_hash_computation)
+            .checked_add_panic_on_overflow(other.gas_without_casm_hash_computation);
+        // TODO(AvivG):Address updating 'class_hash_to_execution_count' here.
     }
+
 
     /// Creates CasmHashComputationData by mapping resources to gas using a provided function.
     /// This method encapsulates the pattern used for both Sierra gas and proving gas computation.
@@ -305,6 +313,8 @@ impl CasmHashComputationData {
                 })
                 .collect(),
             gas_without_casm_hash_computation,
+            // TODO(AvivG):Address initializing 'class_hash_to_execution_count' properly here.
+            class_hash_to_execution_count: HashMap::new(),
         }
     }
 

@@ -410,6 +410,7 @@ fn central_casm_hash_computation_data() -> CentralCasmHashComputationData {
             GasAmount(1),
         )]),
         gas_without_casm_hash_computation: GasAmount(3),
+        class_hash_to_execution_count: HashMap::new(),
     }
 }
 
