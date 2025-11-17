@@ -344,6 +344,10 @@ impl<S: FlowTestState> TestManager<S> {
         self.per_block_transactions.iter().map(|block| block.len()).sum()
     }
 
+    pub(crate) fn n_blocks(&self) -> usize {
+        self.per_block_transactions.len()
+    }
+
     fn last_block_txs_mut(&mut self) -> &mut Vec<FlowTestTx> {
         self.per_block_transactions
             .last_mut()
