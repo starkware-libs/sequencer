@@ -104,6 +104,7 @@ use crate::special_contracts::{
     V1_BOUND_CAIRO1_CONTRACT_SIERRA,
 };
 use crate::test_manager::{
+    block_context_for_flow_tests,
     TestManager,
     TestParameters,
     FUNDED_ACCOUNT_ADDRESS,
@@ -2851,4 +2852,111 @@ async fn test_empty_multi_block() {
         })),
     );
     test_output.expect_hint_coverage("test_empty_multi_block");
+}
+
+/// Validates the migration flow for both declaring contract with casm hash v2, and migrating a
+/// contract that was already declared with casm hash v1. This test covers:
+/// 1. Declaring a contract with casm hash v2 and using it in the same block where it was declared.
+/// 2. Using a contract that was previously declared with casm hash v1 (a migration should be
+///    triggered in this case).
+/// 3. Using the migrated contract in a block after the migration.
+#[rstest]
+#[tokio::test]
+async fn test_compiled_class_hash_migration() {
+    let (mut test_manager, _) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([]).await;
+
+    // Declare two contracts, with V1 and V2 hashes.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract_sierra = test_contract.get_sierra();
+    let empty_contract_sierra = empty_contract.get_sierra();
+    let test_class_hash = test_contract_sierra.calculate_class_hash();
+    let empty_class_hash = empty_contract_sierra.calculate_class_hash();
+    let compiled_test_class_hash_v1 = test_contract.get_compiled_class_hash(&HashVersion::V1);
+    let compiled_empty_class_hash_v2 = empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let declare_tx_args_v1 = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: test_class_hash,
+        compiled_class_hash: compiled_test_class_hash_v1,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx_v1 = declare_tx(declare_tx_args_v1);
+    let class_info = get_class_info_of_feature_contract(test_contract);
+    let tx_v1 =
+        DeclareTransaction::create(account_declare_tx_v1, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx_v1, &test_contract_sierra);
+
+    // Move to the next block.
+    test_manager.move_to_next_block();
+
+    // Declare the contract with V2 hash.
+    let declare_tx_args_v2 = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: empty_class_hash,
+        compiled_class_hash: compiled_empty_class_hash_v2,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx_v2 = declare_tx(declare_tx_args_v2);
+    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let tx_v2 =
+        DeclareTransaction::create(account_declare_tx_v2, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    test_manager.add_cairo1_declare_tx(tx_v2, &empty_contract_sierra);
+
+    // Move to the next block.
+    test_manager.move_to_next_block();
+
+    // Deploy the contract with V2 hash.
+    let (deploy_tx_v2, _address_v2) = get_deploy_contract_tx_and_address_with_salt(
+        empty_class_hash,
+        calldata![],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        ContractAddressSalt(Felt::ZERO),
+    );
+    test_manager.add_invoke_tx(deploy_tx_v2, None);
+
+    // Deploy the V1 contract.
+    let (deploy_tx_v1, address_v1) = get_deploy_contract_tx_and_address_with_salt(
+        test_class_hash,
+        calldata![Felt::ONE, Felt::TWO],
+        test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        *NON_TRIVIAL_RESOURCE_BOUNDS,
+        ContractAddressSalt(Felt::ZERO),
+    );
+    test_manager.add_invoke_tx(deploy_tx_v1, None);
+
+    // Invoke some function on the V1 contract.
+    let calldata = create_calldata(address_v1, "return_result", &[Felt::from(3)]);
+    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Create custom block contexts for the two blocks.
+    assert_eq!(test_manager.n_blocks(), 3);
+    let first_block_number = test_manager.initial_state.next_block_number.0;
+    let use_kzg_da = true;
+    let block_contexts = [0, 1, 2]
+        .iter()
+        .map(|i| {
+            let mut block_ctx = block_context_for_flow_tests(
+                BlockNumber(first_block_number + *i as u64),
+                use_kzg_da,
+            );
+            // Migration is enabled, and V1-declare should be enabled only for the first block.
+            block_ctx.versioned_constants.enable_casm_hash_migration = true;
+            block_ctx.versioned_constants.block_casm_hash_v1_declares = *i > 0;
+            block_ctx
+        })
+        .collect();
+
+    // Run the test and verify the storage changes.
+    let test_output = test_manager
+        .execute_test_with_block_contexts(
+            block_contexts,
+            &TestParameters { use_kzg_da, ..Default::default() },
+        )
+        .await;
+    test_output.perform_default_validations();
+    test_output.expect_hint_coverage("test_compiled_class_hash_migration");
 }
