@@ -14,25 +14,22 @@ use crate::commands::run_storage_benchmark_wrapper;
 
 #[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
 pub enum BenchmarkFlavor {
-    /// Constant 1000 state diffs per iteration.
-    #[value(alias("1k-diff"))]
-    Constant1KDiff,
-    /// Constant 4000 state diffs per iteration.
-    #[value(alias("4k-diff"))]
-    Constant4KDiff,
-    /// Periodic peaks of 1000 state diffs per iteration, with 200 diffs on non-peak iterations.
-    /// Peaks are 10 iterations every 500 iterations.
+    /// Constant number of updates per iteration.
+    #[value(alias("constant"))]
+    Constant,
+    /// Periodic peaks of a constant number of updates per peak iteration, with 20% of the number
+    /// of updates on non-peak iterations. Peaks are 10 iterations every 500 iterations.
     #[value(alias("peaks"))]
     PeriodicPeaks,
     /// Constant number of state diffs per iteration, with 20% new leaves per iteration. The other
     /// 80% leaf updates are sampled randomly from recent leaf updates.
-    /// For the first blocks, behaves just like [Self::Constant1KDiff] ("warmup" phase).
-    #[value(alias("overlap-1k-diff"))]
-    Overlap1KDiff,
-    /// Constant 1000 state diffs per iteration, where block N generates updates for leaf keys
-    /// [N * 1000, (N + 1) * 1000).
-    #[value(alias("continuous-1k-diff"))]
-    Continuous1KDiff,
+    /// For the first blocks, behaves just like [Self::Constant] ("warmup" phase).
+    #[value(alias("overlap"))]
+    Overlap,
+    /// Constant number of updates per iteration, where block N generates updates for leaf keys
+    /// [N * C, (N + 1) * C).
+    #[value(alias("continuous"))]
+    Continuous,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
@@ -114,6 +111,11 @@ pub struct GlobalArgs {
     /// Benchmark flavor determines the size and structure of the generated state diffs.
     #[clap(long, default_value = "1k-diff")]
     pub flavor: BenchmarkFlavor,
+
+    /// Number of updates per iteration, where applicable. Different flavors treat this value
+    /// differently, see [BenchmarkFlavor] for more details.
+    #[clap(long, default_value = "1000")]
+    pub n_updates: usize,
 
     /// If not none, wraps the storage in the key-shrinking storage of the given size.
     #[clap(long, default_value = None)]
