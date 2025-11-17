@@ -452,7 +452,7 @@ fn test_bouncer_try_update_n_txs(
             ),
             n_txs: 20,
             proving_gas: GasAmount(
-                527194,
+                527266,
             ),
         }
     "#
@@ -780,7 +780,7 @@ fn class_hash_migration_data_from_state(
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
-            217796820
+            218272460
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

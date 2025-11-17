@@ -67,7 +67,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
-    "value": 360
+    "value": 358
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
     "description": "Bitwise gas weight.",
@@ -92,12 +92,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
     "description": "Mul_mod gas weight.",
     "privacy": "Public",
-    "value": 604
+    "value": 358
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 5722
+    "value": 5723
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
     "description": "Poseidon gas weight.",
@@ -107,12 +107,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
     "description": "Range_check gas weight.",
     "privacy": "Public",
-    "value": 70
+    "value": 90
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": {
     "description": "range_check96 gas weight.",
     "privacy": "Public",
-    "value": 56
+    "value": 179
   },
   "batcher_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
