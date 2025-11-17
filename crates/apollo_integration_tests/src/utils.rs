@@ -54,6 +54,7 @@ use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
+use apollo_storage::db::DbConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
@@ -359,7 +360,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     timeouts: timeouts.clone(),
                     ..Default::default()
                 },
-                static_config: ConsensusStaticConfig {
+                static_config: ConsensusStaticConfig {  
+                    storage_config: StorageConfig { db_config: DbConfig{
+                        path_prefix: "/data/consensus".into(),
+                        enforce_file_exists: false,
+                        ..Default::default()
+                    },
+                    ..Default::default() },
                     // TODO(Matan, Dan): Set the right amount
                     startup_delay: Duration::from_secs(15),
                 },
