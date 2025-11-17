@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
+use apollo_infra_utils::debug_every_n_sec;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
@@ -183,6 +184,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
+    last_voted_height_at_initialization: Option<BlockNumber>,
     // The reason for this Arc<Mutex> we cannot share this instance mutably  with
     // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
     // rust limitations.
@@ -198,11 +200,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         quorum_type: QuorumType,
         voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     ) -> Self {
+        let last_voted_height_at_initialization = voted_height_storage
+            .lock()
+            .expect("Lock should never be poisoned")
+            .get_prev_voted_height()
+            .expect("Failed to get previous voted height from storage");
         Self {
             consensus_config,
             quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
+            last_voted_height_at_initialization,
             voted_height_storage,
         }
     }
@@ -273,6 +281,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    /// Continiously attempts to sync to the given height and waits until it succeeds.
+    async fn wait_until_sync_reaches_height(
+        &mut self,
+        height: BlockNumber,
+        context: &mut ContextT,
+    ) {
+        loop {
+            if context.try_sync(height).await {
+                debug!("Synced to {height}");
+                break;
+            }
+            tokio::time::sleep(self.consensus_config.dynamic_config.sync_retry_interval).await;
+            debug_every_n_sec!(1, "Retrying sync to {height}");
+            trace!("Retrying sync to {height}");
+        }
+    }
+
     async fn run_height_inner(
         &mut self,
         context: &mut ContextT,
@@ -283,7 +308,20 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ) -> Result<RunHeightRes, ConsensusError> {
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.report_max_cached_block_number_metric(height);
-        if context.try_sync(height).await {
+
+        // If we already voted for this height, do not proceed until we sync to this height.
+        // Otherwise, just check if we can sync to this height, immediately. If not, proceed with
+        // consensus.
+        if self
+            .last_voted_height_at_initialization
+            .is_some_and(|last_voted_height| last_voted_height <= height)
+        {
+            info!(
+                "{height} is less than the last voted height at initialization. Waiting for sync."
+            );
+            self.wait_until_sync_reaches_height(height, context).await;
+            return Ok(RunHeightRes::Sync);
+        } else if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
         }
 
