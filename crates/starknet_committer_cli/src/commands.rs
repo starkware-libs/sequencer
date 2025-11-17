@@ -36,6 +36,8 @@ pub type InputImpl = Input<ConfigImpl>;
 const FLAVOR_1K_N_UPDATES: usize = 1000;
 const FLAVOR_4K_N_UPDATES: usize = 4000;
 
+const FLAVOR_CONTINUOUS_1K_N_UPDATES: usize = 1000;
+
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_MANY_UPDATES: usize = 1000;
 const FLAVOR_PERIOD_FEW_UPDATES: usize = 200;
@@ -70,6 +72,7 @@ impl BenchmarkFlavor {
         match self {
             Self::Constant1KDiff => block_number * FLAVOR_1K_N_UPDATES,
             Self::Constant4KDiff => block_number * FLAVOR_4K_N_UPDATES,
+            Self::Continuous1KDiff => block_number * FLAVOR_CONTINUOUS_1K_N_UPDATES,
             Self::Overlap1KDiff => {
                 if block_number < FLAVOR_OVERLAP_WARMUP_BLOCKS {
                     block_number * FLAVOR_OVERLAP_N_UPDATES
@@ -100,10 +103,7 @@ impl BenchmarkFlavor {
         }
     }
 
-    /// Returns the preimages of the leaves that are updated in the given block.
-    /// Invariant: if there are a total of L leaves in the DB, then the nonzero keys are
-    /// [hash(i) for i in 0..L]. This means that the existing leaf preimages [0, L] are uniquely
-    /// determined by the block number.
+    /// Returns the keys of the leaves that are updated in the given block.
     /// Depending on the flavor, some of the leaves to be updated are chosen randomly from the
     /// previous leaves, but all new leaf indices are deterministic.
     fn leaf_update_keys(&self, block_number: usize, rng: &mut SmallRng) -> Vec<StarknetStorageKey> {
@@ -115,6 +115,12 @@ impl BenchmarkFlavor {
             Self::Constant4KDiff => {
                 leaf_preimages_to_storage_keys(total_leaves..(total_leaves + FLAVOR_4K_N_UPDATES))
             }
+            Self::Continuous1KDiff => (total_leaves
+                ..(total_leaves + FLAVOR_CONTINUOUS_1K_N_UPDATES))
+                .map(|i| {
+                    StarknetStorageKey(StorageKey(PatriciaKey::try_from(Felt::from(i)).unwrap()))
+                })
+                .collect(),
             Self::Overlap1KDiff => {
                 // Invariant: if there are a total of L leaves in the DB, then the nonzero keys are
                 // [hash(i) for i in 0..L].
