@@ -126,16 +126,6 @@ fn get_panel_consensus_round_above_zero() -> Panel {
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 
-pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
-    Panel::new(
-        "Average Block Time",
-        "Average block time (1m window)",
-        format!("1 / rate({}[1m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
-        PanelType::TimeSeries,
-    )
-    .with_unit(Unit::Seconds)
-}
-
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::new(
         "Decisions Reached By Consensus",
@@ -462,7 +452,6 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
             get_panel_consensus_round_advanced(),
-            get_panel_consensus_block_time_avg(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_consensus_decisions_reached_as_proposer(),
