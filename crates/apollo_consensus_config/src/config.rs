@@ -12,6 +12,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -37,6 +38,17 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
+<<<<<<< HEAD
+=======
+    /// How many heights in the future should we cache.
+    pub future_height_limit: u32,
+    /// How many rounds in the future (for current height) should we cache.
+    pub future_round_limit: u32,
+    /// How many rounds should we cache for future heights.
+    pub future_height_round_limit: u32,
+    /// Config for the storage used to write/read consensus state.
+    pub storage_config: StorageConfig,
+>>>>>>> ae4c7d740 (apollo_consensus_config: add config for the consensus storage)
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -72,12 +84,43 @@ impl SerializeConfig for ConsensusDynamicConfig {
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+<<<<<<< HEAD
         BTreeMap::from_iter([ser_param(
             "startup_delay",
             &self.startup_delay.as_secs(),
             "Delay (seconds) before starting consensus to give time for network peering.",
             ParamPrivacyInput::Public,
         )])
+=======
+        let mut config = BTreeMap::from_iter([
+            ser_param(
+                "startup_delay",
+                &self.startup_delay.as_secs(),
+                "Delay (seconds) before starting consensus to give time for network peering.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "future_height_limit",
+                &self.future_height_limit,
+                "How many heights in the future should we cache.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "future_round_limit",
+                &self.future_round_limit,
+                "How many rounds in the future (for current height) should we cache.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "future_height_round_limit",
+                &self.future_height_round_limit,
+                "How many rounds should we cache for future heights.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config
+>>>>>>> ae4c7d740 (apollo_consensus_config: add config for the consensus storage)
     }
 }
 
@@ -103,7 +146,25 @@ impl Default for ConsensusDynamicConfig {
 
 impl Default for ConsensusStaticConfig {
     fn default() -> Self {
+<<<<<<< HEAD
         Self { startup_delay: Duration::from_secs(5) }
+=======
+        Self {
+            startup_delay: Duration::from_secs(5),
+            future_height_limit: 10,
+            future_round_limit: 10,
+            future_height_round_limit: 1,
+            storage_config: StorageConfig {
+                db_config: apollo_storage::db::DbConfig {
+                    path_prefix: "/data/consensus".into(),
+                    enforce_file_exists: false,
+                    ..Default::default()
+                },
+                scope: apollo_storage::StorageScope::StateOnly,
+                ..Default::default()
+            },
+        }
+>>>>>>> ae4c7d740 (apollo_consensus_config: add config for the consensus storage)
     }
 }
 
