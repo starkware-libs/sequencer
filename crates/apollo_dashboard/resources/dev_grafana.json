@@ -432,19 +432,10 @@
       "panels": [
         {
           "title": "Central Block Marker",
-          "description": "The first block that Central Starknet hasn't seen yet",
+          "description": "The first block number that doesn't exist yet",
           "type": "stat",
           "exprs": [
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "State Sync Body Marker",
-          "description": "The first block number for which the state sync component does not have a body",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
           ],
           "extra_params": {}
         },
@@ -467,6 +458,33 @@
           "extra_params": {
             "unit": "s"
           }
+        },
+        {
+          "title": "State Sync Body Marker",
+          "description": "The first block number for which the state sync component does not have a body",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "State Sync Class Manager Marker",
+          "description": "The first block number for which the state sync component does not have a class",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "State Sync Compiled Class Marker",
+          "description": "The first block number for which the state sync component does not have all of the corresponding compiled classes",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_compiled_class_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
