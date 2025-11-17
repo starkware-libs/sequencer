@@ -462,7 +462,6 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_block_number(),
             get_panel_consensus_round(),
             get_panel_consensus_round_advanced(),
-            get_panel_consensus_block_time_avg(),
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_consensus_decisions_reached_as_proposer(),

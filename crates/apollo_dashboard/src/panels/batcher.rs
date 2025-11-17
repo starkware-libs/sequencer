@@ -15,6 +15,7 @@ use apollo_consensus_orchestrator::metrics::{
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::panels::consensus::get_panel_consensus_block_time_avg;
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 fn get_panel_validator_wasted_txs() -> Panel {
@@ -128,6 +129,7 @@ pub(crate) fn get_batcher_row() -> Row {
         "Batcher",
         vec![
             get_panel_storage_height(),
+            get_panel_consensus_block_time_avg(),
             get_panel_batched_transactions_rate(),
             get_panel_proposer_deferred_txs(),
             get_panel_validator_wasted_txs(),
