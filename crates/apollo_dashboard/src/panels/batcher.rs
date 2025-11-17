@@ -8,6 +8,7 @@ use apollo_batcher::metrics::{
     STORAGE_HEIGHT,
     VALIDATOR_WASTED_TXS,
 };
+use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
 use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
@@ -16,6 +17,16 @@ use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
+
+pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
+    Panel::new(
+        "Average Block Time",
+        "Average block time (1m window)",
+        format!("1 / rate({}[1m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
+}
 
 fn get_panel_validator_wasted_txs() -> Panel {
     Panel::new(
@@ -128,6 +139,7 @@ pub(crate) fn get_batcher_row() -> Row {
         "Batcher",
         vec![
             get_panel_storage_height(),
+            get_panel_consensus_block_time_avg(),
             get_panel_batched_transactions_rate(),
             get_panel_proposer_deferred_txs(),
             get_panel_validator_wasted_txs(),
