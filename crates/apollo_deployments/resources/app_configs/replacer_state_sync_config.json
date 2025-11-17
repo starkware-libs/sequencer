@@ -28,6 +28,8 @@
   "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": 1,
   "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
   "state_sync_config.network_config.port": "$$$_STATE_SYNC_CONFIG-NETWORK_CONFIG-PORT_$$$",
+  "state_sync_config.network_config.prune_dead_connections_interval": 15,
+  "state_sync_config.network_config.prune_dead_connections_timeout": 20,
   "state_sync_config.network_config.reported_peer_ids_buffer_size": 100000,
   "state_sync_config.network_config.session_timeout": 120,
   "state_sync_config.p2p_sync_client_config.buffer_size": 100000,

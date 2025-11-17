@@ -710,6 +710,8 @@ impl NetworkManager {
             peer_manager_config,
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
+            prune_dead_connections_interval,
+            prune_dead_connections_timeout,
         } = config;
 
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
@@ -737,7 +739,9 @@ impl NetworkManager {
                 key.clone(),
                 bootstrap_peer_multiaddr,
                 chain_id,
-                node_version
+                node_version,
+                prune_dead_connections_interval,
+                prune_dead_connections_timeout,
             ))
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))

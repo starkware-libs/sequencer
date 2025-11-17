@@ -15,6 +15,7 @@ use super::{Behaviour, DiscoveryConfig};
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::{BridgedBehaviour, MixedBehaviour};
 use crate::peer_manager::PeerManagerConfig;
+use crate::prune_dead_connections::{DEFAULT_INTERVAL, DEFAULT_TIMEOUT};
 use crate::utils::StreamMap;
 
 #[derive(NetworkBehaviour)]
@@ -35,6 +36,8 @@ impl DiscoveryMixedBehaviour {
             bootstrap_peer_multiaddr,
             ChainId::Mainnet,
             None,
+            DEFAULT_INTERVAL,
+            DEFAULT_TIMEOUT,
         );
         Self {
             identify: mixed_behaviour.identify,

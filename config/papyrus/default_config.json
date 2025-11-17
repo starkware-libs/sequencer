@@ -359,6 +359,16 @@
     "privacy": "Public",
     "value": 10000
   },
+  "network.prune_dead_connections_interval": {
+    "description": "The interval in seconds between each prune dead connections check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "network.prune_dead_connections_timeout": {
+    "description": "The timeout in seconds for a connection to be considered dead.",
+    "privacy": "Public",
+    "value": 20
+  },
   "network.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
     "privacy": "Public",
