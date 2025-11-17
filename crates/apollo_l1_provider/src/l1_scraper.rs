@@ -1,4 +1,5 @@
 use std::any::type_name;
+use std::future::Future;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
@@ -35,22 +36,22 @@ type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 // Sensible lower bound.
 const L1_BLOCK_TIME: u64 = 10;
 
-pub struct L1Scraper<B: BaseLayerContract> {
+pub struct L1Scraper<BaseLayerType: BaseLayerContract> {
     pub config: L1ScraperConfig,
-    pub base_layer: B,
+    pub base_layer: BaseLayerType,
     pub scrape_from_this_l1_block: Option<L1BlockReference>,
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
     pub clock: Arc<dyn Clock>,
 }
 
-impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync> L1Scraper<BaseLayerType> {
     pub async fn new(
         config: L1ScraperConfig,
         l1_provider_client: SharedL1ProviderClient,
-        base_layer: B,
+        base_layer: BaseLayerType,
         events_identifiers_to_track: &[EventIdentifier],
-    ) -> L1ScraperResult<Self, B> {
+    ) -> L1ScraperResult<Self, BaseLayerType> {
         Ok(Self {
             l1_provider_client,
             base_layer,
@@ -63,7 +64,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
     /// Use config.startup_rewind_time_seconds to estimate an L1 block number
     /// that is far enough back to start scraping from.
-    pub async fn fetch_start_block(&self) -> Result<L1BlockReference, L1ScraperError<B>> {
+    pub async fn fetch_start_block(
+        &self,
+    ) -> Result<L1BlockReference, L1ScraperError<BaseLayerType>> {
         let finality = self.config.finality;
         let latest_l1_block_number = self
             .base_layer
@@ -100,7 +103,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     /// Get the last historic L2 height that was proved before the start block number.
-    async fn get_last_historic_l2_height(&self) -> L1ScraperResult<BlockNumber, B> {
+    async fn get_last_historic_l2_height(&self) -> L1ScraperResult<BlockNumber, BaseLayerType> {
         let Some(start_block) = self.scrape_from_this_l1_block else {
             panic!(
                 "Should never get last historic L2 height without first getting the last \
@@ -126,7 +129,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     /// block. The provider will return an error if it was already initialized (e.g., if the scraper
     /// was restarted).
     #[instrument(skip(self), err)]
-    async fn initialize(&mut self, last_historic_l2_height: BlockNumber) -> L1ScraperResult<(), B> {
+    async fn initialize(
+        &self,
+        historic_l2_height: BlockNumber,
+    ) -> L1ScraperResult<L1BlockReference, BaseLayerType> {
         let (latest_l1_block, events) = self.fetch_events().await?;
 
         debug!("Latest L1 block for initialize: {latest_l1_block:?}");
@@ -134,17 +140,14 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         // If this gets too high, send in batches.
         let initialize_result =
-            self.l1_provider_client.initialize(last_historic_l2_height, events).await;
+            self.l1_provider_client.initialize(historic_l2_height, events).await;
         handle_client_error(initialize_result)?;
 
-        // Successfully scraped events up to latest l1 block.
-        self.scrape_from_this_l1_block = Some(latest_l1_block);
-
-        Ok(())
+        Ok(latest_l1_block)
     }
 
     /// Scrape recent events and send them to the L1 provider.
-    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
+    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), BaseLayerType> {
         if self.scrape_from_this_l1_block.is_none() {
             panic!(
                 "Scraper initialization was skipped. Must provide a value for \
@@ -172,7 +175,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     /// Query the L1 base layer for all events since scrape_from_this_l1_block.
-    async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
+    async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), BaseLayerType> {
         let scrape_timestamp = self.clock.unix_now();
 
         let latest_l1_block = self
@@ -263,65 +266,61 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok((latest_l1_block, events))
     }
 
-    async fn sleep_for_base_layer_error(
+    /// Retry the given function if it gets base layer errors. Returns the result of the function in
+    /// case of success or the error in case of failure.
+    async fn retry_until_base_layer_success<T, FuncType, Fut>(
         &self,
+        func: FuncType,
         description: &str,
-        e: L1ScraperError<B>,
-    ) -> L1ScraperResult<(), B> {
-        match &e {
-            L1ScraperError::BaseLayerError(_) => {
-                warn!("Error while {description}: {e}");
-                L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                // TODO(guyn): do we want a different interval here? Maybe doesn't really matter.
-                sleep(self.config.polling_interval_seconds).await;
-                Ok(())
+    ) -> L1ScraperResult<T, BaseLayerType>
+    where
+        FuncType: Fn(&Self) -> Fut,
+        Fut: Future<Output = L1ScraperResult<T, BaseLayerType>>,
+    {
+        loop {
+            match func(self).await {
+                Err(L1ScraperError::BaseLayerError(e)) => {
+                    warn!("Error while {description}: {e}");
+                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                    // TODO(guyn): consider using a different interval here? Maybe doesn't really
+                    // matter.
+                    sleep(self.config.polling_interval_seconds).await;
+                    continue;
+                }
+                // Return a non-base layer error or success.
+                e => return e,
             }
-            _ => Err(e),
         }
     }
 
     #[instrument(skip(self), err)]
-    pub async fn run(&mut self) -> L1ScraperResult<(), B> {
-        // This is the startup loop, getting start blocks (on L1 and L2) and sending the first batch
-        // of scraped events to the provider.
-        loop {
-            match self.fetch_start_block().await {
-                Ok(start_block) => {
-                    // We didn't scrape anything up to this block, but it is far enough in the past
-                    // that we can ignore events up to this block (inclusive).
-                    self.scrape_from_this_l1_block = Some(start_block);
-                    debug!("Start block on L1 is: {start_block:?}");
-                }
-                Err(e) => {
-                    self.sleep_for_base_layer_error("fetching start block", e).await?;
-                    continue;
-                }
-            }
+    pub async fn run(&mut self) -> L1ScraperResult<(), BaseLayerType> {
+        // Try to get all the information needed for initialization.
+        self.scrape_from_this_l1_block = Some(
+            self.retry_until_base_layer_success(
+                |_| self.fetch_start_block(),
+                "fetching start block",
+            )
+            .await?,
+        );
 
-            // TODO(guyn): add an override in case the chain does not have any proved blocks yet.
-            let last_historic_l2_height = match self.get_last_historic_l2_height().await {
-                Ok(height) => {
-                    debug!("Last historic L2 height is: {height}");
-                    height
-                }
-                Err(e) => {
-                    self.sleep_for_base_layer_error("fetching last historic L2 height", e).await?;
-                    continue;
-                }
-            };
+        // The last historic L2 height is returned, to be using in initialization.
+        let historic_l2_height = self
+            .retry_until_base_layer_success(
+                |_| self.get_last_historic_l2_height(),
+                "fetching last historic L2 height",
+            )
+            .await?;
 
-            // Initialize fetches events from start block up to latest, sends them to the provider.
-            // TODO(guyn): the next comment will be implemented in one of the next PRs:
-            // It also sends the provider the start l1 block number, to allow it to find the l2
-            // block height to start sync from.
-            match self.initialize(last_historic_l2_height).await {
-                Err(e) => {
-                    self.sleep_for_base_layer_error("initializing", e).await?;
-                    continue;
-                }
-                Ok(_) => break,
-            };
-        }
+        // Initialize fetches events from start block up to latest, sends them to the provider.
+        // Update the L1 block number we need to scrape from.
+        self.scrape_from_this_l1_block = Some(
+            self.retry_until_base_layer_success(
+                |_| self.initialize(historic_l2_height),
+                "initializing",
+            )
+            .await?,
+        );
 
         // This is the main (steady state) loop.
         loop {
@@ -344,7 +343,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     /// Fetch scrape_from_this_l1_block again, check it still exists and that its hash is the same.
     /// If a reorg occurred up to this block, return an error (existing data in the provider is
     /// stale).
-    async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
+    async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), BaseLayerType> {
         let Some(scrape_from_this_l1_block) = self.scrape_from_this_l1_block else {
             panic!(
                 "Should never assert no l1 reorgs without first getting the last processed L1 \
@@ -387,7 +386,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 }
 
 #[async_trait]
-impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<BaseLayerType> {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
         register_scraper_metrics();
@@ -396,9 +395,9 @@ impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
 }
 
 #[derive(Error, Debug)]
-pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
+pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
-    BaseLayerError(T::Error),
+    BaseLayerError(BaseLayerType::Error),
     #[error(
         "Could not find block number. Finality {finality:?}, latest block: \
          {latest_l1_block_no_finality:?}"
@@ -417,7 +416,7 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     NeedsRestart,
 }
 
-impl<B: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<B> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<BaseLayerType> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::BaseLayerError(e1), Self::BaseLayerError(e2)) => e1 == e2,
@@ -436,10 +435,13 @@ impl<B: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<B> {
 }
 
 // TODO(guyn): get rid of finality_too_high, use a better error.
-impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync> L1ScraperError<BaseLayerType> {
     /// Pass any base layer errors. In the rare case that the finality is bigger than the latest L1
     /// block number, return FinalityTooHigh.
-    pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
+    pub async fn finality_too_high(
+        finality: u64,
+        base_layer: &BaseLayerType,
+    ) -> L1ScraperError<BaseLayerType> {
         let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
 
         let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
@@ -451,9 +453,9 @@ impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
     }
 }
 
-fn handle_client_error<B: BaseLayerContract + Send + Sync>(
+fn handle_client_error<BaseLayerType: BaseLayerContract + Send + Sync>(
     client_result: Result<(), L1ProviderClientError>,
-) -> Result<(), L1ScraperError<B>> {
+) -> Result<(), L1ScraperError<BaseLayerType>> {
     let Err(error) = client_result else {
         return Ok(());
     };
