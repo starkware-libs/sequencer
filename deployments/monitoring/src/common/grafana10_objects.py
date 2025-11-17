@@ -31,6 +31,10 @@ empty_dashboard = {
     "weekStart": "",
 }
 
+POD_SUFFIX_OPTIONAL_RE = (
+    r"(?:-(?:[0-9]+|(?:[a-f0-9]{8,}|[a-z0-9]{5})(?:-[a-z0-9]{5})?))?"
+)
+
 templating_object = {
     "list": [
         {
@@ -50,7 +54,7 @@ templating_object = {
             "refresh": 1,
         },
         {
-            "allValue": "",
+            "allValue": ".*",
             "current": {"selected": True, "text": [], "value": []},
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
             "definition": "label_values(batcher_proposal_started,namespace)",
@@ -72,7 +76,7 @@ templating_object = {
             "type": "query",
         },
         {
-            "allValue": "",
+            "allValue": ".*",
             "current": {"selected": True, "text": [], "value": []},
             "datasource": {"type": "prometheus", "uid": "Prometheus"},
             "definition": "label_values(batcher_proposal_started,cluster)",
@@ -92,6 +96,39 @@ templating_object = {
             "skipUrlSync": False,
             "sort": 1,
             "type": "query",
+        },
+        {
+            "allValue": ".*",
+            "current": {"selected": True, "text": [], "value": []},
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "hide": 0,
+            "includeAll": True,
+            "multi": True,
+            "name": "pod_base",
+            "title": "Pod",
+            "label": "pod",
+            "options": [],
+            "query": {
+                "qryType": 1,
+                "query": 'query_result(sum by (clean_pod) (label_replace(up{namespace=~"${namespace:regex}"}, "clean_pod", "$1", "pod", "'
+                + r"^(?:sequencer-)?(.+?)(?:-(?:dep|stat).*)?"
+                + POD_SUFFIX_OPTIONAL_RE
+                + r"$"
+                + '")))',
+                "refId": "PrometheusVariableQueryEditor-VariableQuery",
+            },
+            "refresh": 1,
+            "regex": '.*clean_pod=\\"([^\\"]+)\\".*',
+            "skipUrlSync": False,
+            "sort": 1,
+            "type": "query",
+        },
+        {
+            "type": "constant",
+            "name": "pod",
+            "query": r"^(?:${pod_base:regex}|sequencer-(?:${pod_base:regex})-(?:dep|stat).*)"
+            + POD_SUFFIX_OPTIONAL_RE
+            + r"$",
         },
     ]
 }
