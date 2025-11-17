@@ -2,6 +2,7 @@ use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
+use apollo_monitoring_endpoint::monitoring_endpoint::HISTOGRAM_BUCKETS;
 
 use crate::alerts::{
     Alert,
@@ -140,13 +141,10 @@ fn get_high_empty_blocks_ratio_alert(
     time_window_seconds: u64,
 ) -> Alert {
     // Our histogram buckets are static and the smallest bucket is 0.001.
-    let zero_bucket = format!(
-        "{}, le=\"0.001\"}}",
-        NUM_TRANSACTION_IN_BLOCK
-            .get_name_with_filter()
-            .strip_suffix("}")
-            .expect("Metric name with filter should end with }")
-    );
+    let lowest_histogram_bucket_value = HISTOGRAM_BUCKETS[0];
+    let zero_bucket = NUM_TRANSACTION_IN_BLOCK.get_name_with_filer_and_additional_fields(&format!(
+        "le=\"{lowest_histogram_bucket_value}\""
+    ));
     let total_count = NUM_TRANSACTION_IN_BLOCK.get_name_count_with_filter();
 
     Alert::new(

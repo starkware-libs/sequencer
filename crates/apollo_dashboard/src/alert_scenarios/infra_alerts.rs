@@ -35,6 +35,7 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
 }
 
 pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
+    // TODO(Tsabary): avoid the direct suffix replacement here.
     // Adding a 'reason' label to the metric label filter for 'CrashLoopBackOf' failures.
     // This is done by replacing the trailing '}' with ', reason="CrashLoopBackOff"}'.
     let metric_label_filter_with_reason = format!(
