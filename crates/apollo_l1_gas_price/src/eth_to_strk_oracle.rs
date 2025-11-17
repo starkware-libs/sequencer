@@ -191,7 +191,8 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .checked_div(self.config.lag_interval_seconds)
             .expect("lag_interval_seconds should be non-zero");
 
-        let mut cache = self.cached_prices.lock().unwrap();
+        let mut cache: std::sync::MutexGuard<'_, LruCache<u64, u128>> =
+            self.cached_prices.lock().unwrap();
 
         if let Some(rate) = cache.get(&quantized_timestamp) {
             debug!("Cached conversion rate for timestamp {timestamp} is {rate}");
@@ -205,6 +206,16 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
         // If the query is not finished, return an error.
         if !handle.is_finished() {
             info!("Query not yet resolved: timestamp={timestamp}");
+            // If the previous quantized timestamp is in the cache, use it.
+            if let Some(rate) = cache.get(&(quantized_timestamp - 1)) {
+                info!(
+                    "Query not yet resolved: timestamp={timestamp}, using previous rate {rate} \
+                     from quantized timestamp={}",
+                    (quantized_timestamp - 1) * self.config.lag_interval_seconds
+                );
+                return Ok(*rate);
+            }
+            // If not, return a query not ready error.
             return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
         }
         let result = handle.now_or_never().expect("Handle must be finished if we got here");

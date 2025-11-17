@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use apollo_config::converters::UrlAndHeaders;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
@@ -65,6 +66,88 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         .await
         .expect("Should resolve immediately due to the cache");
     assert_eq!(rate1, rate2);
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
+    let expected_rate = 123456;
+    let expected_rate_hex = format!("0x{expected_rate:x}");
+    let different_rate_hex = format!("0x{:x}", expected_rate * 2);
+    let lag_interval_seconds = 60;
+
+    let timestamp1 = 1234567890;
+    let timestamp2 = timestamp1 + lag_interval_seconds;
+
+    let quantized_timestamp1 = (timestamp1 - lag_interval_seconds) / lag_interval_seconds;
+    let adjusted_timestamp1 = quantized_timestamp1 * lag_interval_seconds;
+    let quantized_timestamp2 = (timestamp2 - lag_interval_seconds) / lag_interval_seconds;
+    let adjusted_timestamp2 = quantized_timestamp2 * lag_interval_seconds;
+
+    let mut server = mockito::Server::new_async().await;
+
+    // Define a mock response for a GET request with a specific adjusted_timestamp in the path
+    let _m1 = server
+        .mock("GET", "/") // Match the base path only.
+        .match_query(mockito::Matcher::UrlEncoded("timestamp".into(), adjusted_timestamp1.to_string()))
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            json!({
+                "price": expected_rate_hex,
+                "decimals": 18
+            })
+            .to_string(),
+        )
+        .create();
+    // Second response (same matcher) returns a different value on the next call.
+    let _m2 = server
+        .mock("GET", "/")
+        .match_query(mockito::Matcher::UrlEncoded(
+            "timestamp".into(),
+            adjusted_timestamp2.to_string(),
+        ))
+        .with_header("Content-Type", "application/json")
+        .with_body(
+            json!({
+                "price": different_rate_hex,
+                "decimals": 18
+            })
+            .to_string(),
+        )
+        .create();
+
+    let url_and_headers = UrlAndHeaders {
+        url: Url::parse(&server.url()).unwrap(),
+        headers: BTreeMap::new(), // No additional headers needed for this test.
+    };
+    let url_header_list = Some(vec![url_and_headers]);
+    let config =
+        EthToStrkOracleConfig { url_header_list, lag_interval_seconds, ..Default::default() };
+    let client = EthToStrkOracleClient::new(config.clone());
+
+    // First request should fail because the cache is empty.
+    assert!(client.eth_to_fri_rate(timestamp1).await.is_err());
+    // Wait for the query to resolve.
+    while client.eth_to_fri_rate(timestamp1).await.is_err() {
+        tokio::task::yield_now().await; // Don't block the executor.
+    }
+    let rate1 = client.eth_to_fri_rate(timestamp1).await.unwrap();
+    assert_eq!(rate1, expected_rate);
+    // Second request should resolve immediately due to the cache.
+    let rate2 = client.eth_to_fri_rate(timestamp2).await.unwrap();
+    assert_eq!(rate2, expected_rate);
+
+    // Wait for the query to resolve, and the price to be updated.
+    for _ in 0..100 {
+        let current_rate = client.eth_to_fri_rate(timestamp2).await.unwrap();
+        if current_rate > expected_rate {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(1)).await;
+    }
+
+    // Third request should already successfully get the query from the server.
+    let rate3 = client.eth_to_fri_rate(timestamp2).await.unwrap();
+    assert_eq!(rate3, expected_rate * 2);
 }
 
 #[tokio::test]
