@@ -13,6 +13,7 @@ pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;
 mod peer_manager;
+mod prune_dead_connections;
 mod sqmr;
 #[cfg(test)]
 mod test_utils;
