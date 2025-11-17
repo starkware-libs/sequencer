@@ -36,7 +36,7 @@ spec:
         - name: BLOCKS_TO_SYNC
           value: "200000"
         - name: BATCH_SIZE
-          value: "100"
+          value: "1000"
         - name: PATH
           value: /app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         args:
