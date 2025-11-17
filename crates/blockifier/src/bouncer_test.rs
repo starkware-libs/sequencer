@@ -184,8 +184,7 @@ fn test_block_weights_has_room_n_txs(
         class_hash_to_casm_hash_computation_gas: HashMap::from([
         (class_hash!(0_u128), GasAmount(5))]),
         gas_without_casm_hash_computation: GasAmount(5),
-        // TODO(AvivG):test non default 'class_hash_to_execution_count'.
-        class_hash_to_execution_count: HashMap::new(),
+        class_hash_to_execution_count: HashMap::from([(class_hash!(0_u128), 1)]),
     },
     casm_hash_computation_data_proving_gas: CasmHashComputationData{class_hash_to_casm_hash_computation_gas: HashMap::from([
         (class_hash!(0_u128), GasAmount(5))]),
@@ -221,16 +220,20 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let class_hash_to_casm_hash_computation_gas_to_update =
         HashMap::from([(class_hash!(1_u128), GasAmount(1)), (class_hash!(2_u128), GasAmount(2))]);
 
+    // Class execution count of a single transaction.
+    let execution_counts_to_update: HashMap<ClassHash, usize> =
+        HashMap::from([(class_hash!(1_u128), 1), (class_hash!(2_u128), 1)]);
+
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update
             .clone(),
         gas_without_casm_hash_computation: GasAmount(6),
-        class_hash_to_execution_count: HashMap::new(),
+        class_hash_to_execution_count: execution_counts_to_update.clone(),
     };
     let casm_hash_computation_data_proving_gas = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
         gas_without_casm_hash_computation: GasAmount(6),
-        class_hash_to_execution_count: HashMap::new(),
+        class_hash_to_execution_count: execution_counts_to_update,
     };
     let class_hashes_to_migrate = HashMap::from([
         (class_hash!(2_u128), (CompiledClassHash(felt!(4_u128)), CompiledClassHash(felt!(3_u128)))),
