@@ -109,7 +109,7 @@ pub trait Config: Debug + Eq + PartialEq {
     fn logger_level(&self) -> LevelFilter;
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfigImpl {
     warn_on_trivial_modifications: bool,
     log_level: LevelFilter,
