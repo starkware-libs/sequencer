@@ -53,9 +53,9 @@ USER committer_benchmark
 ENTRYPOINT ["starknet_committer_cli", "storage-benchmark"]
 
 # Default args (can be overridden at run-time)
-CMD ["--n-iterations", "1000000", \
+CMD ["cached-rocksdb", \
+     "--n-iterations", "1000000", \
      "--flavor", "overlap-1k-diff", \
-     "--storage-type", "cached-rocksdb", \
      "--cache-size", "10000000", \
      "--checkpoint-interval", "1000", \
      "--log-level", "info", \
@@ -63,4 +63,5 @@ CMD ["--n-iterations", "1000000", \
      "--storage-path", "/mnt/data/storage", \
      "--output-dir", "/mnt/data/csvs", \
      "--checkpoint-dir", "/mnt/data/checkpoints", \
-     "--keep-history"]
+     "--keep-history", \
+     "--include-inner-stats"]

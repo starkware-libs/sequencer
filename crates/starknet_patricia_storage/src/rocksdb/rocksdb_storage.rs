@@ -8,12 +8,14 @@ use rust_rocksdb::{
     Cache,
     ColumnFamily,
     ColumnFamilyDescriptor,
+    DBCommon,
     Options,
     ReadOptions,
     SliceTransform,
     WriteBatch,
     WriteOptions,
     DB,
+    DEFAULT_COLUMN_FAMILY_NAME,
 };
 
 use super::RocksdbStorageStats;
@@ -54,6 +56,7 @@ const MAX_BACKGROUND_JOBS: i32 = 8;
 // Column familiy descriptors.
 pub const LATEST_TRIE_CF: &str = "latest_trie";
 pub const HISTORICAL_TRIES_CF: &str = "historical_tries";
+
 const TIMESTAMP_BYTE_SIZE: usize = 8;
 
 pub struct CfOptions {
@@ -104,6 +107,12 @@ impl Default for RocksDbOptions {
             }),
         );
 
+        // Jimmy historical options
+        historical_cf_options.set_write_buffer_size(WRITE_BUFFER_SIZE * 10);
+        historical_cf_options.set_use_direct_io_for_flush_and_compaction(true);
+        historical_cf_options.set_level_compaction_dynamic_level_bytes(true);
+        historical_cf_options.set_target_file_size_base(256 * 1024 * 1024);
+
         // Set write options.
         let mut write_options = WriteOptions::default();
 
@@ -152,8 +161,8 @@ fn get_historical_cf_block_options() -> (BlockBasedOptions, Cache) {
     block.set_block_cache(&cache);
 
     // With a single level, filter blocks become too large to sit in cache.
-    block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
-    block.set_partition_filters(true);
+    // block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
+    // block.set_partition_filters(true);
 
     block.set_block_size(DB_BLOCK_SIZE);
     block.set_cache_index_and_filter_blocks(false);
@@ -173,12 +182,13 @@ impl RocksDbOptions {
 }
 
 pub struct RocksDbStorage {
-    db: DB,
-    write_options: WriteOptions,
+    pub(crate) latest_db: DB,
+    pub(crate) history_db: DB,
+    pub(crate) write_options: WriteOptions,
     // Following fields are used for stats.
-    db_options: Options,
-    latest_cf_cache_handle: Cache,
-    historical_cf_cache_handle: Cache,
+    pub(crate) db_options: Options,
+    pub(crate) latest_cf_cache_handle: Cache,
+    pub(crate) historical_cf_cache_handle: Cache,
 }
 
 fn be_u64(bytes: &[u8]) -> u64 {
@@ -193,15 +203,29 @@ impl RocksDbStorage {
     }
 
     pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
-        let cf_descriptors = vec![
-            ColumnFamilyDescriptor::new(LATEST_TRIE_CF, options.latest_cf_options.options),
-            ColumnFamilyDescriptor::new(HISTORICAL_TRIES_CF, options.historical_cf_options.options),
-        ];
+        // let cf_descriptors = vec![
+        //     ColumnFamilyDescriptor::new(LATEST_TRIE_CF, options.latest_cf_options.options),
+        //     ColumnFamilyDescriptor::new(HISTORICAL_TRIES_CF,
+        // options.historical_cf_options.options), ];
 
-        let db = DB::open_cf_descriptors(&options.general_db_options, path, cf_descriptors)?;
+        let latest_path = path.join("latest");
+        let history_path = path.join("history");
+
+        let latest_db = DB::open(&options.latest_cf_options.options, &latest_path)?;
+
+        let history_cf_desc = ColumnFamilyDescriptor::new(
+            DEFAULT_COLUMN_FAMILY_NAME,
+            options.historical_cf_options.options.clone(),
+        );
+        let history_db = DB::open_cf_descriptors(
+            &options.historical_cf_options.options,
+            &history_path,
+            vec![history_cf_desc],
+        )?;
 
         Ok(Self {
-            db,
+            latest_db,
+            history_db,
             write_options: options.write_options,
             db_options: options.general_db_options,
             latest_cf_cache_handle: options.latest_cf_options.cache_handle,
@@ -211,15 +235,15 @@ impl RocksDbStorage {
 }
 
 trait RocksDbKey<'a> {
-    fn get_cf_handle(&self, storage: &'a RocksDbStorage) -> &'a ColumnFamily;
+    fn get_db(&self, storage: &'a RocksDbStorage) -> &'a DB;
     fn get_timestamp(&self) -> Option<u64>;
 }
 
 impl<'a> RocksDbKey<'a> for TrieKey {
-    fn get_cf_handle(&self, storage: &'a RocksDbStorage) -> &'a ColumnFamily {
+    fn get_db(&self, storage: &'a RocksDbStorage) -> &'a DB {
         match self {
-            TrieKey::LatestTrie(_) => storage.db.cf_handle(LATEST_TRIE_CF).unwrap(),
-            TrieKey::HistoricalTries(_, _) => storage.db.cf_handle(HISTORICAL_TRIES_CF).unwrap(),
+            TrieKey::LatestTrie(_) => &storage.latest_db,
+            TrieKey::HistoricalTries(_, _) => &storage.history_db,
         }
     }
 
@@ -235,7 +259,7 @@ impl Storage for RocksDbStorage {
     type Stats = RocksdbStorageStats;
 
     fn get(&mut self, key: &TrieKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let cf_handle = key.get_cf_handle(self);
+        let db = key.get_db(self);
         let timestamp = key.get_timestamp();
 
         let mut read_options = ReadOptions::default();
@@ -244,24 +268,23 @@ impl Storage for RocksDbStorage {
         }
 
         let raw_key: &DbKey = key.into();
-        Ok(self.db.get_cf_opt(&cf_handle, &raw_key.0, &read_options)?.map(DbValue))
+        Ok(db.get_opt(&raw_key.0, &read_options)?.map(DbValue))
     }
 
     fn set(&mut self, key: TrieKey, value: DbValue) -> PatriciaStorageResult<()> {
-        let cf_handle = key.get_cf_handle(self);
+        let db = key.get_db(self);
         let timestamp = key.get_timestamp();
         let raw_key: DbKey = key.into();
 
         if let Some(timestamp) = timestamp {
-            Ok(self.db.put_cf_with_ts_opt(
-                &cf_handle,
+            Ok(db.put_with_ts_opt(
                 &raw_key.0,
                 timestamp.to_be_bytes(),
                 &value.0,
                 &self.write_options,
             )?)
         } else {
-            Ok(self.db.put_cf_opt(&cf_handle, &raw_key.0, &value.0, &self.write_options)?)
+            Ok(db.put_opt(&raw_key.0, &value.0, &self.write_options)?)
         }
     }
 
@@ -275,20 +298,19 @@ impl Storage for RocksDbStorage {
             timestamps.all_equal_value().map_err(|_| PatriciaStorageError::MultipleTimestamps)?;
 
         let mut read_options = ReadOptions::default();
-        let cf_handle: &ColumnFamily = if let Some(timestamp) = timestamp {
+        let db: &DB = if let Some(timestamp) = timestamp {
             read_options.set_timestamp(timestamp.to_be_bytes());
-            self.db.cf_handle(HISTORICAL_TRIES_CF).unwrap()
+            &self.history_db
         } else {
-            self.db.cf_handle(LATEST_TRIE_CF).unwrap()
+            &self.latest_db
         };
 
         let raw_keys = keys.iter().map(|k| {
             let raw_key: &DbKey = (*k).into();
-            (cf_handle, &raw_key.0)
+            &raw_key.0
         });
-        let res = self
-            .db
-            .multi_get_cf_opt(raw_keys, &read_options)
+        let res = db
+            .multi_get_opt(raw_keys, &read_options)
             .into_iter()
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?;
@@ -304,46 +326,41 @@ impl Storage for RocksDbStorage {
         let timestamp =
             timestamps.all_equal_value().map_err(|_| PatriciaStorageError::MultipleTimestamps)?;
 
+        let db: &DB = if timestamp.is_some() { &self.history_db } else { &self.latest_db };
+
         let mut batch = WriteBatch::default();
         if let Some(timestamp) = timestamp {
-            let cf_handle = self.db.cf_handle(HISTORICAL_TRIES_CF).unwrap();
             for key in key_to_value.keys() {
                 let raw_key: &DbKey = key.into();
                 batch.put_cf_with_ts(
-                    &cf_handle,
+                    &db.cf_handle(DEFAULT_COLUMN_FAMILY_NAME).unwrap(),
                     &raw_key.0,
                     timestamp.to_be_bytes(),
                     &key_to_value[key].0,
                 );
             }
         } else {
-            let cf_handle = self.db.cf_handle(LATEST_TRIE_CF).unwrap();
             for key in key_to_value.keys() {
                 let raw_key: &DbKey = key.into();
-                batch.put_cf(&cf_handle, &raw_key.0, &key_to_value[key].0);
+                batch.put(&raw_key.0, &key_to_value[key].0);
             }
         }
 
-        Ok(self.db.write_opt(&batch, &self.write_options)?)
+        Ok(db.write_opt(&batch, &self.write_options)?)
     }
 
     fn delete(&mut self, key: &TrieKey) -> PatriciaStorageResult<()> {
-        let cf_handle = key.get_cf_handle(self);
+        let db = key.get_db(self);
         let timestamp = key.get_timestamp();
         if timestamp.is_some() {
             return Err(PatriciaStorageError::AttemptToModifyHistory);
         }
 
         let raw_key: &DbKey = key.into();
-        Ok(self.db.delete_cf(&cf_handle, &raw_key.0)?)
+        Ok(db.delete(&raw_key.0)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
-        Ok(RocksdbStorageStats::collect(
-            &self.db,
-            Some(self.get_db_options()),
-            &self.latest_cf_cache_handle,
-            &self.historical_cf_cache_handle,
-        ))
+        Ok(RocksdbStorageStats::collect(self))
     }
 }
