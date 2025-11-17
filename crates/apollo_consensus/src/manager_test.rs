@@ -17,6 +17,8 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
@@ -55,7 +57,10 @@ fn consensus_config() -> ConsensusConfig {
             sync_retry_interval: SYNC_RETRY_INTERVAL,
             future_msg_limit: FutureMsgLimitsConfig::default(),
         },
-        ConsensusStaticConfig { startup_delay: Duration::ZERO },
+        ConsensusStaticConfig {
+            startup_delay: Duration::ZERO,
+            storage_config: StorageConfig { db_config: DbConfig::default(), ..Default::default() },
+        },
     )
 }
 

@@ -12,6 +12,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -37,6 +38,8 @@ pub struct ConsensusStaticConfig {
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
+    /// Config for the storage used to write/read consensus state.
+    pub storage_config: StorageConfig,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -72,12 +75,14 @@ impl SerializeConfig for ConsensusDynamicConfig {
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
+        let mut config = BTreeMap::from_iter([ser_param(
             "startup_delay",
             &self.startup_delay.as_secs(),
             "Delay (seconds) before starting consensus to give time for network peering.",
             ParamPrivacyInput::Public,
-        )])
+        )]);
+        config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config
     }
 }
 
@@ -103,7 +108,18 @@ impl Default for ConsensusDynamicConfig {
 
 impl Default for ConsensusStaticConfig {
     fn default() -> Self {
-        Self { startup_delay: Duration::from_secs(5) }
+        Self {
+            startup_delay: Duration::from_secs(5),
+            storage_config: StorageConfig {
+                db_config: apollo_storage::db::DbConfig {
+                    path_prefix: "/data/consensus".into(),
+                    enforce_file_exists: false,
+                    ..Default::default()
+                },
+                scope: apollo_storage::StorageScope::StateOnly,
+                ..Default::default()
+            },
+        }
     }
 }
 
