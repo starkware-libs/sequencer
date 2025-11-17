@@ -29,6 +29,10 @@ pub enum BenchmarkFlavor {
     /// For the first blocks, behaves just like [Self::Constant1KDiff] ("warmup" phase).
     #[value(alias("overlap-1k-diff"))]
     Overlap1KDiff,
+    /// Constant 1000 state diffs per iteration, where block N generates updates for leaf keys
+    /// [N * 1000, (N + 1) * 1000).
+    #[value(alias("continuous-1k-diff"))]
+    Continuous1KDiff,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
