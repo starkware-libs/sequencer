@@ -265,15 +265,7 @@ impl ConsensusManager {
         current_height: BlockNumber,
     ) -> apollo_consensus::RunConsensusArguments {
         let observer_height = current_height;
-        let active_height = if self.config.immediate_active_height == observer_height {
-            // Setting `start_height` is only used to enable consensus starting immediately without
-            // observing the first height. This means consensus may return to a height
-            // it has already voted on, risking equivocation. This is only safe to do if we
-            // restart all nodes at this height.
-            observer_height
-        } else {
-            BlockNumber(observer_height.0 + 1)
-        };
+
         let quorum_type = if self.config.assume_no_malicious_validators {
             QuorumType::Honest
         } else {
@@ -282,7 +274,6 @@ impl ConsensusManager {
 
         apollo_consensus::RunConsensusArguments {
             consensus_config: self.config.consensus_manager_config.clone(),
-            start_active_height: active_height,
             start_observe_height: observer_height,
             quorum_type,
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
