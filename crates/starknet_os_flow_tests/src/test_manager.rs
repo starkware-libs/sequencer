@@ -37,6 +37,7 @@ use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::transaction::MessageToL1;
 use starknet_committer::block_committer::input::{IsSubset, StarknetStorageKey, StateDiff};
+use starknet_committer::db::forest_trait::FactsDb;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -616,13 +617,15 @@ impl<S: FlowTestState> TestManager<S> {
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
+            let mut db = FactsDb::new(map_storage);
             let new_state_roots = commit_state_diff(
-                &mut map_storage,
+                &mut db,
                 previous_state_roots.contracts_trie_root_hash,
                 previous_state_roots.classes_trie_root_hash,
                 committer_state_diff,
             )
             .await;
+            map_storage = db.consume_storage();
 
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
