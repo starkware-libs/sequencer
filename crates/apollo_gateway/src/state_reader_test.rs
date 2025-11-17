@@ -37,6 +37,7 @@ use starknet_api::block::{
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
@@ -63,6 +64,181 @@ fn state_reader_and_contract_manager(
         state_reader: Box::new(state_sync_reader),
         contract_class_manager: contract_class_manager.clone(),
         class_cache_metrics: mock_class_cache_metrics(),
+    }
+}
+
+struct GetCompiledClassTestScenario {
+    expectations: GetCompiledClassTestExpectation,
+
+    // Test result
+    expected_result: StateResult<RunnableCompiledClass>,
+}
+
+struct GetCompiledClassTestExpectation {
+    // Class manager client
+    get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    n_calls_to_get_executable: usize,
+    get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
+    n_calls_to_get_sierra: usize,
+
+    // State sync client
+    is_class_declared_at_result: Option<StateSyncClientResult<bool>>,
+    is_cairo_1_class_declared_ate_result: Option<StateSyncClientResult<bool>>,
+}
+
+fn add_expectation_to_mock_state_sync_client_and_mock_class_manager_client(
+    mock_class_manager_client: &mut MockClassManagerClient,
+    mock_state_sync_client: &mut MockStateSyncClient,
+    expectation: GetCompiledClassTestExpectation,
+) {
+    add_expectation_to_mock_class_manager_client(
+        mock_class_manager_client,
+        expectation.get_executable_result,
+        expectation.n_calls_to_get_executable,
+        expectation.get_sierra_result,
+        expectation.n_calls_to_get_sierra,
+    );
+    add_expectation_to_mock_state_sync_client(
+        mock_state_sync_client,
+        expectation.is_class_declared_at_result,
+        expectation.is_cairo_1_class_declared_ate_result,
+    );
+}
+
+fn add_expectation_to_mock_state_sync_client(
+    mock_state_sync_client: &mut MockStateSyncClient,
+    is_class_declared_at_result: Option<StateSyncClientResult<bool>>,
+    is_cairo_1_class_declared_ate_result: Option<StateSyncClientResult<bool>>,
+) {
+    if let Some(is_class_declared_at_result) = is_class_declared_at_result {
+        mock_state_sync_client
+            .expect_is_class_declared_at()
+            .times(1)
+            .return_once(move |_, _| is_class_declared_at_result);
+    }
+    if let Some(is_cairo_1_class_declared_ate_result) = is_cairo_1_class_declared_ate_result {
+        mock_state_sync_client
+            .expect_is_cairo_1_class_declared_at()
+            .times(1)
+            .return_once(move |_, _| is_cairo_1_class_declared_ate_result);
+    }
+}
+
+fn add_expectation_to_mock_class_manager_client(
+    mock_class_manager_client: &mut MockClassManagerClient,
+    get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    n_calls_to_get_executable: usize,
+    get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
+    n_calls_to_get_sierra: usize,
+) {
+    mock_class_manager_client
+        .expect_get_executable()
+        .times(n_calls_to_get_executable)
+        .return_once(move |_| get_executable_result);
+
+    mock_class_manager_client
+        .expect_get_sierra()
+        .times(n_calls_to_get_sierra)
+        .return_once(move |_| get_sierra_result);
+}
+
+// Factory functions for different scenarios
+fn cairo_1_declared_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+            n_calls_to_get_executable: 1,
+            get_sierra_result: Ok(Some(SierraContractClass::default())),
+            n_calls_to_get_sierra: 1,
+            is_class_declared_at_result: Some(Ok(true)),
+            is_cairo_1_class_declared_ate_result: None,
+        },
+        expected_result: Ok(DUMMY_COMPILED_CLASS.clone()),
+    }
+}
+
+fn cairo_0_declared_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(Some(DUMMY_CONTRACT_CLASS_V0.clone())),
+            n_calls_to_get_executable: 1,
+            get_sierra_result: Ok(None), // Cairo 0 doesn't use Sierra
+            n_calls_to_get_sierra: 0,
+            is_class_declared_at_result: Some(Ok(true)),
+            is_cairo_1_class_declared_ate_result: None,
+        },
+        expected_result: Ok(DUMMY_COMPILED_CLASS_V0.clone()),
+    }
+}
+
+fn not_declared_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(None), // Not called since not declared
+            n_calls_to_get_executable: 0,
+            get_sierra_result: Ok(None), // Not called since not declared
+            n_calls_to_get_sierra: 0,
+            is_class_declared_at_result: Some(Ok(false)),
+            is_cairo_1_class_declared_ate_result: None,
+        },
+        expected_result: Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
+    }
+}
+
+fn cached_cairo_1_declared_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(None), // Not called due to caching
+            n_calls_to_get_executable: 0,
+            get_sierra_result: Ok(None), // Not called due to caching
+            n_calls_to_get_sierra: 0,
+            is_class_declared_at_result: None, // Not called due to caching
+            is_cairo_1_class_declared_ate_result: Some(Ok(true)), // Verification call
+        },
+        expected_result: Ok(DUMMY_COMPILED_CLASS.clone()),
+    }
+}
+
+fn cached_cairo_0_declared_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(None), // Not called due to caching
+            n_calls_to_get_executable: 0,
+            get_sierra_result: Ok(None), // Not called due to caching
+            n_calls_to_get_sierra: 0,
+            is_class_declared_at_result: None, // Not called due to caching
+            is_cairo_1_class_declared_ate_result: None, // Not called for Cairo 0
+        },
+        expected_result: Ok(DUMMY_COMPILED_CLASS_V0.clone()),
+    }
+}
+
+fn cached_but_verification_failed_after_reorg_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(None), // Not called due to caching
+            n_calls_to_get_executable: 0,
+            get_sierra_result: Ok(None), // Not called due to caching
+            n_calls_to_get_sierra: 0,
+            is_class_declared_at_result: None, // Not called due to caching
+            is_cairo_1_class_declared_ate_result: Some(Ok(false)), // Verification fails
+        },
+        expected_result: Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
+    }
+}
+
+fn not_declared_but_in_manager_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(Some(DUMMY_CONTRACT_CLASS.clone())), /* In manager but not
+                                                                            * declared */
+            n_calls_to_get_executable: 0, // Not called since not declared
+            get_sierra_result: Ok(Some(SierraContractClass::default())),
+            n_calls_to_get_sierra: 0, // Not called since not declared
+            is_class_declared_at_result: Some(Ok(false)),
+            is_cairo_1_class_declared_ate_result: None,
+        },
+        expected_result: Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
     }
 }
 
@@ -250,8 +426,42 @@ fn dummy_casm_contract_class() -> CasmContractClass {
     }
 }
 
+fn dummy_deprecated_contract_class() -> DeprecatedContractClass {
+    DeprecatedContractClass {
+        abi: None,
+        program: Program {
+            attributes: serde_json::Value::Null,
+            builtins: serde_json::Value::Array(vec![]),
+            compiler_version: serde_json::Value::Null,
+            data: serde_json::Value::Array(vec![]),
+            debug_info: serde_json::Value::Null,
+            hints: serde_json::Value::Object(serde_json::Map::new()),
+            identifiers: serde_json::Value::Object(serde_json::Map::new()),
+            main_scope: serde_json::Value::String("__main__".to_string()),
+            prime: serde_json::Value::String(
+                "0x800000000000011000000000000000000000000000000000000000000000001".to_string(),
+            ),
+            reference_manager: serde_json::Value::Object({
+                let mut map = serde_json::Map::new();
+                map.insert("references".to_string(), serde_json::Value::Array(vec![]));
+                map
+            }),
+        },
+        entry_points_by_type: Default::default(),
+    }
+}
+
 lazy_static! {
     static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
+    static ref DUMMY_CONTRACT_CLASS: ContractClass =
+        ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default()));
+    static ref DUMMY_CONTRACT_CLASS_V0: ContractClass =
+        ContractClass::V0(dummy_deprecated_contract_class());
+    static ref DUMMY_COMPILED_CLASS: RunnableCompiledClass = RunnableCompiledClass::V1(
+        (dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap()
+    );
+    static ref DUMMY_COMPILED_CLASS_V0: RunnableCompiledClass =
+        RunnableCompiledClass::V0(dummy_deprecated_contract_class().try_into().unwrap());
 }
 
 fn assert_eq_state_result(
@@ -267,17 +477,26 @@ fn assert_eq_state_result(
     }
 }
 
-// TODO(Arni): add test for class is Cairo 0.
 #[rstest]
 #[case::class_declared(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+    1,
     Ok(Some(SierraContractClass::default())),
     1,
     Ok(true),
-    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
+    Ok(DUMMY_COMPILED_CLASS.clone()),
+)]
+#[case::cairo_0_class_declared(
+    Ok(Some(DUMMY_CONTRACT_CLASS_V0.clone())),
+    1,
+    Ok(None),
+    0,
+    Ok(true),
+    Ok(DUMMY_COMPILED_CLASS_V0.clone()),
 )]
 #[case::class_not_declared_but_in_class_manager(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+    0,
     Ok(Some(SierraContractClass::default())),
     0,
     Ok(false),
@@ -285,6 +504,7 @@ fn assert_eq_state_result(
 )]
 #[case::class_not_declared(
     Ok(None),
+    0,
     Ok(None),
     0,
     Ok(false),
@@ -298,8 +518,9 @@ fn assert_eq_state_result(
 /// behavior.
 async fn test_get_compiled_class(
     #[case] get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    #[case] n_calls_to_get_executable: usize,
     #[case] get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
-    #[case] n_calls_to_class_manager_client: usize,
+    #[case] n_calls_to_get_sierra: usize,
     #[case] is_class_declared_at_result: StateSyncClientResult<bool>,
     #[case] expected_result: StateResult<RunnableCompiledClass>,
 ) {
@@ -312,13 +533,13 @@ async fn test_get_compiled_class(
 
     mock_class_manager_client
         .expect_get_executable()
-        .times(n_calls_to_class_manager_client)
+        .times(n_calls_to_get_executable)
         .with(predicate::eq(class_hash))
         .return_once(move |_| get_executable_result);
 
     mock_class_manager_client
         .expect_get_sierra()
-        .times(n_calls_to_class_manager_client)
+        .times(n_calls_to_get_sierra)
         .with(predicate::eq(class_hash))
         .return_once(move |_| get_sierra_result);
 
@@ -351,6 +572,7 @@ async fn test_get_compiled_class(
 async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
     test_get_compiled_class(
         Ok(None),
+        1,
         Ok(None),
         1,
         Ok(true),
@@ -359,4 +581,87 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
     .await;
 }
 
-// TODO(Arni): Add tests that check the caching logic.
+#[rstest]
+#[case::cairo_0_declared_and_cached(
+    cairo_0_declared_scenario(),
+    cached_cairo_0_declared_scenario()
+)]
+#[case::cairo_1_declared_and_cached(
+    cairo_1_declared_scenario(),
+    cached_cairo_1_declared_scenario()
+)]
+#[case::cairo_1_declared_then_verification_failed_after_reorg(
+    cairo_1_declared_scenario(),
+    cached_but_verification_failed_after_reorg_scenario()
+)]
+#[case::not_declared_but_in_manager_then_declared(
+    not_declared_but_in_manager_scenario(),
+    cairo_1_declared_scenario()
+)]
+#[case::not_declared_then_declared(not_declared_scenario(), cairo_1_declared_scenario())]
+#[case::not_declared_both_rounds(not_declared_scenario(), not_declared_scenario())]
+#[tokio::test]
+async fn test_get_compiled_class_caching_scenarios(
+    #[case] first_scenario: GetCompiledClassTestScenario,
+    #[case] second_scenario: GetCompiledClassTestScenario,
+) {
+    let block_number = BlockNumber(1);
+    let class_hash = *DUMMY_CLASS_HASH;
+
+    let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mut mock_class_manager_client = MockClassManagerClient::new();
+    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
+
+    // Setup mocks for first execution
+    add_expectation_to_mock_state_sync_client_and_mock_class_manager_client(
+        &mut mock_class_manager_client,
+        &mut mock_state_sync_client,
+        first_scenario.expectations,
+    );
+
+    // Setup mocks for second execution
+    add_expectation_to_mock_state_sync_client_and_mock_class_manager_client(
+        &mut mock_class_manager_client,
+        &mut mock_state_sync_client,
+        second_scenario.expectations,
+    );
+
+    let shared_state_sync_client = Arc::new(mock_state_sync_client);
+    let shared_class_manager_client = Arc::new(mock_class_manager_client);
+
+    // First execution: block_number (BlockNumber(2))
+    let first_state_reader_and_class_manager = state_reader_and_contract_manager(
+        shared_state_sync_client.clone(),
+        shared_class_manager_client.clone(),
+        contract_class_manager.clone(),
+        block_number,
+        tokio::runtime::Handle::current(),
+    );
+
+    let first_result = tokio::task::spawn_blocking({
+        let state_reader = first_state_reader_and_class_manager;
+        move || state_reader.get_compiled_class(class_hash)
+    })
+    .await
+    .unwrap();
+
+    // Second execution: other_block_number (using same ContractClassManager for caching)
+    let second_state_reader_and_class_manager = state_reader_and_contract_manager(
+        shared_state_sync_client,
+        shared_class_manager_client,
+        contract_class_manager,
+        block_number,
+        tokio::runtime::Handle::current(),
+    );
+
+    let second_result = tokio::task::spawn_blocking({
+        let state_reader = second_state_reader_and_class_manager;
+        move || state_reader.get_compiled_class(class_hash)
+    })
+    .await
+    .unwrap();
+
+    // Verify results
+    assert_eq_state_result(&first_result, &first_scenario.expected_result);
+    assert_eq_state_result(&second_result, &second_scenario.expected_result);
+}
