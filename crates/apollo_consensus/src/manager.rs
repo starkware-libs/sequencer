@@ -10,6 +10,7 @@
 mod manager_test;
 
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusDynamicConfig};
@@ -35,6 +36,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
+use crate::storage::{get_voted_height_storage, HeightVotedStorage};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision};
 use crate::votes_threshold::QuorumType;
 
@@ -177,16 +179,35 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
+    // The reason for this Arc<Mutex> we cannot share this instance mutably  with
+    // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
+    // rust limitations.
+    voted_height_storage: Arc<Mutex<dyn HeightVotedStorage>>,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
     pub(crate) fn new(consensus_config: ConsensusConfig, quorum_type: QuorumType) -> Self {
+        let voted_height_storage =
+            get_voted_height_storage(consensus_config.static_config.storage.clone());
+        Self::new_with_storage(
+            consensus_config,
+            quorum_type,
+            Arc::new(Mutex::new(voted_height_storage)),
+        )
+    }
+
+    fn new_with_storage(
+        consensus_config: ConsensusConfig,
+        quorum_type: QuorumType,
+        voted_height_storage: Arc<Mutex<dyn HeightVotedStorage>>,
+    ) -> Self {
         Self {
             consensus_config,
             quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
+            voted_height_storage,
         }
     }
 
@@ -285,6 +306,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
+            self.voted_height_storage.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
 

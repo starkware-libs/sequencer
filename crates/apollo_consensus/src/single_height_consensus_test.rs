@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use futures::channel::{mpsc, oneshot};
@@ -10,6 +12,7 @@ use test_case::test_case;
 use super::SingleHeightConsensus;
 use crate::single_height_consensus::{ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
+use crate::storage::{HeightVotedStorage, HeightVotedStorageError};
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
@@ -72,6 +75,22 @@ async fn handle_proposal(
     shc.handle_proposal(context, *PROPOSAL_INIT, content_receiver).await.unwrap()
 }
 
+// TODO: Remove this, use a mock and test the behavior.
+#[derive(Debug)]
+struct TestHeightVotedStorage;
+
+impl HeightVotedStorage for TestHeightVotedStorage {
+    fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
+        Ok(None)
+    }
+    fn set_prev_voted_height(
+        &mut self,
+        _height: BlockNumber,
+    ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn proposer() {
     let mut context = MockTestContext::new();
@@ -83,6 +102,7 @@ async fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -159,6 +179,7 @@ async fn validator(repeat_proposal: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -231,6 +252,7 @@ async fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -297,6 +319,7 @@ async fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -353,6 +376,7 @@ async fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
