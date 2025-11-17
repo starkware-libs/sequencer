@@ -12,6 +12,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -41,6 +42,8 @@ pub struct ConsensusStaticConfig {
     pub future_round_limit: u32,
     /// How many rounds should we cache for future heights.
     pub future_height_round_limit: u32,
+    /// Config for the storage used to write/read consensus state.
+    pub storage_config: StorageConfig,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -75,7 +78,7 @@ impl SerializeConfig for ConsensusDynamicConfig {
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut config = BTreeMap::from_iter([
             ser_param(
                 "startup_delay",
                 &self.startup_delay.as_secs(),
@@ -100,7 +103,9 @@ impl SerializeConfig for ConsensusStaticConfig {
                 "How many rounds should we cache for future heights.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config
     }
 }
 
@@ -130,6 +135,15 @@ impl Default for ConsensusStaticConfig {
             future_height_limit: 10,
             future_round_limit: 10,
             future_height_round_limit: 1,
+            storage_config: StorageConfig {
+                db_config: apollo_storage::db::DbConfig {
+                    path_prefix: "/data/consensus".into(),
+                    enforce_file_exists: false,
+                    ..Default::default()
+                },
+                scope: apollo_storage::StorageScope::StateOnly,
+                ..Default::default()
+            },
         }
     }
 }
