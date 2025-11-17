@@ -344,4 +344,11 @@ impl ComponentConfigInService {
             .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/{name}.json"))
             .collect()
     }
+
+    pub fn get_replacer_component_config_file_paths(&self) -> Vec<String> {
+        self.get_component_config_names()
+            .into_iter()
+            .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/replacer_{name}.json"))
+            .collect()
+    }
 }

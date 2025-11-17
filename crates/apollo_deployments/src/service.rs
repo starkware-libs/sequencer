@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Display;
+use std::fs::{self, File};
+use std::io::Read;
 use std::iter::once;
 use std::net::{IpAddr, Ipv4Addr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
@@ -17,7 +19,7 @@ use apollo_node_config::component_execution_config::{
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -94,6 +96,7 @@ impl Service {
             .flat_map(|c| c.get_component_config_file_paths())
             .collect::<Vec<_>>();
         let config_paths = components_in_service
+            .clone()
             .into_iter()
             .chain(config_filenames.clone())
             .chain(once(node_service.get_service_file_path()))
@@ -104,8 +107,39 @@ impl Service {
         let replacer_components_in_service = node_service
             .get_components_in_service()
             .into_iter()
-            .flat_map(|c| c.get_component_config_file_paths())
+            .flat_map(|c| c.get_replacer_component_config_file_paths())
             .collect::<Vec<_>>();
+
+        // TODO(Tsabary): this is yet another hack -- read the original app config file, apply
+        // replacers, and dump.
+        for (src, dest) in components_in_service.iter().zip(replacer_components_in_service.iter()) {
+            let src_path = Path::new(src);
+            let dest_path = Path::new(dest);
+            fs::create_dir_all(dest_path.parent().unwrap()).unwrap(); // ensure directories exist
+
+            // Read the app config file
+            let mut contents = String::new();
+            File::open(src_path).unwrap().read_to_string(&mut contents).unwrap();
+
+            // Parse it as a json
+            let map: Map<String, Value> =
+                serde_json::from_str(&contents).expect("JSON should be an object");
+            let original_app_config = Value::Object(map);
+
+            // Create relevant replace predicates.
+            let replace_pred = |key: &str, value: &Value| {
+                key.ends_with(".port") && value.as_i64().map(|n| n != 0).unwrap_or(false)
+            };
+
+            // Perform replacement
+            let replacer_app_config =
+                insert_replacer_annotations(original_app_config, replace_pred);
+
+            // Dump to file
+            fs::write(dest_path, serde_json::to_string_pretty(&replacer_app_config).unwrap())
+                .unwrap();
+        }
+
         let replacer_config_filenames: Vec<String> =
             vec![deployment_replacer_file_path(), instance_replacer_file_path()];
         let replacer_config_paths: Vec<String> = replacer_components_in_service

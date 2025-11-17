@@ -1,0 +1,4 @@
+{
+  "base_layer_config.prague_blob_gas_calc": true,
+  "base_layer_config.timeout_millis": 1000
+}
