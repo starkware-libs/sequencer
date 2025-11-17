@@ -226,26 +226,30 @@ fn assert_eq_state_result(
 
 #[rstest]
 #[case::class_declared(
-    Some(Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default()))))),
+    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    1,
     Ok(true),
     Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
     *DUMMY_CLASS_HASH,
 )]
 #[case::class_not_declared_but_in_class_manager(
-    None,
+    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    0,
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
     *DUMMY_CLASS_HASH,
 )]
 #[case::class_not_declared(
-    None,
+    Ok(None),
+    0,
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
     *DUMMY_CLASS_HASH,
 )]
 #[tokio::test]
 async fn test_get_compiled_class(
-    #[case] class_manager_client_result: Option<ClassManagerClientResult<Option<ExecutableClass>>>,
+    #[case] class_manager_client_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    #[case] n_calls_to_class_manager_client: usize,
     #[case] sync_client_result: StateSyncClientResult<bool>,
     #[case] expected_result: StateResult<RunnableCompiledClass>,
     #[case] class_hash: ClassHash,
@@ -255,13 +259,11 @@ async fn test_get_compiled_class(
 
     let block_number = BlockNumber(1);
 
-    if let Some(class_manager_client_result) = class_manager_client_result {
-        mock_class_manager_client
-            .expect_get_executable()
-            .times(1)
-            .with(predicate::eq(class_hash))
-            .return_once(move |_| class_manager_client_result);
-    }
+    mock_class_manager_client
+        .expect_get_executable()
+        .times(n_calls_to_class_manager_client)
+        .with(predicate::eq(class_hash))
+        .return_once(move |_| class_manager_client_result);
 
     mock_state_sync_client
         .expect_is_class_declared_at()
@@ -288,7 +290,8 @@ async fn test_get_compiled_class(
                            though it was declared")]
 async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
     test_get_compiled_class(
-        Some(Ok(None)),
+        Ok(None),
+        1,
         Ok(true),
         Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
         *DUMMY_CLASS_HASH,
