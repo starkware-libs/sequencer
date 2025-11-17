@@ -1773,6 +1773,7 @@ dependencies = [
  "rstest",
  "starknet-types-core",
  "starknet_api",
+ "static_assertions",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

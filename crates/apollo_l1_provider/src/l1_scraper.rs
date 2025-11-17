@@ -15,6 +15,7 @@ use papyrus_base_layer::constants::EventIdentifier;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use starknet_api::block::BlockNumber;
 use starknet_api::StarknetApiError;
+use static_assertions::const_assert;
 use thiserror::Error;
 use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -65,6 +66,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     /// Use config.startup_rewind_time_seconds to estimate an L1 block number
     /// that is far enough back to start scraping from.
     pub async fn fetch_start_block(&self) -> Result<L1BlockReference, L1ScraperError<B>> {
+        // Define the safety margin (e.g., extra 50% over the required number of blocks).
+        const SAFTEY_MARGIN_NUMERATOR: u64 = 3;
+        const SAFTEY_MARGIN_DENOMINATOR: u64 = 2;
+        const_assert!(SAFTEY_MARGIN_NUMERATOR > SAFTEY_MARGIN_DENOMINATOR);
         let finality = self.config.finality;
         let latest_l1_block_number = self
             .base_layer
