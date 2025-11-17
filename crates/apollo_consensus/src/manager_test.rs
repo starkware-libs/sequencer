@@ -170,7 +170,6 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
         .run_height(
             &mut context,
             BlockNumber(1),
-            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -184,7 +183,6 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
         .run_height(
             &mut context,
             BlockNumber(2),
-            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -234,7 +232,6 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     let run_consensus_args = RunConsensusArguments {
         consensus_config,
-        start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
         quorum_type: QuorumType::Byzantine,
         config_manager_client: None,
@@ -307,7 +304,6 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
             .run_height(
                 &mut context,
                 BlockNumber(1),
-                false,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
             )
@@ -367,7 +363,6 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
         .run_height(
             &mut context,
             BlockNumber(1),
-            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -457,7 +452,6 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         .run_height(
             &mut context,
             BlockNumber(0),
-            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -470,7 +464,6 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         .run_height(
             &mut context,
             BlockNumber(1),
-            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -484,7 +477,6 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
             .run_height(
                 &mut context,
                 BlockNumber(2),
-                false,
                 &mut subscriber_channels,
                 &mut proposal_receiver_receiver,
             )
@@ -620,7 +612,6 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         .run_height(
             &mut context,
             BlockNumber(1),
-            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -685,7 +676,6 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
 
     let run_consensus_args = RunConsensusArguments {
-        start_active_height: BlockNumber(1),
         start_observe_height: BlockNumber(1),
         consensus_config,
         quorum_type: QuorumType::Byzantine,
