@@ -423,16 +423,16 @@ impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
             gas_costs: BuiltinGasCosts {
-                pedersen: 5722,
-                range_check: 70,
+                pedersen: 5723,
+                range_check: 90,
                 ecdsa: 2000000,
                 ecop: 857850,
                 bitwise: 583,
                 keccak: 600000,
                 poseidon: 11450,
-                add_mod: 360,
-                mul_mod: 604,
-                range_check96: 56,
+                add_mod: 358,
+                mul_mod: 358,
+                range_check96: 179,
             },
         }
     }
