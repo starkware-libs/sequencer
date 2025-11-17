@@ -30,6 +30,7 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetApiTransaction,
 };
 use starknet_api::hash::StateRoots;
+use starknet_committer::db::forest_trait::FactsDb;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
@@ -616,13 +617,15 @@ impl<S: FlowTestState> TestManager<S> {
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
+            let mut db = FactsDb::new(map_storage);
             let new_state_roots = commit_state_diff(
-                &mut map_storage,
+                &mut db,
                 previous_state_roots.contracts_trie_root_hash,
                 previous_state_roots.classes_trie_root_hash,
                 committer_state_diff,
             )
             .await;
+            map_storage = db.consume_storage();
 
             // Prepare the OS input.
             let (cached_state_input, commitment_infos) =
