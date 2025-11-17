@@ -1,6 +1,9 @@
 use apollo_gateway::metrics::{
     GATEWAY_ADD_TX_FAILURE,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_CLASS_CACHE_HITS,
+    GATEWAY_CLASS_CACHE_MISSES,
+    GATEWAY_METRIC_RATE_DURATION,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
@@ -132,6 +135,17 @@ fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
     )
 }
 
+// TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
+fn get_panel_gateway_class_cache_miss_ratio() -> Panel {
+    Panel::ratio_time_series(
+        "gateway_class_cache_miss_ratio",
+        "The ratio of cache misses when requesting compiled classes from the Gateway State Reader",
+        &GATEWAY_CLASS_CACHE_MISSES,
+        &[&GATEWAY_CLASS_CACHE_MISSES, &GATEWAY_CLASS_CACHE_HITS],
+        GATEWAY_METRIC_RATE_DURATION,
+    )
+}
+
 pub(crate) fn get_gateway_row() -> Row {
     Row::new(
         "Gateway",
@@ -146,6 +160,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_transactions_sent_to_mempool(),
             get_panel_gateway_validate_stateful_tx_storage_time(),
             get_panel_gateway_validate_stateful_tx_storage_operations(),
+            get_panel_gateway_class_cache_miss_ratio(),
         ],
     )
 }

@@ -1742,7 +1742,7 @@
   "gateway_config.class_cache_size": {
     "description": "Maximum number of compiled contract classes to cache in memory.",
     "privacy": "Public",
-    "value": 50
+    "value": 250
   },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
