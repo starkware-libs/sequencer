@@ -20,18 +20,11 @@ USER committer_benchmark
 
 # Run the storage benchmark command.
 ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
-# Default parameters for the storage benchmark: 
-# - run with 1000000 block iterations
-# - generate 4000 state diffs (new leaves) per block.
-# - use cached mdbx storage with a cache size of 1000000.
-# - checkpoint every 1000 blocks.
-# - log level is info.
-# - use the provided data, storage, output and checkpoint directories (override for a persistent storage dir of
-#   a specific node)
 
 CMD ["cached-rocksdb", \
     "--n-iterations", "1000000", \
-    "--flavor", "1k-diff", \
+    "--flavor", "constant", \
+    "--n-updates", "1000", \
     "--cache-size", "10000000", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
