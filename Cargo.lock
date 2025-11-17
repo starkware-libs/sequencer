@@ -1207,6 +1207,7 @@ version = "0.16.0-rc.1"
 dependencies = [
  "apollo_config",
  "apollo_protobuf",
+ "apollo_storage",
  "serde",
  "starknet_api",
  "validator",
