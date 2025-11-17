@@ -71,6 +71,7 @@ async fn l1_handler_tx_consumed_txs() {
     // without a state update.
     let mut base_layer = MockBaseLayerContract::new();
     // The latest_l1_block and l1_block_at are used internally by the scraper.
+    base_layer.expect_latest_l1_block_number().times(1).returning(move |_| Ok(1));
     base_layer.expect_latest_l1_block().times(1).returning(move |_| Ok(Some(block_from_number(1))));
     base_layer.expect_latest_l1_block().times(1).returning(move |_| Ok(Some(block_from_number(2))));
     base_layer.expect_latest_l1_block().returning(move |_| Ok(Some(block_from_number(3))));
