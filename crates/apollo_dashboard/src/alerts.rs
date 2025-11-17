@@ -229,7 +229,9 @@ impl Alert {
             name: name.to_string(),
             title: title.to_string(),
             alert_group,
-            expr: expr.to_string(),
+            // Grafana's alert evaluation does not substitute `$pod`. If we keep
+            // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
+            expr: expr.to_string().replace(", pod=~\"$pod\"", ""),
             conditions,
             pending_duration: pending_duration.to_string(),
             evaluation_interval_sec,
