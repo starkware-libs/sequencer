@@ -4,7 +4,7 @@
       "name": "consensus_proposal_fin_mismatch_once",
       "title": "Consensus proposal fin mismatch occurred",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -32,7 +32,7 @@
       "name": "cende_write_blob_failure_once",
       "title": "Cende write blob failure once",
       "ruleGroup": "consensus",
-      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -60,7 +60,7 @@
       "name": "cende_write_prev_height_blob_latency_too_high",
       "title": "Cende write prev height blob latency too high",
       "ruleGroup": "consensus",
-      "expr": "(sum(rate(cende_write_prev_height_blob_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)) / clamp_min(sum(rate(cende_write_prev_height_blob_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0), 0.0000001)",
+      "expr": "(sum(rate(cende_write_prev_height_blob_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[20m])) or vector(0)) / clamp_min(sum(rate(cende_write_prev_height_blob_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[20m])) or vector(0), 0.0000001)",
       "conditions": [
         {
           "evaluator": {
@@ -88,7 +88,7 @@
       "name": "consensus_conflicting_votes",
       "title": "Consensus conflicting votes",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "expr": "sum(increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -116,7 +116,7 @@
       "name": "consensus_decisions_reached_by_consensus_ratio",
       "title": "Consensus decisions reached by consensus ratio",
       "ruleGroup": "consensus",
-      "expr": "(sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) / clamp_min((sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)) + (sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)), 1)",
+      "expr": "(sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) or vector(0)) / clamp_min((sum(increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) or vector(0)) + (sum(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) or vector(0)), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -144,7 +144,7 @@
       "name": "consensus_inbound_stream_evicted",
       "title": "Consensus inbound stream evicted",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -172,7 +172,7 @@
       "name": "consensus_l1_gas_price_provider_failure",
       "title": "Consensus L1 gas price provider failure",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -200,7 +200,7 @@
       "name": "consensus_l1_gas_price_provider_failure_once",
       "title": "Consensus L1 gas price provider failure once",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -228,7 +228,7 @@
       "name": "consensus_p2p_disconnections",
       "title": "Consensus p2p disconnections",
       "ruleGroup": "consensus",
-      "expr": "(sum(changes(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) / 2",
+      "expr": "(sum(changes(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)) / 2",
       "conditions": [
         {
           "evaluator": {
@@ -256,7 +256,7 @@
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -284,7 +284,7 @@
       "name": "consensus_votes_num_sent_messages",
       "title": "Consensus votes num sent messages",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "expr": "sum(increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -312,7 +312,7 @@
       "name": "eth_to_strk_error_count",
       "title": "Eth to Strk error count",
       "ruleGroup": "l1_gas_price",
-      "expr": "sum(increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -340,7 +340,7 @@
       "name": "gateway_add_tx_idle_p2p_rpc",
       "title": "Gateway add_tx idle (p2p+rpc)",
       "ruleGroup": "gateway",
-      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
+      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -368,7 +368,7 @@
       "name": "pod_state_not_ready",
       "title": "Pod State Not Ready",
       "ruleGroup": "general",
-      "expr": "kube_pod_container_status_ready{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "expr": "kube_pod_container_status_ready{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
       "conditions": [
         {
           "evaluator": {
@@ -396,7 +396,7 @@
       "name": "pod_state_crashloopbackoff",
       "title": "Pod State CrashLoopBackOff",
       "ruleGroup": "general",
-      "expr": "sum by(container, pod, namespace) (kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) or absent(kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) * 0",
+      "expr": "sum by(container, pod, namespace) (kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", reason=\"CrashLoopBackOff\"}) or absent(kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", reason=\"CrashLoopBackOff\"}) * 0",
       "conditions": [
         {
           "evaluator": {
@@ -424,7 +424,7 @@
       "name": "pod_high_cpu_utilization",
       "title": "Pod High CPU Utilization ( >90% )",
       "ruleGroup": "general",
-      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) by (container, pod, namespace) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\"}/100000) by (container, pod, namespace)) * 100",
+      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m])) by (container, pod, namespace) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}/100000) by (container, pod, namespace)) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -452,7 +452,7 @@
       "name": "http_server_high_deprecated_transaction_failure_ratio",
       "title": "http server high deprecated transaction failure ratio",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "expr": "increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h]), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -480,7 +480,7 @@
       "name": "http_server_internal_error_once",
       "title": "http server internal error once",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "expr": "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -508,7 +508,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1800s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -536,7 +536,7 @@
       "name": "l1_gas_price_scraper_reorg_detected",
       "title": "L1 gas price scraper reorg detected",
       "ruleGroup": "l1_gas_price",
-      "expr": "sum(increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)",
+      "expr": "sum(increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -564,7 +564,7 @@
       "name": "l1_gas_price_scraper_baselayer_error_count",
       "title": "L1 gas price scraper baselayer error count",
       "ruleGroup": "l1_gas_price",
-      "expr": "sum(increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)",
+      "expr": "sum(increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -592,7 +592,7 @@
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_messages",
-      "expr": "sum(increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -620,7 +620,7 @@
       "name": "l1_message_scraper_reorg_detected",
       "title": "L1 message scraper reorg detected",
       "ruleGroup": "l1_messages",
-      "expr": "sum(increase(l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])) or vector(0)",
+      "expr": "sum(increase(l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -648,7 +648,7 @@
       "name": "mempool_add_tx_idle_p2p_rpc",
       "title": "Mempool add_tx idle (p2p+rpc)",
       "ruleGroup": "mempool",
-      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
+      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -676,7 +676,7 @@
       "name": "mempool_p2p_disconnections",
       "title": "Mempool p2p disconnections",
       "ruleGroup": "mempool",
-      "expr": "(sum(changes(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) / 2",
+      "expr": "(sum(changes(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)) / 2",
       "conditions": [
         {
           "evaluator": {
@@ -704,7 +704,7 @@
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
-      "expr": "sum(increase(native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "sum(increase(native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -732,7 +732,7 @@
       "name": "sync_storage_open_read_transactions",
       "title": "sync - High number of open read transactions",
       "ruleGroup": "state_sync",
-      "expr": "max_over_time(sync_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "max_over_time(sync_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -760,7 +760,7 @@
       "name": "batcher_storage_open_read_transactions",
       "title": "batcher - High number of open read transactions",
       "ruleGroup": "state_sync",
-      "expr": "max_over_time(batcher_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "max_over_time(batcher_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -788,7 +788,7 @@
       "name": "class_manager_storage_open_read_transactions",
       "title": "class_manager - High number of open read transactions",
       "ruleGroup": "state_sync",
-      "expr": "max_over_time(class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "max_over_time(class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -816,7 +816,7 @@
       "name": "http_server_high_transaction_failure_ratio",
       "title": "http server high transaction failure ratio",
       "ruleGroup": "http_server",
-      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h]), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -844,7 +844,7 @@
       "name": "batched_transactions_stuck",
       "title": "Batched transactions stuck",
       "ruleGroup": "batcher",
-      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])",
       "conditions": [
         {
           "evaluator": {
@@ -872,7 +872,7 @@
       "name": "get_consensus_block_number_progress_is_slow",
       "title": "Consensus block number progress is slow",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -900,7 +900,7 @@
       "name": "cende_write_blob_failure",
       "title": "Cende write blob failure",
       "ruleGroup": "consensus",
-      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -928,7 +928,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -956,7 +956,7 @@
       "name": "consensus_p2p_not_enough_peers_for_quorum",
       "title": "Consensus p2p not enough peers for quorum",
       "ruleGroup": "consensus",
-      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])",
       "conditions": [
         {
           "evaluator": {
@@ -984,7 +984,7 @@
       "name": "consensus_p2p_peer_down",
       "title": "Consensus p2p peer down",
       "ruleGroup": "consensus",
-      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m])",
       "conditions": [
         {
           "evaluator": {
@@ -1012,7 +1012,7 @@
       "name": "consensus_round_above_zero_multiple_times",
       "title": "Consensus round above zero multiple times",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])",
       "conditions": [
         {
           "evaluator": {
@@ -1040,7 +1040,7 @@
       "name": "consensus_round_high",
       "title": "Consensus round high",
       "ruleGroup": "consensus",
-      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m])",
       "conditions": [
         {
           "evaluator": {
@@ -1068,7 +1068,7 @@
       "name": "eth_to_strk_success_count",
       "title": "Eth to Strk success count",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -1096,7 +1096,7 @@
       "name": "pod_state_high_memory_utilization",
       "title": "Pod High Memory Utilization ( >70% )",
       "ruleGroup": "general",
-      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (container, pod, namespace) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -1124,7 +1124,7 @@
       "name": "pod_state_critical_memory_utilization",
       "title": "Pod Critical Memory Utilization ( >85% )",
       "ruleGroup": "general",
-      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) by (container, pod, namespace) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -1152,7 +1152,7 @@
       "name": "pod_state_high_disk_utilization",
       "title": "Pod High Disk Utilization ( >70% )",
       "ruleGroup": "general",
-      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}))*100",
       "conditions": [
         {
           "evaluator": {
@@ -1180,7 +1180,7 @@
       "name": "pod_state_critical_disk_utilization",
       "title": "Pod Critical Disk Utilization ( >90% )",
       "ruleGroup": "general",
-      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}))*100",
       "conditions": [
         {
           "evaluator": {
@@ -1208,7 +1208,7 @@
       "name": "http_server_avg_add_tx_latency",
       "title": "High HTTP server average add_tx latency",
       "ruleGroup": "http_server",
-      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]), 1/120)",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m]), 1/120)",
       "conditions": [
         {
           "evaluator": {
@@ -1236,7 +1236,7 @@
       "name": "http_server_internal_error_ratio",
       "title": "http server internal error ratio",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "expr": "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h]), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -1264,7 +1264,7 @@
       "name": "gateway_low_successful_transaction_rate",
       "title": "gateway low successful transaction rate",
       "ruleGroup": "gateway",
-      "expr": "sum(increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)",
+      "expr": "sum(increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -1292,7 +1292,7 @@
       "name": "http_server_p95_add_tx_latency",
       "title": "High HTTP server P95 add_tx latency",
       "ruleGroup": "http_server",
-      "expr": "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+      "expr": "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (le))",
       "conditions": [
         {
           "evaluator": {
@@ -1320,7 +1320,7 @@
       "name": "high_empty_blocks_ratio",
       "title": "High ratio of empty blocks",
       "ruleGroup": "batcher",
-      "expr": "sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"0.001\"}[120s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])), 1)",
+      "expr": "sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", le=\"0.001\"}[120s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -1348,7 +1348,7 @@
       "name": "l1_gas_price_provider_insufficient_history",
       "title": "L1 gas price provider insufficient history",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -1376,7 +1376,7 @@
       "name": "l1_gas_price_scraper_success_count",
       "title": "L1 gas price scraper success count",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -1404,7 +1404,7 @@
       "name": "l1_message_no_successes",
       "title": "L1 message no successes",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "expr": "increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])",
       "conditions": [
         {
           "evaluator": {
@@ -1432,7 +1432,7 @@
       "name": "mempool_evictions_count",
       "title": "Mempool evictions count",
       "ruleGroup": "mempool",
-      "expr": "mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", drop_reason=\"evicted\"}",
+      "expr": "mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", drop_reason=\"evicted\"}",
       "conditions": [
         {
           "evaluator": {
@@ -1460,7 +1460,7 @@
       "name": "mempool_p2p_peer_down",
       "title": "Mempool p2p peer down",
       "ruleGroup": "mempool",
-      "expr": "max_over_time(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "expr": "max_over_time(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m])",
       "conditions": [
         {
           "evaluator": {
@@ -1488,7 +1488,7 @@
       "name": "mempool_pool_size_increase",
       "title": "Mempool pool size increase",
       "ruleGroup": "mempool",
-      "expr": "mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "expr": "mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
       "conditions": [
         {
           "evaluator": {
@@ -1516,7 +1516,7 @@
       "name": "mempool_transaction_drop_ratio",
       "title": "Mempool transaction drop ratio",
       "ruleGroup": "mempool",
-      "expr": "increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / clamp_min(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]), 1)",
+      "expr": "increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / clamp_min(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -1544,7 +1544,7 @@
       "name": "preconfirmed_block_not_written",
       "title": "Preconfirmed block not written",
       "ruleGroup": "batcher",
-      "expr": "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "expr": "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[2m])",
       "conditions": [
         {
           "evaluator": {
@@ -1572,7 +1572,7 @@
       "name": "state_sync_lag",
       "title": "State sync lag",
       "ruleGroup": "state_sync",
-      "expr": "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "expr": "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
       "conditions": [
         {
           "evaluator": {
@@ -1600,7 +1600,7 @@
       "name": "state_sync_stuck",
       "title": "State sync stuck",
       "ruleGroup": "state_sync",
-      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[120s])",
       "conditions": [
         {
           "evaluator": {
