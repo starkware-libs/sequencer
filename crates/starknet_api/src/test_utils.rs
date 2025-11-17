@@ -22,6 +22,7 @@ use crate::block::{
 use crate::contract_address;
 use crate::contract_class::{ContractClass, SierraVersion};
 use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
@@ -249,5 +250,31 @@ impl ContractClass {
             entry_points_by_type: Default::default(),
         };
         ContractClass::V1((default_casm, SierraVersion::default()))
+    }
+
+    pub fn test_deprecated_casm_contract_class() -> Self {
+        let default_deprecated_casm = DeprecatedContractClass {
+            abi: None,
+            program: Program {
+                attributes: serde_json::Value::Null,
+                builtins: serde_json::Value::Array(vec![]),
+                compiler_version: serde_json::Value::Null,
+                data: serde_json::Value::Array(vec![]),
+                debug_info: serde_json::Value::Null,
+                hints: serde_json::Value::Object(serde_json::Map::new()),
+                identifiers: serde_json::Value::Object(serde_json::Map::new()),
+                main_scope: serde_json::Value::String("__main__".to_string()),
+                prime: serde_json::Value::String(
+                    "0x800000000000011000000000000000000000000000000000000000000000001".to_string(),
+                ),
+                reference_manager: serde_json::Value::Object({
+                    let mut map = serde_json::Map::new();
+                    map.insert("references".to_string(), serde_json::Value::Array(vec![]));
+                    map
+                }),
+            },
+            entry_points_by_type: Default::default(),
+        };
+        ContractClass::V0(default_deprecated_casm)
     }
 }
