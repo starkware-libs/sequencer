@@ -371,8 +371,8 @@ impl TestStateReader {
         let old_block_hash = self.get_old_block_hash(old_block_number)?;
         let mut config = ContractClassManagerConfig::default();
         // Ensure run_cairo_native is true when wait_on_native_compilation is true
-        config.cairo_native_run_config.run_cairo_native = false;
-        config.cairo_native_run_config.wait_on_native_compilation = false;
+        config.cairo_native_run_config.run_cairo_native = true;
+        config.cairo_native_run_config.wait_on_native_compilation = true;
         let initial_state_reader = StateReaderAndContractManager {
             state_reader: self,
             contract_class_manager: ContractClassManager::start(config),
