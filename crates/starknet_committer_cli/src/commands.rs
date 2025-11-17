@@ -7,6 +7,7 @@ use starknet_api::core::PatriciaKey;
 use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
 use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::db::trie_trait::FactsDb;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
     Input,
@@ -248,8 +249,9 @@ pub async fn run_storage_benchmark<S: Storage>(
             config: ConfigImpl::default(),
         };
 
+        let mut facts_db = FactsDb::new(&mut storage);
         time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest = commit_block(input, &mut storage, Some(&mut time_measurement))
+        let filled_forest = commit_block(input, &mut facts_db, Some(&mut time_measurement))
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);

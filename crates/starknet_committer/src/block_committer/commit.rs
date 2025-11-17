@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::Storage;
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -14,8 +13,9 @@ use crate::block_committer::input::{
     StateDiff,
 };
 use crate::block_committer::timing_util::{Action, TimeMeasurement};
+use crate::db::trie_trait::TrieReader;
 use crate::forest::filled_forest::FilledForest;
-use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
+use crate::forest::original_skeleton_forest::ForestSortedIndices;
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -23,9 +23,9 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block<S: Storage>(
+pub async fn commit_block<Reader: for<'a> TrieReader<'a>>(
     input: Input<ConfigImpl>,
-    storage: &mut S,
+    trie_reader: &mut Reader,
     mut time_measurement: Option<&mut TimeMeasurement>,
 ) -> BlockCommitmentResult<FilledForest> {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
@@ -44,14 +44,13 @@ pub async fn commit_block<S: Storage>(
     if let Some(ref mut tm) = time_measurement {
         tm.start_measurement(Action::Read);
     }
-    let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        storage,
+    let (mut original_forest, original_contracts_trie_leaves) = trie_reader.read(
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &actual_storage_updates,
         &actual_classes_updates,
         &forest_sorted_indices,
-        &input.config,
+        input.config.clone(),
     )?;
     if let Some(ref mut tm) = time_measurement {
         let n_read_facts =
