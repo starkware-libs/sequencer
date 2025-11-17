@@ -440,6 +440,17 @@
           "extra_params": {}
         },
         {
+          "title": "Time to Complete Sync",
+          "description": "Estimated time to complete syncing to the latest block (based on 10m window rate)",
+          "type": "timeseries",
+          "exprs": [
+            "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / rate(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
           "title": "Sync Diff From Central",
           "description": "The number of blocks that were not fully synced yet",
           "type": "timeseries",
