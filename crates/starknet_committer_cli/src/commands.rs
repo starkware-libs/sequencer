@@ -15,6 +15,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
+use starknet_committer::db::forest_trait::FactsDb;
 use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tracing::info;
@@ -236,6 +237,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     let curr_block_number = time_measurement.block_number;
 
     let mut classes_trie_root_hash = HashOutput::default();
+    let mut facts_db = FactsDb::new(storage);
 
     for block_number in curr_block_number..n_iterations {
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
@@ -249,11 +251,11 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest = commit_block(input, &mut storage, Some(&mut time_measurement))
+        let filled_forest = commit_block(input, &mut facts_db, Some(&mut time_measurement))
             .await
             .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
-        let n_new_facts = filled_forest.write_to_storage(&mut storage);
+        let n_new_facts = filled_forest.write_to_storage(&mut facts_db.storage);
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(None, Action::Write);
 
@@ -261,8 +263,8 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
-            let storage_stats = storage.get_stats();
-            storage.reset_stats().unwrap();
+            let storage_stats = facts_db.storage.get_stats();
+            facts_db.storage.reset_stats().unwrap();
             time_measurement.to_csv(
                 &format!("{}.csv", block_number + 1),
                 output_dir,
@@ -291,7 +293,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         time_measurement.to_csv(
             &format!("{n_iterations}.csv"),
             output_dir,
-            storage.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
+            facts_db.storage.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
         );
     }
 
