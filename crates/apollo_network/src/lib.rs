@@ -45,6 +45,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
+use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
+
 pub(crate) type Bytes = Vec<u8>;
 
 // TODO(Shahak): add peer manager config to the network config
@@ -67,6 +69,10 @@ pub struct NetworkConfig {
     pub peer_manager_config: PeerManagerConfig,
     pub broadcasted_message_metadata_buffer_size: usize,
     pub reported_peer_ids_buffer_size: usize,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub prune_dead_connections_ping_interval: Duration,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub prune_dead_connections_ping_timeout: Duration,
 }
 
 impl SerializeConfig for NetworkConfig {
@@ -107,6 +113,18 @@ impl SerializeConfig for NetworkConfig {
                 "reported_peer_ids_buffer_size",
                 &self.reported_peer_ids_buffer_size,
                 "The size of the buffer that holds the reported peer ids.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prune_dead_connections_ping_interval",
+                &self.prune_dead_connections_ping_interval.as_secs(),
+                "The interval in seconds between each prune dead connections ping check.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "prune_dead_connections_ping_timeout",
+                &self.prune_dead_connections_ping_timeout.as_secs(),
+                "The timeout in seconds for a ping to be considered failed.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -158,6 +176,8 @@ impl Default for NetworkConfig {
             peer_manager_config: PeerManagerConfig::default(),
             broadcasted_message_metadata_buffer_size: 100000,
             reported_peer_ids_buffer_size: 100000,
+            prune_dead_connections_ping_interval: DEFAULT_PING_INTERVAL,
+            prune_dead_connections_ping_timeout: DEFAULT_PING_TIMEOUT,
         }
     }
 }

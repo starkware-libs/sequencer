@@ -1,6 +1,7 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
 use std::convert::Infallible;
+use std::time::Duration;
 
 use libp2p::connection_limits::ConnectionLimits;
 use libp2p::identity::Keypair;
@@ -75,6 +76,8 @@ impl MixedBehaviour {
         bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
         chain_id: ChainId,
         node_version: Option<String>,
+        prune_dead_connections_ping_interval: Duration,
+        prune_dead_connections_ping_timeout: Duration,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -136,7 +139,10 @@ impl MixedBehaviour {
                     "Failed creating gossipsub behaviour due to the following error: {err_string}"
                 )
             }),
-            prune_dead_connections: Default::default(),
+            prune_dead_connections: prune_dead_connections::Behaviour::new(
+                prune_dead_connections_ping_interval,
+                prune_dead_connections_ping_timeout,
+            ),
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
     }

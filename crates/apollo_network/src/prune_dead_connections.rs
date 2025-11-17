@@ -20,6 +20,9 @@ use libp2p::swarm::{
 use libp2p::{ping, Multiaddr, PeerId};
 use tracing::warn;
 
+pub const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(15);
+pub const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(20);
+
 /// A behaviour that monitors connection health using ping and disconnects unhealthy connections.
 ///
 /// This behaviour wraps libp2p's ping protocol and immediately disconnects on first ping failure.
@@ -28,15 +31,21 @@ use tracing::warn;
 ///
 /// This behaviour is self-contained and does not emit any events. It silently manages
 /// connection health in the background.
-#[derive(Default)]
 pub struct Behaviour {
     ping: ping::Behaviour,
     pending_close_connections: VecDeque<(PeerId, ConnectionId)>,
 }
 
+impl Default for Behaviour {
+    fn default() -> Self {
+        Self::new(DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT)
+    }
+}
+
 impl Behaviour {
-    pub fn new(interval: Duration, timeout: Duration) -> Self {
-        let ping_config = ping::Config::new().with_interval(interval).with_timeout(timeout);
+    pub fn new(ping_interval: Duration, ping_timeout: Duration) -> Self {
+        let ping_config =
+            ping::Config::new().with_interval(ping_interval).with_timeout(ping_timeout);
         Self {
             ping: ping::Behaviour::new(ping_config),
             pending_close_connections: Default::default(),
