@@ -25,7 +25,7 @@ use crate::panels::consensus::{
 use crate::panels::gateway::{get_gateway_row, get_panel_gateway_add_tx_failure_by_reason};
 use crate::panels::http_server::{
     get_http_server_row,
-    get_panel_http_server_transactions_received_rate,
+    get_panel_http_server_added_transactions_success_rate,
 };
 use crate::panels::l1_gas_price::get_l1_gas_price_row;
 use crate::panels::l1_provider::get_l1_provider_row;
@@ -50,7 +50,7 @@ fn get_overview_row() -> Row {
         vec![
             get_panel_consensus_block_time_avg(),
             get_panel_consensus_round(),
-            get_panel_http_server_transactions_received_rate(),
+            get_panel_http_server_added_transactions_success_rate(),
             get_panel_batched_transactions_rate(),
             get_panel_consensus_block_number_diff_from_sync(),
             get_panel_gateway_add_tx_failure_by_reason(),
