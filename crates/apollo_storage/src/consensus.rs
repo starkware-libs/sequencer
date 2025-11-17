@@ -42,7 +42,7 @@ use crate::db::{TransactionKind, RW};
 use crate::{StorageResult, StorageTxn};
 
 /// Information about the last vote sent out by consensus.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
 pub struct LastVotedMarker {
     /// The last height in which consensus voted.
     pub height: BlockNumber,
