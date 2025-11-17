@@ -247,6 +247,11 @@ fn dummy_casm_contract_class() -> CasmContractClass {
 
 lazy_static! {
     static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
+    static ref DUMMY_CONTRACT_CLASS: ContractClass =
+        ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default()));
+    static ref DUMMY_COMPILED_CLASS: RunnableCompiledClass = RunnableCompiledClass::V1(
+        (dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap()
+    );
 }
 
 fn assert_eq_state_result(
@@ -265,14 +270,14 @@ fn assert_eq_state_result(
 // TODO(Arni): add test for class is Cairo 0.
 #[rstest]
 #[case::class_declared(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
     Ok(Some(SierraContractClass::default())),
     1,
     Ok(true),
-    Ok(RunnableCompiledClass::V1((dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap())),
+    Ok(DUMMY_COMPILED_CLASS.clone()),
 )]
 #[case::class_not_declared_but_in_class_manager(
-    Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
     Ok(Some(SierraContractClass::default())),
     0,
     Ok(false),
@@ -354,4 +359,177 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
     .await;
 }
 
-// TODO(Arni): Add tests that check the caching logic.
+#[rstest]
+#[case::first_declared_second_declared(
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())), // first_get_executable
+    Ok(Some(SierraContractClass::default())), // first_get_sierra
+    1,
+    Ok(true), // first_is_class_declared_at
+    None, // second_get_executable (not called due to caching)
+    None, // second_get_sierra (not called due to caching)
+    None, // second_is_class_declared_at (not called due to caching)
+    Some(Ok(true)), // second_is_cairo_1_class_declared_at (verification call)
+    Ok(DUMMY_COMPILED_CLASS.clone()), // expected_first_result
+    Ok(DUMMY_COMPILED_CLASS.clone()), // expected_second_result
+)]
+#[case::first_declared_second_not_declared(
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())), // first_get_executable
+    Ok(Some(SierraContractClass::default())), // first_get_sierra
+    1,
+    Ok(true), // first_is_class_declared_at
+    None, // second_get_executable (not called due to caching)
+    None, // second_get_sierra (not called due to caching)
+    None, // second_is_class_declared_at (not called due to caching)
+    Some(Ok(false)), // second_is_cairo_1_class_declared_at (verification call)
+    Ok(DUMMY_COMPILED_CLASS.clone()), // expected_first_result
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_second_result
+)]
+#[case::first_not_declared_but_in_manager_second_declared(
+    Ok(Some(DUMMY_CONTRACT_CLASS.clone())), // first_get_executable
+    Ok(Some(SierraContractClass::default())), // first_get_sierra
+    0,
+    Ok(false), // first_is_class_declared_at
+    Some(Ok(Some(DUMMY_CONTRACT_CLASS.clone()))), // second_get_executable
+    Some(Ok(Some(SierraContractClass::default()))), // second_get_sierra
+    Some(Ok(true)), // second_is_class_declared_at
+    None, // second_is_cairo_1_class_declared_at (not called since no cached class)
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_first_result
+    Ok(DUMMY_COMPILED_CLASS.clone()), // expected_second_result
+)]
+#[case::first_not_declared_second_declared(
+    Ok(None), // first_get_executable (not called since not declared)
+    Ok(None), // first_get_sierra (not called since not declared)
+    0,
+    Ok(false), // first_is_class_declared_at
+    Some(Ok(Some(DUMMY_CONTRACT_CLASS.clone()))), // second_get_executable
+    Some(Ok(Some(SierraContractClass::default()))), // second_get_sierra
+    Some(Ok(true)), // second_is_class_declared_at
+    None, // second_is_cairo_1_class_declared_at (not called since no cached class)
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_first_result
+    Ok(DUMMY_COMPILED_CLASS.clone()), // expected_second_result
+)]
+#[case::first_not_declared_second_not_declared(
+    Ok(None), // first_get_executable (not called since not declared)
+    Ok(None), // first_get_sierra (not called since not declared)
+    0,
+    Ok(false), // first_is_class_declared_at
+    None, // second_get_executable (not called since not declared)
+    None, // second_get_sierra (not called since not declared)
+    Some(Ok(false)), // second_is_class_declared_at
+    None, // second_is_cairo_1_class_declared_at (not called since not declared)
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_first_result
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_second_result
+)]
+#[allow(clippy::too_many_arguments)]
+#[tokio::test]
+async fn test_get_compiled_class_caching_scenarios(
+    #[case] first_get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    #[case] first_get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
+    #[case] first_n_calls_get_executable: usize,
+    #[case] first_is_class_declared_at_result: StateSyncClientResult<bool>,
+    #[case] second_get_executable_result: Option<ClassManagerClientResult<Option<ExecutableClass>>>,
+    #[case] second_get_sierra_result: Option<ClassManagerClientResult<Option<SierraContractClass>>>,
+    #[case] second_is_class_declared_at_result: Option<StateSyncClientResult<bool>>,
+    #[case] second_is_cairo_1_class_declared_at_result: Option<StateSyncClientResult<bool>>,
+    #[case] expected_first_result: StateResult<RunnableCompiledClass>,
+    #[case] expected_second_result: StateResult<RunnableCompiledClass>,
+    #[values(BlockNumber(1), BlockNumber(2), BlockNumber(3))] other_block_number: BlockNumber,
+) {
+    let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mut mock_class_manager_client = MockClassManagerClient::new();
+    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
+
+    let block_number = BlockNumber(2);
+    let class_hash = *DUMMY_CLASS_HASH;
+
+    // Setup mocks for first execution
+    mock_class_manager_client
+        .expect_get_executable()
+        .times(first_n_calls_get_executable)
+        .with(predicate::eq(class_hash))
+        .return_once(move |_| first_get_executable_result);
+
+    mock_class_manager_client
+        .expect_get_sierra()
+        .times(first_n_calls_get_executable)
+        .with(predicate::eq(class_hash))
+        .return_once(move |_| first_get_sierra_result);
+
+    mock_state_sync_client
+        .expect_is_class_declared_at()
+        .times(1)
+        .with(predicate::eq(block_number), predicate::eq(class_hash))
+        .return_once(move |_, _| first_is_class_declared_at_result);
+
+    // Setup mocks for second execution
+    if let Some(result) = second_get_executable_result {
+        mock_class_manager_client
+            .expect_get_executable()
+            .times(1)
+            .with(predicate::eq(class_hash))
+            .return_once(move |_| result);
+    }
+
+    if let Some(result) = second_get_sierra_result {
+        mock_class_manager_client
+            .expect_get_sierra()
+            .times(1)
+            .with(predicate::eq(class_hash))
+            .return_once(move |_| result);
+    }
+
+    if let Some(result) = second_is_class_declared_at_result {
+        mock_state_sync_client
+            .expect_is_class_declared_at()
+            .times(1)
+            .with(predicate::eq(other_block_number), predicate::eq(class_hash))
+            .return_once(move |_, _| result);
+    }
+
+    if let Some(result) = second_is_cairo_1_class_declared_at_result {
+        mock_state_sync_client
+            .expect_is_cairo_1_class_declared_at()
+            .times(1)
+            .with(predicate::eq(other_block_number), predicate::eq(class_hash))
+            .return_once(move |_, _| result);
+    }
+
+    let shared_state_sync_client = Arc::new(mock_state_sync_client);
+    let shared_class_manager_client = Arc::new(mock_class_manager_client);
+
+    // First execution: block_number (BlockNumber(2))
+    let first_state_reader_and_class_manager = state_reader_and_contract_manager(
+        shared_state_sync_client.clone(),
+        shared_class_manager_client.clone(),
+        contract_class_manager.clone(),
+        block_number,
+        tokio::runtime::Handle::current(),
+    );
+
+    let first_result = tokio::task::spawn_blocking({
+        let state_reader = first_state_reader_and_class_manager;
+        move || state_reader.get_compiled_class(class_hash)
+    })
+    .await
+    .unwrap();
+
+    // Second execution: other_block_number (using same ContractClassManager for caching)
+    let second_state_reader_and_class_manager = state_reader_and_contract_manager(
+        shared_state_sync_client,
+        shared_class_manager_client,
+        contract_class_manager,
+        other_block_number,
+        tokio::runtime::Handle::current(),
+    );
+
+    let second_result = tokio::task::spawn_blocking({
+        let state_reader = second_state_reader_and_class_manager;
+        move || state_reader.get_compiled_class(class_hash)
+    })
+    .await
+    .unwrap();
+
+    // Verify results
+    assert_eq_state_result(&first_result, &expected_first_result);
+    assert_eq_state_result(&second_result, &expected_second_result);
+}
