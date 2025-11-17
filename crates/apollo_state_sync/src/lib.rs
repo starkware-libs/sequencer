@@ -241,7 +241,7 @@ impl StateSync {
         Ok(latest_block_number)
     }
 
-    async fn is_class_declared_at(
+    async fn is_cairo_1_class_declared_at(
         &self,
         block_number: BlockNumber,
         class_hash: ClassHash,
@@ -252,9 +252,22 @@ impl StateSync {
             .get_state_reader()?
             .get_class_definition_block_number(&class_hash)?;
         if let Some(class_definition_block_number) = class_definition_block_number_opt {
-            return Ok(class_definition_block_number <= block_number);
+            Ok(class_definition_block_number <= block_number)
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn is_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncResult<bool> {
+        if self.is_cairo_1_class_declared_at(block_number, class_hash).await? {
+            return Ok(true);
         }
 
+        let storage_reader = self.storage_reader.clone();
         // TODO(noamsp): Add unit testing for cairo0
         let deprecated_class_definition_block_number_opt = storage_reader
             .begin_ro_txn()?
