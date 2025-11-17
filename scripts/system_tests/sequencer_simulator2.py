@@ -1,6 +1,4 @@
 import argparse
-import json
-import os
 import subprocess
 import time
 from enum import Enum
@@ -14,7 +12,6 @@ class NodeType(Enum):
     HYBRID = "hybrid"
 
 
-# TODO(Nadin): Add support for hybrid nodes.
 def get_service_label(node_type: NodeType, service: str) -> str:
     if (
         node_type == NodeType.DISTRIBUTED
@@ -23,31 +20,10 @@ def get_service_label(node_type: NodeType, service: str) -> str:
     ):
         return f"sequencer-{service.lower()}"
     else:
-        raise ValueError(f"Unknown node type: {node_type}")
+        raise ValueError(f"Unknown node type: {node_type}. Aborting!")
 
 
-def get_config_ports(service_name, deployment_config_path, config_dir, key):
-    with open(deployment_config_path, "r", encoding="utf-8") as f:
-        deployment_config = json.load(f)
-
-    ports = []
-    for service in deployment_config.get("services", []):
-        if service.get("name") == service_name:
-            for path in service.get("config_paths", []):
-                full_path = os.path.join(config_dir, path)
-                try:
-                    with open(full_path, "r", encoding="utf-8") as cfg_file:
-                        config_data = json.load(cfg_file)
-                        port = config_data.get(key)
-                        print(f"🔍 Found port: {port}")
-                        if port:
-                            ports.append(port)
-                except Exception:
-                    continue
-    return ports
-
-
-def get_pod_name(service_label):
+def get_pod_name(service_label: str) -> str:
     cmd = [
         "kubectl",
         "get",
@@ -60,7 +36,13 @@ def get_pod_name(service_label):
     return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
-def port_forward(pod_name, local_port, remote_port, wait_ready=True, max_attempts=25):
+def port_forward(
+    pod_name: str,
+    local_port: int,
+    remote_port: int,
+    wait_ready: bool = True,
+    max_attempts: int = 25,
+):
     cmd = ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if not wait_ready:
@@ -83,7 +65,7 @@ def port_forward(pod_name, local_port, remote_port, wait_ready=True, max_attempt
     )
 
 
-def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
+def run_simulator(http_port: int, monitoring_port: int, sender_address: str, receiver_address: str):
     cmd = [
         "./target/debug/sequencer_simulator",
         "--http-port",
@@ -95,26 +77,11 @@ def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
         "--receiver-address",
         receiver_address,
     ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    with open("sequencer_simulator.log", "w", encoding="utf-8") as log_file:
-        for line in proc.stdout:
-            print(line, end="")
-            log_file.write(line)
-    return proc.wait()
+    result = subprocess.run(cmd, check=False)
+    return result.returncode
 
 
-def setup_port_forwarding(service_name, deployment_config_path, config_dir, config_key, node_type):
-    ports = get_config_ports(
-        service_name,
-        deployment_config_path,
-        config_dir,
-        config_key,
-    )
-    if not ports:
-        print(f"❌ No port found for {service_name}! Aborting.")
-        exit(1)
-
-    port = ports[-1]
+def setup_port_forwarding(service_name: str, port: int, node_type: NodeType):
     pod_name = get_pod_name(get_service_label(node_type, service_name))
     print(f"📡 Port-forwarding {pod_name} on local port {port}...")
     port_forward(pod_name, port, port)
@@ -122,7 +89,13 @@ def setup_port_forwarding(service_name, deployment_config_path, config_dir, conf
     return port
 
 
-def main(deployment_config_path, config_dir, node_type_str, sender_address, receiver_address):
+def main(
+    state_sync_monitoring_endpoint_port: int,
+    http_server_port: int,
+    node_type_str: str,
+    sender_address: str,
+    receiver_address: str,
+):
     print("🚀 Running sequencer simulator....")
 
     try:
@@ -147,17 +120,13 @@ def main(deployment_config_path, config_dir, node_type_str, sender_address, rece
     # Port-forward services
     state_sync_port = setup_port_forwarding(
         state_sync_service,
-        deployment_config_path,
-        config_dir,
-        "monitoring_endpoint_config.port",
+        state_sync_monitoring_endpoint_port,
         node_type,
     )
 
     http_server_port = setup_port_forwarding(
         http_server_service,
-        deployment_config_path,
-        config_dir,
-        "http_server_config.port",
+        http_server_port,
         node_type,
     )
 
@@ -178,12 +147,14 @@ if __name__ == "__main__":
         description="Run the Sequencer Simulator with port forwarding."
     )
     parser.add_argument(
-        "--deployment_config_path",
+        "--state_sync_monitoring_endpoint_port",
         required=True,
-        help="Path to the deployment config JSON file.",
+        help="State Sync Monitoring endpoint port.",
     )
     parser.add_argument(
-        "--config_dir", required=True, help="Directory containing service config files."
+        "--http_server_port",
+        required=True,
+        help="Http server port.",
     )
     parser.add_argument(
         "--node_type",
@@ -205,8 +176,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.deployment_config_path,
-        args.config_dir,
+        args.state_sync_monitoring_endpoint_port,
+        args.http_server_port,
         args.node_type,
         args.sender_address,
         args.receiver_address,

@@ -69,7 +69,7 @@ service:
   ports: # List of service ports
     - name: gateway
       port: 55002
-      targetPort: 8080
+      targetPort: 55002
       protocol: TCP
   annotations: {} # Service annotations
   labels: {} # Additional labels merged with base labels

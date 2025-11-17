@@ -329,45 +329,37 @@ jobs:
           echo "ConfigMap: $CONFIGMAP_NAME"
           kubectl get configmap "$CONFIGMAP_NAME" -n "${{ env.namespace }}" -o yaml
 
-      - name: debug
-        run: sleep 1000000
-
       - name: Send transactions test
         env:
           RUST_LOG: debug
           RUST_BACKTRACE: full
-        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator2.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+
+      - name: List all pods in namespace ${{ env.namespace }}
+        if: always()
+        run: |
+          # ============================================
+          # List all pods in the namespace
+          # ============================================
+          kubectl get pods -n "$namespace"
+          echo "---"
+          echo ""
+          echo "✅ Finished listing pods in namespace ${{ env.namespace }}"
+          echo "---------------------------------------------"
+          echo ""
 
       - name: Get container logs
         if: always()
         run: |
           echo "📥 Getting pod logs and descriptions from namespace: $namespace"
+          echo "---------------------------------------------"
           echo ""
-
           # ============================================
-          # STEP 1: List all pods in the namespace
-          # ============================================
-          echo "## 📋 Pods in namespace: $namespace"
-          echo ""
-          kubectl get pods -n "$namespace" || echo "⚠️ Failed to list pods"
-          echo ""
-          echo "---"
-          echo ""
-
-          # Get list of pods
-          pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
-
-          if [ -z "$pods" ]; then
-            echo "⚠️ No pods found in namespace: $namespace"
-            exit 0
-          fi
-
-          # ============================================
-          # STEP 2: Describe each pod
+          # Describe each pod
           # ============================================
           echo "## 🔍 Pod Descriptions"
+          echo "---------------------------------------------"
           echo ""
-
           for pod in $pods; do
             echo "### Pod: \`$pod\`"
             echo ""
@@ -378,13 +370,12 @@ jobs:
             echo "---"
             echo ""
           done
-
           # ============================================
-          # STEP 3: Get logs for each pod
+          # Get logs for each pod
           # ============================================
           echo "## 📜 Pod Logs"
+          echo "---------------------------------------------"
           echo ""
-
           for pod in $pods; do
             echo "### Logs for pod: \`$pod\`"
             echo ""
@@ -395,5 +386,6 @@ jobs:
             echo "---"
             echo ""
           done
-
           echo "✅ Finished collecting pod information"
+          echo "---------------------------------------------"
+          echo ""

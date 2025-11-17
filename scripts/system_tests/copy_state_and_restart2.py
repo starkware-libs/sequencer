@@ -2,11 +2,11 @@ import argparse
 import os
 import subprocess
 import sys
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+from copy import deepcopy
 from kubernetes import config
 
 
@@ -112,6 +112,7 @@ def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
                 "--retries=3",
             ]
         )
+        print(f"✅ State copied to {pod_name}")
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to copy state to pod {pod_name}: {e}")
         sys.exit(1)
@@ -119,7 +120,12 @@ def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
 
 def delete_pod(pod_name: str, namespace: str) -> None:
     print(f"🔄 Restarting pod {pod_name}...")
-    run(["kubectl", "delete", "pod", pod_name, "-n", namespace], check=False)
+    try:
+        run(["kubectl", "delete", "pod", pod_name, "-n", namespace], check=False)
+        print(f"✅ Pod {pod_name} restarted successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to delete pod {pod_name}: {e}")
+        sys.exit(1)
 
 
 def wait_for_resource(controller: str, name: str, namespace: str, timeout: int = 180) -> None:

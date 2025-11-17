@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 import subprocess
 import sys
 import time
@@ -172,40 +173,87 @@ def run_service_check(
     interval: int,
     initial_delay: int,
     process_queue: Queue,
+    port_forward_retries: int = 3,
+    port_forward_retry_delay: int = 2,
+    port_wait_timeout: int = 30,
 ):
-    try:
-        local_port = monitoring_port + offset
-        print(f"[{service_name}] 🚀 Port-forwarding on {local_port} -> {monitoring_port}")
+    pf_process = None
+    port_established = False
+    local_port = monitoring_port + offset
 
-        pf_process = subprocess.Popen(
-            ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
+    # Retry port-forward setup
+    for attempt in range(1, port_forward_retries + 1):
         try:
-            if not wait_for_port("127.0.0.1", local_port, timeout=15):
-                process_queue.put((service_name, False, "Port-forward did not establish"))
-                return
+            # Kill previous attempt if exists
+            if pf_process:
+                try:
+                    pf_process.terminate()
+                    pf_process.wait(timeout=2)
+                except Exception:
+                    pass
 
-            address = f"http://localhost:{local_port}/monitoring/alive"
-            success = check_service_alive(
-                address=address,
-                timeout=timeout,
-                interval=interval,
-                initial_delay=initial_delay,
+            print(
+                f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
             )
-            if success:
-                print(f"[{service_name}] ✅ Passed for {timeout}s")
-                process_queue.put((service_name, True, "Health check passed"))
+
+            pf_process = subprocess.Popen(
+                ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            # Wait for port to be ready
+            if wait_for_port("127.0.0.1", local_port, timeout=port_wait_timeout):
+                port_established = True
+                print(f"[{service_name}] ✅ Port-forward established on {local_port}")
+                break
             else:
-                print(f"[{service_name}] ❌ Failed health check")
-                process_queue.put((service_name, False, "Health check failed"))
-        finally:
-            pf_process.terminate()
-            pf_process.wait()
+                print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed - port not ready")
+                if attempt < port_forward_retries:
+                    time.sleep(port_forward_retry_delay)
+
+        except Exception as e:
+            print(f"[{service_name}] ⚠️ Port-forward attempt {attempt} failed: {e}")
+            if attempt < port_forward_retries:
+                time.sleep(port_forward_retry_delay)
+
+    if not port_established:
+        if pf_process:
+            try:
+                pf_process.terminate()
+                pf_process.wait()
+            except Exception:
+                pass
+        process_queue.put(
+            (
+                service_name,
+                False,
+                f"Port-forward did not establish after {port_forward_retries} attempts",
+            )
+        )
+        return
+
+    # Continue with health check
+    try:
+        address = f"http://localhost:{local_port}/monitoring/alive"
+        success = check_service_alive(
+            address=address,
+            timeout=timeout,
+            interval=interval,
+            initial_delay=initial_delay,
+        )
+        if success:
+            print(f"[{service_name}] ✅ Passed for {timeout}s")
+            process_queue.put((service_name, True, "Health check passed"))
+        else:
+            print(f"[{service_name}] ❌ Failed health check")
+            process_queue.put((service_name, False, "Health check failed"))
     except Exception as e:
         process_queue.put((service_name, False, str(e)))
+    finally:
+        if pf_process:
+            pf_process.terminate()
+            pf_process.wait()
 
 
 def main(
@@ -228,6 +276,12 @@ def main(
     for offset, service_config in enumerate(services):
         service_name = service_config["name"]
         service_label = f"sequencer-{service_name.lower()}"
+
+        # Small random delay (0-2 seconds) to stagger port-forward starts
+        # This reduces conflicts from simultaneous port-forward operations
+        if offset > 0:
+            delay = random.uniform(0, 2)
+            time.sleep(delay)
 
         try:
             pod_name = run(

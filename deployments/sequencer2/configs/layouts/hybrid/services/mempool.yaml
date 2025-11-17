@@ -18,7 +18,7 @@ config:
     components_gateway_port: 55002
     components_mempool_url: "sequencer-mempool-service"
     components_mempool_port: 55006
-    
+
 
 # StatefulSet Configuration
 # See docs/STATEFULSET_CONFIGURATION.md for all available options
