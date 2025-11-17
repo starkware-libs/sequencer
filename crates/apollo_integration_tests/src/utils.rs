@@ -352,7 +352,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
             network_config,
-            immediate_active_height: BlockNumber(1),
             consensus_manager_config: ConsensusConfig {
                 dynamic_config: ConsensusDynamicConfig {
                     timeouts: timeouts.clone(),
