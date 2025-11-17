@@ -21,273 +21,42 @@ spec:
       initContainers:
       - name: fix-permissions
         image: busybox
-        command: ["sh", "-c", "chmod -R 777 /data && echo 'Permissions fixed!'"]
+        command: ["sh", "-c", "mkdir -p /data/workspace && chmod -R 777 /data/workspace && echo 'Permissions fixed!'"]
         volumeMounts:
         - name: data
           mountPath: /data
       containers:
       - name: test
         image: ghcr.io/starkware-libs/sequencer/sequencer:dean-k8s_batching_test-fd3d4f1
-        workingDir: /data
+        workingDir: /data/workspace
         command: ["/bin/bash", "-c"]
+        env:
+        - name: RUST_LOG
+          value: info
+        - name: BLOCKS_TO_SYNC
+          value: "200000"
+        - name: BATCH_SIZE
+          value: "100"
+        - name: PATH
+          value: /app/target/release:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         args:
         - |
           set -e
           
           echo "========================================="
-          echo "DEAN'S BATCHING TEST: 0 → 250K"
+          echo "DEAN'S BATCHING TEST: 0 → 200K"
           echo "========================================="
           echo ""
-          
-          # CLEAN THE DISK FIRST (remove any old data)
-          echo "Cleaning disk of any previous test data..."
-          echo "Contents before cleanup:"
-          ls -la /data/
+          echo "Using test_batching.sh script (same approach as deploy_batching_test.sh)"
           echo ""
           
-          # Delete everything except lost+found
-          cd /data
-          find . -mindepth 1 -maxdepth 1 ! -name 'lost+found' -exec rm -rf {} + 2>/dev/null || true
+          # Copy test script from ConfigMap
+          cp /test-scripts/test_batching.sh .
+          chmod +x test_batching.sh
           
-          echo "Contents after cleanup:"
-          ls -la /data/
-          echo ""
+          # Run the test script
+          ./test_batching.sh 2>&1 | tee test_output.log
           
-          # Verify it's clean
-          if [ "$(find /data -name 'SN_MAIN' -o -name 'batcher' -o -name 'class_manager' 2>/dev/null)" ]; then
-            echo "❌ ERROR: Failed to clean disk! Old databases still exist!"
-            find /data -name 'SN_MAIN' -o -name 'batcher' -o -name 'class_manager'
-            exit 1
-          fi
-          
-          echo "✓ Disk cleaned successfully"
-          echo ""
-          
-          export PATH="/app/target/release:$PATH"
-          export RUST_LOG=info
-          
-          TARGET=250000
-          
-          # Test WITHOUT batching
-          echo ""
-          echo "=== TEST 1: WITHOUT BATCHING ==="
-          mkdir -p /data/test_without
-          cd /data/test_without
-          
-          cat > config.json << 'EOF'
-          {
-            "state_sync_config.central_sync_client_config.sync_config.enable_block_batching": false,
-            "state_sync_config.storage_config.db_config.path_prefix": "."
-          }
-          EOF
-          
-          echo "Starting sync WITHOUT batching from block 0..."
-          START1=$(date +%s)
-          
-          apollo_node \
-            --config_file /configs/base_layer_config.json \
-            --config_file /configs/batcher_config.json \
-            --config_file /configs/class_manager_config.json \
-            --config_file /configs/consensus_manager_config.json \
-            --config_file /configs/revert_config.json \
-            --config_file /configs/versioned_constants_overrides_config.json \
-            --config_file /configs/validate_resource_bounds_config.json \
-            --config_file /configs/gateway_config.json \
-            --config_file /configs/http_server_config.json \
-            --config_file /configs/l1_endpoint_monitor_config.json \
-            --config_file /configs/l1_gas_price_provider_config.json \
-            --config_file /configs/l1_gas_price_scraper_config.json \
-            --config_file /configs/l1_provider_config.json \
-            --config_file /configs/l1_scraper_config.json \
-            --config_file /configs/mempool_config.json \
-            --config_file /configs/mempool_p2p_config.json \
-            --config_file /configs/monitoring_endpoint_config.json \
-            --config_file /configs/sierra_compiler_config.json \
-            --config_file /configs/state_sync_config.json \
-            --config_file /configs/mainnet_deployment \
-            --config_file /configs/mainnet_hybrid \
-            --config_file /configs/node_config \
-            --config_file /configs/minimal_node_config.json \
-            --config_file /configs/mainnet_secrets.json \
-            --config_file config.json > sync.log 2>&1 &
-          
-          PID1=$!
-          echo "PID: $PID1"
-          echo "Monitoring progress (checking every 1 second)..."
-          
-          # Monitor until target
-          LAST_BLOCK=0
-          while kill -0 $PID1 2>/dev/null; do
-            CURRENT=$(tail -100 sync.log 2>/dev/null | grep -oE 'height[^=]*=[^0-9]*[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
-            
-            if [ ! -z "$CURRENT" ] && [ "$CURRENT" != "$LAST_BLOCK" ]; then
-              LAST_BLOCK=$CURRENT
-              ELAPSED=$(($(date +%s) - START1))
-              echo "  Block $CURRENT (${ELAPSED}s elapsed)"
-            fi
-            
-            if [ ! -z "$CURRENT" ] && [ "$CURRENT" -ge "$TARGET" ]; then
-              echo "  Reached target! Stopping at block $CURRENT..."
-              kill -9 $PID1 2>/dev/null || true
-              break
-            fi
-            
-            sleep 1
-          done
-          
-          wait $PID1 2>/dev/null || true
-          
-          END1=$(date +%s)
-          TIME1=$((END1 - START1))
-          BLOCKS1=$(tail -100 sync.log 2>/dev/null | grep -oE 'height[^=]*=[^0-9]*[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
-          BLOCKS1=${BLOCKS1:-0}
-          
-          echo ""
-          echo "=== RESULT 1: WITHOUT BATCHING ==="
-          echo "  Blocks synced: $BLOCKS1"
-          echo "  Time: ${TIME1}s ($(($TIME1 / 60))m $(($TIME1 % 60))s)"
-          if [ "$TIME1" -gt 0 ] && [ "$BLOCKS1" -gt 0 ]; then
-            SPEED1=$(awk "BEGIN {printf \"%.2f\", $BLOCKS1 / $TIME1}")
-            echo "  Speed: $SPEED1 blocks/sec"
-          else
-            SPEED1=0
-            echo "  Speed: N/A"
-          fi
-          
-          DISK1=$(du -sh . 2>/dev/null | cut -f1)
-          echo "  Disk usage: $DISK1"
-          
-          # Clean for next test
-          echo ""
-          echo "Cleaning up for next test..."
-          cd /data
-          rm -rf /data/test_without /data/batcher /data/class_manager
-          echo "  ✓ Cleaned"
-          
-          # Test WITH batching
-          echo ""
-          echo "=== TEST 2: WITH BATCHING ==="
-          mkdir -p /data/test_with
-          cd /data/test_with
-          
-          cat > config.json << 'EOF'
-          {
-            "state_sync_config.central_sync_client_config.sync_config.enable_block_batching": true,
-            "state_sync_config.central_sync_client_config.sync_config.block_batch_size": 100,
-            "state_sync_config.storage_config.db_config.path_prefix": "."
-          }
-          EOF
-          
-          echo "Starting sync WITH batching from block 0..."
-          START2=$(date +%s)
-          
-          apollo_node \
-            --config_file /configs/base_layer_config.json \
-            --config_file /configs/batcher_config.json \
-            --config_file /configs/class_manager_config.json \
-            --config_file /configs/consensus_manager_config.json \
-            --config_file /configs/revert_config.json \
-            --config_file /configs/versioned_constants_overrides_config.json \
-            --config_file /configs/validate_resource_bounds_config.json \
-            --config_file /configs/gateway_config.json \
-            --config_file /configs/http_server_config.json \
-            --config_file /configs/l1_endpoint_monitor_config.json \
-            --config_file /configs/l1_gas_price_provider_config.json \
-            --config_file /configs/l1_gas_price_scraper_config.json \
-            --config_file /configs/l1_provider_config.json \
-            --config_file /configs/l1_scraper_config.json \
-            --config_file /configs/mempool_config.json \
-            --config_file /configs/mempool_p2p_config.json \
-            --config_file /configs/monitoring_endpoint_config.json \
-            --config_file /configs/sierra_compiler_config.json \
-            --config_file /configs/state_sync_config.json \
-            --config_file /configs/mainnet_deployment \
-            --config_file /configs/mainnet_hybrid \
-            --config_file /configs/node_config \
-            --config_file /configs/minimal_node_config.json \
-            --config_file /configs/mainnet_secrets.json \
-            --config_file config.json > sync.log 2>&1 &
-          
-          PID2=$!
-          echo "PID: $PID2"
-          echo "Monitoring progress (checking every 1 second)..."
-          
-          # Monitor until target
-          LAST_BLOCK=0
-          while kill -0 $PID2 2>/dev/null; do
-            CURRENT=$(tail -100 sync.log 2>/dev/null | grep -oE 'height[^=]*=[^0-9]*[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
-            
-            if [ ! -z "$CURRENT" ] && [ "$CURRENT" != "$LAST_BLOCK" ]; then
-              LAST_BLOCK=$CURRENT
-              ELAPSED=$(($(date +%s) - START2))
-              echo "  Block $CURRENT (${ELAPSED}s elapsed)"
-            fi
-            
-            if [ ! -z "$CURRENT" ] && [ "$CURRENT" -ge "$TARGET" ]; then
-              echo "  Reached target! Stopping at block $CURRENT..."
-              kill -9 $PID2 2>/dev/null || true
-              break
-            fi
-            
-            sleep 1
-          done
-          
-          wait $PID2 2>/dev/null || true
-          
-          END2=$(date +%s)
-          TIME2=$((END2 - START2))
-          BLOCKS2=$(tail -100 sync.log 2>/dev/null | grep -oE 'height[^=]*=[^0-9]*[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
-          BLOCKS2=${BLOCKS2:-0}
-          
-          echo ""
-          echo "=== RESULT 2: WITH BATCHING ==="
-          echo "  Blocks synced: $BLOCKS2"
-          echo "  Time: ${TIME2}s ($(($TIME2 / 60))m $(($TIME2 % 60))s)"
-          if [ "$TIME2" -gt 0 ] && [ "$BLOCKS2" -gt 0 ]; then
-            SPEED2=$(awk "BEGIN {printf \"%.2f\", $BLOCKS2 / $TIME2}")
-            echo "  Speed: $SPEED2 blocks/sec"
-          else
-            SPEED2=0
-            echo "  Speed: N/A"
-          fi
-          
-          DISK2=$(du -sh . 2>/dev/null | cut -f1)
-          echo "  Disk usage: $DISK2"
-          
-          # Comparison
-          echo ""
-          echo "========================================="
-          echo "FINAL COMPARISON"
-          echo "========================================="
-          echo ""
-          echo "WITHOUT Batching:"
-          echo "  Blocks: $BLOCKS1"
-          echo "  Time: ${TIME1}s"
-          echo "  Speed: $SPEED1 blocks/sec"
-          echo ""
-          echo "WITH Batching:"
-          echo "  Blocks: $BLOCKS2"
-          echo "  Time: ${TIME2}s"
-          echo "  Speed: $SPEED2 blocks/sec"
-          echo ""
-          
-          if [ "$SPEED1" != "0" ] && [ "$SPEED2" != "0" ]; then
-            RATIO=$(awk "BEGIN {printf \"%.2f\", $SPEED2 / $SPEED1}")
-            if [ "$TIME2" -lt "$TIME1" ]; then
-              TIME_RATIO=$(awk "BEGIN {printf \"%.2f\", $TIME1 / $TIME2}")
-              echo "WITH BATCHING IS ${TIME_RATIO}x FASTER"
-              echo "   Speed improvement: ${RATIO}x"
-            else
-              TIME_RATIO=$(awk "BEGIN {printf \"%.2f\", $TIME2 / $TIME1}")
-              echo "WITH BATCHING IS ${TIME_RATIO}x SLOWER"
-              echo "   Speed ratio: ${RATIO}x"
-            fi
-          fi
-          
-          echo ""
-          echo "NOTE: Blocks 0-50k are very small (~80 bytes each)"
-          echo "Batching may add overhead on tiny blocks"
-          echo "For fair comparison, test blocks 200k+ with real transactions"
           echo ""
           echo "========================================="
           echo "TEST COMPLETE"
@@ -305,6 +74,9 @@ spec:
         - name: configs
           mountPath: /configs
           readOnly: true
+        - name: test-scripts
+          mountPath: /test-scripts
+          readOnly: true
       volumes:
       - name: data
         persistentVolumeClaim:
@@ -312,4 +84,6 @@ spec:
       - name: configs
         configMap:
           name: sequencer-configs
-
+      - name: test-scripts
+        configMap:
+          name: dean-test-scripts

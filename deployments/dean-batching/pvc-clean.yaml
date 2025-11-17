@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dean-clean-hyperdisk-pvc
+  namespace: dean-batching
+  labels:
+    app: dean-batching-test
+    purpose: clean-test-december-2025
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: hyperdisk-balanced-500gb
+  resources:
+    requests:
+      storage: 100Gi
+

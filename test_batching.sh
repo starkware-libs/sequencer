@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # Simple FuturesOrdered batching test
-# Syncs 5000 blocks and compares WITH vs WITHOUT batching
+# Syncs blocks and compares WITH vs WITHOUT batching
 
 set -e
 
-BLOCKS_TO_SYNC=5000
-BATCH_SIZE=100
+# Read from environment variables, with defaults
+BLOCKS_TO_SYNC=${BLOCKS_TO_SYNC:-5000}
+BATCH_SIZE=${BATCH_SIZE:-100}
 
 # Colors
 GREEN='\033[0;32m'
