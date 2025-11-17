@@ -7,31 +7,27 @@ use starknet_api::block::BlockNumber;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
 pub(crate) enum HeightVotedStorageError {
     #[error(transparent)]
     StorageError(#[from] apollo_storage::StorageError),
 }
 
 #[cfg_attr(test, mockall::automock)]
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
 pub(crate) trait HeightVotedStorage: Debug + Send + Sync {
+    // TODO(guy.f): Remove in the following PR.
+    #[allow(dead_code)]
     fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError>;
     fn set_prev_voted_height(&mut self, height: BlockNumber)
     -> Result<(), HeightVotedStorageError>;
 }
 
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
 struct HeightVotedStorageImpl {
+    // TODO(guy.f): Remove in the following PR.
+    #[allow(dead_code)]
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
 }
 
-// TODO(guy.f): Remove in the following PR.
-#[allow(dead_code)]
 pub(crate) fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorage {
     let (storage_reader, storage_writer) = open_storage(config).expect("Failed to open storage");
     HeightVotedStorageImpl { storage_reader, storage_writer }

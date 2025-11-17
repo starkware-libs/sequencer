@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use futures::channel::{mpsc, oneshot};
@@ -10,6 +12,7 @@ use test_case::test_case;
 use super::SingleHeightConsensus;
 use crate::single_height_consensus::{ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
+use crate::storage::{HeightVotedStorage, HeightVotedStorageError};
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
@@ -72,6 +75,22 @@ async fn handle_proposal(
     shc.handle_proposal(context, *PROPOSAL_INIT, content_receiver).await.unwrap()
 }
 
+// TODO: Remove this, use a mock and test the behavior.
+#[derive(Debug)]
+struct TestHeightVotedStorage;
+
+impl HeightVotedStorage for TestHeightVotedStorage {
+    fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
+        Ok(None)
+    }
+    fn set_prev_voted_height(
+        &mut self,
+        _height: BlockNumber,
+    ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+}
+
 #[tokio::test]
 async fn proposer() {
     let mut context = MockTestContext::new();
@@ -83,6 +102,7 @@ async fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -153,12 +173,13 @@ async fn validator(repeat_proposal: bool) {
 
     // Creation calls to `context.validators`.
     let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
+        BlockNumber(1),
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -171,7 +192,7 @@ async fn validator(repeat_proposal: bool) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 1, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     let shc_ret = handle_proposal(&mut shc, &mut context).await;
     assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT);
@@ -185,25 +206,25 @@ async fn validator(repeat_proposal: bool) {
         assert_eq!(shc_ret, ShcReturn::Tasks(Vec::new()));
     }
     assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)).await,
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 1, 0, *PROPOSER_ID)).await,
         Ok(ShcReturn::Tasks(Vec::new()))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 1, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 1, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0)]))
     );
 
     let precommits = vec![
-        precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1),
+        precommit(Some(BLOCK.id.0), 1, 0, *PROPOSER_ID),
+        precommit(Some(BLOCK.id.0), 1, 0, *VALIDATOR_ID_2),
+        precommit(Some(BLOCK.id.0), 1, 0, *VALIDATOR_ID_1),
     ];
     assert_eq!(
         shc.handle_vote(&mut context, precommits[0].clone()).await,
@@ -231,6 +252,7 @@ async fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -297,6 +319,7 @@ async fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -353,6 +376,7 @@ async fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
