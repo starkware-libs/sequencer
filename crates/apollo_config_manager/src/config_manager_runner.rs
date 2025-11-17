@@ -69,7 +69,7 @@ impl ConfigManagerRunner {
     pub(crate) async fn update_config(
         &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
-        let config = load_and_validate_config(self.cli_args.clone())?;
+        let config = load_and_validate_config(self.cli_args.clone(), false)?;
         let node_dynamic_config = NodeDynamicConfig::from(&config);
 
         // Compare the previous and the newly read node dynamic config.
