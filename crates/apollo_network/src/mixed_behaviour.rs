@@ -17,7 +17,7 @@ use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
 use crate::network_manager::metrics::EventMetrics;
 use crate::peer_manager::PeerManagerConfig;
-use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
+use crate::{discovery, gossipsub_impl, peer_manager, prune_dead_connections, sqmr};
 
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
@@ -31,6 +31,7 @@ pub struct MixedBehaviour {
     pub kademlia: kad::Behaviour<MemoryStore>,
     pub sqmr: sqmr::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
+    pub prune_dead_connections: prune_dead_connections::Behaviour,
     pub event_tracker_metrics: Toggle<EventMetricsTracker>,
 }
 
@@ -135,6 +136,7 @@ impl MixedBehaviour {
                     "Failed creating gossipsub behaviour due to the following error: {err_string}"
                 )
             }),
+            prune_dead_connections: Default::default(),
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
     }
