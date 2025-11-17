@@ -722,6 +722,16 @@ impl StorageSerde for StorageKey {
 ////////////////////////////////////////////////////////////////////////
 //  Primitive types.
 ////////////////////////////////////////////////////////////////////////
+impl StorageSerde for () {
+    fn serialize_into(&self, _: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        Ok(())
+    }
+
+    fn deserialize_from(_: &mut impl std::io::Read) -> Option<Self> {
+        Some(())
+    }
+}
+
 impl StorageSerde for bool {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         u8::from(*self).serialize_into(res)
