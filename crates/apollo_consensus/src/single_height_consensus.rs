@@ -137,8 +137,6 @@ pub(crate) struct SingleHeightConsensus {
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
     proposals: HashMap<Round, Option<ProposalCommitment>>,
-    prevotes: HashMap<(Round, ValidatorId), Vote>,
-    precommits: HashMap<(Round, ValidatorId), Vote>,
     last_prevote: Option<Vote>,
     last_precommit: Option<Vote>,
 }
@@ -161,8 +159,6 @@ impl SingleHeightConsensus {
             timeouts,
             state_machine,
             proposals: HashMap::new(),
-            prevotes: HashMap::new(),
-            precommits: HashMap::new(),
             last_prevote: None,
             last_precommit: None,
         }
@@ -254,7 +250,7 @@ impl SingleHeightConsensus {
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.get_prevote_timeout(0),
-                    StateMachineEvent::Prevote(last_vote.clone()),
+                    StateMachineEvent::Prevote(vote),
                 )]))
             }
             StateMachineEvent::Precommit(vote) => {
@@ -271,7 +267,7 @@ impl SingleHeightConsensus {
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.get_precommit_timeout(0),
-                    StateMachineEvent::Precommit(last_vote.clone()),
+                    StateMachineEvent::Precommit(vote),
                 )]))
             }
             StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
@@ -349,29 +345,27 @@ impl SingleHeightConsensus {
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
 
-        let (votes, sm_vote) = match vote.vote_type {
-            VoteType::Prevote => (&mut self.prevotes, StateMachineEvent::Prevote(vote.clone())),
+        // Check duplicates/conflicts from SM stored votes.
+        let (votes_map, sm_vote) = match vote.vote_type {
+            VoteType::Prevote => {
+                (self.state_machine.prevotes_ref(), StateMachineEvent::Prevote(vote.clone()))
+            }
             VoteType::Precommit => {
-                (&mut self.precommits, StateMachineEvent::Precommit(vote.clone()))
+                (self.state_machine.precommits_ref(), StateMachineEvent::Precommit(vote.clone()))
             }
         };
-
-        match votes.entry((vote.round, vote.voter)) {
-            Entry::Vacant(entry) => {
-                entry.insert(vote.clone());
-            }
-            Entry::Occupied(entry) => {
-                let old = entry.get();
-                if old.proposal_commitment != vote.proposal_commitment {
-                    warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
-                    CONSENSUS_CONFLICTING_VOTES.increment(1);
-                    return Ok(ShcReturn::Tasks(Vec::new()));
-                } else {
-                    // Replay, ignore.
-                    return Ok(ShcReturn::Tasks(Vec::new()));
-                }
+        if let Some((old_vote, _)) = votes_map.get(&(vote.round, vote.voter)) {
+            if old_vote.proposal_commitment == vote.proposal_commitment {
+                // Duplicate - ignore.
+                return Ok(ShcReturn::Tasks(Vec::new()));
+            } else {
+                // Conflict - ignore and record.
+                warn!("Conflicting votes: old={old_vote:?}, new={vote:?}");
+                CONSENSUS_CONFLICTING_VOTES.increment(1);
+                return Ok(ShcReturn::Tasks(Vec::new()));
             }
         }
+
         info!("Accepting {:?}", vote);
         let height = self.state_machine.height();
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(height, round) };
@@ -502,29 +496,24 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<Vec<ShcTask>, ConsensusError> {
-        let prevote_timeout = self.timeouts.get_prevote_timeout(vote.round);
-        let precommit_timeout = self.timeouts.get_precommit_timeout(vote.round);
-        let (votes, last_vote, task) = match vote.vote_type {
+        let (last_vote, task) = match vote.vote_type {
             VoteType::Prevote => (
-                &mut self.prevotes,
                 &mut self.last_prevote,
-                ShcTask::Prevote(prevote_timeout, StateMachineEvent::Prevote(vote.clone())),
+                ShcTask::Prevote(
+                    self.timeouts.get_prevote_timeout(0),
+                    StateMachineEvent::Prevote(vote.clone()),
+                ),
             ),
             VoteType::Precommit => (
-                &mut self.precommits,
                 &mut self.last_precommit,
-                ShcTask::Precommit(precommit_timeout, StateMachineEvent::Precommit(vote.clone())),
+                ShcTask::Precommit(
+                    self.timeouts.get_precommit_timeout(0),
+                    StateMachineEvent::Precommit(vote.clone()),
+                ),
             ),
         };
         // Ensure the voter matches this node.
         assert_eq!(vote.voter, self.state_machine.validator_id());
-        if let Some(old) =
-            votes.insert((vote.round, self.state_machine.validator_id()), vote.clone())
-        {
-            return Err(ConsensusError::InternalInconsistency(format!(
-                "State machine should not send repeat votes: old={old:?}, new={vote:?}"
-            )));
-        }
         *last_vote = match last_vote {
             None => Some(vote.clone()),
             Some(last_vote) if vote.round > last_vote.round => Some(vote.clone()),
@@ -569,18 +558,7 @@ impl SingleHeightConsensus {
                  {block}"
             )));
         }
-        let supporting_precommits: Vec<Vote> = self
-            .validators
-            .iter()
-            .filter_map(|v| {
-                let vote = self.precommits.get(&(round, *v))?;
-                if vote.proposal_commitment == Some(proposal_id) {
-                    Some(vote.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let supporting_precommits = self.precommit_votes_for_value(round, Some(proposal_id));
 
         // TODO(matan): Check actual weights.
         let vote_weight = u64::try_from(supporting_precommits.len())
@@ -595,5 +573,19 @@ impl SingleHeightConsensus {
             return Err(invalid_decision(msg));
         }
         Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
+    }
+
+    fn precommit_votes_for_value(
+        &self,
+        round: Round,
+        value: Option<ProposalCommitment>,
+    ) -> Vec<Vote> {
+        self.state_machine
+            .precommits_ref()
+            .iter()
+            .filter_map(|(&(r, _voter), (v, _w))| {
+                if r == round && v.proposal_commitment == value { Some(v.clone()) } else { None }
+            })
+            .collect()
     }
 }
