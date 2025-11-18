@@ -50,9 +50,9 @@ const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Debug)]
-struct TestHeightVotedStorage;
+struct NoOpHeightVotedStorage;
 
-impl HeightVotedStorageTrait for TestHeightVotedStorage {
+impl HeightVotedStorageTrait for NoOpHeightVotedStorage {
     fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
         Ok(None)
     }
@@ -60,6 +60,9 @@ impl HeightVotedStorageTrait for TestHeightVotedStorage {
         &mut self,
         _height: BlockNumber,
     ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+    fn revert_height(&mut self, _height: BlockNumber) -> Result<(), HeightVotedStorageError> {
         Ok(())
     }
 }
@@ -170,7 +173,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     let mut manager = MultiHeightManager::new_with_storage(
         consensus_config,
         QuorumType::Byzantine,
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -306,7 +309,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     let mut manager = MultiHeightManager::new_with_storage(
         consensus_config,
         QuorumType::Byzantine,
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
@@ -367,7 +370,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     let mut manager = MultiHeightManager::new_with_storage(
         consensus_config,
         QuorumType::Byzantine,
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
     let res = manager
         .run_height(

@@ -92,9 +92,9 @@ async fn handle_proposal(
 }
 
 #[derive(Debug)]
-struct TestHeightVotedStorage;
+struct NoOpHeightVotedStorage;
 
-impl HeightVotedStorageTrait for TestHeightVotedStorage {
+impl HeightVotedStorageTrait for NoOpHeightVotedStorage {
     fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
         Ok(None)
     }
@@ -102,6 +102,9 @@ impl HeightVotedStorageTrait for TestHeightVotedStorage {
         &mut self,
         _height: BlockNumber,
     ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+    fn revert_height(&mut self, _height: BlockNumber) -> Result<(), HeightVotedStorageError> {
         Ok(())
     }
 }
@@ -117,7 +120,7 @@ async fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -195,7 +198,7 @@ async fn validator(repeat_proposal: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
@@ -274,7 +277,7 @@ async fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -350,7 +353,7 @@ async fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
@@ -407,7 +410,7 @@ async fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
-        Arc::new(Mutex::new(TestHeightVotedStorage)),
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);

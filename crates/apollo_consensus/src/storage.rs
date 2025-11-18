@@ -33,6 +33,9 @@ pub trait HeightVotedStorageTrait: Debug + Send + Sync {
     /// Sets the last height on which the node voted.
     fn set_prev_voted_height(&mut self, height: BlockNumber)
     -> Result<(), HeightVotedStorageError>;
+    /// If the last voted height is higher or equal to the height to revert to, set the last voted
+    /// height to be just before the height to revert.
+    fn revert_height(&mut self, height: BlockNumber) -> Result<(), HeightVotedStorageError>;
 }
 
 struct HeightVotedStorage {
@@ -42,7 +45,8 @@ struct HeightVotedStorage {
     storage_writer: StorageWriter,
 }
 
-pub(crate) fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
+/// Returns a new concrete implementation of HeightVotedStorageTrait based on the configuration.
+pub fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
     let (storage_reader, storage_writer) = open_storage(config).expect("Failed to open storage");
     HeightVotedStorage { storage_reader, storage_writer }
 }
@@ -75,6 +79,27 @@ impl HeightVotedStorageTrait for HeightVotedStorage {
             }
         }
         txn.set_last_voted_marker(&last_voted_marker_to_write)?.commit()?;
+        Ok(())
+    }
+
+    fn revert_height(&mut self, height: BlockNumber) -> Result<(), HeightVotedStorageError> {
+        let mut txn = self.storage_writer.begin_rw_txn()?;
+        let last_voted = txn.get_last_voted_marker()?;
+        match last_voted {
+            None => return Ok(()), // If none, nothing to revert.
+            Some(last_voted) => {
+                if last_voted.height >= height {
+                    if let Some(prev_height) = height.prev() {
+                        txn =
+                            txn.set_last_voted_marker(&LastVotedMarker { height: prev_height })?;
+                    } else {
+                        // We're reverting height 0, so clear the last voted height completely.
+                        txn = txn.clear_last_voted_marker()?;
+                    }
+                }
+            }
+        }
+        txn.commit()?;
         Ok(())
     }
 }
