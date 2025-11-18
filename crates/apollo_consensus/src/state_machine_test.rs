@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 
-use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_protobuf::consensus::{Vote, VoteType, DEFAULT_VALIDATOR_ID};
 use lazy_static::lazy_static;
+use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -17,6 +18,16 @@ lazy_static! {
 
 const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ONE));
 const ROUND: Round = 0;
+const HEIGHT: BlockNumber = BlockNumber(0);
+
+fn mk_vote(
+    vote_type: VoteType,
+    round: Round,
+    proposal_id: Option<ProposalCommitment>,
+    voter: ValidatorId,
+) -> Vote {
+    Vote { vote_type, height: HEIGHT.0, round, proposal_commitment: proposal_id, voter }
+}
 
 struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
     state_machine: StateMachine,
@@ -33,7 +44,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         quorum_type: QuorumType,
     ) -> Self {
         Self {
-            state_machine: StateMachine::new(id, total_weight, is_observer, quorum_type),
+            state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
             leader_fn,
             events: VecDeque::new(),
         }
@@ -56,11 +67,21 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     pub fn send_prevote(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
-        self.send_event(StateMachineEvent::Prevote(proposal_id, round))
+        self.send_event(StateMachineEvent::Prevote(mk_vote(
+            VoteType::Prevote,
+            round,
+            proposal_id,
+            *PROPOSER_ID,
+        )))
     }
 
     pub fn send_precommit(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
-        self.send_event(StateMachineEvent::Precommit(proposal_id, round))
+        self.send_event(StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            round,
+            proposal_id,
+            *PROPOSER_ID,
+        )))
     }
 
     pub fn send_timeout_propose(&mut self, round: Round) {
@@ -101,7 +122,10 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
         assert!(wrapper.next_event().is_none());
         wrapper.send_proposal(PROPOSAL_ID, ROUND);
     }
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, id))
+    );
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
@@ -110,7 +134,10 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
     // The Node got a Prevote quorum.
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, id))
+    );
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
@@ -150,9 +177,20 @@ fn validator_receives_votes_first() {
 
     // Finally the proposal arrives.
     wrapper.send_proposal(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            ROUND,
+            PROPOSAL_ID,
+            *VALIDATOR_ID
+        ))
+    );
     assert_eq!(
         wrapper.next_event().unwrap(),
         StateMachineEvent::Decision(PROPOSAL_ID.unwrap(), ROUND)
@@ -181,9 +219,15 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
         wrapper.next_event().unwrap(),
         StateMachineEvent::Proposal(PROPOSAL_ID, ROUND, None)
     );
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
+    );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(vote, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(VoteType::Precommit, ROUND, vote, *PROPOSER_ID))
+    );
     assert!(wrapper.next_event().is_none());
 }
 
@@ -205,9 +249,20 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
 
     // Finally the proposal arrives.
     wrapper.send_proposal(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            ROUND,
+            PROPOSAL_ID,
+            *VALIDATOR_ID
+        ))
+    );
     assert!(wrapper.next_event().is_none());
 }
 
@@ -231,9 +286,20 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
 
     // Finally the proposal arrives.
     wrapper.send_proposal(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            ROUND,
+            PROPOSAL_ID,
+            *VALIDATOR_ID
+        ))
+    );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert_eq!(
         wrapper.next_event().unwrap(),
@@ -253,7 +319,10 @@ fn advance_to_the_next_round() {
     assert!(wrapper.next_event().is_none());
 
     wrapper.send_proposal(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
     wrapper.send_precommit(None, ROUND);
     wrapper.send_precommit(None, ROUND);
     assert!(wrapper.next_event().is_none());
@@ -266,7 +335,15 @@ fn advance_to_the_next_round() {
     wrapper.send_timeout_precommit(ROUND);
     // The Node sends Prevote after advancing to the next round.
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND + 1));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND + 1));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(
+            VoteType::Prevote,
+            ROUND + 1,
+            PROPOSAL_ID,
+            *VALIDATOR_ID
+        ))
+    );
 }
 
 #[test]
@@ -291,7 +368,15 @@ fn prevote_when_receiving_proposal_in_current_round() {
     assert!(wrapper.next_event().is_none());
     // The node should prevote when receiving a proposal for the current round.
     wrapper.send_proposal(PROPOSAL_ID, ROUND + 1);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND + 1));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(
+            VoteType::Prevote,
+            ROUND + 1,
+            PROPOSAL_ID,
+            *VALIDATOR_ID
+        ))
+    );
 }
 
 #[test_case(true ; "send_proposal")]
@@ -307,17 +392,31 @@ fn mixed_quorum(send_proposal: bool) {
 
     if send_proposal {
         wrapper.send_proposal(PROPOSAL_ID, ROUND);
-        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+        assert_eq!(
+            wrapper.next_event().unwrap(),
+            StateMachineEvent::Prevote(mk_vote(
+                VoteType::Prevote,
+                ROUND,
+                PROPOSAL_ID,
+                *VALIDATOR_ID
+            ))
+        );
     } else {
         wrapper.send_timeout_propose(ROUND);
-        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(None, ROUND));
+        assert_eq!(
+            wrapper.next_event().unwrap(),
+            StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, None, *VALIDATOR_ID))
+        );
     }
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
     wrapper.send_prevote(None, ROUND);
     // The Node got a Prevote quorum.
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     wrapper.send_timeout_prevote(ROUND);
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(None, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(VoteType::Precommit, ROUND, None, *VALIDATOR_ID))
+    );
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
     // The Node got a Precommit quorum.
@@ -386,12 +485,23 @@ fn return_proposal_if_locked_value_is_set() {
         wrapper.next_event().unwrap(),
         StateMachineEvent::Proposal(PROPOSAL_ID, ROUND, None)
     );
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
+    );
     // locked_value is set after receiving a Prevote quorum.
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            ROUND,
+            PROPOSAL_ID,
+            *PROPOSER_ID
+        ))
+    );
 
     wrapper.send_precommit(None, ROUND);
     wrapper.send_precommit(None, ROUND);
@@ -404,7 +514,15 @@ fn return_proposal_if_locked_value_is_set() {
         wrapper.next_event().unwrap(),
         StateMachineEvent::Proposal(PROPOSAL_ID, ROUND + 1, Some(ROUND))
     );
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND + 1));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(
+            VoteType::Prevote,
+            ROUND + 1,
+            PROPOSAL_ID,
+            *PROPOSER_ID
+        ))
+    );
 }
 
 #[test]
@@ -446,7 +564,10 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     wrapper.send_proposal(PROPOSAL_ID, ROUND);
 
     // The node says this proposal is valid (vote 1).
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Prevote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
     assert!(wrapper.next_event().is_none());
 
     // Another node sends a Prevote (vote 2).
@@ -466,7 +587,15 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
 
     // The Node sends a Precommit (vote 1).
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            ROUND,
+            PROPOSAL_ID,
+            *VALIDATOR_ID
+        ))
+    );
     assert!(wrapper.next_event().is_none());
 
     // Another node sends a Precommit (vote 2).
