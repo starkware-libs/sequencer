@@ -72,9 +72,9 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
         let latest_block_info = get_latest_block_info(&state_reader)?;
 
         let state = CachedState::new(state_reader);
-        let mut versioned_constants = VersionedConstants::get_versioned_constants(
+        let mut versioned_constants = VersionedConstants::get_versioned_constants(Some(
             self.config.versioned_constants_overrides.clone(),
-        );
+        ));
         // The validation of a transaction is not affected by the casm hash migration.
         versioned_constants.enable_casm_hash_migration = false;
 
