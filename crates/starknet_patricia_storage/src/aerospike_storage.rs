@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use aerospike::{
     as_bin,
     operations,
@@ -31,6 +33,7 @@ pub enum AerospikeStorageError {
     ExpectedBlob(Value),
 }
 
+#[derive(Clone)]
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
@@ -64,14 +67,15 @@ impl AerospikeStorageConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct AerospikeStorage {
     config: AerospikeStorageConfig,
-    client: Client,
+    client: Arc<Client>,
 }
 
 impl AerospikeStorage {
     pub fn new(config: AerospikeStorageConfig) -> AerospikeResult<Self> {
-        let client = Client::new(&config.client_policy, &config.hosts)?;
+        let client = Arc::new(Client::new(&config.client_policy, &config.hosts)?);
         Ok(Self { config, client })
     }
 
