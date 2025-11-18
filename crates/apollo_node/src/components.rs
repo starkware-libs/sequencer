@@ -86,12 +86,15 @@ pub async fn create_node_components(
             let pre_confirmed_cende_client = std::sync::Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.pre_confirmed_cende_config.clone(),
             ));
+            let batcher_client =
+                clients.get_batcher_shared_client().expect("Batcher client should be available");
             Some(create_batcher(
                 batcher_config.clone(),
                 mempool_client,
                 l1_provider_client,
                 class_manager_client,
                 pre_confirmed_cende_client,
+                batcher_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {

@@ -108,6 +108,12 @@ use crate::utils::{
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
+/// Placeholder message type for computation task input.
+#[derive(Debug, Clone)]
+pub struct ComputationTaskInput {
+    // TODO: Add fields as needed for computation tasks
+}
+
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
@@ -148,6 +154,10 @@ pub struct Batcher {
 
     /// Number of proposals made since coming online.
     proposals_counter: u64,
+
+    /// Sender for the computation task channel.
+    /// The batcher uses this to send computation tasks to the background computation task.
+    computation_task_tx: tokio::sync::mpsc::UnboundedSender<ComputationTaskInput>,
 }
 
 impl Batcher {
@@ -161,6 +171,7 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
+        computation_task_tx: tokio::sync::mpsc::UnboundedSender<ComputationTaskInput>,
     ) -> Self {
         Self {
             config,
@@ -179,6 +190,7 @@ impl Batcher {
             validate_tx_streams: HashMap::new(),
             // Allow the first few proposals to be without L1 txs while system starts up.
             proposals_counter: 1,
+            computation_task_tx,
         }
     }
 
@@ -962,12 +974,34 @@ fn log_txs_execution_result(
     }
 }
 
+/// Background task that performs computation tasks.
+/// Receives computation tasks from the batcher, performs placeholder computation,
+/// and calls the batcher client with results.
+async fn run_computation_task(
+    mut computation_rx: tokio::sync::mpsc::UnboundedReceiver<ComputationTaskInput>,
+    _storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+    _batcher_client: apollo_batcher_types::communication::SharedBatcherClient,
+) {
+    info!("Starting computation task");
+    while let Some(computation_input) = computation_rx.recv().await {
+        trace!("Received computation task: {:?}", computation_input);
+
+        // TODO: Implement actual computation logic here
+        // Placeholder: perform computation using _storage_reader
+
+        // TODO: Call _batcher_client methods with computation results
+        // Example: _batcher_client.some_method(result).await
+    }
+    info!("Computation task ended");
+}
+
 pub fn create_batcher(
     config: BatcherConfig,
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
+    batcher_client: apollo_batcher_types::communication::SharedBatcherClient,
 ) -> Batcher {
     let (storage_reader, storage_writer) = apollo_storage::open_storage_with_metric(
         config.storage.clone(),
@@ -995,6 +1029,15 @@ pub fn create_batcher(
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
+    // Create channel for computation task
+    let (computation_tx, computation_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    // Spawn computation task
+    let computation_storage_reader = storage_reader.clone();
+    tokio::spawn(async move {
+        run_computation_task(computation_rx, computation_storage_reader, batcher_client).await;
+    });
+
     Batcher::new(
         config,
         storage_reader,
@@ -1004,6 +1047,7 @@ pub fn create_batcher(
         transaction_converter,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
+        computation_tx,
     )
 }
 
