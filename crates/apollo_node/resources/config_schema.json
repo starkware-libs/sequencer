@@ -1544,35 +1544,50 @@
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout": {
-    "description": "The timeout (seconds) for a precommit.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.base": {
+    "description": "The base timeout (seconds).",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a precommit.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.delta": {
+    "description": "The per-round timeout delta (seconds).",
     "privacy": "Public",
     "value": 0.5
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout": {
-    "description": "The timeout (seconds) for a prevote.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.max": {
+    "description": "The maximum timeout (seconds).",
+    "privacy": "Public",
+    "value": 5.0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.base": {
+    "description": "The base timeout (seconds).",
+    "privacy": "Public",
+    "value": 0.3
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.delta": {
+    "description": "The per-round timeout delta (seconds).",
+    "privacy": "Public",
+    "value": 0.1
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote.max": {
+    "description": "The maximum timeout (seconds).",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.prevote_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a prevote.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base": {
+    "description": "The base timeout (seconds).",
     "privacy": "Public",
-    "value": 0.5
+    "value": 9.1
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout": {
-    "description": "The timeout (seconds) for a proposal.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.delta": {
+    "description": "The per-round timeout delta (seconds).",
     "privacy": "Public",
-    "value": 3.0
+    "value": 0.0
   },
-  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal_timeout_delta": {
-    "description": "The per-round timeout delta (seconds) for a proposal.",
+  "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max": {
+    "description": "The maximum timeout (seconds).",
     "privacy": "Public",
-    "value": 2.0
+    "value": 15.0
   },
   "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
