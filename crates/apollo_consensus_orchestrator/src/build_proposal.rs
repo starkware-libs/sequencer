@@ -39,8 +39,8 @@ use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusConte
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
-    retrospective_block_hash,
     truncate_to_executed_txs,
+    wait_for_retrospective_block_hash,
     GasPriceParams,
     StreamSender,
 };
@@ -49,7 +49,7 @@ use crate::utils::{
 const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
-    pub batcher_timeout: Duration,
+    pub batcher_deadline: DateTime,
     pub proposal_init: ProposalInit,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
@@ -62,6 +62,8 @@ pub(crate) struct ProposalBuildArguments {
     pub cancel_token: CancellationToken,
     pub previous_block_info: Option<ConsensusBlockInfo>,
     pub proposal_round: Round,
+    pub retrospective_block_hash_deadline: DateTime,
+    pub retrospective_block_hash_retry_interval_millis: Duration,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -103,7 +105,6 @@ pub(crate) enum BuildProposalError {
 pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
-    let batcher_deadline = args.deps.clock.now() + args.batcher_timeout;
     let block_info = initiate_build(&args).await?;
     args.stream_sender
         .send(ProposalPart::Init(args.proposal_init))
@@ -114,7 +115,7 @@ pub(crate) async fn build_proposal(
         .await
         .expect("Failed to send block info");
 
-    let (proposal_commitment, content) = get_proposal_content(&mut args, batcher_deadline).await?;
+    let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -130,8 +131,6 @@ pub(crate) async fn build_proposal(
 }
 
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
-    let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
-        .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.unix_now();
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.l1_gas_price_provider.clone(),
@@ -152,13 +151,19 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         eth_to_fri_rate,
     };
 
-    let retrospective_block_hash =
-        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info)
-            .await
-            .map_err(BuildProposalError::from)?;
+    let retrospective_block_hash = wait_for_retrospective_block_hash(
+        args.deps.state_sync_client.clone(),
+        &block_info,
+        args.deps.clock.as_ref(),
+        args.retrospective_block_hash_deadline,
+        args.retrospective_block_hash_retry_interval_millis,
+    )
+    .await
+    .map_err(BuildProposalError::from)?;
+
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
-        deadline: args.deps.clock.now() + batcher_timeout,
+        deadline: args.batcher_deadline,
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info)?,
         proposal_round: args.proposal_round,
@@ -177,7 +182,6 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
 /// 3. Once finished, receive the commitment from the batcher.
 async fn get_proposal_content(
     args: &mut ProposalBuildArguments,
-    batcher_deadline: DateTime,
 ) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
     loop {
@@ -239,7 +243,7 @@ async fn get_proposal_content(
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal. Must wait for it at least until batcher_timeout is
                 // reached.
-                let remaining = (batcher_deadline - args.deps.clock.now())
+                let remaining = (args.batcher_deadline - args.deps.clock.now())
                     .to_std()
                     .unwrap_or_default()
                     .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout. 

@@ -1,4 +1,6 @@
+use std::cmp::min;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
@@ -9,6 +11,7 @@ use apollo_state_sync_types::communication::{
     StateSyncClientResult,
 };
 use apollo_state_sync_types::errors::StateSyncError;
+use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
@@ -221,6 +224,49 @@ pub(crate) async fn retrospective_block_hash(
             Ok(None)
         }
     }
+}
+
+pub(crate) async fn wait_for_retrospective_block_hash(
+    state_sync_client: Arc<dyn StateSyncClient>,
+    block_info: &ConsensusBlockInfo,
+    clock: &dyn Clock,
+    deadline: DateTime,
+    retry_interval: Duration,
+) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
+    let mut attempts = 0;
+    let start_time = clock.now();
+    let result = loop {
+        attempts += 1;
+        let result = retrospective_block_hash(state_sync_client.clone(), block_info).await;
+
+        // If the block is not found, try again after the retry interval. In any other case, return
+        // the result.
+        match result {
+            Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+                let effective_retry_interval = min(
+                    retry_interval,
+                    (deadline - clock.now()).to_std().unwrap_or(Duration::ZERO),
+                );
+
+                if effective_retry_interval == Duration::ZERO {
+                    break result;
+                }
+
+                tokio::time::sleep(effective_retry_interval).await;
+            }
+            _ => break result,
+        }
+    };
+
+    if attempts > 1 {
+        let elapsed_time = clock.now().signed_duration_since(start_time).as_seconds_f32();
+        warn!(
+            "Multiple attempts ({attempts}) to fetch retrospective block hash. Total time spent: \
+             {elapsed_time:.2}s. Last result: {result:?}"
+        );
+    }
+
+    result
 }
 
 pub(crate) fn truncate_to_executed_txs(
