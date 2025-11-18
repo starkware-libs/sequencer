@@ -64,60 +64,61 @@ jobs:
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
-  benchmarking:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' }}
-    steps:
-      # Checkout the base branch to benchmark the old code.
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.base_ref }}
+  # TODO(Aviv): Uncomment.
+  # benchmarking:
+  #   runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+  #   if: ${{ github.event_name == 'pull_request' }}
+  #   steps:
+  #     # Checkout the base branch to benchmark the old code.
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         ref: ${{ github.base_ref }}
 
-      # Setup pypy and link to the location expected by .cargo/config.toml.
-      # Python + requirements are needed to compile the OS.
-      - uses: actions/setup-python@v5
-        id: setup-pypy
-        with:
-          python-version: "pypy3.9"
-          cache: "pip"
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-      - run: pip install -r scripts/requirements.txt
+  #     # Setup pypy and link to the location expected by .cargo/config.toml.
+  #     # Python + requirements are needed to compile the OS.
+  #     - uses: actions/setup-python@v5
+  #       id: setup-pypy
+  #       with:
+  #         python-version: "pypy3.9"
+  #         cache: "pip"
+  #     - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+  #     - env:
+  #         LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+  #       run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+  #     - run: pip install -r scripts/requirements.txt
 
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+  #     - uses: ./.github/actions/bootstrap
+  #       with:
+  #         github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Auth with GCS for bench_tools to download inputs.
-      - id: auth
-        uses: "google-github-actions/auth@v2"
-        with:
-          credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: "google-github-actions/setup-gcloud@v2"
+  #     # Auth with GCS for bench_tools to download inputs.
+  #     - id: auth
+  #       uses: "google-github-actions/auth@v2"
+  #       with:
+  #         credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
+  #     - uses: "google-github-actions/setup-gcloud@v2"
 
-      # Benchmark the base branch code.
-      - run: cargo run -p bench_tools -- run --package starknet_committer_and_os_cli --out /tmp/base_results
+  #     # Benchmark the base branch code.
+  #     - run: cargo run -p bench_tools -- run --package starknet_committer_and_os_cli --out /tmp/base_results
 
-      # Save the input files from the base branch to use in the second benchmark.
-      - run: cp -r crates/starknet_committer_and_os_cli/test_inputs /tmp/test_inputs
+  #     # Save the input files from the base branch to use in the second benchmark.
+  #     - run: cp -r crates/starknet_committer_and_os_cli/test_inputs /tmp/test_inputs
 
-      # Checkout the current branch to benchmark the new code.
-      - uses: actions/checkout@v4
-        with:
-          clean: false
+  #     # Checkout the current branch to benchmark the new code.
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         clean: false
 
-      # Re-install pip requirements in case they changed between branches.
-      - run: pip install -r scripts/requirements.txt
+  #     # Re-install pip requirements in case they changed between branches.
+  #     - run: pip install -r scripts/requirements.txt
 
-      # Benchmark the current branch and compare to the previous run.
-      # Use the saved inputs and enforce absolute time limits (full_committer_flow: 25ms, tree_computation_flow: 20ms).
-      - run: |
-          cargo run -p bench_tools -- run-and-compare \
-            --package starknet_committer_and_os_cli \
-            --out /tmp/new_results \
-            --regression-limit 8.0 \
-            --input-dir /tmp/test_inputs \
-            --set-absolute-time-ns-limit full_committer_flow ${FULL_COMMITTER_FLOW_TIME_LIMIT_NS} \
-            --set-absolute-time-ns-limit tree_computation_flow ${TREE_COMPUTATION_FLOW_TIME_LIMIT_NS}
+  #     # Benchmark the current branch and compare to the previous run.
+  #     # Use the saved inputs and enforce absolute time limits (full_committer_flow: 25ms, tree_computation_flow: 20ms).
+  #     - run: |
+  #         cargo run -p bench_tools -- run-and-compare \
+  #           --package starknet_committer_and_os_cli \
+  #           --out /tmp/new_results \
+  #           --regression-limit 8.0 \
+  #           --input-dir /tmp/test_inputs \
+  #           --set-absolute-time-ns-limit full_committer_flow ${FULL_COMMITTER_FLOW_TIME_LIMIT_NS} \
+  #           --set-absolute-time-ns-limit tree_computation_flow ${TREE_COMPUTATION_FLOW_TIME_LIMIT_NS}
