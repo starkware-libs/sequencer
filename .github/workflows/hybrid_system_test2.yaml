@@ -14,6 +14,8 @@ on:
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   namespace: sequencer-hybrid-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+  layout: hybrid
+  overlay: hybrid.testing.node-0
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
@@ -281,7 +283,7 @@ jobs:
           pipenv install
           cdk8s import
           echo "Generating Kubernetes manifests using hybrid layout"
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l hybrid --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
 
       - name: Deploy Sequencer
         working-directory: deployments/sequencer2
@@ -294,7 +296,7 @@ jobs:
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
 
       - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check2.py --layout hybrid --namespace ${{ env.namespace }}
+        run: pipenv run python ./scripts/system_tests/readiness_check2.py --layout ${{ env.layout }} --namespace ${{ env.namespace }}
 
       - name: Test sequencer is alive
         env:
@@ -304,12 +306,12 @@ jobs:
         run: |
           pipenv run python ./scripts/system_tests/liveness_check2.py \
             --namespace ${{ env.namespace }} \
-            --layout hybrid \
+            --layout ${{ env.layout }} \
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart2.py --layout hybrid --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
+        run: pipenv run python ./scripts/system_tests/copy_state_and_restart2.py --layout ${{ env.layout }} --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
 
       - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
         run: |
