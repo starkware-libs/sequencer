@@ -27,7 +27,7 @@ use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
 
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum StateMachineEvent {
+pub(crate) enum StateMachineEvent {
     /// Sent by the state machine when a block is required to propose (ProposalCommitment is always
     /// None). While waiting for the response of GetProposal, the state machine will buffer all
     /// other events. The caller *must* respond with a valid proposal id for this height to the
@@ -53,7 +53,7 @@ pub enum StateMachineEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Step {
+pub(crate) enum Step {
     Propose,
     Prevote,
     Precommit,
@@ -65,7 +65,7 @@ pub enum Step {
 ///
 /// Each height is begun with a call to `start`, with no further calls to it.
 #[derive(Serialize, Deserialize)]
-pub struct StateMachine {
+pub(crate) struct StateMachine {
     id: ValidatorId,
     round: Round,
     step: Step,
@@ -91,7 +91,7 @@ pub struct StateMachine {
 
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
-    pub fn new(
+    pub(crate) fn new(
         id: ValidatorId,
         total_weight: u64,
         is_observer: bool,
@@ -120,22 +120,26 @@ impl StateMachine {
         }
     }
 
-    pub fn round(&self) -> Round {
+    pub(crate) fn round(&self) -> Round {
         self.round
     }
 
-    pub fn total_weight(&self) -> u64 {
+    pub(crate) fn total_weight(&self) -> u64 {
         self.total_weight
     }
 
-    pub fn quorum(&self) -> &VotesThreshold {
+    pub(crate) fn quorum(&self) -> &VotesThreshold {
         &self.quorum
+    }
+
+    pub(crate) fn id(&self) -> ValidatorId {
+        self.id
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
     /// needed to trigger the first leader to propose.
     /// See [`GetProposal`](StateMachineEvent::GetProposal)
-    pub fn start<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> VecDeque<StateMachineEvent>
+    pub(crate) fn start<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> VecDeque<StateMachineEvent>
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
@@ -151,7 +155,7 @@ impl StateMachine {
     /// events back to the state machine, as it makes sure to handle them before returning.
     // This means that the StateMachine handles events the same regardless of whether it was sent by
     // self or a peer. This is in line with the Algorithm 1 in the paper and keeps the code simpler.
-    pub fn handle_event<LeaderFn>(
+    pub(crate) fn handle_event<LeaderFn>(
         &mut self,
         event: StateMachineEvent,
         leader_fn: &LeaderFn,
@@ -178,7 +182,7 @@ impl StateMachine {
         self.handle_enqueued_events(leader_fn)
     }
 
-    fn handle_enqueued_events<LeaderFn>(
+    pub(crate) fn handle_enqueued_events<LeaderFn>(
         &mut self,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
@@ -219,7 +223,7 @@ impl StateMachine {
         output_events
     }
 
-    fn handle_event_internal<LeaderFn>(
+    pub(crate) fn handle_event_internal<LeaderFn>(
         &mut self,
         event: StateMachineEvent,
         leader_fn: &LeaderFn,
@@ -258,7 +262,7 @@ impl StateMachine {
         }
     }
 
-    fn handle_get_proposal(
+    pub(crate) fn handle_get_proposal(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
@@ -271,7 +275,7 @@ impl StateMachine {
     }
 
     // A proposal from a peer (or self) node.
-    fn handle_proposal<LeaderFn>(
+    pub(crate) fn handle_proposal<LeaderFn>(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
@@ -286,7 +290,7 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    fn handle_timeout_propose(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+    pub(crate) fn handle_timeout_propose(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
@@ -301,7 +305,7 @@ impl StateMachine {
     }
 
     // A prevote from a peer (or self) node.
-    fn handle_prevote<LeaderFn>(
+    pub(crate) fn handle_prevote<LeaderFn>(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
@@ -316,7 +320,7 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_fn)
     }
 
-    fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
+    pub(crate) fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         };
