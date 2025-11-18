@@ -174,11 +174,16 @@ pub enum InterferenceType {
     Read1KEveryBlock,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 pub struct InterferenceArgs {
     /// The type of interference to apply.
     #[clap(long, default_value = "none")]
     pub interference_type: InterferenceType,
+
+    /// The maximum number of interference tasks to run concurrently.
+    /// Any attempt to spawn a new interference task will log a warning and not spawn the task.
+    #[clap(long, default_value = "20")]
+    pub interference_concurrency_limit: usize,
 }
 
 #[derive(Debug, Args)]
@@ -410,16 +415,19 @@ impl StorageBenchmarkCommand {
         }
     }
 
-    pub fn interference_type(&self) -> InterferenceType {
+    pub fn interference_args(&self) -> InterferenceArgs {
         match self {
             Self::Memory(_)
             | Self::CachedMemory(_)
             | Self::CachedMdbx(_)
             | Self::CachedRocksdb(_)
-            | Self::CachedAerospike(_) => InterferenceType::None,
-            Self::Mdbx(args) => args.interference_args.interference_type,
-            Self::Rocksdb(args) => args.interference_args.interference_type,
-            Self::Aerospike(args) => args.interference_args.interference_type,
+            | Self::CachedAerospike(_) => InterferenceArgs {
+                interference_type: InterferenceType::None,
+                interference_concurrency_limit: 0,
+            },
+            Self::Mdbx(args) => args.interference_args.clone(),
+            Self::Rocksdb(args) => args.interference_args.clone(),
+            Self::Aerospike(args) => args.interference_args.clone(),
         }
     }
 }
