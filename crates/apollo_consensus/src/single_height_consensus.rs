@@ -139,8 +139,6 @@ pub(crate) struct SingleHeightConsensus {
     state_machine: StateMachine,
     // Tracks rounds for which we started validating a proposal to avoid duplicate validations.
     pending_validation_rounds: HashSet<Round>,
-    last_prevote: Option<Vote>,
-    last_precommit: Option<Vote>,
     height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
@@ -163,8 +161,6 @@ impl SingleHeightConsensus {
             timeouts,
             state_machine,
             pending_validation_rounds: HashSet::new(),
-            last_prevote: None,
-            last_precommit: None,
             height_voted_storage,
         }
     }
@@ -247,7 +243,7 @@ impl SingleHeightConsensus {
                 self.handle_timeout(context, event).await
             }
             StateMachineEvent::Prevote(vote) => {
-                let Some(last_vote) = &self.last_prevote else {
+                let Some(last_vote) = self.state_machine.last_self_prevote() else {
                     return Err(ConsensusError::InternalInconsistency(
                         "No prevote to send".to_string(),
                     ));
@@ -264,7 +260,7 @@ impl SingleHeightConsensus {
                 )]))
             }
             StateMachineEvent::Precommit(vote) => {
-                let Some(last_vote) = &self.last_precommit else {
+                let Some(last_vote) = self.state_machine.last_self_precommit() else {
                     return Err(ConsensusError::InternalInconsistency(
                         "No precommit to send".to_string(),
                     ));
@@ -503,37 +499,18 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<Vec<ShcTask>, ConsensusError> {
-        let (last_vote, task) = match vote.vote_type {
-            VoteType::Prevote => (
-                &mut self.last_prevote,
-                ShcTask::Prevote(
-                    self.timeouts.get_prevote_timeout(0),
-                    StateMachineEvent::Prevote(vote.clone()),
-                ),
+        let task = match vote.vote_type {
+            VoteType::Prevote => ShcTask::Prevote(
+                self.timeouts.get_prevote_timeout(0),
+                StateMachineEvent::Prevote(vote.clone()),
             ),
-            VoteType::Precommit => (
-                &mut self.last_precommit,
-                ShcTask::Precommit(
-                    self.timeouts.get_precommit_timeout(0),
-                    StateMachineEvent::Precommit(vote.clone()),
-                ),
+            VoteType::Precommit => ShcTask::Precommit(
+                self.timeouts.get_precommit_timeout(0),
+                StateMachineEvent::Precommit(vote.clone()),
             ),
         };
         // Ensure the voter matches this node.
         assert_eq!(vote.voter, self.state_machine.validator_id());
-        *last_vote = match last_vote {
-            None => Some(vote.clone()),
-            Some(last_vote) if vote.round > last_vote.round => Some(vote.clone()),
-            Some(_) => {
-                // According to the Tendermint paper, the state machine should only vote for its
-                // current round. It should monotonically increase its round. It should only vote
-                // once per step.
-                return Err(ConsensusError::InternalInconsistency(format!(
-                    "State machine must progress in time: last_vote: {last_vote:?} new_vote: \
-                     {vote:?}",
-                )));
-            }
-        };
 
         trace!("Writing voted height {} to storage", self.state_machine.height());
         self.height_voted_storage
