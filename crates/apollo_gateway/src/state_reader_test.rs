@@ -36,6 +36,7 @@ use starknet_api::block::{
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
@@ -245,13 +246,42 @@ fn dummy_casm_contract_class() -> CasmContractClass {
     }
 }
 
+fn dummy_deprecated_contract_class() -> DeprecatedContractClass {
+    DeprecatedContractClass {
+        abi: None,
+        program: Program {
+            attributes: serde_json::Value::Null,
+            builtins: serde_json::Value::Array(vec![]),
+            compiler_version: serde_json::Value::Null,
+            data: serde_json::Value::Array(vec![]),
+            debug_info: serde_json::Value::Null,
+            hints: serde_json::Value::Object(serde_json::Map::new()),
+            identifiers: serde_json::Value::Object(serde_json::Map::new()),
+            main_scope: serde_json::Value::String("__main__".to_string()),
+            prime: serde_json::Value::String(
+                "0x800000000000011000000000000000000000000000000000000000000000001".to_string(),
+            ),
+            reference_manager: serde_json::Value::Object({
+                let mut map = serde_json::Map::new();
+                map.insert("references".to_string(), serde_json::Value::Array(vec![]));
+                map
+            }),
+        },
+        entry_points_by_type: Default::default(),
+    }
+}
+
 lazy_static! {
     static ref DUMMY_CLASS_HASH: ClassHash = class_hash!("0x2");
     static ref DUMMY_CONTRACT_CLASS: ContractClass =
         ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default()));
+    static ref DUMMY_CONTRACT_CLASS_V0: ContractClass =
+        ContractClass::V0(dummy_deprecated_contract_class());
     static ref DUMMY_COMPILED_CLASS: RunnableCompiledClass = RunnableCompiledClass::V1(
         (dummy_casm_contract_class(), SierraVersion::default()).try_into().unwrap()
     );
+    static ref DUMMY_COMPILED_CLASS_V0: RunnableCompiledClass =
+        RunnableCompiledClass::V0(dummy_deprecated_contract_class().try_into().unwrap());
 }
 
 fn assert_eq_state_result(
@@ -271,13 +301,23 @@ fn assert_eq_state_result(
 #[rstest]
 #[case::class_declared(
     Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+    1,
     Ok(Some(SierraContractClass::default())),
     1,
     Ok(true),
     Ok(DUMMY_COMPILED_CLASS.clone()),
 )]
+#[case::cairo_0_class_declared(
+    Ok(Some(DUMMY_CONTRACT_CLASS_V0.clone())),
+    1,
+    Ok(None),
+    0,
+    Ok(true),
+    Ok(DUMMY_COMPILED_CLASS_V0.clone()),
+)]
 #[case::class_not_declared_but_in_class_manager(
     Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
+    0,
     Ok(Some(SierraContractClass::default())),
     0,
     Ok(false),
@@ -285,6 +325,7 @@ fn assert_eq_state_result(
 )]
 #[case::class_not_declared(
     Ok(None),
+    0,
     Ok(None),
     0,
     Ok(false),
@@ -298,8 +339,9 @@ fn assert_eq_state_result(
 /// behavior.
 async fn test_get_compiled_class(
     #[case] get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
+    #[case] n_calls_to_get_executable: usize,
     #[case] get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
-    #[case] n_calls_to_class_manager_client: usize,
+    #[case] n_calls_to_get_sierra: usize,
     #[case] is_class_declared_at_result: StateSyncClientResult<bool>,
     #[case] expected_result: StateResult<RunnableCompiledClass>,
 ) {
@@ -312,13 +354,13 @@ async fn test_get_compiled_class(
 
     mock_class_manager_client
         .expect_get_executable()
-        .times(n_calls_to_class_manager_client)
+        .times(n_calls_to_get_executable)
         .with(predicate::eq(class_hash))
         .return_once(move |_| get_executable_result);
 
     mock_class_manager_client
         .expect_get_sierra()
-        .times(n_calls_to_class_manager_client)
+        .times(n_calls_to_get_sierra)
         .with(predicate::eq(class_hash))
         .return_once(move |_| get_sierra_result);
 
@@ -351,6 +393,7 @@ async fn test_get_compiled_class(
 async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
     test_get_compiled_class(
         Ok(None),
+        1,
         Ok(None),
         1,
         Ok(true),
@@ -360,10 +403,37 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 }
 
 #[rstest]
+#[case::cairo_0_first_declared_second_declared(
+    Ok(Some(DUMMY_CONTRACT_CLASS_V0.clone())), // first_get_executable
+    1, // first_n_calls_get_executable
+    Ok(None), // first_get_sierra
+    0, // first_n_calls_get_sierra (Cairo 0 doesn't use Sierra)
+    Ok(true), // first_is_class_declared_at
+    None, // second_get_executable (not called due to caching)
+    None, // second_get_sierra (not called due to caching)
+    None, // second_is_class_declared_at (not called due to caching)
+    None, // second_is_cairo_1_class_declared_at (not called for Cairo 0)
+    Ok(DUMMY_COMPILED_CLASS_V0.clone()), // expected_first_result
+    Ok(DUMMY_COMPILED_CLASS_V0.clone()), // expected_second_result
+)]
+#[case::cairo_0_first_not_declared_second_not_declared(
+    Ok(None), // first_get_executable
+    0, // first_n_calls_get_executable
+    Ok(None), // first_get_sierra
+    0, // first_n_calls_get_sierra (Cairo 0 doesn't use Sierra)
+    Ok(false), // first_is_class_declared_at
+    None, // second_get_executable (not called due to caching)
+    None, // second_get_sierra (not called due to caching)
+    Some(Ok(false)), // second_is_class_declared_at
+    None, // second_is_cairo_1_class_declared_at (not called for Cairo 0)
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_first_result
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), // expected_second_result
+)]
 #[case::first_declared_second_declared(
     Ok(Some(DUMMY_CONTRACT_CLASS.clone())), // first_get_executable
+    1, // first_n_calls_get_executable
     Ok(Some(SierraContractClass::default())), // first_get_sierra
-    1,
+    1, // first_n_calls_get_sierra
     Ok(true), // first_is_class_declared_at
     None, // second_get_executable (not called due to caching)
     None, // second_get_sierra (not called due to caching)
@@ -374,11 +444,12 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 )]
 #[case::first_declared_second_not_declared(
     Ok(Some(DUMMY_CONTRACT_CLASS.clone())), // first_get_executable
+    1, // first_n_calls_get_executable
     Ok(Some(SierraContractClass::default())), // first_get_sierra
-    1,
+    1, // first_n_calls_get_sierra
     Ok(true), // first_is_class_declared_at
-    None, // second_get_executable (not called due to caching)
-    None, // second_get_sierra (not called due to caching)
+    None, // second_get_executable (not called since not declared)
+    None, // second_get_sierra (not called since not declared)
     None, // second_is_class_declared_at (not called due to caching)
     Some(Ok(false)), // second_is_cairo_1_class_declared_at (verification call)
     Ok(DUMMY_COMPILED_CLASS.clone()), // expected_first_result
@@ -386,8 +457,9 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 )]
 #[case::first_not_declared_but_in_manager_second_declared(
     Ok(Some(DUMMY_CONTRACT_CLASS.clone())), // first_get_executable
+    0, // first_n_calls_get_executable
     Ok(Some(SierraContractClass::default())), // first_get_sierra
-    0,
+    0, // first_n_calls_get_sierra
     Ok(false), // first_is_class_declared_at
     Some(Ok(Some(DUMMY_CONTRACT_CLASS.clone()))), // second_get_executable
     Some(Ok(Some(SierraContractClass::default()))), // second_get_sierra
@@ -398,8 +470,9 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 )]
 #[case::first_not_declared_second_declared(
     Ok(None), // first_get_executable (not called since not declared)
+    0, // first_n_calls_get_executable
     Ok(None), // first_get_sierra (not called since not declared)
-    0,
+    0, // first_n_calls_get_sierra
     Ok(false), // first_is_class_declared_at
     Some(Ok(Some(DUMMY_CONTRACT_CLASS.clone()))), // second_get_executable
     Some(Ok(Some(SierraContractClass::default()))), // second_get_sierra
@@ -410,8 +483,9 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 )]
 #[case::first_not_declared_second_not_declared(
     Ok(None), // first_get_executable (not called since not declared)
+    0, // first_n_calls_get_executable
     Ok(None), // first_get_sierra (not called since not declared)
-    0,
+    0, // first_n_calls_get_sierra
     Ok(false), // first_is_class_declared_at
     None, // second_get_executable (not called since not declared)
     None, // second_get_sierra (not called since not declared)
@@ -424,8 +498,9 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 #[tokio::test]
 async fn test_get_compiled_class_caching_scenarios(
     #[case] first_get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
-    #[case] first_get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
     #[case] first_n_calls_get_executable: usize,
+    #[case] first_get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
+    #[case] first_n_calls_get_sierra: usize,
     #[case] first_is_class_declared_at_result: StateSyncClientResult<bool>,
     #[case] second_get_executable_result: Option<ClassManagerClientResult<Option<ExecutableClass>>>,
     #[case] second_get_sierra_result: Option<ClassManagerClientResult<Option<SierraContractClass>>>,
@@ -451,7 +526,7 @@ async fn test_get_compiled_class_caching_scenarios(
 
     mock_class_manager_client
         .expect_get_sierra()
-        .times(first_n_calls_get_executable)
+        .times(first_n_calls_get_sierra)
         .with(predicate::eq(class_hash))
         .return_once(move |_| first_get_sierra_result);
 
