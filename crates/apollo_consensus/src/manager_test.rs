@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::vec;
 
@@ -28,6 +28,7 @@ use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
+use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
 use crate::types::ValidatorId;
 use crate::votes_threshold::QuorumType;
@@ -48,6 +49,34 @@ lazy_static! {
 const CHANNEL_SIZE: usize = 10;
 const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
+#[derive(Debug)]
+struct TestHeightVotedStorage;
+
+impl HeightVotedStorageTrait for TestHeightVotedStorage {
+    fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError> {
+        Ok(None)
+    }
+    fn set_prev_voted_height(
+        &mut self,
+        _height: BlockNumber,
+    ) -> Result<(), HeightVotedStorageError> {
+        Ok(())
+    }
+}
+
+// Some of the test call the static method run_consensus which prevent us from injecting a mock
+// storage. For those test we create a config which will be valid to create a real storage.
+pub fn new_storage_config_for_testing() -> StorageConfig {
+    StorageConfig {
+        db_config: DbConfig {
+            path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
+            enforce_file_exists: false,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 #[fixture]
 fn consensus_config() -> ConsensusConfig {
     ConsensusConfig::from_parts(
@@ -58,8 +87,8 @@ fn consensus_config() -> ConsensusConfig {
             future_msg_limit: FutureMsgLimitsConfig::default(),
         },
         ConsensusStaticConfig {
+            storage_config: new_storage_config_for_testing(),
             startup_delay: Duration::ZERO,
-            storage_config: StorageConfig { db_config: DbConfig::default(), ..Default::default() },
         },
     )
 }
@@ -138,7 +167,11 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new_with_storage(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
+    );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -270,7 +303,11 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // Ensure our validator id matches the expectation in the broadcast assertion.
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new_with_storage(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
+    );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -327,7 +364,11 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-    let mut manager = MultiHeightManager::new(consensus_config, QuorumType::Byzantine);
+    let mut manager = MultiHeightManager::new_with_storage(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(TestHeightVotedStorage)),
+    );
     let res = manager
         .run_height(
             &mut context,
