@@ -142,7 +142,7 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
             comparison_op: AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators and
             // assume_no_malicious_validators
-            comparison_value: 1.0,
+            comparison_value: 2.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
