@@ -153,6 +153,12 @@ impl StateMachine {
         &self.precommits
     }
 
+    pub(crate) fn proposals_ref(
+        &self,
+    ) -> &HashMap<Round, (Option<ProposalCommitment>, Option<Round>)> {
+        &self.proposals
+    }
+
     fn make_self_vote(
         &self,
         vote_type: VoteType,
