@@ -26,11 +26,11 @@
           }
         },
         {
-          "title": "HTTP Server Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the HTTP Server (1m window)",
+          "title": "HTTP Server Added Transactions Success Rate (TPS)",
+          "description": "The rate of successfully added transactions to the HTTP Servers combined (1m window)",
           "type": "timeseries",
           "exprs": [
-            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
+            "sum(rate(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m]))"
           ],
           "extra_params": {}
         },

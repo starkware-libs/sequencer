@@ -38,11 +38,19 @@ fn get_panel_transaction_success_rate() -> Panel {
     .with_unit(Unit::PercentUnit)
     .with_log_query("\"Recorded transaction\"")
 }
-pub(crate) fn get_panel_http_server_transactions_received_rate() -> Panel {
+fn get_panel_http_server_transactions_received_rate() -> Panel {
     Panel::new(
         "HTTP Server Transactions Received Rate (TPS)",
         "The rate of transactions received by the HTTP Server (1m window)",
         format!("rate({}[1m])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+}
+pub(crate) fn get_panel_http_server_added_transactions_success_rate() -> Panel {
+    Panel::new(
+        "HTTP Server Added Transactions Success Rate (TPS)",
+        "The rate of successfully added transactions to the HTTP Servers combined (1m window)",
+        format!("sum(rate({}[1m]))", ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
