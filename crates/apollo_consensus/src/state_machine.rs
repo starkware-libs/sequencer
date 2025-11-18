@@ -78,9 +78,9 @@ pub(crate) struct StateMachine {
     is_observer: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
-    // {round: {proposal_id: vote_count}
-    prevotes: HashMap<Round, HashMap<Option<ProposalCommitment>, u32>>,
-    precommits: HashMap<Round, HashMap<Option<ProposalCommitment>, u32>>,
+    // {(round, voter): (vote, weight)}
+    prevotes: HashMap<(Round, ValidatorId), (Vote, u32)>,
+    precommits: HashMap<(Round, ValidatorId), (Vote, u32)>,
     // When true, the state machine will wait for a GetProposal event, buffering all other input
     // events in `events_queue`.
     awaiting_get_proposal: bool,
@@ -143,6 +143,14 @@ impl StateMachine {
 
     pub(crate) fn height(&self) -> BlockNumber {
         self.height
+    }
+
+    pub(crate) fn prevotes_ref(&self) -> &HashMap<(Round, ValidatorId), (Vote, u32)> {
+        &self.prevotes
+    }
+
+    pub(crate) fn precommits_ref(&self) -> &HashMap<(Round, ValidatorId), (Vote, u32)> {
+        &self.precommits
     }
 
     fn make_self_vote(
@@ -328,15 +336,15 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let prevote_count = self
-            .prevotes
-            .entry(vote.round)
-            .or_default()
-            .entry(vote.proposal_commitment)
-            .or_insert(0);
-        // TODO(matan): Use variable weight.
-        *prevote_count += 1;
-        self.map_round_to_upons(vote.round, leader_fn)
+        let round = vote.round;
+        let voter = vote.voter;
+        let inserted = self.prevotes.insert((round, voter), (vote, 1)).is_none();
+        assert!(
+            inserted,
+            "SHC should handle conflicts & replays: duplicate prevote for round={round}, \
+             voter={voter}",
+        );
+        self.map_round_to_upons(round, leader_fn)
     }
 
     pub(crate) fn handle_timeout_prevote(&mut self, round: u32) -> VecDeque<StateMachineEvent> {
@@ -360,15 +368,15 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let precommit_count = self
-            .precommits
-            .entry(vote.round)
-            .or_default()
-            .entry(vote.proposal_commitment)
-            .or_insert(0);
-        // TODO(matan): Use variable weight.
-        *precommit_count += 1;
-        self.map_round_to_upons(vote.round, leader_fn)
+        let round = vote.round;
+        let voter = vote.voter;
+        let inserted = self.precommits.insert((round, voter), (vote, 1)).is_none();
+        assert!(
+            inserted,
+            "SHC should handle conflicts & replays: duplicate precommit for round={round}, \
+             voter={voter}"
+        );
+        self.map_round_to_upons(round, leader_fn)
     }
 
     fn handle_timeout_precommit<LeaderFn>(
@@ -640,24 +648,36 @@ impl StateMachine {
 
     fn round_has_enough_votes(
         &self,
-        votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
+        votes: &HashMap<(Round, ValidatorId), (Vote, u32)>,
         round: u32,
         threshold: &VotesThreshold,
     ) -> bool {
-        threshold
-            .is_met(votes.get(&round).map_or(0, |v| v.values().sum()).into(), self.total_weight)
+        let weight_sum = votes
+            .iter()
+            .filter_map(
+                |(&(r, _voter), (_v, w))| if r == round { Some(u64::from(*w)) } else { None },
+            )
+            .sum();
+        threshold.is_met(weight_sum, self.total_weight)
     }
 
     fn value_has_enough_votes(
         &self,
-        votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
+        votes: &HashMap<(Round, ValidatorId), (Vote, u32)>,
         round: u32,
         value: &Option<ProposalCommitment>,
         threshold: &VotesThreshold,
     ) -> bool {
-        threshold.is_met(
-            votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)).into(),
-            self.total_weight,
-        )
+        let weight_sum = votes
+            .iter()
+            .filter_map(|(&(r, _voter), (v, w))| {
+                if r == round && &v.proposal_commitment == value {
+                    Some(u64::from(*w))
+                } else {
+                    None
+                }
+            })
+            .sum();
+        threshold.is_met(weight_sum, self.total_weight)
     }
 }
