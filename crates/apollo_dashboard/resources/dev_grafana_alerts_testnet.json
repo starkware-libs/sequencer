@@ -1017,7 +1017,7 @@
         {
           "evaluator": {
             "params": [
-              1.0
+              2.0
             ],
             "type": "lt"
           },
@@ -1045,7 +1045,7 @@
         {
           "evaluator": {
             "params": [
-              1.0
+              2.0
             ],
             "type": "lt"
           },
@@ -1073,7 +1073,7 @@
         {
           "evaluator": {
             "params": [
-              2.0
+              4.0
             ],
             "type": "lt"
           },
@@ -1549,7 +1549,7 @@
         {
           "evaluator": {
             "params": [
-              2.0
+              4.0
             ],
             "type": "lt"
           },
