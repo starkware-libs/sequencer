@@ -90,6 +90,9 @@ pub(crate) struct StateMachine {
     prevote_quorum: HashSet<Round>,
     mixed_prevote_quorum: HashSet<Round>,
     mixed_precommit_quorum: HashSet<Round>,
+    // Tracks the latest self votes for efficient rebroadcasts.
+    last_self_prevote: Option<Vote>,
+    last_self_precommit: Option<Vote>,
 }
 
 impl StateMachine {
@@ -122,6 +125,8 @@ impl StateMachine {
             prevote_quorum: HashSet::new(),
             mixed_prevote_quorum: HashSet::new(),
             mixed_precommit_quorum: HashSet::new(),
+            last_self_prevote: None,
+            last_self_precommit: None,
         }
     }
 
@@ -161,13 +166,40 @@ impl StateMachine {
         self.proposals.get(&round).and_then(|(id, _)| *id)
     }
 
+    pub(crate) fn last_self_prevote(&self) -> Option<Vote> {
+        self.last_self_prevote.clone()
+    }
+
+    pub(crate) fn last_self_precommit(&self) -> Option<Vote> {
+        self.last_self_precommit.clone()
+    }
+
     fn make_self_vote(
-        &self,
+        &mut self,
         vote_type: VoteType,
         round: Round,
         proposal_commitment: Option<ProposalCommitment>,
     ) -> Vote {
-        Vote { vote_type, height: self.height.0, round, proposal_commitment, voter: self.id }
+        let vt = vote_type.clone();
+        let vote = Vote {
+            vote_type: vt,
+            height: self.height.0,
+            round,
+            proposal_commitment,
+            voter: self.id,
+        };
+        // update the latest self vote.
+        let last_self_vote = match vote_type {
+            VoteType::Prevote => &mut self.last_self_prevote,
+            VoteType::Precommit => &mut self.last_self_precommit,
+        };
+        if match last_self_vote {
+            None => true,
+            Some(last) => round > last.round,
+        } {
+            *last_self_vote = Some(vote.clone());
+        }
+        vote
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is

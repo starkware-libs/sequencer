@@ -43,12 +43,12 @@ fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
 }
 
 fn prevote_task(block_felt: Option<Felt>, round: u32, voter: ValidatorId) -> ShcTask {
-    let duration = TIMEOUTS.get_prevote_timeout(round);
+    let duration = TIMEOUTS.get_prevote_timeout(0);
     ShcTask::Prevote(duration, StateMachineEvent::Prevote(prevote(block_felt, 0, round, voter)))
 }
 
 fn precommit_task(block_felt: Option<Felt>, round: u32, voter: ValidatorId) -> ShcTask {
-    let duration = TIMEOUTS.get_precommit_timeout(round);
+    let duration = TIMEOUTS.get_precommit_timeout(0);
     ShcTask::Precommit(
         duration,
         StateMachineEvent::Precommit(precommit(block_felt, 0, round, voter)),
