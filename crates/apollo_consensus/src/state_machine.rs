@@ -153,6 +153,14 @@ impl StateMachine {
         &self.precommits
     }
 
+    pub(crate) fn has_proposal_for_round(&self, round: Round) -> bool {
+        self.proposals.contains_key(&round)
+    }
+
+    pub(crate) fn proposal_id_for_round(&self, round: Round) -> Option<ProposalCommitment> {
+        self.proposals.get(&round).and_then(|(id, _)| *id)
+    }
+
     fn make_self_vote(
         &self,
         vote_type: VoteType,
