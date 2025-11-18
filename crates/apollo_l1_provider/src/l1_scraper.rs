@@ -1,4 +1,5 @@
 use std::any::type_name;
+use std::fmt::Debug;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -37,7 +38,7 @@ type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 // Sensible lower bound.
 const L1_BLOCK_TIME: u64 = 10;
 
-pub struct L1Scraper<BaseLayerType: BaseLayerContract> {
+pub struct L1Scraper<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     pub config: L1ScraperConfig,
     pub base_layer: BaseLayerType,
     pub scrape_from_this_l1_block: Option<L1BlockReference>,
@@ -46,7 +47,7 @@ pub struct L1Scraper<BaseLayerType: BaseLayerContract> {
     pub clock: Arc<dyn Clock>,
 }
 
-impl<BaseLayerType: BaseLayerContract + Send + Sync> L1Scraper<BaseLayerType> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayerType> {
     pub async fn new(
         config: L1ScraperConfig,
         l1_provider_client: SharedL1ProviderClient,
@@ -391,7 +392,9 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync> L1Scraper<BaseLayerType> {
 }
 
 #[async_trait]
-impl<BaseLayerType: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<BaseLayerType> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> ComponentStarter
+    for L1Scraper<BaseLayerType>
+{
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
         register_scraper_metrics();
@@ -400,7 +403,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync> ComponentStarter for L1Scra
 }
 
 #[derive(Error, Debug)]
-pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync> {
+pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync + Debug> {
     #[error("Base layer error: {0}")]
     BaseLayerError(BaseLayerType::Error),
     #[error(
@@ -421,7 +424,9 @@ pub enum L1ScraperError<BaseLayerType: BaseLayerContract + Send + Sync> {
     NeedsRestart,
 }
 
-impl<BaseLayerType: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<BaseLayerType> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> PartialEq
+    for L1ScraperError<BaseLayerType>
+{
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::BaseLayerError(e1), Self::BaseLayerError(e2)) => e1 == e2,
@@ -440,7 +445,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync> PartialEq for L1ScraperErro
 }
 
 // TODO(guyn): get rid of finality_too_high, use a better error.
-impl<BaseLayerType: BaseLayerContract + Send + Sync> L1ScraperError<BaseLayerType> {
+impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1ScraperError<BaseLayerType> {
     /// Pass any base layer errors. In the rare case that the finality is bigger than the latest L1
     /// block number, return FinalityTooHigh.
     pub async fn finality_too_high(
@@ -458,7 +463,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync> L1ScraperError<BaseLayerTyp
     }
 }
 
-fn handle_client_error<BaseLayerType: BaseLayerContract + Send + Sync>(
+fn handle_client_error<BaseLayerType: BaseLayerContract + Send + Sync + Debug>(
     client_result: Result<(), L1ProviderClientError>,
 ) -> Result<(), L1ScraperError<BaseLayerType>> {
     let Err(error) = client_result else {
