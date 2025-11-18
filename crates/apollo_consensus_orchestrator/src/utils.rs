@@ -189,6 +189,8 @@ pub(crate) fn convert_to_sn_api_block_info(
             },
         },
         use_kzg_da: block_info.l1_da_mode.is_use_kzg_da(),
+        // TODO(Shahak): Add starknet_version to ConsensusBlockInfo and pass it through here.
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
     })
 }
 
