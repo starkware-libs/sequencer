@@ -1,26 +1,8 @@
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-use apollo_storage::db::DbConfig;
-use apollo_storage::StorageConfig;
 use assert_matches::assert_matches;
 use starknet_api::block::BlockNumber;
 
 use crate::storage::{get_voted_height_storage, HeightVotedStorageError, HeightVotedStorageTrait};
-
-/// Returns a config for a new (i.e. empty) storage.
-fn get_new_storage_config() -> StorageConfig {
-    static DB_INDEX: AtomicUsize = AtomicUsize::new(0);
-    let db_file_path = format!(
-        "{}-{}",
-        tempfile::tempdir().unwrap().path().to_str().unwrap(),
-        DB_INDEX.fetch_add(1, Ordering::Relaxed)
-    );
-    StorageConfig {
-        db_config: DbConfig { path_prefix: PathBuf::from(db_file_path), ..Default::default() },
-        ..Default::default()
-    }
-}
+use crate::test_utils::get_new_storage_config;
 
 #[test]
 fn read_last_height_when_no_last_height_in_storage() {

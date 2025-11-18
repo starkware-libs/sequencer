@@ -7,7 +7,7 @@ use apollo_class_manager::ClassManager;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
-use apollo_consensus_manager::consensus_manager::ConsensusManager;
+use apollo_consensus_manager::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
@@ -184,15 +184,15 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-            Some(ConsensusManager::new(
-                consensus_manager_config.clone(),
+            Some(ConsensusManager::new(ConsensusManagerArgs {
+                config: consensus_manager_config.clone(),
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
                 signature_manager_client,
                 config_manager_client,
-                l1_gas_price_client,
-            ))
+                l1_gas_price_provider: l1_gas_price_client,
+            }))
         }
         ActiveComponentExecutionMode::Disabled => {
             // TODO(tsabary): assert config is not set.
