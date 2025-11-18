@@ -39,8 +39,8 @@ use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusConte
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
-    retrospective_block_hash,
     truncate_to_executed_txs,
+    wait_for_retrospective_block_hash,
     GasPriceParams,
     StreamSender,
 };
@@ -62,6 +62,8 @@ pub(crate) struct ProposalBuildArguments {
     pub cancel_token: CancellationToken,
     pub previous_block_info: Option<ConsensusBlockInfo>,
     pub proposal_round: Round,
+    pub retrospective_block_hash_timeout: Duration,
+    pub retrospective_block_hash_retry_interval_millis: Duration,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -132,6 +134,9 @@ pub(crate) async fn build_proposal(
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
+    let retrospective_block_hash_retry_timeout =
+        chrono::Duration::from_std(args.retrospective_block_hash_timeout)
+            .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.unix_now();
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.l1_gas_price_provider.clone(),
@@ -152,10 +157,15 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         eth_to_fri_rate,
     };
 
-    let retrospective_block_hash =
-        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info)
-            .await
-            .map_err(BuildProposalError::from)?;
+    let retrospective_block_hash = wait_for_retrospective_block_hash(
+        args.deps.state_sync_client.clone(),
+        &block_info,
+        args.deps.clock.as_ref(),
+        args.deps.clock.now() + retrospective_block_hash_retry_timeout,
+        args.retrospective_block_hash_retry_interval_millis,
+    )
+    .await
+    .map_err(BuildProposalError::from)?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
         deadline: args.deps.clock.now() + batcher_timeout,
