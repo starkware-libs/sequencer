@@ -3023,6 +3023,32 @@
           "extra_params": {}
         },
         {
+          "title": "is_cairo1_class_declared_at (client-side)",
+          "description": "client-side infra metrics for request type is_cairo1_class_declared_at",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.50 state_sync_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.50 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.50 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "is_cairo1_class_declared_at (server-side)",
+          "description": "server-side infra metrics for request type is_cairo1_class_declared_at",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.50 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.50 state_sync_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", request_variant=\"is_cairo1_class_declared_at\"}[5m])), \"label_name\", \"0.95 state_sync_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "is_class_declared_at (client-side)",
           "description": "client-side infra metrics for request type is_class_declared_at",
           "type": "timeseries",
