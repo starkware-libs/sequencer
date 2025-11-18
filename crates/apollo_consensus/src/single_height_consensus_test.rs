@@ -36,6 +36,10 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 1;
 
+fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
+    ProposalInit { height, ..*PROPOSAL_INIT }
+}
+
 fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
     ShcTask::Prevote(
         TIMEOUTS.prevote_timeout,
@@ -62,14 +66,20 @@ fn timeout_precommit_task(round: u32) -> ShcTask {
 }
 
 async fn handle_proposal(
+    height: BlockNumber,
     shc: &mut SingleHeightConsensus,
     context: &mut MockTestContext,
 ) -> ShcReturn {
     // Send the proposal from the peer.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TestProposalPart::Init(ProposalInit::default())).await.unwrap();
+    content_sender
+        .send(TestProposalPart::Init(get_proposal_init_for_height(height)))
+        .await
+        .unwrap();
 
-    shc.handle_proposal(context, *PROPOSAL_INIT, content_receiver).await.unwrap()
+    shc.handle_proposal(context, get_proposal_init_for_height(height), content_receiver)
+        .await
+        .unwrap()
 }
 
 #[tokio::test]
@@ -149,11 +159,12 @@ async fn proposer() {
 #[test_case(true; "repeat_proposal")]
 #[tokio::test]
 async fn validator(repeat_proposal: bool) {
+    const HEIGHT: BlockNumber = BlockNumber(0);
     let mut context = MockTestContext::new();
 
     // Creation calls to `context.validators`.
     let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
+        HEIGHT,
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
@@ -171,39 +182,43 @@ async fn validator(repeat_proposal: bool) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
-    let shc_ret = handle_proposal(&mut shc, &mut context).await;
-    assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT);
+    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
+    assert_eq!(
+        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
+        &get_proposal_init_for_height(HEIGHT)
+    );
     assert_eq!(
         shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
         Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
     );
     if repeat_proposal {
         // Send the same proposal again, which should be ignored (no expectations).
-        let shc_ret = handle_proposal(&mut shc, &mut context).await;
+        let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
         assert_eq!(shc_ret, ShcReturn::Tasks(Vec::new()));
     }
     assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)).await,
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID)).await,
         Ok(ShcReturn::Tasks(Vec::new()))
     );
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
-        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
+            .await,
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0)]))
     );
 
     let precommits = vec![
-        precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2),
-        precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2),
+        precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1),
     ];
     assert_eq!(
         shc.handle_vote(&mut context, precommits[0].clone()).await,
@@ -222,10 +237,12 @@ async fn validator(repeat_proposal: bool) {
 #[test_case(false; "equivocation")]
 #[tokio::test]
 async fn vote_twice(same_vote: bool) {
+    const HEIGHT: BlockNumber = BlockNumber(0);
+
     let mut context = MockTestContext::new();
 
     let mut shc = SingleHeightConsensus::new(
-        BlockNumber(0),
+        HEIGHT,
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
@@ -243,41 +260,50 @@ async fn vote_twice(same_vote: bool) {
     context
         .expect_broadcast()
         .times(1) // Shows the repeat vote is ignored.
-        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
-    let shc_ret = handle_proposal(&mut shc, &mut context).await;
-    assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT,);
+    let shc_ret = handle_proposal(HEIGHT, &mut shc, &mut context).await;
+    assert_eq!(
+        shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0,
+        &get_proposal_init_for_height(HEIGHT)
+    );
     assert_eq!(
         shc.handle_event(&mut context, VALIDATE_PROPOSAL_EVENT.clone()).await,
         Ok(ShcReturn::Tasks(vec![prevote_task(Some(BLOCK.id.0), 0)]))
     );
 
-    let res = shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)).await;
+    let res =
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID)).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     context
     .expect_broadcast()
     .times(1) // Shows the repeat vote is ignored.
-    .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+    .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_1))
     .returning(move |_| Ok(()));
-    let res = shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await;
+    let res = shc
+        .handle_vote(&mut context, prevote(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
+        .await;
     // The Node got a Prevote quorum.
     assert_eq!(
         res,
         Ok(ShcReturn::Tasks(vec![timeout_prevote_task(0), precommit_task(Some(BLOCK.id.0), 0),]))
     );
 
-    let first_vote = precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID);
+    let first_vote = precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *PROPOSER_ID);
     let res = shc.handle_vote(&mut context, first_vote.clone()).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
-    let second_vote =
-        if same_vote { first_vote.clone() } else { precommit(Some(Felt::TWO), 0, 0, *PROPOSER_ID) };
+    let second_vote = if same_vote {
+        first_vote.clone()
+    } else {
+        precommit(Some(Felt::TWO), HEIGHT.0, 0, *PROPOSER_ID)
+    };
     let res = shc.handle_vote(&mut context, second_vote.clone()).await;
     assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     let ShcReturn::Decision(decision) = shc
-        .handle_vote(&mut context, precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2))
+        .handle_vote(&mut context, precommit(Some(BLOCK.id.0), HEIGHT.0, 0, *VALIDATOR_ID_2))
         .await
         .unwrap()
     else {
