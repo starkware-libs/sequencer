@@ -37,9 +37,17 @@ impl<
         &self,
     ) -> Result<Option<(BlockNumber, BlockHash)>, BaseLayerSourceError> {
         let finality = 0;
-        self.latest_proved_block(finality)
+        let latest_l1_block_number = self
+            .latest_l1_block_number(finality)
             .await
-            .map(|block| block.map(|block| (block.number, block.hash)))
+            .map_err(|e| BaseLayerSourceError::BaseLayerContractError(Box::new(e)))?;
+        // TODO(guyn): There's no way to actually get an Ok(None) from this function. Consider
+        // adding a check against the type of error we get back from get_proved_block_at() and
+        // converting that into Ok(None) if we are truly convinced that there are no proved blocks
+        // on the chain yet.
+        self.get_proved_block_at(latest_l1_block_number)
+            .await
             .map_err(|e| BaseLayerSourceError::BaseLayerContractError(Box::new(e)))
+            .map(|block| Some((block.number, block.hash)))
     }
 }
