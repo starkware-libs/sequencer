@@ -40,6 +40,7 @@ const FLAVOR_PERIOD_PERIOD: usize = 500;
 
 const FLAVOR_OVERLAP_N_UPDATES: usize = 1000;
 const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
+const FLAVOR_OVERLAP_NEW_LEAVES_AFTER_WARMUP: usize = FLAVOR_OVERLAP_N_UPDATES / 5;
 
 /// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
 fn leaf_preimages_to_storage_keys(
@@ -58,6 +59,42 @@ fn leaf_preimages_to_storage_keys(
 }
 
 impl BenchmarkFlavor {
+    /// Returns the total amount of nonzero leaves in the system up to (not including) the block
+    /// number.
+    fn total_nonzero_leaves_up_to(&self, block_number: usize) -> usize {
+        match self {
+            Self::Constant1KDiff => block_number * FLAVOR_1K_N_UPDATES,
+            Self::Constant4KDiff => block_number * FLAVOR_4K_N_UPDATES,
+            Self::Overlap1KDiff => {
+                if block_number < FLAVOR_OVERLAP_WARMUP_BLOCKS {
+                    block_number * FLAVOR_OVERLAP_N_UPDATES
+                } else {
+                    FLAVOR_OVERLAP_WARMUP_BLOCKS * FLAVOR_OVERLAP_N_UPDATES
+                        + (block_number - FLAVOR_OVERLAP_WARMUP_BLOCKS)
+                            * FLAVOR_OVERLAP_NEW_LEAVES_AFTER_WARMUP
+                }
+            }
+            Self::PeriodicPeaks => {
+                let updates_per_period = FLAVOR_PERIOD_MANY_UPDATES * FLAVOR_PERIOD_MANY_WINDOW
+                    + FLAVOR_PERIOD_FEW_UPDATES
+                        * (FLAVOR_PERIOD_PERIOD - FLAVOR_PERIOD_MANY_WINDOW);
+                let mod_period = block_number % FLAVOR_PERIOD_PERIOD;
+                let is_many_window = mod_period < FLAVOR_PERIOD_MANY_WINDOW;
+
+                let total_leaves_added_in_period = if is_many_window {
+                    // We are still in the initial window with many updates.
+                    FLAVOR_PERIOD_MANY_UPDATES * mod_period
+                } else {
+                    // We have passed the many-updates window.
+                    FLAVOR_PERIOD_MANY_UPDATES * FLAVOR_PERIOD_MANY_WINDOW
+                        + FLAVOR_PERIOD_FEW_UPDATES * (mod_period - FLAVOR_PERIOD_MANY_WINDOW)
+                };
+                (block_number / FLAVOR_PERIOD_PERIOD) * updates_per_period
+                    + total_leaves_added_in_period
+            }
+        }
+    }
+
     fn n_updates(&self, iteration: usize) -> usize {
         match self {
             Self::Constant1KDiff | Self::Overlap1KDiff => FLAVOR_1K_N_UPDATES,
@@ -74,6 +111,7 @@ impl BenchmarkFlavor {
 
     fn generate_state_diff(&self, block_number: usize, rng: &mut SmallRng) -> StateDiff {
         let n_updates = self.n_updates(block_number);
+        let total_nonzero_leaves_so_far = self.total_nonzero_leaves_up_to(block_number);
         let keys_override = match self {
             Self::Constant1KDiff | Self::Constant4KDiff | Self::PeriodicPeaks => None,
             Self::Overlap1KDiff => {
@@ -83,25 +121,26 @@ impl BenchmarkFlavor {
                 // Warmup phase: all leaves should be new, until 100M nonzero leaves exist.
                 if block_number < FLAVOR_OVERLAP_WARMUP_BLOCKS {
                     // Warmup phase: all leaves should be new.
-                    let total_leaves = block_number * n_updates;
-                    Some(leaf_preimages_to_storage_keys(total_leaves..total_leaves + n_updates))
+                    Some(leaf_preimages_to_storage_keys(
+                        total_nonzero_leaves_so_far..total_nonzero_leaves_so_far + n_updates,
+                    ))
                 } else {
                     // We are warmed up, so only 20% of the leaves should be new.
                     // The total number of updates remains constant in this flavor.
-                    let new_leaves = n_updates / 5;
-                    // After warmup, each iteration (block) adds only 20% new leaves.
-                    let total_leaves = FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates
-                        + (block_number - FLAVOR_OVERLAP_WARMUP_BLOCKS) * new_leaves;
                     // Sample (n_updates-new_leaves) old indices uniformly at random, from the
                     // previous leaves. Choose leaves from the (overlap_warmup_blocks * n_updates)
                     // most recent leaves.
-                    let start_index = total_leaves - (FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates);
-                    let n_overlap_leaves = n_updates - new_leaves;
+                    let start_index =
+                        total_nonzero_leaves_so_far - (FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates);
+                    let n_overlap_leaves = n_updates - FLAVOR_OVERLAP_NEW_LEAVES_AFTER_WARMUP;
                     let updated_keys = leaf_preimages_to_storage_keys(
-                        (start_index..total_leaves).choose_multiple(rng, n_overlap_leaves),
+                        (start_index..total_nonzero_leaves_so_far)
+                            .choose_multiple(rng, n_overlap_leaves),
                     );
-                    let new_keys =
-                        leaf_preimages_to_storage_keys(total_leaves..total_leaves + new_leaves);
+                    let new_keys = leaf_preimages_to_storage_keys(
+                        total_nonzero_leaves_so_far
+                            ..total_nonzero_leaves_so_far + FLAVOR_OVERLAP_NEW_LEAVES_AFTER_WARMUP,
+                    );
                     Some([updated_keys, new_keys].concat())
                 }
             }
