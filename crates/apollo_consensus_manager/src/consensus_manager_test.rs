@@ -1,30 +1,35 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_consensus::storage::MockHeightVotedStorageTrait;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use mockall::predicate::eq;
+use mockall::Sequence;
 use starknet_api::block::BlockNumber;
 use tokio::time::{timeout, Duration};
 
 use crate::consensus_manager::ConsensusManager;
 
-const BATCHER_HEIGHT: BlockNumber = BlockNumber(10);
-
 #[tokio::test]
 async fn revert_batcher_blocks() {
+    const BATCHER_HEIGHT: BlockNumber = BlockNumber(10);
     const REVERT_UP_TO_AND_INCLUDING_HEIGHT: BlockNumber = BlockNumber(7);
+
+    let mut revert_sequence = Sequence::new();
 
     let mut mock_batcher_client = MockBatcherClient::new();
     mock_batcher_client
         .expect_get_height()
         .returning(|| Ok(GetHeightResponse { height: BATCHER_HEIGHT }));
+
+    let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
 
     let expected_revert_heights =
         (REVERT_UP_TO_AND_INCLUDING_HEIGHT.0..BATCHER_HEIGHT.0).rev().map(BlockNumber);
@@ -33,6 +38,14 @@ async fn revert_batcher_blocks() {
             .expect_revert_block()
             .times(1)
             .with(eq(RevertBlockInput { height }))
+            .in_sequence(&mut revert_sequence)
+            .returning(|_| Ok(()));
+
+        mock_voted_height_storage
+            .expect_revert_height()
+            .times(1)
+            .with(eq(height))
+            .in_sequence(&mut revert_sequence)
             .returning(|_| Ok(()));
     }
 
@@ -44,7 +57,7 @@ async fn revert_batcher_blocks() {
         ..Default::default()
     };
 
-    let consensus_manager = ConsensusManager::new(
+    let consensus_manager = ConsensusManager::new_with_storage(
         manager_config,
         Arc::new(mock_batcher_client),
         Arc::new(MockStateSyncClient::new()),
@@ -52,6 +65,7 @@ async fn revert_batcher_blocks() {
         Arc::new(MockSignatureManagerClient::new()),
         Arc::new(MockConfigManagerClient::new()),
         Arc::new(MockL1GasPriceProviderClient::new()),
+        Arc::new(Mutex::new(mock_voted_height_storage)),
     );
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
@@ -64,7 +78,10 @@ async fn no_reverts_without_config() {
     mock_batcher.expect_revert_block().times(0).returning(|_| Ok(()));
     mock_batcher.expect_get_height().returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
 
-    let consensus_manager = ConsensusManager::new(
+    let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
+    mock_voted_height_storage.expect_revert_height().times(0).returning(|_| Ok(()));
+
+    let consensus_manager = ConsensusManager::new_with_storage(
         ConsensusManagerConfig::default(),
         Arc::new(mock_batcher),
         Arc::new(MockStateSyncClient::new()),
@@ -72,6 +89,7 @@ async fn no_reverts_without_config() {
         Arc::new(MockSignatureManagerClient::new()),
         Arc::new(MockConfigManagerClient::new()),
         Arc::new(MockL1GasPriceProviderClient::new()),
+        Arc::new(Mutex::new(mock_voted_height_storage)),
     );
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
