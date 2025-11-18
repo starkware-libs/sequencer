@@ -49,7 +49,7 @@ const MAX_WRITE_BUFFERS: i32 = 4;
 
 // Concurrency Options.
 
-const NUM_THREADS: i32 = 8;
+const NUM_THREADS: i32 = 16;
 // Maximum number of background compactions (STT files merge and rewrite) and flushes.
 const MAX_BACKGROUND_JOBS: i32 = 8;
 
@@ -112,6 +112,13 @@ impl Default for RocksDbOptions {
         historical_cf_options.set_use_direct_io_for_flush_and_compaction(true);
         historical_cf_options.set_level_compaction_dynamic_level_bytes(true);
         historical_cf_options.set_target_file_size_base(256 * 1024 * 1024);
+
+        // ~300 MB/s cap for history DB
+        let rate_bytes_per_sec = 300 * 1024 * 1024;
+        let refill_period_ms = 10;
+        let fairness = 10;
+
+        historical_cf_options.set_ratelimiter(rate_bytes_per_sec, refill_period_ms, fairness);
 
         // Set write options.
         let mut write_options = WriteOptions::default();
