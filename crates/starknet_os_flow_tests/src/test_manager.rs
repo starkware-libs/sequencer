@@ -18,7 +18,6 @@ use expect_test::{expect, expect_file, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::{
@@ -368,14 +367,7 @@ impl<S: FlowTestState> TestManager<S> {
             expected_revert_reason: None,
         });
 
-        self.execution_contracts
-            .declared_class_hash_to_component_hashes
-            .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
-        let compiled_class_hash = casm.hash(&HashVersion::V2);
-        self.execution_contracts
-            .executed_contracts
-            .contracts
-            .insert(compiled_class_hash, casm.clone());
+        self.execution_contracts.add_cairo1_contract(casm, sierra);
     }
 
     pub(crate) fn add_invoke_tx(

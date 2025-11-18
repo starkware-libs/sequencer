@@ -80,7 +80,24 @@ impl OsExecutionContracts {
         casm_contract_class: CasmContractClass,
         sierra: &SierraContractClass,
     ) {
-        self.executed_contracts.add_cairo1_contract(casm_contract_class);
+        self.add_cairo1_contract_with_hash(casm_contract_class, sierra, HashVersion::V2);
+    }
+
+    pub(crate) fn add_cairo1_contract_with_v1_hash(
+        &mut self,
+        casm_contract_class: CasmContractClass,
+        sierra: &SierraContractClass,
+    ) {
+        self.add_cairo1_contract_with_hash(casm_contract_class, sierra, HashVersion::V1);
+    }
+
+    pub(crate) fn add_cairo1_contract_with_hash(
+        &mut self,
+        casm_contract_class: CasmContractClass,
+        sierra: &SierraContractClass,
+        hash_version: HashVersion,
+    ) {
+        self.executed_contracts.add_cairo1_contract_with_hash(casm_contract_class, hash_version);
         self.declared_class_hash_to_component_hashes
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
     }
@@ -102,7 +119,22 @@ pub(crate) struct ExecutedContracts {
 
 impl ExecutedContracts {
     pub(crate) fn add_cairo1_contract(&mut self, casm_contract_class: CasmContractClass) {
-        self.contracts.insert(casm_contract_class.hash(&HashVersion::V2), casm_contract_class);
+        self.add_cairo1_contract_with_hash(casm_contract_class, HashVersion::V2);
+    }
+
+    pub(crate) fn add_cairo1_contract_with_v1_hash(
+        &mut self,
+        casm_contract_class: CasmContractClass,
+    ) {
+        self.add_cairo1_contract_with_hash(casm_contract_class, HashVersion::V1);
+    }
+
+    fn add_cairo1_contract_with_hash(
+        &mut self,
+        casm_contract_class: CasmContractClass,
+        hash_version: HashVersion,
+    ) {
+        self.contracts.insert(casm_contract_class.hash(&hash_version), casm_contract_class);
     }
 
     pub(crate) fn add_deprecated_contract(
