@@ -712,9 +712,9 @@ impl BlockBuilderFactory {
         );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
-        let versioned_constants = VersionedConstants::get_versioned_constants(
+        let versioned_constants = VersionedConstants::get_versioned_constants(Some(
             block_builder_config.versioned_constants_overrides,
-        );
+        ));
         let block_context = BlockContext::new(
             block_metadata.block_info,
             block_builder_config.chain_info,
