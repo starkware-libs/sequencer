@@ -10,7 +10,7 @@ use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus::storage::get_voted_height_storage;
+use apollo_consensus::storage::{get_voted_height_storage, HeightVotedStorageTrait};
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::votes_threshold::QuorumType;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -77,26 +77,39 @@ pub struct ConsensusManager {
     pub signature_manager_client: SharedSignatureManagerClient,
     pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+}
+
+pub struct ConsensusManagerArgs {
+    pub config: ConsensusManagerConfig,
+    pub batcher_client: SharedBatcherClient,
+    pub state_sync_client: SharedStateSyncClient,
+    pub class_manager_client: SharedClassManagerClient,
+    pub signature_manager_client: SharedSignatureManagerClient,
+    pub config_manager_client: SharedConfigManagerClient,
+    pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 }
 
 impl ConsensusManager {
-    pub fn new(
-        config: ConsensusManagerConfig,
-        batcher_client: SharedBatcherClient,
-        state_sync_client: SharedStateSyncClient,
-        class_manager_client: SharedClassManagerClient,
-        signature_manager_client: SharedSignatureManagerClient,
-        config_manager_client: SharedConfigManagerClient,
-        l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    pub fn new(args: ConsensusManagerArgs) -> Self {
+        let storage_config =
+            args.config.consensus_manager_config.static_config.storage_config.clone();
+        Self::new_with_storage(args, Arc::new(Mutex::new(get_voted_height_storage(storage_config))))
+    }
+
+    fn new_with_storage(
+        args: ConsensusManagerArgs,
+        voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     ) -> Self {
         Self {
-            config,
-            batcher_client,
-            state_sync_client,
-            class_manager_client,
-            signature_manager_client,
-            config_manager_client,
-            l1_gas_price_provider,
+            config: args.config,
+            batcher_client: args.batcher_client,
+            state_sync_client: args.state_sync_client,
+            class_manager_client: args.class_manager_client,
+            signature_manager_client: args.signature_manager_client,
+            config_manager_client: args.config_manager_client,
+            l1_gas_price_provider: args.l1_gas_price_provider,
+            voted_height_storage,
         }
     }
 
@@ -273,9 +286,7 @@ impl ConsensusManager {
             start_observe_height: observer_height,
             quorum_type,
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
-            last_voted_height_storage: Arc::new(Mutex::new(get_voted_height_storage(
-                self.config.consensus_manager_config.static_config.storage_config.clone(),
-            ))),
+            last_voted_height_storage: self.voted_height_storage.clone(),
         }
     }
 
@@ -295,6 +306,12 @@ impl ConsensusManager {
                 .revert_block(RevertBlockInput { height })
                 .await
                 .expect("Failed to revert block at height {height} in the batcher");
+
+            self.voted_height_storage
+                .lock()
+                .expect("Failed to lock voted height storage. Should never happen.")
+                .revert_height(height)
+                .expect("Failed to revert height in the consensus manager's voted height storage");
         };
 
         const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
@@ -320,7 +337,7 @@ pub fn create_consensus_manager(
     config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 ) -> ConsensusManager {
-    ConsensusManager::new(
+    ConsensusManager::new(ConsensusManagerArgs {
         config,
         batcher_client,
         state_sync_client,
@@ -328,7 +345,7 @@ pub fn create_consensus_manager(
         signature_manager_client,
         config_manager_client,
         l1_gas_price_provider,
-    )
+    })
 }
 
 #[async_trait]

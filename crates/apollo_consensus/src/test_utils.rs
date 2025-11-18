@@ -1,7 +1,11 @@
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{ProposalCommitment, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
@@ -125,5 +129,19 @@ impl HeightVotedStorageTrait for NoOpHeightVotedStorage {
     }
     fn revert_height(&mut self, _height: BlockNumber) -> Result<(), HeightVotedStorageError> {
         Ok(())
+    }
+}
+
+/// Returns a config for a new (i.e. empty) storage.
+pub fn get_new_storage_config() -> StorageConfig {
+    static DB_INDEX: AtomicUsize = AtomicUsize::new(0);
+    let db_file_path = format!(
+        "{}-{}",
+        tempfile::tempdir().unwrap().path().to_str().unwrap(),
+        DB_INDEX.fetch_add(1, Ordering::Relaxed)
+    );
+    StorageConfig {
+        db_config: DbConfig { path_prefix: PathBuf::from(db_file_path), ..Default::default() },
+        ..Default::default()
     }
 }
