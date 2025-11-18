@@ -128,6 +128,7 @@ impl MixedBehaviour {
                 gossipsub::ConfigBuilder::default()
                     // TODO(shahak): try to reduce this bound.
                     .max_transmit_size(1 << 34)
+                    .connection_handler_queue_len(20_000)
                     .build()
                     .expect("Failed to build gossipsub config"),
             )
