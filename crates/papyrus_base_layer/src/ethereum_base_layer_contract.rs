@@ -104,17 +104,6 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         })
     }
 
-    /// Returns the latest proved block on Ethereum, where finality determines how many
-    /// blocks back (0 = latest).
-    #[instrument(skip(self), err)]
-    async fn latest_proved_block(
-        &self,
-        finality: u64,
-    ) -> EthereumBaseLayerResult<Option<BlockHashAndNumber>> {
-        let ethereum_block_number = self.latest_l1_block_number(finality).await?;
-        self.get_proved_block_at(ethereum_block_number).await.map(Some)
-    }
-
     #[instrument(skip(self), err)]
     async fn events<'a>(
         &'a self,

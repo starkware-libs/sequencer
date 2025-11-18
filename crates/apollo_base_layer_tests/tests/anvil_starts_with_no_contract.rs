@@ -35,7 +35,7 @@ async fn anvil_starts_with_no_contract() {
     let latest_l1_block_number = base_layer.latest_l1_block_number(0).await.unwrap();
     assert_eq!(latest_l1_block_number, u64::try_from(NUM_L1_TRANSACTIONS).unwrap());
 
-    let latest_proved_block = base_layer.latest_proved_block(0).await;
+    let latest_proved_block = base_layer.get_proved_block_at(latest_l1_block_number).await;
     // In case L1 contains blocks but does not contain a contract, we get Overrun error.
     // TODO(guyn): We never get Ok(None) from latest_proved_block, we should remove that option.
     assert_eq!(
