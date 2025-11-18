@@ -1,24 +1,16 @@
-name: Sequencer-Cdk8s-Test
+name: Sequencer CdK8s Dry Test
 on:
   workflow_dispatch:
 
-  # push:
-  #   branches:
-  #     - main
-  #     - main-v[0-9].**
-  #   tags:
-  #     - v[0-9].**
-  #   paths:
-  #     - ".github/workflows/sequencer_cdk8s-test.yml"
-  #     - "deployments/sequencer/**"
+  push:
+    paths:
+      - ".github/workflows/sequencer_cdk8s-test2.yml"
+      - "deployments/sequencer2/**"
 
-  # pull_request:
-  #   branches:
-  #     - main
-  #     - main-v[0-9].**
-  #   paths:
-  #     - ".github/workflows/sequencer_cdk8s-test.yml"
-  #     - "deployments/sequencer/**"
+  pull_request:
+    paths:
+      - ".github/workflows/sequencer_cdk8s-test2.yml"
+      - "deployments/sequencer2/**"
 
 jobs:
   prepare:
@@ -26,8 +18,8 @@ jobs:
     env:
       cluster: test
       namespace: test
-      deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_consolidated.json
       monitoring_dashboard_file: ${{ github.workspace }}/deployments/monitoring/examples/output/dashboards/sequencer_node_dashboard.json
+      cdk8s_sequencer_path: ${{ github.workspace }}/deployments/sequencer2
 
     steps:
       - name: Checkout sequencer
@@ -52,19 +44,19 @@ jobs:
 
       # Synthesize the CDK8s Sequencer app.
       - name: CDk8s synth
-        working-directory: deployments/sequencer
+        working-directory: ${{ env.cdk8s_sequencer_path }}
         run: |
           cdk8s import
           pipenv install
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}"
+          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l hybrid --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: cdk8s-artifacts
           path: |
-            deployments/sequencer/dist
-            deployments/sequencer/resources
+            ${{ env.cdk8s_sequencer_path }}/dist
+            ${{ env.cdk8s_sequencer_path }}/resources
 
   validate:
     runs-on: ubuntu-24.04
