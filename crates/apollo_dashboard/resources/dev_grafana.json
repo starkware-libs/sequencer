@@ -1292,30 +1292,11 @@
     "Batcher Infra": {
       "panels": [
         {
-          "title": "Batcher Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a batcher remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(batcher_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(batcher_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -1335,24 +1316,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(batcher_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(batcher_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(batcher_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -1605,30 +1568,11 @@
     "Class Manager Infra": {
       "panels": [
         {
-          "title": "Class Manager Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a class_manager remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(class_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(class_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -1648,24 +1592,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(class_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(class_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(class_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -1840,30 +1766,11 @@
     "Config Manager Infra": {
       "panels": [
         {
-          "title": "Config Manager Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a config_manager remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(config_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(config_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(config_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(config_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -1883,24 +1790,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(config_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(config_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(config_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -1997,30 +1886,11 @@
     "Gateway Infra": {
       "panels": [
         {
-          "title": "Gateway Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a gateway remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(gateway_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(gateway_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2040,24 +1910,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(gateway_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(gateway_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(gateway_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2102,30 +1954,11 @@
     "L1 Endpoint Monitor Infra": {
       "panels": [
         {
-          "title": "L1 Endpoint Monitor Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a l1_endpoint_monitor remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(l1_endpoint_monitor_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(l1_endpoint_monitor_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(l1_endpoint_monitor_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_endpoint_monitor_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2145,24 +1978,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(l1_endpoint_monitor_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_endpoint_monitor_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_endpoint_monitor_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2207,30 +2022,11 @@
     "L1 Gas Price Infra": {
       "panels": [
         {
-          "title": "L1 Gas Price Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a l1_gas_price remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(l1_gas_price_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(l1_gas_price_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(l1_gas_price_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_gas_price_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2250,24 +2046,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(l1_gas_price_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_gas_price_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_gas_price_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2390,30 +2168,11 @@
     "L1 Provider Infra": {
       "panels": [
         {
-          "title": "L1 Provider Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a l1_provider remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(l1_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2433,24 +2192,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(l1_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2677,30 +2418,11 @@
     "Mempool Infra": {
       "panels": [
         {
-          "title": "Mempool Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a mempool remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(mempool_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2720,24 +2442,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(mempool_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2912,30 +2616,11 @@
     "Mempool P2P Infra": {
       "panels": [
         {
-          "title": "Mempool P2p Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a mempool_p2p remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(mempool_p2p_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(mempool_p2p_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(mempool_p2p_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_p2p_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -2955,24 +2640,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(mempool_p2p_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_p2p_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_p2p_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -3069,30 +2736,11 @@
     "Sierra Compiler Infra": {
       "panels": [
         {
-          "title": "Sierra Compiler Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a sierra_compiler remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(sierra_compiler_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(sierra_compiler_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -3112,24 +2760,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(sierra_compiler_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(sierra_compiler_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(sierra_compiler_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -3174,30 +2804,11 @@
     "State Sync Infra": {
       "panels": [
         {
-          "title": "State Sync Remote Client Send Attempts",
-          "description": "Required number of remote connection attempts made by a state_sync remote client",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "Local request receiving rate",
           "description": "Increase of received local requests (1m window)",
           "type": "timeseries",
           "exprs": [
             "increase(state_sync_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Request processing rate",
-          "description": "Increase of processed requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(state_sync_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },
@@ -3217,24 +2828,6 @@
           "type": "timeseries",
           "exprs": [
             "increase(state_sync_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Valid remote request receiving rate",
-          "description": "Increase of valid received remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(state_sync_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Remote request processing rate",
-          "description": "Increase of processed remote requests (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
           ],
           "extra_params": {}
         },

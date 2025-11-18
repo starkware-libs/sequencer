@@ -69,12 +69,8 @@ impl From<&LocalClientMetrics> for InfraPanelBundle {
 }
 
 impl From<&RemoteClientMetrics> for InfraPanelBundle {
-    fn from(metrics: &RemoteClientMetrics) -> Self {
-        Self(vec![Panel::from_hist(
-            metrics.get_attempts_metric(),
-            metrics.get_attempts_metric().get_name(),
-            metrics.get_attempts_metric().get_description(),
-        )])
+    fn from(_metrics: &RemoteClientMetrics) -> Self {
+        Self(vec![])
     }
 }
 
@@ -86,12 +82,6 @@ impl From<&LocalServerMetrics> for InfraPanelBundle {
             increase(metrics.get_received_metric(), INFRA_INCREASE_DURATION),
             PanelType::TimeSeries,
         );
-        let processed_msgs_panel = Panel::new(
-            "Request processing rate",
-            format!("Increase of processed requests ({INFRA_INCREASE_DURATION} window)"),
-            increase(metrics.get_processed_metric(), INFRA_INCREASE_DURATION),
-            PanelType::TimeSeries,
-        );
         let queue_depth_panel = Panel::new(
             "Processing queue depths",
             "The depth of the local priority queues",
@@ -101,7 +91,7 @@ impl From<&LocalServerMetrics> for InfraPanelBundle {
             ],
             PanelType::TimeSeries,
         );
-        Self(vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel])
+        Self(vec![received_msgs_panel, queue_depth_panel])
     }
 }
 
@@ -113,20 +103,6 @@ impl From<&RemoteServerMetrics> for InfraPanelBundle {
             increase(metrics.get_total_received_metric(), INFRA_INCREASE_DURATION),
             PanelType::TimeSeries,
         );
-        let valid_received_msgs_panel = Panel::new(
-            "Valid remote request receiving rate",
-            format!(
-                "Increase of valid received remote requests ({INFRA_INCREASE_DURATION} window)"
-            ),
-            increase(metrics.get_valid_received_metric(), INFRA_INCREASE_DURATION),
-            PanelType::TimeSeries,
-        );
-        let processed_msgs_panel = Panel::new(
-            "Remote request processing rate",
-            format!("Increase of processed remote requests ({INFRA_INCREASE_DURATION} window)"),
-            increase(metrics.get_processed_metric(), INFRA_INCREASE_DURATION),
-            PanelType::TimeSeries,
-        );
         let number_of_connections_panel = Panel::new(
             "Number of remote connections",
             "Number of currently-open remote connections",
@@ -134,12 +110,7 @@ impl From<&RemoteServerMetrics> for InfraPanelBundle {
             PanelType::TimeSeries,
         );
 
-        Self(vec![
-            total_received_msgs_panel,
-            valid_received_msgs_panel,
-            processed_msgs_panel,
-            number_of_connections_panel,
-        ])
+        Self(vec![total_received_msgs_panel, number_of_connections_panel])
     }
 }
 
