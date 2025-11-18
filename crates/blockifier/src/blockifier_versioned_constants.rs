@@ -437,23 +437,29 @@ impl VersionedConstants {
     // squashing the functions together.
     /// Returns the latest versioned constants, applying the given overrides.
     pub fn get_versioned_constants(
-        versioned_constants_overrides: VersionedConstantsOverrides,
+        versioned_constants_overrides: Option<VersionedConstantsOverrides>,
     ) -> Self {
-        let VersionedConstantsOverrides {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-            max_n_events,
-        } = versioned_constants_overrides;
-        let latest_constants = Self::latest_constants().clone();
-        let tx_event_limits =
-            EventLimits { max_n_emitted_events: max_n_events, ..latest_constants.tx_event_limits };
-        Self {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-            tx_event_limits,
-            ..latest_constants
+        match versioned_constants_overrides {
+            None => Self::latest_constants().clone(),
+            Some(VersionedConstantsOverrides {
+                validate_max_n_steps,
+                max_recursion_depth,
+                invoke_tx_max_n_steps,
+                max_n_events,
+            }) => {
+                let latest_constants = Self::latest_constants().clone();
+                let tx_event_limits = EventLimits {
+                    max_n_emitted_events: max_n_events,
+                    ..latest_constants.tx_event_limits
+                };
+                Self {
+                    validate_max_n_steps,
+                    max_recursion_depth,
+                    invoke_tx_max_n_steps,
+                    tx_event_limits,
+                    ..latest_constants
+                }
+            }
         }
     }
 
