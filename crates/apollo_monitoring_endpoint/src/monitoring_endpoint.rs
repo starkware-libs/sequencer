@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra::trace_util::{configure_tracing, set_log_level};
+use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
@@ -32,6 +32,7 @@ pub(crate) const METRICS: &str = "metrics";
 pub(crate) const MEMPOOL_SNAPSHOT: &str = "mempoolSnapshot";
 pub(crate) const L1_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
 pub(crate) const SET_LOG_LEVEL: &str = "setLogLevel";
+pub(crate) const LOG_LEVEL: &str = "logLevel";
 
 pub const HISTOGRAM_BUCKETS: &[f64] =
     &[0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 25.0, 50.0];
@@ -130,6 +131,10 @@ impl MonitoringEndpoint {
                 format!("/{MONITORING_PREFIX}/{SET_LOG_LEVEL}/:crate/:level").as_str(),
                 post(set_log_level_endpoint),
             )
+            .route(
+                format!("/{MONITORING_PREFIX}/{LOG_LEVEL}").as_str(),
+                get(get_log_directives_endpoint),
+            )
     }
 }
 
@@ -227,4 +232,15 @@ async fn set_log_level_endpoint(
     let handle = configure_tracing().await;
     set_log_level(&handle, &crate_name, level_filter);
     Ok(StatusCode::OK)
+}
+
+async fn get_log_directives_endpoint() -> impl IntoResponse {
+    let handle = configure_tracing().await;
+    match get_log_directives(&handle) {
+        Ok(directives) => (StatusCode::OK, directives).into_response(),
+        Err(err) => {
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("failed to read log directives: {err}"))
+                .into_response()
+        }
+    }
 }
