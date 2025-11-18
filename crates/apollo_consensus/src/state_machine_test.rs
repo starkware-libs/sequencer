@@ -14,6 +14,8 @@ use crate::votes_threshold::QuorumType;
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
+    static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
+    static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
 }
 
 const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ONE));
@@ -33,6 +35,8 @@ struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
     state_machine: StateMachine,
     leader_fn: LeaderFn,
     events: VecDeque<StateMachineEvent>,
+    peer_voters: Vec<ValidatorId>,
+    next_peer_idx: usize,
 }
 
 impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
@@ -43,11 +47,25 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         is_observer: bool,
         quorum_type: QuorumType,
     ) -> Self {
+        let mut peer_voters = vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]
+            .into_iter()
+            .filter(|v| *v != id)
+            .collect::<Vec<_>>();
+        // Ensure deterministic order.
+        peer_voters.sort();
         Self {
             state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
             leader_fn,
             events: VecDeque::new(),
+            peer_voters,
+            next_peer_idx: 0,
         }
+    }
+
+    fn next_peer(&mut self) -> ValidatorId {
+        let voter = self.peer_voters[self.next_peer_idx % self.peer_voters.len()];
+        self.next_peer_idx += 1;
+        voter
     }
 
     pub fn next_event(&mut self) -> Option<StateMachineEvent> {
@@ -67,20 +85,22 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     pub fn send_prevote(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
+        let voter = self.next_peer();
         self.send_event(StateMachineEvent::Prevote(mk_vote(
             VoteType::Prevote,
             round,
             proposal_id,
-            *PROPOSER_ID,
+            voter,
         )))
     }
 
     pub fn send_precommit(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
+        let voter = self.next_peer();
         self.send_event(StateMachineEvent::Precommit(mk_vote(
             VoteType::Precommit,
             round,
             proposal_id,
-            *PROPOSER_ID,
+            voter,
         )))
     }
 
