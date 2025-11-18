@@ -19,11 +19,16 @@ pub enum Action {
     Write,
 }
 
+pub struct Timers {
+    pub system: SystemTime,
+    pub instant: Instant,
+}
+
 pub struct TimeMeasurement {
-    pub block_timer: Option<Instant>,
-    pub read_timer: Option<Instant>,
-    pub compute_timer: Option<Instant>,
-    pub writer_timer: Option<Instant>,
+    pub block_timers: Option<Timers>,
+    pub read_timers: Option<Timers>,
+    pub compute_timers: Option<Timers>,
+    pub writer_timers: Option<Timers>,
     pub total_time: u64, // Total duration of all blocks (milliseconds).
     pub n_new_facts: Vec<usize>,
     pub n_read_facts: Vec<usize>,
@@ -44,10 +49,10 @@ pub struct TimeMeasurement {
 impl TimeMeasurement {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
-            block_timer: None,
-            read_timer: None,
-            compute_timer: None,
-            writer_timer: None,
+            block_timers: None,
+            read_timers: None,
+            compute_timers: None,
+            writer_timers: None,
             total_time: 0,
             n_new_facts: Vec::with_capacity(size),
             n_read_facts: Vec::with_capacity(size),
@@ -63,12 +68,12 @@ impl TimeMeasurement {
         }
     }
 
-    fn get_mut_timer(&mut self, action: &Action) -> &mut Option<Instant> {
+    fn get_mut_timers(&mut self, action: &Action) -> &mut Option<Timers> {
         match action {
-            Action::EndToEnd => &mut self.block_timer,
-            Action::Read => &mut self.read_timer,
-            Action::Compute => &mut self.compute_timer,
-            Action::Write => &mut self.writer_timer,
+            Action::EndToEnd => &mut self.block_timers,
+            Action::Read => &mut self.read_timers,
+            Action::Compute => &mut self.compute_timers,
+            Action::Write => &mut self.writer_timers,
         }
     }
 
@@ -84,23 +89,31 @@ impl TimeMeasurement {
     }
 
     pub fn start_measurement(&mut self, action: Action) {
-        *self.get_mut_timer(&action) = Some(Instant::now());
+        *self.get_mut_timers(&action) =
+            Some(Timers { system: SystemTime::now(), instant: Instant::now() });
     }
 
     /// Stop the measurement for the given action and add the duration to the corresponding vector.
     /// facts_count is either the number of facts read from the DB for Read action, or the number of
     /// new facts written to the DB for the Total action.
     pub fn stop_measurement(&mut self, facts_count: Option<usize>, action: Action) {
-        let duration = self
-            .get_mut_timer(&action)
-            .expect("stop_measurement called before start_measurement")
-            .elapsed();
+        let Timers { system: system_timer, instant: instant_timer } = self
+            .get_mut_timers(&action)
+            .as_ref()
+            .expect("stop_measurement called before start_measurement");
+        let instant_duration = instant_timer.elapsed();
+        let system_duration = SystemTime::now()
+            .duration_since(*system_timer)
+            .map(|duration| format!("{} milliseconds", duration.as_millis()))
+            .unwrap_or("SAMPLE ERROR: unknown system time".to_string());
         info!(
-            "Time elapsed for {action:?} in iteration {}: {} milliseconds",
+            "Time elapsed for {action:?} in iteration {}: {} or {} milliseconds (instant / system \
+             time)",
             self.n_results(),
-            duration.as_millis()
+            instant_duration.as_millis(),
+            system_duration,
         );
-        let millis: u64 = duration.as_millis().try_into().unwrap();
+        let millis: u64 = instant_duration.as_millis().try_into().unwrap();
         match action {
             Action::EndToEnd => {
                 self.block_durations.push(millis);
