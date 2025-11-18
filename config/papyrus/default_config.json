@@ -149,6 +149,13 @@
     "privacy": "Public",
     "value": 1000
   },
+  "context.build_proposal_time_ratio_for_retrospective_block_hash": {
+    "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
+    "value": {
+      "$serde_json::private::Number": "0.7"
+    },
+    "privacy": "Public"
+  },
   "context.builder_address": {
     "description": "The address of the contract that builds the block.",
     "privacy": "Public",
@@ -243,6 +250,13 @@
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
     "value": 100
+  },
+  "context.retrospective_block_hash_retry_interval_millis": {
+    "description": "The interval between retrospective block hash retries.",
+    "value": {
+      "$serde_json::private::Number": "500"
+    },
+    "privacy": "Public"
   },
   "context.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",

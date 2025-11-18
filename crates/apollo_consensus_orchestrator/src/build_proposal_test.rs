@@ -18,10 +18,11 @@ use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_state_sync_types::errors::StateSyncError;
+use apollo_time::time::DateTime;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tokio_util::sync::CancellationToken;
@@ -40,9 +41,10 @@ use crate::test_utils::{
 };
 use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
 
+// TODO(Dafna): Remove this struct and use ProposalBuildArguments directly.
 struct TestProposalBuildArguments {
     pub deps: TestDeps,
-    pub batcher_timeout: Duration,
+    pub batcher_deadline: DateTime,
     pub proposal_init: ProposalInit,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
@@ -55,13 +57,15 @@ struct TestProposalBuildArguments {
     pub cancel_token: CancellationToken,
     pub previous_block_info: Option<ConsensusBlockInfo>,
     pub proposal_round: Round,
+    pub retrospective_block_hash_deadline: DateTime,
+    pub retrospective_block_hash_retry_interval_millis: Duration,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
     fn from(args: TestProposalBuildArguments) -> Self {
         ProposalBuildArguments {
             deps: args.deps.into(),
-            batcher_timeout: args.batcher_timeout,
+            batcher_deadline: args.batcher_deadline,
             proposal_init: args.proposal_init,
             l1_da_mode: args.l1_da_mode,
             stream_sender: args.stream_sender,
@@ -74,6 +78,9 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             cancel_token: args.cancel_token,
             previous_block_info: args.previous_block_info,
             proposal_round: args.proposal_round,
+            retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
+            retrospective_block_hash_retry_interval_millis: args
+                .retrospective_block_hash_retry_interval_millis,
         }
     }
 }
@@ -81,7 +88,10 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
 fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Receiver<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
-    let batcher_timeout = TIMEOUT;
+    let time_now = deps.clock.now();
+    let batcher_deadline = time_now + TIMEOUT;
+    let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.7);
+    let retrospective_block_hash_retry_interval_millis = Duration::from_millis(100);
     let proposal_init = ProposalInit::default();
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
     let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
@@ -101,7 +111,7 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
     (
         TestProposalBuildArguments {
             deps,
-            batcher_timeout,
+            batcher_deadline,
             proposal_init,
             l1_da_mode,
             stream_sender,
@@ -114,6 +124,8 @@ fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Recei
             cancel_token,
             previous_block_info,
             proposal_round,
+            retrospective_block_hash_deadline,
+            retrospective_block_hash_retry_interval_millis,
         },
         proposal_receiver,
     )
@@ -158,15 +170,54 @@ async fn state_sync_not_ready_error() {
     let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
-    // Setup state sync client to return None, indicating that the state sync is not ready.
+    // Setup state sync client to return BlockNotFound error.
     proposal_args
         .deps
         .state_sync_client
         .expect_get_block_hash()
+        .times(2..11) // At least twice, but no more than 10 times.
         .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
 
     let res = build_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(BuildProposalError::StateSyncNotReady(_))));
+}
+
+#[tokio::test]
+async fn state_sync_ready_after_a_while() {
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
+
+    // Setup batcher.
+    proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
+    proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                final_n_executed_txs: 0,
+            },
+        })
+    });
+    // Make sure cende returns on time.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
+    proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
+    // Setup state sync client to return BlockNotFound error in the first attempt.
+    proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .times(1)
+        .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
+    // Setup state sync client to return a block hash in the second attempt.
+    proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .times(1)
+        .returning(|_| Ok(BlockHash::default()));
+
+    let res = build_proposal(proposal_args.into()).await.unwrap();
+    assert_eq!(res, ConsensusProposalCommitment::default());
 }
 
 #[tokio::test]
