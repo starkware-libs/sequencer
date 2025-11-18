@@ -99,6 +99,9 @@ pub(crate) struct StateMachine {
     prevote_quorum: HashSet<Round>,
     mixed_prevote_quorum: HashSet<Round>,
     mixed_precommit_quorum: HashSet<Round>,
+    // Tracks the latest self votes for efficient rebroadcasts.
+    last_self_prevote: Option<Vote>,
+    last_self_precommit: Option<Vote>,
 }
 
 impl StateMachine {
@@ -131,6 +134,8 @@ impl StateMachine {
             prevote_quorum: HashSet::new(),
             mixed_prevote_quorum: HashSet::new(),
             mixed_precommit_quorum: HashSet::new(),
+            last_self_prevote: None,
+            last_self_precommit: None,
         }
     }
 
@@ -170,13 +175,37 @@ impl StateMachine {
         self.proposals.get(&round).and_then(|(id, _)| *id)
     }
 
+    pub(crate) fn last_self_prevote(&self) -> Option<Vote> {
+        self.last_self_prevote.clone()
+    }
+
+    pub(crate) fn last_self_precommit(&self) -> Option<Vote> {
+        self.last_self_precommit.clone()
+    }
+
     fn make_self_vote(
-        &self,
+        &mut self,
         vote_type: VoteType,
-        round: Round,
         proposal_commitment: Option<ProposalCommitment>,
     ) -> Vote {
-        Vote { vote_type, height: self.height.0, round, proposal_commitment, voter: self.id }
+        let vote = Vote {
+            vote_type,
+            height: self.height.0,
+            round: self.round,
+            proposal_commitment,
+            voter: self.id,
+        };
+        // update the latest self vote.
+        let last_self_vote = match vote_type {
+            VoteType::Prevote => &mut self.last_self_prevote,
+            VoteType::Precommit => &mut self.last_self_precommit,
+        };
+        assert!(
+            last_self_vote.as_ref().is_none_or(|last| self.round > last.round),
+            "State machine must progress in time: last_vote: {last_self_vote:?} new_vote: {vote:?}"
+        );
+        *last_self_vote = Some(vote.clone());
+        vote
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
@@ -338,7 +367,7 @@ impl StateMachine {
              round={round}."
         );
         CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Propose.into())]);
-        let vote = self.make_self_vote(VoteType::Prevote, round, None);
+        let vote = self.make_self_vote(VoteType::Prevote, None);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(vote)]);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
@@ -370,7 +399,7 @@ impl StateMachine {
         };
         debug!("Applying TimeoutPrevote for round={round}.");
         CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Prevote.into())]);
-        let vote = self.make_self_vote(VoteType::Precommit, round, None);
+        let vote = self.make_self_vote(VoteType::Precommit, None);
         let mut output = VecDeque::from([StateMachineEvent::Precommit(vote)]);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
@@ -518,7 +547,7 @@ impl StateMachine {
         } else {
             None
         };
-        let vote = self.make_self_vote(VoteType::Prevote, self.round, vote_commitment);
+        let vote = self.make_self_vote(VoteType::Prevote, vote_commitment);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(vote)]);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
@@ -550,7 +579,7 @@ impl StateMachine {
         } else {
             None
         };
-        let vote = self.make_self_vote(VoteType::Prevote, self.round, vote_commitment);
+        let vote = self.make_self_vote(VoteType::Prevote, vote_commitment);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(vote)]);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
@@ -600,7 +629,7 @@ impl StateMachine {
             CONSENSUS_NEW_VALUE_LOCKS.increment(1);
         }
         self.locked_value_round = new_value;
-        let vote = self.make_self_vote(VoteType::Precommit, self.round, Some(*proposal_id));
+        let vote = self.make_self_vote(VoteType::Precommit, Some(*proposal_id));
         let mut output = VecDeque::from([StateMachineEvent::Precommit(vote)]);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
@@ -614,7 +643,7 @@ impl StateMachine {
         if !self.value_has_enough_votes(&self.prevotes, self.round, &None, &self.quorum) {
             return VecDeque::new();
         }
-        let vote = self.make_self_vote(VoteType::Precommit, self.round, None);
+        let vote = self.make_self_vote(VoteType::Precommit, None);
         let mut output = VecDeque::from([StateMachineEvent::Precommit(vote)]);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
