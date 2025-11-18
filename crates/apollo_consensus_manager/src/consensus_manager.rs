@@ -3,13 +3,14 @@
 mod consensus_manager_test;
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_consensus::storage::{get_voted_height_storage, HeightVotedStorageTrait};
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::votes_threshold::QuorumType;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -76,6 +77,7 @@ pub struct ConsensusManager {
     pub signature_manager_client: SharedSignatureManagerClient,
     pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
 impl ConsensusManager {
@@ -88,6 +90,29 @@ impl ConsensusManager {
         config_manager_client: SharedConfigManagerClient,
         l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
+        let storage_config = config.consensus_manager_config.static_config.storage_config.clone();
+        Self::new_with_storage(
+            config,
+            batcher_client,
+            state_sync_client,
+            class_manager_client,
+            signature_manager_client,
+            config_manager_client,
+            l1_gas_price_provider,
+            Arc::new(Mutex::new(get_voted_height_storage(storage_config))),
+        )
+    }
+
+    fn new_with_storage(
+        config: ConsensusManagerConfig,
+        batcher_client: SharedBatcherClient,
+        state_sync_client: SharedStateSyncClient,
+        class_manager_client: SharedClassManagerClient,
+        signature_manager_client: SharedSignatureManagerClient,
+        config_manager_client: SharedConfigManagerClient,
+        l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+        voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    ) -> Self {
         Self {
             config,
             batcher_client,
@@ -96,6 +121,7 @@ impl ConsensusManager {
             signature_manager_client,
             config_manager_client,
             l1_gas_price_provider,
+            voted_height_storage,
         }
     }
 
@@ -290,6 +316,12 @@ impl ConsensusManager {
                 .revert_block(RevertBlockInput { height })
                 .await
                 .expect("Failed to revert block at height {height} in the batcher");
+
+            self.voted_height_storage
+                .lock()
+                .expect("Failed to lock voted height storage. Should never happen.")
+                .revert_height(height)
+                .expect("Failed to revert height in the consensus manager's voted height storage");
         };
 
         const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
