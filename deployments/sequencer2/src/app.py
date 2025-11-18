@@ -10,6 +10,7 @@ from src.config.loaders import (
 )
 from src.config.merger import merge_configs
 from src.config.schema import DeploymentConfig as DeploymentSchema
+from src.config.schema import Image
 from src.utils import sanitize_name
 
 
@@ -23,6 +24,10 @@ def main():
 
     # Load configuration
     deployment_config = _load_deployment_config(base_dir, args.layout, args.overlay)
+
+    # Override image if provided
+    if args.image:
+        _override_image_for_all_services(deployment_config, args.image)
 
     # Prepare monitoring
     monitoring_configs = _prepare_monitoring_configs(args)
@@ -103,6 +108,38 @@ def _load_deployment_config(base_dir: Path, layout: str, overlay: str | None) ->
         overlay_common_config_path=str(overlay_common) if overlay_common else None,
         overlay_services_config_dir_path=str(overlay_services) if overlay_services else None,
     )
+
+
+def _parse_image(image_str: str) -> Image:
+    """Parse image string into Image object.
+
+    Supports formats:
+    - 'repository:tag' -> Image(repository='repository', tag='tag')
+    - 'repository' -> Image(repository='repository', tag='latest')
+    """
+    if ":" in image_str:
+        repository, tag = image_str.rsplit(":", 1)
+        return Image(repository=repository, tag=tag)
+    else:
+        return Image(repository=image_str, tag="latest")
+
+
+def _override_image_for_all_services(deployment_config: DeploymentSchema, image_str: str):
+    """Override image for all services in the deployment config."""
+    base_image = _parse_image(image_str)
+
+    # Override image for each service
+    for service_cfg in deployment_config.services:
+        # Preserve imagePullPolicy if it exists
+        image_pull_policy = service_cfg.image.imagePullPolicy if service_cfg.image else None
+
+        # Create a new Image instance for each service
+        service_cfg.image = Image(
+            repository=base_image.repository,
+            tag=base_image.tag,
+            digest=base_image.digest,
+            imagePullPolicy=image_pull_policy or base_image.imagePullPolicy,
+        )
 
 
 def _prepare_monitoring_configs(args) -> dict:

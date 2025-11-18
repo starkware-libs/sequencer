@@ -112,7 +112,11 @@ class PodBuilder:
         if (
             self.service_config.secret
             and self.service_config.secret.enabled
-            and (self.service_config.secret.data or self.service_config.secret.stringData)
+            and (
+                self.service_config.secret.file
+                or self.service_config.secret.data
+                or self.service_config.secret.stringData
+            )
         ):
             mount_path = (
                 self.service_config.secret.mountPath
@@ -211,7 +215,11 @@ class PodBuilder:
         if (
             self.service_config.secret
             and self.service_config.secret.enabled
-            and (self.service_config.secret.data or self.service_config.secret.stringData)
+            and (
+                self.service_config.secret.file
+                or self.service_config.secret.data
+                or self.service_config.secret.stringData
+            )
         ):
             secret_name = (
                 self.service_config.secret.name or f"sequencer-{self.service_config.name}-secret"
@@ -224,15 +232,19 @@ class PodBuilder:
                 else "/etc/secrets"
             )
 
-            # Get the first available key (any key name is fine)
+            # Get the secret key - if loading from file, use secrets.json
+            # Otherwise get the first available key from stringData or data
             secret_key = None
-            if self.service_config.secret.stringData:
+            if self.service_config.secret.file:
+                # When loading from file, the key is always secrets.json
+                secret_key = "secrets.json"
+            elif self.service_config.secret.stringData:
                 secret_key = next(iter(self.service_config.secret.stringData.keys()))
             elif self.service_config.secret.data:
                 secret_key = next(iter(self.service_config.secret.data.keys()))
 
             if secret_key:
-                # Mount whatever key they provided as secret.json using subPath
+                # Mount the secret key as secret.json using subPath
                 volume_mounts.append(
                     k8s.VolumeMount(
                         name=secret_volume_name,
@@ -305,7 +317,11 @@ class PodBuilder:
         if (
             self.service_config.secret
             and self.service_config.secret.enabled
-            and (self.service_config.secret.data or self.service_config.secret.stringData)
+            and (
+                self.service_config.secret.file
+                or self.service_config.secret.data
+                or self.service_config.secret.stringData
+            )
         ):
             secret_name = (
                 self.service_config.secret.name or f"sequencer-{self.service_config.name}-secret"

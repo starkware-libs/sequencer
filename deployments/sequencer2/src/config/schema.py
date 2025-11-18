@@ -236,6 +236,7 @@ class Secret(StrictBaseModel):
     enabled: bool = False
     name: Optional[str] = None
     type: str = "Opaque"
+    file: Optional[str] = None  # Path to JSON file to load as secret (relative to project root)
     data: StrDict = Field(default_factory=dict)
     stringData: StrDict = Field(default_factory=dict)
     annotations: StrDict = Field(default_factory=dict)
@@ -248,14 +249,19 @@ class Secret(StrictBaseModel):
         import json
 
         if self.enabled:
+            # Check if we have file, data, or stringData
+            has_file = bool(self.file)
             all_keys = set()
             if self.stringData:
                 all_keys.update(self.stringData.keys())
             if self.data:
                 all_keys.update(self.data.keys())
 
-            if not all_keys:
-                raise ValueError("Secret must contain at least one key when enabled")
+            if not has_file and not all_keys:
+                raise ValueError(
+                    "Secret must contain at least one key when enabled. "
+                    "Provide 'file', 'data', or 'stringData'."
+                )
 
             # Validate that all stringData values are valid JSON
             if self.stringData:
@@ -269,6 +275,7 @@ class Secret(StrictBaseModel):
 
             # Note: data is already base64 encoded, we can't validate JSON here without decoding
             # Users should use stringData for JSON content validation
+            # File validation happens at runtime in SecretConstruct
 
 
 class PodMonitoringEndpoint(StrictBaseModel):
