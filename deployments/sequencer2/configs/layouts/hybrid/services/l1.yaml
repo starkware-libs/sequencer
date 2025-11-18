@@ -238,7 +238,7 @@ externalSecret:
 # Volume Configuration
 # See docs/VOLUME_CONFIGURATION.md for all available options
 persistentVolume:
-  enabled: true # Whether to create a PersistentVolumeClaim
+  enabled: false # Whether to create a PersistentVolumeClaim
   accessModes: # Required: Volume access modes
     - ReadWriteOnce
   mountPath: "/data" # Path where volume is mounted in container
