@@ -10,6 +10,7 @@ mod single_height_consensus_test;
 
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 const REBROADCAST_LOG_PERIOD_SECS: u64 = 10;
@@ -33,6 +34,7 @@ use crate::metrics::{
     CONSENSUS_REPROPOSALS,
 };
 use crate::state_machine::{StateMachine, StateMachineEvent};
+use crate::storage::HeightVotedStorageTrait;
 use crate::types::{
     ConsensusContext,
     ConsensusError,
@@ -143,6 +145,7 @@ pub(crate) struct SingleHeightConsensus {
     precommits: HashMap<(Round, ValidatorId), Vote>,
     last_prevote: Option<Vote>,
     last_precommit: Option<Vote>,
+    height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
 }
 
 impl SingleHeightConsensus {
@@ -153,6 +156,7 @@ impl SingleHeightConsensus {
         validators: Vec<ValidatorId>,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
+        height_voted_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
@@ -169,6 +173,7 @@ impl SingleHeightConsensus {
             precommits: HashMap::new(),
             last_prevote: None,
             last_precommit: None,
+            height_voted_storage,
         }
     }
 
@@ -554,6 +559,15 @@ impl SingleHeightConsensus {
                 )));
             }
         };
+
+        trace!("Writing voted height {} to storage", self.height);
+        self.height_voted_storage
+            .lock()
+            .expect(
+                "Lock should never be poisoned because there should never be concurrent access.",
+            )
+            .set_prev_voted_height(self.height)
+            .expect("Failed to write voted height {self.height} to storage");
 
         info!("Broadcasting {vote:?}");
         context.broadcast(vote).await?;
