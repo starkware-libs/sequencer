@@ -12,14 +12,17 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 
 use crate::dashboard::{Dashboard, Row};
 use crate::infra_panels::get_component_infra_row;
-use crate::panels::batcher::{get_batcher_row, get_panel_batched_transactions_rate};
+use crate::panels::batcher::{
+    get_batcher_row,
+    get_panel_batched_transactions_rate,
+    get_panel_consensus_block_time_avg,
+};
 use crate::panels::blockifier::get_blockifier_row;
 use crate::panels::consensus::{
     get_cende_row,
     get_consensus_p2p_row,
     get_consensus_row,
     get_panel_consensus_block_number_diff_from_sync,
-    get_panel_consensus_block_time_avg,
     get_panel_consensus_round,
 };
 use crate::panels::gateway::{get_gateway_row, get_panel_gateway_add_tx_failure_by_reason};

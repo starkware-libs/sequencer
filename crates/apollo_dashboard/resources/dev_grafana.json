@@ -105,17 +105,6 @@
           }
         },
         {
-          "title": "Average Block Time",
-          "description": "Average block time (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
           "title": "Consensus Round Above Zero",
           "description": "Occurances where the consensus round was 1, relative to displayed range",
           "type": "timeseries",
@@ -343,6 +332,17 @@
           ],
           "extra_params": {
             "log_query": "\"Committing block at height\""
+          }
+        },
+        {
+          "title": "Average Block Time",
+          "description": "Average block time (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "1 / rate(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])"
+          ],
+          "extra_params": {
+            "unit": "s"
           }
         },
         {
