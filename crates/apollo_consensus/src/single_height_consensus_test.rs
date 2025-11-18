@@ -54,7 +54,7 @@ fn get_proposal_init_for_height(height: BlockNumber) -> ProposalInit {
 }
 
 fn prevote_task(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> ShcTask {
-    let duration = TIMEOUTS.get_prevote_timeout(round);
+    let duration = TIMEOUTS.get_prevote_timeout(0);
     ShcTask::Prevote(
         duration,
         StateMachineEvent::Prevote(prevote(block_felt, height, round, voter)),
@@ -67,7 +67,7 @@ fn precommit_task(
     round: u32,
     voter: ValidatorId,
 ) -> ShcTask {
-    let duration = TIMEOUTS.get_precommit_timeout(round);
+    let duration = TIMEOUTS.get_precommit_timeout(0);
     ShcTask::Precommit(
         duration,
         StateMachineEvent::Precommit(precommit(block_felt, height, round, voter)),
@@ -357,7 +357,7 @@ async fn rebroadcast_votes() {
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
     );
 
-    context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_build_proposal().times(1).returning(move |_, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
@@ -383,27 +383,72 @@ async fn rebroadcast_votes() {
     // 3 of 4 Prevotes is enough to send a Precommit.
     context
         .expect_broadcast()
-        .times(2) // vote rebroadcast
-        .withf(move |msg: &Vote| {
-            msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)
-        })
+        .times(1) // just the first precommit at round 0.
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
         shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await,
         Ok(ShcReturn::Tasks(vec![
             timeout_prevote_task(0),
+            // initiate timeout for rebroadcast at round 0.
             precommit_task(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),
         ]))
     );
-    // Re-broadcast vote.
+    // Advance to the next round with NIL precommits.
+    shc.handle_vote(&mut context, precommit(None, 0, 0, *VALIDATOR_ID_1)).await.unwrap();
+    shc.handle_vote(&mut context, precommit(None, 0, 0, *VALIDATOR_ID_2)).await.unwrap();
+    context.expect_repropose().returning(move |id, init| {
+        assert_eq!(init.height, BlockNumber(0));
+        assert_eq!(id, BLOCK.id);
+        assert_eq!(init.round, 1);
+    });
+    context
+        .expect_broadcast()
+        .times(1)
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
+        .returning(move |_| Ok(()));
+    shc.handle_event(&mut context, StateMachineEvent::TimeoutPrecommit(0)).await.unwrap();
+    context
+        .expect_broadcast()
+        .times(2) // first: initial precommit vote at r1, second: rebroadcast at r1
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
+        .returning(move |_| Ok(()));
+    assert_eq!(
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_2)).await,
+        Ok(ShcReturn::Tasks(Vec::new()))
+    );
+    assert_eq!(
+        shc.handle_vote(&mut context, prevote(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_3)).await,
+        Ok(ShcReturn::Tasks(vec![
+            timeout_prevote_task(1),
+            // initiate timeout for rebroadcast at round 1.
+            precommit_task(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID),
+        ]))
+    );
+
+    // Re-broadcast with older vote (round 0) - should be ignored (no broadcast, no task).
     assert_eq!(
         shc.handle_event(
             &mut context,
             StateMachineEvent::Precommit(precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         )
         .await,
-        Ok(ShcReturn::Tasks(vec![precommit_task(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID),]))
+        Ok(ShcReturn::Tasks(Vec::new()))
+    );
+
+    // Re-broadcast with current round (round 1) - should broadcast and schedule another timeout for
+    // rebroadcast at round 1.
+    assert_eq!(
+        shc.handle_event(
+            &mut context,
+            StateMachineEvent::Precommit(precommit(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
+        )
+        .await,
+        Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
+            TIMEOUTS.get_precommit_timeout(0),
+            StateMachineEvent::Precommit(precommit(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID)),
+        )]))
     );
 }
 
