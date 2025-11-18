@@ -31,7 +31,7 @@ fn get_mempool_p2p_peer_down(
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
-            comparison_value: 2.0,
+            comparison_value: 4.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
