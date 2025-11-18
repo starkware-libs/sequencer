@@ -11,8 +11,8 @@ use apollo_monitoring_endpoint::tokio_metrics::{
 };
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::infra_panels::POD_LEGEND;
 use crate::query_builder::increase;
-const TOKIO_PANEL_LEGENDS: &[&str] = &["{{pod}}"];
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
     Panel::new(
@@ -21,7 +21,7 @@ fn get_panel_tokio_total_busy_duration_micros() -> Panel {
         increase(&TOKIO_TOTAL_BUSY_DURATION_MICROS, "1m"),
         PanelType::TimeSeries,
     )
-    .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    .with_legends(POD_LEGEND)
     .with_unit(Unit::Microseconds)
 }
 fn get_panel_tokio_min_busy_duration_micros() -> Panel {
@@ -31,7 +31,7 @@ fn get_panel_tokio_min_busy_duration_micros() -> Panel {
         TOKIO_MIN_BUSY_DURATION_MICROS.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
-    .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    .with_legends(POD_LEGEND)
     .with_unit(Unit::Microseconds)
 }
 fn get_panel_tokio_max_busy_duration_micros() -> Panel {
@@ -41,29 +41,24 @@ fn get_panel_tokio_max_busy_duration_micros() -> Panel {
         TOKIO_MAX_BUSY_DURATION_MICROS.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
-    .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    .with_legends(POD_LEGEND)
     .with_unit(Unit::Microseconds)
 }
 
 fn get_panel_tokio_total_park_count() -> Panel {
-    Panel::from_gauge(&TOKIO_TOTAL_PARK_COUNT, PanelType::TimeSeries)
-        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    Panel::from_gauge(&TOKIO_TOTAL_PARK_COUNT, PanelType::TimeSeries).with_legends(POD_LEGEND)
 }
 fn get_panel_tokio_min_park_count() -> Panel {
-    Panel::from_gauge(&TOKIO_MIN_PARK_COUNT, PanelType::TimeSeries)
-        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    Panel::from_gauge(&TOKIO_MIN_PARK_COUNT, PanelType::TimeSeries).with_legends(POD_LEGEND)
 }
 fn get_panel_tokio_max_park_count() -> Panel {
-    Panel::from_gauge(&TOKIO_MAX_PARK_COUNT, PanelType::TimeSeries)
-        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    Panel::from_gauge(&TOKIO_MAX_PARK_COUNT, PanelType::TimeSeries).with_legends(POD_LEGEND)
 }
 fn get_panel_tokio_global_queue_depth() -> Panel {
-    Panel::from_gauge(&TOKIO_GLOBAL_QUEUE_DEPTH, PanelType::TimeSeries)
-        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    Panel::from_gauge(&TOKIO_GLOBAL_QUEUE_DEPTH, PanelType::TimeSeries).with_legends(POD_LEGEND)
 }
 fn get_panel_tokio_workers_count() -> Panel {
-    Panel::from_gauge(&TOKIO_WORKERS_COUNT, PanelType::TimeSeries)
-        .with_legends(TOKIO_PANEL_LEGENDS.to_vec())
+    Panel::from_gauge(&TOKIO_WORKERS_COUNT, PanelType::TimeSeries).with_legends(POD_LEGEND)
 }
 
 pub(crate) fn get_tokio_row() -> Row {

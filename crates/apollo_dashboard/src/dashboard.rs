@@ -223,13 +223,18 @@ impl Panel {
         self
     }
 
-    pub fn with_legends<S: Into<String>>(mut self, legends: Vec<S>) -> Self {
+    pub fn with_legends<I, S>(mut self, legends: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let legends: Vec<String> = legends.into_iter().map(|s| s.into()).collect();
         assert_eq!(
             legends.len(),
             self.exprs.len(),
             "Number of legends must match number of expressions"
         );
-        self.extra.legends = Some(legends.into_iter().map(|s| s.into()).collect());
+        self.extra.legends = Some(legends);
         self
     }
 
@@ -346,12 +351,7 @@ impl Panel {
             description,
             format!("le, {}", group_label),
         )
-        .with_legends(
-            HISTOGRAM_QUANTILES
-                .iter()
-                .map(|q| format!("{:.2} {{{{{}}}}}", q, group_label))
-                .collect(),
-        )
+        .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
     }
 }
 

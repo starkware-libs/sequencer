@@ -15,6 +15,7 @@ use crate::query_builder::increase;
 
 const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";
 const INFRA_INCREASE_DURATION: &str = "1m";
+pub(crate) const POD_LEGEND: [&str; 1] = ["{{pod}}"];
 
 pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMetrics) -> Row {
     let mut panels: Vec<Panel> = Vec::new();
