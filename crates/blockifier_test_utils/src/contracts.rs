@@ -60,6 +60,7 @@ const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
 const TEST_CONTRACT2_BASE: u32 = 14 * CLASS_HASH_BASE;
 const EXPERIMENTAL_CONTRACT_BASE: u32 = 15 * CLASS_HASH_BASE;
+const TX_INFO_WRITER_CONTRACT_BASE: u32 = 16 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -77,6 +78,7 @@ const EMPTY_ACCOUNT_NAME: &str = "empty_account";
 const META_TX_CONTRACT_NAME: &str = "meta_tx_test_contract";
 const MOCK_STAKING_CONTRACT_NAME: &str = "mock_staking";
 const EXPERIMENTAL_CONTRACT_NAME: &str = "experimental_contract";
+const TX_INFO_WRITER_CONTRACT_NAME: &str = "tx_info_writer";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -178,6 +180,7 @@ pub enum FeatureContract {
     SierraExecutionInfoV1Contract(RunnableCairo1),
     MetaTx(RunnableCairo1),
     MockStakingContract(RunnableCairo1),
+    TxInfoWriter,
 }
 
 impl FeatureContract {
@@ -189,7 +192,10 @@ impl FeatureContract {
             | Self::FaultyAccount(version)
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
-            Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => CairoVersion::Cairo0,
+            Self::DelegateProxy
+            | Self::SecurityTests
+            | Self::TestContract2
+            | Self::TxInfoWriter => CairoVersion::Cairo0,
             Self::LegacyTestContract | Self::CairoStepsTestContract | Self::Experimental => {
                 CairoVersion::Cairo1(RunnableCairo1::Casm)
             }
@@ -222,7 +228,8 @@ impl FeatureContract {
             | Self::TestContract2
             | Self::CairoStepsTestContract
             | Self::Experimental
-            | Self::LegacyTestContract => {
+            | Self::LegacyTestContract
+            | Self::TxInfoWriter => {
                 panic!("{self:?} contract has no configurable version.")
             }
         }
@@ -256,7 +263,10 @@ impl FeatureContract {
             Self::LegacyTestContract => {
                 (LEGACY_CONTRACT_COMPILED_CLASS_HASH_V1, LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2)
             }
-            Self::DelegateProxy | Self::SecurityTests | Self::TestContract2 => {
+            Self::DelegateProxy
+            | Self::SecurityTests
+            | Self::TestContract2
+            | Self::TxInfoWriter => {
                 panic!("{self:?} has no compiled class hash.")
             }
             Self::TestContract(_) => {
@@ -380,6 +390,7 @@ impl FeatureContract {
                 Self::EmptyAccount(_) => EMPTY_ACCOUNT_BASE,
                 Self::MetaTx(_) => META_TX_CONTRACT_BASE,
                 Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_BASE,
+                Self::TxInfoWriter => TX_INFO_WRITER_CONTRACT_BASE,
             }
     }
 
@@ -400,6 +411,7 @@ impl FeatureContract {
             Self::EmptyAccount(_) => EMPTY_ACCOUNT_NAME,
             Self::MetaTx(_) => META_TX_CONTRACT_NAME,
             Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_NAME,
+            Self::TxInfoWriter => TX_INFO_WRITER_CONTRACT_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -483,7 +495,8 @@ impl FeatureContract {
                     // Account contracts require the account_contract flag.
                     FeatureContract::AccountWithLongValidate(_)
                     | FeatureContract::AccountWithoutValidations(_)
-                    | FeatureContract::FaultyAccount(_) => Some("--account_contract".into()),
+                    | FeatureContract::FaultyAccount(_)
+                    | FeatureContract::TxInfoWriter => Some("--account_contract".into()),
                     FeatureContract::SecurityTests => Some("--disable_hint_validation".into()),
                     FeatureContract::DelegateProxy
                     | FeatureContract::Empty(_)
@@ -564,7 +577,8 @@ impl FeatureContract {
             | Self::CairoStepsTestContract
             | Self::Experimental
             | Self::TestContract2
-            | Self::SecurityTests => {
+            | Self::SecurityTests
+            | Self::TxInfoWriter => {
                 vec![*self]
             }
         }
