@@ -9,21 +9,29 @@ use starknet_api::block::BlockNumber;
 #[path = "storage_test.rs"]
 mod storage_test;
 
+/// TODO:
 #[derive(thiserror::Error, Debug)]
 pub enum HeightVotedStorageError {
+    /// TODO:
     #[error(transparent)]
     StorageError(#[from] apollo_storage::StorageError),
+    /// TODO:
     #[error("Inconsistent storage state: {msg}")]
     InconsistentStorageState { msg: String },
 }
 
+/// TODO:
 #[cfg_attr(test, mockall::automock)]
 pub trait HeightVotedStorageTrait: Debug + Send + Sync {
     // TODO(guy.f): Remove in the following PR.
+    /// TODO:
     #[allow(dead_code)]
     fn get_prev_voted_height(&self) -> Result<Option<BlockNumber>, HeightVotedStorageError>;
+    /// TODO:
     fn set_prev_voted_height(&mut self, height: BlockNumber)
     -> Result<(), HeightVotedStorageError>;
+    /// TODO:
+    fn revert_height(&mut self, height: BlockNumber) -> Result<(), HeightVotedStorageError>;
 }
 
 struct HeightVotedStorage {
@@ -33,7 +41,8 @@ struct HeightVotedStorage {
     storage_writer: StorageWriter,
 }
 
-pub(crate) fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
+/// TODO:
+pub fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
     let (storage_reader, storage_writer) = open_storage(config).expect("Failed to open storage");
     HeightVotedStorage { storage_reader, storage_writer }
 }
@@ -66,6 +75,26 @@ impl HeightVotedStorageTrait for HeightVotedStorage {
             }
         }
         txn.set_last_voted_marker(&last_voted_marker_to_write)?.commit()?;
+        Ok(())
+    }
+
+    fn revert_height(&mut self, height: BlockNumber) -> Result<(), HeightVotedStorageError> {
+        let mut txn = self.storage_writer.begin_rw_txn()?;
+        let last_voted = txn.get_last_voted_marker()?;
+        match last_voted {
+            None => return Ok(()), // If none, nothing to revert.
+            Some(last_voted) => {
+                if last_voted.height >= height {
+                    if let Some(prev_height) = height.prev() {
+                        txn =
+                            txn.set_last_voted_marker(&LastVotedMarker { height: prev_height })?;
+                    } else {
+                        txn = txn.clear_last_voted_marker()?;
+                    }
+                }
+            }
+        }
+        txn.commit()?;
         Ok(())
     }
 }
