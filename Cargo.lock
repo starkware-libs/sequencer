@@ -826,6 +826,7 @@ dependencies = [
  "colored 3.0.0",
  "papyrus_base_layer",
  "starknet_api",
+ "tracing",
  "url",
 ]
 
@@ -8872,10 +8873,10 @@ dependencies = [
 name = "mempool_test_utils"
 version = "0.16.0-rc.1"
 dependencies = [
+ "apollo_base_layer_tests",
  "apollo_infra_utils",
  "assert_matches",
  "blockifier_test_utils",
- "papyrus_base_layer",
  "serde_json",
  "starknet-types-core",
  "starknet_api",

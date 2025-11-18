@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use alloy::primitives::{Uint, U256};
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_base_layer_tests::test_utils::anvil_mine_blocks;
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::component_client::LocalComponentClient;
 use apollo_infra::component_definitions::{ComponentStarter, RequestWrapper};
@@ -34,7 +35,6 @@ use apollo_time::time::Clock;
 use chrono::{DateTime, Duration as ChronoDur, Utc};
 use futures::{poll, FutureExt};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet::LogMessageToL2;
-use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockNumber, L1BlockReference};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;

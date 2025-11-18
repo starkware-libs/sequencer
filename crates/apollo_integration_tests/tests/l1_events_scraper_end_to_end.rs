@@ -3,13 +3,13 @@ use std::time::Duration;
 
 use alloy::primitives::U256;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_base_layer_tests::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use mockall::predicate::eq;
 use mockall::Sequence;
-use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::contract_address;

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_base_layer_tests::test_utils::anvil_mine_blocks;
 use apollo_deployments::deployment_definitions::ComponentConfigInService;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
@@ -32,7 +33,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};

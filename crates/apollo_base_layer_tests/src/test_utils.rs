@@ -2,15 +2,14 @@ use alloy::network::TransactionBuilder;
 use alloy::primitives::{address as ethereum_address, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
-use starknet_api::hash::StarkHash;
-use tracing::debug;
-use url::Url;
-
-use crate::ethereum_base_layer_contract::{
+use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumContractAddress,
 };
+use starknet_api::hash::StarkHash;
+use tracing::debug;
+use url::Url;
 
 // This address is commonly used as the L1 address of the Starknet core contract.
 // TODO(Arni): Replace with constant with use of `AnvilInstance::address(&self)`.

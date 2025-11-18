@@ -3,6 +3,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_base_layer_tests::test_utils::{
+    make_block_history_on_anvil,
+    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
+    OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
+};
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
@@ -32,11 +37,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::{
-    make_block_history_on_anvil,
-    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
-    OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
-};
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;

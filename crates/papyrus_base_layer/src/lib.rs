@@ -20,9 +20,6 @@ pub mod monitored_base_layer;
 
 pub(crate) mod eth_events;
 
-#[cfg(any(feature = "testing", test))]
-pub mod test_utils;
-
 #[cfg(test)]
 mod base_layer_test;
 

@@ -16,6 +16,7 @@ async-trait.workspace = true
 colored.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 starknet_api.workspace = true
+tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
