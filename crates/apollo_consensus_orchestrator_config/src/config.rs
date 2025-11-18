@@ -140,6 +140,13 @@ pub struct ContextConfig {
     pub override_l1_data_gas_price_wei: Option<u128>,
     /// If given, will override the conversion rate.
     pub override_eth_to_fri_rate: Option<u128>,
+    /// The fraction (0.0 - 1.0) of the total build time allocated to waiting
+    /// for the retrospective block hash to be available. The remaining time is used to build the
+    /// proposal.
+    pub build_proposal_time_ratio_for_retrospective_block_hash: f32,
+    /// The interval between retrospective block hash retries.
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub retrospective_block_hash_retry_interval_millis: Duration,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -233,6 +240,20 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "build_proposal_time_ratio_for_retrospective_block_hash",
+                &self.build_proposal_time_ratio_for_retrospective_block_hash,
+                "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the \
+                 retrospective block hash to be available. The remaining time is used to build \
+                 the proposal.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "retrospective_block_hash_retry_interval_millis",
+                &self.retrospective_block_hash_retry_interval_millis.as_millis(),
+                "The interval between retrospective block hash retries.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         dump.extend(ser_optional_param(
             &self.override_l2_gas_price_fri,
@@ -295,6 +316,8 @@ impl Default for ContextConfig {
             override_l1_gas_price_wei: None,
             override_l1_data_gas_price_wei: None,
             override_eth_to_fri_rate: None,
+            build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
+            retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
         }
     }
 }
