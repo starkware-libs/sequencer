@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
+use crate::metrics::BlockifierContext;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -175,6 +176,7 @@ pub fn test_state_inner_with_contract_manager(
     let reader = StateReaderAndContractManager {
         state_reader: reader.clone(),
         contract_class_manager: manager,
+        context: BlockifierContext::Batcher,
     };
 
     CachedState::from(reader)

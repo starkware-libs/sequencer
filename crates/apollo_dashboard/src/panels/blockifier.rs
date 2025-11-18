@@ -18,6 +18,7 @@ use crate::dashboard::{Panel, PanelType, Row};
 
 const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 
+// TODO(Arni): Fix?
 // TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
 fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
     Panel::ratio_time_series(
@@ -30,6 +31,7 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
     )
 }
 
+// TODO(Arni): Fix?
 // TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
 fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
     Panel::ratio_time_series(

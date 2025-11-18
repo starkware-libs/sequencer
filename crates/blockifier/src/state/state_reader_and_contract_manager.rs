@@ -2,7 +2,11 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
+use crate::metrics::{
+    record_class_cache_hit,
+    record_class_cache_miss,
+    BlockifierContext as MetricsContext,
+};
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
@@ -21,6 +25,7 @@ pub trait FetchCompiledClasses: StateReader {
 pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
     pub state_reader: S,
     pub contract_class_manager: ContractClassManager,
+    pub context: MetricsContext,
 }
 
 impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
@@ -40,11 +45,11 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
                     }
                 }
             }
-            CLASS_CACHE_HITS.increment(1);
+            record_class_cache_hit(self.context);
             self.update_native_metrics(&runnable_class);
             return Ok(runnable_class);
         }
-        CLASS_CACHE_MISSES.increment(1);
+        record_class_cache_miss(self.context);
 
         let compiled_class = self.state_reader.get_compiled_classes(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, compiled_class.clone());

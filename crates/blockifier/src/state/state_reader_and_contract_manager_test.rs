@@ -6,6 +6,7 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::execution::contract_class::RunnableCompiledClass;
+use crate::metrics::BlockifierContext;
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(feature = "cairo_native")]
 use crate::state::global_cache::{CachedCairoNative, CompiledClasses};
@@ -26,6 +27,7 @@ fn build_reader_and_declare_contract(
     StateReaderAndContractManager {
         state_reader: reader,
         contract_class_manager: ContractClassManager::start(contract_manager_config),
+        context: BlockifierContext::Batcher,
     }
 }
 

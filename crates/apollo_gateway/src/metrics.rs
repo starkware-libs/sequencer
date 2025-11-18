@@ -14,6 +14,7 @@ use apollo_infra::metrics::{
 use apollo_metrics::metrics::LabeledMetricCounter;
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use blockifier::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
@@ -252,4 +253,8 @@ pub(crate) fn register_metrics() {
     GATEWAY_VALIDATE_TX_LATENCY.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS.register();
+
+    // Blockifier metrics.
+    CLASS_CACHE_HITS.register();
+    CLASS_CACHE_MISSES.register();
 }

@@ -28,6 +28,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
+use blockifier::metrics::BlockifierContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -728,6 +729,7 @@ impl BlockBuilderFactory {
         let state_reader = StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
+            context: BlockifierContext::Batcher,
         };
 
         let executor = ConcurrentTransactionExecutor::start_block(

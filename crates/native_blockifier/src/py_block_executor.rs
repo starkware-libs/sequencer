@@ -12,6 +12,7 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::metrics::BlockifierContext;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::AccountTransaction;
@@ -414,6 +415,7 @@ impl PyBlockExecutor {
         StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
+            context: BlockifierContext::Batcher,
         }
     }
 
