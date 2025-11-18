@@ -118,4 +118,6 @@ class ServiceConstruct(BaseConstruct):
                 )
             )
 
+        # Sort ports by name to ensure consistent ordering
+        ports.sort(key=lambda p: p.name or "")
         return ports
