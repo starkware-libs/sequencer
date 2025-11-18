@@ -3192,31 +3192,88 @@
     "Pod Metrics": {
       "panels": [
         {
-          "title": "pod_memory_utilization",
-          "description": "Pod Memory Utilization",
+          "title": "pod_cpu_request_utilization",
+          "description": "Pod CPU utilization (usage / requests)",
           "type": "timeseries",
           "exprs": [
-            "container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "\n            (\n                sum by (namespace, pod) (\n                    rate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kube_pod_container_resource_requests_cpu_cores{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            "
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "percentunit",
+            "legends": [
+              "{{pod}}"
+            ]
+          }
+        },
+        {
+          "title": "pod_cpu_throttling",
+          "description": "Pod CPU throttling (throttled / total periods)",
+          "type": "timeseries",
+          "exprs": [
+            "(\n                sum by (namespace, pod) (\n                    rate(container_cpu_cfs_throttled_periods_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    rate(container_cpu_cfs_periods_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])\n                )\n            )\n            "
+          ],
+          "extra_params": {
+            "unit": "percentunit",
+            "legends": [
+              "{{pod}}"
+            ]
+          }
+        },
+        {
+          "title": "pod_memory_request_utilization",
+          "description": "Pod memory utilization (used / requests)",
+          "type": "timeseries",
+          "exprs": [
+            "\n            (\n                sum by (namespace, pod) (\n                    container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kube_pod_container_resource_requests_memory_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            "
+          ],
+          "extra_params": {
+            "unit": "percentunit",
+            "legends": [
+              "{{pod}}"
+            ]
+          }
+        },
+        {
+          "title": "pod_memory_limit_utilization",
+          "description": "Pod memory limit utilization (used / limits)",
+          "type": "timeseries",
+          "exprs": [
+            "\n            (\n                sum by (namespace, pod) (\n                    container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kube_pod_container_resource_limits_memory_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            "
+          ],
+          "extra_params": {
+            "unit": "percentunit",
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
           "title": "pod_disk_utilization",
-          "description": "Pod Disk Utilization",
+          "description": "Pod disk utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
-            "kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            "
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "percentunit",
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         },
         {
-          "title": "pod_cpu_utilization",
-          "description": "Pod CPU Utilization",
+          "title": "pod_disk_limit_utilization",
+          "description": "Pod disk limit utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
-            "container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+            "\n            (\n                // total disk used per pod (sum of all pod volumes)\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            /\n            (\n                // total disk capacity per pod (sum of all pod volumes)\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}\n                )\n            )\n            "
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "percentunit",
+            "legends": [
+              "{{pod}}"
+            ]
+          }
         }
       ],
       "collapsed": true
