@@ -10,6 +10,7 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
     EventIndexInTransactionOutput,
     TransactionHash,
@@ -18,7 +19,7 @@ use starknet_api::transaction::{
 
 use crate::body::TransactionIndex;
 use crate::compression_utils::IsCompressed;
-use crate::consensus::LastVotedMarker;
+use crate::consensus::{LastVotedMarker, ProposalCommitment};
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
@@ -77,6 +78,7 @@ auto_impl_get_test_instance! {
         Casm = 2,
         DeprecatedContractClass = 3,
     }
+    pub struct ProposalCommitment(pub StarkHash);
     pub struct TransactionMetadata{
         pub tx_hash: TransactionHash,
         pub tx_location: LocationInFile,

@@ -15,7 +15,7 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::TransactionOffsetInBlock;
 
-use crate::consensus::LastVotedMarker;
+use crate::consensus::{LastVotedMarker, ProposalCommitment};
 use crate::db::serialization::StorageSerde;
 pub trait StorageSerdeTest: StorageSerde {
     fn storage_serde_test();
@@ -51,6 +51,7 @@ pub(crate) use create_storage_serde_test;
 create_storage_serde_test!(bool);
 create_storage_serde_test!(ContractAddress);
 create_storage_serde_test!(LastVotedMarker);
+create_storage_serde_test!(ProposalCommitment);
 create_storage_serde_test!(StarkHash);
 create_storage_serde_test!(StorageKey);
 create_storage_serde_test!(u8);
