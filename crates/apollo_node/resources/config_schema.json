@@ -1764,6 +1764,16 @@
     "privacy": "Public",
     "value": 10000
   },
+  "consensus_manager_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "consensus_manager_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
+  },
   "consensus_manager_config.network_config.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
     "privacy": "Public",
@@ -2279,6 +2289,16 @@
     "privacy": "Public",
     "value": 11111
   },
+  "mempool_p2p_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "mempool_p2p_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
+  },
   "mempool_p2p_config.network_config.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
     "privacy": "Public",
@@ -2553,6 +2573,16 @@
     "description": "The port that the node listens on for incoming connections.",
     "privacy": "Public",
     "value": 12345
+  },
+  "state_sync_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "state_sync_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
   },
   "state_sync_config.network_config.reported_peer_ids_buffer_size": {
     "description": "The size of the buffer that holds the reported peer ids.",
