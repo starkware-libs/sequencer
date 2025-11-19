@@ -1,8 +1,7 @@
 use std::fs;
 
-use starknet_patricia_storage::aerospike_storage::AerospikeStorageConfig;
+use starknet_patricia_storage::aerospike_storage::Port;
 use starknet_patricia_storage::map_storage::CachedStorageConfig;
-use starknet_patricia_storage::rocksdb_storage::RocksDbOptions;
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 
 pub const DEFAULT_DATA_PATH: &str = "/mnt/data/committer_storage_benchmark";
@@ -79,8 +78,6 @@ impl StorageLayoutName for SingleStorageGlobalFields {
 
 /// Settings for a single storage instance. Forest layouts using more than one storage instance may
 /// use separate instances of this enum.
-// TODO(Dori): Remove this #[allow].
-#[allow(clippy::large_enum_variant)]
 pub enum SingleStorageFields {
     Memory(SingleMemoryStorageFields),
     FileBased(FileBasedStorageFields),
@@ -114,12 +111,10 @@ impl SingleStorageFields {
 pub struct SingleMemoryStorageFields(SingleStorageGlobalFields);
 
 /// Settings for a specific, single, file-backed database instance.
-// [AerospikeStorageConfig] is a large enum variant, so we need to allow it. Not so bad though.
-#[allow(clippy::large_enum_variant)]
 pub enum SpecificDbFields {
-    RocksDb(RocksDbOptions),
+    RocksDb(RocksDbFields),
     Mdbx(MdbxFields),
-    Aerospike(AerospikeStorageConfig),
+    Aerospike(AerospikeFields),
 }
 
 impl StorageLayoutName for SpecificDbFields {
@@ -138,3 +133,16 @@ impl StorageLayoutName for SpecificDbFields {
 //   of this struct.
 #[derive(Default)]
 pub struct MdbxFields {}
+
+/// Configuration settings for a RocksDB database instance.
+pub struct RocksDbFields {
+    pub use_column_families: bool,
+    pub allow_mmap: bool,
+}
+
+/// Configuration settings for a Aerospike database instance.
+pub struct AerospikeFields {
+    pub aeroset: String,
+    pub namespace: String,
+    pub hosts: Vec<(String, Port)>,
+}

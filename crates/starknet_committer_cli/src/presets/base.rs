@@ -2,7 +2,6 @@ use std::num::NonZeroUsize;
 use std::sync::LazyLock;
 
 use starknet_patricia_storage::map_storage::CachedStorageConfig;
-use starknet_patricia_storage::rocksdb_storage::RocksDbOptions;
 use tracing::Level;
 
 use crate::presets::types::flavors::{
@@ -14,6 +13,7 @@ use crate::presets::types::flavors::{
 };
 use crate::presets::types::storage::{
     FileBasedStorageFields,
+    RocksDbFields,
     SingleStorageFields,
     SingleStorageGlobalFields,
     SpecificDbFields,
@@ -46,7 +46,10 @@ pub static BASE_PRESET: LazyLock<PresetFields> = LazyLock::new(|| {
                     include_inner_stats: false,
                 }),
             },
-            specific_db_fields: SpecificDbFields::RocksDb(RocksDbOptions::default()),
+            specific_db_fields: SpecificDbFields::RocksDb(RocksDbFields {
+                use_column_families: false,
+                allow_mmap: true,
+            }),
         })),
     )
 });
