@@ -34,13 +34,41 @@ class BaseCommand(Enum):
     CLIPPY = "clippy"
     DOC = "doc"
     INTEGRATION = "integration"
+    NEXTTEST = "nextest"
 
     def cmds(self, crates: Set[str], is_nightly: bool) -> List[List[str]]:
         package_args = []
         for package in crates:
             package_args.extend(["--package", package])
 
-        if self == BaseCommand.TEST:
+        if self == BaseCommand.NEXTTEST:
+            if len(crates) == 0:
+                return [
+                    [
+                        "cargo",
+                        "nextest",
+                        "run",
+                        "--workspace",
+                        "--config-file",
+                        ".config/nextest.toml",
+                        "--no-tests=pass",
+                    ]
+                ]
+            else:
+                return [
+                    [
+                        "cargo",
+                        "nextest",
+                        "run",
+                        "-p",
+                        package,
+                        "--config-file",
+                        ".config/nextest.toml",
+                        "--no-tests=pass",
+                    ]
+                    for package in crates
+                ]
+        elif self == BaseCommand.TEST:
             return [["cargo", "test"] + package_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]

@@ -1,0 +1,9 @@
+[profile.default]
+slow-timeout = { period = "120s", terminate-after = 5 }
+
+[test-groups.serialized]
+max-threads = 1
+
+[[profile.default.overrides]]
+filter = 'package(apollo_integration_tests)'
+test-group = 'serialized'
