@@ -353,6 +353,7 @@ jobs:
       - name: Get container logs
         if: always()
         run: |
+          pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}')
           echo "📥 Getting pod logs and descriptions from namespace: $namespace"
           echo "---------------------------------------------"
           echo ""
