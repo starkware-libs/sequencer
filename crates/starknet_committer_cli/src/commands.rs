@@ -19,11 +19,12 @@ use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
-use tracing::info;
+use tracing::{error, info, warn};
 
 use crate::args::{
     BenchmarkFlavor,
     GlobalArgs,
+    InterferenceArgs,
     InterferenceType,
     ShortKeySizeArg,
     StorageBenchmarkCommand,
@@ -258,7 +259,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         *n_iterations,
         *flavor,
         *n_updates,
-        storage_benchmark_args.interference_type(),
+        storage_benchmark_args.interference_args(),
         output_dir,
         checkpoint_dir_arg,
         storage,
@@ -324,7 +325,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     n_iterations: usize,
     flavor: BenchmarkFlavor,
     n_updates_arg: usize,
-    interference_type: InterferenceType,
+    InterferenceArgs { interference_type, interference_concurrency_limit }: InterferenceArgs,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
@@ -392,15 +393,30 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         // If the storage supports interference (is async), apply interference.
         if let Some(async_storage) = storage.get_async_self() {
-            apply_interference(
-                interference_type,
-                flavor,
-                n_updates_arg,
-                block_number,
-                &mut interference_task_set,
-                async_storage,
-                &mut rng,
-            );
+            // First, try joining all completed interference tasks.
+            // Log all failed tasks but do not panic - the benchmark is still running.
+            while let Some(result) = interference_task_set.try_join_next() {
+                if let Err(error) = result {
+                    error!("Interference task failed: {error}.");
+                }
+            }
+            // If the limit is not reached, spawn a new interference task.
+            if interference_task_set.len() < interference_concurrency_limit {
+                apply_interference(
+                    interference_type,
+                    flavor,
+                    n_updates_arg,
+                    block_number,
+                    &mut interference_task_set,
+                    async_storage,
+                    &mut rng,
+                );
+            } else if !matches!(interference_type, InterferenceType::None) {
+                warn!(
+                    "Interference concurrency limit ({interference_concurrency_limit}) reached. \
+                     Skipping interference task."
+                );
+            }
         }
     }
 
@@ -416,6 +432,8 @@ pub async fn run_storage_benchmark<S: Storage>(
     time_measurement.pretty_print(50);
 
     // Gather all interference tasks and wait for them to complete.
+    // At this point it is safe (and preferable) to panic if any remaining task fails, as the
+    // benchmark is complete.
     info!("Waiting for {} interference tasks to complete.", interference_task_set.len());
     interference_task_set.join_all().await;
     info!("All interference tasks completed.");
