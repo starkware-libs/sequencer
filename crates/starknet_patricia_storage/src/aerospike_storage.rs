@@ -49,7 +49,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 const DEFAULT_FAIL_IF_NOT_CONNECTED: bool = true;
 pub const DEFAULT_PORT: Port = 3000;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AerospikeStorageConfig {
     pub aeroset: String,
     pub namespace: String,
