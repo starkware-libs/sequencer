@@ -1,6 +1,6 @@
 use apollo_infra_utils::tracing_utils::{configure_tracing, modify_log_level};
-use clap::{Parser, Subcommand};
-use starknet_committer_cli::args::{GlobalArgs, StorageBenchmarkCommand};
+use clap::{Args, Parser, Subcommand};
+use starknet_committer_cli::args::{default_preset, GlobalArgs, Preset};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -14,8 +14,14 @@ pub struct CommitterCliCommand {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    #[clap(subcommand)]
-    StorageBenchmark(StorageBenchmarkCommand),
+    StorageBenchmark(StorageBenchmarkArgs),
+}
+
+#[derive(Args, Debug)]
+struct StorageBenchmarkArgs {
+    /// The preset to use for the storage benchmark.
+    #[clap(long)]
+    preset: Preset,
 }
 
 pub async fn run_committer_cli(
@@ -24,10 +30,11 @@ pub async fn run_committer_cli(
 ) {
     info!("Starting committer-cli with command: \n{:?}", committer_command);
     match committer_command.command {
-        Command::StorageBenchmark(storage_benchmark_args) => {
-            let GlobalArgs { ref log_level, .. } = storage_benchmark_args.global_args();
+        Command::StorageBenchmark(StorageBenchmarkArgs { preset }) => {
+            let args = default_preset(preset);
+            let GlobalArgs { ref log_level, .. } = args.global_args();
             modify_log_level(log_level.clone(), log_filter_handle);
-            storage_benchmark_args.run_benchmark().await;
+            args.run_benchmark().await;
         }
     }
 }
