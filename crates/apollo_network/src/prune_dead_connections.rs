@@ -20,6 +20,8 @@ use libp2p::swarm::{
 use libp2p::{ping, Multiaddr, PeerId};
 use tracing::warn;
 
+use crate::metrics::LatencyMetrics;
+
 pub const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(15);
 pub const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -34,21 +36,27 @@ pub const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(20);
 pub struct Behaviour {
     ping: ping::Behaviour,
     pending_close_connections: VecDeque<(PeerId, ConnectionId)>,
+    latency_metrics: Option<LatencyMetrics>,
 }
 
 impl Default for Behaviour {
     fn default() -> Self {
-        Self::new(DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT)
+        Self::new(DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT, None)
     }
 }
 
 impl Behaviour {
-    pub fn new(ping_interval: Duration, ping_timeout: Duration) -> Self {
+    pub fn new(
+        ping_interval: Duration,
+        ping_timeout: Duration,
+        latency_metrics: Option<LatencyMetrics>,
+    ) -> Self {
         let ping_config =
             ping::Config::new().with_interval(ping_interval).with_timeout(ping_timeout);
         Self {
             ping: ping::Behaviour::new(ping_config),
             pending_close_connections: Default::default(),
+            latency_metrics,
         }
     }
 }
@@ -110,7 +118,11 @@ impl NetworkBehaviour for Behaviour {
         loop {
             match self.ping.poll(cx) {
                 Poll::Ready(ToSwarm::GenerateEvent(ping_event)) => match ping_event {
-                    ping::Event { result: Ok(_), .. } => {}
+                    ping::Event { result: Ok(rtt), .. } => {
+                        if let Some(latency_metrics) = &self.latency_metrics {
+                            latency_metrics.update_ping_latency(rtt.as_secs_f64());
+                        }
+                    }
                     ping::Event { peer, connection, result: Err(failure) } => {
                         warn!(?peer, ?connection, ?failure, "Ping failed, closing connection.");
                         self.pending_close_connections.push_back((peer, connection));
