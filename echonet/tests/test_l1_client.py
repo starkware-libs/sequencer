@@ -4,7 +4,7 @@ from pathlib import Path
 parent_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(parent_dir))
 
-from l1_client import Log, get_logs, get_timestamp_of_block_by_number
+from l1_client import Log, get_block_number_by_timestamp, get_logs, get_timestamp_of_block_by_number
 
 
 def test_get_logs():
@@ -56,9 +56,19 @@ def test_get_timestamp_of_block_by_number():
     assert result == expected_timestamp
 
 
+def test_get_block_number_by_timestamp():
+    unix_timestamp = 1_740_771_537  # 2025-02-28T19:38:57Z
+    expected_block = 21_946_989
+
+    block_number = get_block_number_by_timestamp(unix_timestamp)
+
+    assert block_number == expected_block
+
+
 def run_all_tests():
     test_get_logs()
     test_get_timestamp_of_block_by_number()
+    test_get_block_number_by_timestamp()
 
 
 if __name__ == "__main__":
