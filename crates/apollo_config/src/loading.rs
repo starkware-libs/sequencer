@@ -198,7 +198,6 @@ pub(crate) fn update_config_map_by_custom_configs(
     Ok(())
 }
 
-// Sets values in the config map to the params in the pointers map.
 pub(crate) fn update_config_map_by_pointers(
     config_map: &mut BTreeMap<ParamPath, Value>,
     pointers_map: &BTreeMap<ParamPath, ParamPath>,
