@@ -2,7 +2,6 @@ use std::fs;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
-use clap::{ArgAction, Args, Subcommand};
 use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
@@ -12,27 +11,23 @@ use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::commands::run_storage_benchmark_wrapper;
 
-#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum BenchmarkFlavor {
     /// Constant number of updates per iteration.
-    #[value(alias("constant"))]
     Constant,
     /// Periodic peaks of a constant number of updates per peak iteration, with 20% of the number
     /// of updates on non-peak iterations. Peaks are 10 iterations every 500 iterations.
-    #[value(alias("peaks"))]
     PeriodicPeaks,
     /// Constant number of state diffs per iteration, with 20% new leaves per iteration. The other
     /// 80% leaf updates are sampled randomly from recent leaf updates.
     /// For the first blocks, behaves just like [Self::Constant] ("warmup" phase).
-    #[value(alias("overlap"))]
     Overlap,
     /// Constant number of updates per iteration, where block N generates updates for leaf keys
     /// [N * C, (N + 1) * C).
-    #[value(alias("continuous"))]
     Continuous,
 }
 
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum StorageType {
     MapStorage,
     CachedMapStorage,
@@ -44,14 +39,15 @@ pub enum StorageType {
     CachedAerospike,
 }
 
-pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
+pub const DEFAULT_DATA_PATH: &str = "/mnt/data/committer_storage_benchmark";
 
-pub trait StorageFromArgs: Args {
+pub trait StorageFromArgs: Default {
     fn storage(&self) -> impl Storage;
 }
 
 /// Key size, in bytes, for the short key storage.
-#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
+// TODO(Dori): Delete this duplicated enum.
+#[derive(Clone, PartialEq, Debug)]
 pub enum ShortKeySizeArg {
     U16,
     U17,
@@ -98,60 +94,76 @@ impl From<ShortKeySizeArg> for ShortKeySize {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug)]
 pub struct GlobalArgs {
     /// Seed for the random number generator.
-    #[clap(short = 's', long, default_value = "42")]
     pub seed: u64,
 
     /// Number of iterations to run the benchmark.
-    #[clap(long, default_value = "1000")]
     pub n_iterations: usize,
 
     /// Benchmark flavor determines the size and structure of the generated state diffs.
-    #[clap(long, default_value = "1k-diff")]
     pub flavor: BenchmarkFlavor,
 
     /// Number of updates per iteration, where applicable. Different flavors treat this value
     /// differently, see [BenchmarkFlavor] for more details.
-    #[clap(long, default_value = "1000")]
     pub n_updates: usize,
 
     /// If not none, wraps the storage in the key-shrinking storage of the given size.
-    #[clap(long, default_value = None)]
     pub key_size: Option<ShortKeySizeArg>,
 
     /// Interval at which to save checkpoints.
-    #[clap(long, default_value = "1000")]
     pub checkpoint_interval: usize,
 
     /// Log level.
-    #[clap(long, default_value = "warn")]
     pub log_level: String,
 
     /// A path to a directory to store the csv outputs. If not given, creates a dir according to
     /// the  n_iterations (i.e., rwo runs with different n_iterations will have different csv
     /// outputs)
-    #[clap(long, default_value = None)]
     pub output_dir: Option<String>,
 
     /// A path to a directory to store the checkpoints to allow benchmark recovery. If not given,
     /// creates a dir according to the n_iterations (i.e., two runs with different n_iterations
     /// will have different checkpoints)
-    #[clap(long, default_value = None)]
     pub checkpoint_dir: Option<String>,
 }
 
-#[derive(Debug, Args)]
+impl Default for GlobalArgs {
+    fn default() -> Self {
+        // TODO(Dori): Name these constants.
+        Self {
+            seed: 42,
+            n_iterations: 1000000,
+            flavor: BenchmarkFlavor::Constant,
+            n_updates: 1000,
+            key_size: None,
+            checkpoint_interval: 1000,
+            // TODO(Dori): Use a non-string log level type.
+            log_level: "info".to_string(),
+            output_dir: Some("/mnt/data/csvs".to_string()),
+            checkpoint_dir: Some("/mnt/data/checkpoints".to_string()),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct FileStorageArgs {
     /// A path to a directory to store the DB, output and checkpoints unless they are
     /// explicitly provided. Defaults to "/tmp/committer_storage_benchmark/".
-    #[clap(short = 'd', long, default_value = DEFAULT_DATA_PATH)]
     pub data_path: String,
 
     /// A path to a directory to store the DB if needed.
-    #[clap(long, default_value = None)]
     pub storage_path: Option<String>,
+}
+
+impl Default for FileStorageArgs {
+    fn default() -> Self {
+        Self {
+            data_path: DEFAULT_DATA_PATH.to_string(),
+            storage_path: Some("/mnt/data/storage".to_string()),
+        }
+    }
 }
 
 impl FileStorageArgs {
@@ -166,7 +178,7 @@ impl FileStorageArgs {
     }
 }
 
-#[derive(clap::ValueEnum, Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum InterferenceType {
     /// No interference.
     None,
@@ -174,31 +186,38 @@ pub enum InterferenceType {
     Read1KEveryBlock,
 }
 
-#[derive(Debug, Args, Clone)]
+#[derive(Debug, Clone)]
 pub struct InterferenceArgs {
     /// The type of interference to apply.
-    #[clap(long, default_value = "none")]
     pub interference_type: InterferenceType,
 
     /// The maximum number of interference tasks to run concurrently.
     /// Any attempt to spawn a new interference task will log a warning and not spawn the task.
-    #[clap(long, default_value = "20")]
     pub interference_concurrency_limit: usize,
 }
 
-#[derive(Debug, Args)]
+impl Default for InterferenceArgs {
+    fn default() -> Self {
+        Self { interference_type: InterferenceType::None, interference_concurrency_limit: 20 }
+    }
+}
+
+#[derive(Debug)]
 pub struct CachedStorageArgs<A: StorageFromArgs> {
-    #[clap(flatten)]
     pub storage_args: A,
 
     /// If true, statistics collection from the storage will include internal storage statistics
     /// (and not just cache stats).
-    #[clap(long, action=ArgAction::SetTrue)]
     pub include_inner_stats: bool,
 
     /// The size of the cache.
-    #[clap(long, default_value = "1000000")]
     pub cache_size: usize,
+}
+
+impl<A: StorageFromArgs> Default for CachedStorageArgs<A> {
+    fn default() -> Self {
+        Self { storage_args: A::default(), include_inner_stats: false, cache_size: 10000000 }
+    }
 }
 
 impl<A: StorageFromArgs> StorageFromArgs for CachedStorageArgs<A> {
@@ -221,9 +240,8 @@ impl<A: StorageFromArgs> CachedStorageArgs<A> {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Default)]
 pub struct MemoryArgs {
-    #[clap(flatten)]
     pub global_args: GlobalArgs,
 }
 
@@ -233,13 +251,10 @@ impl StorageFromArgs for MemoryArgs {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Default)]
 pub struct MdbxArgs {
-    #[clap(flatten)]
     pub global_args: GlobalArgs,
-    #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
-    #[clap(flatten)]
     pub interference_args: InterferenceArgs,
 }
 
@@ -252,25 +267,32 @@ impl StorageFromArgs for MdbxArgs {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug)]
 pub struct RocksdbArgs {
-    #[clap(flatten)]
     pub global_args: GlobalArgs,
-    #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
-    #[clap(flatten)]
     pub interference_args: InterferenceArgs,
 
     /// If true, the storage will use memory-mapped files.
     /// False by default, as fact storage layout does not benefit from mapping disk pages to
     /// memory, as there is no locality of related data.
-    #[clap(long, short, action=ArgAction::SetTrue)]
     pub allow_mmap: bool,
 
     /// If true, the storage will use column families.
     /// False by default.
-    #[clap(long, action=ArgAction::SetTrue)]
     pub use_column_families: bool,
+}
+
+impl Default for RocksdbArgs {
+    fn default() -> Self {
+        Self {
+            global_args: GlobalArgs::default(),
+            file_storage_args: FileStorageArgs::default(),
+            interference_args: InterferenceArgs::default(),
+            allow_mmap: true,
+            use_column_families: false,
+        }
+    }
 }
 
 impl StorageFromArgs for RocksdbArgs {
@@ -290,26 +312,34 @@ impl RocksdbArgs {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug)]
 pub struct AerospikeArgs {
-    #[clap(flatten)]
     pub global_args: GlobalArgs,
-    #[clap(flatten)]
     pub file_storage_args: FileStorageArgs,
-    #[clap(flatten)]
     pub interference_args: InterferenceArgs,
 
     /// Aerospike aeroset.
-    #[clap(long)]
     pub aeroset: String,
 
     /// Aerospike namespace.
-    #[clap(long)]
     pub namespace: String,
 
     /// Aerospike hosts.
-    #[clap(long)]
     pub hosts: String,
+}
+
+impl Default for AerospikeArgs {
+    fn default() -> Self {
+        // TODO(Dori): Name these constants and use better default values.
+        Self {
+            global_args: GlobalArgs::default(),
+            file_storage_args: FileStorageArgs::default(),
+            interference_args: InterferenceArgs::default(),
+            aeroset: "test".to_string(),
+            namespace: "test".to_string(),
+            hosts: "test".to_string(),
+        }
+    }
 }
 
 impl StorageFromArgs for AerospikeArgs {
@@ -344,6 +374,17 @@ macro_rules! define_storage_benchmark_command {
             $( $variant($args_type), )+
         }
 
+        #[derive(clap::ValueEnum, Debug, Clone, Copy)]
+        $visibility enum Preset {
+            $( $variant, )+
+        }
+
+        pub fn default_preset(preset: Preset) -> $enum_name {
+            match preset {
+                $( Preset::$variant => $enum_name::$variant(Default::default()), )+
+            }
+        }
+
         impl $enum_name {
             /// Run the storage benchmark.
             pub async fn run_benchmark(&self) {
@@ -363,7 +404,7 @@ macro_rules! define_storage_benchmark_command {
 }
 
 define_storage_benchmark_command! {
-    #[derive(Debug, Subcommand)]
+    #[derive(Debug)]
     pub enum StorageBenchmarkCommand {
         Memory(MemoryArgs),
         CachedMemory(CachedStorageArgs<MemoryArgs>),

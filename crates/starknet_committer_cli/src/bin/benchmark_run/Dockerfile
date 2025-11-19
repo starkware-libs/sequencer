@@ -21,16 +21,4 @@ USER committer_benchmark
 # Run the storage benchmark command.
 ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
-CMD ["cached-rocksdb", \
-    "--n-iterations", "1000000", \
-    "--flavor", "constant", \
-    "--n-updates", "1000", \
-    "--cache-size", "10000000", \
-    "--checkpoint-interval", "1000", \
-    "--log-level", "info", \
-    "--allow-mmap", \
-    "--data-path", "/mnt/data/committer_storage_benchmark", \
-    "--storage-path", "/mnt/data/storage", \
-    "--output-dir", "/mnt/data/csvs", \
-    "--checkpoint-dir", "/mnt/data/checkpoints" \
-    ]
+CMD ["--preset", "cached-rocksdb"]
