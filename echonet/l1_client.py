@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import logging
 import requests
@@ -99,3 +99,50 @@ class L1Client:
             )
             for result in results
         ]
+
+    @staticmethod
+    def get_timestamp_of_block(block_number: int, alchemy_api_key: str) -> Optional[int]:
+        """
+        Get block timestamp by block number using eth_getBlockByNumber RPC method.
+        Tries up to RETRIES_COUNT times. On failure, logs an error and returns None.
+        """
+        rpc_url = L1Client.ALCHEMY_URL.format(api_key=alchemy_api_key)
+
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "eth_getBlockByNumber",
+            "params": [hex(block_number), False],
+            "id": 1,
+        }
+
+        last_exc = None
+        for attempt in range(L1Client.RETRIES_COUNT):
+            try:
+                response = requests.post(rpc_url, json=payload, timeout=10)
+                response.raise_for_status()
+                result = response.json()
+                break  # success -> exit loop
+            except (requests.RequestException, ValueError) as exc:
+                logger.debug(
+                    "get_timestamp_of_block attempt %d/%d failed",
+                    attempt + 1,
+                    L1Client.RETRIES_COUNT,
+                    extra={"url": rpc_url, "block_number": block_number},
+                    exc_info=exc,
+                )
+                last_exc = exc
+        else:
+            logger.error(
+                "get_timestamp_of_block failed after 2 attempts, returning None",
+                extra={"url": rpc_url, "block_number": block_number},
+                exc_info=last_exc,
+            )
+            return None
+
+        block = result.get("result")
+        if block is None:
+            # Block not found
+            return None
+
+        # Timestamp is hex string, convert to int.
+        return int(block["timestamp"], 16)

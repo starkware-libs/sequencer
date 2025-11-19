@@ -170,6 +170,40 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 1)
         self.assertEqual(logs, [])
 
+    @patch("l1_client.requests.post")
+    def test_get_timestamp_of_block_retries_after_failure_and_succeeds(self, mock_post):
+        request_exception = requests.RequestException("some error")
+
+        successful_response = Mock()
+        successful_response.raise_for_status.return_value = None
+        successful_response.json.return_value = {"result": {"timestamp": "0x20"}}  # 32
+
+        mock_post.side_effect = [request_exception, successful_response]
+
+        result = L1Client.get_timestamp_of_block(
+            block_number=123,
+            alchemy_api_key="alchemy_api_key",
+        )
+
+        self.assertEqual(mock_post.call_count, 2)
+        self.assertEqual(result, 32)
+
+    @patch("l1_client.requests.post")
+    def test_get_timestamp_of_block_returns_none_when_rpc_result_is_empty(self, mock_post):
+        response_ok = Mock()
+        response_ok.raise_for_status.return_value = None
+        response_ok.json.return_value = {"result": None}
+
+        mock_post.return_value = response_ok
+
+        result = L1Client.get_timestamp_of_block(
+            block_number=123,
+            alchemy_api_key="alchemy_api_key",
+        )
+
+        self.assertEqual(mock_post.call_count, 1)
+        self.assertIsNone(result)
+
 
 if __name__ == "__main__":
     unittest.main()
