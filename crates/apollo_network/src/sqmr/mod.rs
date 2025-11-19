@@ -74,10 +74,22 @@ pub struct OutboundSessionId {
     pub value: usize,
 }
 
+/// Unique identifier for inbound SQMR sessions.
+///
+/// An inbound session is created when this node receives a query from another peer.
+/// Each inbound session has a unique ID that tracks the query processing and
+/// response sending lifecycle.
+///
+/// # Usage
+///
+/// Inbound session IDs are automatically generated when queries are received
+/// through the SQMR server interface. They're used to manage the session
+/// state and ensure responses are sent on the correct session.
 #[derive(
     Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq, PartialOrd, Ord,
 )]
 pub struct InboundSessionId {
+    /// The numeric session identifier.
     pub value: usize,
 }
 
