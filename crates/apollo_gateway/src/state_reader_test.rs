@@ -238,6 +238,20 @@ fn not_declared_but_in_manager_scenario() -> GetCompiledClassTestScenario {
     }
 }
 
+fn declared_but_not_in_manager_scenario() -> GetCompiledClassTestScenario {
+    GetCompiledClassTestScenario {
+        expectations: GetCompiledClassTestExpectation {
+            get_executable_result: Ok(None),             // Not in manager
+            n_calls_to_get_executable: 1,                // Called once since declared
+            get_sierra_result: Ok(None),                 // Not in manager
+            n_calls_to_get_sierra: 1,                    // Called once since declared
+            is_class_declared_at_result: Some(Ok(true)), // Declared but not in manager
+            is_cairo_1_class_declared_ate_result: None,  // Not called since no executable
+        },
+        expected_result: Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)), /* Should panic, not return error */
+    }
+}
+
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
@@ -474,110 +488,6 @@ fn assert_eq_state_result(
 }
 
 #[rstest]
-#[case::class_declared(
-    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
-    1,
-    Ok(Some(SierraContractClass::default())),
-    1,
-    Ok(true),
-    Ok(DUMMY_COMPILED_CLASS.clone()),
-)]
-#[case::cairo_0_class_declared(
-    Ok(Some(DUMMY_CONTRACT_CLASS_V0.clone())),
-    1,
-    Ok(None),
-    0,
-    Ok(true),
-    Ok(DUMMY_COMPILED_CLASS_V0.clone()),
-)]
-#[case::class_not_declared_but_in_class_manager(
-    Ok(Some(DUMMY_CONTRACT_CLASS.clone())),
-    0,
-    Ok(Some(SierraContractClass::default())),
-    0,
-    Ok(false),
-    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
-)]
-#[case::class_not_declared(
-    Ok(None),
-    0,
-    Ok(None),
-    0,
-    Ok(false),
-    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
-)]
-#[tokio::test]
-/// Test that the compiled class is returned correctly from the sync state reader and contract
-/// manager struct.
-/// Note that in different test cases, we simulate the state sync and class manager's state by using
-/// mock clients, and deciding how many times each request is sent. This is a part of the tested
-/// behavior.
-async fn test_get_compiled_class(
-    #[case] get_executable_result: ClassManagerClientResult<Option<ExecutableClass>>,
-    #[case] n_calls_to_get_executable: usize,
-    #[case] get_sierra_result: ClassManagerClientResult<Option<SierraContractClass>>,
-    #[case] n_calls_to_get_sierra: usize,
-    #[case] is_class_declared_at_result: StateSyncClientResult<bool>,
-    #[case] expected_result: StateResult<RunnableCompiledClass>,
-) {
-    let mut mock_state_sync_client = MockStateSyncClient::new();
-    let mut mock_class_manager_client = MockClassManagerClient::new();
-    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
-
-    let block_number = BlockNumber(1);
-    let class_hash = *DUMMY_CLASS_HASH;
-
-    mock_class_manager_client
-        .expect_get_executable()
-        .times(n_calls_to_get_executable)
-        .with(predicate::eq(class_hash))
-        .return_once(move |_| get_executable_result);
-
-    mock_class_manager_client
-        .expect_get_sierra()
-        .times(n_calls_to_get_sierra)
-        .with(predicate::eq(class_hash))
-        .return_once(move |_| get_sierra_result);
-
-    mock_state_sync_client
-        .expect_is_class_declared_at()
-        .times(1)
-        .with(predicate::eq(block_number), predicate::eq(class_hash))
-        .return_once(move |_, _| is_class_declared_at_result);
-
-    let state_reader_and_contract_manager = state_reader_and_contract_manager(
-        Arc::new(mock_state_sync_client),
-        Arc::new(mock_class_manager_client),
-        contract_class_manager.clone(),
-        block_number,
-        tokio::runtime::Handle::current(),
-    );
-
-    let result = tokio::task::spawn_blocking(move || {
-        state_reader_and_contract_manager.get_compiled_class(class_hash)
-    })
-    .await
-    .unwrap();
-
-    assert_eq_state_result(&result, &expected_result);
-}
-
-#[tokio::test]
-#[should_panic(expected = "Class with hash {class_hash:?} doesn't appear in class manager even \
-                           though it was declared")]
-async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
-    test_get_compiled_class(
-        Ok(None),
-        1,
-        Ok(None),
-        1,
-        Ok(true),
-        Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
-    )
-    .await;
-}
-
-#[rstest]
 #[case::cairo_0_declared_and_cached(
     cairo_0_declared_scenario(),
     cached_cairo_0_declared_scenario()
@@ -597,7 +507,7 @@ async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_cla
 #[case::not_declared_then_declared(not_declared_scenario(), cairo_1_declared_scenario())]
 #[case::not_declared_both_rounds(not_declared_scenario(), not_declared_scenario())]
 #[tokio::test]
-async fn test_get_compiled_class_caching_scenarios(
+async fn test_get_compiled_class(
     #[case] first_scenario: GetCompiledClassTestScenario,
     #[case] second_scenario: GetCompiledClassTestScenario,
 ) {
@@ -660,4 +570,17 @@ async fn test_get_compiled_class_caching_scenarios(
     // Verify results
     assert_eq_state_result(&first_result, &first_scenario.expected_result);
     assert_eq_state_result(&second_result, &second_scenario.expected_result);
+}
+
+#[tokio::test]
+#[should_panic(expected = "Class with hash {class_hash:?} doesn't appear in class manager even \
+                           though it was declared")]
+async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
+    // Use the caching scenarios test with a panic scenario as first (second scenario won't be
+    // reached)
+    test_get_compiled_class(
+        declared_but_not_in_manager_scenario(),
+        not_declared_scenario(), // This won't be reached due to panic
+    )
+    .await;
 }
