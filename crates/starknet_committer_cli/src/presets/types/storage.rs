@@ -103,7 +103,7 @@ impl SingleStorageFields {
 }
 
 /// Settings for a memory-backed storage.
-pub struct SingleMemoryStorageFields(SingleStorageGlobalFields);
+pub struct SingleMemoryStorageFields(pub SingleStorageGlobalFields);
 
 /// Settings for a specific, single, file-backed database instance.
 pub enum SpecificDbFields {

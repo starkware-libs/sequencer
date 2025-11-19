@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use blake2::digest::consts::U31;
 use blake2::{Blake2s, Digest};
 use rand::distributions::Uniform;
@@ -14,21 +16,31 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
+use starknet_patricia_storage::aerospike_storage::{AerospikeStorage, AerospikeStorageConfig};
+use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
+use starknet_patricia_storage::mdbx_storage::MdbxStorage;
+use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
 use tracing::{error, info, warn};
 
-use crate::args::{
+use crate::presets::types::flavors::{
     BenchmarkFlavor,
-    GlobalArgs,
-    InterferenceArgs,
-    InterferenceType,
-    StorageBenchmarkCommand,
-    StorageType,
-    DEFAULT_DATA_PATH,
+    FlavorFields,
+    InterferenceFields,
+    InterferenceFlavor,
 };
+use crate::presets::types::storage::{
+    AerospikeFields,
+    SingleMemoryStorageFields,
+    SingleStorageFields,
+    SpecificDbFields,
+    StorageLayout,
+    StorageLayoutName,
+};
+use crate::presets::types::PresetFields;
 
 pub type InputImpl = Input<ConfigImpl>;
 
@@ -155,6 +167,95 @@ impl BenchmarkFlavor {
     }
 }
 
+pub async fn run_benchmark(preset_fields: &PresetFields) {
+    match preset_fields.storage_layout() {
+        StorageLayout::Fact(single_storage_fields) => match single_storage_fields {
+            SingleStorageFields::FileBased(file_storage_fields) => {
+                file_storage_fields.initialize_storage_path();
+                let storage_path = Path::new(&file_storage_fields.storage_path);
+                let cache_fields = file_storage_fields.global_fields.cache_fields.clone();
+                match &file_storage_fields.specific_db_fields {
+                    SpecificDbFields::RocksDb(rocksdb_fields) => {
+                        let rocksdb_options = if rocksdb_fields.allow_mmap {
+                            RocksDbOptions::default()
+                        } else {
+                            RocksDbOptions::default_no_mmap()
+                        };
+                        let storage = RocksDbStorage::open(
+                            storage_path,
+                            rocksdb_options,
+                            rocksdb_fields.use_column_families,
+                        )
+                        .unwrap();
+                        add_cache_and_run_benchmark(
+                            single_storage_fields,
+                            preset_fields.flavor_fields(),
+                            storage,
+                            &cache_fields,
+                        )
+                        .await;
+                    }
+                    SpecificDbFields::Mdbx(_mdbx_fields) => {
+                        let storage = MdbxStorage::open(storage_path).unwrap();
+                        add_cache_and_run_benchmark(
+                            single_storage_fields,
+                            preset_fields.flavor_fields(),
+                            storage,
+                            &cache_fields,
+                        )
+                        .await;
+                    }
+                    SpecificDbFields::Aerospike(AerospikeFields { aeroset, namespace, hosts }) => {
+                        let config = AerospikeStorageConfig::new_default(
+                            aeroset.clone(),
+                            namespace.clone(),
+                            hosts.clone(),
+                        );
+                        let storage = AerospikeStorage::new(config).unwrap();
+                        add_cache_and_run_benchmark(
+                            single_storage_fields,
+                            preset_fields.flavor_fields(),
+                            storage,
+                            &cache_fields,
+                        )
+                        .await;
+                    }
+                }
+            }
+            SingleStorageFields::Memory(SingleMemoryStorageFields(
+                single_memory_storage_fields,
+            )) => {
+                let storage = MapStorage::default();
+                add_cache_and_run_benchmark(
+                    single_storage_fields,
+                    preset_fields.flavor_fields(),
+                    storage,
+                    &single_memory_storage_fields.cache_fields,
+                )
+                .await;
+            }
+        },
+    }
+}
+
+async fn add_cache_and_run_benchmark<S: Storage>(
+    single_storage_fields: &SingleStorageFields,
+    flavor_fields: &FlavorFields,
+    storage: S,
+    cache_storage_config: &Option<CachedStorageConfig>,
+) {
+    if let Some(cache_storage_config) = cache_storage_config {
+        run_storage_benchmark_wrapper(
+            single_storage_fields,
+            flavor_fields,
+            CachedStorage::new(storage, cache_storage_config.clone()),
+        )
+        .await;
+    } else {
+        run_storage_benchmark_wrapper(single_storage_fields, flavor_fields, storage).await;
+    }
+}
+
 /// Multiplexer to avoid dynamic dispatch.
 /// If the key_size is not None, wraps the storage in a key-shrinking storage before running the
 /// benchmark.
@@ -211,52 +312,34 @@ macro_rules! generate_short_key_benchmark {
 /// Wrapper to reduce boilerplate and avoid having to use `Box<dyn Storage>`.
 /// Different invocations of this function are used with different concrete storage types.
 pub async fn run_storage_benchmark_wrapper<S: Storage>(
-    storage_benchmark_args: &StorageBenchmarkCommand,
-    storage: S,
-) {
-    let GlobalArgs {
+    single_storage_fields: &SingleStorageFields,
+    FlavorFields {
         seed,
         n_iterations,
         flavor,
         checkpoint_interval,
-        output_dir,
-        checkpoint_dir,
-        key_size,
         n_updates,
+        interference_fields,
+        data_path,
         ..
-    } = storage_benchmark_args.global_args();
+    }: &FlavorFields,
+    storage: S,
+) {
+    let key_size = single_storage_fields.global_fields().short_key_size.clone();
 
-    let data_path = storage_benchmark_args
-        .file_storage_args()
-        .map(|file_args| file_args.data_path.clone())
-        .unwrap_or(DEFAULT_DATA_PATH.to_string());
-    let storage_type = storage_benchmark_args.storage_type();
-    let output_dir = output_dir
-        .clone()
-        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/csvs/{n_iterations}"));
-    let checkpoint_dir = checkpoint_dir
-        .clone()
-        .unwrap_or_else(|| format!("{data_path}/{storage_type:?}/checkpoints/{n_iterations}"));
-
-    let checkpoint_dir_arg = match storage_type {
-        StorageType::Mdbx
-        | StorageType::CachedMdbx
-        | StorageType::Rocksdb
-        | StorageType::CachedRocksdb
-        | StorageType::Aerospike
-        | StorageType::CachedAerospike => Some(checkpoint_dir.as_str()),
-        StorageType::MapStorage | StorageType::CachedMapStorage => None,
-    };
+    let storage_type_name = single_storage_fields.short_name();
+    let output_dir = format!("{data_path}/{storage_type_name}/csvs/{n_iterations}");
+    let checkpoint_dir = format!("{data_path}/{storage_type_name}/checkpoints/{n_iterations}");
 
     generate_short_key_benchmark!(
         key_size,
         *seed,
         *n_iterations,
-        *flavor,
+        flavor.clone(),
         *n_updates,
-        storage_benchmark_args.interference_args(),
+        interference_fields.clone(),
         output_dir,
-        checkpoint_dir_arg,
+        Some(checkpoint_dir.as_str()),
         storage,
         *checkpoint_interval,
         (U16, ShortKeyStorage16),
@@ -280,8 +363,8 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
 }
 
 fn apply_interference<S: AsyncStorage>(
-    interference_type: InterferenceType,
-    benchmark_flavor: BenchmarkFlavor,
+    interference_type: &InterferenceFlavor,
+    benchmark_flavor: &BenchmarkFlavor,
     n_updates_arg: usize,
     block_number: usize,
     task_set: &mut JoinSet<()>,
@@ -289,8 +372,8 @@ fn apply_interference<S: AsyncStorage>(
     rng: &mut SmallRng,
 ) {
     match interference_type {
-        InterferenceType::None => {}
-        InterferenceType::Read1KEveryBlock => {
+        InterferenceFlavor::None => {}
+        InterferenceFlavor::Read1KEveryBlock => {
             let total_leaves =
                 benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
             // Avoid creating an iterator over the entire range - select random leaves, with
@@ -320,7 +403,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     n_iterations: usize,
     flavor: BenchmarkFlavor,
     n_updates_arg: usize,
-    InterferenceArgs { interference_type, interference_concurrency_limit }: InterferenceArgs,
+    InterferenceFields { interference_type, interference_concurrency_limit }: InterferenceFields,
     output_dir: &str,
     checkpoint_dir: Option<&str>,
     mut storage: S,
@@ -398,15 +481,15 @@ pub async fn run_storage_benchmark<S: Storage>(
             // If the limit is not reached, spawn a new interference task.
             if interference_task_set.len() < interference_concurrency_limit {
                 apply_interference(
-                    interference_type,
-                    flavor,
+                    &interference_type,
+                    &flavor,
                     n_updates_arg,
                     block_number,
                     &mut interference_task_set,
                     async_storage,
                     &mut rng,
                 );
-            } else if !matches!(interference_type, InterferenceType::None) {
+            } else if !matches!(interference_type, InterferenceFlavor::None) {
                 warn!(
                     "Interference concurrency limit ({interference_concurrency_limit}) reached. \
                      Skipping interference task."
