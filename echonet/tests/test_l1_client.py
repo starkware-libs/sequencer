@@ -204,6 +204,42 @@ class TestL1Client(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 1)
         self.assertIsNone(result)
 
+    @patch("l1_client.requests.get")
+    def test_get_block_number_by_timestamp_retries_after_failure_and_succeeds(self, mock_get):
+        request_exception = requests.RequestException("some error")
+
+        successful_response = Mock()
+        successful_response.raise_for_status.return_value = None
+        successful_response.json.return_value = {
+            "data": [{"network": "string", "block": {"number": 123456, "timestamp": "string"}}]
+        }
+
+        mock_get.side_effect = [request_exception, successful_response]
+
+        result = L1Client.get_block_number_by_timestamp(
+            timestamp=1_600_000_000,
+            api_key="api_key",
+        )
+
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(result, 123456)
+
+    @patch("l1_client.requests.get")
+    def test_get_block_number_by_timestamp_returns_none_when_rpc_result_is_empty(self, mock_get):
+        response_ok = Mock()
+        response_ok.raise_for_status.return_value = None
+        response_ok.json.return_value = {"data": []}
+
+        mock_get.return_value = response_ok
+
+        result = L1Client.get_block_number_by_timestamp(
+            timestamp=1_600_000_000,
+            api_key="api_key",
+        )
+
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertIsNone(result)
+
 
 if __name__ == "__main__":
     unittest.main()

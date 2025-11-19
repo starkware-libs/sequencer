@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import List, Optional
 
 import logging
@@ -9,6 +10,12 @@ logger = logging.getLogger(__name__)
 
 class L1Client:
     L1_MAINNET_URL = "https://eth-mainnet.g.alchemy.com/v2/{api_key}"
+    # Taken from apollo_l1_provider/src/lib.rs
+    LOG_MESSAGE_TO_L2_EVENT_SIGNATURE = (
+        "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b"
+    )
+    # Taken from ethereum_base_layer_contracts.rs
+    STARKNET_L1_CONTRACT_ADDRESS = "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
     RETRIES_COUNT = 2
 
     @dataclass(frozen=True)
@@ -46,11 +53,8 @@ class L1Client:
                 {
                     "fromBlock": hex(from_block),
                     "toBlock": hex(to_block),
-                    "address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",  # Starknet L1 contract
-                    "topics": [
-                        "0xdb80dd488acf86d17c747445b0eabb5d57c541d3bd7b6b87af987858e5066b2b"
-                        # LogMessageToL2 event signature
-                    ],
+                    "address": L1Client.STARKNET_L1_CONTRACT_ADDRESS,
+                    "topics": [L1Client.LOG_MESSAGE_TO_L2_EVENT_SIGNATURE],
                 }
             ],
             "id": 1,
@@ -74,7 +78,7 @@ class L1Client:
                 )
         else:
             logger.error(
-                f"get_logs failed after {L1Client.RETRIES_COUNT} attempts",
+                f"get_logs failed after {L1Client.RETRIES_COUNT} attempts, returning []",
                 extra={"url": rpc_url, "from_block": from_block, "to_block": to_block},
             )
             return []
@@ -143,3 +147,51 @@ class L1Client:
 
         # Timestamp is hex string, convert to int.
         return int(block["timestamp"], 16)
+
+    @staticmethod
+    def get_block_number_by_timestamp(timestamp: int, api_key: str) -> Optional[int]:
+        """
+        Get the block number at/after a given timestamp using blocks-by-timestamp API.
+        Tries up to RETRIES_COUNT times. On failure, logs an error and returns None.
+        """
+        rpc_url = f"https://api.g.alchemy.com/data/v1/{api_key}/utility/blocks/by-timestamp"
+
+        timestamp_iso = (
+            datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        )
+
+        params = {
+            "networks": "eth-mainnet",
+            "timestamp": timestamp_iso,
+            "direction": "AFTER",
+        }
+
+        for attempt in range(L1Client.RETRIES_COUNT):
+            try:
+                response = requests.get(rpc_url, params=params, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                logger.debug(
+                    f"get_block_number_by_timestamp succeeded on attempt {attempt + 1}",
+                    extra={"url": rpc_url, "timestamp": timestamp},
+                )
+                break  # success -> exit loop
+            except (requests.RequestException, ValueError) as exc:
+                logger.debug(
+                    f"get_block_number_by_timestamp attempt {attempt + 1}/{L1Client.RETRIES_COUNT} failed",
+                    extra={"url": rpc_url, "timestamp": timestamp},
+                    exc_info=True,
+                )
+        else:
+            logger.error(
+                f"get_block_number_by_timestamp failed after {L1Client.RETRIES_COUNT} attempts, returning None",
+                extra={"url": rpc_url, "timestamp": timestamp},
+            )
+            return None
+
+        items = data.get("data", [])
+        if not items:
+            return None
+
+        block = items[0].get("block", {})
+        return block.get("number")
