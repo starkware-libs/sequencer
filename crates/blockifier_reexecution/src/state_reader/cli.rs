@@ -57,6 +57,21 @@ impl RpcArgs {
     }
 }
 
+#[derive(clap::Subcommand, Debug)]
+pub enum TransactionInput {
+    /// Load transaction from a JSON file.
+    FromFile {
+        #[arg(long, short = 't')]
+        tx_path: String,
+    },
+
+    /// Fetch transaction by hash from RPC.
+    FromHash {
+        #[arg(long, short = 'y')]
+        tx_hash: String,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Runs the RPC test.
@@ -70,7 +85,7 @@ pub enum Command {
     },
 
     /// Reexecutes a single transaction from a JSON file using RPC to fetch block context.
-    ReExecuteSingleTx {
+    ReexecuteSingleTx {
         #[clap(flatten)]
         rpc_args: RpcArgs,
 
@@ -78,11 +93,9 @@ pub enum Command {
         #[clap(long, short = 'b')]
         block_number: u64,
 
-        // TODO(Yonatank): make this field optional and add an option to provide a transaction hash
-        // instead (and use it to get the transaction from the RPC).
-        /// Path to the JSON file containing the transaction.
-        #[clap(long, short = 't')]
-        transaction_path: String,
+        /// Select how to provide the transaction input.
+        #[clap(subcommand)]
+        tx_input: TransactionInput,
     },
 
     /// Writes the RPC queries of all (selected) blocks to json files.

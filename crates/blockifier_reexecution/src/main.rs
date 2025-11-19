@@ -6,12 +6,13 @@ use blockifier_reexecution::state_reader::cli::{
     parse_block_numbers_args,
     BlockifierReexecutionCliArgs,
     Command,
+    TransactionInput,
     FULL_RESOURCES_DIR,
 };
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 use blockifier_reexecution::state_reader::utils::{
-    execute_single_transaction_from_json,
+    execute_single_transaction,
     reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
 };
@@ -77,11 +78,16 @@ async fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::ReExecuteSingleTx { block_number, rpc_args, transaction_path } => {
+        Command::ReexecuteSingleTx { block_number, rpc_args, tx_input } => {
+            let input_description = match tx_input {
+                TransactionInput::FromFile { ref tx_path } => format!("from file {}", tx_path),
+                TransactionInput::FromHash { ref tx_hash } => format!("with hash {}", tx_hash),
+            };
+
             println!(
-                "Executing single transaction from {transaction_path}, for block number \
-                 {block_number}, and using node url {}.",
-                rpc_args.node_url
+                "Executing single transaction {}, for block number {block_number}, and using node \
+                 url {}.",
+                input_description, rpc_args.node_url
             );
 
             let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
@@ -90,12 +96,7 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                execute_single_transaction_from_json(
-                    BlockNumber(block_number),
-                    node_url,
-                    chain_id,
-                    transaction_path,
-                )
+                execute_single_transaction(BlockNumber(block_number), node_url, chain_id, tx_input)
             })
             .await
             .unwrap()

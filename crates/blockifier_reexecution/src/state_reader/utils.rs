@@ -16,9 +16,11 @@ use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;
+use crate::state_reader::cli::TransactionInput;
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
     OfflineConsecutiveStateReaders,
@@ -286,37 +288,46 @@ pub fn write_block_reexecution_data_to_file(
     println!("RPC replies required for reexecuting block {block_number} written to json file.");
 }
 
-/// Executes a single transaction from a JSON file using RPC to fetch block context.
-/// Does not assert correctness, only prints the execution result.
-pub fn execute_single_transaction_from_json(
+/// Executes a single transaction from a JSON file or given a transaction hash, using RPC to fetch
+/// block context. Does not assert correctness, only prints the execution result.
+pub fn execute_single_transaction(
     block_number: BlockNumber,
     node_url: String,
     chain_id: ChainId,
-    transaction_json_path: String,
+    tx_input: TransactionInput,
 ) -> ReexecutionResult<()> {
-    // Load transaction from a JSON file.
-    let json_content = read_to_string(&transaction_json_path).unwrap_or_else(|_| {
-        panic!("Failed to read transaction JSON file {}.", transaction_json_path)
-    });
-
-    let json_value: Value = serde_json::from_str(&json_content)?;
-
-    // Deserialize transaction.
-    let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
-
-    // Compute transaction hash.
-    let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
-
     // Create RPC config.
     let config = RpcStateReaderConfig::from_url(node_url);
 
-    // Create ConsecutiveTestStateReaders similar to RPC test (block_number - 1 for last block).
+    // Create ConsecutiveTestStateReaders first.
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
-        chain_id,
+        chain_id.clone(),
         false, // dump_mode = false
     );
+
+    // Get transaction and hash based on input method.
+    let (transaction, transaction_hash) = match tx_input {
+        TransactionInput::FromHash { tx_hash } => {
+            // Fetch transaction by hash using the existing TestStateReader instance.
+            let transaction =
+                consecutive_state_readers.next_block_state_reader.get_tx_by_hash(&tx_hash)?;
+            let transaction_hash = TransactionHash(Felt::from_hex_unchecked(&tx_hash));
+            (transaction, transaction_hash)
+        }
+        TransactionInput::FromFile { tx_path } => {
+            // Load transaction from a JSON file.
+            let json_content = read_to_string(&tx_path)
+                .unwrap_or_else(|_| panic!("Failed to read transaction JSON file {}.", tx_path));
+            let json_value: Value = serde_json::from_str(&json_content)?;
+            // Deserialize transaction.
+            let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
+            // Compute transaction hash.
+            let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
+            (transaction, transaction_hash)
+        }
+    };
 
     // Convert transaction to BlockifierTransaction using api_txs_to_blockifier_txs_next_block.
     let blockifier_tx = consecutive_state_readers
