@@ -12,6 +12,7 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::metrics::ClassCacheMetricsTrait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::account_transaction::AccountTransaction;
@@ -48,7 +49,18 @@ use crate::storage::{
     StorageConfig,
 };
 
+// An empty struct because we don't keep these metrics in the native blockifier.
+pub struct EmptyClassCacheMetrics;
+
+impl ClassCacheMetricsTrait for EmptyClassCacheMetrics {
+    fn register(&self) {}
+    fn increment_miss(&self) {}
+    fn increment_hit(&self) {}
+}
+
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
+pub type ApolloStateReaderAndContractManager =
+    StateReaderAndContractManager<ApolloReader, EmptyClassCacheMetrics>;
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
 /// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
@@ -79,7 +91,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManager<ApolloReader>>>,
+    pub tx_executor: Option<TransactionExecutor<ApolloStateReaderAndContractManager>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
@@ -397,16 +409,14 @@ impl PyBlockExecutor {
 }
 
 impl PyBlockExecutor {
-    pub fn tx_executor(
-        &mut self,
-    ) -> &mut TransactionExecutor<StateReaderAndContractManager<ApolloReader>> {
+    pub fn tx_executor(&mut self) -> &mut TransactionExecutor<ApolloStateReaderAndContractManager> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 
     fn get_aligned_reader(
         &self,
         next_block_number: BlockNumber,
-    ) -> StateReaderAndContractManager<ApolloReader> {
+    ) -> ApolloStateReaderAndContractManager {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
         let apollo_reader = ApolloReader::new(self.storage.reader().clone(), next_block_number);
@@ -414,6 +424,7 @@ impl PyBlockExecutor {
         StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
+            class_cache_metrics: EmptyClassCacheMetrics,
         }
     }
 

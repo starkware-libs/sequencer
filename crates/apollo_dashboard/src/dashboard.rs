@@ -279,8 +279,8 @@ impl Panel {
     }
 
     pub(crate) fn ratio_time_series(
-        name: &'static str,
-        description: &'static str,
+        name: &str,
+        description: &str,
         numerator: &dyn MetricQueryName,
         denominator_parts: &[&dyn MetricQueryName],
         duration: &str,
