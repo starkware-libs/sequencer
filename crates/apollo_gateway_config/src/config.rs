@@ -7,6 +7,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
+    ser_optional_sub_config,
     ser_param,
     SerializeConfig,
 };
@@ -262,8 +263,8 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
+        dump.append(&mut ser_optional_sub_config(
+            &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
         dump

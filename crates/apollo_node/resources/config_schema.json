@@ -154,6 +154,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "versioned_constants_overrides.#is_none",
+    "privacy": "TemporaryValue"
+  },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
@@ -1979,6 +1984,11 @@
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
   },
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "versioned_constants_overrides.#is_none",
+    "privacy": "TemporaryValue"
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
@@ -2868,6 +2878,11 @@
     "description": "The ID of the validator. Also the address of this validator as a starknet contract.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "versioned_constants_overrides.#is_none": {
+    "description": "Flag to disable versioned_constants_overrides for all components.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
