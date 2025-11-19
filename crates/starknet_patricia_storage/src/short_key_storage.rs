@@ -20,6 +20,7 @@ macro_rules! define_short_key_storage {
         )+
 
         /// Utility enum to define the possible sizes of the short key storage.
+        #[derive(Debug)]
         pub enum ShortKeySize {
             $($sizes,)+
         }

@@ -14,6 +14,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
+use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
@@ -24,7 +25,6 @@ use crate::args::{
     GlobalArgs,
     InterferenceArgs,
     InterferenceType,
-    ShortKeySizeArg,
     StorageBenchmarkCommand,
     StorageType,
     DEFAULT_DATA_PATH,
@@ -188,7 +188,7 @@ macro_rules! generate_short_key_benchmark {
                 .await
             }
             $(
-                Some(ShortKeySizeArg::$size) => {
+                Some(ShortKeySize::$size) => {
                     let storage = starknet_patricia_storage::short_key_storage::$name::new($storage);
                     run_storage_benchmark(
                         $seed,
