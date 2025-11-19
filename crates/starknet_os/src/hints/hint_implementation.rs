@@ -20,7 +20,7 @@ pub(crate) mod patricia;
 pub(crate) mod resources;
 pub(crate) mod secp;
 pub(crate) mod state;
-pub(crate) mod state_diff_encryption;
+pub mod state_diff_encryption;
 pub(crate) mod stateful_compression;
 pub(crate) mod stateless_compression;
 pub(crate) mod syscalls;
