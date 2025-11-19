@@ -378,7 +378,7 @@ fn create_storage_updates(
                     .iter()
                     .map(|val| {
                         (
-                            StarknetStorageKey(StorageKey::from(u128::from(*val))),
+                            StarknetStorageKey::from(u128::from(*val)),
                             StarknetStorageValue(Felt::from(u128::from(*val))),
                         )
                     })

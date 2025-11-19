@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::HashOutput;
 use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
@@ -48,6 +49,25 @@ pub struct StarknetStorageKey(pub StorageKey);
 impl From<&StarknetStorageKey> for NodeIndex {
     fn from(key: &StarknetStorageKey) -> NodeIndex {
         NodeIndex::from_leaf_felt(&key.0)
+    }
+}
+
+impl From<PatriciaKey> for StarknetStorageKey {
+    fn from(key: PatriciaKey) -> Self {
+        Self(StorageKey(key))
+    }
+}
+
+impl TryFrom<Felt> for StarknetStorageKey {
+    type Error = StarknetApiError;
+    fn try_from(felt: Felt) -> Result<Self, Self::Error> {
+        Ok(Self::from(PatriciaKey::try_from(felt)?))
+    }
+}
+
+impl From<u128> for StarknetStorageKey {
+    fn from(val: u128) -> Self {
+        Self::try_from(Felt::from(val)).expect("u128 is a valid patricia key.")
     }
 }
 

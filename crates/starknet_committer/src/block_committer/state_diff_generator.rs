@@ -45,8 +45,7 @@ fn generate_random_storage_entry<R: Rng>(
     rng: &mut R,
     key_override: Option<StarknetStorageKey>,
 ) -> (StarknetStorageKey, StarknetStorageValue) {
-    let key =
-        key_override.unwrap_or(StarknetStorageKey(StorageKey(PatriciaKey::random(rng, None))));
+    let key = key_override.unwrap_or(StarknetStorageKey::from(PatriciaKey::random(rng, None)));
     let value = StarknetStorageValue::random(rng, None);
     (key, value)
 }
