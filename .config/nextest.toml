@@ -1,0 +1,16 @@
+[profile.default]
+no-tests = "pass"
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+[test-groups.serialized]
+max-threads = 1
+
+#serialized tests
+[[profile.default.overrides]]
+filter = 'kind(test) | package(apollo_network) | package(apollo_l1_provider)'
+test-group = 'serialized'
+
+# slow tests
+[[profile.default.overrides]]
+filter = 'none()'
+slow-timeout = { period = "120s", terminate-after = 2 }
