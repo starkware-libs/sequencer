@@ -80,8 +80,6 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
 
         let mut block_info = latest_block_info;
         block_info.block_number = block_info.block_number.unchecked_next();
-        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
-        // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
             block_info,
             self.chain_info.clone(),
