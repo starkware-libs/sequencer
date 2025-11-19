@@ -314,4 +314,8 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.writes = 0;
         self.storage.reset_stats()
     }
+
+    fn reorder_database(&mut self) -> PatriciaStorageResult<()> {
+        self.storage.reorder_database()
+    }
 }

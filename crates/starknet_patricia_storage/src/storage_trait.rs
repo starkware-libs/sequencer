@@ -194,6 +194,10 @@ pub trait Storage {
     fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
         Ok(())
     }
+
+    fn reorder_database(&mut self) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

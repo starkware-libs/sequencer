@@ -31,6 +31,6 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 itertools.workspace = true
-
+tracing.workspace = true
 [dev-dependencies]
 rstest.workspace = true

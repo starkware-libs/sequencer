@@ -57,7 +57,7 @@ impl RocksdbStorageStats {
     /// Collect stats for the provided column families.
     pub fn collect(db: &RocksDbStorage) -> Self {
         let latest_stats = collect_db_stats(&db.latest_db, &db.latest_cf_cache_handle);
-        let history_stats = collect_db_stats(&db.history_db, &db.historical_cf_cache_handle);
+        let history_stats = collect_db_stats(&db.recent_history_db, &db.historical_cf_cache_handle);
 
         // Compute global cache hit rate if we have Options with statistics enabled.
         let hits = db.db_options.get_ticker_count(Ticker::BlockCacheHit);

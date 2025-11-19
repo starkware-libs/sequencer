@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use itertools::Itertools;
+use rust_rocksdb::checkpoint::Checkpoint;
+use rust_rocksdb::properties::{ESTIMATE_PENDING_COMPACTION_BYTES, TOTAL_SST_FILES_SIZE};
 use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
     BlockBasedIndexType,
@@ -17,6 +19,7 @@ use rust_rocksdb::{
     DB,
     DEFAULT_COLUMN_FAMILY_NAME,
 };
+use tracing::info;
 
 use super::RocksdbStorageStats;
 use crate::storage_trait::{
@@ -28,7 +31,6 @@ use crate::storage_trait::{
     Storage,
     TrieKey,
 };
-
 // General database Options.
 
 const DB_BLOCK_SIZE: usize = 8 * 1024; // 8KB
@@ -58,6 +60,9 @@ pub const LATEST_TRIE_CF: &str = "latest_trie";
 pub const HISTORICAL_TRIES_CF: &str = "historical_tries";
 
 const TIMESTAMP_BYTE_SIZE: usize = 8;
+
+const MAX_RECENT_HISTORY_DB_SIZE: u64 = 1024 * 1024 * 1024 * 100; // 100GB
+const MAX_COMPACTION_DEBT: u64 = 1024 * 1024 * 1024 * 50; // 50GB
 
 pub struct CfOptions {
     pub options: Options,
@@ -91,7 +96,21 @@ impl Default for RocksDbOptions {
 
         let mut latest_cf_options = opts.clone();
         let (latest_block_options, latest_cache_handle) = get_latest_cf_block_options();
+        // We must have "latest" as a timestamped DB since after the checkpoint we will use TS on
+        // writes.
         latest_cf_options.set_block_based_table_factory(&latest_block_options);
+        latest_cf_options.set_comparator_with_ts(
+            "bytewise+u64ts",
+            TIMESTAMP_BYTE_SIZE,
+            Box::new(|a, b| a.cmp(b)),
+            Box::new(|tsa, tsb| be_u64(tsa).cmp(&be_u64(tsb))),
+            Box::new(|a, a_has_ts, b, b_has_ts| {
+                let a_key = if a_has_ts { &a[..a.len() - TIMESTAMP_BYTE_SIZE] } else { a };
+                let b_key = if b_has_ts { &b[..b.len() - TIMESTAMP_BYTE_SIZE] } else { b };
+                a_key.cmp(b_key)
+            }),
+        );
+
         let mut historical_cf_options = opts.clone();
         let (historical_block_options, historical_cache_handle) = get_historical_cf_block_options();
         historical_cf_options.set_block_based_table_factory(&historical_block_options);
@@ -190,10 +209,12 @@ impl RocksDbOptions {
 
 pub struct RocksDbStorage {
     pub(crate) latest_db: DB,
-    pub(crate) history_db: DB,
+    pub(crate) recent_history_db: DB,
+    pub(crate) old_history_dbs: Vec<DB>,
     pub(crate) write_options: WriteOptions,
     // Following fields are used for stats.
     pub(crate) db_options: Options,
+    pub(crate) history_options: Options,
     pub(crate) latest_cf_cache_handle: Cache,
     pub(crate) historical_cf_cache_handle: Cache,
 }
@@ -210,35 +231,80 @@ impl RocksDbStorage {
     }
 
     pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
-        // let cf_descriptors = vec![
-        //     ColumnFamilyDescriptor::new(LATEST_TRIE_CF, options.latest_cf_options.options),
-        //     ColumnFamilyDescriptor::new(HISTORICAL_TRIES_CF,
-        // options.historical_cf_options.options), ];
-
         let latest_path = path.join("latest");
         let history_path = path.join("history");
 
-        let latest_db = DB::open(&options.latest_cf_options.options, &latest_path)?;
-
-        let history_cf_desc = ColumnFamilyDescriptor::new(
-            DEFAULT_COLUMN_FAMILY_NAME,
-            options.historical_cf_options.options.clone(),
-        );
-        let history_db = DB::open_cf_descriptors(
-            &options.historical_cf_options.options,
-            &history_path,
-            vec![history_cf_desc],
-        )?;
+        let latest_db = open_db_with_default_cf(&latest_path, &options.latest_cf_options.options)?;
+        let history_db =
+            open_db_with_default_cf(&history_path, &options.historical_cf_options.options)?;
 
         Ok(Self {
             latest_db,
-            history_db,
+            recent_history_db: history_db,
+            old_history_dbs: vec![],
             write_options: options.write_options,
             db_options: options.general_db_options,
+            history_options: options.historical_cf_options.options,
             latest_cf_cache_handle: options.latest_cf_options.cache_handle,
             historical_cf_cache_handle: options.historical_cf_options.cache_handle,
         })
     }
+
+    pub fn maybe_create_new_checkpoint(&mut self) -> PatriciaStorageResult<()> {
+        if self.should_create_new_checkpoint()? {
+            info!("RocksDbStorage: Creating new checkpoint {}", self.old_history_dbs.len());
+
+            let new_checkpoint_path = {
+                let checkpoint = Checkpoint::new(&self.latest_db)?;
+                let previous_checkpoint_path = self.recent_history_db.path();
+                let new_checkpoint_path = previous_checkpoint_path
+                    .parent()
+                    .unwrap()
+                    .join(self.old_history_dbs.len().to_string());
+                checkpoint.create_checkpoint(&new_checkpoint_path)?;
+                new_checkpoint_path
+            };
+
+            let new_checkpoint_db =
+                open_db_with_default_cf(&new_checkpoint_path, &self.history_options)?;
+            let old_db = std::mem::replace(&mut self.recent_history_db, new_checkpoint_db);
+            // Consider stop working on the older history DB.
+            // old_db.set_options(&[("disable_auto_compactions", "true")])?;
+
+            self.old_history_dbs.push(old_db);
+
+            info!("RocksDbStorage: Created new checkpoint {}", self.old_history_dbs.len());
+        }
+
+        Ok(())
+    }
+
+    fn should_create_new_checkpoint(&self) -> PatriciaStorageResult<bool> {
+        let total_sst_bytes =
+            self.recent_history_db.property_int_value(TOTAL_SST_FILES_SIZE.as_str())?.unwrap_or(0);
+        let pending_compaction_bytes = self
+            .recent_history_db
+            .property_int_value(ESTIMATE_PENDING_COMPACTION_BYTES)?
+            .unwrap_or(0);
+
+        let should_create = total_sst_bytes > MAX_RECENT_HISTORY_DB_SIZE
+            || pending_compaction_bytes > MAX_COMPACTION_DEBT;
+
+        if should_create {
+            info!(
+                "RocksDbStorage: SST size is {} and compaction debt is {} ",
+                total_sst_bytes / (1024 * 1024),
+                pending_compaction_bytes / (1024 * 1024)
+            );
+        };
+
+        Ok(should_create)
+    }
+}
+
+fn open_db_with_default_cf(path: &Path, options: &Options) -> PatriciaStorageResult<DB> {
+    let cf_desc = ColumnFamilyDescriptor::new(DEFAULT_COLUMN_FAMILY_NAME, options.clone());
+    Ok(DB::open_cf_descriptors(&options, path, vec![cf_desc])?)
 }
 
 trait RocksDbKey<'a> {
@@ -250,7 +316,7 @@ impl<'a> RocksDbKey<'a> for TrieKey {
     fn get_db(&self, storage: &'a RocksDbStorage) -> &'a DB {
         match self {
             TrieKey::LatestTrie(_) => &storage.latest_db,
-            TrieKey::HistoricalTries(_, _) => &storage.history_db,
+            TrieKey::HistoricalTries(_, _) => &storage.recent_history_db,
         }
     }
 
@@ -305,9 +371,11 @@ impl Storage for RocksDbStorage {
             timestamps.all_equal_value().map_err(|_| PatriciaStorageError::MultipleTimestamps)?;
 
         let mut read_options = ReadOptions::default();
+        read_options.set_timestamp(0_u64.to_be_bytes());
+
         let db: &DB = if let Some(timestamp) = timestamp {
             read_options.set_timestamp(timestamp.to_be_bytes());
-            &self.history_db
+            &self.recent_history_db
         } else {
             &self.latest_db
         };
@@ -333,24 +401,19 @@ impl Storage for RocksDbStorage {
         let timestamp =
             timestamps.all_equal_value().map_err(|_| PatriciaStorageError::MultipleTimestamps)?;
 
-        let db: &DB = if timestamp.is_some() { &self.history_db } else { &self.latest_db };
+        let db: &DB = if timestamp.is_some() { &self.recent_history_db } else { &self.latest_db };
+        let timestamp = timestamp.unwrap_or_default();
 
         let mut batch = WriteBatch::default();
-        if let Some(timestamp) = timestamp {
-            for key in key_to_value.keys() {
-                let raw_key: &DbKey = key.into();
-                batch.put_cf_with_ts(
-                    &db.cf_handle(DEFAULT_COLUMN_FAMILY_NAME).unwrap(),
-                    &raw_key.0,
-                    timestamp.to_be_bytes(),
-                    &key_to_value[key].0,
-                );
-            }
-        } else {
-            for key in key_to_value.keys() {
-                let raw_key: &DbKey = key.into();
-                batch.put(&raw_key.0, &key_to_value[key].0);
-            }
+
+        for key in key_to_value.keys() {
+            let raw_key: &DbKey = key.into();
+            batch.put_cf_with_ts(
+                &db.cf_handle(DEFAULT_COLUMN_FAMILY_NAME).unwrap(),
+                &raw_key.0,
+                timestamp.to_be_bytes(),
+                &key_to_value[key].0,
+            );
         }
 
         Ok(db.write_opt(&batch, &self.write_options)?)
@@ -369,5 +432,9 @@ impl Storage for RocksDbStorage {
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(RocksdbStorageStats::collect(self))
+    }
+
+    fn reorder_database(&mut self) -> PatriciaStorageResult<()> {
+        self.maybe_create_new_checkpoint()
     }
 }

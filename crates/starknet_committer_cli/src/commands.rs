@@ -256,6 +256,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         time_measurement.start_measurement(Action::EndToEnd);
+
+        storage.reorder_database().unwrap();
+
         let filled_forest = commit_block(input, &mut storage, Some(&mut time_measurement))
             .await
             .expect("Failed to commit the given block.");
