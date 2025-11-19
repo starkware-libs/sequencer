@@ -12,7 +12,7 @@ use blockifier_reexecution::state_reader::utils::{
     write_block_reexecution_data_to_file,
     FULL_RESOURCES_DIR,
 };
-use clap::{Args, Parser, Subcommand};
+use clap::{ArgGroup, Args, Parser, Subcommand};
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
@@ -85,7 +85,9 @@ enum Command {
         block_number: u64,
     },
 
-    /// Reexecutes a single transaction from a JSON file using RPC to fetch block context.
+    /// Reexecutes a single transaction from a JSON file or given a transaction hash, using RPC to
+    /// fetch block context.
+    #[clap(group(ArgGroup::new("tx_input").required(true).args(&["transaction_path", "tx_hash"])))]
     ReExecuteSingleTx {
         #[clap(flatten)]
         rpc_args: RpcArgs,
@@ -94,11 +96,13 @@ enum Command {
         #[clap(long, short = 'b')]
         block_number: u64,
 
-        // TODO(Yonatank): make this field optional and add an option to provide a transaction hash
-        // instead (and use it to get the transaction from the RPC).
         /// Path to the JSON file containing the transaction.
         #[clap(long, short = 't')]
-        transaction_path: String,
+        transaction_path: Option<String>,
+
+        /// Transaction hash to fetch the transaction from RPC.
+        #[clap(long)]
+        tx_hash: Option<String>,
     },
 
     /// Writes the RPC queries of all (selected) blocks to json files.
@@ -218,11 +222,25 @@ async fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::ReExecuteSingleTx { block_number, rpc_args, transaction_path } => {
+        Command::ReExecuteSingleTx { block_number, rpc_args, transaction_path, tx_hash } => {
+            // Validate that exactly one of transaction_path or tx_hash is provided.
+            if transaction_path.is_some() && tx_hash.is_some() {
+                eprintln!(
+                    "Error: Please provide either --transaction-path or --tx-hash, but not both."
+                );
+                std::process::exit(1);
+            }
+
+            let input_description = if transaction_path.is_some() {
+                format!("from file {}", transaction_path.as_ref().unwrap())
+            } else {
+                format!("with hash {}", tx_hash.as_ref().unwrap())
+            };
+
             println!(
-                "Executing single transaction from {transaction_path}, for block number \
-                 {block_number}, and using node url {}.",
-                rpc_args.node_url
+                "Executing single transaction {}, for block number {block_number}, and using node \
+                 url {}.",
+                input_description, rpc_args.node_url
             );
 
             let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
@@ -236,6 +254,7 @@ async fn main() {
                     node_url,
                     chain_id,
                     transaction_path,
+                    tx_hash,
                 )
             })
             .await
