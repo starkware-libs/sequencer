@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import requests
 
@@ -67,3 +67,29 @@ def get_logs(from_block: int, to_block: int, rpc_url: str = ALCHEMY_URL) -> List
         logs.append(log)
 
     return logs
+
+
+def get_timestamp_of_block_by_number(
+    block_number: int, rpc_url: str = ALCHEMY_URL
+) -> Optional[int]:
+    """
+    Get block timestamp by block number using eth_getBlockByNumber RPC method.
+    """
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "eth_getBlockByNumber",
+        "params": [hex(block_number), False],
+        "id": 1,
+    }
+
+    response = requests.post(rpc_url, json=payload, timeout=10)
+    response.raise_for_status()
+    result = response.json()
+
+    block = result.get("result")
+    if block is None:
+        # Block not found
+        return None
+
+    # Timestamp is hex string, convert to int.
+    return int(block["timestamp"], 16)
