@@ -31,7 +31,7 @@ pub struct FlavorFields {
 }
 
 /// Specific flavors of workloads to run in the benchmark.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum BenchmarkFlavor {
     // Constant number of updates per iteration.
     #[default]
@@ -48,7 +48,7 @@ pub enum BenchmarkFlavor {
     Continuous,
 }
 
-#[derive(Default, PartialEq)]
+#[derive(Default, PartialEq, Clone)]
 pub enum InterferenceFlavor {
     // No interference.
     #[default]
@@ -58,6 +58,7 @@ pub enum InterferenceFlavor {
 }
 
 /// Settings for interference (spawned tasks that run in parallel to the main benchmark).
+#[derive(Clone)]
 pub struct InterferenceFields {
     // The type of interference to apply.
     pub interference_type: InterferenceFlavor,
