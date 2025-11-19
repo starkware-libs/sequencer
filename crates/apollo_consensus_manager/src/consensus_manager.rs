@@ -22,7 +22,12 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::metrics::{BroadcastNetworkMetrics, EventMetrics, NetworkMetrics};
+use apollo_network::metrics::{
+    BroadcastNetworkMetrics,
+    EventMetrics,
+    LatencyMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
@@ -44,6 +49,7 @@ use crate::metrics::{
     CONSENSUS_NETWORK_EVENTS,
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PING_LATENCY,
     CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
@@ -167,7 +173,7 @@ impl ConsensusManager {
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
             event_metrics: Some(EventMetrics { event_counter: CONSENSUS_NETWORK_EVENTS }),
-            latency_metrics: None,
+            latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
         NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics)
