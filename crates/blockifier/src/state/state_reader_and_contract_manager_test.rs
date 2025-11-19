@@ -6,6 +6,7 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::execution::contract_class::RunnableCompiledClass;
+use crate::metrics::{mock_class_cache_metrics, MockCacheMetricsTrait};
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(feature = "cairo_native")]
 use crate::state::global_cache::{CachedCairoNative, CompiledClasses};
@@ -17,7 +18,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 fn build_reader_and_declare_contract(
     contract: FeatureContractData,
     contract_manager_config: ContractClassManagerConfig,
-) -> StateReaderAndContractManager<DictStateReader> {
+) -> StateReaderAndContractManager<DictStateReader, MockCacheMetricsTrait> {
     let mut reader = DictStateReader::default();
 
     // Declare the contract in the storage.
@@ -26,6 +27,7 @@ fn build_reader_and_declare_contract(
     StateReaderAndContractManager {
         state_reader: reader,
         contract_class_manager: ContractClassManager::start(contract_manager_config),
+        class_cache_metrics: mock_class_cache_metrics(),
     }
 }
 

@@ -10,6 +10,7 @@ use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
+use crate::metrics::{mock_class_cache_metrics, MockCacheMetricsTrait};
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -113,7 +114,7 @@ pub fn test_state_with_contract_manager(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
-) -> CachedState<StateReaderAndContractManager<DictStateReader>> {
+) -> CachedState<StateReaderAndContractManager<DictStateReader, MockCacheMetricsTrait>> {
     let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
@@ -152,7 +153,7 @@ pub fn test_state_inner_with_contract_manager(
     contract_instances: &[(FeatureContractData, u16)],
     compiled_classes_hash_version: &HashVersion,
     erc20_version: CairoVersion,
-) -> CachedState<StateReaderAndContractManager<DictStateReader>> {
+) -> CachedState<StateReaderAndContractManager<DictStateReader, MockCacheMetricsTrait>> {
     let mut reader = DictStateReader::default();
     setup_test_state(
         chain_info,
@@ -175,6 +176,7 @@ pub fn test_state_inner_with_contract_manager(
     let reader = StateReaderAndContractManager {
         state_reader: reader.clone(),
         contract_class_manager: manager,
+        class_cache_metrics: mock_class_cache_metrics(),
     };
 
     CachedState::from(reader)

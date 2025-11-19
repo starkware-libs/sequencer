@@ -28,6 +28,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
+use blockifier::metrics::CacheMetrics;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
@@ -54,6 +55,7 @@ use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransacti
 use crate::metrics::{
     record_block_close_reason,
     BlockCloseReason,
+    CLASS_CACHE_METRICS,
     PROPOSER_DEFERRED_TXS,
     VALIDATOR_WASTED_TXS,
 };
@@ -667,8 +669,9 @@ pub struct BlockMetadata {
 
 // Type definitions for the abort channel required to abort the block builder.
 pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
-pub type BatcherWorkerPool =
-    Arc<WorkerPool<CachedState<StateReaderAndContractManager<ApolloReader>>>>;
+pub type ApolloStateReaderAndContractManager =
+    StateReaderAndContractManager<ApolloReader, CacheMetrics>;
+pub type BatcherWorkerPool = Arc<WorkerPool<CachedState<ApolloStateReaderAndContractManager>>>;
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
@@ -703,9 +706,8 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<
-        ConcurrentTransactionExecutor<StateReaderAndContractManager<ApolloReader>>,
-    > {
+    ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
+    {
         info!(
             "preprocess and create transaction executor for block {}",
             block_metadata.block_info.block_number
@@ -728,6 +730,7 @@ impl BlockBuilderFactory {
         let state_reader = StateReaderAndContractManager {
             state_reader: apollo_reader,
             contract_class_manager: self.contract_class_manager.clone(),
+            class_cache_metrics: CLASS_CACHE_METRICS,
         };
 
         let executor = ConcurrentTransactionExecutor::start_block(
