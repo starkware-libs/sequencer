@@ -2,7 +2,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_milliseconds_to_duration;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
@@ -37,9 +42,7 @@ impl Default for BlockBuilderConfig {
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
-            // TODO(Itamar): Change to None once the versioned constants overrides are optional in
-            // the config schema.
-            versioned_constants_overrides: Some(VersionedConstantsOverrides::default()),
+            versioned_constants_overrides: None,
         }
     }
 }
@@ -70,8 +73,8 @@ impl SerializeConfig for BlockBuilderConfig {
              being executed, the proposer will finish building the current block.",
             ParamPrivacyInput::Public,
         )]));
-        dump.append(&mut prepend_sub_config_name(
-            self.versioned_constants_overrides.clone().unwrap_or_default().dump(),
+        dump.append(&mut ser_optional_sub_config(
+            &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
         dump
