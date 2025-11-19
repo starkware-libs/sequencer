@@ -19,9 +19,19 @@ pub trait FetchCompiledClasses: StateReader {
 }
 
 pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
-    pub state_reader: S,
-    pub contract_class_manager: ContractClassManager,
-    pub class_cache_metrics: CacheMetrics,
+    state_reader: S,
+    contract_class_manager: ContractClassManager,
+    class_cache_metrics: CacheMetrics,
+}
+
+impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
+    pub fn new(
+        state_reader: S,
+        contract_class_manager: ContractClassManager,
+        class_cache_metrics: CacheMetrics,
+    ) -> Self {
+        Self { state_reader, contract_class_manager, class_cache_metrics }
+    }
 }
 
 impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {

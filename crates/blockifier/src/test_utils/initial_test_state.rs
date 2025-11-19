@@ -184,8 +184,8 @@ pub fn test_state_inner_with_contract_manager(
 }
 
 pub fn state_reader_and_contract_manager_for_testing<Reader: FetchCompiledClasses>(
-    reader: Reader,
-    manager: ContractClassManager,
+    state_reader: Reader,
+    contract_class_manager: ContractClassManager,
 ) -> StateReaderAndContractManager<Reader> {
     // Placeholder - this value is never used in tests.
     let class_cache_metrics = CacheMetrics {
@@ -202,9 +202,5 @@ pub fn state_reader_and_contract_manager_for_testing<Reader: FetchCompiledClasse
             0,
         ),
     };
-    StateReaderAndContractManager {
-        state_reader: reader,
-        contract_class_manager: manager,
-        class_cache_metrics,
-    }
+    StateReaderAndContractManager::new(state_reader, contract_class_manager, class_cache_metrics)
 }

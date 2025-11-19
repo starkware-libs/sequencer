@@ -725,11 +725,11 @@ impl BlockBuilderFactory {
         let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
         let apollo_reader =
             ApolloReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
-        let state_reader = StateReaderAndContractManager {
-            state_reader: apollo_reader,
-            contract_class_manager: self.contract_class_manager.clone(),
-            class_cache_metrics: CLASS_CACHE_METRICS,
-        };
+        let state_reader = StateReaderAndContractManager::new(
+            apollo_reader,
+            self.contract_class_manager.clone(),
+            CLASS_CACHE_METRICS,
+        );
 
         let executor = ConcurrentTransactionExecutor::start_block(
             state_reader,

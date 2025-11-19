@@ -80,11 +80,11 @@ impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFa
             })?;
         let latest_block_info = get_latest_block_info(&state_reader)?;
 
-        let state_reader_and_contract_manager = StateReaderAndContractManager {
+        let state_reader_and_contract_manager = StateReaderAndContractManager::new(
             state_reader,
-            contract_class_manager: self.contract_class_manager.clone(),
-            class_cache_metrics: CLASS_CACHE_METRICS,
-        };
+            self.contract_class_manager.clone(),
+            CLASS_CACHE_METRICS,
+        );
 
         let state = CachedState::new(state_reader_and_contract_manager);
         let mut versioned_constants = VersionedConstants::get_versioned_constants(

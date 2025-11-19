@@ -426,11 +426,11 @@ impl PyBlockExecutor {
                 0,
             ),
         };
-        StateReaderAndContractManager {
-            state_reader: apollo_reader,
-            contract_class_manager: self.contract_class_manager.clone(),
-            class_cache_metrics: placeholder_class_cache_metrics,
-        }
+        StateReaderAndContractManager::new(
+            apollo_reader,
+            self.contract_class_manager.clone(),
+            placeholder_class_cache_metrics,
+        )
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
