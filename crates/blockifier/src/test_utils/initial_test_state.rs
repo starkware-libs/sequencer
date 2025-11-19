@@ -173,11 +173,8 @@ pub fn test_state_inner_with_contract_manager(
         run_cairo_native,
         wait_on_native_compilation,
     ));
-    let reader = StateReaderAndContractManager {
-        state_reader: reader.clone(),
-        contract_class_manager: manager,
-        class_cache_metrics: mock_class_cache_metrics(),
-    };
+    let reader =
+        StateReaderAndContractManager::new(reader.clone(), manager, mock_class_cache_metrics());
 
     CachedState::from(reader)
 }

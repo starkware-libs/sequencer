@@ -24,11 +24,11 @@ fn build_reader_and_declare_contract(
     // Declare the contract in the storage.
     reader.add_class(&contract, &HashVersion::V2);
 
-    StateReaderAndContractManager {
-        state_reader: reader,
-        contract_class_manager: ContractClassManager::start(contract_manager_config),
-        class_cache_metrics: mock_class_cache_metrics(),
-    }
+    StateReaderAndContractManager::new(
+        reader,
+        ContractClassManager::start(contract_manager_config),
+        mock_class_cache_metrics(),
+    )
 }
 
 #[rstest]

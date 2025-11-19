@@ -60,11 +60,11 @@ fn state_reader_and_contract_manager(
         block_number,
         runtime,
     );
-    StateReaderAndContractManager {
-        state_reader: Box::new(state_sync_reader),
-        contract_class_manager: contract_class_manager.clone(),
-        class_cache_metrics: mock_class_cache_metrics(),
-    }
+    StateReaderAndContractManager::new(
+        Box::new(state_sync_reader),
+        contract_class_manager.clone(),
+        mock_class_cache_metrics(),
+    )
 }
 
 struct GetCompiledClassTestScenario {

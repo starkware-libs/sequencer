@@ -421,11 +421,11 @@ impl PyBlockExecutor {
         self.storage.validate_aligned(next_block_number.0);
         let apollo_reader = ApolloReader::new(self.storage.reader().clone(), next_block_number);
 
-        StateReaderAndContractManager {
-            state_reader: apollo_reader,
-            contract_class_manager: self.contract_class_manager.clone(),
-            class_cache_metrics: EmptyClassCacheMetrics,
-        }
+        StateReaderAndContractManager::new(
+            apollo_reader,
+            self.contract_class_manager.clone(),
+            EmptyClassCacheMetrics,
+        )
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
