@@ -18,16 +18,23 @@ cargo run --bin blockifier_reexecution rpc-test -n <node_url> -b <block_number>
 ```
 
 - **Single transaction reexecution:**
-Simulates the execution of a single transaction in a specified block.  
-The transaction data is read from a JSON file given path, and the block context and state are being fetched using RPC calls according to the supplied block number. Unlike the RPC test, this command does not assert correctness - it only prints the execution result. This is useful for testing individual transactions without running a full block reexecution.
+Simulates the execution of a single transaction in a specified block.
+The transaction data can be provided in one of two ways:
+1- From a JSON file: `from-file <tx_path>`
+2- From a transaction hash: `from-hash <tx_hash>` (the transaction is fetched via RPC)
+In both cases, the block context and state are fetched via RPC according to the supplied block number.
+Unlike the RPC test, this command does not assert correctness - it only prints the execution result.
+This is useful for testing individual transactions without running a full block reexecution.
+To run, use either a transaction file or a transaction hash (not both).
+Using a transaction file:
 ```
-cargo run --bin blockifier_reexecution execute-single-tx -n <node_url> -b <block_number> -t <transaction_path>
+cargo run --bin blockifier_reexecution reexecute-single-tx -n <node_url> -b <block_number> from-file <tx_path>
+```
+Using a transaction hash:
+```
+cargo run --bin blockifier_reexecution reexecute-single-tx -n <node_url> -b <block_number> from-hash <tx_hash>
 ```
 
-For example, if you have a file `resources/sample_transactions/my_transaction.json`, you would run:
-```
-cargo run --bin blockifier_reexecution re-execute-single-tx -n <node_url> -b <block_number> -t resources/sample_transactions/my_transaction.json
-```
 
 - **RPC test with preparation for offline reexecution:**
 Same as the RPC test; can be executed on multiple blocks. If the block reexecution succeeds, the data required for offline reexecution is saved to a JSON file.
