@@ -4,7 +4,6 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
-use starknet_api::state::StorageKey;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
     create_binary_entry_from_u128,
@@ -378,7 +377,7 @@ fn create_storage_updates(
                     .iter()
                     .map(|val| {
                         (
-                            StarknetStorageKey(StorageKey::from(u128::from(*val))),
+                            StarknetStorageKey::from(u128::from(*val)),
                             StarknetStorageValue(Felt::from(u128::from(*val))),
                         )
                     })

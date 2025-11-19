@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use rand::Rng;
 use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::state::StorageKey;
 
 use crate::block_committer::input::{StarknetStorageKey, StarknetStorageValue, StateDiff};
 use crate::block_committer::random_structs::RandomValue;
@@ -45,8 +44,7 @@ fn generate_random_storage_entry<R: Rng>(
     rng: &mut R,
     key_override: Option<StarknetStorageKey>,
 ) -> (StarknetStorageKey, StarknetStorageValue) {
-    let key =
-        key_override.unwrap_or(StarknetStorageKey(StorageKey(PatriciaKey::random(rng, None))));
+    let key = key_override.unwrap_or(StarknetStorageKey::from(PatriciaKey::random(rng, None)));
     let value = StarknetStorageValue::random(rng, None);
     (key, value)
 }
