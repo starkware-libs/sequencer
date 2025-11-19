@@ -101,6 +101,27 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
+  "consensus.dynamic_config.future_msg_limit.future_height_limit": {
+    "description": "How many heights in the future should we cache.",
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.future_msg_limit.future_height_round_limit": {
+    "description": "How many rounds should we cache for future heights.",
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
+  },
+  "consensus.dynamic_config.future_msg_limit.future_round_limit": {
+    "description": "How many rounds in the future (for current height) should we cache.",
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
+  },
   "consensus.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "value": {
@@ -132,27 +153,6 @@ expression: dumped_default_config
   "consensus.dynamic_config.validator_id": {
     "description": "The validator id of the node.",
     "value": "0x64",
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_msg_limit.future_height_limit": {
-    "description": "How many heights in the future should we cache.",
-    "value": {
-      "$serde_json::private::Number": "10"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_msg_limit.future_height_round_limit": {
-    "description": "How many rounds should we cache for future heights.",
-    "value": {
-      "$serde_json::private::Number": "1"
-    },
-    "privacy": "Public"
-  },
-  "consensus.static_config.future_msg_limit.future_round_limit": {
-    "description": "How many rounds in the future (for current height) should we cache.",
-    "value": {
-      "$serde_json::private::Number": "10"
-    },
     "privacy": "Public"
   },
   "consensus.static_config.startup_delay": {
