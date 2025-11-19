@@ -1,4 +1,3 @@
-pub mod metrics;
 mod swarm_trait;
 #[cfg(test)]
 mod test;
@@ -22,14 +21,13 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
-use metrics::NetworkMetrics;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
+use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
-use crate::network_manager::metrics::BroadcastNetworkMetrics;
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};

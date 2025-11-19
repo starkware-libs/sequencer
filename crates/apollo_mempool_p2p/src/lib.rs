@@ -10,11 +10,7 @@ use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{
-    BroadcastNetworkMetrics,
-    EventMetrics,
-    NetworkMetrics,
-};
+use apollo_network::metrics::{BroadcastNetworkMetrics, EventMetrics, NetworkMetrics};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;

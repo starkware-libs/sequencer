@@ -9,6 +9,7 @@ mod discovery;
 mod e2e_broadcast_test;
 mod event_tracker;
 pub mod gossipsub_impl;
+pub mod metrics;
 pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;

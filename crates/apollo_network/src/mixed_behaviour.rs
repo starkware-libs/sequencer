@@ -16,7 +16,7 @@ use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PR
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
-use crate::network_manager::metrics::EventMetrics;
+use crate::metrics::EventMetrics;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, prune_dead_connections, sqmr};
 

@@ -39,10 +39,7 @@ use apollo_consensus_orchestrator::metrics::{
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
 };
 use apollo_metrics::metrics::MetricQueryName;
-use apollo_network::network_manager::metrics::{
-    LABEL_NAME_BROADCAST_DROP_REASON,
-    LABEL_NAME_EVENT_TYPE,
-};
+use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};

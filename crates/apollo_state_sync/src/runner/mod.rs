@@ -13,7 +13,7 @@ use apollo_central_sync::{
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
-use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientError};
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};

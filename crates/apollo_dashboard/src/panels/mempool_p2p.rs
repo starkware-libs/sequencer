@@ -7,10 +7,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
 use apollo_metrics::metrics::MetricDetails;
-use apollo_network::network_manager::metrics::{
-    LABEL_NAME_BROADCAST_DROP_REASON,
-    LABEL_NAME_EVENT_TYPE,
-};
+use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 
 use crate::dashboard::{Panel, PanelType, Row};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};

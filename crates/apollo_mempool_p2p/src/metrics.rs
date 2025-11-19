@@ -7,7 +7,7 @@ use apollo_infra::metrics::{
 };
 use apollo_mempool_p2p_types::communication::MEMPOOL_P2P_REQUEST_LABELS;
 use apollo_metrics::{define_infra_metrics, define_metrics};
-use apollo_network::network_manager::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
+use apollo_network::metrics::{EVENT_TYPE_LABELS, NETWORK_BROADCAST_DROP_LABELS};
 
 define_infra_metrics!(mempool_p2p);
 

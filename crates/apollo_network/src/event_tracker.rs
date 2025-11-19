@@ -13,7 +13,7 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tracing::debug;
 
-use crate::network_manager::metrics::{EventMetrics, EventType};
+use crate::metrics::{EventMetrics, EventType};
 
 /// A behavior that tracks all network events and updates metrics accordingly.
 /// This behavior does not generate any events of its own and has no connection handler.
