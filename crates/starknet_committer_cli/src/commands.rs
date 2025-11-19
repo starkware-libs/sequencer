@@ -1,21 +1,10 @@
 use std::path::Path;
 
-use blake2::digest::consts::U31;
-use blake2::{Blake2s, Digest};
-use rand::distributions::Uniform;
-use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::SeedableRng;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::commit::commit_block;
-use starknet_committer::block_committer::input::{
-    FactsDbInitialRead,
-    Input,
-    ReaderConfig,
-    StarknetStorageKey,
-    StateDiff,
-};
-use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
+use starknet_committer::block_committer::input::{FactsDbInitialRead, Input, ReaderConfig};
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::forest_trait::ForestWriter;
@@ -24,11 +13,11 @@ use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig,
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
-use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
-use starknet_types_core::felt::Felt;
+use starknet_patricia_storage::storage_trait::{Storage, StorageStats};
 use tokio::task::JoinSet;
 use tracing::{error, info, warn};
 
+use crate::interference::apply_interference;
 use crate::presets::types::flavors::{
     BenchmarkFlavor,
     FlavorFields,
@@ -46,129 +35,6 @@ use crate::presets::types::storage::{
 use crate::presets::types::PresetFields;
 
 pub type InputImpl = Input<FactsDbInitialRead>;
-
-const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
-const FLAVOR_PERIOD_PERIOD: usize = 500;
-
-const FLAVOR_OVERLAP_WARMUP_BLOCKS: usize = 100_000;
-
-const INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS: usize = 1000;
-
-/// Given a range, generates pseudorandom 31-byte storage keys hashed from the numbers in the range.
-fn leaf_preimages_to_storage_keys(
-    indices: impl IntoIterator<Item = usize>,
-) -> Vec<StarknetStorageKey> {
-    indices
-        .into_iter()
-        .map(|i| {
-            let mut hasher = Blake2s::<U31>::new();
-            hasher.update(i.to_be_bytes().as_slice());
-            let result = hasher.finalize();
-            StarknetStorageKey::try_from(Felt::from_bytes_be_slice(result.as_slice())).unwrap()
-        })
-        .collect()
-}
-
-impl BenchmarkFlavor {
-    /// Returns the total amount of nonzero leaves in the system up to (not including) the block
-    /// number.
-    fn total_nonzero_leaves_up_to(&self, n_updates_arg: usize, block_number: usize) -> usize {
-        let twenty_percent = n_updates_arg / 5;
-        match self {
-            Self::Constant | Self::Continuous => block_number * n_updates_arg,
-            Self::Overlap => {
-                if block_number < FLAVOR_OVERLAP_WARMUP_BLOCKS {
-                    block_number * n_updates_arg
-                } else {
-                    FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates_arg
-                        + (block_number - FLAVOR_OVERLAP_WARMUP_BLOCKS) * twenty_percent
-                }
-            }
-            Self::PeriodicPeaks => {
-                let updates_per_period = n_updates_arg * FLAVOR_PERIOD_MANY_WINDOW
-                    + twenty_percent * (FLAVOR_PERIOD_PERIOD - FLAVOR_PERIOD_MANY_WINDOW);
-                let mod_period = block_number % FLAVOR_PERIOD_PERIOD;
-                let is_many_window = mod_period < FLAVOR_PERIOD_MANY_WINDOW;
-
-                let total_leaves_added_in_period = if is_many_window {
-                    // We are still in the initial window with many updates.
-                    n_updates_arg * mod_period
-                } else {
-                    // We have passed the many-updates window.
-                    n_updates_arg * FLAVOR_PERIOD_MANY_WINDOW
-                        + twenty_percent * (mod_period - FLAVOR_PERIOD_MANY_WINDOW)
-                };
-                (block_number / FLAVOR_PERIOD_PERIOD) * updates_per_period
-                    + total_leaves_added_in_period
-            }
-        }
-    }
-
-    /// Returns the keys of the leaves that are updated in the given block.
-    /// Depending on the flavor, some of the leaves to be updated are chosen randomly from the
-    /// previous leaves, but all new leaf indices are deterministic.
-    fn leaf_update_keys(
-        &self,
-        n_updates_arg: usize,
-        block_number: usize,
-        rng: &mut SmallRng,
-    ) -> Vec<StarknetStorageKey> {
-        let twenty_percent = n_updates_arg / 5;
-        let total_leaves = self.total_nonzero_leaves_up_to(n_updates_arg, block_number);
-        match self {
-            Self::Constant => {
-                leaf_preimages_to_storage_keys(total_leaves..(total_leaves + n_updates_arg))
-            }
-            Self::Continuous => (total_leaves..(total_leaves + n_updates_arg))
-                .map(|i| StarknetStorageKey::try_from(Felt::from(i)).unwrap())
-                .collect(),
-            Self::Overlap => {
-                // Invariant: if there are a total of L leaves in the DB, then the nonzero keys are
-                // [hash(i) for i in 0..L].
-                // Warmup phase: all leaves should be new, until 100M nonzero leaves exist.
-                leaf_preimages_to_storage_keys(if block_number < FLAVOR_OVERLAP_WARMUP_BLOCKS {
-                    // Warmup phase: all leaves should be new.
-                    (total_leaves..(total_leaves + n_updates_arg)).collect()
-                } else {
-                    // We are warmed up, so only 20% of the leaves should be new.
-                    // The total number of updates remains constant in this flavor.
-                    // Sample (n_updates-new_leaves) old indices uniformly at random, from the
-                    // previous leaves. Choose leaves from the (overlap_warmup_blocks * n_updates)
-                    // most recent leaves.
-                    let start_index = total_leaves - (FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates_arg);
-                    let n_overlap_leaves = n_updates_arg - twenty_percent;
-                    let updated_keys =
-                        (start_index..total_leaves).choose_multiple(rng, n_overlap_leaves);
-                    let new_keys = (total_leaves..(total_leaves + twenty_percent)).collect();
-                    [updated_keys, new_keys].concat()
-                })
-            }
-            Self::PeriodicPeaks => {
-                let new_leaves = if block_number % FLAVOR_PERIOD_PERIOD < FLAVOR_PERIOD_MANY_WINDOW
-                {
-                    n_updates_arg
-                } else {
-                    twenty_percent
-                };
-                leaf_preimages_to_storage_keys(total_leaves..(total_leaves + new_leaves))
-            }
-        }
-    }
-
-    /// The nonzero leaf indices in the system are uniquely determined by the block number (see
-    /// [Self::leaf_update_keys]), however, the actual state diff can be random depending on the
-    /// flavor (nonzero leaf updates can be randomized).
-    fn generate_state_diff(
-        &self,
-        n_updates_arg: usize,
-        block_number: usize,
-        rng: &mut SmallRng,
-    ) -> StateDiff {
-        let leaf_keys = self.leaf_update_keys(n_updates_arg, block_number, rng);
-        let n_updates = leaf_keys.len();
-        generate_random_state_diff(rng, n_updates, Some(leaf_keys))
-    }
-}
 
 pub async fn run_benchmark(preset_fields: &PresetFields) {
     match preset_fields.storage_layout() {
@@ -365,38 +231,6 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
     );
 }
 
-fn apply_interference<S: AsyncStorage>(
-    interference_type: &InterferenceFlavor,
-    benchmark_flavor: &BenchmarkFlavor,
-    n_updates_arg: usize,
-    block_number: usize,
-    task_set: &mut JoinSet<()>,
-    mut storage: S,
-    rng: &mut SmallRng,
-) {
-    match interference_type {
-        InterferenceFlavor::None => {}
-        InterferenceFlavor::Read1KEveryBlock => {
-            let total_leaves =
-                benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
-            // Avoid creating an iterator over the entire range - select random leaves, with
-            // possible repetition. Probability of repitition will decrease as the number of
-            // leaves increases.
-            let dist = Uniform::new(0, total_leaves);
-            let preimages = (0..INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS)
-                .map(|_| rng.sample(dist))
-                .collect::<Vec<_>>();
-            task_set.spawn(async move {
-                let keys = leaf_preimages_to_storage_keys(preimages)
-                    .iter()
-                    .map(|k| DbKey((**k.0).to_bytes_be().to_vec()))
-                    .collect::<Vec<_>>();
-                storage.mget(&keys.iter().collect::<Vec<&DbKey>>()).await.unwrap();
-            });
-        }
-    }
-}
-
 /// Runs the committer on n_iterations random generated blocks.
 /// Prints the time measurement to the console and saves statistics to a CSV file in the given
 /// output directory.
@@ -494,7 +328,8 @@ pub async fn run_storage_benchmark<S: Storage>(
                     &mut interference_task_set,
                     async_storage,
                     &mut rng,
-                );
+                )
+                .await;
             } else if !matches!(interference_type, InterferenceFlavor::None) {
                 warn!(
                     "Interference concurrency limit ({interference_concurrency_limit}) reached. \
